@@ -2,6 +2,7 @@
 //! with the applegpu ISA layer it depends on and the kernel generators used by the offline verifier.
 
 pub mod cost;
+pub mod dispatch;
 pub mod isa;
 pub mod kernels;
 pub mod pyrandom;

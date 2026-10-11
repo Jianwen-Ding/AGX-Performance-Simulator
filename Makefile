@@ -10,6 +10,7 @@ help:
 	@echo 'make rust               Build the model (rust/target/release: agx_cost, agx_predict, verify_cost_model, agx_bench)'
 	@echo 'make verify-cost-model  Offline: model accuracy against all stored measurements, diffed against verify-output.txt'
 	@echo 'make verify-memory-model  Offline: memory-hierarchy model against the stored memory measurements (~2 min)'
+	@echo 'make verify-dispatch    Offline: whole-dispatch model against 25 stored dispatches'
 	@echo 'make test               Offline: Rust unit and equivalence tests'
 	@echo 'make check              Offline: Python syntax check of the hardware scripts'
 	@echo 'make verify-bench       Offline: check the retained instruction-bench evidence'
@@ -28,6 +29,9 @@ verify-cost-model: rust
 
 verify-memory-model: rust
 	rust/target/release/mem_check --stored --limit 0.1
+
+verify-dispatch: rust
+	rust/target/release/dispatch_check -v
 
 check:
 	$(PYTHON) -B -m py_compile scripts/*.py

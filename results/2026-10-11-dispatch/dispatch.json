@@ -1,0 +1,506 @@
+{
+"device": "M2 Max G14C B1, direct DRM",
+"method": "min firmware duration of 8 back-to-back dispatches after a warm-up dispatch (top DVFS level); harness uniforms u4=0, u5=grid",
+"rows": [
+{
+"case": "empty",
+"grid": 4194304,
+"wg": 256,
+"regs": 64,
+"table_words": 0,
+"min_us": 67.0,
+"median_us": 67.29,
+"code": "cases/case0.bin",
+"fw_ns": [
+68166,
+67833,
+67000,
+67583,
+67334,
+67250,
+67084,
+67250
+]
+},
+{
+"case": "empty",
+"grid": 16777216,
+"wg": 256,
+"regs": 64,
+"table_words": 0,
+"min_us": 195.17,
+"median_us": 198.31,
+"code": "cases/case1.bin",
+"fw_ns": [
+248042,
+250083,
+246250,
+195166,
+197417,
+195250,
+195458,
+199208
+]
+},
+{
+"case": "empty",
+"grid": 16777216,
+"wg": 1024,
+"regs": 64,
+"table_words": 0,
+"min_us": 181.04,
+"median_us": 182.58,
+"code": "cases/case2.bin",
+"fw_ns": [
+182875,
+182625,
+181042,
+182833,
+182375,
+182500,
+182667,
+182541
+]
+},
+{
+"case": "empty",
+"grid": 16777216,
+"wg": 64,
+"regs": 64,
+"table_words": 0,
+"min_us": 688.42,
+"median_us": 692.58,
+"code": "cases/case3.bin",
+"fw_ns": [
+704792,
+732917,
+688417,
+690041,
+692667,
+690125,
+692500,
+693375
+]
+},
+{
+"case": "empty",
+"grid": 8388608,
+"wg": 32,
+"regs": 64,
+"table_words": 0,
+"min_us": 682.38,
+"median_us": 688.71,
+"code": "cases/case4.bin",
+"fw_ns": [
+690167,
+687250,
+691625,
+682375,
+687125,
+691459,
+690625,
+686333
+]
+},
+{
+"case": "fmadd_imm8",
+"grid": 1216,
+"wg": 32,
+"regs": 64,
+"table_words": 0,
+"min_us": 1448.46,
+"median_us": 1448.71,
+"code": "cases/case5.bin",
+"fw_ns": [
+1450000,
+1449000,
+1448792,
+1448584,
+1448750,
+1448459,
+1448584,
+1448667
+]
+},
+{
+"case": "fmadd_imm8",
+"grid": 4864,
+"wg": 128,
+"regs": 64,
+"table_words": 0,
+"min_us": 670.17,
+"median_us": 670.46,
+"code": "cases/case6.bin",
+"fw_ns": [
+672125,
+670167,
+670709,
+670458,
+670375,
+670459,
+670417,
+670542
+]
+},
+{
+"case": "fmadd_imm8",
+"grid": 38912,
+"wg": 256,
+"regs": 64,
+"table_words": 0,
+"min_us": 504.0,
+"median_us": 504.54,
+"code": "cases/case7.bin",
+"fw_ns": [
+504083,
+504458,
+504834,
+504000,
+507792,
+507792,
+504000,
+504625
+]
+},
+{
+"case": "fmadd_imm8",
+"grid": 155648,
+"wg": 256,
+"regs": 64,
+"table_words": 0,
+"min_us": 3281.5,
+"median_us": 3287.79,
+"code": "cases/case8.bin",
+"fw_ns": [
+3281500,
+3285250,
+3287542,
+3287458,
+3288041,
+3292833,
+3294583,
+3291500
+]
+},
+{
+"case": "fmadd_imm8",
+"grid": 155648,
+"wg": 1024,
+"regs": 64,
+"table_words": 0,
+"min_us": 3845.29,
+"median_us": 3846.96,
+"code": "cases/case9.bin",
+"fw_ns": [
+3851125,
+3846417,
+3847666,
+3846958,
+3845292,
+3846958,
+3845500,
+3850750
+]
+},
+{
+"case": "fmadd_imm8",
+"grid": 155648,
+"wg": 256,
+"regs": 128,
+"table_words": 0,
+"min_us": 3089.62,
+"median_us": 3275.94,
+"code": "cases/case10.bin",
+"fw_ns": [
+3276958,
+3279834,
+3279750,
+3089625,
+3090250,
+3279667,
+3274917,
+3093583
+]
+},
+{
+"case": "fmadd_imm8",
+"grid": 155648,
+"wg": 256,
+"regs": 192,
+"table_words": 0,
+"min_us": 3327.54,
+"median_us": 3327.67,
+"code": "cases/case11.bin",
+"fw_ns": [
+3330625,
+3327709,
+3327667,
+3327667,
+3335500,
+3327583,
+3327625,
+3327541
+]
+},
+{
+"case": "fmadd_imm8",
+"grid": 1048576,
+"wg": 256,
+"regs": 64,
+"table_words": 0,
+"min_us": 4172.83,
+"median_us": 4174.85,
+"code": "cases/case12.bin",
+"fw_ns": [
+4634125,
+4361834,
+4273500,
+4172834,
+4173375,
+4172875,
+4174875,
+4174833
+]
+},
+{
+"case": "iadd_dep",
+"grid": 1216,
+"wg": 32,
+"regs": 64,
+"table_words": 0,
+"min_us": 2349.92,
+"median_us": 2350.06,
+"code": "cases/case13.bin",
+"fw_ns": [
+2351917,
+2350041,
+2350000,
+2349916,
+2350375,
+2349958,
+2350084,
+2350292
+]
+},
+{
+"case": "iadd_dep",
+"grid": 9728,
+"wg": 256,
+"regs": 64,
+"table_words": 0,
+"min_us": 1167.17,
+"median_us": 1167.31,
+"code": "cases/case14.bin",
+"fw_ns": [
+1168625,
+1167333,
+1167167,
+1167208,
+1167291,
+1167333,
+1167334,
+1167250
+]
+},
+{
+"case": "iadd_dep",
+"grid": 38912,
+"wg": 256,
+"regs": 64,
+"table_words": 0,
+"min_us": 1576.33,
+"median_us": 1582.58,
+"code": "cases/case15.bin",
+"fw_ns": [
+1577375,
+1592666,
+1576333,
+1579000,
+1583333,
+1585959,
+1581833,
+1591917
+]
+},
+{
+"case": "iadd_dep",
+"grid": 155648,
+"wg": 256,
+"regs": 64,
+"table_words": 0,
+"min_us": 1577.46,
+"median_us": 1667.35,
+"code": "cases/case16.bin",
+"fw_ns": [
+1668792,
+1667500,
+1668500,
+1667542,
+1577458,
+1667042,
+1666667,
+1667208
+]
+},
+{
+"case": "rsqrt8",
+"grid": 4864,
+"wg": 128,
+"regs": 64,
+"table_words": 0,
+"min_us": 2201.42,
+"median_us": 2202.96,
+"code": "cases/case17.bin",
+"fw_ns": [
+2205208,
+2202375,
+2205083,
+2201750,
+2205042,
+2201667,
+2203541,
+2201417
+]
+},
+{
+"case": "rsqrt8",
+"grid": 38912,
+"wg": 256,
+"regs": 64,
+"table_words": 0,
+"min_us": 2203.71,
+"median_us": 2206.46,
+"code": "cases/case18.bin",
+"fw_ns": [
+2207709,
+2203708,
+2207084,
+2204875,
+2205834,
+2208417,
+2205625,
+2207750
+]
+},
+{
+"case": "rsqrt8",
+"grid": 155648,
+"wg": 256,
+"regs": 64,
+"table_words": 0,
+"min_us": 2349.79,
+"median_us": 2423.31,
+"code": "cases/case19.bin",
+"fw_ns": [
+2498500,
+2496500,
+2349792,
+2350625,
+2350334,
+2496000,
+2496458,
+2350542
+]
+},
+{
+"case": "fmadd_reg8",
+"grid": 38912,
+"wg": 256,
+"regs": 64,
+"table_words": 0,
+"min_us": 2247.08,
+"median_us": 2272.62,
+"code": "cases/case20.bin",
+"fw_ns": [
+2247083,
+2268625,
+2272834,
+2277875,
+2277917,
+2272625,
+2269083,
+2272625
+]
+},
+{
+"case": "fmadd_reg8",
+"grid": 155648,
+"wg": 256,
+"regs": 64,
+"table_words": 0,
+"min_us": 2050.5,
+"median_us": 2051.69,
+"code": "cases/case21.bin",
+"fw_ns": [
+2054458,
+2050958,
+2051958,
+2051250,
+2050500,
+2051750,
+2051625,
+2053041
+]
+},
+{
+"case": "stream",
+"grid": 38912,
+"wg": 256,
+"regs": 64,
+"table_words": 16809984,
+"min_us": 220.58,
+"median_us": 221.83,
+"code": "cases/case22.bin",
+"fw_ns": [
+262292,
+224959,
+220916,
+223458,
+221459,
+221291,
+220584,
+222208
+]
+},
+{
+"case": "stream",
+"grid": 155648,
+"wg": 256,
+"regs": 64,
+"table_words": 42336256,
+"min_us": 498.58,
+"median_us": 500.69,
+"code": "cases/case23.bin",
+"fw_ns": [
+532875,
+501458,
+502750,
+498583,
+500250,
+499541,
+501125,
+499375
+]
+},
+{
+"case": "stream",
+"grid": 155648,
+"wg": 256,
+"regs": 64,
+"table_words": 62259200,
+"min_us": 735.92,
+"median_us": 739.38,
+"code": "cases/case24.bin",
+"fw_ns": [
+777791,
+752250,
+739375,
+740125,
+739375,
+735917,
+739291,
+738750
+]
+}
+]
+}

@@ -752,7 +752,7 @@ fn trace_impl(code: &[u8], active: usize, max_steps: usize, reference: bool, ctx
         if info.stop {
             break;
         }
-        if info.check && (info.ureg || info.uses.iter().any(|&h| tainted[h as usize])) {
+        if info.check && ((info.ureg && ctx.is_none()) || info.uses.iter().any(|&h| tainted[h as usize])) {
             let w = format!("pc {}: {} condition depends on a uniform or a skipped result (trip count unknown)", upc, info.desc.name);
             if !out.warnings.contains(&w) {
                 out.warnings.push(w);
