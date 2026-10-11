@@ -1,6 +1,7 @@
 # agx-sim: Rust port of the AGX cost model
 
-A Rust implementation of `scripts/agx_cost.py`, together with the parts of
+The repository's cost model: a Rust port of `agx_cost.py` (from Apple-M2-Playground; the Python
+version has been removed), together with the parts of
 [applegpu](https://github.com/dougallj/applegpu) (BSD-3-Clause, revision `4c5bae6`) that the model
 uses: instruction decoding, disassembly, the single-line assembler and the emulator that derives
 the dynamic path. Python and applegpu are not needed at run time.
@@ -10,10 +11,11 @@ cargo build --release
 ./target/release/agx_cost code.bin [--groups G] [--annotate] [--units real|ref] [--allow-unknown] [--load-latency N]
 ./target/release/verify_cost_model        # offline verifier (port of scripts/verify_cost_model.py)
 ./target/release/agx_bench [reps]         # stage timings on the stored random kernels
+./target/release/agx_predict A.bin B.bin UNITS GROUPS   # used by scripts/cost_hw.py predict()
 cargo test --release
 ```
 
-`agx_cost` takes the same arguments as the Python script and prints the same JSON line and
+`agx_cost` takes the same arguments as the former Python script and prints the same JSON line and
 `--annotate` table. Parameters come from `../results/` (override the repository root with
 `AGX_SIM_REPO`).
 
@@ -72,4 +74,4 @@ skips refilling token buckets that are already at their cap.
 | `src/cost.rs` | Params, decode classification, mark_loops, trace, fit_branch, simulate |
 | `src/kernels.rs` | counted / bench loops, store and threadgroup encodings, random kernels |
 | `src/pyrandom.rs` | CPython `random.Random` |
-| `src/bin/` | `agx_cost`, `verify_cost_model`, `agx_bench` |
+| `src/bin/` | `agx_cost`, `agx_predict`, `verify_cost_model`, `agx_bench` |
