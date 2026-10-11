@@ -952,6 +952,8 @@ struct SimInstr {
     mem_done: (i64, i64),
     is_jmp_any: bool,
     ctl_bump: bool,
+    /// exec-mask instructions other than the loop's while/jmp_exec_any
+    exec_stack: bool,
 }
 
 struct Bucket {
@@ -1119,6 +1121,7 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
     let bar78 = tk(7.1 * REAL_CYCLES_PER_UNIT);
     // a group arrives once its ALU results have drained (4 iadds before each barrier: 42 vs 13 units)
     let bar_drain = tk(24.0 * REAL_CYCLES_PER_UNIT);
+    let ctl_sched = tk(std::env::var("AGX_CTL_SCHED").ok().and_then(|v| v.parse::<f64>().ok()).unwrap_or(3.0) * REAL_CYCLES_PER_UNIT);
 
     // ---- resolve units and buckets
     let mut bucket_ids: HashMap<String, usize> = HashMap::new();
@@ -1205,6 +1208,7 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
             mem_issue0,
             mem_done,
             is_jmp_any: r.name == "jmp_exec_any",
+            exec_stack: matches!(r.name.as_str(), "if_icmp" | "if_fcmp" | "else_icmp" | "else_fcmp" | "pop_exec" | "push_exec" | "jmp_exec_none"),
             ctl_bump: r.src.iter().any(|&h| h != 0),
         });
     }
@@ -1812,7 +1816,13 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
             }
             let occ = t_.max(ii) + branch;
             if r.barrier == 0 {
-                sched_free[sch] = t + if r.kind == Kind::Alu && !r.reduce { t_.max(ii) } else { t_ };
+                sched_free[sch] = t + if r.kind == Kind::Alu && !r.reduce {
+                    t_.max(ii)
+                } else if r.exec_stack && g > 1 {
+                    ctl_sched // if/else/push/pop/jmp_exec_none hold their scheduler (divergence dispatches)
+                } else {
+                    t_
+                };
             } else {
                 issue_tok += t_; // released groups pass the barrier together, without an issue slot
             }

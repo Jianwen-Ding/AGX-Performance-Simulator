@@ -271,10 +271,11 @@ def emulate(body, active, max_steps=2_000_000, table=None, lane_ids=False, num_r
         n = g.opcode_to_number(body[pc:]); d = g.get_instruction_descriptor(n)
         size = d.decode_size(n); n &= (1 << (8*size))-1
         trace[d.name] = trace.get(d.name, 0)+1
-        if d.name == 'jmp_exec_any':
+        if d.name in ('jmp_exec_any', 'jmp_exec_none'):
             off = dict(d.decode_fields(n))['off']
             off = off-(1 << 32) if off & (1 << 31) else off
-            pc = pc+off if any(st.exec) else pc+size
+            take = any(st.exec) if d.name == 'jmp_exec_any' else not any(st.exec)
+            pc = pc+off if take else pc+size
         else:
             d.exec(n, st); pc += size
         executed += 1
