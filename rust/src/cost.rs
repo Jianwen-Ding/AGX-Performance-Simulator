@@ -555,6 +555,106 @@ pub struct Trace {
     pub pcs: Vec<usize>,
     pub skipped: BTreeSet<String>,
     pub warnings: Vec<String>,
+    /// device loads/stores: (index into `pcs`, distinct 64-byte segments touched by the active lanes)
+    pub mem: Vec<(u32, Vec<u64>)>,
+}
+
+/// Where one SIMD group sits in a dispatch: enough to answer `get_sr` for the geometry registers
+/// (playground experiments/registers/sr-geometry-core-alt.md) and to give r1 the global X index (the
+/// direct-DRM harness prefix convention). Threads are linearised x fastest; SIMD group `group` holds
+/// linear local indices 32*group .. 32*group+31.
+#[derive(Clone, Debug)]
+pub struct GroupCtx {
+    pub wg_size: [u32; 3],
+    pub wg_id: [u32; 3],
+    pub group: u32,
+    pub core: u32,
+    pub slot: u32,
+    /// 32-bit uniform registers preset (index, value), e.g. buffer addresses in u8_u9
+    pub uniforms: Vec<(usize, u32)>,
+}
+
+impl GroupCtx {
+    pub fn threads(&self) -> u32 {
+        self.wg_size[0] * self.wg_size[1] * self.wg_size[2]
+    }
+    /// active lanes of this group (a partial last group has fewer)
+    pub fn lanes(&self) -> usize {
+        (self.threads().saturating_sub(32 * self.group)).min(32) as usize
+    }
+    fn local(&self, i: u32) -> [u32; 3] {
+        let [x, y, _] = self.wg_size;
+        [i % x, (i / x) % y, i / (x * y)]
+    }
+    /// Special register `sr` for lane `t`, or None when not modelled.
+    pub fn sr(&self, sr: u32, t: usize) -> Option<u32> {
+        let l = self.threads();
+        let i = 32 * self.group + t as u32;
+        let loc = self.local(i);
+        Some(match sr {
+            0..=2 => self.wg_id[sr as usize],
+            4..=6 => self.wg_size[sr as usize - 4],
+            8..=10 => self.wg_size[sr as usize - 8],
+            7 => (l + 31) / 32,
+            15 => 16,
+            17 => self.slot,
+            20 => self.core,
+            24 | 25 => 2,
+            48..=50 => loc[sr as usize - 48],
+            51 => i,
+            52 | 58 => i % 32,
+            53 => i / 32,
+            56 => i % 4,
+            57 => 4.min(l - 4 * (i / 4)),
+            59 => 32.min(l - 32 * (i / 32)),
+            80..=82 => self.wg_id[sr as usize - 80] * self.wg_size[sr as usize - 80] + loc[sr as usize - 80],
+            _ => return None,
+        })
+    }
+}
+
+/// Per-lane byte addresses of a device_load / device_store (same formula as the emulator's
+/// device_load), for the active lanes; None if an operand cannot be read.
+fn mem_segments(f: &isa::Fields, st: &exec::CoreState) -> Option<Vec<u64>> {
+    let g = |k: &str| fget(f, k);
+    let mut segs = vec![];
+    let fmt = g("F")?;
+    let mut shift = g("s")?;
+    if shift == 3 {
+        shift = 2;
+    }
+    let bit_packed = matches!(fmt, 8 | 12 | 13);
+    if bit_packed {
+        shift = 2;
+    }
+    let item: i128 = match fmt {
+        1 | 3 | 6 | 7 => 2,
+        2 => 4,
+        _ => 1,
+    };
+    let mask = if bit_packed { 0xF } else { g("mask")? };
+    for t in 0..exec::SIMD_WIDTH {
+        if !st.exec[t] {
+            continue;
+        }
+        let base = if g("At")? != 0 { st.ureg64((g("A")? >> 1) as usize).ok()? } else { st.get_reg64((g("A")? >> 1) as usize, t).ok()? };
+        let mut off: i128 = if g("Ot")? != 0 {
+            isa::desc::sign_extend(g("O")? as i128, 16)
+        } else {
+            let o = st.get_reg32((g("O")? >> 1) as usize, t).ok()?;
+            if g("Ou")? == 0 { isa::desc::sign_extend(o, 32) } else { o }
+        };
+        off <<= shift;
+        let a = base & !(item - 1);
+        for i in 0..4 {
+            if mask & (1 << i) != 0 {
+                segs.push(((a + (off + i) * item) >> 6) as u64);
+            }
+        }
+    }
+    segs.sort_unstable();
+    segs.dedup();
+    Some(segs)
 }
 
 struct PcInfo {
@@ -580,20 +680,35 @@ struct PcInfo {
 /// agx_cost.trace: dynamic pc sequence for one SIMD group (applegpu emulator; uniforms and memory
 /// read as zero; instructions it cannot execute are skipped and taint their destination).
 pub fn trace(code: &[u8], active: usize, max_steps: usize) -> Result<Trace, String> {
-    trace_impl(code, active, max_steps, false)
+    trace_impl(code, active, max_steps, false, None)
+}
+
+/// `trace` for one SIMD group of a dispatch: `get_sr` returns the group's geometry registers, r1 holds
+/// the global X index, uniforms are preset, and exec starts with the group's real lanes active.
+pub fn trace_group(code: &[u8], ctx: &GroupCtx, max_steps: usize) -> Result<Trace, String> {
+    trace_impl(code, ctx.lanes(), max_steps, false, Some(ctx))
 }
 
 /// `trace` driven by the reference interpreter (`isa::exec::exec`) instead of the compiled one.
 pub fn trace_reference(code: &[u8], active: usize, max_steps: usize) -> Result<Trace, String> {
-    trace_impl(code, active, max_steps, true)
+    trace_impl(code, active, max_steps, true, None)
 }
 
-fn trace_impl(code: &[u8], active: usize, max_steps: usize, reference: bool) -> Result<Trace, String> {
+fn trace_impl(code: &[u8], active: usize, max_steps: usize, reference: bool, ctx: Option<&GroupCtx>) -> Result<Trace, String> {
     let mut st = exec::CoreState::new(128, Some(exec::Memory { base: TABLE_VA, words: vec![0; 65536] }));
     for t in 0..exec::SIMD_WIDTH {
         st.set_reg16(0, t, if t < active { 0 } else { 1 })?;
         st.set_reg32(1, t, t as i128)?;
         st.exec[t] = t < active;
+    }
+    if let Some(c) = ctx {
+        for t in 0..exec::SIMD_WIDTH {
+            st.set_reg32(1, t, c.sr(80, t).unwrap_or(0) as i128)?;
+        }
+        for &(u, v) in &c.uniforms {
+            st.uniforms[2 * u] = (v & 0xffff) as u16;
+            st.uniforms[2 * u + 1] = (v >> 16) as u16;
+        }
     }
     let mut out = Trace::default();
     let mut tainted = vec![false; 1024];
@@ -648,6 +763,27 @@ fn trace_impl(code: &[u8], active: usize, max_steps: usize, reference: bool) -> 
             let take = if info.jump == 1 { any } else { !any };
             pc = if take { pc + info.off } else { pc + info.size as i64 };
             continue;
+        }
+        let dname = info.desc.name;
+        if dname == "device_load" || dname == "device_store" {
+            if let Some(sg) = mem_segments(&info.fields, &st) {
+                out.mem.push(((out.pcs.len() - 1) as u32, sg));
+            }
+        }
+        if let (Some(c), "get_sr") = (ctx, dname) {
+            let sr = fget(&info.fields, "SR").unwrap_or(0) as u32;
+            if let (Some(Operand::Reg32(d, _)), Some(_)) = (info.ops.first(), c.sr(sr, 0)) {
+                for t in 0..exec::SIMD_WIDTH {
+                    if st.exec[t] {
+                        st.set_reg32(*d as usize, t, c.sr(sr, t).unwrap() as i128)?;
+                    }
+                }
+                for &h in &info.dst {
+                    tainted[h as usize] = false;
+                }
+                pc += info.size as i64;
+                continue;
+            }
         }
         let r = if reference { exec::exec(info.desc, &info.fields, &info.ops, &mut st) } else { info.op.exec(&mut st) };
         match r {
@@ -752,9 +888,98 @@ fn pymin(a: f64, b: f64) -> f64 {
     if b < a { b } else { a }
 }
 
+/// Device-memory hierarchy (results/2026-10-11-memory-hierarchy): per-core L1 and L2, a shared system-level
+/// cache and DRAM, with measured latencies and per-core bandwidths. Bandwidths are in 64-byte segments per
+/// real cycle per core; latencies beyond L2 are in ns and scale with `clock_mhz`.
+#[derive(Clone, Debug)]
+pub struct MemModel {
+    pub clock_mhz: f64,
+    /// cores sharing the SLC and DRAM (all cores run the same kernel on disjoint data)
+    pub active_cores: f64,
+    pub l1_bytes: usize,
+    pub l2_bytes: usize,
+    pub slc_bytes: usize,
+    /// extra load latency over an L1 hit: L2 in real cycles; SLC and DRAM total latency in ns
+    pub l2_extra: f64,
+    pub slc_ns: f64,
+    pub dram_ns: f64,
+    pub l1_load_rate: f64,
+    pub l1_load_min: f64,
+    pub l1_store_rate: f64,
+    pub l1_store_min: f64,
+    pub l2_rate: f64,
+    pub slc_rate: f64,
+    pub dram_gbps: f64,
+    /// replay every group's accesses once before timing (steady state of a long-running loop)
+    pub warm: bool,
+}
+
+impl Default for MemModel {
+    fn default() -> Self {
+        let k = REAL_CYCLES_PER_UNIT;
+        MemModel {
+            clock_mhz: 1398.0,
+            active_cores: 38.0,
+            l1_bytes: 8 << 10,
+            l2_bytes: 256 << 10,
+            slc_bytes: 16 << 20,
+            l2_extra: 78.0,
+            slc_ns: 349.0,
+            dram_ns: 388.0,
+            l1_load_rate: 2.0 / k,
+            l1_load_min: 2.0,
+            l1_store_rate: 1.02 / k,
+            l1_store_min: 2.0,
+            l2_rate: 0.73 / k,
+            slc_rate: 0.5 / k,
+            dram_gbps: 410.0,
+            warm: true,
+        }
+    }
+}
+
+/// Least-recently-used set of 64-byte segments.
+struct Lru {
+    cap: usize,
+    stamp: u64,
+    at: HashMap<u64, u64>,
+    order: std::collections::BTreeMap<u64, u64>,
+}
+
+impl Lru {
+    fn new(bytes: usize) -> Self {
+        Lru { cap: (bytes / 64).max(1), stamp: 0, at: HashMap::new(), order: Default::default() }
+    }
+    fn contains(&self, s: u64) -> bool {
+        self.at.contains_key(&s)
+    }
+    fn touch(&mut self, s: u64) {
+        self.stamp += 1;
+        if let Some(old) = self.at.insert(s, self.stamp) {
+            self.order.remove(&old);
+        }
+        self.order.insert(self.stamp, s);
+        if self.at.len() > self.cap {
+            let (&o, &victim) = self.order.iter().next().unwrap();
+            self.order.remove(&o);
+            self.at.remove(&victim);
+        }
+    }
+}
+
 /// agx_cost.simulate: `groups` identical SIMD groups on one core; returns real cycles (and per-pc stats).
 pub fn simulate(instrs: &[Instr], pcs: &[usize], p: &Params, groups: usize, detail: bool)
     -> Result<(f64, Option<HashMap<usize, PcStats>>), String> {
+    let seqs: Vec<&[usize]> = (0..groups).map(|_| pcs).collect();
+    simulate_groups(instrs, &seqs, None, p, detail)
+}
+
+/// One core running one SIMD group per entry of `seqs` (dynamic pc sequences, e.g. from `trace_group`).
+/// With `mem` (each group's `Trace::mem` and a `MemModel`), device loads and stores go through the
+/// memory hierarchy; without it they use the L1-hit rules only (as `simulate`).
+pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&[(u32, Vec<u64>)]], &MemModel)>, p: &Params,
+    detail: bool) -> Result<(f64, Option<HashMap<usize, PcStats>>), String> {
+    let groups = seqs_pcs.len();
     let p_branch = match p.branch {
         Some(b) => b,
         None => {
@@ -872,10 +1097,59 @@ pub fn simulate(instrs: &[Instr], pcs: &[usize], p: &Params, groups: usize, deta
             ctl_bump: r.src.iter().any(|&h| h != 0),
         });
     }
-    let seq: Vec<usize> = pcs
-        .iter()
-        .map(|pc| by_pc.get(pc).copied().ok_or_else(|| format!("KeyError: pc {}", pc)))
-        .collect::<Result<_, _>>()?;
+    let mut seqs: Vec<Vec<usize>> = vec![];
+    for pcs in seqs_pcs {
+        seqs.push(pcs.iter().map(|pc| by_pc.get(pc).copied().ok_or_else(|| format!("KeyError: pc {}", pc))).collect::<Result<_, _>>()?);
+    }
+    // ---- memory hierarchy state (one core)
+    struct MemState {
+        l1: Lru,
+        l2: Lru,
+        slc: Lru,
+        /// tokens (segments) for l1 load, l1 store, l2, slc, dram, and their rates per tick / caps
+        tok: [f64; 5],
+        rate: [f64; 5],
+        cap: [f64; 5],
+        extra: [i64; 4],
+        cur: Vec<usize>,
+        /// L1 load / store pipelines: busy until (ticks); a load's or store's segments pass in order
+        l1_free: [i64; 2],
+    }
+    let mut ms: Option<MemState> = mem.map(|(_, m)| {
+        let per_tick = |segs_per_cycle: f64| segs_per_cycle / TICKS as f64;
+        let dram = m.dram_gbps * 1e9 / m.active_cores / (m.clock_mhz * 1e6) / 64.0;
+        let rate = [per_tick(m.l1_load_rate), per_tick(m.l1_store_rate), per_tick(m.l2_rate), per_tick(m.slc_rate), per_tick(dram)];
+        let cap = [64.0, 64.0, 64.0, 64.0, 64.0];
+        let ns = |x: f64| tk((x * m.clock_mhz / 1000.0 - 50.0).max(0.0));
+        MemState {
+            l1: Lru::new(m.l1_bytes),
+            l2: Lru::new(m.l2_bytes),
+            slc: Lru::new((m.slc_bytes as f64 / m.active_cores) as usize),
+            tok: cap,
+            rate,
+            cap,
+            extra: [0, tk(m.l2_extra), ns(m.slc_ns), ns(m.dram_ns)],
+            cur: vec![0; groups],
+            l1_free: [0, 0],
+        }
+    });
+    let memv: Vec<&[(u32, Vec<u64>)]> = mem.map(|(v, _)| v.to_vec()).unwrap_or_default();
+    if let (Some(m), Some((_, mm))) = (ms.as_mut(), mem) {
+        if mm.warm {
+            let longest = memv.iter().map(|v| v.len()).max().unwrap_or(0);
+            for i in 0..longest {
+                for v in &memv {
+                    if let Some((_, segs)) = v.get(i) {
+                        for &sg in segs {
+                            m.l1.touch(sg);
+                            m.l2.touch(sg);
+                            m.slc.touch(sg);
+                        }
+                    }
+                }
+            }
+        }
+    }
     let nhalf = (max_half as usize + 1).max(2);
     let nreg = nhalf / 2 + 1;
     let nslots = sim.iter().map(|s| s.slot + 1).max().unwrap_or(1).max(2);
@@ -935,7 +1209,7 @@ pub fn simulate(instrs: &[Instr], pcs: &[usize], p: &Params, groups: usize, deta
 
     let mut t: i64 = 0;
     let mut done = 0usize;
-    let npcs = seq.len();
+    let npcs: Vec<usize> = seqs.iter().map(Vec::len).collect();
     while done < g {
         let mut issued = 0;
         order.clear();
@@ -944,14 +1218,14 @@ pub fn simulate(instrs: &[Instr], pcs: &[usize], p: &Params, groups: usize, deta
         wake.clear();
         for oi in 0..order.len() {
             let gi = order[oi];
-            if nxt[gi] >= npcs {
+            if nxt[gi] >= npcs[gi] {
                 continue;
             }
             if free[gi] > t {
                 wake.push(free[gi]);
                 continue;
             }
-            let ri = seq[nxt[gi]];
+            let ri = seqs[gi][nxt[gi]];
             let r = &sim[ri];
             // src_ready. It depends only on this group's ready / wtime / rcache, which change only when
             // this group issues, so it is computed once per instruction and group (same value as
@@ -1071,8 +1345,69 @@ pub fn simulate(instrs: &[Instr], pcs: &[usize], p: &Params, groups: usize, deta
                     continue;
                 }
             }
+            // device memory: segments of this dynamic instruction, level of each, bandwidth tokens
+            let mut mem_charge: Option<([f64; 5], i64, Vec<u64>)> = None;
+            if let Some(m) = ms.as_mut() {
+                let dev = (r.kind == Kind::Load && !r.tgop && !r.tg_name) || (r.kind == Kind::Store && !r.tg_name);
+                if dev && !memv.is_empty() {
+                    let mv = memv[gi];
+                    while m.cur[gi] < mv.len() && (mv[m.cur[gi]].0 as usize) < nxt[gi] {
+                        m.cur[gi] += 1;
+                    }
+                    if m.cur[gi] < mv.len() && mv[m.cur[gi]].0 as usize == nxt[gi] {
+                        let segs = &mv[m.cur[gi]].1;
+                        let store = r.kind == Kind::Store;
+                        let mut need = [0.0; 5];
+                        let n = segs.len() as f64;
+                        if store {
+                            need[1] = n.max(1.0).max(m_l1_store_min(mem));
+                        } else {
+                            need[0] = n.max(m_l1_load_min(mem));
+                        }
+                        let mut level = 0usize;
+                        for &sg in segs {
+                            let lv = if m.l1.contains(sg) { 0 } else if m.l2.contains(sg) { 1 } else if m.slc.contains(sg) { 2 } else { 3 };
+                            if lv >= 1 {
+                                need[1 + lv] += 1.0;
+                            }
+                            level = level.max(lv);
+                        }
+                        let mut until = 0i64;
+                        for i in 2..5 {
+                            let want = need[i].min(m.cap[i]);
+                            if need[i] > 0.0 && m.tok[i] < want {
+                                until = until.max(((want - m.tok[i]) / m.rate[i]).ceil() as i64);
+                            }
+                        }
+                        if until > 0 {
+                            wake.push(t + until.max(1));
+                            continue;
+                        }
+                        mem_charge = Some((need, if store { 0 } else { m.extra[level] }, segs.clone()));
+                    }
+                }
+            }
             // ---- issue at tick t
             issue_tok -= t_;
+            let mut pipe_extra = 0i64;
+            if let (Some(m), Some((need, _, segs))) = (ms.as_mut(), mem_charge.as_ref()) {
+                for i in 2..5 {
+                    m.tok[i] -= need[i].min(m.cap[i]);
+                }
+                // L1 pipeline: this instruction's segments pass after those already queued
+                let k = if need[1] > 0.0 { 1 } else { 0 };
+                let occ = (need[k] / m.rate[k]).round() as i64;
+                let occ_min = ((if k == 1 { m_l1_store_min(mem) } else { m_l1_load_min(mem) }) / m.rate[k]).round() as i64;
+                let start = t.max(m.l1_free[k]);
+                m.l1_free[k] = start + occ;
+                pipe_extra = (m.l1_free[k] - t - occ_min).max(0);
+                for &sg in segs {
+                    m.l1.touch(sg);
+                    m.l2.touch(sg);
+                    m.slc.touch(sg);
+                }
+            }
+            let mem_extra = mem_charge.as_ref().map(|c| c.1).unwrap_or(0) + pipe_extra;
             if r.unit.is_some() {
                 let b = r.bucket;
                 tok[b] = Some(tok[b].unwrap() - r.cost);
@@ -1144,7 +1479,7 @@ pub fn simulate(instrs: &[Instr], pcs: &[usize], p: &Params, groups: usize, deta
                             let m = pending[gi].iter().map(|p| p.done).max().unwrap();
                             delay = delay.max(m - t);
                         }
-                        lat = delay + load_fast;
+                        lat = delay + load_fast + mem_extra;
                         iiv = load_ii;
                     }
                     let cls: u8 = if tgop { 1 } else { 2 };
@@ -1169,7 +1504,7 @@ pub fn simulate(instrs: &[Instr], pcs: &[usize], p: &Params, groups: usize, deta
                         delay = delay.max(last_idle_wait[gi] + store_after_wait - t);
                     }
                     let mut iiv = delay + r.mem_issue0;
-                    let st_done = (t + iiv + r.mem_done.1).max(t + r.mem_issue0 + r.mem_done.0);
+                    let st_done = (t + iiv + r.mem_done.1).max(t + r.mem_issue0 + r.mem_done.0) + pipe_extra;
                     let cls: u8 = if r.tg_name { 1 } else { 3 };
                     if (cls == 1 && last_space[gi] == 3) || (cls == 3 && last_space[gi] == 1) {
                         iiv += space_switch;
@@ -1215,7 +1550,7 @@ pub fn simulate(instrs: &[Instr], pcs: &[usize], p: &Params, groups: usize, deta
                     }
                     last_alu[gi] = t;
                     alu_done[gi] = alu_done[gi].max(t + cl);
-                    if r.is_jmp_any && nxt[gi] + 1 < npcs && pcs[nxt[gi] + 1] < r.pc {
+                    if r.is_jmp_any && nxt[gi] + 1 < npcs[gi] && seqs_pcs[gi][nxt[gi] + 1] < r.pc {
                         branch = br;
                     }
                 }
@@ -1251,7 +1586,7 @@ pub fn simulate(instrs: &[Instr], pcs: &[usize], p: &Params, groups: usize, deta
             sr_cache[gi] = None;
             blk_cache[gi] = None;
             issued += 1;
-            if nxt[gi] >= npcs {
+            if nxt[gi] >= npcs[gi] {
                 done += 1;
             }
         }
@@ -1262,6 +1597,11 @@ pub fn simulate(instrs: &[Instr], pcs: &[usize], p: &Params, groups: usize, deta
         // refill(nt - t). Python min(a, b) is `b if b < a else a`; a bucket already at its cap stays
         // there (cap + non-negative refill, clamped), so only buckets below their cap are visited.
         let dt = (nt - t) as f64;
+        if let Some(m) = ms.as_mut() {
+            for i in 0..5 {
+                m.tok[i] = (m.tok[i] + m.rate[i] * dt).min(m.cap[i]);
+            }
+        }
         for pt in port.iter_mut() {
             *pt = pymin(*pt + HALF_READ_PORTS * dt, (HALF_READ_PORTS + 2.0) * t_ as f64);
         }
@@ -1306,4 +1646,12 @@ pub fn simulate(instrs: &[Instr], pcs: &[usize], p: &Params, groups: usize, deta
         None
     };
     Ok((total, st))
+}
+
+fn m_l1_store_min(mem: Option<(&[&[(u32, Vec<u64>)]], &MemModel)>) -> f64 {
+    mem.map(|m| m.1.l1_store_min).unwrap_or(1.0)
+}
+
+fn m_l1_load_min(mem: Option<(&[&[(u32, Vec<u64>)]], &MemModel)>) -> f64 {
+    mem.map(|m| m.1.l1_load_min).unwrap_or(1.0)
 }

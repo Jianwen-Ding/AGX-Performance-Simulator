@@ -359,3 +359,107 @@ pub fn names(code: &[u8]) -> Vec<String> {
     let _ = (desc_by_name, Operand::Null);
     out
 }
+
+/// mem_probes.mem_loop: counted loop (trip count in r29) of `steps` device loads or stores, `wait 0`
+/// after every 8. Index register j (r5..r12) starts at `data + lane*s + j*jstride + warp*w` (lane =
+/// r1 & 31, or the global index r1 when `glob`; warp = r30); with `advance`, every index advances by
+/// that many words after each wait and wraps with `mask` (table words 0..mask).
+#[allow(clippy::too_many_arguments)]
+pub fn mem_loop(steps: u32, store_kind: bool, s: u32, jstride: u32, w: u32, data: u32, advance: u32, mask: u32, glob: bool) -> Vec<u8> {
+    let mut h = mov(3, 0);
+    h.extend(e("iadd r4, r29, 0"));
+    if glob && w == u32::MAX {
+        return mem_loop_private(h, steps, s, jstride, data, advance, mask);
+    }
+    h.extend(e(if glob { "iadd r23, r1, 0" } else { "and r23, r1, 31" }));
+    h.extend(mov(21, s));
+    h.extend(mov(22, w));
+    for k in 0..8u32 {
+        let r = 5 + k;
+        h.extend(mov(27, data + k * jstride));
+        h.extend(e("imadd r27, r30, r22, r27"));
+        h.extend(e(&format!("imadd r{}, r23, r21, r27", r)));
+        if mask != 0 {
+            h.extend(mov(27, mask));
+            h.extend(e(&format!("and r{}, r{}, r27", r, r)));
+        }
+    }
+    if advance != 0 {
+        h.extend(mov(21, advance));
+        h.extend(mov(22, mask));
+    }
+    for r in 13..21 {
+        h.extend(mov(r, 0x5a5a5a5a));
+    }
+    h.extend(e2("if_fcmp r0l, eq, 0.0, 0.0, 1", "push_exec r0l, 1"));
+    let mut body = vec![];
+    for k in 0..steps {
+        let (ri, rd) = (5 + k % 8, 13 + k % 8);
+        if store_kind {
+            body.extend(store(rd, 8, ri));
+        } else {
+            body.extend(e(&format!("device_load 0, i32, x, r{}, u8_u9, r{}, unsigned", rd, ri)));
+        }
+        if k % 8 == 7 || k == steps - 1 {
+            body.extend(e("wait 0"));
+            if advance != 0 {
+                for r2 in 5..13 {
+                    body.extend(e(&format!("iadd r{}, r{}, r21", r2, r2)));
+                    body.extend(e(&format!("and r{}, r{}, r22", r2, r2)));
+                }
+            }
+        }
+    }
+    body.extend(e("iadd r3, 1, r3.sx"));
+    body.extend(e("while_icmp r0l, ult, r3, r4, 1"));
+    let j = format!("jmp_exec_any pc-{}", body.len());
+    body.extend(e2(&j, &j));
+    h.extend(body);
+    h.extend(e("pop_exec r0l, 1"));
+    h
+}
+
+/// mem_probes.mem_loop(private=True): each workgroup streams its own window (register-pair base
+/// r24_r25 = u8_u9 + 4*(data + SR0*(mask+1)), index = (SR51*s + j*J + k*advance) & mask).
+fn mem_loop_private(mut h: Vec<u8>, steps: u32, s: u32, jstride: u32, data: u32, advance: u32, mask: u32) -> Vec<u8> {
+    h.extend(e("iadd r24, u8, 0"));
+    h.extend(e("iadd r25, u9, 0"));
+    h.extend(get_sr(0, 26));
+    h.extend(mov(27, mask.wrapping_add(1)));
+    h.extend(mov(28, data));
+    h.extend(e("imadd r26, r26, r27, r28"));
+    h.extend(e("iadd r24_r25, r24_r25, r26, lsl 2"));
+    h.extend(get_sr(51, 23));
+    h.extend(mov(21, s));
+    for k in 0..8u32 {
+        let r = 5 + k;
+        h.extend(mov(27, k * jstride));
+        h.extend(e(&format!("imadd r{}, r23, r21, r27", r)));
+        h.extend(mov(27, mask));
+        h.extend(e(&format!("and r{}, r{}, r27", r, r)));
+    }
+    h.extend(mov(21, advance));
+    h.extend(mov(22, mask));
+    for r in 13..21 {
+        h.extend(mov(r, 0x5a5a5a5a));
+    }
+    h.extend(e2("if_fcmp r0l, eq, 0.0, 0.0, 1", "push_exec r0l, 1"));
+    let mut body = vec![];
+    for k in 0..steps {
+        body.extend(e(&format!("device_load 0, i32, x, r{}, r24_r25, r{}, unsigned", 13 + k % 8, 5 + k % 8)));
+        if k % 8 == 7 || k == steps - 1 {
+            body.extend(e("wait 0"));
+            for r2 in 5..13 {
+                body.extend(e(&format!("iadd r{}, r{}, r21", r2, r2)));
+                body.extend(e(&format!("and r{}, r{}, r22", r2, r2)));
+            }
+        }
+    }
+    body.extend(e("iadd r3, 1, r3.sx"));
+    body.extend(e("while_icmp r0l, ult, r3, r4, 1"));
+    let j = format!("jmp_exec_any pc-{}", body.len());
+    body.extend(e2(&j, &j));
+    h.extend(body);
+    h.extend(e("pop_exec r0l, 1"));
+    h
+}

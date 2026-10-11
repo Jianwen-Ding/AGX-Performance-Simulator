@@ -70,13 +70,13 @@ impl CoreState {
         self.set_reg32(r, t, v & 0xFFFFFFFF)?;
         self.set_reg32(r + 1, t, (v >> 32) & 0xFFFFFFFF)
     }
-    fn ureg16(&self, r: usize) -> R<i128> {
+    pub fn ureg16(&self, r: usize) -> R<i128> {
         self.uniforms.get(r).map(|&v| v as i128).ok_or_else(|| "IndexError: uniform".into())
     }
-    fn ureg32(&self, r: usize) -> R<i128> {
+    pub fn ureg32(&self, r: usize) -> R<i128> {
         Ok(self.ureg16(2 * r)? | (self.ureg16(2 * r + 1)? << 16))
     }
-    fn ureg64(&self, r: usize) -> R<i128> {
+    pub fn ureg64(&self, r: usize) -> R<i128> {
         Ok(self.ureg32(r)? | (self.ureg32(r + 1)? << 32))
     }
 }
