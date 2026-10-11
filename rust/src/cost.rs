@@ -15,7 +15,6 @@ use std::path::{Path, PathBuf};
 
 pub const REAL_CYCLES_PER_UNIT: f64 = 1.049;
 const ISSUE_PER_CORE: i64 = 4;
-const READ_PORTS: f64 = 4.0;
 const RESULT_CACHE: usize = 8;
 const RF_WRITEBACK: f64 = 18.0;
 const RF_WRITEBACK16: f64 = 18.0;
@@ -73,8 +72,21 @@ const SHARED_UNITS: &[(&str, &[&str])] = &[
 ];
 const SFU_SLOW: &[(&str, f64)] = &[("rcp", 3.0), ("rsqrt", 4.0), ("rsqrt_special", 4.0)];
 const CORE_SFU_WB_GAP: f64 = 1.0;
-const CORE_SFU_SLOW: &[(&str, f64)] = &[("rcp", 1.6), ("rsqrt", 1.02), ("rsqrt_special", 1.02)];
-const CORE_SFU_FAST: f64 = 0.92;
+/// Core structure from the core-scaling probe (results/2026-10-11-core-scaling): 4 schedulers per core,
+/// each issuing at most one instruction per cycle; SIMD group g runs on scheduler g % 4. Schedulers
+/// {0, 2} and {1, 3} form two halves; each half has 2 32-bit register-operand reads per cycle and one
+/// unit for the transcendental / integer-multiply / bit-field / convert / 64-bit-add class. An ALU
+/// instruction's issue interval blocks its scheduler.
+pub const SCHEDULERS: usize = 4;
+const HALF_READ_PORTS: f64 = 2.0;
+/// A 32-bit source written by the same SIMD group at most this many real cycles earlier is forwarded and
+/// takes no register-file read port (one dependent chain per group reads fewer ports than eight).
+const FORWARD_WINDOW: f64 = 4.0;
+/// Per-half unit occupancy in real cycles (reference units at 32 groups x 1.049).
+const HALF_UNIT_SLOW: &[(&str, f64)] = &[("rcp", 2.94 * 1.049), ("rsqrt", 3.92 * 1.049), ("rsqrt_special", 3.92 * 1.049)];
+const HALF_UNIT_FAST: f64 = 1.96 * 1.049;
+/// 64-bit add and 32x32->64 multiply-add occupy the same half unit (no sfu-pipe rules otherwise).
+const HALF_UNIT_WIDE: &[(&str, f64)] = &[("iadd64", 3.92 * 1.049), ("imadd_wide", 3.92 * 1.049)];
 
 fn lookup<'a, T: Copy>(table: &'a [(&str, T)], k: &str) -> Option<T> {
     table.iter().find(|(n, _)| *n == k).map(|(_, v)| *v)
@@ -225,6 +237,19 @@ impl Params {
                 }
             }
         }
+        // SIMD/quad reductions: per-core rate measured with 32 SIMD groups (the 4-group bench is latency
+        // bound for them); only ever raises the cap.
+        let scaling = repo_root().join("results/2026-10-11-core-scaling/grid.json");
+        if let Ok(sc) = read_json(&scaling) {
+            for r in sc["rows"].as_array().into_iter().flatten() {
+                let (Some(op), Some(t)) = (r["op"].as_str(), r["core_cycles_per_step"].as_f64()) else { continue };
+                if is_reduce(op) && r["chains"].as_u64() == Some(8) && r["groups"].as_u64() == Some(32) && unit_cap.contains_key(op) {
+                    let cap = 32.0 / (t * k);
+                    let cur = unit_cap[op];
+                    unit_cap.insert(op.to_string(), cur.max(cap));
+                }
+            }
+        }
         let g = |key: &str, d: f64| c(key, d) * k;
         let load_latency = match load_latency {
             Some(l) if l != 0.0 => l,
@@ -306,6 +331,8 @@ pub struct Instr {
     pub dst: Vec<u32>,
     pub src: Vec<u32>,
     pub reads32: usize,
+    /// 32-bit register numbers read (the `reads32` set)
+    pub src32: Vec<u32>,
     pub unit: Option<String>,
     pub kind: Kind,
     pub unmeasured: bool,
@@ -352,7 +379,7 @@ pub fn decode(code: &[u8], p: &Params) -> Result<Vec<Instr>, String> {
         let regops: Vec<(&Operand, Vec<u32>)> = ops.iter().map(|o| (o, regs_of(o))).filter(|(_, r)| !r.is_empty()).collect();
         let union = |it: &[(&Operand, Vec<u32>)]| set_of(it.iter().flat_map(|(_, r)| r.iter().copied()));
         let mut rec = Instr {
-            pc, size, name: String::new(), text: String::new(), dst: vec![], src: vec![], reads32: 0, unit: None,
+            pc, size, name: String::new(), text: String::new(), dst: vec![], src: vec![], reads32: 0, src32: vec![], unit: None,
             kind: Kind::Alu, unmeasured: false, slot: 0, cache: false, uniform_src: false, loop_bytes: None, wait_run: 0,
         };
         let nm = d.name;
@@ -431,6 +458,7 @@ pub fn decode(code: &[u8], p: &Params) -> Result<Vec<Instr>, String> {
                     .flat_map(|(_, r)| r.iter().map(|h| h / 2)),
             );
             rec.reads32 = wide.len();
+            rec.src32 = wide.clone();
             rec.cache = regops.iter().skip(1).any(|(o, _)| o.flags() & isa::operand::F_CACHE != 0);
             let imm = ops.iter().filter(|o| matches!(o, Operand::Imm(..))).count();
             let key = if is_reduce(nm) {
@@ -693,12 +721,16 @@ struct SimInstr {
     bucket: usize,
     cost: f64,
     need_port: f64,
+    src32: Vec<u32>,
+    reduce: bool,
     lat: i64,
     ii: i64,
     sfu_op: bool,
     sfu_slow: Option<i64>,
     core_slow: Option<i64>,
     core_fast_cost: i64,
+    /// 64-bit forms on the half unit: occupancy in ticks
+    wide_cost: Option<i64>,
     tgop: bool,
     tg_name: bool,
     mem_issue0: i64,
@@ -756,6 +788,7 @@ pub fn simulate(instrs: &[Instr], pcs: &[usize], p: &Params, groups: usize, deta
     let sfu_wb_gap = tk(SFU_WB_GAP);
     let sfu_group_block = tk(SFU_GROUP_BLOCK);
     let core_wb_gap = tk(CORE_SFU_WB_GAP);
+    let fwd = tk(FORWARD_WINDOW);
 
     // ---- resolve units and buckets
     let mut bucket_ids: HashMap<String, usize> = HashMap::new();
@@ -786,7 +819,7 @@ pub fn simulate(instrs: &[Instr], pcs: &[usize], p: &Params, groups: usize, deta
         let (bucket, cost, unit, need_port) = match &r.unit {
             Some(u) => {
                 let (b, c, _) = bucket_of(u);
-                (b, c, Some(0usize), (r.reads32 as f64).min(READ_PORTS) * t_ as f64)
+                (b, c, Some(0usize), (r.reads32 as f64).min(HALF_READ_PORTS + 2.0) * t_ as f64)
             }
             None => (0, 0.0, None, 0.0),
         };
@@ -805,11 +838,7 @@ pub fn simulate(instrs: &[Instr], pcs: &[usize], p: &Params, groups: usize, deta
         } else {
             (tk(p.dev_store_issue.0), (tk(p.dev_store_done.0), tk(p.dev_store_done.1)))
         };
-        let core_fast_cost = if p.shared_of.get(u).map(String::as_str) == Some("imadbf") {
-            tk(1.0 / p.unit_cap[u])
-        } else {
-            tk(CORE_SFU_FAST)
-        };
+        let core_fast_cost = tk(HALF_UNIT_FAST);
         for &h in r.src.iter().chain(r.dst.iter()) {
             max_half = max_half.max(h);
         }
@@ -826,12 +855,15 @@ pub fn simulate(instrs: &[Instr], pcs: &[usize], p: &Params, groups: usize, deta
             bucket,
             cost,
             need_port,
+            src32: r.src32.clone(),
+            reduce: is_reduce(&r.name),
             lat,
             ii,
             sfu_op,
             sfu_slow: lookup(SFU_SLOW, u).map(tk),
-            core_slow: lookup(CORE_SFU_SLOW, u).map(tk),
+            core_slow: lookup(HALF_UNIT_SLOW, u).map(tk),
             core_fast_cost,
+            wide_cost: lookup(HALF_UNIT_WIDE, u).map(tk),
             tgop: r.name == "threadgroup_load",
             tg_name: is_tg,
             mem_issue0,
@@ -863,7 +895,8 @@ pub fn simulate(instrs: &[Instr], pcs: &[usize], p: &Params, groups: usize, deta
     let mut tok: Vec<Option<f64>> = vec![None; buckets.len()];
     let mut refilling: Vec<usize> = vec![];
     let mut in_refill: Vec<bool> = vec![false; buckets.len()];
-    let mut port = READ_PORTS * t_ as f64;
+    let mut port = [HALF_READ_PORTS * t_ as f64; 2];
+    let mut sched_free = [0i64; SCHEDULERS];
     let mut issue_tok: i64 = ISSUE_PER_CORE * t_;
     let mut last_alu = vec![NEG_INF; g];
     let mut alu_done = vec![NEG_INF; g];
@@ -872,7 +905,7 @@ pub fn simulate(instrs: &[Instr], pcs: &[usize], p: &Params, groups: usize, deta
     let mut sfu_iss = vec![NEG_INF; g];
     let mut sfu_wb = vec![NEG_INF; g];
     let mut sfu_slow = vec![NEG_INF; g];
-    let (mut core_wb, mut core_slow, mut core_fast) = (NEG_INF, NEG_INF, NEG_INF);
+    let (mut core_wb, mut core_slow, mut core_fast) = ([NEG_INF; 2], [NEG_INF; 2], [NEG_INF; 2]);
     let mut alu_since_mem = vec![false; g];
     let mut last_space: Vec<u8> = vec![0; g]; // 0 None, 1 'tg', 2 'device_load', 3 'device_store'
     struct Pending {
@@ -962,6 +995,13 @@ pub fn simulate(instrs: &[Instr], pcs: &[usize], p: &Params, groups: usize, deta
                     continue;
                 }
             }
+            let sch = gi % SCHEDULERS;
+            let half = sch % 2;
+            let mut need = 0.0;
+            if sched_free[sch] > t {
+                wake.push(sched_free[sch]);
+                continue;
+            }
             if issue_tok < t_ {
                 wake.push(t + 1);
                 continue;
@@ -975,7 +1015,12 @@ pub fn simulate(instrs: &[Instr], pcs: &[usize], p: &Params, groups: usize, deta
                         refilling.push(b);
                     }
                 }
-                if tok[b].unwrap() < r.cost || port < r.need_port {
+                need = r.need_port;
+                if need > 0.0 {
+                    let fresh = r.src32.iter().filter(|&&reg| matches!(wtime[gi].get(reg as usize), Some(Some((t0, _))) if t - t0 <= fwd)).count();
+                    need = (need - (fresh as i64 * t_) as f64).max(0.0);
+                }
+                if tok[b].unwrap() < r.cost || port[half] < need {
                     wake.push(t + 1);
                     continue;
                 }
@@ -1012,8 +1057,15 @@ pub fn simulate(instrs: &[Instr], pcs: &[usize], p: &Params, groups: usize, deta
                     NEG_INF
                 });
                 if g > 1 {
-                    gate = gate.max(core_wb + core_wb_gap - l_).max(if r.core_slow.is_some() { core_slow } else { core_fast });
+                    gate = gate.max(core_wb[0] + core_wb_gap - l_).max(if r.core_slow.is_some() { core_slow[half] } else { core_fast[half] });
                 }
+                if gate > t {
+                    wake.push(gate);
+                    continue;
+                }
+            }
+            if g > 1 && r.wide_cost.is_some() {
+                let gate = core_fast[half].max(core_slow[half]);
                 if gate > t {
                     wake.push(gate);
                     continue;
@@ -1028,7 +1080,7 @@ pub fn simulate(instrs: &[Instr], pcs: &[usize], p: &Params, groups: usize, deta
                     in_refill[b] = true;
                     refilling.push(b);
                 }
-                port -= r.need_port;
+                port[half] -= need;
             }
             let mut branch = 0i64;
             let ii: i64;
@@ -1044,12 +1096,17 @@ pub fn simulate(instrs: &[Instr], pcs: &[usize], p: &Params, groups: usize, deta
                         }
                         iiv = sfu_group_block;
                         if g > 1 {
-                            core_wb = core_wb.max(t + lat);
+                            core_wb[0] = core_wb[0].max(t + lat);
                             if let Some(s) = r.core_slow {
-                                core_slow = t + s;
+                                core_slow[half] = t + s;
                             } else {
-                                core_fast = t + r.core_fast_cost;
+                                core_fast[half] = t + r.core_fast_cost;
                             }
+                        }
+                    }
+                    if g > 1 {
+                        if let Some(c) = r.wide_cost {
+                            core_fast[half] = t + c;
                         }
                     }
                     ii = iiv;
@@ -1180,6 +1237,7 @@ pub fn simulate(instrs: &[Instr], pcs: &[usize], p: &Params, groups: usize, deta
                 }
             }
             let occ = t_.max(ii) + branch;
+            sched_free[sch] = t + if r.kind == Kind::Alu && !r.reduce { t_.max(ii) } else { t_ };
             let e = &mut stats[ri];
             e.0 += 1;
             if nxt[gi] != 0 {
@@ -1204,7 +1262,9 @@ pub fn simulate(instrs: &[Instr], pcs: &[usize], p: &Params, groups: usize, deta
         // refill(nt - t). Python min(a, b) is `b if b < a else a`; a bucket already at its cap stays
         // there (cap + non-negative refill, clamped), so only buckets below their cap are visited.
         let dt = (nt - t) as f64;
-        port = pymin(port + READ_PORTS * dt, (READ_PORTS + 4.0) * t_ as f64);
+        for pt in port.iter_mut() {
+            *pt = pymin(*pt + HALF_READ_PORTS * dt, (HALF_READ_PORTS + 2.0) * t_ as f64);
+        }
         issue_tok = (issue_tok + ISSUE_PER_CORE * (nt - t)).min(ISSUE_PER_CORE * t_);
         let mut i = 0;
         while i < refilling.len() {

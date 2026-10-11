@@ -5,7 +5,9 @@ validated on an M2 Max (driver-reported G14C B1) under Asahi Linux.
 
 The model is written in Rust (`rust/`, see [rust/README.md](rust/README.md)). It was ported from
 `agx_cost.py` in [Apple-M2-Playground](https://github.com/Jianwen-Ding/Apple-M2-Playground)
-(commit `9754f83`) and gives bit-identical results; the Python model has been removed. It decodes
+(commit `9754f83`), first bit-identically; since 2026-10-11 it models the core's internal structure (four
+schedulers, two halves with shared units and register-read ports, see [core scaling](novel-results/2026-10-11-core-scaling/README.md)),
+so results with more than one SIMD group per core differ from the Python model. It decodes
 an AGX binary, derives its dynamic path by emulation, and simulates one core running G SIMD groups
 cycle by cycle. Predictions are in real cycles (`--units ref` gives reference units: dependent
 8-byte `iadd` step = 2; real cycles = × 1.049).
@@ -18,7 +20,10 @@ make verify-cost-model   # offline: re-score every stored measurement (~9 s)
 
 Held-out accuracy (median |prediction − measurement| / measurement, whole loop trip):
 3.7% with 1 SIMD group and 3.3% with 4 groups per core on 24 fresh 32-instruction kernels;
-4.5% / 6.0% on 24 kernels with memory instructions. Full model description, accuracy tables and
+4.5% / 6.0% on 24 kernels with memory instructions.
+With 1–32 SIMD groups in one workgroup per core (`scripts/scale_probes.py`, 23 instruction forms,
+1 and 8 dependency chains, 598 measurements) the median error is 3.0% (p90 29%); see the core-scaling finding
+for the open cases (latency-bound chains at 10–20 groups, `icmpsel`, `fmadd16`, ballots). Full model description, accuracy tables and
 known gaps: [novel-results/2026-10-11-cost-model](novel-results/2026-10-11-cost-model/README.md)
 (written for the Python version; file and function names there refer to it).
 

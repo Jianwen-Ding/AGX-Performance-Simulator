@@ -63,7 +63,7 @@ def program(op, chains, G, s1, s2, trips, ref_trips, count, warm, idle=()):
     core = (B.get_sr(20, 28)+B.get_sr(17, 29)+mov(27, 256)+e('imadd r28, r28, r27, r29')
             + mov(27, B.TS_BASE+6*count)+e('iadd r27, r1, r27')+agx_loop.store(28, 8, 27)+e('wait 0'))
     ck = lambda k: B.clock_read(k, count)
-    b = group_setup(G, ref_trips)+op_trips_setup(trips, idle)+core+(B.loop('fadd32', 8, 64, warm) if warm else b'')+BAR
+    b = group_setup(G, ref_trips)+core+op_trips_setup(trips, idle)+(B.loop('fadd32', 8, 64, warm) if warm else b'')+BAR
     b += ck(0)+loop_reg(B.REF, 1, s1)+ck(1)+loop_reg(B.REF, 1, s2)+ck(2)+BAR
     b += loop_reg(op, chains, s1, R_OPTRIPS)+BAR+ck(3)+BAR+loop_reg(op, chains, s2, R_OPTRIPS)+BAR+ck(4)
     b += loop_reg(B.REF, 1, s1)+ck(5)

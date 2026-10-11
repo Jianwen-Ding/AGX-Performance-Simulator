@@ -120,6 +120,9 @@ fn main() {
         for (i, m) in ["latency", "simd_issue", "gpu"].iter().enumerate() {
             let meas = bv[m]["cycles_per_step"].as_f64().unwrap();
             err[i].push((pred[i] - meas) / meas);
+            if std::env::var("AGX_VERBOSE").is_ok() {
+                println!("  bench {} {}: measured {:.2} predicted {:.2}", op, m, meas, pred[i]);
+            }
         }
     }
     for (i, (m, lim)) in [("latency", 0.03), ("simd_issue", 0.04), ("gpu", 0.06)].iter().enumerate() {
@@ -441,6 +444,34 @@ fn main() {
                 "{} ({}), {} group(s)/core: whole trip median {} p90 {} max {} bias {:+.3} | body only median {} p90 {} max {} (limits {}/{})",
                 fname, role, groups, f3(md), f3(p90), f3(mx), b, f3(bmd), f3(bp90), f3(bmx), py_float(lim), py_float(blim)));
         }
+    }
+    // ---- core scaling: 1..32 SIMD groups per core in one workgroup (scripts/scale_probes.py)
+    let sc = repo_root().join("results/2026-10-11-core-scaling");
+    for (f, lim) in [("grid.json", 0.05), ("chains.json", 0.05)] {
+        let d = read_json(&sc.join(f)).unwrap();
+        let steps: Vec<u32> = d["steps"].as_array().unwrap().iter().map(|x| x.as_u64().unwrap() as u32).collect();
+        let t_ = 10u32;
+        let mut errs = vec![];
+        let mut by_g: std::collections::BTreeMap<u64, Vec<f64>> = Default::default();
+        for r in d["rows"].as_array().unwrap() {
+            let Some(meas) = r.get("core_cycles_per_step").and_then(|x| x.as_f64()) else { continue };
+            if r.get("idle").and_then(|x| x.as_array()).map(|a| !a.is_empty()).unwrap_or(false) {
+                continue;
+            }
+            let (op, ch, g) = (r["op"].as_str().unwrap(), r["chains"].as_u64().unwrap() as u32, r["groups"].as_u64().unwrap());
+            let c: Vec<f64> = steps.iter().map(|&s| v.sim(&kernels::bench_loop(op, ch, s, t_), g as usize)).collect();
+            let pred = to_ref(c[1] - c[0]) / (t_ * (steps[1] - steps[0])) as f64;
+            errs.push((pred - meas) / meas);
+            by_g.entry(g).or_default().push(((pred - meas) / meas).abs());
+        }
+        let (md, p90, mx, b) = stats(&errs);
+        let per_g: Vec<String> = by_g.iter().map(|(g, e)| {
+            let mut e = e.clone();
+            e.sort_by(|a, b| a.partial_cmp(b).unwrap());
+            format!("{}:{:.2}", g, e[e.len() / 2])
+        }).collect();
+        v.check(md <= lim, format!("core scaling {} (FIT: half units, ports, schedulers; {} rows): median |err| {} p90 {} max {} bias {:+.3} (limit {}); median by groups {}",
+            f, errs.len(), f3(md), f3(p90), f3(mx), b, py_float(lim), per_g.join(" ")));
     }
     println!("{} failures", v.fails);
     std::process::exit(if v.fails > 0 { 1 } else { 0 });

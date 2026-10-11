@@ -21,6 +21,12 @@ cargo test --release
 
 ## Equivalence with the Python model
 
+> **Since 2026-10-11 the model deliberately differs from the Python version when more than one SIMD
+> group runs per core** (per-scheduler issue, per-half register-read ports and shared units, forwarding
+> of fresh sources, reduction rates from 32 groups; see `../novel-results/2026-10-11-core-scaling`).
+> Every 1-group check still prints exactly what the Python model printed; the statements below
+> describe the port as it was at commit `9754f83`.
+
 The port has to give the same numbers, not just similar ones:
 
 * `verify_cost_model` reproduces `results/2026-10-11-cost-model/verify-output.txt` byte for byte:
