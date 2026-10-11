@@ -2,8 +2,8 @@
 //!
 //! * Occupancy (playground novel-results/2026-10-11-occupancy): resident SIMD groups per core =
 //!   min(96, 2 * floor(3328 / (2 * register halves))); 32-lane workgroups cap near 55 groups and 64-lane
-//!   ones near 84; whole workgroups only. Threadgroup memory per core is not measured: `tg_capacity`
-//!   (default 64 KiB) is an assumption.
+//!   ones near 84; whole workgroups only. Threadgroup memory: `tg_capacity`
+//!   = 64 KiB per core, measured: floor(65536 / declared bytes) workgroups (playground occupancy finding).
 //! * Workgroups are split evenly over the GPU clusters (38 cores: 10, 9, 9, 10) and then over the cores of
 //!   each cluster, so the busiest core gets ceil(ceil(n / 4) / 9) workgroups (wg_placement.py: exact for
 //!   38..608 workgroups of 64 and 256 lanes). That core sets the time.

@@ -43,7 +43,7 @@ Findings: [core scaling](novel-results/2026-10-11-core-scaling/README.md),
 
 Known gaps: latency-bound chains at 10–20 groups per core (20–60% slow on hardware, cause unknown); the
 group→scheduler mapping when some groups idle; reuse of lines fetched by other cores; threadgroup-memory
-capacity (64 KiB assumed), textures and divergence are not measured; barriers after ALU work at 8-32 groups are 13-31% low;
+textures and divergence are not measured; barriers after ALU work at 8-32 groups are 13-31% low;
 predictions assume the top clock (1398 MHz) unless `--clock` is given.
 
 
