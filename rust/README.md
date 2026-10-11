@@ -77,7 +77,8 @@ skips refilling token buckets that are already at their cap.
 | file | contents |
 | --- | --- |
 | `src/isa/` | applegpu port: descriptor table, operands, assembler, emulator (`exec.rs` reference, `compiled.rs` fast), `fma.rs` soft float |
-| `src/cost.rs` | Params, decode classification, mark_loops, trace, fit_branch, simulate |
+| `src/cost.rs` | Params, decode classification, mark_loops, trace / trace_group (per-group SRs and memory segments), fit_branch, simulate / simulate_groups, MemModel |
+| `src/dispatch.rs` | whole-dispatch model (occupancy, placement, launch, waves) |
 | `src/kernels.rs` | counted / bench loops, store and threadgroup encodings, random kernels |
 | `src/pyrandom.rs` | CPython `random.Random` |
-| `src/bin/` | `agx_cost`, `agx_predict`, `verify_cost_model`, `agx_bench` |
+| `src/bin/` | `agx_cost`, `agx_predict`, `agx_dispatch`, `verify_cost_model`, `scale_check`, `mem_check`, `dispatch_check`, `agx_bench` |
