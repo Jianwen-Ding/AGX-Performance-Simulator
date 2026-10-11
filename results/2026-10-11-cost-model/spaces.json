@@ -1,0 +1,12 @@
+{
+ "dev store, dev store": 6.262552563075692,
+ "tg store, tg store": 34.30769230769231,
+ "dev store, tg store": 33.88701923076923,
+ "tg store, dev store": 33.80503451380552,
+ "dev load, wait, dev load, wait": 89.59775801603206,
+ "tg load, wait, tg load, wait": 45.754392570281134,
+ "dev load, wait, tg load, wait": 67.70218373493977,
+ "tg load, wait, dev load, wait": 67.7624246987952,
+ "dev store, tg load, wait": 39.517597695390776,
+ "tg store, dev load, wait": 61.87185922441488
+}

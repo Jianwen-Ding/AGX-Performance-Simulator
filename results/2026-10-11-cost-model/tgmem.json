@@ -1,0 +1,9 @@
+{
+ "tg load, wait": 22.901442307692307,
+ "iadd, tg load, wait": 41.86778846153847,
+ "tg load, wait, dependent iadd": 40.737980769230774,
+ "2 tg loads, wait": 45.790221531676025,
+ "tg store": 17.14948376102646,
+ "tg store, wait": 17.1716434721666,
+ "tg store, tg load (other slot), wait": 39.93917949012402
+}

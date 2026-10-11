@@ -1,0 +1,18 @@
+{
+ "store": 3.23798076923077,
+ "store, wait": 21.472804865839013,
+ "iadd, store": 35.794755025125625,
+ "iadd, store, wait": 40.49751904570971,
+ "store, store": 6.246023771244836,
+ "store, 8 iadd": 44.45049931129477,
+ "iadd, wait, store": 35.81855931352871,
+ "iadd, store, store": 37.141464514835604,
+ "tg store": 17.182197653429604,
+ "iadd, tg store": 36.274566980376456,
+ "iadd, tg store, store": 52.83154023218576,
+ "load, wait": 44.83222695390781,
+ "load, iadd, wait": 44.705394657863145,
+ "iadd, load, wait": 63.75701530612244,
+ "iadd, wait, load, wait": 64.80048076923076,
+ "iadd, store, load, wait": 72.86538461538461
+}

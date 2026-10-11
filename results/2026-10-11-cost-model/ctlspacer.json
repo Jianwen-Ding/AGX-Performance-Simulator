@@ -1,0 +1,99 @@
+{
+ "load,0": 63.799597016419725,
+ "store,0": 35.830602669610606,
+ "load,1": 66.61097066479778,
+ "store,1": 38.60430530059661,
+ "load,2": 71.51099137931035,
+ "store,2": 42.33537459843965,
+ "load,4": 82.18371778647031,
+ "store,4": 52.80882352941177,
+ "load,8": 97.8858951538815,
+ "store,8": 69.9583908839779,
+ "pairs_only,0": 1.7897021619135236,
+ "pairs_only,2": 7.812851123595506,
+ "pairs_only,8": 30.92677710151584,
+ "pair x1": {
+  "measured": 3.704459987966306,
+  "predicted": 1.9092886081982838
+ },
+ "pair x4": {
+  "measured": 15.597759623095428,
+  "predicted": 7.6290216873212575
+ },
+ "pair x16": {
+  "measured": 61.49282889467361,
+  "predicted": 30.507954003813154
+ },
+ "push, iadd, pop, iadd": {
+  "measured": 3.825750000000001,
+  "predicted": 4.006524070543376
+ },
+ "push, 4 iadd(indep), pop": {
+  "measured": 7.057262429831594,
+  "predicted": 6.103759532888466
+ },
+ "4 pairs, wait": {
+  "measured": 34.20975000000001,
+  "predicted": 8.582310533841756
+ },
+ "iadd, 4 pairs, wait": {
+  "measured": 36.324380268968284,
+  "predicted": 18.973158960915157
+ },
+ "iadd, wait": {
+  "measured": 19.064691883767537,
+  "predicted": 18.973158960915157
+ },
+ "while x1": {
+  "measured": 1.985420004004805,
+  "predicted": 1.790127502383223
+ },
+ "while x4": {
+  "measured": 7.7883835602723295,
+  "predicted": 7.509860581506198
+ },
+ "while x16": {
+  "measured": 31.129249398315288,
+  "predicted": 30.388792897998094
+ },
+ "while, iadd": {
+  "measured": 3.8247969314079437,
+  "predicted": 2.0046174928503344
+ },
+ "while, iadd, iadd": {
+  "measured": 3.8716835202242716,
+  "predicted": 3.0532352240228793
+ },
+ "4 while, wait": {
+  "measured": 26.784608059342418,
+  "predicted": 24.597563155386084
+ },
+ "iadd, 4 while, load, wait": {
+  "measured": 73.01310483870967,
+  "predicted": 71.69003217349858
+ },
+ "iadd, 4 while, store": {
+  "measured": 44.28818331998399,
+  "predicted": 43.4726823164919
+ },
+ "while, iadd rot8": {
+  "measured": 2.543649799599198,
+  "predicted": 2.0046174928503344
+ },
+ "while, fadd32 chain": {
+  "measured": 3.8521769662921326,
+  "predicted": 2.0046174928503344
+ },
+ "push, pop, iadd": {
+  "measured": 3.8061748496993975,
+  "predicted": 3.9111951858913248
+ },
+ "while, while, iadd": {
+  "measured": 4.050045108259823,
+  "predicted": 3.9111951858913265
+ },
+ "while, iadd, iadd same chain": {
+  "measured": 5.7020532490974745,
+  "predicted": 4.006524070543376
+ }
+}
