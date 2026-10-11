@@ -34,7 +34,7 @@ memory hierarchy, and adds launch cost; it prints a JSON report with the predict
 | Core | 4 schedulers (1 issue/cycle, group g on scheduler g % 4); two halves, each with 2 register reads/cycle and one transcendental/imad/bit-field/convert/64-bit unit | 1–32 groups, 738 measurements: 3.0–3.5% |
 | Memory | 64-byte segments; L1 8 KiB (loads 2, stores 1 segment/cycle), L2 256 KiB/core, SLC, DRAM 410 GB/s; load-after-ALU quiet time holds back whole batches | 6 stored sets: 1.8–7.2% |
 | Shared memory, sync | threadgroup memory: 32 banks x 4 bytes, 1 access/cycle/core, ~31 (load) / 24 (store) cycles per access per group; barriers 13 (0x68) / 7 (0x78) units after the last arrival, arrival after a 24-unit drain; device atomics 1.7 units per 32-byte sector (min 6.9), shared words 2 ops/cycle GPU-wide | 4 sets: 1.4-5.2% |
-| Dispatch | occupancy (registers, 64 KiB threadgroup memory, 96 groups), cluster placement ceil(ceil(n/4)/9), launch max(100 ns/workgroup, 13.6 ns/group) + 5.6 us, waves; divergent if/else runs both sides, exec-mask instructions hold their scheduler 3 cycles | 29 dispatches (incl. 4 divergent) |
+| Dispatch | occupancy (registers, 64 KiB threadgroup memory, 96 groups), cluster placement ceil(ceil(n/4)/9), launch max(100 ns/workgroup, 13.6 ns/group) + 5.6 us, waves; divergent if/else runs both sides, exec-mask instructions hold their scheduler 3 cycles | 29 dispatches incl. 4 divergent: 5.4% (p90 13%) |
 
 Findings: [core scaling](novel-results/2026-10-11-core-scaling/README.md),
 [memory hierarchy](novel-results/2026-10-11-memory-hierarchy/README.md),
