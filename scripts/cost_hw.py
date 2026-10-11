@@ -1,17 +1,17 @@
 #!/usr/bin/env python3
-"""Hardware calibration and validation of agx_cost (direct DRM, known-safe encodings only).
+"""Hardware calibration and validation of the cost model (direct DRM, known-safe encodings only).
 
 calibrate : taken-loop overhead per trip (empty body) and get_sr cost, in cycles, with the
             in-dispatch clock of run_bench (REF slope = ns per cycle).
 validate  : random kernels: L instructions drawn from the benchmarked templates with random
             register dependencies among r5..r12 (constants r24..r26), run in a counted loop.
             Cycles per trip = slope between two trip counts, measured with 1 SIMD group and
-            with ~4 groups per core (per-core span aggregation), and compared with agx_cost.
+            with ~4 groups per core (per-core span aggregation), and compared with the model's prediction (Rust agx_predict, see predict()).
 Every body passes run_bench.check_body (decoded lengths, no control flow, dest >= r5).
 """
-import argparse, json, random, statistics, sys, time
+import argparse, json, os, random, statistics, subprocess, sys, tempfile, time
 from pathlib import Path
-import agx_loop, gpu_safety, run_bench as B, agx_cost as C
+import agx_loop, gpu_safety, run_bench as B
 from bench_ops import OPS
 from run_drm_opcode_describe import get_sr
 
@@ -141,18 +141,22 @@ def measure(R, phase_a, phase_b, units, groups_mode, ref_trips=1000, extra_env=N
     return None
 
 
-_P = None
+PREDICT = Path(os.environ.get('AGX_PREDICT', Path(__file__).resolve().parents[1]/'rust/target/release/agx_predict'))
 
 
-def predict(phase_a, phase_b, units, groups, P=None):
-    global _P
-    if P is None:
-        if _P is None: _P = C.Params(); C.fit_branch(_P)     # cached per process (branch fit is slow)
-        P = _P
-    c = []
-    for code in (phase_a, phase_b):
-        ins = C.decode(code, P); pcs, _ = C.trace(code); c.append(C.simulate(ins, pcs, P, groups))
-    return C.to_ref(c[1]-c[0])/units      # reference units, like the stored measurements
+def predict(phase_a, phase_b, units, groups):
+    """Model prediction in reference units per unit of (phase_b - phase_a), like the stored
+    measurements. Runs the Rust model (`make rust` builds rust/target/release/agx_predict; override
+    the path with AGX_PREDICT). Bit-identical to the former Python agx_cost prediction."""
+    if not PREDICT.exists():
+        raise RuntimeError(f'{PREDICT} not found: run `make rust` (or set AGX_PREDICT)')
+    with tempfile.TemporaryDirectory() as d:
+        a, b = Path(d)/'a.bin', Path(d)/'b.bin'
+        a.write_bytes(phase_a); b.write_bytes(phase_b)
+        r = subprocess.run([str(PREDICT), str(a), str(b), str(units), str(groups)], capture_output=True, text=True)
+    if r.returncode:
+        raise RuntimeError(f'agx_predict failed: {r.stderr.strip()}')
+    return float(r.stdout)
 
 
 def main():
