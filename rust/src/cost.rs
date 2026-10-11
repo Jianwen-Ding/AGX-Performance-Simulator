@@ -78,6 +78,7 @@ const CORE_SFU_WB_GAP: f64 = 1.0;
 /// unit for the transcendental / integer-multiply / bit-field / convert / 64-bit-add class. An ALU
 /// instruction's issue interval blocks its scheduler.
 pub const SCHEDULERS: usize = 4;
+const STEAL: bool = true;
 const HALF_READ_PORTS: f64 = 2.0;
 /// A 32-bit source written by the same SIMD group at most this many real cycles earlier is forwarded and
 /// takes no register-file read port (one dependent chain per group reads fewer ports than eight).
@@ -1288,6 +1289,10 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
     let mut in_refill: Vec<bool> = vec![false; buckets.len()];
     let mut port = [HALF_READ_PORTS * t_ as f64; 2];
     let mut sched_free = [0i64; SCHEDULERS];
+    let mut tick_issued = vec![false; groups];
+    // an idle scheduler may issue a ready group of a ring neighbour (idle-slot probe: slots 1, 3 and 4 relieve
+    // scheduler 0, slot 2 does not)
+    let npass = if STEAL && groups > 4 { 2 } else { 1 };
     let mut issue_tok: i64 = ISSUE_PER_CORE * t_;
     let mut last_alu = vec![NEG_INF; g];
     let mut alu_done = vec![NEG_INF; g];
@@ -1337,9 +1342,13 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
         let k0 = if g == 1 { 0 } else { (((t / t_) as u64).wrapping_mul(2654435761) >> 7) as usize % g };
         order.extend((k0..g).chain(0..k0));
         wake.clear();
+        for flag in tick_issued.iter_mut() {
+            *flag = false;
+        }
+        for pass in 0..npass {
         for oi in 0..order.len() {
             let gi = order[oi];
-            if nxt[gi] >= npcs[gi] {
+            if nxt[gi] >= npcs[gi] || tick_issued[gi] {
                 continue;
             }
             if free[gi] > t {
@@ -1390,9 +1399,21 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
                     continue;
                 }
             }
-            let sch = gi % SCHEDULERS;
-            let half = sch % 2;
+            let home = gi % SCHEDULERS;
+            let half = home % 2;
             let mut need = 0.0;
+            // pass 0: the group's own scheduler; pass 1: a ring-neighbour scheduler that issued nothing
+            let sch = if pass == 0 {
+                home
+            } else {
+                if sched_free[home] <= t {
+                    continue;
+                }
+                match [(home + 1) % SCHEDULERS, (home + SCHEDULERS - 1) % SCHEDULERS].into_iter().find(|&n| sched_free[n] <= t) {
+                    Some(n) => n,
+                    None => continue,
+                }
+            };
             if sched_free[sch] > t {
                 wake.push(sched_free[sch]);
                 continue;
@@ -1808,9 +1829,11 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
             sr_cache[gi] = None;
             blk_cache[gi] = None;
             issued += 1;
+            tick_issued[gi] = true;
             if nxt[gi] >= npcs[gi] {
                 done += 1;
             }
+        }
         }
         if done >= g {
             break;

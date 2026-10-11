@@ -33,6 +33,6 @@ ok   heldout48.json (HELD OUT (used to choose transcendental blocking)), 1 group
 ok   heldout48.json (HELD OUT (used to choose transcendental blocking)), 4 group(s)/core: whole trip median 0.045 p90 0.069 max 0.078 bias -0.032 | body only median 0.053 p90 0.084 max 0.092 (limits 0.1/0.12)
 ok   heldout32c.json (HELD OUT (measured after all current rules)), 1 group(s)/core: whole trip median 0.037 p90 0.096 max 0.155 bias -0.032 | body only median 0.051 p90 0.129 max 0.224 (limits 0.05/0.07)
 ok   heldout32c.json (HELD OUT (measured after all current rules)), 4 group(s)/core: whole trip median 0.038 p90 0.076 max 0.088 bias -0.035 | body only median 0.047 p90 0.097 max 0.115 (limits 0.05/0.07)
-ok   core scaling grid.json (FIT: half units, ports, schedulers; 598 rows): median |err| 0.030 p90 0.286 max 3.147 bias -0.002 (limit 0.05); median by groups 1:0.01 2:0.02 3:0.03 4:0.02 5:0.06 6:0.05 8:0.06 10:0.08 12:0.06 16:0.06 20:0.06 24:0.05 32:0.03
-ok   core scaling chains.json (FIT: half units, ports, schedulers; 140 rows): median |err| 0.035 p90 0.237 max 0.897 bias +0.019 (limit 0.05); median by groups 4:0.05 8:0.05 12:0.03 16:0.04 20:0.05 24:0.03 32:0.02
+ok   core scaling grid.json (FIT: half units, ports, schedulers; 598 rows): median |err| 0.031 p90 0.286 max 3.138 bias -0.005 (limit 0.05); median by groups 1:0.01 2:0.02 3:0.03 4:0.02 5:0.06 6:0.07 8:0.05 10:0.05 12:0.06 16:0.07 20:0.06 24:0.05 32:0.03
+ok   core scaling chains.json (FIT: half units, ports, schedulers; 140 rows): median |err| 0.033 p90 0.237 max 0.924 bias +0.020 (limit 0.05); median by groups 4:0.05 8:0.05 12:0.03 16:0.03 20:0.06 24:0.06 32:0.03
 0 failures

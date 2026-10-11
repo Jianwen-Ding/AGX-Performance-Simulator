@@ -24,9 +24,7 @@ fn main() {
         let steps: Vec<u32> = d["steps"].as_array().unwrap().iter().map(|x| x.as_u64().unwrap() as u32).collect();
         let mut errs = vec![];
         for r in d["rows"].as_array().unwrap() {
-            if r.get("idle").and_then(|x| x.as_array()).map(|a| !a.is_empty()).unwrap_or(false) {
-                continue;
-            }
+            let idle: Vec<u64> = r.get("idle").and_then(|x| x.as_array()).map(|a| a.iter().filter_map(|v| v.as_u64()).collect()).unwrap_or_default();
             let Some(meas) = r.get("core_cycles_per_step").and_then(|x| x.as_f64()) else { continue };
             let op = r["op"].as_str().unwrap();
             let ch = r["chains"].as_u64().unwrap() as u32;
@@ -35,7 +33,14 @@ fn main() {
                 let code = kernels::bench_loop(op, ch, s, t_);
                 let ins = cost::decode(&code, &p).unwrap();
                 let tr = cost::trace(&code, 32, 1_000_000).unwrap();
-                cost::simulate(&ins, &tr.pcs, &p, g, false).unwrap().0
+                if idle.is_empty() {
+                    return cost::simulate(&ins, &tr.pcs, &p, g, false).unwrap().0;
+                }
+                // idle groups run one trip (separate code with the same layout) and then stay out of the way
+                let short = kernels::bench_loop(op, ch, s, 1);
+                let trs = cost::trace(&short, 32, 1_000_000).unwrap();
+                let seqs: Vec<&[usize]> = (0..g as u64).map(|k| if idle.contains(&k) { trs.pcs.as_slice() } else { tr.pcs.as_slice() }).collect();
+                cost::simulate_groups(&ins, &seqs, None, &p, false, None).unwrap().0
             };
             let pred = to_ref(sim(steps[1]) - sim(steps[0])) / (t_ * (steps[1] - steps[0])) as f64;
             let e = (pred - meas) / meas;

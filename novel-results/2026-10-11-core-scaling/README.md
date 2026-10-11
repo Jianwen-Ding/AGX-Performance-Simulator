@@ -56,11 +56,20 @@ those understate contention for the shared units by up to 2× (`rsqrt` 0.97 cycl
 16/64 steps, 2.0 with 32/128, in both the bench's span method and this probe; workgroup size 32, 64 or
 128 lanes makes no difference). Use this finding's rates for more than one group per core.
 
+**Neighbouring schedulers (added later the same day).** A scheduler with no ready group of its own issues a ready
+group of a ring neighbour (scheduler s ± 1). With 5 busy groups every scheduler has its own work, so scheduler 0 (slots
+0 and 4) takes 2 cycles; idling slot 1 or 3 (neighbours of scheduler 0) or 4 frees it, idling slot 2 (opposite) does
+not. The simulator implements this rule: the idle-slot rows go from p90 96% to 28% error, the other sets are unchanged.
+
 ## Not established (open)
 
 * **The group→scheduler assignment is not a static function of the slot.** With 5 groups working
   (slots 0–4) a step takes 2.0 cycles. Giving slot 1, 3 or 4 no work brings it to ~1.05, but idling
   slot 2 leaves 2.0. No static slot→scheduler map with 1 issue per cycle fits all four cases.
+* **More than 4 instructions per cycle?** One dependent `iadd` chain per group at 10 and 12 groups takes 2.18 and
+  2.63 cycles per step (4.6 instructions per cycle), and `mov_imm` writing one register 2.24 at 10 groups, while
+  throughput-bound code never exceeds 4.0. Either the core sometimes issues more than 4 per cycle, or this
+  configuration has a measurement artifact; not resolved.
 * **Latency-bound chains between 10 and 20 groups**: one dependent `iadd` chain per group takes 5.6
   cycles per step at 16 groups (8 chains: 4.3; 12 groups: 2.6), and similar 20–60% excesses appear for
   shuffles, ballots and fp32/fp16 forms. The cause is unknown.
@@ -73,7 +82,7 @@ those understate contention for the shared units by up to 2× (`rsqrt` 0.97 cycl
   --trips 500 --ref-trips 500 --name grid.json` (~10 min); idle slots: `--groups 5,5/1,5/2,...`.
   The probe also lives in [AGX-Performance-Simulator](https://github.com/Jianwen-Ding/AGX-Performance-Simulator)
   (`scripts/scale_probes.py`), whose cost model now implements this structure.
-* Offline: `make verify-core-scaling` (in Apple-M2-Playground) (18 checks over [the evidence](https://github.com/Jianwen-Ding/Apple-M2-Playground/tree/main/results/2026-10-11-core-scaling)).
+* Offline: `make verify-core-scaling` (in Apple-M2-Playground) (18 checks over [the evidence](https://github.com/Jianwen-Ding/Apple-M2-Playground/tree/main/results/2026-10-11-core-scaling/README.md)).
 
 ## Relationship to existing knowledge
 
