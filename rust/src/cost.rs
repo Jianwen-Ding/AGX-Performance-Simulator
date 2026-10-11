@@ -923,7 +923,7 @@ impl Default for MemModel {
             l1_bytes: 8 << 10,
             l2_bytes: 256 << 10,
             slc_bytes: 16 << 20,
-            l2_extra: 78.0,
+            l2_extra: 90.0,
             slc_ns: 349.0,
             dram_ns: 388.0,
             l1_load_rate: 2.0 / k,
@@ -1181,6 +1181,10 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
     let mut sfu_slow = vec![NEG_INF; g];
     let (mut core_wb, mut core_slow, mut core_fast) = ([NEG_INF; 2], [NEG_INF; 2], [NEG_INF; 2]);
     let mut alu_since_mem = vec![false; g];
+    // device loads of a group complete in order (a quiet-time delay holds back the whole batch);
+    // only with the memory model, so the fitted L1 rules are unchanged without it
+    let inorder_loads = true;
+    let mut last_load_done = vec![NEG_INF; g];
     let mut last_space: Vec<u8> = vec![0; g]; // 0 None, 1 'tg', 2 'device_load', 3 'device_store'
     struct Pending {
         slot: usize,
@@ -1479,7 +1483,8 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
                             let m = pending[gi].iter().map(|p| p.done).max().unwrap();
                             delay = delay.max(m - t);
                         }
-                        lat = delay + load_fast + mem_extra;
+                        lat = (delay + load_fast + mem_extra).max(if inorder_loads { last_load_done[gi] + load_ii - t } else { 0 });
+                        last_load_done[gi] = t + lat;
                         iiv = load_ii;
                     }
                     let cls: u8 = if tgop { 1 } else { 2 };

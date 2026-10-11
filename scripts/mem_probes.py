@@ -27,7 +27,7 @@ IDX = list(range(5, 13))
 DST = list(range(13, 21))
 
 
-def mem_loop(steps, kind, s, j, w, data, advance=0, mask=0, glob=False, private=False):
+def mem_loop(steps, kind, s, j, w, data, advance=0, mask=0, glob=False, private=False, pad=0, pad_kind='indep'):
     """Counted loop (trips in r29) of `steps` memory instructions, wait after every 8.
     private: each workgroup streams through its own window: base r24_r25 = table + 4*(data + SR0*(mask+1)),
     index = (local linear index SR51 * s + j*J + advance...) & mask (validated register-pair base form)."""
@@ -70,11 +70,26 @@ def mem_loop(steps, kind, s, j, w, data, advance=0, mask=0, glob=False, private=
             body += agx_loop.store(DST[k % 8], 8, r)
         if k % 8 == 7 or k == steps-1:
             body += e('wait 0')
+            body += pad_alu(pad, pad_kind)
             if advance:
                 for r2 in IDX:
                     body += e(f'iadd r{r2}, r{r2}, r21')+e(f'and r{r2}, r{r2}, r22')
     body += e('iadd r3, 1, r3.sx')+e('while_icmp r0l, ult, r3, r4, 1')
     return head+body+e(f'jmp_exec_any pc-{len(body)}', f'jmp_exec_any pc-{len(body)}')+e('pop_exec r0l, 1')
+
+
+def pad_alu(n, kind):
+    """n ALU instructions after each wait: 'dep' one chain on r28, 'indep' round-robin over r21..r28,
+    'idx' r5..r12 += 0 (writes the load index registers without changing them)."""
+    out = b''
+    for i in range(n):
+        if kind == 'dep':
+            out += e('iadd r28, r28, 1')
+        elif kind == 'indep':
+            out += e(f'iadd r{21 + i % 8}, r{21 + i % 8}, 1')
+        else:
+            out += e(f'iadd r{5 + i % 8}, r{5 + i % 8}, 0')
+    return out
 
 
 def run(R, body, count, repeats, local_x, table_words):
@@ -136,6 +151,8 @@ def main():
                     help='lane index = global thread index (r1): groups on every core touch distinct words; with it, '
                          'J defaults to the lane count and --advance to 8 x lanes (grid stride)')
     ap.add_argument('--mask-bytes', default='0', help='streaming window sizes in bytes (powers of two)')
+    ap.add_argument('--pad', default='0', help='ALU instructions after each wait (list)')
+    ap.add_argument('--pad-kind', default='indep', choices=['dep', 'indep', 'idx'])
     ap.add_argument('--trips', type=int, default=200)
     ap.add_argument('--ref-trips', type=int, default=500)
     ap.add_argument('--steps', default='32,128')
@@ -150,7 +167,8 @@ def main():
     path = a.output/a.name
     out = json.loads(path.read_text()) if path.exists() else {'rows': []}
     out.update({'utc': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()), 'steps': [s1, s2], 'units': 'reference'})
-    for wb in map(int, a.mask_bytes.split(',')):
+    for pad in map(int, a.pad.split(',')):
+      for wb in map(int, a.mask_bytes.split(',')):
         mask = wb//4-1 if wb else 0
         for st in map(int, a.stride.split(',')):
             for G in map(int, a.groups.split(',')):
@@ -167,7 +185,7 @@ def main():
                 if a.private:
                     words = data+CORES*2*(mask+1)+4096     # room for up to 2 workgroups per core
                 if words > (1 << 27): raise SystemExit('table too large')
-                ph = lambda s: mem_loop(s, a.kind, st, jj, a.w, data, adv, mask, a.glob, a.private)
+                ph = lambda s: mem_loop(s, a.kind, st, jj, a.w, data, adv, mask, a.glob, a.private, pad, a.pad_kind)
                 body = S.program(None, 0, G, s1, s2, a.trips, a.ref_trips, count, 2000, phase=ph)
                 best = None
                 for att in range(1, 5):
@@ -175,7 +193,7 @@ def main():
                     m = S.analyse(ts, G, a.trips, a.ref_trips, s1, s2)
                     if m['stable_cores'] >= 10: best = m; break
                     best = best or m
-                row = {'kind': a.kind, 'stride': st, 'j': jj, 'w': a.w, 'advance': adv, 'global': a.glob, 'private': a.private, 'window_bytes': wb,
+                row = {'kind': a.kind, 'pad': pad, 'pad_kind': a.pad_kind, 'stride': st, 'j': jj, 'w': a.w, 'advance': adv, 'global': a.glob, 'private': a.private, 'window_bytes': wb,
                        'groups': G, 'trips': a.trips, 'attempts': att, **{k: v for k, v in best.items() if k != 'slots'}}
                 out['rows'].append(row)
                 print(json.dumps({k: (round(v, 2) if isinstance(v, float) else v) for k, v in row.items() if k not in ('spread',)}), flush=True)

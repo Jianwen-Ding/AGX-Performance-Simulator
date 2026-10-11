@@ -5,7 +5,7 @@ ok   rotation (FIT, 32-bit forms): median |err| 0.017, max 0.119
 info rotation (fadd16): median |err| 0.029, max 0.338 (16-bit writeback not modelled beyond D=9)
 info empty loop trip: measured 35.25, predicted 35.27 (reference units)
 ok   memory (FIT) load line 1 + wait 0: measured 63.9, predicted 64.9
-ok   memory (FIT) 2 loads line 1 + one wait: measured 66.5, predicted 64.9
+ok   memory (FIT) 2 loads line 1 + one wait: measured 66.5, predicted 67.5
 ok   load-after-ALU grid (FIT, 30 points): median |err| 0.017, max 0.044
 ok   memory state probes (FIT, 15 cases): median |err| 0.025, max 0.120
 ok   memory-space transitions (FIT, 7 cases): median |err| 0.007, max 0.030

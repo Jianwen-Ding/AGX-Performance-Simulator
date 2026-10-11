@@ -366,6 +366,27 @@ pub fn names(code: &[u8]) -> Vec<String> {
 /// that many words after each wait and wraps with `mask` (table words 0..mask).
 #[allow(clippy::too_many_arguments)]
 pub fn mem_loop(steps: u32, store_kind: bool, s: u32, jstride: u32, w: u32, data: u32, advance: u32, mask: u32, glob: bool) -> Vec<u8> {
+    mem_loop_pad(steps, store_kind, s, jstride, w, data, advance, mask, glob, 0, "indep")
+}
+
+/// mem_probes.pad_alu: `n` ALU instructions after each wait ("dep": one chain on r28, "indep": r21..r28,
+/// "idx": r5..r12 += 0).
+pub fn pad_alu(n: u32, kind: &str) -> Vec<u8> {
+    let mut out = vec![];
+    for i in 0..n {
+        out.extend(match kind {
+            "dep" => e("iadd r28, r28, 1"),
+            "indep" => e(&format!("iadd r{}, r{}, 1", 21 + i % 8, 21 + i % 8)),
+            _ => e(&format!("iadd r{}, r{}, 0", 5 + i % 8, 5 + i % 8)),
+        });
+    }
+    out
+}
+
+/// `mem_loop` with `pad_alu(pad, kind)` after each wait.
+#[allow(clippy::too_many_arguments)]
+pub fn mem_loop_pad(steps: u32, store_kind: bool, s: u32, jstride: u32, w: u32, data: u32, advance: u32, mask: u32, glob: bool,
+    pad: u32, pad_kind: &str) -> Vec<u8> {
     let mut h = mov(3, 0);
     h.extend(e("iadd r4, r29, 0"));
     if glob && w == u32::MAX {
@@ -402,6 +423,7 @@ pub fn mem_loop(steps: u32, store_kind: bool, s: u32, jstride: u32, w: u32, data
         }
         if k % 8 == 7 || k == steps - 1 {
             body.extend(e("wait 0"));
+            body.extend(pad_alu(pad, pad_kind));
             if advance != 0 {
                 for r2 in 5..13 {
                     body.extend(e(&format!("iadd r{}, r{}, r21", r2, r2)));
