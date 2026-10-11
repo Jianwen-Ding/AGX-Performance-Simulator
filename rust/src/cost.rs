@@ -8,7 +8,7 @@
 //! same issue/arbitration/token-bucket rules, the same float operations in the same order and
 //! Python's round-half-to-even for every tick conversion.
 
-use crate::isa::{self, exec, fget, Desc, Ex, Operand};
+use crate::isa::{self, exec, fget, Desc, Operand};
 use serde_json::Value;
 use std::collections::{BTreeSet, HashMap};
 use std::path::{Path, PathBuf};
@@ -535,11 +535,32 @@ struct PcInfo {
     fields: isa::Fields,
     ops: Vec<Operand>,
     rs: Vec<Vec<u32>>,
+    /// halves of rs[1:] (sources for the taint rules)
+    uses: Vec<u32>,
+    /// first non-empty rs (the destination for the taint rules)
+    dst: Vec<u32>,
+    op: isa::compiled::Compiled,
+    stop: bool,
+    /// 0 = not a jump, 1 = jmp_exec_any, 2 = jmp_exec_none
+    jump: u8,
+    off: i64,
+    /// control instruction whose condition is checked for uniforms / tainted sources
+    check: bool,
+    ureg: bool,
 }
 
 /// agx_cost.trace: dynamic pc sequence for one SIMD group (applegpu emulator; uniforms and memory
 /// read as zero; instructions it cannot execute are skipped and taint their destination).
 pub fn trace(code: &[u8], active: usize, max_steps: usize) -> Result<Trace, String> {
+    trace_impl(code, active, max_steps, false)
+}
+
+/// `trace` driven by the reference interpreter (`isa::exec::exec`) instead of the compiled one.
+pub fn trace_reference(code: &[u8], active: usize, max_steps: usize) -> Result<Trace, String> {
+    trace_impl(code, active, max_steps, true)
+}
+
+fn trace_impl(code: &[u8], active: usize, max_steps: usize, reference: bool) -> Result<Trace, String> {
     let mut st = exec::CoreState::new(128, Some(exec::Memory { base: TABLE_VA, words: vec![0; 65536] }));
     for t in 0..exec::SIMD_WIDTH {
         st.set_reg16(0, t, if t < active { 0 } else { 1 })?;
@@ -548,74 +569,80 @@ pub fn trace(code: &[u8], active: usize, max_steps: usize) -> Result<Trace, Stri
     }
     let mut out = Trace::default();
     let mut tainted = vec![false; 1024];
-    let mut cache: HashMap<usize, PcInfo> = HashMap::new();
+    let mut cache: Vec<Option<PcInfo>> = (0..code.len()).map(|_| None).collect();
     let mut pc: i64 = 0;
     while pc < code.len() as i64 {
         if pc < 0 {
             return Err(format!("trace: negative pc {}", pc));
         }
         let upc = pc as usize;
-        if !cache.contains_key(&upc) {
+        if cache[upc].is_none() {
             let n0 = isa::opcode_to_number(&code[upc..code.len().min(upc + 16)]);
             let desc = isa::get_instruction_descriptor(n0).ok_or_else(|| format!("trace: undecodable instruction at {}", upc))?;
             let size = desc.decode_size(n0);
             let n = desc.mask_instr(n0);
             let fields = desc.decode_fields(n);
-            let ops = if desc.name == "stop" || desc.name == "trap" { vec![] } else { desc.fields_to_operands(&fields)? };
-            let rs = ops.iter().map(regs_of).collect();
-            cache.insert(upc, PcInfo { desc, size, fields, ops, rs });
+            let stop = desc.name == "stop" || desc.name == "trap";
+            let ops = if stop { vec![] } else { desc.fields_to_operands(&fields)? };
+            let rs: Vec<Vec<u32>> = ops.iter().map(regs_of).collect();
+            let uses = set_of(rs.iter().skip(1).flatten().copied());
+            let dst = rs.iter().find(|r| !r.is_empty()).cloned().unwrap_or_default();
+            let jump = match desc.name {
+                "jmp_exec_any" => 1,
+                "jmp_exec_none" => 2,
+                _ => 0,
+            };
+            let mut off = fget(&fields, "off").unwrap_or(0) as i64;
+            if off & (1 << 31) != 0 {
+                off -= 1 << 32;
+            }
+            let check = CONTROL.contains(&desc.name) && !["jmp_exec_any", "jmp_exec_none", "pop_exec"].contains(&desc.name);
+            let ureg = ops.iter().any(Operand::is_ureg);
+            let op = isa::compiled::Compiled::new(desc, &fields, &ops, st.reg16s.len());
+            cache[upc] = Some(PcInfo { desc, size, fields, ops, rs, uses, dst, op, stop, jump, off, check, ureg });
         }
-        let info = &cache[&upc];
-        let d = info.desc;
+        let info = cache[upc].as_ref().unwrap();
         out.pcs.push(upc);
         if out.pcs.len() > max_steps {
             return Err("trace step limit (non-terminating loop?)".into());
         }
-        if d.name == "stop" || d.name == "trap" {
+        if info.stop {
             break;
         }
-        let rs = &info.rs;
-        let uses_tainted = |tainted: &[bool]| rs.iter().skip(1).flatten().any(|&h| tainted[h as usize]);
-        if CONTROL.contains(&d.name) && !["jmp_exec_any", "jmp_exec_none", "pop_exec"].contains(&d.name)
-            && (info.ops.iter().any(Operand::is_ureg) || uses_tainted(&tainted))
-        {
-            let w = format!("pc {}: {} condition depends on a uniform or a skipped result (trip count unknown)", upc, d.name);
+        if info.check && (info.ureg || info.uses.iter().any(|&h| tainted[h as usize])) {
+            let w = format!("pc {}: {} condition depends on a uniform or a skipped result (trip count unknown)", upc, info.desc.name);
             if !out.warnings.contains(&w) {
                 out.warnings.push(w);
             }
         }
-        if d.name == "jmp_exec_any" || d.name == "jmp_exec_none" {
-            let mut off = fget(&info.fields, "off").unwrap_or(0) as i64;
-            if off & (1 << 31) != 0 {
-                off -= 1 << 32;
-            }
+        if info.jump != 0 {
             let any = st.exec.iter().any(|&e| e);
-            let take = if d.name == "jmp_exec_any" { any } else { !any };
-            pc = if take { pc + off } else { pc + info.size as i64 };
+            let take = if info.jump == 1 { any } else { !any };
+            pc = if take { pc + info.off } else { pc + info.size as i64 };
             continue;
         }
-        let dst: &[u32] = rs.iter().find(|r| !r.is_empty()).map(|v| v.as_slice()).unwrap_or(&[]);
-        match exec::exec(d, &info.fields, &info.ops, &mut st) {
+        let r = if reference { exec::exec(info.desc, &info.fields, &info.ops, &mut st) } else { info.op.exec(&mut st) };
+        match r {
             Ok(()) => {
-                for &h in dst {
+                for &h in &info.dst {
                     tainted[h as usize] = false;
                 }
-                if uses_tainted(&tainted) {
-                    for &h in dst {
+                if info.uses.iter().any(|&h| tainted[h as usize]) {
+                    for &h in &info.dst {
                         tainted[h as usize] = true;
                     }
                 }
             }
             Err(_) => {
-                out.skipped.insert(d.name.to_string());
-                for &h in dst {
+                out.skipped.insert(info.desc.name.to_string());
+                for &h in &info.dst {
                     tainted[h as usize] = true;
                 }
             }
         }
+        let _ = &info.rs;
         pc += info.size as i64;
     }
-    let _ = Ex::None;
     Ok(out)
 }
 
@@ -684,6 +711,13 @@ struct Bucket {
     shared: bool,
     cap: f64,
     init: f64,
+    /// refill ceiling: 2*T*TOKSCALE for shared units, (cap+1)*T*TOKSCALE otherwise
+    capmax: f64,
+}
+
+#[inline]
+fn pymin(a: f64, b: f64) -> f64 {
+    if b < a { b } else { a }
 }
 
 /// agx_cost.simulate: `groups` identical SIMD groups on one core; returns real cycles (and per-pc stats).
@@ -738,7 +772,8 @@ pub fn simulate(instrs: &[Instr], pcs: &[usize], p: &Params, groups: usize, deta
         let id = *bucket_ids.entry(name.clone()).or_insert_with(|| {
             let shared = SHARED_UNITS.iter().any(|(s, _)| *s == name);
             let rcap = if shared { 1.0 } else { p.unit_cap.get(&name).copied().unwrap_or(1.0) };
-            buckets.push(Bucket { shared, cap: rcap, init: (cap + 1.0) * t_ as f64 * TOKSCALE as f64 });
+            let capmax = if shared { (2 * t_ * TOKSCALE) as f64 } else { (rcap + 1.0) * t_ as f64 * TOKSCALE as f64 };
+            buckets.push(Bucket { shared, cap: rcap, init: (cap + 1.0) * t_ as f64 * TOKSCALE as f64, capmax });
             buckets.len() - 1
         });
         (id, cost, cap)
@@ -826,7 +861,8 @@ pub fn simulate(instrs: &[Instr], pcs: &[usize], p: &Params, groups: usize, deta
     let mut wtime: Vec<Vec<Option<(i64, bool)>>> = vec![vec![None; nreg]; g];
     let mut last_w: Vec<Vec<u8>> = vec![vec![0; nreg]; g];
     let mut tok: Vec<Option<f64>> = vec![None; buckets.len()];
-    let mut tok_order: Vec<usize> = vec![];
+    let mut refilling: Vec<usize> = vec![];
+    let mut in_refill: Vec<bool> = vec![false; buckets.len()];
     let mut port = READ_PORTS * t_ as f64;
     let mut issue_tok: i64 = ISSUE_PER_CORE * t_;
     let mut last_alu = vec![NEG_INF; g];
@@ -847,8 +883,10 @@ pub fn simulate(instrs: &[Instr], pcs: &[usize], p: &Params, groups: usize, deta
     }
     let mut pending: Vec<Vec<Pending>> = (0..g).map(|_| vec![]).collect();
     let mut last_t: i64 = 0;
-    let mut stats: HashMap<usize, (u64, i64, i64, i64)> = HashMap::new();
+    let mut stats: Vec<(u64, i64, i64, i64)> = vec![(0, 0, 0, 0); sim.len()];
     let mut wake: Vec<i64> = Vec::with_capacity(g);
+    let mut sr_cache: Vec<Option<i64>> = vec![None; g];
+    let mut blk_cache: Vec<Option<i64>> = vec![None; g];
     let mut order: Vec<usize> = Vec::with_capacity(g);
 
     #[inline]
@@ -868,7 +906,7 @@ pub fn simulate(instrs: &[Instr], pcs: &[usize], p: &Params, groups: usize, deta
     while done < g {
         let mut issued = 0;
         order.clear();
-        let k0 = ((((t / t_) as u128) * 2654435761u128) >> 7) as usize % g;
+        let k0 = if g == 1 { 0 } else { (((t / t_) as u64).wrapping_mul(2654435761) >> 7) as usize % g };
         order.extend((k0..g).chain(0..k0));
         wake.clear();
         for oi in 0..order.len() {
@@ -882,26 +920,32 @@ pub fn simulate(instrs: &[Instr], pcs: &[usize], p: &Params, groups: usize, deta
             }
             let ri = seq[nxt[gi]];
             let r = &sim[ri];
-            // src_ready
-            let mut sr = 0i64;
-            let mut any = false;
-            for &h in &r.src {
-                let i = touch(&mut ready[gi], &mut present[gi], &mut present_list[gi], h);
-                let mut v = ready[gi][i];
-                let reg = (h / 2) as usize;
-                if let Some((t0, narrow)) = wtime[gi][reg] {
-                    if !rcache[gi].contains(&(reg as u32)) {
-                        v = v.max(t0 + if narrow { w16 } else { w });
+            // src_ready. It depends only on this group's ready / wtime / rcache, which change only when
+            // this group issues, so it is computed once per instruction and group (same value as
+            // recomputing it every tick; the defaultdict insertions it makes are idempotent).
+            let sr = match sr_cache[gi] {
+                Some(v) => v,
+                None => {
+                    let mut sr = 0i64;
+                    let mut any = false;
+                    for &h in &r.src {
+                        let i = touch(&mut ready[gi], &mut present[gi], &mut present_list[gi], h);
+                        let mut v = ready[gi][i];
+                        let reg = (h / 2) as usize;
+                        if let Some((t0, narrow)) = wtime[gi][reg] {
+                            if !rcache[gi].contains(&(reg as u32)) {
+                                v = v.max(t0 + if narrow { w16 } else { w });
+                            }
+                        }
+                        if !any || v > sr {
+                            sr = v;
+                            any = true;
+                        }
                     }
+                    sr_cache[gi] = Some(sr);
+                    sr
                 }
-                if !any || v > sr {
-                    sr = v;
-                    any = true;
-                }
-            }
-            if !any {
-                sr = 0;
-            }
+            };
             if sr > t {
                 wake.push(sr);
                 continue;
@@ -926,7 +970,10 @@ pub fn simulate(instrs: &[Instr], pcs: &[usize], p: &Params, groups: usize, deta
                 let b = r.bucket;
                 if tok[b].is_none() {
                     tok[b] = Some(buckets[b].init);
-                    tok_order.push(b);
+                    if buckets[b].init != buckets[b].capmax {
+                        in_refill[b] = true;
+                        refilling.push(b);
+                    }
                 }
                 if tok[b].unwrap() < r.cost || port < r.need_port {
                     wake.push(t + 1);
@@ -934,20 +981,26 @@ pub fn simulate(instrs: &[Instr], pcs: &[usize], p: &Params, groups: usize, deta
                 }
             }
             if r.ndst == 1 || r.ndst == 2 {
-                let wid = r.ndst as u8;
-                let mut blk: Option<i64> = None;
-                for &reg in &r.dst_regs {
-                    let lw = last_w[gi][reg as usize];
-                    if lw != 0 && ((lw == 1 && wid == 2) || (lw == 2 && wid == 1)) {
-                        let (t0, _) = wtime[gi][reg as usize].unwrap();
-                        let x = t0 + 2 * t_;
-                        if x > t {
-                            blk = Some(blk.map_or(x, |b: i64| b.max(x)));
+                // partial-write hazard: max over hazard registers of t0 + 2 cycles (blocks while > t);
+                // per-group state only, cached like src_ready
+                let h = match blk_cache[gi] {
+                    Some(v) => v,
+                    None => {
+                        let wid = r.ndst as u8;
+                        let mut h = i64::MIN;
+                        for &reg in &r.dst_regs {
+                            let lw = last_w[gi][reg as usize];
+                            if lw != 0 && ((lw == 1 && wid == 2) || (lw == 2 && wid == 1)) {
+                                let (t0, _) = wtime[gi][reg as usize].unwrap();
+                                h = h.max(t0 + 2 * t_);
+                            }
                         }
+                        blk_cache[gi] = Some(h);
+                        h
                     }
-                }
-                if let Some(b) = blk {
-                    wake.push(b);
+                };
+                if h > t {
+                    wake.push(h);
                     continue;
                 }
             }
@@ -971,6 +1024,10 @@ pub fn simulate(instrs: &[Instr], pcs: &[usize], p: &Params, groups: usize, deta
             if r.unit.is_some() {
                 let b = r.bucket;
                 tok[b] = Some(tok[b].unwrap() - r.cost);
+                if !in_refill[b] && tok[b] != Some(buckets[b].capmax) {
+                    in_refill[b] = true;
+                    refilling.push(b);
+                }
                 port -= r.need_port;
             }
             let mut branch = 0i64;
@@ -1123,7 +1180,7 @@ pub fn simulate(instrs: &[Instr], pcs: &[usize], p: &Params, groups: usize, deta
                 }
             }
             let occ = t_.max(ii) + branch;
-            let e = stats.entry(r.pc).or_insert((0, 0, 0, 0));
+            let e = &mut stats[ri];
             e.0 += 1;
             if nxt[gi] != 0 {
                 e.1 += t - free[gi];
@@ -1133,6 +1190,8 @@ pub fn simulate(instrs: &[Instr], pcs: &[usize], p: &Params, groups: usize, deta
             free[gi] = t + occ;
             last_t = last_t.max(free[gi]);
             nxt[gi] += 1;
+            sr_cache[gi] = None;
+            blk_cache[gi] = None;
             issued += 1;
             if nxt[gi] >= npcs {
                 done += 1;
@@ -1142,18 +1201,28 @@ pub fn simulate(instrs: &[Instr], pcs: &[usize], p: &Params, groups: usize, deta
             break;
         }
         let nt = if issued > 0 || wake.is_empty() { t + 1 } else { (t + 1).max(*wake.iter().min().unwrap()) };
-        // refill(nt - t)
+        // refill(nt - t). Python min(a, b) is `b if b < a else a`; a bucket already at its cap stays
+        // there (cap + non-negative refill, clamped), so only buckets below their cap are visited.
         let dt = (nt - t) as f64;
-        port = (port + READ_PORTS * dt).min((READ_PORTS + 4.0) * t_ as f64);
+        port = pymin(port + READ_PORTS * dt, (READ_PORTS + 4.0) * t_ as f64);
         issue_tok = (issue_tok + ISSUE_PER_CORE * (nt - t)).min(ISSUE_PER_CORE * t_);
-        for &b in &tok_order {
-            let cur = tok[b].unwrap();
+        let mut i = 0;
+        while i < refilling.len() {
+            let b = refilling[i];
             let bk = &buckets[b];
-            tok[b] = Some(if bk.shared {
-                (cur + dt * TOKSCALE as f64).min((2 * t_ * TOKSCALE) as f64)
+            let cur = tok[b].unwrap();
+            let v = if bk.shared {
+                pymin(cur + dt * TOKSCALE as f64, bk.capmax)
             } else {
-                (cur + bk.cap * dt * TOKSCALE as f64).min((bk.cap + 1.0) * t_ as f64 * TOKSCALE as f64)
-            });
+                pymin(cur + bk.cap * dt * TOKSCALE as f64, bk.capmax)
+            };
+            tok[b] = Some(v);
+            if v == bk.capmax {
+                in_refill[b] = false;
+                refilling.swap_remove(i);
+            } else {
+                i += 1;
+            }
         }
         t = nt;
         if t > 50_000_000 * t_ {
@@ -1165,7 +1234,10 @@ pub fn simulate(instrs: &[Instr], pcs: &[usize], p: &Params, groups: usize, deta
         Some(
             stats
                 .into_iter()
-                .map(|(pc, (n, s, i, b))| {
+                .enumerate()
+                .filter(|(_, s)| s.0 > 0)
+                .map(|(ri, (n, s, i, b))| {
+                    let pc = sim[ri].pc;
                     (pc, PcStats { n, stall: s as f64 / t_ as f64, issue: i as f64 / t_ as f64, branch: b as f64 / t_ as f64 })
                 })
                 .collect(),

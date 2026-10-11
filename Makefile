@@ -4,7 +4,7 @@ DEVICE ?= /dev/dri/renderD128
 PROBE_INCLUDE ?= /save/workspace/AGX_Probe/mesa/include
 export CC PROBE_INCLUDE
 
-.PHONY: help check bench verify-bench capture-demo cost-calibrate cost-validate verify-cost-model
+.PHONY: help check bench verify-bench capture-demo cost-calibrate cost-validate verify-cost-model rust rust-verify rust-test
 
 help:
 	@echo 'make check              Offline: Python syntax check of every script'
@@ -13,6 +13,9 @@ help:
 	@echo 'make bench              Hardware: 60-form instruction bench (latency, issue, throughput)'
 	@echo 'make cost-calibrate     Hardware: loop/get_sr costs for the cost model'
 	@echo 'make cost-validate      Hardware: random kernels measured vs agx_cost predictions'
+	@echo 'make rust               Build the Rust port (rust/)'
+	@echo 'make rust-verify        Rust offline verifier, diffed against results/.../verify-output.txt'
+	@echo 'make rust-test          Rust unit and equivalence tests'
 	@echo 'make capture-demo       Hardware: capture a Mesa GLES shader and annotate it with agx_cost'
 
 check:
@@ -39,3 +42,12 @@ cost-validate:
 
 verify-cost-model:
 	$(PYTHON) -B scripts/verify_cost_model.py
+
+rust:
+	cd rust && cargo build --release
+
+rust-verify: rust
+	rust/target/release/verify_cost_model | diff - results/2026-10-11-cost-model/verify-output.txt && echo 'identical to verify-output.txt'
+
+rust-test:
+	cd rust && cargo test --release

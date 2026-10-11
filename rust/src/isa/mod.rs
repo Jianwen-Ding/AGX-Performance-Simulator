@@ -2,6 +2,7 @@
 //! revision 4c5bae6) that the cost model uses — decoding, disassembly, field encoding, the
 //! single-line assembler and the per-instruction emulator.
 
+pub mod compiled;
 pub mod desc;
 pub mod exec;
 pub mod fma;

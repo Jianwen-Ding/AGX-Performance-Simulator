@@ -15,7 +15,7 @@ pub struct Memory {
 
 impl Memory {
     /// agx_loop._Memory.get_u32
-    fn get_u32(&self, address: i128) -> Result<u32, String> {
+    pub fn get_u32(&self, address: i128) -> Result<u32, String> {
         let d = address - self.base;
         let (i, r) = (d.div_euclid(4), d.rem_euclid(4));
         if r != 0 || i < 0 || i >= self.words.len() as i128 {
