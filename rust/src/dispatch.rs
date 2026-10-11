@@ -124,6 +124,7 @@ pub fn simulate(code: &[u8], l: &Launch, p: &Params) -> Result<Report, String> {
         let first = w * r as u64;
         let count = (m - first).min(r as u64);
         let mut traces = vec![];
+        let mut wg_of = vec![];
         let mut slot = 0u32;
         let mut warn = vec![];
         for i in 0..count {
@@ -138,12 +139,13 @@ pub fn simulate(code: &[u8], l: &Launch, p: &Params) -> Result<Report, String> {
                     }
                 }
                 traces.push(t);
+                wg_of.push(i as u32);
             }
         }
         let seqs: Vec<&[usize]> = traces.iter().map(|t| t.pcs.as_slice()).collect();
         let mems: Vec<&[(u32, Vec<u64>)]> = traces.iter().map(|t| t.mem.as_slice()).collect();
         let mem = if l.mem { Some((mems.as_slice(), &mm)) } else { None };
-        let c = cost::simulate_groups(&ins, &seqs, mem, p, false)?.0;
+        let c = cost::simulate_groups(&ins, &seqs, mem, p, false, Some(&wg_of))?.0;
         Ok((count, c, warn))
     };
     let mut todo: Vec<u64> = vec![0];

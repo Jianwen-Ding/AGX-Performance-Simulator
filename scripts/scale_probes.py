@@ -174,3 +174,33 @@ def main():
 
 if __name__ == '__main__':
     main()
+
+
+def barrier_loop(steps, code=BAR, filler=b''):
+    """Counted loop (trips in r29) of `steps` barriers (each optionally preceded by `filler`): every SIMD group
+    of the workgroup executes the same number, so it cannot deadlock."""
+    head = mov(3, 0)+e(f'iadd r4, r{R_OPTRIPS}, 0')+e('if_fcmp r0l, eq, 0.0, 0.0, 1', 'push_exec r0l, 1')
+    body = (filler+code)*steps+e('iadd r3, 1, r3.sx')+e('while_icmp r0l, ult, r3, r4, 1')
+    return head+body+e(f'jmp_exec_any pc-{len(body)}', f'jmp_exec_any pc-{len(body)}')+e('pop_exec r0l, 1')
+
+
+def barriers(groups, trips=200, ref_trips=500, s=(8, 32), out=Path('/scratch/apple-m2-playground/sim/barrier')):
+    """Core cycles per barrier (all groups) for 0x68 and 0x78, alone and after 4 independent iadds."""
+    R = B.Runner(out)
+    rows = []
+    for name, code in (('0x68', BAR), ('0x78', bytes.fromhex('7809'))):
+        for fill in (0, 4):
+            filler = b''.join(e(f'iadd r{5+k}, r{5+k}, 1') for k in range(fill))
+            for G in groups:
+                if name == '0x78' and G > 4: continue      # 0x78 only covers aligned blocks of 4 groups
+                count = CORES*32*G
+                body = program(None, 0, G, s[0], s[1], trips, ref_trips, count, 2000, phase=lambda n: barrier_loop(n, code, filler))
+                for att in range(1, 5):
+                    fw, ts = R.run(body, count, 2+att, 32*G, gprs=64, clock=True)
+                    m = analyse(ts, G, trips, ref_trips, s[0], s[1])
+                    if m['stable_cores'] >= 10: break
+                row = {'barrier': name, 'filler_iadds': fill, 'groups': G, **{k: v for k, v in m.items() if k != 'slots'}}
+                rows.append(row)
+                print(json.dumps({'barrier': name, 'fill': fill, 'G': G, 'cycles_per_barrier': round(m.get('core_cycles_per_step', 0), 2),
+                                  'stable': m['stable_cores']}), flush=True)
+    (out/'barrier.json').write_text(json.dumps({'steps': list(s), 'rows': rows})+'\n')

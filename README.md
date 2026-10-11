@@ -33,6 +33,7 @@ memory hierarchy, and adds launch cost; it prints a JSON report with the predict
 | Instructions | latency, issue interval and unit per class (60-form bench), result cache, forwarding, writeback | 1-group random kernels 3.7% |
 | Core | 4 schedulers (1 issue/cycle, group g on scheduler g % 4); two halves, each with 2 register reads/cycle and one transcendental/imad/bit-field/convert/64-bit unit | 1–32 groups, 738 measurements: 3.0–3.5% |
 | Memory | 64-byte segments; L1 8 KiB (loads 2, stores 1 segment/cycle), L2 256 KiB/core, SLC, DRAM 410 GB/s; load-after-ALU quiet time holds back whole batches | 6 stored sets: 1.8–7.2% |
+| Shared memory, sync | threadgroup memory: 32 banks x 4 bytes, 1 access/cycle/core, ~31 (load) / 24 (store) cycles per access per group; barriers 13 (0x68) / 7 (0x78) units after the last arrival, arrival after a 24-unit drain; device atomics 1.7 units per 32-byte sector (min 6.9), shared words 2 ops/cycle GPU-wide | 4 sets: 1.4-5.2% |
 | Dispatch | occupancy, cluster placement ceil(ceil(n/4)/9), launch max(100 ns/workgroup, 13.6 ns/group) + 5.6 us, waves | 25 dispatches: 5.5% (p90 14%) |
 
 Findings: [core scaling](novel-results/2026-10-11-core-scaling/README.md),
@@ -42,7 +43,7 @@ Findings: [core scaling](novel-results/2026-10-11-core-scaling/README.md),
 
 Known gaps: latency-bound chains at 10–20 groups per core (20–60% slow on hardware, cause unknown); the
 group→scheduler mapping when some groups idle; reuse of lines fetched by other cores; threadgroup-memory
-capacity (64 KiB assumed), atomics, barriers, textures and divergence are not measured for throughput;
+capacity (64 KiB assumed), textures and divergence are not measured; barriers after ALU work at 8-32 groups are 13-31% low;
 predictions assume the top clock (1398 MHz) unless `--clock` is given.
 
 

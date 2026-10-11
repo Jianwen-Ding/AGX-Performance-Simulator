@@ -485,3 +485,81 @@ fn mem_loop_private(mut h: Vec<u8>, steps: u32, s: u32, jstride: u32, data: u32,
     h.extend(e("pop_exec r0l, 1"));
     h
 }
+
+/// agx_loop.atomic_add: device atomic add without return, [u<base>_u<base+1> + r<index>*4] += r<src>
+/// (applegpu field list with the observed constants; exact decode round trip required).
+pub fn atomic_add(base_uniform: u32, index_reg: u32, src_reg: u32) -> Vec<u8> {
+    let d = desc_by_name("atomic").expect("atomic descriptor");
+    let f: HashMap<&'static str, i64> = [
+        ("op", 0), ("g", 0), ("Rt", 0), ("R", 0), ("At", 1), ("A", 2 * base_uniform as i64), ("Ot", 0), ("O", 2 * index_reg as i64),
+        ("Ou", 1), ("S", 2 * src_reg as i64), ("u1", 1), ("u2", 0), ("u3", 1), ("u4", 4), ("u5", 2),
+    ]
+    .into_iter()
+    .collect();
+    let x = d.encode_fields(&f).expect("atomic encodes");
+    let m = isa::get_instruction_descriptor(x).expect("atomic decodes");
+    let back: HashMap<&'static str, i64> = m.decode_fields(x).into_iter().map(|(k, v)| (k, v as i64)).collect();
+    assert!(std::ptr::eq(m, d) && back == f && x & 63 == 0x15, "atomic encoding mismatch");
+    (0..8).map(|i| (x >> (8 * i)) as u8).collect()
+}
+
+/// mem_probes.mem_loop for kind "tgload" / "tgstore" (byte offsets lane*s + j*jstride + warp*w in the 16-bit
+/// base register) and "atomic" (device atomic add at word data + lane*s + ...).
+#[allow(clippy::too_many_arguments)]
+pub fn mem_loop_kind(steps: u32, kind: &str, s: u32, jstride: u32, w: u32, data: u32, glob: bool) -> Vec<u8> {
+    let mut h = mov(3, 0);
+    h.extend(e("iadd r4, r29, 0"));
+    h.extend(e(if glob { "iadd r23, r1, 0" } else { "and r23, r1, 31" }));
+    h.extend(mov(21, s));
+    h.extend(mov(22, w));
+    for k in 0..8u32 {
+        h.extend(mov(27, data + k * jstride));
+        h.extend(e("imadd r27, r30, r22, r27"));
+        h.extend(e(&format!("imadd r{}, r23, r21, r27", 5 + k)));
+    }
+    for r in 13..21 {
+        h.extend(mov(r, 0x5a5a5a5a));
+    }
+    h.extend(e2("if_fcmp r0l, eq, 0.0, 0.0, 1", "push_exec r0l, 1"));
+    let mut body = vec![];
+    for k in 0..steps {
+        let (ri, rd) = (5 + k % 8, 13 + k % 8);
+        body.extend(match kind {
+            "atomic" => atomic_add(8, ri, rd),
+            "tgload" => tg(true, "i32", rd, Some(ri), 0, 1),
+            _ => tg(false, "i32", rd, Some(ri), 0, 1),
+        });
+        if k % 8 == 7 || k == steps - 1 {
+            body.extend(e("wait 0"));
+        }
+    }
+    body.extend(e("iadd r3, 1, r3.sx"));
+    body.extend(e("while_icmp r0l, ult, r3, r4, 1"));
+    let j = format!("jmp_exec_any pc-{}", body.len());
+    body.extend(e2(&j, &j));
+    h.extend(body);
+    h.extend(e("pop_exec r0l, 1"));
+    h
+}
+
+/// scale_probes.barrier_loop: counted loop (trips in r29) of `steps` barriers (0x68, or 0x78 when
+/// `four`), each preceded by `fill` independent iadds.
+pub fn barrier_loop(steps: u32, four: bool, fill: u32) -> Vec<u8> {
+    let mut h = mov(3, 0);
+    h.extend(e("iadd r4, r29, 0"));
+    h.extend(e2("if_fcmp r0l, eq, 0.0, 0.0, 1", "push_exec r0l, 1"));
+    let mut body = vec![];
+    for _ in 0..steps {
+        for k in 0..fill {
+            body.extend(e(&format!("iadd r{}, r{}, 1", 5 + k, 5 + k)));
+        }
+        body.extend(if four { vec![0x78, 0x09] } else { vec![0x68, 0x00] });
+    }
+    body.extend(e("iadd r3, 1, r3.sx"));
+    body.extend(e("while_icmp r0l, ult, r3, r4, 1"));
+    let j = format!("jmp_exec_any pc-{}", body.len());
+    body.extend(e2(&j, &j));
+    h.extend(body);
+    h.extend(e("pop_exec r0l, 1"));
+    h
+}

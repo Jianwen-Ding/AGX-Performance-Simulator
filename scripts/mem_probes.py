@@ -66,8 +66,13 @@ def mem_loop(steps, kind, s, j, w, data, advance=0, mask=0, glob=False, private=
         r = IDX[k % 8]
         if kind == 'load':
             body += e(f'device_load 0, i32, x, r{DST[k % 8]}, u8_u9, r{r}, unsigned')
-        else:
+        elif kind == 'store':
             body += agx_loop.store(DST[k % 8], 8, r)
+        elif kind == 'atomic':          # device atomic add without return: [u8_u9 + idx*4] += value
+            body += agx_loop.atomic_add(8, r, DST[k % 8])
+        else:                           # threadgroup load/store: byte address in the 16-bit base register
+            from run_drm_tg_layout import tg
+            body += tg(kind == 'tgload', 'i32', DST[k % 8], base=r, index=0)
         if k % 8 == 7 or k == steps-1:
             body += e('wait 0')
             body += pad_alu(pad, pad_kind)
@@ -92,10 +97,13 @@ def pad_alu(n, kind):
     return out
 
 
-def run(R, body, count, repeats, local_x, table_words):
-    """Runner.run with a larger table (timestamp region + data region)."""
+def run(R, body, count, repeats, local_x, table_words, shared_bytes=0):
+    """Runner.run with a larger table (timestamp region + data region) and optional threadgroup memory."""
     (R.out/'c.bin').write_bytes(drm.build_main(body)+bytes(16))
     env = {'PATH': '/usr/bin', 'AGX_LOCAL_X': str(local_x), 'AGX_CPU_CLOCK': '0', 'AGX_TABLE_OUT': str(R.out/'t.out')}
+    if shared_bytes:
+        from run_drm_tg_layout import shared_word
+        env['AGX_SHARED_WORD'] = str(shared_word(shared_bytes) if shared_bytes < 65536 else 0x4d | 1 << 8 | 0x24 << 10)
     (R.out/'t.bin').write_bytes(bytes(4*table_words))
     argv = [str(R.exe), '/dev/dri/renderD128', str(R.out/'c.bin'), str(count), str(R.out/'rb'), str(repeats), '64', str(R.out/'t.bin')]
     try:
@@ -138,7 +146,8 @@ def gate_private():
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument('what', choices=['run', 'gate'])
-    ap.add_argument('--kind', default='load', choices=['load', 'store'])
+    ap.add_argument('--kind', default='load', choices=['load', 'store', 'atomic', 'tgload', 'tgstore'])
+    ap.add_argument('--shared-bytes', type=int, default=32768, help='threadgroup memory declared for tg kinds')
     ap.add_argument('--groups', default='1,4,8,16,32')
     ap.add_argument('--stride', default='0,1,2,4,8,16,32', help='S: words between lanes')
     ap.add_argument('--j', type=int, default=0, help='J: words between the 8 index registers')
@@ -185,11 +194,16 @@ def main():
                 if a.private:
                     words = data+CORES*2*(mask+1)+4096     # room for up to 2 workgroups per core
                 if words > (1 << 27): raise SystemExit('table too large')
-                ph = lambda s: mem_loop(s, a.kind, st, jj, a.w, data, adv, mask, a.glob, a.private, pad, a.pad_kind)
+                if a.kind.startswith('tg'):   # byte offsets: lane*4*S + j*J + warp*W (J, W in bytes); must fit the declaration
+                    top = 31*4*st+7*jj+(G-1)*a.w+4
+                    if top > a.shared_bytes: raise SystemExit(f'threadgroup offsets reach {top} > {a.shared_bytes}')
+                    ph = lambda s: mem_loop(s, a.kind, 4*st, jj, a.w, 0, 0, 0)
+                else:
+                    ph = lambda s: mem_loop(s, a.kind, st, jj, a.w, data, adv, mask, a.glob, a.private, pad, a.pad_kind)
                 body = S.program(None, 0, G, s1, s2, a.trips, a.ref_trips, count, 2000, phase=ph)
                 best = None
                 for att in range(1, 5):
-                    fw, ts = run(R, body, count, 2+att, 32*G, words)
+                    fw, ts = run(R, body, count, 2+att, 32*G, words, a.shared_bytes if a.kind.startswith('tg') else 0)
                     m = S.analyse(ts, G, a.trips, a.ref_trips, s1, s2)
                     if m['stable_cores'] >= 10: best = m; break
                     best = best or m

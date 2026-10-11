@@ -12,6 +12,7 @@ use agx_sim::kernels::{self, get_sr, mov};
 pub fn predict(p: &Params, row: &serde_json::Value, steps: [u32; 2], mm: &MemModel) -> f64 {
     let g = |k: &str| row[k].as_u64().unwrap_or(0) as u32;
     let groups = g("groups");
+    let steps = if row.get("barrier").is_some() { [8, 32] } else { steps };
     let wb = g("window_bytes");
     let mask = if wb > 0 { wb / 4 - 1 } else { 0 };
     let store = row["kind"].as_str() == Some("store");
@@ -23,10 +24,18 @@ pub fn predict(p: &Params, row: &serde_json::Value, steps: [u32; 2], mm: &MemMod
     for (i, &s) in steps.iter().enumerate() {
         let mut code = get_sr(53, 30);
         code.extend(mov(29, trips));
+        let kind = row["kind"].as_str().unwrap_or("load");
+        if let Some(bar) = row["barrier"].as_str() {
+            code.extend(kernels::barrier_loop(s, bar == "0x78", row["filler_iadds"].as_u64().unwrap_or(0) as u32));
+        } else if matches!(kind, "tgload" | "tgstore" | "atomic") {
+            let (st, d) = if kind == "atomic" { (g("stride"), data) } else { (4 * g("stride"), 0) };
+            code.extend(kernels::mem_loop_kind(s, kind, st, g("j"), g("w"), d, glob));
+        } else {
         let private = row["private"].as_bool().unwrap_or(false);
         let w = if private { u32::MAX } else { g("w") };
         code.extend(kernels::mem_loop_pad(s, store, g("stride"), g("j"), w, data, g("advance"), mask, glob || private, g("pad"),
             row["pad_kind"].as_str().unwrap_or("indep")));
+        }
         let ins = cost::decode(&code, p).unwrap();
         let traces: Vec<cost::Trace> = (0..groups)
             .map(|k| {
@@ -36,7 +45,7 @@ pub fn predict(p: &Params, row: &serde_json::Value, steps: [u32; 2], mm: &MemMod
             .collect();
         let seqs: Vec<&[usize]> = traces.iter().map(|t| t.pcs.as_slice()).collect();
         let mems: Vec<&[(u32, Vec<u64>)]> = traces.iter().map(|t| t.mem.as_slice()).collect();
-        cyc[i] = cost::simulate_groups(&ins, &seqs, Some((&mems, mm)), p, false).unwrap().0;
+        cyc[i] = cost::simulate_groups(&ins, &seqs, Some((&mems, mm)), p, false, None).unwrap().0;
     }
     to_ref(cyc[1] - cyc[0]) / (trips * (steps[1] - steps[0])) as f64
 }
@@ -51,7 +60,8 @@ fn main() {
         .filter(|(i, a)| !a.starts_with('-') && !(*i > 0 && args[i - 1] == "--limit")).map(|(_, a)| a.clone()).collect();
     if args.iter().any(|a| a == "--stored") {
         let r = cost::repo_root().join("results/2026-10-11-memory-hierarchy");
-        for f in ["coalesce-shared.json", "coalesce-private.json", "store.json", "pad.json", "private.json", "stream-dram.json"] {
+        for f in ["coalesce-shared.json", "coalesce-private.json", "store.json", "pad.json", "private.json", "stream-dram.json", "tg.json",
+            "tgstore.json", "atomic-global.json", "barrier.json"] {
             files.push(r.join(f).display().to_string());
         }
     }
@@ -68,7 +78,7 @@ fn main() {
             let e = (pred - meas) / meas;
             errs.push(e.abs());
             if verbose {
-                println!("{} S {:2} win {:9} G {:2}: measured {:8.2} predicted {:8.2} ({:+.0}%)", r["kind"].as_str().unwrap(),
+                println!("{} S {:2} win {:9} G {:2}: measured {:8.2} predicted {:8.2} ({:+.0}%)", r["kind"].as_str().or(r["barrier"].as_str()).unwrap_or("?"),
                     r["stride"], r["window_bytes"], r["groups"], meas, pred, 100.0 * e);
             }
         }
