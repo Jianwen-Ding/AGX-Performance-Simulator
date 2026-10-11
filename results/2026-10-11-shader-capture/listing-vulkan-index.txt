@@ -1,0 +1,33 @@
+====================================================================================================
+shader 0: compute variant:main  [vulkan (Mesa 25.3 layout)]  
+  source /scratch/apple-m2-playground/capture/vk/exported.bin  binary 336 B  main @128+78  preamble @256  rodata @0 8 B -> u16
+  gprs(16-bit) main 6 preamble 8  push uniforms 20  stack 0/0 words  local 0 B  wg [32, 1, 1]
+  Mesa stats: instrs 11  alu 7  fscib 7  ic 4  threads 1024  loops 0  spills 0  fills 0
+  --- main @128  62 B  11 instructions (+8 padding)
+      predicted cycles: 1 group/core = 57.8  4 groups/core = 60.8   (path static, 11 dynamic instrs)
+         pc  hex                      class            n@1  stall@1   n@4  stall@4  disassembly
+          0  f2051004                 get_sr             1      0.0     4      0.0  get_sr r1.cache, sr80 (thread_position_in_grid.x)
+          4  0e05c28658000000         iadd               1      0.9     4      3.6  iadd r1, r1.discard.sx, u4.sx
+         12  62000000                 mov_imm            1      0.0     4      0.0  mov_imm r0l, 0
+         16  522842a21800             control            1      0.0     4      0.0  if_icmp r0l, ult, r1, u5, 1
+         22  9e09820659000000         imadd_cache        1      0.9     4      9.6  imadd r2.cache, r1.cache.sx, u8.sx, 0
+         30  7e09442a5900             and                1      1.1     4      4.4  xor r2, r2, u9
+         36  0e05082064000000         iadd_imm           1      0.0     4      0.0  iadd r1, 8, r1.sx
+         44  45112c0e00c01200         store              1      1.0     4      4.0  device_store 0, i32, x, r2, u6_u7, r1, unsigned, 0
+         52  3800                     wait               1      4.9     4     19.6  wait 0
+         54  520e00000000             control            1      0.0     4      0.0  pop_exec r0l, 1
+         60  8800                     control            1      0.0     4      0.0  stop
+  --- preamble @256  64 B  11 instructions (+8 padding)
+      predicted cycles: 1 group/core = 187.4  4 groups/core = 190.4   (path static, 11 dynamic instrs)
+         pc  hex                      class            n@1  stall@1   n@4  stall@4  disassembly
+          0  0501500d00c87200         load               1      0.0     4      0.0  device_load 0, i32, xyz, r0_r1_r2, u0_u1, 5, signed, lsl 2
+          8  3800                     wait               1     43.4     4    173.6  wait 0
+         10  2e0100002c050000         bfi                1      0.0     4      6.0  bfi r0, 0, r0.discard, 5
+         18  c500803d00803000         store              1      1.1     4      4.4  uniform_store 2, i16, xy, 0, r0l_r0h, 8
+         26  0501f00d01c81200         load               1      0.0     4      0.0  device_load 0, i32, x, r0, u0_u1, 31, signed, lsl 2
+         34  3800                     wait               1     43.4     4    173.6  wait 0
+         36  c500a03d00803000         store              1      0.0     4      0.0  uniform_store 2, i16, xy, 0, r0l_r0h, 10
+         44  0501040d00c0f200         load               1      0.0     4      0.0  device_load 0, i32, xyzw, r0_r1_r2_r3, u2_u3, 0, signed
+         52  3800                     wait               1     43.4     4    173.6  wait 0
+         54  c500c03d0080f000         store              1      0.0     4      0.0  uniform_store 2, i16, xyzw, 0, r0l_r0h_r1l_r1h, 12
+         62  8800                     control            1      0.0     4      0.0  stop

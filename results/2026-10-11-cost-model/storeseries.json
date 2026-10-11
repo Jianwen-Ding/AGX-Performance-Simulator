@@ -1,0 +1,78 @@
+{
+ "iadd, 0 wait1, store": {
+  "measured": 35.81035649819495,
+  "predicted": 36.704331506196375
+ },
+ "iadd, 0 wait0, store": {
+  "measured": 35.790142785571135,
+  "predicted": 36.704331506196375
+ },
+ "iadd, 1 wait1, store": {
+  "measured": 35.65384615384616,
+  "predicted": 36.704331506196375
+ },
+ "iadd, 1 wait0, store": {
+  "measured": 35.72596153846154,
+  "predicted": 36.704331506196375
+ },
+ "iadd, 2 wait1, store": {
+  "measured": 36.65549264281592,
+  "predicted": 36.704331506196375
+ },
+ "iadd, 2 wait0, store": {
+  "measured": 36.77163461538462,
+  "predicted": 36.704331506196375
+ },
+ "iadd, 4 wait1, store": {
+  "measured": 43.62982214428858,
+  "predicted": 36.704331506196375
+ },
+ "iadd, 4 wait0, store": {
+  "measured": 43.6611116680032,
+  "predicted": 36.704331506196375
+ },
+ "iadd, 8 wait1, store": {
+  "measured": 63.14182692307692,
+  "predicted": 52.242939704480456
+ },
+ "iadd, 8 wait0, store": {
+  "measured": 63.16890030060121,
+  "predicted": 55.91310176358437
+ },
+ "iadd, 12 wait1, store": {
+  "measured": 82.5048076923077,
+  "predicted": 71.69003217349857
+ },
+ "iadd, 12 wait0, store": {
+  "measured": 82.42448229291716,
+  "predicted": 75.36019423260248
+ },
+ "iadd, 16 wait1, store": {
+  "measured": 101.87774999999999,
+  "predicted": 91.13712464251668
+ },
+ "iadd, 16 wait0, store": {
+  "measured": 102.07330092221329,
+  "predicted": 94.8072867016206
+ },
+ "store, 0 iadd": {
+  "measured": 3.2684487951807224,
+  "predicted": 3.3034735462345104
+ },
+ "store, 2 iadd": {
+  "measured": 34.52889811849481,
+  "predicted": 33.84446496663489
+ },
+ "store, 4 iadd": {
+  "measured": 36.366368094475575,
+  "predicted": 35.941700428979985
+ },
+ "store, 8 iadd": {
+  "measured": 44.58490755627011,
+  "predicted": 40.136171353670164
+ },
+ "store, 16 iadd": {
+  "measured": 52.6226192862871,
+  "predicted": 48.52511320305052
+ }
+}

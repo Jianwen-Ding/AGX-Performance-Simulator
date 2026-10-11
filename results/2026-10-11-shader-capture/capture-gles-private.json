@@ -1,0 +1,2018 @@
+{
+ "command": [],
+ "out": "/scratch/apple-m2-playground/capture/final5/private",
+ "mesa_versions": {
+  "gl": "25.1.9",
+  "vulkan": "25.3.6"
+ },
+ "layouts": {
+  "gl": "25.1",
+  "vulkan": "25.3"
+ },
+ "runs": [],
+ "skipped_items": [
+  {
+   "source": "part0/mesa_cache.db@408",
+   "reason": "GLSL program metadata"
+  }
+ ],
+ "ir_sections": [
+  {
+   "index": 0,
+   "stage": "compute",
+   "workgroup_size": [
+    32,
+    1,
+    1
+   ],
+   "functions": [
+    {
+     "entrypoint": true,
+     "preamble": false,
+     "instrs": 32,
+     "stack_words": 1036
+    },
+    {
+     "entrypoint": false,
+     "preamble": true,
+     "instrs": 4,
+     "stack_words": 0
+    }
+   ],
+   "stats": {
+    "instrs": 32,
+    "alu_cycles": 17,
+    "fscib_cycles": 17,
+    "ic_cycles": 16,
+    "code_size": 342,
+    "gprs": 9,
+    "uniforms": 16,
+    "scratch": 4096,
+    "threads": 1024,
+    "loops": 1,
+    "spills": 1,
+    "fills": 2
+   }
+  }
+ ],
+ "shaders": [
+  {
+   "role": "main",
+   "info": {
+    "stage": 5,
+    "binary_size": 420,
+    "push_count": 16,
+    "local_size": 0,
+    "imageblock_stride": 0,
+    "scratch_size": 1036,
+    "preamble_scratch_size": 0,
+    "main_size": 214,
+    "has_preamble": 1,
+    "preamble_offset": 384,
+    "main_offset": 128,
+    "reads_tib": 0,
+    "uses_txf": 0,
+    "nr_gprs": 10,
+    "nr_preamble_gprs": 2,
+    "outputs": 0,
+    "workgroup_size": [
+     32,
+     1,
+     1
+    ],
+    "rodata": {
+     "offset": 0,
+     "base_uniform": 10,
+     "size_16": 6
+    },
+    "stats": {
+     "instrs": 32,
+     "alu_cycles": 17,
+     "fscib_cycles": 17,
+     "ic_cycles": 16,
+     "code_size": 342,
+     "gprs": 9,
+     "uniforms": 16,
+     "scratch": 4096,
+     "threads": 1024,
+     "loops": 1,
+     "spills": 1,
+     "fills": 2
+    },
+    "stage_name": "compute"
+   },
+   "push_ranges": 2,
+   "format": "gl (Mesa 25.1 layout)",
+   "source": "part0/mesa_cache.db@20",
+   "cache_key": "cece1238e5dc74c266822fc983024a730d321296",
+   "gpu": "Apple M2 Max (G14C B1)",
+   "regions": [
+    {
+     "name": "main",
+     "offset": 128,
+     "bytes": 198,
+     "padding_instructions": 8,
+     "file": "/scratch/apple-m2-playground/capture/final5/private/shader0-main.bin",
+     "listing": [
+      {
+       "pc": 0,
+       "size": 8,
+       "hex": "b500c10520800004",
+       "text": "stack_adjust #1036 (words; applegpu: stack_store i8, 1, 2, 0, 1036, 0)",
+       "name": "stack_adjust",
+       "class": "stack_adjust",
+       "sim": {
+        "1": {
+         "n": 1,
+         "stall": 0.0
+        },
+        "4": {
+         "n": 4,
+         "stall": 0.0
+        }
+       }
+      },
+      {
+       "pc": 8,
+       "size": 4,
+       "hex": "72051004",
+       "text": "get_sr r1, sr80 (thread_position_in_grid.x)",
+       "name": "get_sr",
+       "class": "get_sr",
+       "sim": {
+        "1": {
+         "n": 1,
+         "stall": 0.0
+        },
+        "4": {
+         "n": 4,
+         "stall": 0.0
+        }
+       }
+      },
+      {
+       "pc": 12,
+       "size": 4,
+       "hex": "62000000",
+       "text": "mov_imm r0l, 0",
+       "name": "mov_imm",
+       "class": "mov_imm",
+       "sim": {
+        "1": {
+         "n": 1,
+         "stall": 0.0
+        },
+        "4": {
+         "n": 4,
+         "stall": 0.0
+        }
+       }
+      },
+      {
+       "pc": 16,
+       "size": 6,
+       "hex": "522842821800",
+       "text": "if_icmp r0l, ult, r1, u4, 1",
+       "name": "if_icmp",
+       "class": "control",
+       "sim": {
+        "1": {
+         "n": 1,
+         "stall": 0.0
+        },
+        "4": {
+         "n": 4,
+         "stall": 0.0
+        }
+       }
+      },
+      {
+       "pc": 22,
+       "size": 6,
+       "hex": "620900000000",
+       "text": "mov_imm r2, 0, 0b0",
+       "name": "mov_imm",
+       "class": "mov_imm",
+       "sim": {
+        "1": {
+         "n": 1,
+         "stall": 0.0
+        },
+        "4": {
+         "n": 4,
+         "stall": 0.0
+        }
+       }
+      },
+      {
+       "pc": 28,
+       "size": 6,
+       "hex": "420800000000",
+       "text": "push_exec r0l, 1",
+       "name": "if_fcmp",
+       "class": "control",
+       "sim": {
+        "1": {
+         "n": 1,
+         "stall": 0.0
+        },
+        "4": {
+         "n": 4,
+         "stall": 0.0
+        }
+       }
+      },
+      {
+       "pc": 34,
+       "size": 8,
+       "hex": "1e0d424664000000",
+       "text": "imadd r3, r1.sx, r2.sx, 0",
+       "name": "imadd",
+       "class": "imadd",
+       "sim": {
+        "1": {
+         "n": 1,
+         "stall": 0.0
+        },
+        "4": {
+         "n": 4,
+         "stall": 6.0
+        }
+       }
+      },
+      {
+       "pc": 42,
+       "size": 8,
+       "hex": "1e118e4564000000",
+       "text": "imadd r4, u7.sx, r2.sx, 0",
+       "name": "imadd",
+       "class": "imadd",
+       "sim": {
+        "1": {
+         "n": 1,
+         "stall": 0.0
+        },
+        "4": {
+         "n": 4,
+         "stall": 8.0
+        }
+       }
+      },
+      {
+       "pc": 50,
+       "size": 6,
+       "hex": "7e0d468a6400",
+       "text": "xor r3, r3, r4",
+       "name": "bitop",
+       "class": "and",
+       "sim": {
+        "1": {
+         "n": 1,
+         "stall": 1.1
+        },
+        "4": {
+         "n": 4,
+         "stall": 4.4
+        }
+       }
+      },
+      {
+       "pc": 56,
+       "size": 8,
+       "hex": "0e11004064001000",
+       "text": "iadd r4, 0, r2.sx, lsl 2",
+       "name": "iadd",
+       "class": "iadd_imm",
+       "sim": {
+        "1": {
+         "n": 1,
+         "stall": 0.0
+        },
+        "4": {
+         "n": 4,
+         "stall": 0.0
+        }
+       }
+      },
+      {
+       "pc": 64,
+       "size": 8,
+       "hex": "b51a800400c01200",
+       "text": "stack_store i32, 1, 0, x, 4, r3, r4, 0",
+       "name": "stack_store",
+       "class": "store",
+       "sim": {
+        "1": {
+         "n": 1,
+         "stall": 1.0
+        },
+        "4": {
+         "n": 4,
+         "stall": 4.0
+        }
+       }
+      },
+      {
+       "pc": 72,
+       "size": 8,
+       "hex": "0e09441600000000",
+       "text": "iadd r2, r2.sx, 1",
+       "name": "iadd",
+       "class": "iadd_imm",
+       "sim": {
+        "1": {
+         "n": 1,
+         "stall": 0.0
+        },
+        "4": {
+         "n": 4,
+         "stall": 0.0
+        }
+       }
+      },
+      {
+       "pc": 80,
+       "size": 2,
+       "hex": "3800",
+       "text": "wait 0",
+       "name": "wait",
+       "class": "wait",
+       "sim": {
+        "1": {
+         "n": 1,
+         "stall": 3.8
+        },
+        "4": {
+         "n": 4,
+         "stall": 15.2
+        }
+       }
+      },
+      {
+       "pc": 82,
+       "size": 6,
+       "hex": "522c44a21800",
+       "text": "while_icmp r0l, ult, r2, u5, 1",
+       "name": "while_icmp",
+       "class": "control",
+       "sim": {
+        "1": {
+         "n": 1,
+         "stall": 0.0
+        },
+        "4": {
+         "n": 4,
+         "stall": 0.0
+        }
+       }
+      },
+      {
+       "pc": 88,
+       "size": 6,
+       "hex": "00c0caffffff",
+       "text": "jmp_exec_any pc-54",
+       "name": "jmp_exec_any",
+       "class": "control",
+       "sim": {
+        "1": {
+         "n": 1,
+         "stall": 0.0
+        },
+        "4": {
+         "n": 4,
+         "stall": 0.0
+        }
+       }
+      },
+      {
+       "pc": 94,
+       "size": 6,
+       "hex": "520e00000000",
+       "text": "pop_exec r0l, 1",
+       "name": "pop_exec",
+       "class": "control",
+       "sim": {
+        "1": {
+         "n": 1,
+         "stall": 1.0
+        },
+        "4": {
+         "n": 4,
+         "stall": 4.0
+        }
+       }
+      },
+      {
+       "pc": 100,
+       "size": 8,
+       "hex": "1e09427600000000",
+       "text": "imadd r2, r1.sx, 7, 0",
+       "name": "imadd",
+       "class": "imadd",
+       "sim": {
+        "1": {
+         "n": 1,
+         "stall": 0.0
+        },
+        "4": {
+         "n": 4,
+         "stall": 0.0
+        }
+       }
+      },
+      {
+       "pc": 108,
+       "size": 6,
+       "hex": "7e0944c29800",
+       "text": "and r2, r2, u6",
+       "name": "bitop",
+       "class": "and",
+       "sim": {
+        "1": {
+         "n": 1,
+         "stall": 1.1
+        },
+        "4": {
+         "n": 4,
+         "stall": 4.4
+        }
+       }
+      },
+      {
+       "pc": 114,
+       "size": 8,
+       "hex": "0e09004064001000",
+       "text": "iadd r2, 0, r2.sx, lsl 2",
+       "name": "iadd",
+       "class": "iadd_imm",
+       "sim": {
+        "1": {
+         "n": 1,
+         "stall": 1.0
+        },
+        "4": {
+         "n": 4,
+         "stall": 4.0
+        }
+       }
+      },
+      {
+       "pc": 122,
+       "size": 8,
+       "hex": "3512400400c01200",
+       "text": "stack_load r2, i32, 1, 0, x, 4, r2, 0",
+       "name": "stack_load",
+       "class": "load",
+       "sim": {
+        "1": {
+         "n": 1,
+         "stall": 1.0
+        },
+        "4": {
+         "n": 4,
+         "stall": 4.0
+        }
+       }
+      },
+      {
+       "pc": 130,
+       "size": 8,
+       "hex": "1e0d42d600050000",
+       "text": "imadd r3, r1.sx, 13, 5",
+       "name": "imadd",
+       "class": "imadd",
+       "sim": {
+        "1": {
+         "n": 1,
+         "stall": 0.0
+        },
+        "4": {
+         "n": 4,
+         "stall": 0.0
+        }
+       }
+      },
+      {
+       "pc": 138,
+       "size": 6,
+       "hex": "7e0d46c29800",
+       "text": "and r3, r3, u6",
+       "name": "bitop",
+       "class": "and",
+       "sim": {
+        "1": {
+         "n": 1,
+         "stall": 1.1
+        },
+        "4": {
+         "n": 4,
+         "stall": 4.4
+        }
+       }
+      },
+      {
+       "pc": 144,
+       "size": 8,
+       "hex": "0e0d006064001000",
+       "text": "iadd r3, 0, r3.sx, lsl 2",
+       "name": "iadd",
+       "class": "iadd_imm",
+       "sim": {
+        "1": {
+         "n": 1,
+         "stall": 1.0
+        },
+        "4": {
+         "n": 4,
+         "stall": 4.0
+        }
+       }
+      },
+      {
+       "pc": 152,
+       "size": 8,
+       "hex": "351a604400c01200",
+       "text": "stack_load r3, i32, 1, 0, x, 4, r3, 1",
+       "name": "stack_load",
+       "class": "load",
+       "sim": {
+        "1": {
+         "n": 1,
+         "stall": 1.0
+        },
+        "4": {
+         "n": 4,
+         "stall": 4.0
+        }
+       }
+      },
+      {
+       "pc": 160,
+       "size": 2,
+       "hex": "3800",
+       "text": "wait 0",
+       "name": "wait",
+       "class": "wait",
+       "sim": {
+        "1": {
+         "n": 1,
+         "stall": 101.1
+        },
+        "4": {
+         "n": 4,
+         "stall": 404.4
+        }
+       }
+      },
+      {
+       "pc": 162,
+       "size": 2,
+       "hex": "3801",
+       "text": "wait 1",
+       "name": "wait",
+       "class": "wait",
+       "sim": {
+        "1": {
+         "n": 1,
+         "stall": 4.1
+        },
+        "4": {
+         "n": 4,
+         "stall": 16.4
+        }
+       }
+      },
+      {
+       "pc": 164,
+       "size": 8,
+       "hex": "0e09446664000000",
+       "text": "iadd r2, r2.sx, r3.sx",
+       "name": "iadd",
+       "class": "iadd",
+       "sim": {
+        "1": {
+         "n": 1,
+         "stall": 0.0
+        },
+        "4": {
+         "n": 4,
+         "stall": 0.0
+        }
+       }
+      },
+      {
+       "pc": 172,
+       "size": 8,
+       "hex": "0e05082064000000",
+       "text": "iadd r1, 8, r1.sx",
+       "name": "iadd",
+       "class": "iadd_imm",
+       "sim": {
+        "1": {
+         "n": 1,
+         "stall": 0.0
+        },
+        "4": {
+         "n": 4,
+         "stall": 0.0
+        }
+       }
+      },
+      {
+       "pc": 180,
+       "size": 8,
+       "hex": "4511240e00c01200",
+       "text": "device_store 0, i32, x, r2, u2_u3, r1, unsigned, 0",
+       "name": "device_store",
+       "class": "store",
+       "sim": {
+        "1": {
+         "n": 1,
+         "stall": 1.0
+        },
+        "4": {
+         "n": 4,
+         "stall": 4.0
+        }
+       }
+      },
+      {
+       "pc": 188,
+       "size": 2,
+       "hex": "3800",
+       "text": "wait 0",
+       "name": "wait",
+       "class": "wait",
+       "sim": {
+        "1": {
+         "n": 1,
+         "stall": 4.9
+        },
+        "4": {
+         "n": 4,
+         "stall": 19.6
+        }
+       }
+      },
+      {
+       "pc": 190,
+       "size": 6,
+       "hex": "520e00000000",
+       "text": "pop_exec r0l, 1",
+       "name": "pop_exec",
+       "class": "control",
+       "sim": {
+        "1": {
+         "n": 1,
+         "stall": 0.0
+        },
+        "4": {
+         "n": 4,
+         "stall": 0.0
+        }
+       }
+      },
+      {
+       "pc": 196,
+       "size": 2,
+       "hex": "8800",
+       "text": "stop",
+       "name": "stop",
+       "class": "control",
+       "sim": {
+        "1": {
+         "n": 1,
+         "stall": 0.0
+        },
+        "4": {
+         "n": 4,
+         "stall": 0.0
+        }
+       }
+      }
+     ],
+     "loops": [
+      [
+       34,
+       88
+      ]
+     ],
+     "cost": {
+      "path": "emulate",
+      "dynamic_instructions": 32,
+      "emulator_skipped": [
+       "stack_load",
+       "stack_store"
+      ],
+      "cycles": {
+       "1": 250.7,
+       "4": 255.7
+      },
+      "loop_back_branches": {
+       "88": 1
+      },
+      "warning": "loop trip count unknown: costs assume 1 trip(s) for 1 loop(s) (pc 34..88; path emulate, the emulator sees zero uniforms and memory); pass --loop-trips N"
+     }
+    },
+    {
+     "name": "preamble",
+     "offset": 384,
+     "bytes": 20,
+     "padding_instructions": 8,
+     "file": "/scratch/apple-m2-playground/capture/final5/private/shader0-preamble.bin",
+     "listing": [
+      {
+       "pc": 0,
+       "size": 8,
+       "hex": "0501000d00c01200",
+       "text": "device_load 0, i32, x, r0, u0_u1, 0, signed",
+       "name": "device_load",
+       "class": "load",
+       "sim": {
+        "1": {
+         "n": 1,
+         "stall": 0.0
+        },
+        "4": {
+         "n": 4,
+         "stall": 0.0
+        }
+       }
+      },
+      {
+       "pc": 8,
+       "size": 2,
+       "hex": "3800",
+       "text": "wait 0",
+       "name": "wait",
+       "class": "wait",
+       "sim": {
+        "1": {
+         "n": 1,
+         "stall": 43.4
+        },
+        "4": {
+         "n": 4,
+         "stall": 173.6
+        }
+       }
+      },
+      {
+       "pc": 10,
+       "size": 8,
+       "hex": "c500803d00803000",
+       "text": "uniform_store 2, i16, xy, 0, r0l_r0h, 8",
+       "name": "uniform_store",
+       "class": "store",
+       "sim": {
+        "1": {
+         "n": 1,
+         "stall": 0.0
+        },
+        "4": {
+         "n": 4,
+         "stall": 0.0
+        }
+       }
+      },
+      {
+       "pc": 18,
+       "size": 2,
+       "hex": "8800",
+       "text": "stop",
+       "name": "stop",
+       "class": "control",
+       "sim": {
+        "1": {
+         "n": 1,
+         "stall": 0.0
+        },
+        "4": {
+         "n": 4,
+         "stall": 0.0
+        }
+       }
+      }
+     ],
+     "loops": [],
+     "cost": {
+      "path": "static",
+      "dynamic_instructions": 4,
+      "emulator_skipped": [],
+      "cycles": {
+       "1": 51.4,
+       "4": 51.4
+      },
+      "loop_back_branches": {}
+     }
+    }
+   ],
+   "ir": "shader: MESA_SHADER_COMPUTE\nsource_blake3: {0x14c2c4a1, 0x4e6ecf44, 0xb0da65bf, 0xc559df22, 0x3194c1fe, 0x6a64e3ab, 0xd6027bbe, 0x227b088c}\nworkgroup_size: 32, 1, 1\nnext_stage: MESA_SHADER_FRAGMENT\nnum_ubos: 1\nnum_ssbos: 1\nsystem_values_read: 0x00000000'00000000'00000400'00000000\nsubgroup_size: 1\nbit_sizes_int: 0x21\nfirst_ubo_is_default_ubo: true\nflrp_lowered: true\nio_lowered: true\nwrites_memory: true\nuniforms: 1\nscratch: 4096\ndecl_function (null) () (entrypoint)\n\nimpl (null) {\n    preamble @preamble\n    block b0:   // preds:\n    32x3   %0 = @load_global_invocation_id\n    32     %2 = @load_preamble (base=8)\n    1      %3 = ult %0.x, %2\n                // succs: b1 b7\n    if %3 {\n        block b1:   // preds: b0\n        32     %6 = load_const (0x00001234 = 4660)\n        32     %1 = load_const (0x00000000)\n        32     %4 = load_const (0x00000001)\n        32     %5 = load_const (0x00000400 = 1024)\n                    // succs: b2\n        loop {\n            block b2:   // preds: b1 b5\n            32     %7 = phi b1: %1 (0x0), b5: %13\n            32     %8 = imul %0.x, %7\n            32     %9 = imul %6 (0x1234), %7\n            32    %10 = ixor %8, %9\n            32    %11 = load_const (0x00000002)\n            32    %12 = imadshl_agx %1 (0x0), %4 (0x1), %7, %11 (0x2)\n                        @store_scratch (%10, %12) (align_mul=4, align_offset=0, wrmask=x)\n            32    %13 = iadd %7, %4 (0x1)\n            1     %14 = uge %13, %5 (0x400)\n                        // succs: b3 b4\n            if %14 {\n                block b3:// preds: b2\n                break\n                // succs: b6\n            } else {\n                block b4:  // preds: b2, succs: b5\n            }\n            block b5:  // preds: b4, succs: b2\n        }\n        block b6:   // preds: b3\n        32    %17 = load_const (0x000003ff = 1023)\n        32    %15 = load_const (0x00000007)\n        32    %16 = imul %0.x, %15 (0x7)\n        32    %18 = iand %16, %17 (0x3ff)\n        32    %19 = imadshl_agx %1 (0x0), %4 (0x1), %18, %11 (0x2)\n        32    %20 = @load_scratch (%19) (align_mul=4, align_offset=0)\n        32    %22 = load_const (0x00000005)\n        32    %21 = load_const (0x0000000d = 13)\n        32    %23 = imadshl_agx %0.x, %21 (0xd), %22 (0x5), %1 (0x0)\n        32    %24 = iand %23, %17 (0x3ff)\n        32    %25 = imadshl_agx %1 (0x0), %4 (0x1), %24, %11 (0x2)\n        32    %26 = @load_scratch (%25) (align_mul=4, align_offset=0)\n        32    %27 = iadd %20, %26\n        64    %28 = @load_preamble (base=4)\n        32    %29 = load_const (0x00000008)\n        32    %30 = iadd %29 (0x8), %0.x\n                    @store_agx (%27, %28, %30) (access=speculatable, base=0, format=r32_uint, sign_extend=0)\n                    // succs: b8\n    } else {\n        block b7:  // preds: b0, succs: b8\n    }\n    block b8:  // preds: b6 b7, succs: b9\n    block b9:\n}\n\ndecl_function @preamble ()\n\nimpl @preamble {\n    block b0:  // preds:\n    64    %0 = @load_preamble (base=0)\n    32    %1 = load_const (0x00000000 = 0.000000)\n    32    %2 = @load_constant_agx (%0, %1 (0x0)) (access=speculatable, base=0, format=r32_uint, sign_extend=0)\n               @store_preamble (%2) (base=8)\n               // succs: b1\n    block b1:\n}\n\nblock0 {\n   31 = get_sr #50\n   begin_cf \n   if_icmp 31, u4, #dbc6090, n=1\n} -> block1 block7 \n\nblock1 {\n   if_fcmp #0.000000, #0.000000, #0, n=1\n} -> block2  from block0\n\nblock2 {\n   7 = phi #0, 13\n   8 = imad 31, 7, #0, #0\n   9 = imad u7, 7, #0, #0\n   10 = xor 8, 9\n   12 = iadd #0, 7, #0\n   stack_store 10, 12, x, #0, slot 0\n   13 = iadd 7, #1, #0\n   if_icmp 13, u5, #dbde0c0, n=1, inv\n} -> block3 block4  from block1 block5\n\nblock3 {\n   break #dbc35e0, n=2\n} -> block6  from block2\n\nblock4 {\n   else_fcmp #0.000000, #0.000000, #dbde0c0, n=1\n   pop_exec #0, n=1\n} -> block5  from block2\n\nblock5 {\n   jmp_exec_any #dbc36c0\n   pop_exec #0, n=1\n} -> block2  from block4\n\nblock6 {\n   17 = imad 31, #7, #0, #0\n   18 = and 17, u6\n   19 = iadd #0, 18, #0\n   20 = stack_load 19, x, #0, slot 0\n   23 = imad 31, #13, #5, #0\n   24 = and 23, u6\n   25 = iadd #0, 24, #0\n   26 = stack_load 25, x, #0, slot 0\n   27 = iadd 20, 26, #0\n   30 = iadd #8, 31, #0\n   device_store 27, u2:u3, 30.abs, x, #0, slot 0\n} -> block8  from block3\n\nblock7 {\n   else_fcmp #0.000000, #0.000000, #dbc6090, n=1\n   pop_exec #0, n=1\n} -> block8  from block0\n\nblock8 {\n   stop \n} from block6 block7\n\nblock0 {\n   31 = get_sr #50\n   begin_cf \n   if_icmp 31, u4, #dbc6090, n=1\n} -> block1 block7 \n\nblock1 {\n   if_fcmp #0.000000, #0.000000, #0, n=1\n} -> block2  from block0\n\nblock2 {\n   7 = phi #0, 13\n   8 = imad 31, 7, #0, #0\n   9 = imad u7, 7, #0, #0\n   10 = xor 8, 9\n   12 = iadd #0, 7, #0\n   stack_store 10, 12, x, #0, slot 0\n   13 = iadd 7, #1, #0\n   if_icmp 13, u5, #dbde0c0, n=1, inv\n} -> block3 block4  from block1 block5\n\nblock3 {\n   break #dbc35e0, n=2\n} -> block6  from block2\n\nblock4 {\n   else_fcmp #0.000000, #0.000000, #dbde0c0, n=1\n   pop_exec #0, n=1\n} -> block5  from block2\n\nblock5 {\n   jmp_exec_any #dbc36c0\n   pop_exec #0, n=1\n} -> block2  from block4\n\nblock6 {\n   17 = imad 31, #7, #0, #0\n   18 = and 17, u6\n   19 = iadd #0, 18, #0\n   20 = stack_load 19, x, #0, slot 0\n   23 = imad 31, #13, #5, #0\n   24 = and 23, u6\n   25 = iadd #0, 24, #0\n   26 = stack_load 25, x, #0, slot 0\n   27 = iadd 20, 26, #0\n   30 = iadd #8, 31, #0\n   device_store 27, u2:u3, 30.abs, x, #0, slot 0\n} -> block8  from block3\n\nblock7 {\n   else_fcmp #0.000000, #0.000000, #dbc6090, n=1\n   pop_exec #0, n=1\n} -> block8  from block0\n\nblock8 {\n   stop \n} from block6 block7\n\nblock0 {\n   stack_adjust #40c\n   r1 = get_sr #50\n   r0l = mov_imm #0\n   if_icmp r1, u4, #dbc6090, n=1\n} -> block1 block7 \n\nblock1 {\n   r2 = mov_imm #0\n   if_fcmp #0.000000, #0.000000, #0, n=1\n} -> block2  from block0\n\nblock2 {\n   r3 = imad r1, r2, #0, #0\n   r4 = imad u7, r2, #0, #0\n   r3 = xor r3, r4\n   r4 = iadd #0, r2, #0\n   stack_store r3, r4, x, #0, slot 0\n   r2 = iadd r2, #1, #0\n   wait #0, slot 0\n} -> block3 block4  from block1 block5\n\nblock3 {\n} -> block6  from block2\n\nblock4 {\n} -> block5  from block2\n\nblock5 {\n   while_icmp r2, u5, #0, n=1\n   jmp_exec_any #dbc36c0\n   pop_exec #0, n=1\n} -> block2  from block4\n\nblock6 {\n   r2 = imad r1, #7, #0, #0\n   r2 = and r2, u6\n   r2 = iadd #0, r2, #0\n   r2 = stack_load r2, x, #0, slot 0\n   r3 = imad r1, #13, #5, #0\n   r3 = and r3, u6\n   r3 = iadd #0, r3, #0\n   r3 = stack_load r3, x, #0, slot 1\n   wait #0, slot 0\n   wait #0, slot 1\n   r2 = iadd r2, r3, #0\n   r1 = iadd #8, r1, #0\n   device_store r2, u2:u3, r1.abs, x, #0, slot 0\n   wait #0, slot 0\n} -> block8  from block3\n\nblock7 {\n   pop_exec #0, n=1\n} -> block8  from block0\n\nblock8 {\n   stop \n} from block6 block7\n\nblock0 {\n   2 = device_load u0:u1, #0, x, #0, slot 0\n   uniform_store 2, #8, x, #0\n   stop \n}\n\nblock0 {\n   2 = device_load u0:u1, #0, x, #0, slot 0\n   uniform_store 2, #8, x, #0\n   stop \n}\n\nblock0 {\n   r0 = device_load u0:u1, #0, x, #0, slot 0\n   wait #0, slot 0\n   uniform_store r0, #8, x, #0\n   stop \n}",
+   "kind": "application shader",
+   "ir_match": {
+    "status": "matched",
+    "sections": [
+     0
+    ],
+    "properties": [
+     "stage",
+     "workgroup size",
+     "preamble present",
+     "instruction count",
+     "stack size",
+     "preamble stack size",
+     "shaderdb stats",
+     "main disassembly length",
+     "preamble disassembly length"
+    ]
+   },
+   "binary_hex": "00040000ff030000341200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000b500c1052080000472051004620000005228428218006209000000004208000000001e0d4246640000001e118e45640000007e0d468a64000e11004064001000b51a800400c012000e094416000000003800522c44a2180000c0caffffff520e000000001e094276000000007e0944c298000e090040640010003512400400c012001e0d42d6000500007e0d46c298000e0d006064001000351a604400c01200380038010e094466640000000e050820640000004511240e00c012003800520e000000008800080008000800080008000800080008000000000000000000000000000000000000000000000000000000000000000000000000000000000000000501000d00c012003800c500803d00803000880008000800080008000800080008000800"
+  },
+  {
+   "role": "main",
+   "info": {
+    "stage": 4,
+    "binary_size": 188,
+    "push_count": 28,
+    "local_size": 0,
+    "imageblock_stride": 0,
+    "scratch_size": 0,
+    "preamble_scratch_size": 0,
+    "main_size": 24,
+    "has_preamble": 1,
+    "preamble_offset": 128,
+    "main_offset": 0,
+    "reads_tib": 0,
+    "uses_txf": 0,
+    "nr_gprs": 17,
+    "nr_preamble_gprs": 8,
+    "outputs": 0,
+    "workgroup_size": [
+     0,
+     0,
+     0
+    ],
+    "rodata": {
+     "offset": 0,
+     "base_uniform": 0,
+     "size_16": 0
+    },
+    "stats": {
+     "instrs": 4,
+     "alu_cycles": 4,
+     "fscib_cycles": 4,
+     "ic_cycles": 0,
+     "code_size": 24,
+     "gprs": 16,
+     "uniforms": 28,
+     "scratch": 0,
+     "threads": 1024,
+     "loops": 0,
+     "spills": 0,
+     "fills": 0
+    },
+    "stage_name": "fragment"
+   },
+   "push_ranges": 4,
+   "format": "gl (Mesa 25.1 layout)",
+   "source": "part0/mesa_cache.db@1232",
+   "cache_key": "6aee51f2f4c8d46405f4c5c49fa67a7904057531",
+   "gpu": "Apple M2 Max (G14C B1)",
+   "regions": [
+    {
+     "name": "main",
+     "offset": 0,
+     "bytes": 24,
+     "padding_instructions": 0,
+     "file": "/scratch/apple-m2-playground/capture/final5/private/shader1-main.bin",
+     "listing": [
+      {
+       "pc": 0,
+       "size": 6,
+       "hex": "7e1194098000",
+       "text": "mov r4, u10",
+       "name": "bitop",
+       "class": "and",
+       "sim": {
+        "1": {
+         "n": 1,
+         "stall": 0.0
+        },
+        "4": {
+         "n": 4,
+         "stall": 0.0
+        }
+       }
+      },
+      {
+       "pc": 6,
+       "size": 6,
+       "hex": "7e1596098000",
+       "text": "mov r5, u11",
+       "name": "bitop",
+       "class": "and",
+       "sim": {
+        "1": {
+         "n": 1,
+         "stall": 0.0
+        },
+        "4": {
+         "n": 4,
+         "stall": 2.5
+        }
+       }
+      },
+      {
+       "pc": 12,
+       "size": 6,
+       "hex": "7e1998098000",
+       "text": "mov r6, u12",
+       "name": "bitop",
+       "class": "and",
+       "sim": {
+        "1": {
+         "n": 1,
+         "stall": 0.0
+        },
+        "4": {
+         "n": 4,
+         "stall": 5.4
+        }
+       }
+      },
+      {
+       "pc": 18,
+       "size": 6,
+       "hex": "7e1d9a098000",
+       "text": "mov r7, u13",
+       "name": "bitop",
+       "class": "and",
+       "sim": {
+        "1": {
+         "n": 1,
+         "stall": 0.0
+        },
+        "4": {
+         "n": 4,
+         "stall": 1.5
+        }
+       }
+      }
+     ],
+     "loops": [],
+     "cost": {
+      "path": "static",
+      "dynamic_instructions": 4,
+      "emulator_skipped": [],
+      "cycles": {
+       "1": 4.4,
+       "4": 8.5
+      },
+      "loop_back_branches": {}
+     }
+    },
+    {
+     "name": "preamble",
+     "offset": 128,
+     "bytes": 44,
+     "padding_instructions": 8,
+     "file": "/scratch/apple-m2-playground/capture/final5/private/shader1-preamble.bin",
+     "listing": [
+      {
+       "pc": 0,
+       "size": 8,
+       "hex": "0501000d10c0f200",
+       "text": "device_load 0, i32, xyzw, r0_r1_r2_r3, u8_u9, 0, signed",
+       "name": "device_load",
+       "class": "load",
+       "sim": {
+        "1": {
+         "n": 1,
+         "stall": 0.0
+        },
+        "4": {
+         "n": 4,
+         "stall": 0.0
+        }
+       }
+      },
+      {
+       "pc": 8,
+       "size": 2,
+       "hex": "3800",
+       "text": "wait 0",
+       "name": "wait",
+       "class": "wait",
+       "sim": {
+        "1": {
+         "n": 1,
+         "stall": 43.4
+        },
+        "4": {
+         "n": 4,
+         "stall": 173.6
+        }
+       }
+      },
+      {
+       "pc": 10,
+       "size": 8,
+       "hex": "c500403d01803000",
+       "text": "uniform_store 2, i16, xy, 0, r0l_r0h, 20",
+       "name": "uniform_store",
+       "class": "store",
+       "sim": {
+        "1": {
+         "n": 1,
+         "stall": 0.0
+        },
+        "4": {
+         "n": 4,
+         "stall": 0.0
+        }
+       }
+      },
+      {
+       "pc": 18,
+       "size": 8,
+       "hex": "c508603d01803000",
+       "text": "uniform_store 2, i16, xy, 0, r1l_r1h, 22",
+       "name": "uniform_store",
+       "class": "store",
+       "sim": {
+        "1": {
+         "n": 1,
+         "stall": 0.0
+        },
+        "4": {
+         "n": 4,
+         "stall": 0.0
+        }
+       }
+      },
+      {
+       "pc": 26,
+       "size": 8,
+       "hex": "c510803d01803000",
+       "text": "uniform_store 2, i16, xy, 0, r2l_r2h, 24",
+       "name": "uniform_store",
+       "class": "store",
+       "sim": {
+        "1": {
+         "n": 1,
+         "stall": 0.0
+        },
+        "4": {
+         "n": 4,
+         "stall": 0.0
+        }
+       }
+      },
+      {
+       "pc": 34,
+       "size": 8,
+       "hex": "c518a03d01803000",
+       "text": "uniform_store 2, i16, xy, 0, r3l_r3h, 26",
+       "name": "uniform_store",
+       "class": "store",
+       "sim": {
+        "1": {
+         "n": 1,
+         "stall": 0.0
+        },
+        "4": {
+         "n": 4,
+         "stall": 0.0
+        }
+       }
+      },
+      {
+       "pc": 42,
+       "size": 2,
+       "hex": "8800",
+       "text": "stop",
+       "name": "stop",
+       "class": "control",
+       "sim": {
+        "1": {
+         "n": 1,
+         "stall": 0.0
+        },
+        "4": {
+         "n": 4,
+         "stall": 0.0
+        }
+       }
+      }
+     ],
+     "loops": [],
+     "cost": {
+      "path": "static",
+      "dynamic_instructions": 7,
+      "emulator_skipped": [],
+      "cycles": {
+       "1": 61.3,
+       "4": 61.3
+      },
+      "loop_back_branches": {}
+     }
+    }
+   ],
+   "kind": "driver-internal? (not in AGX_MESA_DEBUG=shaders dump)",
+   "ir_match": {
+    "status": "unmatched"
+   },
+   "binary_hex": "7e11940980007e15960980007e19980980007e1d9a09800000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000501000d10c0f2003800c500403d01803000c508603d01803000c510803d01803000c518a03d01803000880008000800080008000800080008000800"
+  },
+  {
+   "role": "main",
+   "info": {
+    "stage": 5,
+    "binary_size": 414,
+    "push_count": 70,
+    "local_size": 0,
+    "imageblock_stride": 0,
+    "scratch_size": 0,
+    "preamble_scratch_size": 0,
+    "main_size": 162,
+    "has_preamble": 1,
+    "preamble_offset": 256,
+    "main_offset": 0,
+    "reads_tib": 0,
+    "uses_txf": 0,
+    "nr_gprs": 24,
+    "nr_preamble_gprs": 8,
+    "outputs": 1,
+    "workgroup_size": [
+     1,
+     1,
+     1
+    ],
+    "rodata": {
+     "offset": 0,
+     "base_uniform": 0,
+     "size_16": 0
+    },
+    "stats": {
+     "instrs": 21,
+     "alu_cycles": 21,
+     "fscib_cycles": 21,
+     "ic_cycles": 4,
+     "code_size": 162,
+     "gprs": 23,
+     "uniforms": 70,
+     "scratch": 0,
+     "threads": 1024,
+     "loops": 0,
+     "spills": 0,
+     "fills": 0
+    },
+    "stage_name": "compute"
+   },
+   "push_ranges": 7,
+   "format": "gl (Mesa 25.1 layout)",
+   "source": "part0/mesa_cache.db@1497",
+   "cache_key": "97a2404d23c4facdbb47f62c976ce0e3ea1a4f0d",
+   "gpu": "Apple M2 Max (G14C B1)",
+   "regions": [
+    {
+     "name": "main",
+     "offset": 0,
+     "bytes": 146,
+     "padding_instructions": 8,
+     "file": "/scratch/apple-m2-playground/capture/final5/private/shader2-main.bin",
+     "listing": [
+      {
+       "pc": 0,
+       "size": 6,
+       "hex": "1a81a0012500",
+       "text": "fmul32 r0, u16, r8",
+       "name": "fmul32",
+       "class": "fmul32",
+       "sim": {
+        "1": {
+         "n": 1,
+         "stall": 0.0
+        },
+        "4": {
+         "n": 4,
+         "stall": 0.0
+        }
+       }
+      },
+      {
+       "pc": 6,
+       "size": 8,
+       "hex": "3a81a82125400200",
+       "text": "fmadd32 r0, u20, r9, r0",
+       "name": "fmadd32",
+       "class": "fmadd32",
+       "sim": {
+        "1": {
+         "n": 1,
+         "stall": 1.0
+        },
+        "4": {
+         "n": 4,
+         "stall": 4.0
+        }
+       }
+      },
+      {
+       "pc": 14,
+       "size": 6,
+       "hex": "1a85a2012500",
+       "text": "fmul32 r1, u17, r8",
+       "name": "fmul32",
+       "class": "fmul32",
+       "sim": {
+        "1": {
+         "n": 1,
+         "stall": 0.0
+        },
+        "4": {
+         "n": 4,
+         "stall": 0.0
+        }
+       }
+      },
+      {
+       "pc": 20,
+       "size": 8,
+       "hex": "3a85aa2125420200",
+       "text": "fmadd32 r1, u21, r9, r1",
+       "name": "fmadd32",
+       "class": "fmadd32",
+       "sim": {
+        "1": {
+         "n": 1,
+         "stall": 1.0
+        },
+        "4": {
+         "n": 4,
+         "stall": 4.0
+        }
+       }
+      },
+      {
+       "pc": 28,
+       "size": 6,
+       "hex": "1a89a4012500",
+       "text": "fmul32 r2, u18, r8",
+       "name": "fmul32",
+       "class": "fmul32",
+       "sim": {
+        "1": {
+         "n": 1,
+         "stall": 0.0
+        },
+        "4": {
+         "n": 4,
+         "stall": 0.0
+        }
+       }
+      },
+      {
+       "pc": 34,
+       "size": 8,
+       "hex": "3a89ac2125440200",
+       "text": "fmadd32 r2, u22, r9, r2",
+       "name": "fmadd32",
+       "class": "fmadd32",
+       "sim": {
+        "1": {
+         "n": 1,
+         "stall": 1.0
+        },
+        "4": {
+         "n": 4,
+         "stall": 4.0
+        }
+       }
+      },
+      {
+       "pc": 42,
+       "size": 6,
+       "hex": "1a8da6012500",
+       "text": "fmul32 r3, u19, r8",
+       "name": "fmul32",
+       "class": "fmul32",
+       "sim": {
+        "1": {
+         "n": 1,
+         "stall": 0.0
+        },
+        "4": {
+         "n": 4,
+         "stall": 0.0
+        }
+       }
+      },
+      {
+       "pc": 48,
+       "size": 8,
+       "hex": "3a8dae2125460200",
+       "text": "fmadd32 r3, u23, r9, r3",
+       "name": "fmadd32",
+       "class": "fmadd32",
+       "sim": {
+        "1": {
+         "n": 1,
+         "stall": 1.0
+        },
+        "4": {
+         "n": 4,
+         "stall": 4.0
+        }
+       }
+      },
+      {
+       "pc": 56,
+       "size": 8,
+       "hex": "3a81b04125400200",
+       "text": "fmadd32 r0, u24, r10, r0",
+       "name": "fmadd32",
+       "class": "fmadd32",
+       "sim": {
+        "1": {
+         "n": 1,
+         "stall": 0.0
+        },
+        "4": {
+         "n": 4,
+         "stall": 0.0
+        }
+       }
+      },
+      {
+       "pc": 64,
+       "size": 8,
+       "hex": "3a85b24125420200",
+       "text": "fmadd32 r1, u25, r10, r1",
+       "name": "fmadd32",
+       "class": "fmadd32",
+       "sim": {
+        "1": {
+         "n": 1,
+         "stall": 0.0
+        },
+        "4": {
+         "n": 4,
+         "stall": 0.0
+        }
+       }
+      },
+      {
+       "pc": 72,
+       "size": 8,
+       "hex": "3a89b44125440200",
+       "text": "fmadd32 r2, u26, r10, r2",
+       "name": "fmadd32",
+       "class": "fmadd32",
+       "sim": {
+        "1": {
+         "n": 1,
+         "stall": 0.0
+        },
+        "4": {
+         "n": 4,
+         "stall": 0.0
+        }
+       }
+      },
+      {
+       "pc": 80,
+       "size": 8,
+       "hex": "3a8db64125460200",
+       "text": "fmadd32 r3, u27, r10, r3",
+       "name": "fmadd32",
+       "class": "fmadd32",
+       "sim": {
+        "1": {
+         "n": 1,
+         "stall": 0.0
+        },
+        "4": {
+         "n": 4,
+         "stall": 0.0
+        }
+       }
+      },
+      {
+       "pc": 88,
+       "size": 8,
+       "hex": "3a91b86125400200",
+       "text": "fmadd32 r4, u28, r11, r0",
+       "name": "fmadd32",
+       "class": "fmadd32",
+       "sim": {
+        "1": {
+         "n": 1,
+         "stall": 0.0
+        },
+        "4": {
+         "n": 4,
+         "stall": 0.0
+        }
+       }
+      },
+      {
+       "pc": 96,
+       "size": 8,
+       "hex": "3a95ba6125420200",
+       "text": "fmadd32 r5, u29, r11, r1",
+       "name": "fmadd32",
+       "class": "fmadd32",
+       "sim": {
+        "1": {
+         "n": 1,
+         "stall": 0.0
+        },
+        "4": {
+         "n": 4,
+         "stall": 0.0
+        }
+       }
+      },
+      {
+       "pc": 104,
+       "size": 8,
+       "hex": "3a99bc6125440200",
+       "text": "fmadd32 r6, u30, r11, r2",
+       "name": "fmadd32",
+       "class": "fmadd32",
+       "sim": {
+        "1": {
+         "n": 1,
+         "stall": 0.0
+        },
+        "4": {
+         "n": 4,
+         "stall": 0.0
+        }
+       }
+      },
+      {
+       "pc": 112,
+       "size": 8,
+       "hex": "3a9dbe6125460200",
+       "text": "fmadd32 r7, u31, r11, r3",
+       "name": "fmadd32",
+       "class": "fmadd32",
+       "sim": {
+        "1": {
+         "n": 1,
+         "stall": 0.0
+        },
+        "4": {
+         "n": 4,
+         "stall": 0.0
+        }
+       }
+      },
+      {
+       "pc": 120,
+       "size": 4,
+       "hex": "72011004",
+       "text": "get_sr r0, sr80 (thread_position_in_grid.x)",
+       "name": "get_sr",
+       "class": "get_sr",
+       "sim": {
+        "1": {
+         "n": 1,
+         "stall": 0.0
+        },
+        "4": {
+         "n": 4,
+         "stall": 0.0
+        }
+       }
+      },
+      {
+       "pc": 124,
+       "size": 4,
+       "hex": "72051104",
+       "text": "get_sr r1, sr81 (thread_position_in_grid.y)",
+       "name": "get_sr",
+       "class": "get_sr",
+       "sim": {
+        "1": {
+         "n": 1,
+         "stall": 0.0
+        },
+        "4": {
+         "n": 4,
+         "stall": 0.0
+        }
+       }
+      },
+      {
+       "pc": 128,
+       "size": 8,
+       "hex": "1e01424658400601",
+       "text": "imadd r0, r1.sx, u34.sx, r0.sx",
+       "name": "imadd",
+       "class": "imadd",
+       "sim": {
+        "1": {
+         "n": 1,
+         "stall": 0.9
+        },
+        "4": {
+         "n": 4,
+         "stall": 8.9
+        }
+       }
+      },
+      {
+       "pc": 136,
+       "size": 8,
+       "hex": "4521000e40c8f200",
+       "text": "device_store 0, i32, xyzw, r4_r5_r6_r7, u32_u33, r0, unsigned, lsl 2, 0",
+       "name": "device_store",
+       "class": "store",
+       "sim": {
+        "1": {
+         "n": 1,
+         "stall": 1.1
+        },
+        "4": {
+         "n": 4,
+         "stall": 4.4
+        }
+       }
+      },
+      {
+       "pc": 144,
+       "size": 2,
+       "hex": "8800",
+       "text": "stop",
+       "name": "stop",
+       "class": "control",
+       "sim": {
+        "1": {
+         "n": 1,
+         "stall": 0.0
+        },
+        "4": {
+         "n": 4,
+         "stall": 0.0
+        }
+       }
+      }
+     ],
+     "loops": [],
+     "cost": {
+      "path": "static",
+      "dynamic_instructions": 21,
+      "emulator_skipped": [],
+      "cycles": {
+       "1": 78.4,
+       "4": 81.4
+      },
+      "loop_back_branches": {}
+     }
+    },
+    {
+     "name": "preamble",
+     "offset": 256,
+     "bytes": 142,
+     "padding_instructions": 8,
+     "file": "/scratch/apple-m2-playground/capture/final5/private/shader2-preamble.bin",
+     "listing": [
+      {
+       "pc": 0,
+       "size": 8,
+       "hex": "0501040d10c0f200",
+       "text": "device_load 0, i32, xyzw, r0_r1_r2_r3, u10_u11, 0, signed",
+       "name": "device_load",
+       "class": "load",
+       "sim": {
+        "1": {
+         "n": 1,
+         "stall": 0.0
+        },
+        "4": {
+         "n": 4,
+         "stall": 0.0
+        }
+       }
+      },
+      {
+       "pc": 8,
+       "size": 2,
+       "hex": "3800",
+       "text": "wait 0",
+       "name": "wait",
+       "class": "wait",
+       "sim": {
+        "1": {
+         "n": 1,
+         "stall": 43.4
+        },
+        "4": {
+         "n": 4,
+         "stall": 173.6
+        }
+       }
+      },
+      {
+       "pc": 10,
+       "size": 8,
+       "hex": "c500003d0280f000",
+       "text": "uniform_store 2, i16, xyzw, 0, r0l_r0h_r1l_r1h, 32",
+       "name": "uniform_store",
+       "class": "store",
+       "sim": {
+        "1": {
+         "n": 1,
+         "stall": 0.0
+        },
+        "4": {
+         "n": 4,
+         "stall": 0.0
+        }
+       }
+      },
+      {
+       "pc": 18,
+       "size": 8,
+       "hex": "c510403d0280f000",
+       "text": "uniform_store 2, i16, xyzw, 0, r2l_r2h_r3l_r3h, 36",
+       "name": "uniform_store",
+       "class": "store",
+       "sim": {
+        "1": {
+         "n": 1,
+         "stall": 0.0
+        },
+        "4": {
+         "n": 4,
+         "stall": 0.0
+        }
+       }
+      },
+      {
+       "pc": 26,
+       "size": 8,
+       "hex": "0501140d10c8f200",
+       "text": "device_load 0, i32, xyzw, r0_r1_r2_r3, u10_u11, 1, signed, lsl 2",
+       "name": "device_load",
+       "class": "load",
+       "sim": {
+        "1": {
+         "n": 1,
+         "stall": 0.0
+        },
+        "4": {
+         "n": 4,
+         "stall": 0.0
+        }
+       }
+      },
+      {
+       "pc": 34,
+       "size": 2,
+       "hex": "3800",
+       "text": "wait 0",
+       "name": "wait",
+       "class": "wait",
+       "sim": {
+        "1": {
+         "n": 1,
+         "stall": 43.4
+        },
+        "4": {
+         "n": 4,
+         "stall": 173.6
+        }
+       }
+      },
+      {
+       "pc": 36,
+       "size": 8,
+       "hex": "c500803d0280f000",
+       "text": "uniform_store 2, i16, xyzw, 0, r0l_r0h_r1l_r1h, 40",
+       "name": "uniform_store",
+       "class": "store",
+       "sim": {
+        "1": {
+         "n": 1,
+         "stall": 0.0
+        },
+        "4": {
+         "n": 4,
+         "stall": 0.0
+        }
+       }
+      },
+      {
+       "pc": 44,
+       "size": 8,
+       "hex": "c510c03d0280f000",
+       "text": "uniform_store 2, i16, xyzw, 0, r2l_r2h_r3l_r3h, 44",
+       "name": "uniform_store",
+       "class": "store",
+       "sim": {
+        "1": {
+         "n": 1,
+         "stall": 0.0
+        },
+        "4": {
+         "n": 4,
+         "stall": 0.0
+        }
+       }
+      },
+      {
+       "pc": 52,
+       "size": 8,
+       "hex": "0501240d10c8f200",
+       "text": "device_load 0, i32, xyzw, r0_r1_r2_r3, u10_u11, 2, signed, lsl 2",
+       "name": "device_load",
+       "class": "load",
+       "sim": {
+        "1": {
+         "n": 1,
+         "stall": 0.0
+        },
+        "4": {
+         "n": 4,
+         "stall": 0.0
+        }
+       }
+      },
+      {
+       "pc": 60,
+       "size": 2,
+       "hex": "3800",
+       "text": "wait 0",
+       "name": "wait",
+       "class": "wait",
+       "sim": {
+        "1": {
+         "n": 1,
+         "stall": 43.4
+        },
+        "4": {
+         "n": 4,
+         "stall": 173.6
+        }
+       }
+      },
+      {
+       "pc": 62,
+       "size": 8,
+       "hex": "c500003d0380f000",
+       "text": "uniform_store 2, i16, xyzw, 0, r0l_r0h_r1l_r1h, 48",
+       "name": "uniform_store",
+       "class": "store",
+       "sim": {
+        "1": {
+         "n": 1,
+         "stall": 0.0
+        },
+        "4": {
+         "n": 4,
+         "stall": 0.0
+        }
+       }
+      },
+      {
+       "pc": 70,
+       "size": 8,
+       "hex": "c510403d0380f000",
+       "text": "uniform_store 2, i16, xyzw, 0, r2l_r2h_r3l_r3h, 52",
+       "name": "uniform_store",
+       "class": "store",
+       "sim": {
+        "1": {
+         "n": 1,
+         "stall": 0.0
+        },
+        "4": {
+         "n": 4,
+         "stall": 0.0
+        }
+       }
+      },
+      {
+       "pc": 78,
+       "size": 8,
+       "hex": "0501340d10c8f200",
+       "text": "device_load 0, i32, xyzw, r0_r1_r2_r3, u10_u11, 3, signed, lsl 2",
+       "name": "device_load",
+       "class": "load",
+       "sim": {
+        "1": {
+         "n": 1,
+         "stall": 0.0
+        },
+        "4": {
+         "n": 4,
+         "stall": 0.0
+        }
+       }
+      },
+      {
+       "pc": 86,
+       "size": 2,
+       "hex": "3800",
+       "text": "wait 0",
+       "name": "wait",
+       "class": "wait",
+       "sim": {
+        "1": {
+         "n": 1,
+         "stall": 43.4
+        },
+        "4": {
+         "n": 4,
+         "stall": 173.6
+        }
+       }
+      },
+      {
+       "pc": 88,
+       "size": 8,
+       "hex": "c500803d0380f000",
+       "text": "uniform_store 2, i16, xyzw, 0, r0l_r0h_r1l_r1h, 56",
+       "name": "uniform_store",
+       "class": "store",
+       "sim": {
+        "1": {
+         "n": 1,
+         "stall": 0.0
+        },
+        "4": {
+         "n": 4,
+         "stall": 0.0
+        }
+       }
+      },
+      {
+       "pc": 96,
+       "size": 8,
+       "hex": "c510c03d0380f000",
+       "text": "uniform_store 2, i16, xyzw, 0, r2l_r2h_r3l_r3h, 60",
+       "name": "uniform_store",
+       "class": "store",
+       "sim": {
+        "1": {
+         "n": 1,
+         "stall": 0.0
+        },
+        "4": {
+         "n": 4,
+         "stall": 0.0
+        }
+       }
+      },
+      {
+       "pc": 104,
+       "size": 8,
+       "hex": "0501080d10c03200",
+       "text": "device_load 0, i32, xy, r0_r1, u12_u13, 0, signed",
+       "name": "device_load",
+       "class": "load",
+       "sim": {
+        "1": {
+         "n": 1,
+         "stall": 0.0
+        },
+        "4": {
+         "n": 4,
+         "stall": 0.0
+        }
+       }
+      },
+      {
+       "pc": 112,
+       "size": 2,
+       "hex": "3800",
+       "text": "wait 0",
+       "name": "wait",
+       "class": "wait",
+       "sim": {
+        "1": {
+         "n": 1,
+         "stall": 43.4
+        },
+        "4": {
+         "n": 4,
+         "stall": 173.6
+        }
+       }
+      },
+      {
+       "pc": 114,
+       "size": 8,
+       "hex": "c500003d0480f000",
+       "text": "uniform_store 2, i16, xyzw, 0, r0l_r0h_r1l_r1h, 64",
+       "name": "uniform_store",
+       "class": "store",
+       "sim": {
+        "1": {
+         "n": 1,
+         "stall": 0.0
+        },
+        "4": {
+         "n": 4,
+         "stall": 0.0
+        }
+       }
+      },
+      {
+       "pc": 122,
+       "size": 8,
+       "hex": "05013e0d00c01200",
+       "text": "device_load 0, i32, x, r0, u7_u8, 3, signed",
+       "name": "device_load",
+       "class": "load",
+       "sim": {
+        "1": {
+         "n": 1,
+         "stall": 0.0
+        },
+        "4": {
+         "n": 4,
+         "stall": 0.0
+        }
+       }
+      },
+      {
+       "pc": 130,
+       "size": 2,
+       "hex": "3800",
+       "text": "wait 0",
+       "name": "wait",
+       "class": "wait",
+       "sim": {
+        "1": {
+         "n": 1,
+         "stall": 43.4
+        },
+        "4": {
+         "n": 4,
+         "stall": 173.6
+        }
+       }
+      },
+      {
+       "pc": 132,
+       "size": 8,
+       "hex": "c500403d04803000",
+       "text": "uniform_store 2, i16, xy, 0, r0l_r0h, 68",
+       "name": "uniform_store",
+       "class": "store",
+       "sim": {
+        "1": {
+         "n": 1,
+         "stall": 0.0
+        },
+        "4": {
+         "n": 4,
+         "stall": 0.0
+        }
+       }
+      },
+      {
+       "pc": 140,
+       "size": 2,
+       "hex": "8800",
+       "text": "stop",
+       "name": "stop",
+       "class": "control",
+       "sim": {
+        "1": {
+         "n": 1,
+         "stall": 0.0
+        },
+        "4": {
+         "n": 4,
+         "stall": 0.0
+        }
+       }
+      }
+     ],
+     "loops": [],
+     "cost": {
+      "path": "static",
+      "dynamic_instructions": 23,
+      "emulator_skipped": [],
+      "cycles": {
+       "1": 316.6,
+       "4": 316.6
+      },
+      "loop_back_branches": {}
+     }
+    }
+   ],
+   "kind": "driver-internal? (not in AGX_MESA_DEBUG=shaders dump)",
+   "ir_match": {
+    "status": "unmatched"
+   },
+   "binary_hex": "1a81a00125003a81a821254002001a85a20125003a85aa21254202001a89a40125003a89ac21254402001a8da60125003a8dae21254602003a81b041254002003a85b241254202003a89b441254402003a8db641254602003a91b861254002003a95ba61254202003a99bc61254402003a9dbe612546020072011004720511041e014246584006014521000e40c8f200880008000800080008000800080008000800000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000501040d10c0f2003800c500003d0280f000c510403d0280f0000501140d10c8f2003800c500803d0280f000c510c03d0280f0000501240d10c8f2003800c500003d0380f000c510403d0380f0000501340d10c8f2003800c500803d0380f000c510c03d0380f0000501080d10c032003800c500003d0480f00005013e0d00c012003800c500403d04803000880008000800080008000800080008000800"
+  }
+ ]
+}

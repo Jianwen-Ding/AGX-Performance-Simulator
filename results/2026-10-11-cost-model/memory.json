@@ -1,0 +1,11 @@
+{
+ "control: iadd": 0.9140062049639717,
+ "load line 1 + wait 0": 63.85427104208418,
+ "2 loads line 1 + one wait": 66.49283256880733,
+ "load line 1 + wait + dependent iadd": 65.69016873278238,
+ "load + wait 0 (L1 hit)": 72.40147769089238,
+ "load + wait 0 + dependent iadd": 73.45286602209943,
+ "2 loads + one wait 0": 90.1350344036697,
+ "store (no wait)": 35.745265151515156,
+ "store + wait 0": 40.449055466237944
+}

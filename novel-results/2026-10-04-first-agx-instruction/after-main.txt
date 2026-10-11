@@ -1,0 +1,10 @@
+  80: f2051004             get_sr           r1.cache, sr80 (thread_position_in_grid.x)
+  84: 0e05c28658000000     iadd             r1, r1.discard.sx, u4.sx
+  8c: 62000000             mov_imm          r0l, 0
+  90: 522842a21800         if_icmp          r0l, ult, r1, u5, 1
+  96: 620979563412         mov_imm          r2, 305419897, 0b0
+  9c: 0e05082064000000     iadd             r1, 8, r1.sx
+  a4: 45112c0e00c01200     device_store     0, i32, x, r2, u6_u7, r1, unsigned, 0
+  ac: 3800                 wait             0
+  ae: 520e00000000         pop_exec         r0l, 1
+  b4: 8800                 stop             

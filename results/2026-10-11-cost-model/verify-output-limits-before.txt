@@ -1,0 +1,30 @@
+ok   bench (FIT) latency: median |err| 0.004 (limit 0.03), p90 0.007, max 0.053
+ok   bench (FIT) simd_issue: median |err| 0.004 (limit 0.04), p90 0.015, max 0.042
+ok   bench (FIT) gpu: median |err| 0.027 (limit 0.06), p90 0.113, max 0.381
+ok   rotation (FIT, 32-bit forms): median |err| 0.017, max 0.119
+info rotation (fadd16): median |err| 0.029, max 0.338 (16-bit writeback not modelled beyond D=9)
+info empty loop trip: measured 35.25, predicted 35.27 (reference units)
+ok   memory (FIT) load line 1 + wait 0: measured 63.9, predicted 64.9
+ok   memory (FIT) 2 loads line 1 + one wait: measured 66.5, predicted 64.9
+ok   load-after-ALU grid (FIT, 30 points): median |err| 0.017, max 0.044
+ok   memory state probes (FIT, 15 cases): median |err| 0.025, max 0.120
+ok   memory-space transitions (FIT, 7 cases): median |err| 0.007, max 0.030
+ok   idle wait cost, 1-30 waits per repetition (FIT, 8 cases): median |err| 0.016, max 0.077
+ok   threadgroup load deferral (FIT, review2 C, 3 cases): median |err| 0.042, max 0.080
+ok   load quiet-time window (iadd, k idle waits, load; 7 cases): median |err| 0.028, max 0.044
+info known residuals (store window / store->load overlap / first store of a trip): B iadd, 4 wait1, store: measured 43.6, predicted 36.7; B iadd, 8 wait1, store: measured 63.1, predicted 52.2; E iadd, store, load, wait: measured 72.6, predicted 81.6; A store, 8 iadd: measured 44.5, predicted 40.1
+ok   wait drain after ALU work (FIT, 4 cases): median |err| 0.054, max 0.094
+ok   exec push/pop and while_icmp chains, before wait / load / store (FIT, 21 cases): median |err| 0.034, max 0.084
+ok   transcendental pairs and mixes, 1 group(s)/core (FIT, 14 cases): median |err| 0.008, max 0.065 (limit 0.08)
+FAIL transcendental pairs and mixes, 4 group(s)/core (FIT, 14 cases): median |err| 0.073, max 0.261 (limit 0.25)
+ok   heldout-mem24.json memory kernels (DISCOVERY (revealed the wait drain)), 1 group(s)/core: median |err| 0.055 p90 0.125 max 0.167 bias -0.008 (limit 0.08)
+ok   heldout-mem24.json memory kernels (DISCOVERY (revealed the wait drain)), 4 group(s)/core: median |err| 0.064 p90 0.152 max 0.155 bias -0.025 (limit 0.12)
+ok   heldout-mem24b.json memory kernels (HELD OUT), 1 group(s)/core: median |err| 0.039 p90 0.089 max 0.121 bias -0.030 (limit 0.07)
+ok   heldout-mem24b.json memory kernels (HELD OUT), 4 group(s)/core: median |err| 0.060 p90 0.138 max 0.221 bias -0.054 (limit 0.12)
+FAIL random-kernels.json (SELECTION), 1 group(s)/core: whole trip median 0.066 p90 0.143 max 0.160 bias -0.058 | body only median 0.091 p90 0.218 max 0.228 (limits 0.07/0.08)
+ok   random-kernels.json (SELECTION), 4 group(s)/core: whole trip median 0.104 p90 0.200 max 0.233 bias -0.100 | body only median 0.140 p90 0.276 max 0.351 (limits 0.12/0.17)
+ok   heldout24.json (HELD OUT), 1 group(s)/core: whole trip median 0.054 p90 0.111 max 0.132 bias -0.047 | body only median 0.078 p90 0.174 max 0.186 (limits 0.06/0.09)
+ok   heldout24.json (HELD OUT), 4 group(s)/core: whole trip median 0.079 p90 0.186 max 0.205 bias -0.073 | body only median 0.127 p90 0.274 max 0.308 (limits 0.12/0.15)
+ok   heldout48.json (HELD OUT), 1 group(s)/core: whole trip median 0.037 p90 0.072 max 0.085 bias -0.029 | body only median 0.044 p90 0.085 max 0.109 (limits 0.045/0.05)
+ok   heldout48.json (HELD OUT), 4 group(s)/core: whole trip median 0.096 p90 0.154 max 0.183 bias -0.091 | body only median 0.114 p90 0.182 max 0.227 (limits 0.1/0.12)
+2 failures

@@ -1,0 +1,13 @@
+{
+ "f32 write r6 then independent f16 write r6l": 2.8682990981963936,
+ "f16 write r6l then f32 read of r6 (merge)": 2.8682990981963927,
+ "f16 write r6l then f16 read of r6l": 2.8858351747689843,
+ "f16 write r6l then f32 read of r7 (control)": 2.0291950681635917,
+ "simd_iadd then dependent iadd": 25.511105371900825,
+ "simd_iadd then independent iadd": 23.84202586206897,
+ "simd_iadd then dependent fadd32": 25.485490176423408,
+ "f32 then f16 read of low half": 3.845554330392943,
+ "f16 chain": 3.7154960953143785,
+ "f16 low/high independent": 2.0395331325301207,
+ "f16 write r6l then independent f32 write r6": 2.8725703753351217
+}

@@ -1,0 +1,30 @@
+{
+ "load13, load14, wait": {
+  "measured": 46.66346153846154,
+  "predicted": 47.47649547187798
+ },
+ "iadd, load13, iadd, load14, wait": {
+  "measured": 102.66241705135603,
+  "predicted": 68.54417897998094
+ },
+ "iadd, load13, iadd, load13, wait (WAW)": {
+  "measured": 102.9621710526316,
+  "predicted": 68.54417897998094
+ },
+ "iadd, load13, load13, wait (WAW)": {
+  "measured": 66.61538461538461,
+  "predicted": 64.92168136320305
+ },
+ "load13, 4 iadd, load14, 4 iadd, wait": {
+  "measured": 87.91879337767496,
+  "predicted": 71.40404551954242
+ },
+ "iadd, load13, iadd, load14, iadd, load15, iadd, wait": {
+  "measured": 155.93857758620686,
+  "predicted": 72.16667659675882
+ },
+ "3 loads, wait": {
+  "measured": 52.39535320641282,
+  "predicted": 50.05037535748332
+ }
+}

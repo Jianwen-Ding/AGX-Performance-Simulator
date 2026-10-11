@@ -1,0 +1,50 @@
+{
+ "iadd chain": {
+  "one": 50.2728731942215,
+  "four_per_core": 50.264658870750395,
+  "ratio": 0.9998366052515166,
+  "groups_per_core": 4
+ },
+ "fadd32 chain": {
+  "one": 50.38125861276987,
+  "four_per_core": 48.246153846153845,
+  "ratio": 0.957621051450373,
+  "groups_per_core": 4
+ },
+ "imadd chain": {
+  "one": 58.03680981595093,
+  "four_per_core": 55.180442374854486,
+  "ratio": 0.9507835208352304,
+  "groups_per_core": 4
+ },
+ "rcp chain": {
+  "one": 81.52777777777779,
+  "four_per_core": 76.68815431942619,
+  "ratio": 0.9406383494035239,
+  "groups_per_core": 4
+ },
+ "shuffle chain": {
+  "one": 71.1265164644714,
+  "four_per_core": 80.09318578916715,
+  "ratio": 1.1260664766167021,
+  "groups_per_core": 4
+ },
+ "fmadd32 chain": {
+  "one": 51.190751445086704,
+  "four_per_core": 49.62614057017941,
+  "ratio": 0.9694356728366122,
+  "groups_per_core": 4
+ },
+ "iadd 2 chains": {
+  "one": 51.29982668977469,
+  "four_per_core": 47.86007495984294,
+  "ratio": 0.9329480828320736,
+  "groups_per_core": 4
+ },
+ "mixed chain": {
+  "one": 110.9930715935335,
+  "four_per_core": 119.93031358885017,
+  "ratio": 1.0805207195999191,
+  "groups_per_core": 4
+ }
+}

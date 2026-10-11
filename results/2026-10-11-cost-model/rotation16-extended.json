@@ -1,0 +1,13 @@
+{
+ "note": "fadd16 rotation over D 16-bit destinations (r5l..r23l, then r5h..), units per instruction, one SIMD group",
+ "D": {
+  "8": 1.03,
+  "9": 1.89,
+  "12": 1.64,
+  "16": 1.62,
+  "20": 1.49,
+  "24": 1.35,
+  "32": 1.31,
+  "38": 1.28
+ }
+}

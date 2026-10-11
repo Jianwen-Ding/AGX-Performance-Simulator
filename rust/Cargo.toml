@@ -1,0 +1,17 @@
+[package]
+name = "agx-sim"
+version = "0.1.0"
+edition = "2021"
+description = "AGX (G14) cycle cost model: Rust port of scripts/agx_cost.py with an applegpu-compatible ISA layer"
+license = "BSD-3-Clause"
+
+[dependencies]
+serde_json = { version = "1", features = ["float_roundtrip", "preserve_order"] }
+flate2 = { version = "1", default-features = false, features = ["rust_backend"] }
+
+[profile.release]
+opt-level = 3
+lto = "fat"
+codegen-units = 1
+panic = "abort"
+debug = false
