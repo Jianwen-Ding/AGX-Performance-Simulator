@@ -255,3 +255,300 @@ pub fn mask_ctl(kind: &str, float_cmp: bool, f: &Fields, ops: &[Operand], st: &m
     }
     Ok(())
 }
+
+// ---- rounding, interleave, convert, cross-lane (fitted on the hardware suite) --------------------------
+
+/// floor / ceil / trunc / rint: fp32 (denormal in = 0, tiny out flushed) or fp16, canonical NaN, sign of zero kept.
+pub fn round_op(name: &str, ops: &[Operand], st: &mut CoreState) -> R<()> {
+    let d16 = dsize(&ops[0]) == 16;
+    for t in 0..SIMD_WIDTH {
+        if !st.exec[t] {
+            continue;
+        }
+        let x = float(st, &ops[1], t, true)?;
+        let y = if x.is_nan() || x.is_infinite() {
+            x
+        } else {
+            let r = match name {
+                "floor" => x.floor(),
+                "ceil" => x.ceil(),
+                "trunc" => x.trunc(),
+                _ => x.round_ties_even(),
+            };
+            r.copysign(x)
+        };
+        put(st, &ops[0], t, if d16 { to_f16(y) } else { to_f32(y) } as u64)?;
+    }
+    Ok(())
+}
+
+/// intl: interleave the low 16 bits of A (even result bits) and B (odd result bits).
+pub fn intl(ops: &[Operand], st: &mut CoreState) -> R<()> {
+    let spread = |v: u64| (0..16).fold(0u64, |r, i| r | ((v >> i) & 1) << (2 * i));
+    for t in 0..SIMD_WIDTH {
+        if st.exec[t] {
+            let a = raw(st, &ops[1], t)?.0;
+            let b = raw(st, &ops[2], t)?.0;
+            put(st, &ops[0], t, spread(a) | spread(b) << 1)?;
+        }
+    }
+    Ok(())
+}
+
+/// Round an exact integer to fp32 / fp16 bits, to nearest even or toward zero.
+fn int_to_float(v: i64, half: bool, rtz: bool) -> u64 {
+    let near = if half { f64_to_f16((v as f64).to_bits(), false) } else { (v as f32).to_bits() as u64 };
+    if !rtz {
+        return near;
+    }
+    let mag = |b: u64| -> f64 {
+        if half { f64::from_bits(f16_to_f64(b, false)).abs() } else { (f32::from_bits(b as u32) as f64).abs() }
+    };
+    // nearest rounded away from zero: step one representable value toward zero (inf -> largest finite)
+    if mag(near) > (v as f64).abs() { near - 1 } else { near }
+}
+
+/// convert. The field applegpu names `round` (bit 26) is the direction (0: float -> integer, 1: integer -> float);
+/// mode = size << 2 | rte << 1 | signed with size 0/1/2 = 8/16/32 bits. Float -> integer saturates to the type,
+/// NaN -> 0, and the result is zero-extended from the type width; integer -> float rounds to the destination
+/// precision (fp16 for a 16-bit destination).
+pub fn convert(f: &Fields, ops: &[Operand], st: &mut CoreState) -> R<()> {
+    let mode = fget(f, "mode").unwrap_or(0);
+    let to_float = fget(f, "round").unwrap_or(0) & 1 != 0;
+    let signed = mode & 1 != 0;
+    let rte = mode & 2 != 0;
+    let w = match mode >> 2 {
+        0 => 8,
+        1 => 16,
+        2 => 32,
+        _ => return Err(format!("convert mode {} not modelled", mode)),
+    };
+    let d16 = dsize(&ops[0]) == 16;
+    for t in 0..SIMD_WIDTH {
+        if !st.exec[t] {
+            continue;
+        }
+        let out = if to_float {
+            let (b, _) = raw(st, &ops[1], t)?;
+            let mut v = (b & ((1u64 << w) - 1)) as i64;
+            if signed && v >> (w - 1) & 1 == 1 {
+                v -= 1i64 << w;
+            }
+            int_to_float(v, d16, !rte)
+        } else {
+            let x = float(st, &ops[1], t, true)?;
+            let (lo, hi) = if signed { (-(1i64 << (w - 1)), (1i64 << (w - 1)) - 1) } else { (0, (1i64 << w) - 1) };
+            let v = if x.is_nan() {
+                0
+            } else {
+                let r = if rte { x.round_ties_even() } else { x.trunc() };
+                if r <= lo as f64 { lo } else if r >= hi as f64 { hi } else { r as i64 }
+            };
+            (v as u64) & ((1u64 << w) - 1)
+        };
+        put(st, &ops[0], t, out)?;
+    }
+    Ok(())
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum XOp {
+    IAdd,
+    And,
+    Or,
+    Xor,
+    MinU,
+    MaxU,
+    MinS,
+    MaxS,
+    FAdd,
+    FMul,
+    MinF,
+    MaxF,
+}
+
+fn xop(name: &str) -> Option<XOp> {
+    Some(match name {
+        "iadd" => XOp::IAdd,
+        "and" => XOp::And,
+        "or" => XOp::Or,
+        "xor" => XOp::Xor,
+        "min.u" => XOp::MinU,
+        "max.u" => XOp::MaxU,
+        "min.s" => XOp::MinS,
+        "max.s" => XOp::MaxS,
+        "fadd" => XOp::FAdd,
+        "fmul" => XOp::FMul,
+        "min.f" => XOp::MinF,
+        "max.f" => XOp::MaxF,
+        _ => return None,
+    })
+}
+
+fn daz_bits(b: u32) -> f64 {
+    f32_in(b)
+}
+
+/// fp32 value -> hardware fp32 bits -> value as the next operation reads it (flush to zero both ways)
+fn fround(x: f64) -> u32 {
+    to_f32(x)
+}
+
+/// One combining step on raw 32-bit values (floats: exact op, one rounding, denormals read as zero; min/max select
+/// the raw operand, comparing denormals as zero, the left operand on ties).
+fn xapply(op: XOp, x: u32, y: u32) -> u32 {
+    let s = |v: u32| v as i32;
+    match op {
+        XOp::IAdd => x.wrapping_add(y),
+        XOp::And => x & y,
+        XOp::Or => x | y,
+        XOp::Xor => x ^ y,
+        XOp::MinU => x.min(y),
+        XOp::MaxU => x.max(y),
+        XOp::MinS => if s(y) < s(x) { y } else { x },
+        XOp::MaxS => if s(y) > s(x) { y } else { x },
+        XOp::FAdd => fround(fma_odd(daz_bits(x), 1.0, daz_bits(y))),
+        XOp::FMul => fround(daz_bits(x) * daz_bits(y)),
+        XOp::MinF | XOp::MaxF => {
+            let (fx, fy) = (daz_bits(x), daz_bits(y));
+            if fx.is_nan() {
+                return y;
+            }
+            if fy.is_nan() || fx == fy {
+                return x;
+            }
+            if (fx < fy) == (op == XOp::MinF) { x } else { y }
+        }
+    }
+}
+
+fn identity(op: XOp) -> u32 {
+    match op {
+        XOp::IAdd | XOp::Or | XOp::Xor | XOp::MaxU => 0,
+        XOp::And | XOp::MinU => u32::MAX,
+        XOp::MinS => 0x7fff_ffff,
+        XOp::MaxS => 0x8000_0000,
+        XOp::FAdd => 0x8000_0000,
+        XOp::FMul => 0x3f80_0000,
+        XOp::MinF | XOp::MaxF => NAN32,
+    }
+}
+
+fn comb(op: XOp, x: Option<u32>, y: Option<u32>) -> Option<u32> {
+    match (x, y) {
+        (None, v) | (v, None) => v,
+        (Some(a), Some(b)) => Some(xapply(op, a, b)),
+    }
+}
+
+fn canon(op: XOp, v: u32) -> u32 {
+    // min / max return an operand's raw bits, NaN included (random/prog_077: all-NaN quad -> 0xffffffff)
+    let is_float = matches!(op, XOp::FAdd | XOp::FMul);
+    if is_float && f32::from_bits(v).is_nan() { NAN32 } else { v }
+}
+
+/// simd_/quad_ reductions and exclusive prefix ops (`ops` = D, A). Inactive lanes take no part.
+/// Reductions: pairwise tree over the quad / SIMD group. Quad prefix: lane-order chain. SIMD prefix: per-quad
+/// inclusive chain for lanes 0-2 and a tree total for lane 3, then a Kogge-Stone scan over quads (strides 1, 2, 4);
+/// lane i receives the inclusive value of lane i-1 (lane 0 and lanes with nothing before them: the identity).
+pub fn cross_lane(name: &str, ops: &[Operand], st: &mut CoreState) -> R<()> {
+    let quad = name.starts_with("quad_");
+    let rest = name.split_once('_').map(|x| x.1).unwrap_or("");
+    let (prefix, opname) = match rest.strip_prefix("prefix_") {
+        Some(o) => (true, o),
+        None => (false, rest),
+    };
+    let op = xop(opname).ok_or_else(|| format!("{} not modelled", name))?;
+    let mut x: [Option<u32>; SIMD_WIDTH] = [None; SIMD_WIDTH];
+    for t in 0..SIMD_WIDTH {
+        if st.exec[t] {
+            let (b, sz) = raw(st, &ops[1], t)?;
+            if sz != 32 {
+                return Err(format!("{} with a {}-bit source not modelled", name, sz));
+            }
+            let b = b as u32;
+            // fadd / fmul read denormals as signed zero (also when a lane's value passes through unchanged)
+            let flush = matches!(op, XOp::FAdd | XOp::FMul) && (b >> 23) & 0xff == 0;
+            x[t] = Some(if flush { b & 0x8000_0000 } else { b });
+        }
+    }
+    let w = if quad { 4 } else { 32 };
+    let mut out: [Option<u32>; SIMD_WIDTH] = [None; SIMD_WIDTH];
+    if !prefix {
+        for lo in (0..SIMD_WIDTH).step_by(w) {
+            let mut vs: Vec<Option<u32>> = x[lo..lo + w].to_vec();
+            while vs.len() > 1 {
+                vs = vs.chunks(2).map(|p| comb(op, p[0], p[1])).collect();
+            }
+            for o in &mut out[lo..lo + w] {
+                *o = vs[0];
+            }
+        }
+    } else {
+        // inclusive values per lane
+        let mut inc: [Option<u32>; SIMD_WIDTH] = [None; SIMD_WIDTH];
+        let mut tots = [None; 8];
+        for q in 0..8 {
+            let a = &x[4 * q..4 * q + 4];
+            let s01 = comb(op, a[0], a[1]);
+            let v2 = comb(op, s01, a[2]);
+            let v3 = if quad { comb(op, v2, a[3]) } else { comb(op, s01, comb(op, a[2], a[3])) };
+            inc[4 * q..4 * q + 4].copy_from_slice(&[a[0], s01, v2, v3]);
+            tots[q] = v3;
+        }
+        if !quad {
+            let mut d = 1;
+            while d < 8 {
+                let (pv, py) = (inc, tots);
+                for q in d..8 {
+                    for i in 0..4 {
+                        inc[4 * q + i] = comb(op, py[q - d], pv[4 * q + i]);
+                    }
+                    tots[q] = comb(op, py[q - d], py[q]);
+                }
+                d *= 2;
+            }
+        }
+        for t in 0..SIMD_WIDTH {
+            let first = if quad { t % 4 == 0 } else { t == 0 };
+            out[t] = Some(if first { identity(op) } else { inc[t - 1].unwrap_or(identity(op)) });
+        }
+    }
+    for t in 0..SIMD_WIDTH {
+        if st.exec[t] {
+            if let Some(v) = out[t] {
+                put(st, &ops[0], t, canon(op, v) as u64)?;
+            }
+        }
+    }
+    Ok(())
+}
+
+/// quad_shuffle family (`ops` = D, A, B): index B per lane; an index that leaves the quad keeps the lane's own value
+/// (rotate_up wraps).
+pub fn quad_shuffle(name: &str, ops: &[Operand], st: &mut CoreState) -> R<()> {
+    let mut a = [0u64; SIMD_WIDTH];
+    let mut b = [0i64; SIMD_WIDTH];
+    for t in 0..SIMD_WIDTH {
+        a[t] = raw(st, &ops[1], t)?.0;
+        b[t] = (raw(st, &ops[2], t)?.0 & 0xffff) as i64;
+    }
+    for t in 0..SIMD_WIDTH {
+        if !st.exec[t] {
+            continue;
+        }
+        let (q, i) = (t & !3, (t & 3) as i64);
+        let j = match name {
+            "quad_shuffle" => Some(b[t]),
+            "quad_shuffle_down" => Some(i + b[t]),
+            "quad_shuffle_up" => Some(i - b[t]),
+            "quad_shuffle_xor" => Some(i ^ b[t]),
+            "quad_shuffle_rotate_up" => Some((i - b[t]).rem_euclid(4)),
+            _ => None,
+        }
+        .ok_or_else(|| format!("{} not modelled", name))?;
+        let v = if (0..4).contains(&j) { a[q + j as usize] } else { a[t] };
+        put(st, &ops[0], t, v)?;
+    }
+    Ok(())
+}
