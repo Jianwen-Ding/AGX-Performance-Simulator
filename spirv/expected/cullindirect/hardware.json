@@ -1,0 +1,95 @@
+{
+ "workload": "cullindirect",
+ "device": {
+  "device": "Apple M2 Max (G14C B1)",
+  "vendor": 65541,
+  "device_id": 0,
+  "driver_version": 104869894,
+  "api": 4211016,
+  "timestamp_period_ns": 1,
+  "timestamps": 1,
+  "subgroup_size": 32,
+  "shader_object": 1,
+  "executable_properties": 1,
+  "features": {
+   "int64": 1,
+   "float64": 0,
+   "float16": 1,
+   "int8": 1,
+   "buffer_int64_atomics": 0,
+   "shared_int64_atomics": 0,
+   "subgroup_ops": 1791,
+   "buffer_float32_atomic_add": 0,
+   "shared_float32_atomic_add": 0
+  },
+  "limits": {
+   "shared_bytes": 32768,
+   "invocations": 1024,
+   "push_bytes": 256
+  }
+ },
+ "test_recording_not_hardware": false,
+ "recorded_utc": "2026-10-12T22:42:42Z",
+ "inputs_sha256": {
+  "0": "02285d0a1aa4e02793126b24c93b0d8720c73033f104d2ecbb612d0aa3a828e1",
+  "1": "9f736c693eb18436e53a28312ad9c0eabaa2f96da9f2634a1d4028b152e90327",
+  "4": "7d2c7ac4888bfd75cd5f56e8d61f69595121183afc81556c876732fd3782c62f"
+ },
+ "numpy": "2.5.4",
+ "small": {
+  "functional_ok": true,
+  "functional": {
+   "visible": 558,
+   "ref_visible": 558,
+   "lod_mismatches": 0,
+   "indirect_groups": 9
+  },
+  "gpu_ns": {
+   "median": 128792,
+   "min": 100833,
+   "max": 131125
+  },
+  "dispatch_ns_median": [
+   19042,
+   10417,
+   11416
+  ],
+  "repeat": 5
+ },
+ "code_extracted": true,
+ "large": {
+  "functional_ok": true,
+  "functional": {
+   "visible": 287999,
+   "ref_visible": 287999,
+   "lod_mismatches": 0,
+   "indirect_groups": 4500
+  },
+  "gpu_ns": {
+   "median": 190083.5,
+   "min": 160458,
+   "max": 194959
+  },
+  "dispatch_ns_median": [
+   29792.0,
+   12000.0,
+   21979.5
+  ],
+  "repeat": 20,
+  "gflops": null,
+  "gbytes_per_s": null,
+  "work": {
+   "objects": 1048576
+  },
+  "out_sha256": {
+   "2": "3e81e4fa9caf3d72b3f4677a0f3e41d9955ca3fd8b09b688ba7f6f41b4d2ac13",
+   "3": "ec48b3878903ac82ca9a9507a0e3dd2e2d5143678eefe8816e1da1a33093901e",
+   "4": "808557a39d5a809e1376e93d881adabaf047e8884b764b8d1f03cb5facce03f5"
+  },
+  "inputs_sha256": {
+   "0": "69af9de434c182b0cfbf4c66684ace7ed114c4cf8724102dd13ebf3f7a9645bf",
+   "1": "9f736c693eb18436e53a28312ad9c0eabaa2f96da9f2634a1d4028b152e90327",
+   "4": "cd3517473707d59c3d915b52a3e16213cadce80d9ffb2b4371958fb7acb51a08"
+  }
+ }
+}

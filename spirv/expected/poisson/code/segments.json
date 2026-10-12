@@ -1,0 +1,22 @@
+{
+ "blob": "/save/workspace/AGX-Performance-Simulator/spirv/expected/poisson/code/shader.bin",
+ "code_start": 2236,
+ "code_size": 862,
+ "layout": "agx_shader_info",
+ "programs": [
+  {
+   "label": "main",
+   "file": "main.bin",
+   "offset": 128,
+   "bytes": 484,
+   "instructions": 73
+  },
+  {
+   "label": "preamble",
+   "file": "preamble.bin",
+   "offset": 640,
+   "bytes": 206,
+   "instructions": 31
+  }
+ ]
+}

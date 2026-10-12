@@ -1,0 +1,26 @@
+0x0100  0501500d00c87200         device_load 0, i32, xyz, r0_r1_r2, u0_u1, 5, signed, lsl 2
+0x0108  3800                     wait 0
+0x010a  2e0100002c080000         bfi r0, 0, r0.discard, 8
+0x0112  c500803d00803000         uniform_store 2, i16, xy, 0, r0l_r0h, 8
+0x011a  0501f00d01c81200         device_load 0, i32, x, r0, u0_u1, 31, signed, lsl 2
+0x0122  3800                     wait 0
+0x0124  c500a03d00803000         uniform_store 2, i16, xy, 0, r0l_r0h, 10
+0x012c  0501440d00c8f200         device_load 0, i32, xyzw, r0_r1_r2_r3, u2_u3, 4, signed, lsl 2
+0x0134  3800                     wait 0
+0x0136  c500c03d0080f000         uniform_store 2, i16, xyzw, 0, r0l_r0h_r1l_r1h, 12
+0x013e  8500440d00c87000         device_load 0, i16, xyz, r0l_r0h_r1l, u2_u3, 4, signed, lsl 2
+0x0146  3800                     wait 0
+0x0148  c508403d01801000         uniform_store 2, i16, x, 0, r1l, 20
+0x0150  c504503d01801000         uniform_store 2, i16, x, 0, r0h, 21
+0x0158  ed0010000000000c         tex_state_store ts0, u3_u4, r0
+0x0160  ad0111600000000c         sampler_state_store ss1, u3_u4, r12
+0x0168  1200c100000011b0         icmpsel slt, r0l, r0h.discard, 0, 0, 1
+0x0170  c500e03d01801000         uniform_store 2, i16, x, 0, r0l, 30
+0x0178  0501b40d00c0f200         device_load 0, i32, xyzw, r0_r1_r2_r3, u2_u3, 11, signed
+0x0180  3800                     wait 0
+0x0182  c500603d0180f000         uniform_store 2, i16, xyzw, 0, r0l_r0h_r1l_r1h, 22
+0x018a  c510a03d0180f000         uniform_store 2, i16, xyzw, 0, r2l_r2h_r3l_r3h, 26
+0x0192  0501540d00c8f200         device_load 0, i32, xyzw, r0_r1_r2_r3, u2_u3, 5, signed, lsl 2
+0x019a  3800                     wait 0
+0x019c  c500003d0180f000         uniform_store 2, i16, xyzw, 0, r0l_r0h_r1l_r1h, 16
+0x01a4  8800                     stop

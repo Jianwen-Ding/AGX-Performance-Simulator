@@ -1,0 +1,22 @@
+{
+ "blob": "/save/workspace/AGX-Performance-Simulator/spirv/expected/lift53/code/shader.bin",
+ "code_start": 2236,
+ "code_size": 754,
+ "layout": "agx_shader_info",
+ "programs": [
+  {
+   "label": "main",
+   "file": "main.bin",
+   "offset": 128,
+   "bytes": 446,
+   "instructions": 66
+  },
+  {
+   "label": "preamble",
+   "file": "preamble.bin",
+   "offset": 640,
+   "bytes": 98,
+   "instructions": 16
+  }
+ ]
+}

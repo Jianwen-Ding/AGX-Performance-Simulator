@@ -1,0 +1,240 @@
+0x0080  f2051004                 get_sr r1.cache, sr80 (thread_position_in_grid.x)
+0x0084  0e05c28658000000         iadd r1, r1.discard.sx, u4.sx
+0x008c  62000000                 mov_imm r0l, 0
+0x0090  522842a21800             if_icmp r0l, ult, r1, u5, 1
+0x0096  20c038060000             jmp_exec_none pc+1592
+0x009c  8e099c2564000000         iadd r2.cache, u14.sx, r1.sx
+0x00a4  620d00000000             mov_imm r3, 0, 0b0
+0x00aa  7e119e098000             mov r4, u15
+0x00b0  7e15a2098000             mov r5, u17
+0x00b6  7e19a0098000             mov r6, u16
+0x00bc  7e1d440a8000             mov r7, r2
+0x00c2  7e2194098000             mov r8, u10
+0x00c8  7e2596098000             mov r9, u11
+0x00ce  7e299a098000             mov r10, u13
+0x00d4  7e2d98098000             mov r11, u12
+0x00da  7e318c098000             mov r12, u6
+0x00e0  7e358e098000             mov r13, u7
+0x00e6  7e3992098000             mov r14, u9
+0x00ec  7e3d90098000             mov r15, u8
+0x00f2  7e41b2098000             mov r16, u25
+0x00f8  7e45ac098000             mov r17, u22
+0x00fe  7e49ae098000             mov r18, u23
+0x0104  7e4db0098000             mov r19, u24
+0x010a  420800000000             push_exec r0l, 1
+0x0110  52ac86a20000             while_icmp r0l, slt, r3.cache, 10, 1
+0x0116  8e4d66e669000000         iadd r19.cache, r19.sx, r15.cache.sx
+0x011e  fe1d4e6a6a00             xor r7.cache, r7, r19.cache
+0x0124  fe028f088000             mov r0h.cache, r7h.cache
+0x012a  ae1d00e024100000         bfi r7.cache, 0, r7, 16
+0x0132  fe1d4e1ac400             or r7.cache, r7, r0h
+0x0138  8e2d56e668000000         iadd r11.cache, r11.sx, r7.cache.sx
+0x0140  fe3d5e6a6900             xor r15.cache, r15, r11.cache
+0x0146  ae3d5ee625140000         extr r15.cache, r15, r15, 20
+0x014e  8e4d66e669000000         iadd r19.cache, r19.sx, r15.cache.sx
+0x0156  fe1d4e6a6a00             xor r7.cache, r7, r19.cache
+0x015c  ae1d4ee624180000         extr r7.cache, r7, r7, 24
+0x0164  8e2d56e668000000         iadd r11.cache, r11.sx, r7.cache.sx
+0x016c  fe3d5e6a6900             xor r15.cache, r15, r11.cache
+0x0172  8e4964c669000000         iadd r18.cache, r18.sx, r14.cache.sx
+0x017a  fe194c4a6a00             xor r6.cache, r6, r18.cache
+0x0180  fe028d088000             mov r0h.cache, r6h.cache
+0x0186  ae1900c024100000         bfi r6.cache, 0, r6, 16
+0x018e  fe194c1ac400             or r6.cache, r6, r0h
+0x0194  8e2954c668000000         iadd r10.cache, r10.sx, r6.cache.sx
+0x019c  fe395c4a6900             xor r14.cache, r14, r10.cache
+0x01a2  ae395cc625140000         extr r14.cache, r14, r14, 20
+0x01aa  8e4964c669000000         iadd r18.cache, r18.sx, r14.cache.sx
+0x01b2  fe194c4a6a00             xor r6.cache, r6, r18.cache
+0x01b8  ae194cc624180000         extr r6.cache, r6, r6, 24
+0x01c0  8e2954c668000000         iadd r10.cache, r10.sx, r6.cache.sx
+0x01c8  fe395c4a6900             xor r14.cache, r14, r10.cache
+0x01ce  8e4562a669000000         iadd r17.cache, r17.sx, r13.cache.sx
+0x01d6  fe154a2a6a00             xor r5.cache, r5, r17.cache
+0x01dc  fe028b088000             mov r0h.cache, r5h.cache
+0x01e2  ae1500a024100000         bfi r5.cache, 0, r5, 16
+0x01ea  fe154a1ac400             or r5.cache, r5, r0h
+0x01f0  8e2552a668000000         iadd r9.cache, r9.sx, r5.cache.sx
+0x01f8  fe355a2a6900             xor r13.cache, r13, r9.cache
+0x01fe  ae355aa625140000         extr r13.cache, r13, r13, 20
+0x0206  8e4562a669000000         iadd r17.cache, r17.sx, r13.cache.sx
+0x020e  fe154a2a6a00             xor r5.cache, r5, r17.cache
+0x0214  ae154aa624180000         extr r5.cache, r5, r5, 24
+0x021c  8e2552a668000000         iadd r9.cache, r9.sx, r5.cache.sx
+0x0224  fe355a2a6900             xor r13.cache, r13, r9.cache
+0x022a  8e41608669000000         iadd r16.cache, r16.sx, r12.cache.sx
+0x0232  fe11480a6a00             xor r4.cache, r4, r16.cache
+0x0238  fe0289088000             mov r0h.cache, r4h.cache
+0x023e  ae11008024100000         bfi r4.cache, 0, r4, 16
+0x0246  fe11481ac400             or r4.cache, r4, r0h
+0x024c  8e21508668000000         iadd r8.cache, r8.sx, r4.cache.sx
+0x0254  fe31580a6900             xor r12.cache, r12, r8.cache
+0x025a  ae31588625140000         extr r12.cache, r12, r12, 20
+0x0262  8e41608669000000         iadd r16.cache, r16.sx, r12.cache.sx
+0x026a  fe11480a6a00             xor r4.cache, r4, r16.cache
+0x0270  ae11488624180000         extr r4.cache, r4, r4, 24
+0x0278  8e21508668000000         iadd r8.cache, r8.sx, r4.cache.sx
+0x0280  fe31580a6900             xor r12.cache, r12, r8.cache
+0x0286  ae395cc625190000         extr r14.cache, r14, r14, 25
+0x028e  8e4d66c669000000         iadd r19.cache, r19.sx, r14.cache.sx
+0x0296  fe11486a6a00             xor r4.cache, r4, r19.cache
+0x029c  fe0289088000             mov r0h.cache, r4h.cache
+0x02a2  ae11008024100000         bfi r4.cache, 0, r4, 16
+0x02aa  fe11481ac400             or r4.cache, r4, r0h
+0x02b0  8e25528668000000         iadd r9.cache, r9.sx, r4.cache.sx
+0x02b8  fe395c2a6900             xor r14.cache, r14, r9.cache
+0x02be  ae395cc625140000         extr r14.cache, r14, r14, 20
+0x02c6  8e4d66c669000000         iadd r19.cache, r19.sx, r14.cache.sx
+0x02ce  fe11486a6600             xor r4.cache, r4, r19
+0x02d4  ae11488624180000         extr r4.cache, r4, r4, 24
+0x02dc  8e25528664000000         iadd r9.cache, r9.sx, r4.sx
+0x02e4  fe395c2a6500             xor r14.cache, r14, r9
+0x02ea  ae355aa625190000         extr r13.cache, r13, r13, 25
+0x02f2  8e4964a669000000         iadd r18.cache, r18.sx, r13.cache.sx
+0x02fa  fe1d4e4a6a00             xor r7.cache, r7, r18.cache
+0x0300  fe028f088000             mov r0h.cache, r7h.cache
+0x0306  ae1d00e024100000         bfi r7.cache, 0, r7, 16
+0x030e  fe1d4e1ac400             or r7.cache, r7, r0h
+0x0314  8e2150e668000000         iadd r8.cache, r8.sx, r7.cache.sx
+0x031c  fe355a0a6900             xor r13.cache, r13, r8.cache
+0x0322  ae355aa625140000         extr r13.cache, r13, r13, 20
+0x032a  8e4964a669000000         iadd r18.cache, r18.sx, r13.cache.sx
+0x0332  fe1d4e4a6600             xor r7.cache, r7, r18
+0x0338  ae1d4ee624180000         extr r7.cache, r7, r7, 24
+0x0340  8e2150e664000000         iadd r8.cache, r8.sx, r7.sx
+0x0348  fe355a0a6500             xor r13.cache, r13, r8
+0x034e  ae31588625190000         extr r12.cache, r12, r12, 25
+0x0356  8e45628669000000         iadd r17.cache, r17.sx, r12.cache.sx
+0x035e  fe194c2a6a00             xor r6.cache, r6, r17.cache
+0x0364  fe028d088000             mov r0h.cache, r6h.cache
+0x036a  ae1900c024100000         bfi r6.cache, 0, r6, 16
+0x0372  fe194c1ac400             or r6.cache, r6, r0h
+0x0378  8e2d56c668000000         iadd r11.cache, r11.sx, r6.cache.sx
+0x0380  fe31586a6900             xor r12.cache, r12, r11.cache
+0x0386  ae31588625140000         extr r12.cache, r12, r12, 20
+0x038e  8e45628669000000         iadd r17.cache, r17.sx, r12.cache.sx
+0x0396  fe194c2a6600             xor r6.cache, r6, r17
+0x039c  ae194cc624180000         extr r6.cache, r6, r6, 24
+0x03a4  8e2d56c664000000         iadd r11.cache, r11.sx, r6.sx
+0x03ac  fe31586a6500             xor r12.cache, r12, r11
+0x03b2  ae3d5ee625190000         extr r15.cache, r15, r15, 25
+0x03ba  8e4160e669000000         iadd r16.cache, r16.sx, r15.cache.sx
+0x03c2  fe154a0a6a00             xor r5.cache, r5, r16.cache
+0x03c8  fe028b088000             mov r0h.cache, r5h.cache
+0x03ce  ae1500a024100000         bfi r5.cache, 0, r5, 16
+0x03d6  fe154a1ac400             or r5.cache, r5, r0h
+0x03dc  8e2954a668000000         iadd r10.cache, r10.sx, r5.cache.sx
+0x03e4  fe3d5e4a6900             xor r15.cache, r15, r10.cache
+0x03ea  ae3d5ee625140000         extr r15.cache, r15, r15, 20
+0x03f2  8e4160e669000000         iadd r16.cache, r16.sx, r15.cache.sx
+0x03fa  fe154a0a6600             xor r5.cache, r5, r16
+0x0400  ae154aa624180000         extr r5.cache, r5, r5, 24
+0x0408  8e2954a664000000         iadd r10.cache, r10.sx, r5.sx
+0x0410  fe3d5e4a6500             xor r15.cache, r15, r10
+0x0416  0e0d461600000000         iadd r3, r3.sx, 1
+0x041e  2e395cc625190000         extr r14, r14, r14, 25
+0x0426  2e355aa625190000         extr r13, r13, r13, 25
+0x042e  2e31588625190000         extr r12, r12, r12, 25
+0x0436  2e3d5ee625190000         extr r15, r15, r15, 25
+0x043e  00c0d2fcffff             jmp_exec_any pc-814
+0x0444  520e00000000             pop_exec r0l, 1
+0x044a  8e05002064002000         iadd r1.cache, 0, r1.sx, lsl 4
+0x0452  0519240e20c01200         device_load 0, i32, x, r3, u18_u19, r1, unsigned
+0x045a  8e4d66065b000000         iadd r19.cache, r19.sx, u24.sx
+0x0462  3800                     wait 0
+0x0464  7e0d466a6600             xor r3, r3, r19
+0x046a  4519280e20c01200         device_store 0, i32, x, r3, u20_u21, r1, unsigned, 0
+0x0472  0e0d012068000000         iadd r3, 1, r1.cache.sx
+0x047a  0599644e20c01200         device_load 1, i32, x, r19, u18_u19, r3, unsigned
+0x0482  8e4964e65a000000         iadd r18.cache, r18.sx, u23.sx
+0x048a  3801                     wait 1
+0x048c  7e49664a6600             xor r18, r19, r18
+0x0492  4591684e20c01200         device_store 1, i32, x, r18, u20_u21, r3, unsigned, 0
+0x049a  0e0d022068000000         iadd r3, 2, r1.cache.sx
+0x04a2  0591640e20c01200         device_load 0, i32, x, r18, u18_u19, r3, unsigned
+0x04aa  8e4562c65a000000         iadd r17.cache, r17.sx, u22.sx
+0x04b2  3800                     wait 0
+0x04b4  7e45642a6600             xor r17, r18, r17
+0x04ba  4589680e20c01200         device_store 0, i32, x, r17, u20_u21, r3, unsigned, 0
+0x04c2  0e0d032068000000         iadd r3, 3, r1.cache.sx
+0x04ca  0589640e20c01200         device_load 0, i32, x, r17, u18_u19, r3, unsigned
+0x04d2  8e4160265b000000         iadd r16.cache, r16.sx, u25.sx
+0x04da  3800                     wait 0
+0x04dc  7e41620a6600             xor r16, r17, r16
+0x04e2  4581680e20c01200         device_store 0, i32, x, r16, u20_u21, r3, unsigned, 0
+0x04ea  0e0d042068000000         iadd r3, 4, r1.cache.sx
+0x04f2  0581640e20c01200         device_load 0, i32, x, r16, u18_u19, r3, unsigned
+0x04fa  8e3d5e0659000000         iadd r15.cache, r15.sx, u8.sx
+0x0502  3800                     wait 0
+0x0504  7e3d60ea6500             xor r15, r16, r15
+0x050a  4579680e20c01200         device_store 0, i32, x, r15, u20_u21, r3, unsigned, 0
+0x0512  0e0d052068000000         iadd r3, 5, r1.cache.sx
+0x051a  0579640e20c01200         device_load 0, i32, x, r15, u18_u19, r3, unsigned
+0x0522  8e395c2659000000         iadd r14.cache, r14.sx, u9.sx
+0x052a  3800                     wait 0
+0x052c  7e395eca6500             xor r14, r15, r14
+0x0532  4571680e20c01200         device_store 0, i32, x, r14, u20_u21, r3, unsigned, 0
+0x053a  0e0d062068000000         iadd r3, 6, r1.cache.sx
+0x0542  0571640e20c01200         device_load 0, i32, x, r14, u18_u19, r3, unsigned
+0x054a  8e355ae658000000         iadd r13.cache, r13.sx, u7.sx
+0x0552  3800                     wait 0
+0x0554  7e355caa6500             xor r13, r14, r13
+0x055a  4569680e20c01200         device_store 0, i32, x, r13, u20_u21, r3, unsigned, 0
+0x0562  0e0d072068000000         iadd r3, 7, r1.cache.sx
+0x056a  0569640e20c01200         device_load 0, i32, x, r13, u18_u19, r3, unsigned
+0x0572  8e3158c658000000         iadd r12.cache, r12.sx, u6.sx
+0x057a  3800                     wait 0
+0x057c  7e315a8a6500             xor r12, r13, r12
+0x0582  4561680e20c01200         device_store 0, i32, x, r12, u20_u21, r3, unsigned, 0
+0x058a  0e0d082068000000         iadd r3, 8, r1.cache.sx
+0x0592  0561640e20c01200         device_load 0, i32, x, r12, u18_u19, r3, unsigned
+0x059a  8e2d568659000000         iadd r11.cache, r11.sx, u12.sx
+0x05a2  3800                     wait 0
+0x05a4  7e2d586a6500             xor r11, r12, r11
+0x05aa  4559680e20c01200         device_store 0, i32, x, r11, u20_u21, r3, unsigned, 0
+0x05b2  0e0d092068000000         iadd r3, 9, r1.cache.sx
+0x05ba  0559640e20c01200         device_load 0, i32, x, r11, u18_u19, r3, unsigned
+0x05c2  8e2954a659000000         iadd r10.cache, r10.sx, u13.sx
+0x05ca  3800                     wait 0
+0x05cc  7e29564a6500             xor r10, r11, r10
+0x05d2  4551680e20c01200         device_store 0, i32, x, r10, u20_u21, r3, unsigned, 0
+0x05da  0e0d0a2068000000         iadd r3, 10, r1.cache.sx
+0x05e2  0551640e20c01200         device_load 0, i32, x, r10, u18_u19, r3, unsigned
+0x05ea  8e25526659000000         iadd r9.cache, r9.sx, u11.sx
+0x05f2  3800                     wait 0
+0x05f4  7e25542a6500             xor r9, r10, r9
+0x05fa  4549680e20c01200         device_store 0, i32, x, r9, u20_u21, r3, unsigned, 0
+0x0602  0e0d0b2068000000         iadd r3, 11, r1.cache.sx
+0x060a  0549640e20c01200         device_load 0, i32, x, r9, u18_u19, r3, unsigned
+0x0612  8e21504659000000         iadd r8.cache, r8.sx, u10.sx
+0x061a  3800                     wait 0
+0x061c  7e21520a6500             xor r8, r9, r8
+0x0622  4541680e20c01200         device_store 0, i32, x, r8, u20_u21, r3, unsigned, 0
+0x062a  0e0d0c2068000000         iadd r3, 12, r1.cache.sx
+0x0632  0541640e20c01200         device_load 0, i32, x, r8, u18_u19, r3, unsigned
+0x063a  8e094e4664000000         iadd r2.cache, r7.sx, r2.sx
+0x0642  3800                     wait 0
+0x0644  7e09504a6400             xor r2, r8, r2
+0x064a  4511680e20c01200         device_store 0, i32, x, r2, u20_u21, r3, unsigned, 0
+0x0652  0e090d2068000000         iadd r2, 13, r1.cache.sx
+0x065a  0519440e20c01200         device_load 0, i32, x, r3, u18_u19, r2, unsigned
+0x0662  8e194c065a000000         iadd r6.cache, r6.sx, u16.sx
+0x066a  3800                     wait 0
+0x066c  7e0d46ca6400             xor r3, r3, r6
+0x0672  4519480e20c01200         device_store 0, i32, x, r3, u20_u21, r2, unsigned, 0
+0x067a  0e090e2068000000         iadd r2, 14, r1.cache.sx
+0x0682  0519440e20c01200         device_load 0, i32, x, r3, u18_u19, r2, unsigned
+0x068a  8e154a265a000000         iadd r5.cache, r5.sx, u17.sx
+0x0692  3800                     wait 0
+0x0694  7e0d46aa6400             xor r3, r3, r5
+0x069a  4519480e20c01200         device_store 0, i32, x, r3, u20_u21, r2, unsigned, 0
+0x06a2  0e050f2064000000         iadd r1, 15, r1.sx
+0x06aa  0511240e20c01200         device_load 0, i32, x, r2, u18_u19, r1, unsigned
+0x06b2  8e0d48e659000000         iadd r3.cache, r4.sx, u15.sx
+0x06ba  3800                     wait 0
+0x06bc  7e09446a6400             xor r2, r2, r3
+0x06c2  4511280e20c01200         device_store 0, i32, x, r2, u20_u21, r1, unsigned, 0
+0x06ca  3800                     wait 0
+0x06cc  3801                     wait 1
+0x06ce  520e00000000             pop_exec r0l, 1
+0x06d4  8800                     stop

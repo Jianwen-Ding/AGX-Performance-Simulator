@@ -1,0 +1,102 @@
+{
+ "workload": "csrbuild",
+ "device": {
+  "device": "Apple M2 Max (G14C B1)",
+  "vendor": 65541,
+  "device_id": 0,
+  "driver_version": 104869894,
+  "api": 4211016,
+  "timestamp_period_ns": 1,
+  "timestamps": 1,
+  "subgroup_size": 32,
+  "shader_object": 1,
+  "executable_properties": 1,
+  "features": {
+   "int64": 1,
+   "float64": 0,
+   "float16": 1,
+   "int8": 1,
+   "buffer_int64_atomics": 0,
+   "shared_int64_atomics": 0,
+   "subgroup_ops": 1791,
+   "buffer_float32_atomic_add": 0,
+   "shared_float32_atomic_add": 0
+  },
+  "limits": {
+   "shared_bytes": 32768,
+   "invocations": 1024,
+   "push_bytes": 256
+  }
+ },
+ "test_recording_not_hardware": false,
+ "recorded_utc": "2026-10-12T22:44:57Z",
+ "inputs_sha256": {
+  "0": "683f8e487e3c2d978c86bdc1421c5700a3e0266b1ec962662ec110c38fa4cfb3",
+  "1": "ad7facb2586fc6e966c004d7d1d16b024f5805ff7cb47c7a85dabd8b48892ca7"
+ },
+ "numpy": "2.5.4",
+ "small": {
+  "functional_ok": true,
+  "functional": {
+   "rowptr_ok": true,
+   "rows_ok": true,
+   "matches_scipy": true,
+   "vertices": 1024,
+   "edges": 16384,
+   "max_degree": 1094,
+   "isolated": 221
+  },
+  "gpu_ns": {
+   "median": 232583,
+   "min": 225625,
+   "max": 241333
+  },
+  "dispatch_ns_median": [
+   20916,
+   11625,
+   12417,
+   10916,
+   11417
+  ],
+  "repeat": 5
+ },
+ "code_extracted": true,
+ "large": {
+  "functional_ok": true,
+  "functional": {
+   "rowptr_ok": true,
+   "rows_ok": true,
+   "matches_scipy": true,
+   "vertices": 262144,
+   "edges": 4194304,
+   "max_degree": 30248,
+   "isolated": 113545
+  },
+  "gpu_ns": {
+   "median": 1136646.0,
+   "min": 1126167,
+   "max": 1141583
+  },
+  "dispatch_ns_median": [
+   32937.5,
+   23084.0,
+   13354.0,
+   20583.5,
+   27146.0
+  ],
+  "repeat": 20,
+  "gflops": null,
+  "gbytes_per_s": null,
+  "work": {
+   "edges": 4194304
+  },
+  "out_sha256": {
+   "2": "c65a3b6470f149f7e476491a0a447de34fbd882b2134bab986a0510ddb3b91ae",
+   "5": "40e1aec28b1a4902e70053086581b446a9b6669afe4599aeeb1e7bcbd34e45f8"
+  },
+  "inputs_sha256": {
+   "0": "2c412cd2e341ee88ab2bed6043ebf7009483561c011d783a6c7ec6ba5925e95c",
+   "1": "30e14955ebf1352266dc2ff8067e68104607e750abb9d3b36582b8af909fcb58"
+  }
+ }
+}

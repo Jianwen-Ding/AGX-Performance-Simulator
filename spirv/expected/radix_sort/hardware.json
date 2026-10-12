@@ -1,0 +1,131 @@
+{
+ "workload": "radix_sort",
+ "device": {
+  "device": "Apple M2 Max (G14C B1)",
+  "vendor": 65541,
+  "device_id": 0,
+  "driver_version": 104869894,
+  "api": 4211016,
+  "timestamp_period_ns": 1,
+  "timestamps": 1,
+  "subgroup_size": 32,
+  "shader_object": 1,
+  "executable_properties": 1,
+  "features": {
+   "int64": 1,
+   "float64": 0,
+   "float16": 1,
+   "int8": 1,
+   "buffer_int64_atomics": 0,
+   "shared_int64_atomics": 0,
+   "subgroup_ops": 1791,
+   "buffer_float32_atomic_add": 0,
+   "shared_float32_atomic_add": 0
+  },
+  "limits": {
+   "shared_bytes": 32768,
+   "invocations": 1024,
+   "push_bytes": 256
+  }
+ },
+ "test_recording_not_hardware": false,
+ "recorded_utc": "2026-10-12T22:40:37Z",
+ "inputs_sha256": {
+  "0": "27af8c57e75119658d7284ecd5c8502aeceffdf7505ed83e1921e78751ba7712",
+  "1": "31e00c1b502bc1ec0add1effc4bcde24716eb9b465362dde31ccd51ee2531179"
+ },
+ "numpy": "2.5.4",
+ "small": {
+  "functional_ok": true,
+  "functional": {
+   "keys_sorted": true,
+   "stable_payload": true
+  },
+  "gpu_ns": {
+   "median": 1567000,
+   "min": 1553167,
+   "max": 2250292
+  },
+  "dispatch_ns_median": [
+   16417,
+   13125,
+   13000,
+   13250,
+   12875,
+   12833,
+   12042,
+   11292,
+   10750,
+   11333,
+   11500,
+   10541,
+   12000,
+   11208,
+   11375,
+   11666,
+   12167,
+   23334,
+   21625,
+   22542,
+   22584,
+   22208,
+   21167,
+   21125
+  ],
+  "repeat": 5
+ },
+ "code_extracted": true,
+ "large": {
+  "functional_ok": true,
+  "functional": {
+   "keys_sorted": true,
+   "stable_payload": true
+  },
+  "gpu_ns": {
+   "median": 5726792.0,
+   "min": 5693500,
+   "max": 7787958
+  },
+  "dispatch_ns_median": [
+   17125.0,
+   11188.0,
+   24312.5,
+   23104.0,
+   22875.0,
+   22416.5,
+   22250.0,
+   21666.5,
+   24125.0,
+   22499.5,
+   21979.0,
+   23750.0,
+   23000.0,
+   22437.5,
+   22604.0,
+   23708.5,
+   24228.5,
+   23312.5,
+   22500.0,
+   22021.0,
+   22791.5,
+   22333.5,
+   22583.5,
+   22146.0
+  ],
+  "repeat": 20,
+  "gflops": null,
+  "gbytes_per_s": null,
+  "work": {
+   "keys": 1048576,
+   "dispatches": 24
+  },
+  "out_sha256": {
+   "0": "739ad99aef43ff68dfdee9ce14f67e51002222160fdf846a8a9037398482c4d9",
+   "1": "971d15e68fd436d51e350b67ca1fd44d31d29f45827c79c0ad91b634db63c714"
+  },
+  "inputs_sha256": {
+   "0": "cb09e360b6f5eb98f7a35ca2fdaecff9151b055487c06ca1e629feaca173d8d2",
+   "1": "130a093f68733bb784c87a19ba3041ae2e5ff78e78fc7806d28bacb94792c6b1"
+  }
+ }
+}

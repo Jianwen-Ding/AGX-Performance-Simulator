@@ -1,0 +1,31 @@
+0x0080  f2051004                 get_sr r1.cache, sr80 (thread_position_in_grid.x)
+0x0084  f2091104                 get_sr r2.cache, sr81 (thread_position_in_grid.y)
+0x0088  8e0dc40659000000         iadd r3.cache, r2.discard.sx, u8.sx
+0x0090  920246a2180011b0         icmpsel slt, r0h.cache, r3, u5, 0, 1
+0x0098  8e09c2e658000000         iadd r2.cache, r1.discard.sx, u7.sx
+0x00a0  92044482180011b0         icmpsel slt, r1l.cache, r2, u4, 0, 1
+0x00a8  fe0682184000             xor r1h.cache, r1l.cache, 1
+0x00ae  1202c30000c2100c         icmpsel ueq, r0h, r1h.discard, 0, r1l.discard, r0h.discard
+0x00b6  62000000                 mov_imm r0l, 0
+0x00ba  5208c1000000             if_icmp r0l, ueq, r0h.discard, 0, 1
+0x00c0  71110412006a2f00         texture_load 0, 0b1101, 0b0, none, xyzw, 0b00, r4_r5_r6_r7, None, ts0, ss0, tex_2d, r2_r3, lod_min, u9l
+0x00c8  3800                     wait 0
+0x00ca  9a8548c21800             fmul32 r1.cache, r4, u6
+0x00d0  aa9130202800             fadd32 r4.cache, 1.0, r1.cache
+0x00d6  8a114882                 rcp r4.cache, r4
+0x00da  1a9142822400             fmul32 r4, r1, r4
+0x00e0  9a854ac21800             fmul32 r1.cache, r5, u6
+0x00e6  aa9530202800             fadd32 r5.cache, 1.0, r1.cache
+0x00ec  8a154a82                 rcp r5.cache, r5
+0x00f0  1a9542a22400             fmul32 r5, r1, r5
+0x00f6  9a854cc21800             fmul32 r1.cache, r6, u6
+0x00fc  aa9930202800             fadd32 r6.cache, 1.0, r1.cache
+0x0102  8a194c82                 rcp r6.cache, r6
+0x0106  1a9942c22400             fmul32 r6, r1, r6
+0x010c  f1118480014a             image_write r4_r5_r6_r7, r2_r3, 0, None, ts1, tex_2d, rte, 1, 0, 9, 0
+0x0112  f5aa                     memory_barrier 2, 2, 10
+0x0114  f5ae                     memory_barrier 3, 2, 10
+0x0116  f5a9                     memory_barrier 2, 1, 10
+0x0118  f5ad                     memory_barrier 3, 1, 10
+0x011a  520e00000000             pop_exec r0l, 1
+0x0120  8800                     stop

@@ -1,0 +1,22 @@
+0x2280  0501500d00c87200         device_load 0, i32, xyz, r0_r1_r2, u0_u1, 5, signed, lsl 2
+0x2288  3800                     wait 0
+0x228a  2e0100002c060000         bfi r0, 0, r0.discard, 6
+0x2292  c500803d00803000         uniform_store 2, i16, xy, 0, r0l_r0h, 8
+0x229a  0501f00d01c81200         device_load 0, i32, x, r0, u0_u1, 31, signed, lsl 2
+0x22a2  3800                     wait 0
+0x22a4  c500a03d00803000         uniform_store 2, i16, xy, 0, r0l_r0h, 10
+0x22ac  0501040d00c0f200         device_load 0, i32, xyzw, r0_r1_r2_r3, u2_u3, 0, signed
+0x22b4  3800                     wait 0
+0x22b6  c500c03d0080f000         uniform_store 2, i16, xyzw, 0, r0l_r0h_r1l_r1h, 12
+0x22be  0501d00d07c01200         device_load 0, i32, x, r0, u0_u1, 125, signed
+0x22c6  3800                     wait 0
+0x22c8  c500003d01803000         uniform_store 2, i16, xy, 0, r0l_r0h, 16
+0x22d0  0521140d00c8f200         device_load 0, i32, xyzw, r4_r5_r6_r7, u2_u3, 1, signed, lsl 2
+0x22d8  3800                     wait 0
+0x22da  c520403d0180f000         uniform_store 2, i16, xyzw, 0, r4l_r4h_r5l_r5h, 20
+0x22e2  2e0100002c070000         bfi r0, 0, r0.discard, 7
+0x22ea  c500803d01803000         uniform_store 2, i16, xy, 0, r0l_r0h, 24
+0x22f2  0501240d00c8f200         device_load 0, i32, xyzw, r0_r1_r2_r3, u2_u3, 2, signed, lsl 2
+0x22fa  3800                     wait 0
+0x22fc  c500c03d0180f000         uniform_store 2, i16, xyzw, 0, r0l_r0h_r1l_r1h, 28
+0x2304  8800                     stop

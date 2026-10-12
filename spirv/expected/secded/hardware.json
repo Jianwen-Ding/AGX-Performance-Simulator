@@ -1,0 +1,91 @@
+{
+ "workload": "secded",
+ "device": {
+  "device": "Apple M2 Max (G14C B1)",
+  "vendor": 65541,
+  "device_id": 0,
+  "driver_version": 104869894,
+  "api": 4211016,
+  "timestamp_period_ns": 1,
+  "timestamps": 1,
+  "subgroup_size": 32,
+  "shader_object": 1,
+  "executable_properties": 1,
+  "features": {
+   "int64": 1,
+   "float64": 0,
+   "float16": 1,
+   "int8": 1,
+   "buffer_int64_atomics": 0,
+   "shared_int64_atomics": 0,
+   "subgroup_ops": 1791,
+   "buffer_float32_atomic_add": 0,
+   "shared_float32_atomic_add": 0
+  },
+  "limits": {
+   "shared_bytes": 32768,
+   "invocations": 1024,
+   "push_bytes": 256
+  }
+ },
+ "test_recording_not_hardware": false,
+ "recorded_utc": "2026-10-12T22:42:22Z",
+ "inputs_sha256": {
+  "0": "5a8cbf48bcbf574d261fbace6e75fa1ec5fcae9f1d4927961b2a77d62457d1bf",
+  "2": "8eac0ee76ff515c11ab5dceacf8da211031f455ee5eb7f8903cd2d4de34d0c88"
+ },
+ "numpy": "2.5.4",
+ "small": {
+  "functional_ok": true,
+  "functional": {
+   "code_mismatches": 0,
+   "data_mismatches": 0,
+   "status_mismatches": 0,
+   "corrects_singles_flags_doubles": true
+  },
+  "gpu_ns": {
+   "median": 64666,
+   "min": 63958,
+   "max": 66375
+  },
+  "dispatch_ns_median": [
+   14125,
+   11458
+  ],
+  "repeat": 5
+ },
+ "code_extracted": true,
+ "large": {
+  "functional_ok": true,
+  "functional": {
+   "code_mismatches": 0,
+   "data_mismatches": 0,
+   "status_mismatches": 0,
+   "corrects_singles_flags_doubles": true
+  },
+  "gpu_ns": {
+   "median": 664063.0,
+   "min": 657875,
+   "max": 670042
+  },
+  "dispatch_ns_median": [
+   30604.5,
+   25833.0
+  ],
+  "repeat": 20,
+  "gflops": null,
+  "gbytes_per_s": null,
+  "work": {
+   "words": 2097152
+  },
+  "out_sha256": {
+   "1": "9babbc55f6af1dc3e567546f4fb7dc0e8c1e2117b141eb95920918a3720e2e2b",
+   "3": "1b9841f55eef41fb097b184dfa1b68798b27a484485de7b350c5dab3261185d4",
+   "4": "95609588784aed26a24d62c598e32d5f2c0bc0e46c802883ba32d2330d53fce9"
+  },
+  "inputs_sha256": {
+   "0": "aac51510a6c273d5a90e216bd0dedf5807a87afeb2b3143c212571fbec3f3117",
+   "2": "351f3d1fe80b9dc73aad2bb8b258a225a043c16dc9330c50a06c3ac10ab53eff"
+  }
+ }
+}

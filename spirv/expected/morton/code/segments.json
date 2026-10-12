@@ -1,0 +1,22 @@
+{
+ "blob": "/save/workspace/AGX-Performance-Simulator/spirv/expected/morton/code/shader.bin",
+ "code_start": 2236,
+ "code_size": 1524,
+ "layout": "agx_shader_info",
+ "programs": [
+  {
+   "label": "main",
+   "file": "main.bin",
+   "offset": 128,
+   "bytes": 1204,
+   "instructions": 185
+  },
+  {
+   "label": "preamble",
+   "file": "preamble.bin",
+   "offset": 1408,
+   "bytes": 100,
+   "instructions": 17
+  }
+ ]
+}

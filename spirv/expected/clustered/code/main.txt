@@ -1,0 +1,382 @@
+0x0080  62020000                 mov_imm r0h, 0
+0x0084  f20d3400                 get_sr r3.cache, sr52 (thread_index_in_simdgroup)
+0x0088  fe0586029a00             and r1.cache, r3.cache, u16
+0x008e  fe05c2f28100             and r1.cache, r1.discard, 31
+0x0094  ae05003000c20200         bfi r1.cache, 0, 3, r1.discard
+0x009c  fe0986f28100             and r2.cache, r3.cache, 31
+0x00a2  ae0900c019c40200         bfi r2.cache, 0, u14, r2.discard
+0x00aa  b211010000800100         icmp_ballot r4.cache, nueq, 1, 0
+0x00b2  fe058822ac00             and r1.cache, r4.cache, r1.discard
+0x00b8  f2151004                 get_sr r5.cache, sr80 (thread_position_in_grid.x)
+0x00bc  0e15cae658000000         iadd r5, r5.discard.sx, u7.sx
+0x00c4  fe19424a2400             bitop 0100, r6.cache, r1, r2
+0x00ca  be1d8c0e0000             ffs r7.cache, r6.cache
+0x00d0  fe218ec28100             and r8.cache, r7.cache, 28
+0x00d6  0549a00e10c01200         device_load 0, i32, x, r9, u8_u9, r5, unsigned
+0x00de  8e29901600000000         iadd r10.cache, r8.cache.sx, 1
+0x00e6  3800                     wait 0
+0x00e8  fe02900a8000             mov r0h.cache, r8.cache
+0x00ee  ef2d92160c00             simd_shuffle r11.cache, r9.cache, r0h.discard
+0x00f4  fe02940a8000             mov r0h.cache, r10.cache
+0x00fa  ef3192160c00             simd_shuffle r12.cache, r9.cache, r0h.discard
+0x0100  92298e422dd8600d         icmpsel ueq, r10.cache, r7.cache, r10.discard, r12.discard, r11.discard
+0x0108  8e2d902600000000         iadd r11.cache, r8.cache.sx, 2
+0x0110  fe02960a8000             mov r0h.cache, r11.cache
+0x0116  ef3192160c00             simd_shuffle r12.cache, r9.cache, r0h.discard
+0x011c  92298e622dd8400d         icmpsel ueq, r10.cache, r7.cache, r11.discard, r12.discard, r10.discard
+0x0124  8e21d03600000000         iadd r8.cache, r8.discard.sx, 3
+0x012c  fe02900a8000             mov r0h.cache, r8.cache
+0x0132  ef2d92160c00             simd_shuffle r11.cache, r9.cache, r0h.discard
+0x0138  921dce022dd6400d         icmpsel ueq, r7.cache, r7.discard, r8.discard, r11.discard, r10.discard
+0x0140  8e1d92e66c000000         iadd r7.cache, r9.cache.sx, r7.discard.sx
+0x0148  9219cc020092e00c         icmpsel ueq, r6.cache, r6.discard, 0, r9.cache, r7.discard
+0x0150  be05c20e0000             ffs r1.cache, r1.discard
+0x0156  fe1d82c28100             and r7.cache, r1.cache, 28
+0x015c  8e218e1600000000         iadd r8.cache, r7.cache.sx, 1
+0x0164  fe028e0a8000             mov r0h.cache, r7.cache
+0x016a  ef298c160c00             simd_shuffle r10.cache, r6.cache, r0h.discard
+0x0170  fe02900a8000             mov r0h.cache, r8.cache
+0x0176  ef2d8c160c00             simd_shuffle r11.cache, r6.cache, r0h.discard
+0x017c  922182022dd6400d         icmpsel ueq, r8.cache, r1.cache, r8.discard, r11.discard, r10.discard
+0x0184  8e298e2600000000         iadd r10.cache, r7.cache.sx, 2
+0x018c  fe02940a8000             mov r0h.cache, r10.cache
+0x0192  ef2d8c160c00             simd_shuffle r11.cache, r6.cache, r0h.discard
+0x0198  922182422dd6000d         icmpsel ueq, r8.cache, r1.cache, r10.discard, r11.discard, r8.discard
+0x01a0  8e1dce3600000000         iadd r7.cache, r7.discard.sx, 3
+0x01a8  fe028e0a8000             mov r0h.cache, r7.cache
+0x01ae  ef19cc160c00             simd_shuffle r6.cache, r6.discard, r0h.discard
+0x01b4  9205c2e22ccc000d         icmpsel ueq, r1.cache, r1.discard, r7.discard, r6.discard, r8.discard
+0x01bc  fe19461a4000             xor r6.cache, r3, 1
+0x01c2  fe1d8cc28100             and r7.cache, r6.cache, 28
+0x01c8  8e218e1600000000         iadd r8.cache, r7.cache.sx, 1
+0x01d0  fe028e0a8000             mov r0h.cache, r7.cache
+0x01d6  ef2992160c00             simd_shuffle r10.cache, r9.cache, r0h.discard
+0x01dc  fe02900a8000             mov r0h.cache, r8.cache
+0x01e2  ef2d92160c00             simd_shuffle r11.cache, r9.cache, r0h.discard
+0x01e8  92298c0225d6400d         icmpsel ueq, r10.cache, r6.cache, r8, r11.discard, r10.discard
+0x01f0  8e2d8e2600000000         iadd r11.cache, r7.cache.sx, 2
+0x01f8  fe02960a8000             mov r0h.cache, r11.cache
+0x01fe  ef3192160c00             simd_shuffle r12.cache, r9.cache, r0h.discard
+0x0204  92298c6225d8400d         icmpsel ueq, r10.cache, r6.cache, r11, r12.discard, r10.discard
+0x020c  8e314e3600000000         iadd r12.cache, r7.sx, 3
+0x0214  fe02980a8000             mov r0h.cache, r12.cache
+0x021a  ef3592160c00             simd_shuffle r13.cache, r9.cache, r0h.discard
+0x0220  92294c8225da400d         icmpsel ueq, r10.cache, r6, r12, r13.discard, r10.discard
+0x0228  8e2992466d000000         iadd r10.cache, r9.cache.sx, r10.discard.sx
+0x0230  124148c219d4200c         icmpsel ueq, r16, r4, u14, r10.discard, r1.discard
+0x0238  62000000                 mov_imm r0l, 0
+0x023c  3205010000800100         icmp_ballot r1, nueq, 1, 0
+0x0244  6fc552020080             quad_iadd r17, r9
+0x024a  62020000                 mov_imm r0h, 0
+0x024e  5208c8c21900             if_icmp r0l, ueq, r4.discard, u14, 1
+0x0254  fe024e0a8000             mov r0h.cache, r7
+0x025a  ef0592160400             simd_shuffle r1.cache, r9.cache, r0h
+0x0260  fe02900a8000             mov r0h.cache, r8.cache
+0x0266  ef1192160400             simd_shuffle r4.cache, r9.cache, r0h
+0x026c  92058c0225482004         icmpsel ueq, r1.cache, r6.cache, r8, r4, r1
+0x0274  fe02960a8000             mov r0h.cache, r11.cache
+0x027a  ef1192160400             simd_shuffle r4.cache, r9.cache, r0h
+0x0280  92058c6225482004         icmpsel ueq, r1.cache, r6.cache, r11, r4, r1
+0x0288  fe02980a8000             mov r0h.cache, r12.cache
+0x028e  ef1192160400             simd_shuffle r4.cache, r9.cache, r0h
+0x0294  92054c8225482004         icmpsel ueq, r1.cache, r6, r12, r4, r1
+0x029c  8e05522664000000         iadd r1.cache, r9.sx, r1.sx
+0x02a4  fe11862a4000             xor r4.cache, r3.cache, 2
+0x02aa  fe2988c28100             and r10.cache, r4.cache, 28
+0x02b0  fe02940a8000             mov r0h.cache, r10.cache
+0x02b6  ef3582160400             simd_shuffle r13.cache, r1.cache, r0h
+0x02bc  8e39941600000000         iadd r14.cache, r10.cache.sx, 1
+0x02c4  fe029c0a8000             mov r0h.cache, r14.cache
+0x02ca  ef3d82160400             simd_shuffle r15.cache, r1.cache, r0h
+0x02d0  923588c2255ea005         icmpsel ueq, r13.cache, r4.cache, r14, r15, r13
+0x02d8  8e39942600000000         iadd r14.cache, r10.cache.sx, 2
+0x02e0  fe029c0a8000             mov r0h.cache, r14.cache
+0x02e6  ef3d82160400             simd_shuffle r15.cache, r1.cache, r0h
+0x02ec  923588c2255ea005         icmpsel ueq, r13.cache, r4.cache, r14, r15, r13
+0x02f4  8e29543600000000         iadd r10.cache, r10.sx, 3
+0x02fc  fe02940a8000             mov r0h.cache, r10.cache
+0x0302  ef3982160400             simd_shuffle r14.cache, r1.cache, r0h
+0x0308  92114842255ca005         icmpsel ueq, r4.cache, r4, r10, r14, r13
+0x0310  8e05428664000000         iadd r1.cache, r1.sx, r4.sx
+0x0318  fe11464a4000             xor r4.cache, r3, 4
+0x031e  fe2988c28100             and r10.cache, r4.cache, 28
+0x0324  fe02940a8000             mov r0h.cache, r10.cache
+0x032a  ef3582160400             simd_shuffle r13.cache, r1.cache, r0h
+0x0330  8e39941600000000         iadd r14.cache, r10.cache.sx, 1
+0x0338  fe029c0a8000             mov r0h.cache, r14.cache
+0x033e  ef3d82160400             simd_shuffle r15.cache, r1.cache, r0h
+0x0344  923588c2255ea005         icmpsel ueq, r13.cache, r4.cache, r14, r15, r13
+0x034c  8e39942600000000         iadd r14.cache, r10.cache.sx, 2
+0x0354  fe029c0a8000             mov r0h.cache, r14.cache
+0x035a  ef3d82160400             simd_shuffle r15.cache, r1.cache, r0h
+0x0360  923588c2255ea005         icmpsel ueq, r13.cache, r4.cache, r14, r15, r13
+0x0368  8e29543600000000         iadd r10.cache, r10.sx, 3
+0x0370  fe02940a8000             mov r0h.cache, r10.cache
+0x0376  ef3982160400             simd_shuffle r14.cache, r1.cache, r0h
+0x037c  92114842255ca005         icmpsel ueq, r4.cache, r4, r10, r14, r13
+0x0384  0e05428664000000         iadd r1, r1.sx, r4.sx
+0x038c  62020000                 mov_imm r0h, 0
+0x0390  420a00000000             else_fcmp r0l, eq, 0.0, 0.0, 1
+0x0396  20c0aa020000             jmp_exec_none pc+682
+0x039c  fe1146e29900             and r4.cache, r3, u15
+0x03a2  fe1148f28100             and r4.cache, r4, 31
+0x03a8  ae1100f003480203         bfi r4.cache, 0, 255, r4
+0x03b0  fe054282a400             and r1.cache, r1, r4
+0x03b6  fe11424a2400             bitop 0100, r4.cache, r1, r2
+0x03bc  be29880e0000             ffs r10.cache, r4.cache
+0x03c2  fe3594c28100             and r13.cache, r10.cache, 28
+0x03c8  8e399a1600000000         iadd r14.cache, r13.cache.sx, 1
+0x03d0  fe029a0a8000             mov r0h.cache, r13.cache
+0x03d6  ef3d92160400             simd_shuffle r15.cache, r9.cache, r0h
+0x03dc  fe029c0a8000             mov r0h.cache, r14.cache
+0x03e2  ef4992160400             simd_shuffle r18.cache, r9.cache, r0h
+0x03e8  923d94c22964e005         icmpsel ueq, r15.cache, r10.cache, r14.cache, r18, r15
+0x03f0  fe029a0a8000             mov r0h.cache, r13.cache
+0x03f6  ef4988160400             simd_shuffle r18.cache, r4.cache, r0h
+0x03fc  fe029c0a8000             mov r0h.cache, r14.cache
+0x0402  ef4d88160400             simd_shuffle r19.cache, r4.cache, r0h
+0x0408  923994c225664006         icmpsel ueq, r14.cache, r10.cache, r14, r19, r18
+0x0410  8e499a2600000000         iadd r18.cache, r13.cache.sx, 2
+0x0418  fe02a40a8000             mov r0h.cache, r18.cache
+0x041e  ef4d92160400             simd_shuffle r19.cache, r9.cache, r0h
+0x0424  923d94422a66e005         icmpsel ueq, r15.cache, r10.cache, r18.cache, r19, r15
+0x042c  fe02a40a8000             mov r0h.cache, r18.cache
+0x0432  ef4d88160400             simd_shuffle r19.cache, r4.cache, r0h
+0x0438  923994422666c005         icmpsel ueq, r14.cache, r10.cache, r18, r19, r14
+0x0440  8e355a3600000000         iadd r13.cache, r13.sx, 3
+0x0448  fe029a0a8000             mov r0h.cache, r13.cache
+0x044e  ef4992160400             simd_shuffle r18.cache, r9.cache, r0h
+0x0454  923d94a22964e005         icmpsel ueq, r15.cache, r10.cache, r13.cache, r18, r15
+0x045c  fe029a0a8000             mov r0h.cache, r13.cache
+0x0462  ef4988160400             simd_shuffle r18.cache, r4.cache, r0h
+0x0468  922954a22564c005         icmpsel ueq, r10.cache, r10, r13, r18, r14
+0x0470  8e3592e665000000         iadd r13.cache, r9.cache.sx, r15.sx
+0x0478  9229880200004105         icmpsel ueq, r10.cache, r4.cache, 0, 0, r10
+0x0480  921148020052a005         icmpsel ueq, r4.cache, r4, 0, r9, r13
+0x0488  be35940e0000             ffs r13.cache, r10.cache
+0x048e  fe399ac28100             and r14.cache, r13.cache, 28
+0x0494  8e3d9c1600000000         iadd r15.cache, r14.cache.sx, 1
+0x049c  fe029c0a8000             mov r0h.cache, r14.cache
+0x04a2  ef4988160400             simd_shuffle r18.cache, r4.cache, r0h
+0x04a8  fe029e0a8000             mov r0h.cache, r15.cache
+0x04ae  ef4d88160400             simd_shuffle r19.cache, r4.cache, r0h
+0x04b4  92499ae229664006         icmpsel ueq, r18.cache, r13.cache, r15.cache, r19, r18
+0x04bc  fe029c0a8000             mov r0h.cache, r14.cache
+0x04c2  ef4d94160400             simd_shuffle r19.cache, r10.cache, r0h
+0x04c8  fe029e0a8000             mov r0h.cache, r15.cache
+0x04ce  ef5194160400             simd_shuffle r20.cache, r10.cache, r0h
+0x04d4  923d9ae225686006         icmpsel ueq, r15.cache, r13.cache, r15, r20, r19
+0x04dc  8e4d9c2600000000         iadd r19.cache, r14.cache.sx, 2
+0x04e4  fe02a60a8000             mov r0h.cache, r19.cache
+0x04ea  ef5188160400             simd_shuffle r20.cache, r4.cache, r0h
+0x04f0  92499a622a684006         icmpsel ueq, r18.cache, r13.cache, r19.cache, r20, r18
+0x04f8  fe02a60a8000             mov r0h.cache, r19.cache
+0x04fe  ef5194160400             simd_shuffle r20.cache, r10.cache, r0h
+0x0504  923d9a622668e005         icmpsel ueq, r15.cache, r13.cache, r19, r20, r15
+0x050c  8e395c3600000000         iadd r14.cache, r14.sx, 3
+0x0514  fe029c0a8000             mov r0h.cache, r14.cache
+0x051a  ef4d88160400             simd_shuffle r19.cache, r4.cache, r0h
+0x0520  92499ac229664006         icmpsel ueq, r18.cache, r13.cache, r14.cache, r19, r18
+0x0528  fe029c0a8000             mov r0h.cache, r14.cache
+0x052e  ef4d94160400             simd_shuffle r19.cache, r10.cache, r0h
+0x0534  92355ac22566e005         icmpsel ueq, r13.cache, r13, r14, r19, r15
+0x053c  8e39884666000000         iadd r14.cache, r4.cache.sx, r18.sx
+0x0544  921194020048c005         icmpsel ueq, r4.cache, r10.cache, 0, r4, r14
+0x054c  922954020000a105         icmpsel ueq, r10.cache, r10, 0, 0, r13
+0x0554  be35940e0000             ffs r13.cache, r10.cache
+0x055a  fe399ac28100             and r14.cache, r13.cache, 28
+0x0560  8e3d9c1600000000         iadd r15.cache, r14.cache.sx, 1
+0x0568  fe029c0a8000             mov r0h.cache, r14.cache
+0x056e  ef4988160400             simd_shuffle r18.cache, r4.cache, r0h
+0x0574  fe029e0a8000             mov r0h.cache, r15.cache
+0x057a  ef4d88160400             simd_shuffle r19.cache, r4.cache, r0h
+0x0580  923d9ae225664006         icmpsel ueq, r15.cache, r13.cache, r15, r19, r18
+0x0588  8e499c2600000000         iadd r18.cache, r14.cache.sx, 2
+0x0590  fe02a40a8000             mov r0h.cache, r18.cache
+0x0596  ef4d88160400             simd_shuffle r19.cache, r4.cache, r0h
+0x059c  923d9a422666e005         icmpsel ueq, r15.cache, r13.cache, r18, r19, r15
+0x05a4  8e395c3600000000         iadd r14.cache, r14.sx, 3
+0x05ac  fe029c0a8000             mov r0h.cache, r14.cache
+0x05b2  ef4988160400             simd_shuffle r18.cache, r4.cache, r0h
+0x05b8  92355ac22564e005         icmpsel ueq, r13.cache, r13, r14, r18, r15
+0x05c0  8e3588a665000000         iadd r13.cache, r4.cache.sx, r13.sx
+0x05c8  921154020048a005         icmpsel ueq, r4.cache, r10, 0, r4, r13
+0x05d0  be05420e0000             ffs r1.cache, r1
+0x05d6  fe2982c28100             and r10.cache, r1.cache, 28
+0x05dc  8e35941600000000         iadd r13.cache, r10.cache.sx, 1
+0x05e4  fe02940a8000             mov r0h.cache, r10.cache
+0x05ea  ef3988160400             simd_shuffle r14.cache, r4.cache, r0h
+0x05f0  fe029a0a8000             mov r0h.cache, r13.cache
+0x05f6  ef3d88160400             simd_shuffle r15.cache, r4.cache, r0h
+0x05fc  923582a2255ec005         icmpsel ueq, r13.cache, r1.cache, r13, r15, r14
+0x0604  8e39942600000000         iadd r14.cache, r10.cache.sx, 2
+0x060c  fe029c0a8000             mov r0h.cache, r14.cache
+0x0612  ef3d88160400             simd_shuffle r15.cache, r4.cache, r0h
+0x0618  923582c2255ea005         icmpsel ueq, r13.cache, r1.cache, r14, r15, r13
+0x0620  8e29543600000000         iadd r10.cache, r10.sx, 3
+0x0628  fe02940a8000             mov r0h.cache, r10.cache
+0x062e  ef1148160400             simd_shuffle r4.cache, r4, r0h
+0x0634  120542422548a005         icmpsel ueq, r1, r1, r10, r4, r13
+0x063c  62020000                 mov_imm r0h, 0
+0x0640  520e00000000             pop_exec r0l, 1
+0x0646  3211010000800100         icmp_ballot r4, nueq, 1, 0
+0x064e  520848c21900             if_icmp r0l, ueq, r4, u14, 1
+0x0654  fe024e0a8000             mov r0h.cache, r7
+0x065a  ef0992160400             simd_shuffle r2.cache, r9.cache, r0h
+0x0660  fe02900a8000             mov r0h.cache, r8.cache
+0x0666  ef1192160400             simd_shuffle r4.cache, r9.cache, r0h
+0x066c  92098c0225484004         icmpsel ueq, r2.cache, r6.cache, r8, r4, r2
+0x0674  fe02960a8000             mov r0h.cache, r11.cache
+0x067a  ef1192160400             simd_shuffle r4.cache, r9.cache, r0h
+0x0680  92098c6225484004         icmpsel ueq, r2.cache, r6.cache, r11, r4, r2
+0x0688  fe02980a8000             mov r0h.cache, r12.cache
+0x068e  ef1192160400             simd_shuffle r4.cache, r9.cache, r0h
+0x0694  92094c8225484004         icmpsel ueq, r2.cache, r6, r12, r4, r2
+0x069c  9209524224524044         icmpsel ugt, r2.cache, r9, r2, r9, r2
+0x06a4  fe11862a4000             xor r4.cache, r3.cache, 2
+0x06aa  fe1988c28100             and r6.cache, r4.cache, 28
+0x06b0  fe028c0a8000             mov r0h.cache, r6.cache
+0x06b6  ef1d84160400             simd_shuffle r7.cache, r2.cache, r0h
+0x06bc  8e218c1600000000         iadd r8.cache, r6.cache.sx, 1
+0x06c4  fe02900a8000             mov r0h.cache, r8.cache
+0x06ca  ef2584160400             simd_shuffle r9.cache, r2.cache, r0h
+0x06d0  921d88022552e004         icmpsel ueq, r7.cache, r4.cache, r8, r9, r7
+0x06d8  8e218c2600000000         iadd r8.cache, r6.cache.sx, 2
+0x06e0  fe02900a8000             mov r0h.cache, r8.cache
+0x06e6  ef2584160400             simd_shuffle r9.cache, r2.cache, r0h
+0x06ec  921d88022552e004         icmpsel ueq, r7.cache, r4.cache, r8, r9, r7
+0x06f4  8e194c3600000000         iadd r6.cache, r6.sx, 3
+0x06fc  fe028c0a8000             mov r0h.cache, r6.cache
+0x0702  ef2184160400             simd_shuffle r8.cache, r2.cache, r0h
+0x0708  921148c22450e004         icmpsel ueq, r4.cache, r4, r6, r8, r7
+0x0710  9209448224448044         icmpsel ugt, r2.cache, r2, r4, r2, r4
+0x0718  fe11464a4000             xor r4.cache, r3, 4
+0x071e  fe1988c28100             and r6.cache, r4.cache, 28
+0x0724  fe028c0a8000             mov r0h.cache, r6.cache
+0x072a  ef1d84160400             simd_shuffle r7.cache, r2.cache, r0h
+0x0730  8e218c1600000000         iadd r8.cache, r6.cache.sx, 1
+0x0738  fe02900a8000             mov r0h.cache, r8.cache
+0x073e  ef2584160400             simd_shuffle r9.cache, r2.cache, r0h
+0x0744  921d88022552e004         icmpsel ueq, r7.cache, r4.cache, r8, r9, r7
+0x074c  8e218c2600000000         iadd r8.cache, r6.cache.sx, 2
+0x0754  fe02900a8000             mov r0h.cache, r8.cache
+0x075a  ef2584160400             simd_shuffle r9.cache, r2.cache, r0h
+0x0760  921d88022552e004         icmpsel ueq, r7.cache, r4.cache, r8, r9, r7
+0x0768  8e194c3600000000         iadd r6.cache, r6.sx, 3
+0x0770  fe028c0a8000             mov r0h.cache, r6.cache
+0x0776  ef2184160400             simd_shuffle r8.cache, r2.cache, r0h
+0x077c  921148c22450e004         icmpsel ueq, r4.cache, r4, r6, r8, r7
+0x0784  1209448224448044         icmpsel ugt, r2, r2, r4, r2, r4
+0x078c  62020000                 mov_imm r0h, 0
+0x0790  420a00000000             else_fcmp r0l, eq, 0.0, 0.0, 1
+0x0796  20c0aa020000             jmp_exec_none pc+682
+0x079c  fe1946e29900             and r6.cache, r3, u15
+0x07a2  fe194cf28100             and r6.cache, r6, 31
+0x07a8  ae1900f0034c0203         bfi r6.cache, 0, 255, r6
+0x07b0  fe1148c2a400             and r4.cache, r4, r6
+0x07b6  fe09484a2400             bitop 0100, r2.cache, r4, r2
+0x07bc  be19840e0000             ffs r6.cache, r2.cache
+0x07c2  fe1d8cc28100             and r7.cache, r6.cache, 28
+0x07c8  8e218e1600000000         iadd r8.cache, r7.cache.sx, 1
+0x07d0  fe028e0a8000             mov r0h.cache, r7.cache
+0x07d6  ef2992160400             simd_shuffle r10.cache, r9.cache, r0h
+0x07dc  fe02900a8000             mov r0h.cache, r8.cache
+0x07e2  ef2d92160400             simd_shuffle r11.cache, r9.cache, r0h
+0x07e8  92298c0229564005         icmpsel ueq, r10.cache, r6.cache, r8.cache, r11, r10
+0x07f0  fe028e0a8000             mov r0h.cache, r7.cache
+0x07f6  ef2d84160400             simd_shuffle r11.cache, r2.cache, r0h
+0x07fc  fe02900a8000             mov r0h.cache, r8.cache
+0x0802  ef3184160400             simd_shuffle r12.cache, r2.cache, r0h
+0x0808  92218c0225586005         icmpsel ueq, r8.cache, r6.cache, r8, r12, r11
+0x0810  8e2d8e2600000000         iadd r11.cache, r7.cache.sx, 2
+0x0818  fe02960a8000             mov r0h.cache, r11.cache
+0x081e  ef3192160400             simd_shuffle r12.cache, r9.cache, r0h
+0x0824  92298c6229584005         icmpsel ueq, r10.cache, r6.cache, r11.cache, r12, r10
+0x082c  fe02960a8000             mov r0h.cache, r11.cache
+0x0832  ef3184160400             simd_shuffle r12.cache, r2.cache, r0h
+0x0838  92218c6225580005         icmpsel ueq, r8.cache, r6.cache, r11, r12, r8
+0x0840  8e1d4e3600000000         iadd r7.cache, r7.sx, 3
+0x0848  fe028e0a8000             mov r0h.cache, r7.cache
+0x084e  ef2d92160400             simd_shuffle r11.cache, r9.cache, r0h
+0x0854  92298ce228564005         icmpsel ueq, r10.cache, r6.cache, r7.cache, r11, r10
+0x085c  fe028e0a8000             mov r0h.cache, r7.cache
+0x0862  ef2d84160400             simd_shuffle r11.cache, r2.cache, r0h
+0x0868  92194ce224560005         icmpsel ueq, r6.cache, r6, r7, r11, r8
+0x0870  921d924225924045         icmpsel ugt, r7.cache, r9.cache, r10, r9.cache, r10
+0x0878  921d84020052e004         icmpsel ueq, r7.cache, r2.cache, 0, r9, r7
+0x0880  920944020000c104         icmpsel ueq, r2.cache, r2, 0, 0, r6
+0x0888  be19840e0000             ffs r6.cache, r2.cache
+0x088e  fe218cc28100             and r8.cache, r6.cache, 28
+0x0894  8e25901600000000         iadd r9.cache, r8.cache.sx, 1
+0x089c  fe02900a8000             mov r0h.cache, r8.cache
+0x08a2  ef298e160400             simd_shuffle r10.cache, r7.cache, r0h
+0x08a8  fe02920a8000             mov r0h.cache, r9.cache
+0x08ae  ef2d8e160400             simd_shuffle r11.cache, r7.cache, r0h
+0x08b4  92298c2229564005         icmpsel ueq, r10.cache, r6.cache, r9.cache, r11, r10
+0x08bc  fe02900a8000             mov r0h.cache, r8.cache
+0x08c2  ef2d84160400             simd_shuffle r11.cache, r2.cache, r0h
+0x08c8  fe02920a8000             mov r0h.cache, r9.cache
+0x08ce  ef3184160400             simd_shuffle r12.cache, r2.cache, r0h
+0x08d4  92258c2225586005         icmpsel ueq, r9.cache, r6.cache, r9, r12, r11
+0x08dc  8e2d902600000000         iadd r11.cache, r8.cache.sx, 2
+0x08e4  fe02960a8000             mov r0h.cache, r11.cache
+0x08ea  ef318e160400             simd_shuffle r12.cache, r7.cache, r0h
+0x08f0  92298c6229584005         icmpsel ueq, r10.cache, r6.cache, r11.cache, r12, r10
+0x08f8  fe02960a8000             mov r0h.cache, r11.cache
+0x08fe  ef3184160400             simd_shuffle r12.cache, r2.cache, r0h
+0x0904  92258c6225582005         icmpsel ueq, r9.cache, r6.cache, r11, r12, r9
+0x090c  8e21503600000000         iadd r8.cache, r8.sx, 3
+0x0914  fe02900a8000             mov r0h.cache, r8.cache
+0x091a  ef2d8e160400             simd_shuffle r11.cache, r7.cache, r0h
+0x0920  92298c0229564005         icmpsel ueq, r10.cache, r6.cache, r8.cache, r11, r10
+0x0928  fe02900a8000             mov r0h.cache, r8.cache
+0x092e  ef2d84160400             simd_shuffle r11.cache, r2.cache, r0h
+0x0934  92194c0225562005         icmpsel ueq, r6.cache, r6, r8, r11, r9
+0x093c  92218e42258e4045         icmpsel ugt, r8.cache, r7.cache, r10, r7.cache, r10
+0x0944  921d8402004e0005         icmpsel ueq, r7.cache, r2.cache, 0, r7, r8
+0x094c  920944020000c104         icmpsel ueq, r2.cache, r2, 0, 0, r6
+0x0954  be19840e0000             ffs r6.cache, r2.cache
+0x095a  fe218cc28100             and r8.cache, r6.cache, 28
+0x0960  8e25901600000000         iadd r9.cache, r8.cache.sx, 1
+0x0968  fe02900a8000             mov r0h.cache, r8.cache
+0x096e  ef298e160400             simd_shuffle r10.cache, r7.cache, r0h
+0x0974  fe02920a8000             mov r0h.cache, r9.cache
+0x097a  ef2d8e160400             simd_shuffle r11.cache, r7.cache, r0h
+0x0980  92258c2225564005         icmpsel ueq, r9.cache, r6.cache, r9, r11, r10
+0x0988  8e29902600000000         iadd r10.cache, r8.cache.sx, 2
+0x0990  fe02940a8000             mov r0h.cache, r10.cache
+0x0996  ef2d8e160400             simd_shuffle r11.cache, r7.cache, r0h
+0x099c  92258c4225562005         icmpsel ueq, r9.cache, r6.cache, r10, r11, r9
+0x09a4  8e21503600000000         iadd r8.cache, r8.sx, 3
+0x09ac  fe02900a8000             mov r0h.cache, r8.cache
+0x09b2  ef298e160400             simd_shuffle r10.cache, r7.cache, r0h
+0x09b8  92194c0225542005         icmpsel ueq, r6.cache, r6, r8, r10, r9
+0x09c0  92198ec2248ec044         icmpsel ugt, r6.cache, r7.cache, r6, r7.cache, r6
+0x09c8  92094402004ec004         icmpsel ueq, r2.cache, r2, 0, r7, r6
+0x09d0  be11480e0000             ffs r4.cache, r4
+0x09d6  fe1988c28100             and r6.cache, r4.cache, 28
+0x09dc  8e1d8c1600000000         iadd r7.cache, r6.cache.sx, 1
+0x09e4  fe028c0a8000             mov r0h.cache, r6.cache
+0x09ea  ef2184160400             simd_shuffle r8.cache, r2.cache, r0h
+0x09f0  fe028e0a8000             mov r0h.cache, r7.cache
+0x09f6  ef2584160400             simd_shuffle r9.cache, r2.cache, r0h
+0x09fc  921d88e224520005         icmpsel ueq, r7.cache, r4.cache, r7, r9, r8
+0x0a04  8e218c2600000000         iadd r8.cache, r6.cache.sx, 2
+0x0a0c  fe02900a8000             mov r0h.cache, r8.cache
+0x0a12  ef2584160400             simd_shuffle r9.cache, r2.cache, r0h
+0x0a18  921d88022552e004         icmpsel ueq, r7.cache, r4.cache, r8, r9, r7
+0x0a20  8e194c3600000000         iadd r6.cache, r6.sx, 3
+0x0a28  fe028c0a8000             mov r0h.cache, r6.cache
+0x0a2e  ef0944160400             simd_shuffle r2.cache, r2, r0h
+0x0a34  120948c22444e004         icmpsel ueq, r2, r4, r6, r2, r7
+0x0a3c  62020000                 mov_imm r0h, 0
+0x0a40  520e00000000             pop_exec r0l, 1
+0x0a46  7e49420a8000             mov r18, r1
+0x0a4c  7e4d440a8000             mov r19, r2
+0x0a52  4581a40e10c8f200         device_store 0, i32, xyzw, r16_r17_r18_r19, u10_u11, r5, unsigned, lsl 2, 0
+0x0a5a  f2050000                 get_sr r1.cache, sr0 (threadgroup_position_in_grid.x)
+0x0a5e  f2093500                 get_sr r2.cache, sr53 (simdgroup_index_in_threadgroup)
+0x0a62  8e05428658000000         iadd r1.cache, r1.sx, u4.sx
+0x0a6a  0e094426e4001000         iadd r2, r2.sx, r1.sx, lsl 3
+0x0a72  4511a84e10c43200         device_store 1, i32, xy, r2_r3, u12_u13, r5, unsigned, lsl 1, 0
+0x0a7a  8800                     stop

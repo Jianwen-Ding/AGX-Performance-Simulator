@@ -1,0 +1,93 @@
+{
+ "workload": "bvhrays",
+ "device": {
+  "device": "Apple M2 Max (G14C B1)",
+  "vendor": 65541,
+  "device_id": 0,
+  "driver_version": 104869894,
+  "api": 4211016,
+  "timestamp_period_ns": 1,
+  "timestamps": 1,
+  "subgroup_size": 32,
+  "shader_object": 1,
+  "executable_properties": 1,
+  "features": {
+   "int64": 1,
+   "float64": 0,
+   "float16": 1,
+   "int8": 1,
+   "buffer_int64_atomics": 0,
+   "shared_int64_atomics": 0,
+   "subgroup_ops": 1791,
+   "buffer_float32_atomic_add": 0,
+   "shared_float32_atomic_add": 0
+  },
+  "limits": {
+   "shared_bytes": 32768,
+   "invocations": 1024,
+   "push_bytes": 256
+  }
+ },
+ "test_recording_not_hardware": false,
+ "recorded_utc": "2026-10-12T22:43:47Z",
+ "inputs_sha256": {
+  "0": "511ce4ff5fa28418a8cfd988e57ccc0ec4cb4e548642b74876c6ab601ccd12f2",
+  "1": "9f8aa50bd2d88c24049e1783f5913a97e7a730f9a4e2d3549dc15e3fcd8d6081",
+  "2": "30cd3e186956c3b85ac18ca1522ed5cefdc910869cc5147a92a657493d5d5f81"
+ },
+ "numpy": "2.5.4",
+ "small": {
+  "functional_ok": true,
+  "functional": {
+   "rays": 4096,
+   "hits": 2806,
+   "edge_ties": 0,
+   "disagreements": 0,
+   "triangles": 584,
+   "nodes": 399
+  },
+  "gpu_ns": {
+   "median": 25833,
+   "min": 24750,
+   "max": 27000
+  },
+  "dispatch_ns_median": [
+   25833
+  ],
+  "repeat": 5
+ },
+ "code_extracted": true,
+ "large": {
+  "functional_ok": true,
+  "functional": {
+   "rays": 65536,
+   "hits": 45929,
+   "edge_ties": 1,
+   "disagreements": 0,
+   "triangles": 8264,
+   "nodes": 4239
+  },
+  "gpu_ns": {
+   "median": 26312.5,
+   "min": 24625,
+   "max": 31875
+  },
+  "dispatch_ns_median": [
+   26312.5
+  ],
+  "repeat": 20,
+  "gflops": null,
+  "gbytes_per_s": null,
+  "work": {
+   "items": 65536
+  },
+  "out_sha256": {
+   "3": "8509e6f57d57a450c1efbad0568c605fc8b5eeb689c468cc14e38f07b0b9f83b"
+  },
+  "inputs_sha256": {
+   "0": "dccb16e745d1e73e783ea5a6d46da0fcd7d4ce272dde15d76b50b2c5152c17fa",
+   "1": "3dec6520c7bb216d7dd982177cabafeb7d3c704c96f3c9ab9eeddb5587c73c38",
+   "2": "22b2e8ca2285cb2652ea1cb962c3e417342f821158b990fa2ca44aec75adab9a"
+  }
+ }
+}

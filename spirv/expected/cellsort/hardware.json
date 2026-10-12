@@ -1,0 +1,93 @@
+{
+ "workload": "cellsort",
+ "device": {
+  "device": "Apple M2 Max (G14C B1)",
+  "vendor": 65541,
+  "device_id": 0,
+  "driver_version": 104869894,
+  "api": 4211016,
+  "timestamp_period_ns": 1,
+  "timestamps": 1,
+  "subgroup_size": 32,
+  "shader_object": 1,
+  "executable_properties": 1,
+  "features": {
+   "int64": 1,
+   "float64": 0,
+   "float16": 1,
+   "int8": 1,
+   "buffer_int64_atomics": 0,
+   "shared_int64_atomics": 0,
+   "subgroup_ops": 1791,
+   "buffer_float32_atomic_add": 0,
+   "shared_float32_atomic_add": 0
+  },
+  "limits": {
+   "shared_bytes": 32768,
+   "invocations": 1024,
+   "push_bytes": 256
+  }
+ },
+ "test_recording_not_hardware": false,
+ "recorded_utc": "2026-10-12T22:43:11Z",
+ "inputs_sha256": {
+  "0": "b62775978b24ec69b99ff4ec511c5ecd97b80e6396d34ee7c1cb458324f1bbab"
+ },
+ "numpy": "2.5.4",
+ "small": {
+  "functional_ok": true,
+  "functional": {
+   "count_mismatches": 0,
+   "start_mismatches": 0,
+   "cell_sets_ok": true,
+   "max_cell": 11,
+   "empty_cells": 57699
+  },
+  "gpu_ns": {
+   "median": 870625,
+   "min": 865625,
+   "max": 878083
+  },
+  "dispatch_ns_median": [
+   19834,
+   28167,
+   11875
+  ],
+  "repeat": 5
+ },
+ "code_extracted": true,
+ "large": {
+  "functional_ok": true,
+  "functional": {
+   "count_mismatches": 0,
+   "start_mismatches": 0,
+   "cell_sets_ok": true,
+   "max_cell": 1310,
+   "empty_cells": 37
+  },
+  "gpu_ns": {
+   "median": 1696000.0,
+   "min": 1691667,
+   "max": 1702625
+  },
+  "dispatch_ns_median": [
+   32020.5,
+   24979.0,
+   26833.5
+  ],
+  "repeat": 20,
+  "gflops": null,
+  "gbytes_per_s": null,
+  "work": {
+   "items": 4194304
+  },
+  "out_sha256": {
+   "1": "2fab18487c83d010b77db67a1b01305ed882e60f78847fe052dc7428633aab2c",
+   "2": "0710ce52ca27608baa7028bf8b295c3b6a01abf574029293cd27c0ce789e94b9",
+   "4": "1a839ed2f4807a4683622d26cd4b2c2c9c99a6bddf758efab96f4128e950f472"
+  },
+  "inputs_sha256": {
+   "0": "d877083e48a270c6ea73ec3b2845ccd2e7f964079f02eb1a8f2a2a166fd9cb49"
+  }
+ }
+}

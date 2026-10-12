@@ -1,0 +1,109 @@
+{
+ "workload": "stream",
+ "device": {
+  "device": "Apple M2 Max (G14C B1)",
+  "vendor": 65541,
+  "device_id": 0,
+  "driver_version": 104869894,
+  "api": 4211016,
+  "timestamp_period_ns": 1,
+  "timestamps": 1,
+  "subgroup_size": 32,
+  "shader_object": 1,
+  "executable_properties": 1,
+  "features": {
+   "int64": 1,
+   "float64": 0,
+   "float16": 1,
+   "int8": 1,
+   "buffer_int64_atomics": 0,
+   "shared_int64_atomics": 0,
+   "subgroup_ops": 1791,
+   "buffer_float32_atomic_add": 0,
+   "shared_float32_atomic_add": 0
+  },
+  "limits": {
+   "shared_bytes": 32768,
+   "invocations": 1024,
+   "push_bytes": 256
+  }
+ },
+ "test_recording_not_hardware": false,
+ "recorded_utc": "2026-10-12T22:44:10Z",
+ "inputs_sha256": {
+  "0": "592543496c129df4003958eb77794546fb154b5c463984160665c877c54546d6",
+  "1": "448e0812beb39778fb16751ca02be8606fc95e71ae511585022b63f1c56ef222",
+  "2": "ada1c20edb132a0732bd14aba2c79a926e927d4568b9ceb706003a7d74388327"
+ },
+ "numpy": "2.5.4",
+ "small": {
+  "functional_ok": true,
+  "functional": {
+   "max_err_over_bound": {
+    "b": 0.25,
+    "c": 0.187,
+    "a": 0.5,
+    "read_sums": 0.0
+   },
+   "fill_ok": true
+  },
+  "gpu_ns": {
+   "median": 256041,
+   "min": 238958,
+   "max": 314334
+  },
+  "dispatch_ns_median": [
+   13500,
+   12375,
+   12292,
+   11167,
+   11667,
+   11250
+  ],
+  "repeat": 5
+ },
+ "code_extracted": true,
+ "large": {
+  "functional_ok": true,
+  "functional": {
+   "max_err_over_bound": {
+    "b": 0.25,
+    "c": 0.187,
+    "a": 0.5,
+    "read_sums": 0.001
+   },
+   "fill_ok": true
+  },
+  "gpu_ns": {
+   "median": 2187083.5,
+   "min": 2121916,
+   "max": 2402083
+  },
+  "dispatch_ns_median": [
+   35021.0,
+   26208.5,
+   29291.5,
+   27375.0,
+   22937.5,
+   21874.5
+  ],
+  "repeat": 20,
+  "gflops": null,
+  "gbytes_per_s": 368.21016115754156,
+  "work": {
+   "bytes": 805306368
+  },
+  "out_sha256": {
+   "0": "a23316e892ebf648fa53ee36b6947a267a0ca16ea9819ca07627172b3ec05b3b",
+   "1": "847b3e318afa934fff356de15422b8e5c5973bb4aa375372cb0f495504a50637",
+   "2": "9e27d115725c98cc606b490d17cd43851fb16b7de6e4f87f1bc8d0eeafdc052d",
+   "3": "259b01ae8b2a34fe8eccfbe8c9241953d561a520663c0db9586c7563c93bfb41",
+   "4": "4d937a95a7f9fb9540b371ba94f00108db607bb97436c97ee84365d6f08d5337"
+  },
+  "inputs_sha256": {
+   "0": "8c4dc6fa78fa2bb9ae8e0c032de392c74aac217c81c5cc836755fda0f6ec589f",
+   "1": "315d509c27ad2c234d3219487c01d0f790d394e438eb87f6305de5e94d71119a",
+   "2": "8deaae3a5251396f4787f18487cfa2ae9a3b5eb65e9a8ed2c8899dff4d3a9859"
+  }
+ }
+}

@@ -1,0 +1,89 @@
+{
+ "workload": "mlp",
+ "device": {
+  "device": "Apple M2 Max (G14C B1)",
+  "vendor": 65541,
+  "device_id": 0,
+  "driver_version": 104869894,
+  "api": 4211016,
+  "timestamp_period_ns": 1,
+  "timestamps": 1,
+  "subgroup_size": 32,
+  "shader_object": 1,
+  "executable_properties": 1,
+  "features": {
+   "int64": 1,
+   "float64": 0,
+   "float16": 1,
+   "int8": 1,
+   "buffer_int64_atomics": 0,
+   "shared_int64_atomics": 0,
+   "subgroup_ops": 1791,
+   "buffer_float32_atomic_add": 0,
+   "shared_float32_atomic_add": 0
+  },
+  "limits": {
+   "shared_bytes": 32768,
+   "invocations": 1024,
+   "push_bytes": 256
+  }
+ },
+ "test_recording_not_hardware": false,
+ "recorded_utc": "2026-10-12T22:40:45Z",
+ "inputs_sha256": {
+  "0": "352dfc5d606f39aafa5b001455d79fd17a72188c7e34c7ddf3fc9a12b9fe8912",
+  "1": "e4ba6ee85de9e0bc8227e64a913dba1844366d99d7de4010bc2cb5f6c9caf5e5",
+  "2": "6e1d7878d312f0dc218a13bd2a7a48676ec9169f1e273e1cf9a4e80bd7c1d7c3",
+  "3": "a9ae5f819d79e8a3191022f09205af3ceaac76ac4a00131e2f307645b0bc0a9d",
+  "4": "1a6d8b8751542807956eb8977d09604b9acdc5d85e891960279656d6d4053b7c"
+ },
+ "numpy": "2.5.4",
+ "small": {
+  "functional_ok": true,
+  "functional": {
+   "max_abs_prob_err": 1.588125743412494e-07,
+   "same_argmax": 1.0
+  },
+  "gpu_ns": {
+   "median": 25292,
+   "min": 24708,
+   "max": 26833
+  },
+  "dispatch_ns_median": [
+   25292
+  ],
+  "repeat": 5
+ },
+ "code_extracted": true,
+ "large": {
+  "functional_ok": true,
+  "functional": {
+   "max_abs_prob_err": 4.829730970712376e-07,
+   "same_argmax": 1.0
+  },
+  "gpu_ns": {
+   "median": 30291.5,
+   "min": 28584,
+   "max": 34708
+  },
+  "dispatch_ns_median": [
+   30291.5
+  ],
+  "repeat": 20,
+  "gflops": 39877.83873363815,
+  "gbytes_per_s": null,
+  "work": {
+   "flops": 1207959552
+  },
+  "out_sha256": {
+   "5": "cd2de0c72fff9c1209b5a7f611d84f6e223e78e9c36a8465f42752e235365557"
+  },
+  "inputs_sha256": {
+   "0": "86d7dcc8d287e849f6f3abba11d6fbd7fc6f05dcb6829f49081b2384ff14de32",
+   "1": "38f4265beb97fcc3c6736514ad43355a6f15094963239d1949409516f635ec5c",
+   "2": "3a4e24429bcde8fcc4ec0f11817cea15f46057c58f3b0bf874ea9a55f0449975",
+   "3": "57d50c318088710f9aa6a5e35f62b6390dc26ae14f322c21307fcd4a9d163ec5",
+   "4": "2821a64399fe849f0762c05c2f006e3fe5ce9791cc5a2b95f310496524fa029e"
+  }
+ }
+}

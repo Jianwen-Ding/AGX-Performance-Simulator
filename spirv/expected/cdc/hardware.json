@@ -1,0 +1,94 @@
+{
+ "workload": "cdc",
+ "device": {
+  "device": "Apple M2 Max (G14C B1)",
+  "vendor": 65541,
+  "device_id": 0,
+  "driver_version": 104869894,
+  "api": 4211016,
+  "timestamp_period_ns": 1,
+  "timestamps": 1,
+  "subgroup_size": 32,
+  "shader_object": 1,
+  "executable_properties": 1,
+  "features": {
+   "int64": 1,
+   "float64": 0,
+   "float16": 1,
+   "int8": 1,
+   "buffer_int64_atomics": 0,
+   "shared_int64_atomics": 0,
+   "subgroup_ops": 1791,
+   "buffer_float32_atomic_add": 0,
+   "shared_float32_atomic_add": 0
+  },
+  "limits": {
+   "shared_bytes": 32768,
+   "invocations": 1024,
+   "push_bytes": 256
+  }
+ },
+ "test_recording_not_hardware": false,
+ "recorded_utc": "2026-10-12T22:44:19Z",
+ "inputs_sha256": {
+  "0": "3c33d390f251d7144b6e4fa9e992dc6b6a578feff73b5ceadf714be92ddd816a",
+  "1": "df7c697da74199e57b7dbe285dfcc51aa95129089d7f15c55bf25724b480b112"
+ },
+ "numpy": "2.5.4",
+ "small": {
+  "functional_ok": false,
+  "functional": {
+   "bad_candidate_words": 120,
+   "bad_regions": 2,
+   "chunks": 54,
+   "mean_chunk": 2427.3,
+   "stored_fraction_cdc": 0.5833,
+   "stored_fraction_fixed": 1.0
+  },
+  "gpu_ns": {
+   "median": 1030000,
+   "min": 1025333,
+   "max": 1032042
+  },
+  "dispatch_ns_median": [
+   16291,
+   24625
+  ],
+  "repeat": 5
+ },
+ "code_extracted": true,
+ "large": {
+  "functional_ok": false,
+  "functional": {
+   "bad_candidate_words": 16400,
+   "bad_regions": 64,
+   "chunks": 6642,
+   "mean_chunk": 10103.7,
+   "stored_fraction_cdc": 0.1386,
+   "stored_fraction_fixed": 0.9974
+  },
+  "gpu_ns": {
+   "median": 25182333.0,
+   "min": 23981667,
+   "max": 25517542
+  },
+  "dispatch_ns_median": [
+   29750.0,
+   38437.5
+  ],
+  "repeat": 20,
+  "gflops": null,
+  "gbytes_per_s": 2.6649184569197777,
+  "work": {
+   "bytes": 67108864
+  },
+  "out_sha256": {
+   "2": "0101192e9658ef0e1e27a5ed8b57850d241a41eb5b9bea026a9ad7cf8b208a0b",
+   "3": "7286afab9972afc67cb56ed7cb27a2e91d0cf4db6f4e3bfed687a3b280b680fa"
+  },
+  "inputs_sha256": {
+   "0": "5effd80aa985e7655537decb581136e963c53ec608412179b52f3bd47e4d8258",
+   "1": "c86b72a539935ba71f9c9f04fa6fb8cc91c1d24fc7a046e48fb7dd31183bdc4d"
+  }
+ }
+}

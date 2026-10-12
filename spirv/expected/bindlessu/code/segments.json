@@ -1,0 +1,22 @@
+{
+ "blob": "/save/workspace/AGX-Performance-Simulator/spirv/expected/bindlessu/code/shader.bin",
+ "code_start": 2236,
+ "code_size": 492,
+ "layout": "agx_shader_info",
+ "programs": [
+  {
+   "label": "main",
+   "file": "main.bin",
+   "offset": 128,
+   "bytes": 210,
+   "instructions": 32
+  },
+  {
+   "label": "preamble",
+   "file": "preamble.bin",
+   "offset": 384,
+   "bytes": 92,
+   "instructions": 15
+  }
+ ]
+}

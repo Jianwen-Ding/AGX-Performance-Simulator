@@ -1,0 +1,22 @@
+{
+ "blob": "/save/workspace/AGX-Performance-Simulator/spirv/expected/raytrace/code/shader.bin",
+ "code_start": 2236,
+ "code_size": 3376,
+ "layout": "agx_shader_info",
+ "programs": [
+  {
+   "label": "main",
+   "file": "main.bin",
+   "offset": 256,
+   "bytes": 2910,
+   "instructions": 413
+  },
+  {
+   "label": "preamble",
+   "file": "preamble.bin",
+   "offset": 3200,
+   "bytes": 160,
+   "instructions": 26
+  }
+ ]
+}

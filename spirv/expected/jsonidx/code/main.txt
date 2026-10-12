@@ -1,0 +1,1141 @@
+0x0100  f2053000                 get_sr r1.cache, sr48 (thread_position_in_threadgroup.x)
+0x0104  f2090000                 get_sr r2.cache, sr0 (threadgroup_position_in_grid.x)
+0x0108  8e09c48658000000         iadd r2.cache, r2.discard.sx, u4.sx
+0x0110  9e09c4e659820600         imadd r2.cache, r2.discard.sx, u15.sx, r1.cache.sx
+0x0118  8e0d0040e4001000         iadd r3.cache, 0, r2.sx, lsl 3
+0x0120  0521600e10c01200         device_load 0, i32, x, r4, u8_u9, r3, unsigned
+0x0128  3800                     wait 0
+0x012a  fe1588f28303             and r5.cache, r4.cache, 255
+0x0130  92828ad2030101100001     icmpsel ueq, r0h.cache, r5.cache, 125, 1, 0
+0x013a  92828ab20301110c0001     icmpsel ueq, r0h.cache, r5.cache, 123, 1, r0h.discard
+0x0144  92988ab2010101100001     icmpsel ueq, r6l.cache, r5.cache, 91, 1, 0
+0x014e  9202c10000cc1010         icmpsel ueq, r0h.cache, r0h.discard, 0, r6l.discard, 1
+0x0156  92988ad2010101100001     icmpsel ueq, r6l.cache, r5.cache, 93, 1, 0
+0x0160  9202c10000cc1010         icmpsel ueq, r0h.cache, r0h.discard, 0, r6l.discard, 1
+0x0168  92188aa203010110         icmpsel ueq, r6l.cache, r5.cache, 58, 1, 0
+0x0170  9202c10000cc1010         icmpsel ueq, r0h.cache, r0h.discard, 0, r6l.discard, 1
+0x0178  92998ac2010101100001     icmpsel ueq, r6.cache, r5.cache, 92, 1, 0
+0x0182  fe1d8c2ac000             or r7.cache, r6.cache, 2
+0x0188  aea1008028080800         bfeil r8.cache, 0, r4.cache, 8, mask 0xFF
+0x0190  929990c201cec00c0001     icmpsel ueq, r6.cache, r8.cache, 92, r7.discard, r6.discard
+0x019a  921d8a2202010110         icmpsel ueq, r7.cache, r5.cache, 34, 1, 0
+0x01a2  fe258e2ac000             or r9.cache, r7.cache, 2
+0x01a8  921d902202d2e00c         icmpsel ueq, r7.cache, r8.cache, 34, r9.discard, r7.discard
+0x01b0  92a490d2030101100001     icmpsel ueq, r9l.cache, r8.cache, 125, 1, 0
+0x01ba  92a490b20301210d0001     icmpsel ueq, r9l.cache, r8.cache, 123, 1, r9l.discard
+0x01c4  92a690b2010101100001     icmpsel ueq, r9h.cache, r8.cache, 91, 1, 0
+0x01ce  9224d20000d31010         icmpsel ueq, r9l.cache, r9l.discard, 0, r9h.discard, 1
+0x01d6  92a690d2010101100001     icmpsel ueq, r9h.cache, r8.cache, 93, 1, 0
+0x01e0  9224d20000d31010         icmpsel ueq, r9l.cache, r9l.discard, 0, r9h.discard, 1
+0x01e8  922690a203010110         icmpsel ueq, r9h.cache, r8.cache, 58, 1, 0
+0x01f0  9224d20000d31010         icmpsel ueq, r9l.cache, r9l.discard, 0, r9h.discard, 1
+0x01f8  9229c10000001110         icmpsel ueq, r10.cache, r0h.discard, 0, 0, 1
+0x0200  9215cac20201410d         icmpsel ueq, r5.cache, r5.discard, 44, 1, r10.discard
+0x0208  fe298a2ac000             or r10.cache, r5.cache, 2
+0x020e  9215d20000ca4009         icmpsel ueq, r5.cache, r9l.discard, 0, r5.discard, r10.cache
+0x0216  9215d0c202d4a00c         icmpsel ueq, r5.cache, r8.discard, 44, r10.discard, r5.discard
+0x021e  fe0289088000             mov r0h.cache, r4h.cache
+0x0224  fe218c4ac000             or r8.cache, r6.cache, 4
+0x022a  fe25c1f08303             and r9.cache, r0h.discard, 255
+0x0230  929992c201d0c00c0001     icmpsel ueq, r6.cache, r9.cache, 92, r8.discard, r6.discard
+0x023a  fe218e4ac000             or r8.cache, r7.cache, 4
+0x0240  921d922202d0e00c         icmpsel ueq, r7.cache, r9.cache, 34, r8.discard, r7.discard
+0x0248  928292d2030101100001     icmpsel ueq, r0h.cache, r9.cache, 125, 1, 0
+0x0252  928292b20301110c0001     icmpsel ueq, r0h.cache, r9.cache, 123, 1, r0h.discard
+0x025c  92a092b2010101100001     icmpsel ueq, r8l.cache, r9.cache, 91, 1, 0
+0x0266  9202c10000d01010         icmpsel ueq, r0h.cache, r0h.discard, 0, r8l.discard, 1
+0x026e  92a092d2010101100001     icmpsel ueq, r8l.cache, r9.cache, 93, 1, 0
+0x0278  9202c10000d01010         icmpsel ueq, r0h.cache, r0h.discard, 0, r8l.discard, 1
+0x0280  922092a203010110         icmpsel ueq, r8l.cache, r9.cache, 58, 1, 0
+0x0288  9202c10000d01010         icmpsel ueq, r0h.cache, r0h.discard, 0, r8l.discard, 1
+0x0290  fe218a4ac000             or r8.cache, r5.cache, 4
+0x0296  9215c10000ca0009         icmpsel ueq, r5.cache, r0h.discard, 0, r5.discard, r8.cache
+0x029e  9215d2c202d0a00c         icmpsel ueq, r5.cache, r9.discard, 44, r8.discard, r5.discard
+0x02a6  fe218c8ac000             or r8.cache, r6.cache, 8
+0x02ac  ae9100802c180000         bfeil r4.cache, 0, r4.discard, 24
+0x02b4  929988c201d0c00c0001     icmpsel ueq, r6.cache, r4.cache, 92, r8.discard, r6.discard
+0x02be  fe218e8ac000             or r8.cache, r7.cache, 8
+0x02c4  921d882202d0e00c         icmpsel ueq, r7.cache, r4.cache, 34, r8.discard, r7.discard
+0x02cc  928288d2030101100001     icmpsel ueq, r0h.cache, r4.cache, 125, 1, 0
+0x02d6  928288b20301110c0001     icmpsel ueq, r0h.cache, r4.cache, 123, 1, r0h.discard
+0x02e0  92a088b2010101100001     icmpsel ueq, r8l.cache, r4.cache, 91, 1, 0
+0x02ea  9202c10000d01010         icmpsel ueq, r0h.cache, r0h.discard, 0, r8l.discard, 1
+0x02f2  92a088d2010101100001     icmpsel ueq, r8l.cache, r4.cache, 93, 1, 0
+0x02fc  9202c10000d01010         icmpsel ueq, r0h.cache, r0h.discard, 0, r8l.discard, 1
+0x0304  922088a203010110         icmpsel ueq, r8l.cache, r4.cache, 58, 1, 0
+0x030c  9202c10000d01010         icmpsel ueq, r0h.cache, r0h.discard, 0, r8l.discard, 1
+0x0314  fe218a8ac000             or r8.cache, r5.cache, 8
+0x031a  9215c10000ca0009         icmpsel ueq, r5.cache, r0h.discard, 0, r5.discard, r8.cache
+0x0322  9211c8c202d0a00c         icmpsel ueq, r4.cache, r4.discard, 44, r8.discard, r5.discard
+0x032a  0e15861600000000         iadd r5, r3.cache.sx, 1
+0x0332  0529a00e10c01200         device_load 0, i32, x, r5, u8_u9, r5, unsigned
+0x033a  fe218c0ac100             or r8.cache, r6.cache, 16
+0x0340  3800                     wait 0
+0x0342  fe258af28303             and r9.cache, r5.cache, 255
+0x0348  929992c201d0c00c0001     icmpsel ueq, r6.cache, r9.cache, 92, r8.discard, r6.discard
+0x0352  fe218e0ac100             or r8.cache, r7.cache, 16
+0x0358  921d922202d0e00c         icmpsel ueq, r7.cache, r9.cache, 34, r8.discard, r7.discard
+0x0360  928292d2030101100001     icmpsel ueq, r0h.cache, r9.cache, 125, 1, 0
+0x036a  928292b20301110c0001     icmpsel ueq, r0h.cache, r9.cache, 123, 1, r0h.discard
+0x0374  92a092b2010101100001     icmpsel ueq, r8l.cache, r9.cache, 91, 1, 0
+0x037e  9202c10000d01010         icmpsel ueq, r0h.cache, r0h.discard, 0, r8l.discard, 1
+0x0386  92a092d2010101100001     icmpsel ueq, r8l.cache, r9.cache, 93, 1, 0
+0x0390  9202c10000d01010         icmpsel ueq, r0h.cache, r0h.discard, 0, r8l.discard, 1
+0x0398  922092a203010110         icmpsel ueq, r8l.cache, r9.cache, 58, 1, 0
+0x03a0  9202c10000d01010         icmpsel ueq, r0h.cache, r0h.discard, 0, r8l.discard, 1
+0x03a8  fe21880ac100             or r8.cache, r4.cache, 16
+0x03ae  9211c10000c80009         icmpsel ueq, r4.cache, r0h.discard, 0, r4.discard, r8.cache
+0x03b6  9211d2c202d0800c         icmpsel ueq, r4.cache, r9.discard, 44, r8.discard, r4.discard
+0x03be  fe218c0ac200             or r8.cache, r6.cache, 32
+0x03c4  aea500a028080800         bfeil r9.cache, 0, r5.cache, 8, mask 0xFF
+0x03cc  929992c201d0c00c0001     icmpsel ueq, r6.cache, r9.cache, 92, r8.discard, r6.discard
+0x03d6  fe218e0ac200             or r8.cache, r7.cache, 32
+0x03dc  921d922202d0e00c         icmpsel ueq, r7.cache, r9.cache, 34, r8.discard, r7.discard
+0x03e4  928292d2030101100001     icmpsel ueq, r0h.cache, r9.cache, 125, 1, 0
+0x03ee  928292b20301110c0001     icmpsel ueq, r0h.cache, r9.cache, 123, 1, r0h.discard
+0x03f8  92a092b2010101100001     icmpsel ueq, r8l.cache, r9.cache, 91, 1, 0
+0x0402  9202c10000d01010         icmpsel ueq, r0h.cache, r0h.discard, 0, r8l.discard, 1
+0x040a  92a092d2010101100001     icmpsel ueq, r8l.cache, r9.cache, 93, 1, 0
+0x0414  9202c10000d01010         icmpsel ueq, r0h.cache, r0h.discard, 0, r8l.discard, 1
+0x041c  922092a203010110         icmpsel ueq, r8l.cache, r9.cache, 58, 1, 0
+0x0424  9202c10000d01010         icmpsel ueq, r0h.cache, r0h.discard, 0, r8l.discard, 1
+0x042c  fe21880ac200             or r8.cache, r4.cache, 32
+0x0432  9211c10000c80009         icmpsel ueq, r4.cache, r0h.discard, 0, r4.discard, r8.cache
+0x043a  9211d2c202d0800c         icmpsel ueq, r4.cache, r9.discard, 44, r8.discard, r4.discard
+0x0442  fe028b088000             mov r0h.cache, r5h.cache
+0x0448  fe218c0ac001             or r8.cache, r6.cache, 64
+0x044e  fe25c1f08303             and r9.cache, r0h.discard, 255
+0x0454  929992c201d0c00c0001     icmpsel ueq, r6.cache, r9.cache, 92, r8.discard, r6.discard
+0x045e  fe218e0ac001             or r8.cache, r7.cache, 64
+0x0464  921d922202d0e00c         icmpsel ueq, r7.cache, r9.cache, 34, r8.discard, r7.discard
+0x046c  928292d2030101100001     icmpsel ueq, r0h.cache, r9.cache, 125, 1, 0
+0x0476  928292b20301110c0001     icmpsel ueq, r0h.cache, r9.cache, 123, 1, r0h.discard
+0x0480  92a092b2010101100001     icmpsel ueq, r8l.cache, r9.cache, 91, 1, 0
+0x048a  9202c10000d01010         icmpsel ueq, r0h.cache, r0h.discard, 0, r8l.discard, 1
+0x0492  92a092d2010101100001     icmpsel ueq, r8l.cache, r9.cache, 93, 1, 0
+0x049c  9202c10000d01010         icmpsel ueq, r0h.cache, r0h.discard, 0, r8l.discard, 1
+0x04a4  922092a203010110         icmpsel ueq, r8l.cache, r9.cache, 58, 1, 0
+0x04ac  9202c10000d01010         icmpsel ueq, r0h.cache, r0h.discard, 0, r8l.discard, 1
+0x04b4  fe21880ac001             or r8.cache, r4.cache, 64
+0x04ba  9211c10000c80009         icmpsel ueq, r4.cache, r0h.discard, 0, r4.discard, r8.cache
+0x04c2  9211d2c202d0800c         icmpsel ueq, r4.cache, r9.discard, 44, r8.discard, r4.discard
+0x04ca  fe218c0ac002             or r8.cache, r6.cache, 128
+0x04d0  ae9500a02c180000         bfeil r5.cache, 0, r5.discard, 24
+0x04d8  92998ac201d0c00c0001     icmpsel ueq, r6.cache, r5.cache, 92, r8.discard, r6.discard
+0x04e2  fe218e0ac002             or r8.cache, r7.cache, 128
+0x04e8  921d8a2202d0e00c         icmpsel ueq, r7.cache, r5.cache, 34, r8.discard, r7.discard
+0x04f0  92828ad2030101100001     icmpsel ueq, r0h.cache, r5.cache, 125, 1, 0
+0x04fa  92828ab20301110c0001     icmpsel ueq, r0h.cache, r5.cache, 123, 1, r0h.discard
+0x0504  92a08ab2010101100001     icmpsel ueq, r8l.cache, r5.cache, 91, 1, 0
+0x050e  9202c10000d01010         icmpsel ueq, r0h.cache, r0h.discard, 0, r8l.discard, 1
+0x0516  92a08ad2010101100001     icmpsel ueq, r8l.cache, r5.cache, 93, 1, 0
+0x0520  9202c10000d01010         icmpsel ueq, r0h.cache, r0h.discard, 0, r8l.discard, 1
+0x0528  92208aa203010110         icmpsel ueq, r8l.cache, r5.cache, 58, 1, 0
+0x0530  9202c10000d01010         icmpsel ueq, r0h.cache, r0h.discard, 0, r8l.discard, 1
+0x0538  fe21880ac002             or r8.cache, r4.cache, 128
+0x053e  9211c10000c80009         icmpsel ueq, r4.cache, r0h.discard, 0, r4.discard, r8.cache
+0x0546  9211cac202d0800c         icmpsel ueq, r4.cache, r5.discard, 44, r8.discard, r4.discard
+0x054e  0e15862600000000         iadd r5, r3.cache.sx, 2
+0x0556  0529a00e10c01200         device_load 0, i32, x, r5, u8_u9, r5, unsigned
+0x055e  fe218cead900             or r8.cache, r6.cache, u15
+0x0564  3800                     wait 0
+0x0566  fe258af28303             and r9.cache, r5.cache, 255
+0x056c  929992c201d0c00c0001     icmpsel ueq, r6.cache, r9.cache, 92, r8.discard, r6.discard
+0x0576  fe218eead900             or r8.cache, r7.cache, u15
+0x057c  921d922202d0e00c         icmpsel ueq, r7.cache, r9.cache, 34, r8.discard, r7.discard
+0x0584  928292d2030101100001     icmpsel ueq, r0h.cache, r9.cache, 125, 1, 0
+0x058e  928292b20301110c0001     icmpsel ueq, r0h.cache, r9.cache, 123, 1, r0h.discard
+0x0598  92a092b2010101100001     icmpsel ueq, r8l.cache, r9.cache, 91, 1, 0
+0x05a2  9202c10000d01010         icmpsel ueq, r0h.cache, r0h.discard, 0, r8l.discard, 1
+0x05aa  92a092d2010101100001     icmpsel ueq, r8l.cache, r9.cache, 93, 1, 0
+0x05b4  9202c10000d01010         icmpsel ueq, r0h.cache, r0h.discard, 0, r8l.discard, 1
+0x05bc  922092a203010110         icmpsel ueq, r8l.cache, r9.cache, 58, 1, 0
+0x05c4  9202c10000d01010         icmpsel ueq, r0h.cache, r0h.discard, 0, r8l.discard, 1
+0x05cc  fe2188ead900             or r8.cache, r4.cache, u15
+0x05d2  9211c10000c80009         icmpsel ueq, r4.cache, r0h.discard, 0, r4.discard, r8.cache
+0x05da  9211d2c202d0800c         icmpsel ueq, r4.cache, r9.discard, 44, r8.discard, r4.discard
+0x05e2  fe218ccad900             or r8.cache, r6.cache, u14
+0x05e8  aea500a028080800         bfeil r9.cache, 0, r5.cache, 8, mask 0xFF
+0x05f0  929992c201d0c00c0001     icmpsel ueq, r6.cache, r9.cache, 92, r8.discard, r6.discard
+0x05fa  fe218ecad900             or r8.cache, r7.cache, u14
+0x0600  921d922202d0e00c         icmpsel ueq, r7.cache, r9.cache, 34, r8.discard, r7.discard
+0x0608  928292d2030101100001     icmpsel ueq, r0h.cache, r9.cache, 125, 1, 0
+0x0612  928292b20301110c0001     icmpsel ueq, r0h.cache, r9.cache, 123, 1, r0h.discard
+0x061c  92a092b2010101100001     icmpsel ueq, r8l.cache, r9.cache, 91, 1, 0
+0x0626  9202c10000d01010         icmpsel ueq, r0h.cache, r0h.discard, 0, r8l.discard, 1
+0x062e  92a092d2010101100001     icmpsel ueq, r8l.cache, r9.cache, 93, 1, 0
+0x0638  9202c10000d01010         icmpsel ueq, r0h.cache, r0h.discard, 0, r8l.discard, 1
+0x0640  922092a203010110         icmpsel ueq, r8l.cache, r9.cache, 58, 1, 0
+0x0648  9202c10000d01010         icmpsel ueq, r0h.cache, r0h.discard, 0, r8l.discard, 1
+0x0650  fe2188cad900             or r8.cache, r4.cache, u14
+0x0656  9211c10000c80009         icmpsel ueq, r4.cache, r0h.discard, 0, r4.discard, r8.cache
+0x065e  9211d2c202d0800c         icmpsel ueq, r4.cache, r9.discard, 44, r8.discard, r4.discard
+0x0666  fe028b088000             mov r0h.cache, r5h.cache
+0x066c  fe218caad900             or r8.cache, r6.cache, u13
+0x0672  fe25c1f08303             and r9.cache, r0h.discard, 255
+0x0678  929992c201d0c00c0001     icmpsel ueq, r6.cache, r9.cache, 92, r8.discard, r6.discard
+0x0682  fe218eaad900             or r8.cache, r7.cache, u13
+0x0688  921d922202d0e00c         icmpsel ueq, r7.cache, r9.cache, 34, r8.discard, r7.discard
+0x0690  928292d2030101100001     icmpsel ueq, r0h.cache, r9.cache, 125, 1, 0
+0x069a  928292b20301110c0001     icmpsel ueq, r0h.cache, r9.cache, 123, 1, r0h.discard
+0x06a4  92a092b2010101100001     icmpsel ueq, r8l.cache, r9.cache, 91, 1, 0
+0x06ae  9202c10000d01010         icmpsel ueq, r0h.cache, r0h.discard, 0, r8l.discard, 1
+0x06b6  92a092d2010101100001     icmpsel ueq, r8l.cache, r9.cache, 93, 1, 0
+0x06c0  9202c10000d01010         icmpsel ueq, r0h.cache, r0h.discard, 0, r8l.discard, 1
+0x06c8  922092a203010110         icmpsel ueq, r8l.cache, r9.cache, 58, 1, 0
+0x06d0  9202c10000d01010         icmpsel ueq, r0h.cache, r0h.discard, 0, r8l.discard, 1
+0x06d8  fe2188aad900             or r8.cache, r4.cache, u13
+0x06de  9211c10000c80009         icmpsel ueq, r4.cache, r0h.discard, 0, r4.discard, r8.cache
+0x06e6  9211d2c202d0800c         icmpsel ueq, r4.cache, r9.discard, 44, r8.discard, r4.discard
+0x06ee  fe218c4adb00             or r8.cache, r6.cache, u26
+0x06f4  ae9500a02c180000         bfeil r5.cache, 0, r5.discard, 24
+0x06fc  92998ac201d0c00c0001     icmpsel ueq, r6.cache, r5.cache, 92, r8.discard, r6.discard
+0x0706  fe218e4adb00             or r8.cache, r7.cache, u26
+0x070c  921d8a2202d0e00c         icmpsel ueq, r7.cache, r5.cache, 34, r8.discard, r7.discard
+0x0714  92828ad2030101100001     icmpsel ueq, r0h.cache, r5.cache, 125, 1, 0
+0x071e  92828ab20301110c0001     icmpsel ueq, r0h.cache, r5.cache, 123, 1, r0h.discard
+0x0728  92a08ab2010101100001     icmpsel ueq, r8l.cache, r5.cache, 91, 1, 0
+0x0732  9202c10000d01010         icmpsel ueq, r0h.cache, r0h.discard, 0, r8l.discard, 1
+0x073a  92a08ad2010101100001     icmpsel ueq, r8l.cache, r5.cache, 93, 1, 0
+0x0744  9202c10000d01010         icmpsel ueq, r0h.cache, r0h.discard, 0, r8l.discard, 1
+0x074c  92208aa203010110         icmpsel ueq, r8l.cache, r5.cache, 58, 1, 0
+0x0754  9202c10000d01010         icmpsel ueq, r0h.cache, r0h.discard, 0, r8l.discard, 1
+0x075c  fe21884adb00             or r8.cache, r4.cache, u26
+0x0762  9211c10000c80009         icmpsel ueq, r4.cache, r0h.discard, 0, r4.discard, r8.cache
+0x076a  9211cac202d0800c         icmpsel ueq, r4.cache, r5.discard, 44, r8.discard, r4.discard
+0x0772  0e15863600000000         iadd r5, r3.cache.sx, 3
+0x077a  0529a00e10c01200         device_load 0, i32, x, r5, u8_u9, r5, unsigned
+0x0782  fe218c6ad801             or r8.cache, r6.cache, u35
+0x0788  3800                     wait 0
+0x078a  fe258af28303             and r9.cache, r5.cache, 255
+0x0790  929992c201d0c00c0001     icmpsel ueq, r6.cache, r9.cache, 92, r8.discard, r6.discard
+0x079a  fe218e6ad801             or r8.cache, r7.cache, u35
+0x07a0  921d922202d0e00c         icmpsel ueq, r7.cache, r9.cache, 34, r8.discard, r7.discard
+0x07a8  928292d2030101100001     icmpsel ueq, r0h.cache, r9.cache, 125, 1, 0
+0x07b2  928292b20301110c0001     icmpsel ueq, r0h.cache, r9.cache, 123, 1, r0h.discard
+0x07bc  92a092b2010101100001     icmpsel ueq, r8l.cache, r9.cache, 91, 1, 0
+0x07c6  9202c10000d01010         icmpsel ueq, r0h.cache, r0h.discard, 0, r8l.discard, 1
+0x07ce  92a092d2010101100001     icmpsel ueq, r8l.cache, r9.cache, 93, 1, 0
+0x07d8  9202c10000d01010         icmpsel ueq, r0h.cache, r0h.discard, 0, r8l.discard, 1
+0x07e0  922092a203010110         icmpsel ueq, r8l.cache, r9.cache, 58, 1, 0
+0x07e8  9202c10000d01010         icmpsel ueq, r0h.cache, r0h.discard, 0, r8l.discard, 1
+0x07f0  fe21886ad801             or r8.cache, r4.cache, u35
+0x07f6  9211c10000c80009         icmpsel ueq, r4.cache, r0h.discard, 0, r4.discard, r8.cache
+0x07fe  9211d2c202d0800c         icmpsel ueq, r4.cache, r9.discard, 44, r8.discard, r4.discard
+0x0806  fe218c4ad801             or r8.cache, r6.cache, u34
+0x080c  aea500a028080800         bfeil r9.cache, 0, r5.cache, 8, mask 0xFF
+0x0814  929992c201d0c00c0001     icmpsel ueq, r6.cache, r9.cache, 92, r8.discard, r6.discard
+0x081e  fe218e4ad801             or r8.cache, r7.cache, u34
+0x0824  921d922202d0e00c         icmpsel ueq, r7.cache, r9.cache, 34, r8.discard, r7.discard
+0x082c  928292d2030101100001     icmpsel ueq, r0h.cache, r9.cache, 125, 1, 0
+0x0836  928292b20301110c0001     icmpsel ueq, r0h.cache, r9.cache, 123, 1, r0h.discard
+0x0840  92a092b2010101100001     icmpsel ueq, r8l.cache, r9.cache, 91, 1, 0
+0x084a  9202c10000d01010         icmpsel ueq, r0h.cache, r0h.discard, 0, r8l.discard, 1
+0x0852  92a092d2010101100001     icmpsel ueq, r8l.cache, r9.cache, 93, 1, 0
+0x085c  9202c10000d01010         icmpsel ueq, r0h.cache, r0h.discard, 0, r8l.discard, 1
+0x0864  922092a203010110         icmpsel ueq, r8l.cache, r9.cache, 58, 1, 0
+0x086c  9202c10000d01010         icmpsel ueq, r0h.cache, r0h.discard, 0, r8l.discard, 1
+0x0874  fe21884ad801             or r8.cache, r4.cache, u34
+0x087a  9211c10000c80009         icmpsel ueq, r4.cache, r0h.discard, 0, r4.discard, r8.cache
+0x0882  9211d2c202d0800c         icmpsel ueq, r4.cache, r9.discard, 44, r8.discard, r4.discard
+0x088a  fe028b088000             mov r0h.cache, r5h.cache
+0x0890  fe218ccada00             or r8.cache, r6.cache, u22
+0x0896  fe25c1f08303             and r9.cache, r0h.discard, 255
+0x089c  929992c201d0c00c0001     icmpsel ueq, r6.cache, r9.cache, 92, r8.discard, r6.discard
+0x08a6  fe218ecada00             or r8.cache, r7.cache, u22
+0x08ac  921d922202d0e00c         icmpsel ueq, r7.cache, r9.cache, 34, r8.discard, r7.discard
+0x08b4  928292d2030101100001     icmpsel ueq, r0h.cache, r9.cache, 125, 1, 0
+0x08be  928292b20301110c0001     icmpsel ueq, r0h.cache, r9.cache, 123, 1, r0h.discard
+0x08c8  92a092b2010101100001     icmpsel ueq, r8l.cache, r9.cache, 91, 1, 0
+0x08d2  9202c10000d01010         icmpsel ueq, r0h.cache, r0h.discard, 0, r8l.discard, 1
+0x08da  92a092d2010101100001     icmpsel ueq, r8l.cache, r9.cache, 93, 1, 0
+0x08e4  9202c10000d01010         icmpsel ueq, r0h.cache, r0h.discard, 0, r8l.discard, 1
+0x08ec  922092a203010110         icmpsel ueq, r8l.cache, r9.cache, 58, 1, 0
+0x08f4  9202c10000d01010         icmpsel ueq, r0h.cache, r0h.discard, 0, r8l.discard, 1
+0x08fc  fe2188cada00             or r8.cache, r4.cache, u22
+0x0902  9211c10000c80009         icmpsel ueq, r4.cache, r0h.discard, 0, r4.discard, r8.cache
+0x090a  9211d2c202d0800c         icmpsel ueq, r4.cache, r9.discard, 44, r8.discard, r4.discard
+0x0912  fe218ceadb00             or r8.cache, r6.cache, u31
+0x0918  ae9500a02c180000         bfeil r5.cache, 0, r5.discard, 24
+0x0920  92998ac201d0c00c0001     icmpsel ueq, r6.cache, r5.cache, 92, r8.discard, r6.discard
+0x092a  fe218eeadb00             or r8.cache, r7.cache, u31
+0x0930  921d8a2202d0e00c         icmpsel ueq, r7.cache, r5.cache, 34, r8.discard, r7.discard
+0x0938  92828ad2030101100001     icmpsel ueq, r0h.cache, r5.cache, 125, 1, 0
+0x0942  92828ab20301110c0001     icmpsel ueq, r0h.cache, r5.cache, 123, 1, r0h.discard
+0x094c  92a08ab2010101100001     icmpsel ueq, r8l.cache, r5.cache, 91, 1, 0
+0x0956  9202c10000d01010         icmpsel ueq, r0h.cache, r0h.discard, 0, r8l.discard, 1
+0x095e  92a08ad2010101100001     icmpsel ueq, r8l.cache, r5.cache, 93, 1, 0
+0x0968  9202c10000d01010         icmpsel ueq, r0h.cache, r0h.discard, 0, r8l.discard, 1
+0x0970  92208aa203010110         icmpsel ueq, r8l.cache, r5.cache, 58, 1, 0
+0x0978  9202c10000d01010         icmpsel ueq, r0h.cache, r0h.discard, 0, r8l.discard, 1
+0x0980  fe2188eadb00             or r8.cache, r4.cache, u31
+0x0986  9211c10000c80009         icmpsel ueq, r4.cache, r0h.discard, 0, r4.discard, r8.cache
+0x098e  9211cac202d0800c         icmpsel ueq, r4.cache, r5.discard, 44, r8.discard, r4.discard
+0x0996  0e15864600000000         iadd r5, r3.cache.sx, 4
+0x099e  0529a00e10c01200         device_load 0, i32, x, r5, u8_u9, r5, unsigned
+0x09a6  fe218c8ad900             or r8.cache, r6.cache, u12
+0x09ac  3800                     wait 0
+0x09ae  fe258af28303             and r9.cache, r5.cache, 255
+0x09b4  929992c201d0c00c0001     icmpsel ueq, r6.cache, r9.cache, 92, r8.discard, r6.discard
+0x09be  fe218e8ad900             or r8.cache, r7.cache, u12
+0x09c4  921d922202d0e00c         icmpsel ueq, r7.cache, r9.cache, 34, r8.discard, r7.discard
+0x09cc  928292d2030101100001     icmpsel ueq, r0h.cache, r9.cache, 125, 1, 0
+0x09d6  928292b20301110c0001     icmpsel ueq, r0h.cache, r9.cache, 123, 1, r0h.discard
+0x09e0  92a092b2010101100001     icmpsel ueq, r8l.cache, r9.cache, 91, 1, 0
+0x09ea  9202c10000d01010         icmpsel ueq, r0h.cache, r0h.discard, 0, r8l.discard, 1
+0x09f2  92a092d2010101100001     icmpsel ueq, r8l.cache, r9.cache, 93, 1, 0
+0x09fc  9202c10000d01010         icmpsel ueq, r0h.cache, r0h.discard, 0, r8l.discard, 1
+0x0a04  922092a203010110         icmpsel ueq, r8l.cache, r9.cache, 58, 1, 0
+0x0a0c  9202c10000d01010         icmpsel ueq, r0h.cache, r0h.discard, 0, r8l.discard, 1
+0x0a14  fe21888ad900             or r8.cache, r4.cache, u12
+0x0a1a  9211c10000c80009         icmpsel ueq, r4.cache, r0h.discard, 0, r4.discard, r8.cache
+0x0a22  9211d2c202d0800c         icmpsel ueq, r4.cache, r9.discard, 44, r8.discard, r4.discard
+0x0a2a  fe218c2ada00             or r8.cache, r6.cache, u17
+0x0a30  aea500a028080800         bfeil r9.cache, 0, r5.cache, 8, mask 0xFF
+0x0a38  929992c201d0c00c0001     icmpsel ueq, r6.cache, r9.cache, 92, r8.discard, r6.discard
+0x0a42  fe218e2ada00             or r8.cache, r7.cache, u17
+0x0a48  921d922202d0e00c         icmpsel ueq, r7.cache, r9.cache, 34, r8.discard, r7.discard
+0x0a50  928292d2030101100001     icmpsel ueq, r0h.cache, r9.cache, 125, 1, 0
+0x0a5a  928292b20301110c0001     icmpsel ueq, r0h.cache, r9.cache, 123, 1, r0h.discard
+0x0a64  92a092b2010101100001     icmpsel ueq, r8l.cache, r9.cache, 91, 1, 0
+0x0a6e  9202c10000d01010         icmpsel ueq, r0h.cache, r0h.discard, 0, r8l.discard, 1
+0x0a76  92a092d2010101100001     icmpsel ueq, r8l.cache, r9.cache, 93, 1, 0
+0x0a80  9202c10000d01010         icmpsel ueq, r0h.cache, r0h.discard, 0, r8l.discard, 1
+0x0a88  922092a203010110         icmpsel ueq, r8l.cache, r9.cache, 58, 1, 0
+0x0a90  9202c10000d01010         icmpsel ueq, r0h.cache, r0h.discard, 0, r8l.discard, 1
+0x0a98  fe21882ada00             or r8.cache, r4.cache, u17
+0x0a9e  9211c10000c80009         icmpsel ueq, r4.cache, r0h.discard, 0, r4.discard, r8.cache
+0x0aa6  9211d2c202d0800c         icmpsel ueq, r4.cache, r9.discard, 44, r8.discard, r4.discard
+0x0aae  fe028b088000             mov r0h.cache, r5h.cache
+0x0ab4  fe218c4ada00             or r8.cache, r6.cache, u18
+0x0aba  fe25c1f08303             and r9.cache, r0h.discard, 255
+0x0ac0  929992c201d0c00c0001     icmpsel ueq, r6.cache, r9.cache, 92, r8.discard, r6.discard
+0x0aca  fe218e4ada00             or r8.cache, r7.cache, u18
+0x0ad0  921d922202d0e00c         icmpsel ueq, r7.cache, r9.cache, 34, r8.discard, r7.discard
+0x0ad8  928292d2030101100001     icmpsel ueq, r0h.cache, r9.cache, 125, 1, 0
+0x0ae2  928292b20301110c0001     icmpsel ueq, r0h.cache, r9.cache, 123, 1, r0h.discard
+0x0aec  92a092b2010101100001     icmpsel ueq, r8l.cache, r9.cache, 91, 1, 0
+0x0af6  9202c10000d01010         icmpsel ueq, r0h.cache, r0h.discard, 0, r8l.discard, 1
+0x0afe  92a092d2010101100001     icmpsel ueq, r8l.cache, r9.cache, 93, 1, 0
+0x0b08  9202c10000d01010         icmpsel ueq, r0h.cache, r0h.discard, 0, r8l.discard, 1
+0x0b10  922092a203010110         icmpsel ueq, r8l.cache, r9.cache, 58, 1, 0
+0x0b18  9202c10000d01010         icmpsel ueq, r0h.cache, r0h.discard, 0, r8l.discard, 1
+0x0b20  fe21884ada00             or r8.cache, r4.cache, u18
+0x0b26  9211c10000c80009         icmpsel ueq, r4.cache, r0h.discard, 0, r4.discard, r8.cache
+0x0b2e  9211d2c202d0800c         icmpsel ueq, r4.cache, r9.discard, 44, r8.discard, r4.discard
+0x0b36  fe218c6ada00             or r8.cache, r6.cache, u19
+0x0b3c  ae9500a02c180000         bfeil r5.cache, 0, r5.discard, 24
+0x0b44  92998ac201d0c00c0001     icmpsel ueq, r6.cache, r5.cache, 92, r8.discard, r6.discard
+0x0b4e  fe218e6ada00             or r8.cache, r7.cache, u19
+0x0b54  921d8a2202d0e00c         icmpsel ueq, r7.cache, r5.cache, 34, r8.discard, r7.discard
+0x0b5c  92828ad2030101100001     icmpsel ueq, r0h.cache, r5.cache, 125, 1, 0
+0x0b66  92828ab20301110c0001     icmpsel ueq, r0h.cache, r5.cache, 123, 1, r0h.discard
+0x0b70  92a08ab2010101100001     icmpsel ueq, r8l.cache, r5.cache, 91, 1, 0
+0x0b7a  9202c10000d01010         icmpsel ueq, r0h.cache, r0h.discard, 0, r8l.discard, 1
+0x0b82  92a08ad2010101100001     icmpsel ueq, r8l.cache, r5.cache, 93, 1, 0
+0x0b8c  9202c10000d01010         icmpsel ueq, r0h.cache, r0h.discard, 0, r8l.discard, 1
+0x0b94  92208aa203010110         icmpsel ueq, r8l.cache, r5.cache, 58, 1, 0
+0x0b9c  9202c10000d01010         icmpsel ueq, r0h.cache, r0h.discard, 0, r8l.discard, 1
+0x0ba4  fe21886ada00             or r8.cache, r4.cache, u19
+0x0baa  9211c10000c80009         icmpsel ueq, r4.cache, r0h.discard, 0, r4.discard, r8.cache
+0x0bb2  9211cac202d0800c         icmpsel ueq, r4.cache, r5.discard, 44, r8.discard, r4.discard
+0x0bba  0e15865600000000         iadd r5, r3.cache.sx, 5
+0x0bc2  0529a00e10c01200         device_load 0, i32, x, r5, u8_u9, r5, unsigned
+0x0bca  fe218c8adb00             or r8.cache, r6.cache, u28
+0x0bd0  3800                     wait 0
+0x0bd2  fe258af28303             and r9.cache, r5.cache, 255
+0x0bd8  929992c201d0c00c0001     icmpsel ueq, r6.cache, r9.cache, 92, r8.discard, r6.discard
+0x0be2  fe218e8adb00             or r8.cache, r7.cache, u28
+0x0be8  921d922202d0e00c         icmpsel ueq, r7.cache, r9.cache, 34, r8.discard, r7.discard
+0x0bf0  928292d2030101100001     icmpsel ueq, r0h.cache, r9.cache, 125, 1, 0
+0x0bfa  928292b20301110c0001     icmpsel ueq, r0h.cache, r9.cache, 123, 1, r0h.discard
+0x0c04  92a092b2010101100001     icmpsel ueq, r8l.cache, r9.cache, 91, 1, 0
+0x0c0e  9202c10000d01010         icmpsel ueq, r0h.cache, r0h.discard, 0, r8l.discard, 1
+0x0c16  92a092d2010101100001     icmpsel ueq, r8l.cache, r9.cache, 93, 1, 0
+0x0c20  9202c10000d01010         icmpsel ueq, r0h.cache, r0h.discard, 0, r8l.discard, 1
+0x0c28  922092a203010110         icmpsel ueq, r8l.cache, r9.cache, 58, 1, 0
+0x0c30  9202c10000d01010         icmpsel ueq, r0h.cache, r0h.discard, 0, r8l.discard, 1
+0x0c38  fe21888adb00             or r8.cache, r4.cache, u28
+0x0c3e  9211c10000c80009         icmpsel ueq, r4.cache, r0h.discard, 0, r4.discard, r8.cache
+0x0c46  9211d2c202d0800c         icmpsel ueq, r4.cache, r9.discard, 44, r8.discard, r4.discard
+0x0c4e  fe218ccadb00             or r8.cache, r6.cache, u30
+0x0c54  aea500a028080800         bfeil r9.cache, 0, r5.cache, 8, mask 0xFF
+0x0c5c  929992c201d0c00c0001     icmpsel ueq, r6.cache, r9.cache, 92, r8.discard, r6.discard
+0x0c66  fe218ecadb00             or r8.cache, r7.cache, u30
+0x0c6c  921d922202d0e00c         icmpsel ueq, r7.cache, r9.cache, 34, r8.discard, r7.discard
+0x0c74  928292d2030101100001     icmpsel ueq, r0h.cache, r9.cache, 125, 1, 0
+0x0c7e  928292b20301110c0001     icmpsel ueq, r0h.cache, r9.cache, 123, 1, r0h.discard
+0x0c88  92a092b2010101100001     icmpsel ueq, r8l.cache, r9.cache, 91, 1, 0
+0x0c92  9202c10000d01010         icmpsel ueq, r0h.cache, r0h.discard, 0, r8l.discard, 1
+0x0c9a  92a092d2010101100001     icmpsel ueq, r8l.cache, r9.cache, 93, 1, 0
+0x0ca4  9202c10000d01010         icmpsel ueq, r0h.cache, r0h.discard, 0, r8l.discard, 1
+0x0cac  922092a203010110         icmpsel ueq, r8l.cache, r9.cache, 58, 1, 0
+0x0cb4  9202c10000d01010         icmpsel ueq, r0h.cache, r0h.discard, 0, r8l.discard, 1
+0x0cbc  fe2188cadb00             or r8.cache, r4.cache, u30
+0x0cc2  9211c10000c80009         icmpsel ueq, r4.cache, r0h.discard, 0, r4.discard, r8.cache
+0x0cca  9211d2c202d0800c         icmpsel ueq, r4.cache, r9.discard, 44, r8.discard, r4.discard
+0x0cd2  fe028b088000             mov r0h.cache, r5h.cache
+0x0cd8  fe218c2adb00             or r8.cache, r6.cache, u25
+0x0cde  fe25c1f08303             and r9.cache, r0h.discard, 255
+0x0ce4  929992c201d0c00c0001     icmpsel ueq, r6.cache, r9.cache, 92, r8.discard, r6.discard
+0x0cee  fe218e2adb00             or r8.cache, r7.cache, u25
+0x0cf4  921d922202d0e00c         icmpsel ueq, r7.cache, r9.cache, 34, r8.discard, r7.discard
+0x0cfc  928292d2030101100001     icmpsel ueq, r0h.cache, r9.cache, 125, 1, 0
+0x0d06  928292b20301110c0001     icmpsel ueq, r0h.cache, r9.cache, 123, 1, r0h.discard
+0x0d10  92a092b2010101100001     icmpsel ueq, r8l.cache, r9.cache, 91, 1, 0
+0x0d1a  9202c10000d01010         icmpsel ueq, r0h.cache, r0h.discard, 0, r8l.discard, 1
+0x0d22  92a092d2010101100001     icmpsel ueq, r8l.cache, r9.cache, 93, 1, 0
+0x0d2c  9202c10000d01010         icmpsel ueq, r0h.cache, r0h.discard, 0, r8l.discard, 1
+0x0d34  922092a203010110         icmpsel ueq, r8l.cache, r9.cache, 58, 1, 0
+0x0d3c  9202c10000d01010         icmpsel ueq, r0h.cache, r0h.discard, 0, r8l.discard, 1
+0x0d44  fe21882adb00             or r8.cache, r4.cache, u25
+0x0d4a  9211c10000c80009         icmpsel ueq, r4.cache, r0h.discard, 0, r4.discard, r8.cache
+0x0d52  9211d2c202d0800c         icmpsel ueq, r4.cache, r9.discard, 44, r8.discard, r4.discard
+0x0d5a  fe218c2ad801             or r8.cache, r6.cache, u33
+0x0d60  ae9500a02c180000         bfeil r5.cache, 0, r5.discard, 24
+0x0d68  92998ac201d0c00c0001     icmpsel ueq, r6.cache, r5.cache, 92, r8.discard, r6.discard
+0x0d72  fe218e2ad801             or r8.cache, r7.cache, u33
+0x0d78  921d8a2202d0e00c         icmpsel ueq, r7.cache, r5.cache, 34, r8.discard, r7.discard
+0x0d80  92828ad2030101100001     icmpsel ueq, r0h.cache, r5.cache, 125, 1, 0
+0x0d8a  92828ab20301110c0001     icmpsel ueq, r0h.cache, r5.cache, 123, 1, r0h.discard
+0x0d94  92a08ab2010101100001     icmpsel ueq, r8l.cache, r5.cache, 91, 1, 0
+0x0d9e  9202c10000d01010         icmpsel ueq, r0h.cache, r0h.discard, 0, r8l.discard, 1
+0x0da6  92a08ad2010101100001     icmpsel ueq, r8l.cache, r5.cache, 93, 1, 0
+0x0db0  9202c10000d01010         icmpsel ueq, r0h.cache, r0h.discard, 0, r8l.discard, 1
+0x0db8  92208aa203010110         icmpsel ueq, r8l.cache, r5.cache, 58, 1, 0
+0x0dc0  9202c10000d01010         icmpsel ueq, r0h.cache, r0h.discard, 0, r8l.discard, 1
+0x0dc8  fe21882ad801             or r8.cache, r4.cache, u33
+0x0dce  9211c10000c80009         icmpsel ueq, r4.cache, r0h.discard, 0, r4.discard, r8.cache
+0x0dd6  9211cac202d0800c         icmpsel ueq, r4.cache, r5.discard, 44, r8.discard, r4.discard
+0x0dde  0e15866600000000         iadd r5, r3.cache.sx, 6
+0x0de6  0529a00e10c01200         device_load 0, i32, x, r5, u8_u9, r5, unsigned
+0x0dee  fe218caadb00             or r8.cache, r6.cache, u29
+0x0df4  3800                     wait 0
+0x0df6  fe258af28303             and r9.cache, r5.cache, 255
+0x0dfc  929992c201d0c00c0001     icmpsel ueq, r6.cache, r9.cache, 92, r8.discard, r6.discard
+0x0e06  fe218eaadb00             or r8.cache, r7.cache, u29
+0x0e0c  921d922202d0e00c         icmpsel ueq, r7.cache, r9.cache, 34, r8.discard, r7.discard
+0x0e14  928292d2030101100001     icmpsel ueq, r0h.cache, r9.cache, 125, 1, 0
+0x0e1e  928292b20301110c0001     icmpsel ueq, r0h.cache, r9.cache, 123, 1, r0h.discard
+0x0e28  92a092b2010101100001     icmpsel ueq, r8l.cache, r9.cache, 91, 1, 0
+0x0e32  9202c10000d01010         icmpsel ueq, r0h.cache, r0h.discard, 0, r8l.discard, 1
+0x0e3a  92a092d2010101100001     icmpsel ueq, r8l.cache, r9.cache, 93, 1, 0
+0x0e44  9202c10000d01010         icmpsel ueq, r0h.cache, r0h.discard, 0, r8l.discard, 1
+0x0e4c  922092a203010110         icmpsel ueq, r8l.cache, r9.cache, 58, 1, 0
+0x0e54  9202c10000d01010         icmpsel ueq, r0h.cache, r0h.discard, 0, r8l.discard, 1
+0x0e5c  fe2188aadb00             or r8.cache, r4.cache, u29
+0x0e62  9211c10000c80009         icmpsel ueq, r4.cache, r0h.discard, 0, r4.discard, r8.cache
+0x0e6a  9211d2c202d0800c         icmpsel ueq, r4.cache, r9.discard, 44, r8.discard, r4.discard
+0x0e72  fe218ceada00             or r8.cache, r6.cache, u23
+0x0e78  aea500a028080800         bfeil r9.cache, 0, r5.cache, 8, mask 0xFF
+0x0e80  929992c201d0c00c0001     icmpsel ueq, r6.cache, r9.cache, 92, r8.discard, r6.discard
+0x0e8a  fe218eeada00             or r8.cache, r7.cache, u23
+0x0e90  921d922202d0e00c         icmpsel ueq, r7.cache, r9.cache, 34, r8.discard, r7.discard
+0x0e98  928292d2030101100001     icmpsel ueq, r0h.cache, r9.cache, 125, 1, 0
+0x0ea2  928292b20301110c0001     icmpsel ueq, r0h.cache, r9.cache, 123, 1, r0h.discard
+0x0eac  92a092b2010101100001     icmpsel ueq, r8l.cache, r9.cache, 91, 1, 0
+0x0eb6  9202c10000d01010         icmpsel ueq, r0h.cache, r0h.discard, 0, r8l.discard, 1
+0x0ebe  92a092d2010101100001     icmpsel ueq, r8l.cache, r9.cache, 93, 1, 0
+0x0ec8  9202c10000d01010         icmpsel ueq, r0h.cache, r0h.discard, 0, r8l.discard, 1
+0x0ed0  922092a203010110         icmpsel ueq, r8l.cache, r9.cache, 58, 1, 0
+0x0ed8  9202c10000d01010         icmpsel ueq, r0h.cache, r0h.discard, 0, r8l.discard, 1
+0x0ee0  fe2188eada00             or r8.cache, r4.cache, u23
+0x0ee6  9211c10000c80009         icmpsel ueq, r4.cache, r0h.discard, 0, r4.discard, r8.cache
+0x0eee  9211d2c202d0800c         icmpsel ueq, r4.cache, r9.discard, 44, r8.discard, r4.discard
+0x0ef6  fe028b088000             mov r0h.cache, r5h.cache
+0x0efc  fe218c0ad801             or r8.cache, r6.cache, u32
+0x0f02  fe25c1f08303             and r9.cache, r0h.discard, 255
+0x0f08  929992c201d0c00c0001     icmpsel ueq, r6.cache, r9.cache, 92, r8.discard, r6.discard
+0x0f12  fe218e0ad801             or r8.cache, r7.cache, u32
+0x0f18  921d922202d0e00c         icmpsel ueq, r7.cache, r9.cache, 34, r8.discard, r7.discard
+0x0f20  928292d2030101100001     icmpsel ueq, r0h.cache, r9.cache, 125, 1, 0
+0x0f2a  928292b20301110c0001     icmpsel ueq, r0h.cache, r9.cache, 123, 1, r0h.discard
+0x0f34  92a092b2010101100001     icmpsel ueq, r8l.cache, r9.cache, 91, 1, 0
+0x0f3e  9202c10000d01010         icmpsel ueq, r0h.cache, r0h.discard, 0, r8l.discard, 1
+0x0f46  92a092d2010101100001     icmpsel ueq, r8l.cache, r9.cache, 93, 1, 0
+0x0f50  9202c10000d01010         icmpsel ueq, r0h.cache, r0h.discard, 0, r8l.discard, 1
+0x0f58  922092a203010110         icmpsel ueq, r8l.cache, r9.cache, 58, 1, 0
+0x0f60  9202c10000d01010         icmpsel ueq, r0h.cache, r0h.discard, 0, r8l.discard, 1
+0x0f68  fe21880ad801             or r8.cache, r4.cache, u32
+0x0f6e  9211c10000c80009         icmpsel ueq, r4.cache, r0h.discard, 0, r4.discard, r8.cache
+0x0f76  9211d2c202d0800c         icmpsel ueq, r4.cache, r9.discard, 44, r8.discard, r4.discard
+0x0f7e  fe218c6adb00             or r8.cache, r6.cache, u27
+0x0f84  ae9500a02c180000         bfeil r5.cache, 0, r5.discard, 24
+0x0f8c  92998ac201d0c00c0001     icmpsel ueq, r6.cache, r5.cache, 92, r8.discard, r6.discard
+0x0f96  fe218e6adb00             or r8.cache, r7.cache, u27
+0x0f9c  921d8a2202d0e00c         icmpsel ueq, r7.cache, r5.cache, 34, r8.discard, r7.discard
+0x0fa4  92828ad2030101100001     icmpsel ueq, r0h.cache, r5.cache, 125, 1, 0
+0x0fae  92828ab20301110c0001     icmpsel ueq, r0h.cache, r5.cache, 123, 1, r0h.discard
+0x0fb8  92a08ab2010101100001     icmpsel ueq, r8l.cache, r5.cache, 91, 1, 0
+0x0fc2  9202c10000d01010         icmpsel ueq, r0h.cache, r0h.discard, 0, r8l.discard, 1
+0x0fca  92a08ad2010101100001     icmpsel ueq, r8l.cache, r5.cache, 93, 1, 0
+0x0fd4  9202c10000d01010         icmpsel ueq, r0h.cache, r0h.discard, 0, r8l.discard, 1
+0x0fdc  92208aa203010110         icmpsel ueq, r8l.cache, r5.cache, 58, 1, 0
+0x0fe4  9202c10000d01010         icmpsel ueq, r0h.cache, r0h.discard, 0, r8l.discard, 1
+0x0fec  fe21886adb00             or r8.cache, r4.cache, u27
+0x0ff2  9211c10000c80009         icmpsel ueq, r4.cache, r0h.discard, 0, r4.discard, r8.cache
+0x0ffa  9211cac202d0800c         icmpsel ueq, r4.cache, r5.discard, 44, r8.discard, r4.discard
+0x1002  0e0dc67600000000         iadd r3, r3.discard.sx, 7
+0x100a  0519600e10c01200         device_load 0, i32, x, r3, u8_u9, r3, unsigned
+0x1012  fe158c0ada00             or r5.cache, r6.cache, u16
+0x1018  3800                     wait 0
+0x101a  fe2186f28303             and r8.cache, r3.cache, 255
+0x1020  929590c201cac00c0001     icmpsel ueq, r5.cache, r8.cache, 92, r5.discard, r6.discard
+0x102a  fe198e0ada00             or r6.cache, r7.cache, u16
+0x1030  9219902202cce00c         icmpsel ueq, r6.cache, r8.cache, 34, r6.discard, r7.discard
+0x1038  928290d2030101100001     icmpsel ueq, r0h.cache, r8.cache, 125, 1, 0
+0x1042  928290b20301110c0001     icmpsel ueq, r0h.cache, r8.cache, 123, 1, r0h.discard
+0x104c  929c90b2010101100001     icmpsel ueq, r7l.cache, r8.cache, 91, 1, 0
+0x1056  9202c10000ce1010         icmpsel ueq, r0h.cache, r0h.discard, 0, r7l.discard, 1
+0x105e  929c90d2010101100001     icmpsel ueq, r7l.cache, r8.cache, 93, 1, 0
+0x1068  9202c10000ce1010         icmpsel ueq, r0h.cache, r0h.discard, 0, r7l.discard, 1
+0x1070  921c90a203010110         icmpsel ueq, r7l.cache, r8.cache, 58, 1, 0
+0x1078  9202c10000ce1010         icmpsel ueq, r0h.cache, r0h.discard, 0, r7l.discard, 1
+0x1080  fe1d880ada00             or r7.cache, r4.cache, u16
+0x1086  9211c10000c8e008         icmpsel ueq, r4.cache, r0h.discard, 0, r4.discard, r7.cache
+0x108e  9211d0c202ce800c         icmpsel ueq, r4.cache, r8.discard, 44, r7.discard, r4.discard
+0x1096  fe1d8aaada00             or r7.cache, r5.cache, u21
+0x109c  aea1006028080800         bfeil r8.cache, 0, r3.cache, 8, mask 0xFF
+0x10a4  929590c201cea00c0001     icmpsel ueq, r5.cache, r8.cache, 92, r7.discard, r5.discard
+0x10ae  fe1d8caada00             or r7.cache, r6.cache, u21
+0x10b4  9219902202cec00c         icmpsel ueq, r6.cache, r8.cache, 34, r7.discard, r6.discard
+0x10bc  928290d2030101100001     icmpsel ueq, r0h.cache, r8.cache, 125, 1, 0
+0x10c6  928290b20301110c0001     icmpsel ueq, r0h.cache, r8.cache, 123, 1, r0h.discard
+0x10d0  929c90b2010101100001     icmpsel ueq, r7l.cache, r8.cache, 91, 1, 0
+0x10da  9202c10000ce1010         icmpsel ueq, r0h.cache, r0h.discard, 0, r7l.discard, 1
+0x10e2  929c90d2010101100001     icmpsel ueq, r7l.cache, r8.cache, 93, 1, 0
+0x10ec  9202c10000ce1010         icmpsel ueq, r0h.cache, r0h.discard, 0, r7l.discard, 1
+0x10f4  921c90a203010110         icmpsel ueq, r7l.cache, r8.cache, 58, 1, 0
+0x10fc  9202c10000ce1010         icmpsel ueq, r0h.cache, r0h.discard, 0, r7l.discard, 1
+0x1104  fe1d88aada00             or r7.cache, r4.cache, u21
+0x110a  9211c10000c8e008         icmpsel ueq, r4.cache, r0h.discard, 0, r4.discard, r7.cache
+0x1112  9211d0c202ce800c         icmpsel ueq, r4.cache, r8.discard, 44, r7.discard, r4.discard
+0x111a  fe0287088000             mov r0h.cache, r3h.cache
+0x1120  fe1d8a8ada00             or r7.cache, r5.cache, u20
+0x1126  fe21c1f08303             and r8.cache, r0h.discard, 255
+0x112c  929590c201cea00c0001     icmpsel ueq, r5.cache, r8.cache, 92, r7.discard, r5.discard
+0x1136  fe1d8c8ada00             or r7.cache, r6.cache, u20
+0x113c  9219902202cec00c         icmpsel ueq, r6.cache, r8.cache, 34, r7.discard, r6.discard
+0x1144  928290d2030101100001     icmpsel ueq, r0h.cache, r8.cache, 125, 1, 0
+0x114e  928290b20301110c0001     icmpsel ueq, r0h.cache, r8.cache, 123, 1, r0h.discard
+0x1158  929c90b2010101100001     icmpsel ueq, r7l.cache, r8.cache, 91, 1, 0
+0x1162  9202c10000ce1010         icmpsel ueq, r0h.cache, r0h.discard, 0, r7l.discard, 1
+0x116a  929c90d2010101100001     icmpsel ueq, r7l.cache, r8.cache, 93, 1, 0
+0x1174  9202c10000ce1010         icmpsel ueq, r0h.cache, r0h.discard, 0, r7l.discard, 1
+0x117c  921c90a203010110         icmpsel ueq, r7l.cache, r8.cache, 58, 1, 0
+0x1184  9202c10000ce1010         icmpsel ueq, r0h.cache, r0h.discard, 0, r7l.discard, 1
+0x118c  fe1d888ada00             or r7.cache, r4.cache, u20
+0x1192  9211c10000c8e008         icmpsel ueq, r4.cache, r0h.discard, 0, r4.discard, r7.cache
+0x119a  9211d0c202ce800c         icmpsel ueq, r4.cache, r8.discard, 44, r7.discard, r4.discard
+0x11a2  fe1d8a0adb00             or r7.cache, r5.cache, u24
+0x11a8  ae8d00602c180000         bfeil r3.cache, 0, r3.discard, 24
+0x11b0  929586c201cea00c0001     icmpsel ueq, r5.cache, r3.cache, 92, r7.discard, r5.discard
+0x11ba  fe1d8c0adb00             or r7.cache, r6.cache, u24
+0x11c0  1219862202cec00c         icmpsel ueq, r6, r3.cache, 34, r7.discard, r6.discard
+0x11c8  928286d2030101100001     icmpsel ueq, r0h.cache, r3.cache, 125, 1, 0
+0x11d2  928286b20301110c0001     icmpsel ueq, r0h.cache, r3.cache, 123, 1, r0h.discard
+0x11dc  929c86b2010101100001     icmpsel ueq, r7l.cache, r3.cache, 91, 1, 0
+0x11e6  9202c10000ce1010         icmpsel ueq, r0h.cache, r0h.discard, 0, r7l.discard, 1
+0x11ee  929c86d2010101100001     icmpsel ueq, r7l.cache, r3.cache, 93, 1, 0
+0x11f8  9202c10000ce1010         icmpsel ueq, r0h.cache, r0h.discard, 0, r7l.discard, 1
+0x1200  921c86a203010110         icmpsel ueq, r7l.cache, r3.cache, 58, 1, 0
+0x1208  9202c10000ce1010         icmpsel ueq, r0h.cache, r0h.discard, 0, r7l.discard, 1
+0x1210  fe1d880adb00             or r7.cache, r4.cache, u24
+0x1216  9211c10000c8e008         icmpsel ueq, r4.cache, r0h.discard, 0, r4.discard, r7.cache
+0x121e  120dc6c202ce800c         icmpsel ueq, r3, r3.discard, 44, r7.discard, r4.discard
+0x1226  ae9100a068010000         bfeil r4.cache, 0, r5.cache, 1, mask 0x1
+0x122e  fe1d881a4000             xor r7.cache, r4.cache, 1
+0x1234  fe218a128000             and r8.cache, r5.cache, 1
+0x123a  fe2590e2a800             and r9.cache, r8.cache, r7.cache
+0x1240  fe21d01a4000             xor r8.cache, r8.discard, 1
+0x1246  9229880200000109         icmpsel ueq, r10.cache, r4.cache, 0, 0, r8.cache
+0x124e  aead00a068020000         bfeil r11.cache, 0, r5.cache, 2, mask 0x1
+0x1256  fe31961a4000             xor r12.cache, r11.cache, 1
+0x125c  fe359482a900             and r13.cache, r10.cache, r12.cache
+0x1262  8e3500a06d001000         iadd r13.cache, 0, r13.discard.sx, lsl 2
+0x126a  8e250020ed000000         iadd r9.cache, 0, r9.discard.sx, lsl 1
+0x1272  fe25d2aaed00             or r9.cache, r9.discard, r13.discard
+0x1278  fe11c882ad00             and r4.cache, r4.discard, r12.discard
+0x127e  8e1100806c001000         iadd r4.cache, 0, r4.discard.sx, lsl 2
+0x1286  fe210100ad00             and r8.cache, 1, r8.discard
+0x128c  fe11d08aec00             or r4.cache, r8.discard, r4.discard
+0x1292  fe21d41a4000             xor r8.cache, r10.discard, 1
+0x1298  922196020000010d         icmpsel ueq, r8.cache, r11.cache, 0, 0, r8.discard
+0x12a0  921dd6020000e10c         icmpsel ueq, r7.cache, r11.discard, 0, 0, r7.discard
+0x12a8  aea900a068030000         bfeil r10.cache, 0, r5.cache, 3, mask 0x1
+0x12b0  fe2d941a4000             xor r11.cache, r10.cache, 1
+0x12b6  fe319062a900             and r12.cache, r8.cache, r11.cache
+0x12bc  8e310080ed001000         iadd r12.cache, 0, r12.discard.sx, lsl 3
+0x12c4  fe25d28aed00             or r9.cache, r9.discard, r12.discard
+0x12ca  fe2d8e62ad00             and r11.cache, r7.cache, r11.discard
+0x12d0  8e2d0060ed001000         iadd r11.cache, 0, r11.discard.sx, lsl 3
+0x12d8  fe11c86aed00             or r4.cache, r4.discard, r11.discard
+0x12de  fe21d01a4000             xor r8.cache, r8.discard, 1
+0x12e4  922194020000010d         icmpsel ueq, r8.cache, r10.cache, 0, 0, r8.discard
+0x12ec  fe1dce1a4000             xor r7.cache, r7.discard, 1
+0x12f2  921dd4020000e10c         icmpsel ueq, r7.cache, r10.discard, 0, 0, r7.discard
+0x12fa  aea900a068040000         bfeil r10.cache, 0, r5.cache, 4, mask 0x1
+0x1302  fe2d941a4000             xor r11.cache, r10.cache, 1
+0x1308  fe319062a900             and r12.cache, r8.cache, r11.cache
+0x130e  8e3100806d002000         iadd r12.cache, 0, r12.discard.sx, lsl 4
+0x1316  fe25d28aed00             or r9.cache, r9.discard, r12.discard
+0x131c  fe2d8e62ad00             and r11.cache, r7.cache, r11.discard
+0x1322  8e2d00606d002000         iadd r11.cache, 0, r11.discard.sx, lsl 4
+0x132a  fe11c86aed00             or r4.cache, r4.discard, r11.discard
+0x1330  fe21d01a4000             xor r8.cache, r8.discard, 1
+0x1336  922194020000010d         icmpsel ueq, r8.cache, r10.cache, 0, 0, r8.discard
+0x133e  fe1dce1a4000             xor r7.cache, r7.discard, 1
+0x1344  921dd4020000e10c         icmpsel ueq, r7.cache, r10.discard, 0, 0, r7.discard
+0x134c  aea900a068050000         bfeil r10.cache, 0, r5.cache, 5, mask 0x1
+0x1354  fe2d941a4000             xor r11.cache, r10.cache, 1
+0x135a  fe319062a900             and r12.cache, r8.cache, r11.cache
+0x1360  ae3100802d050000         bfi r12.cache, 0, r12.discard, 5
+0x1368  fe25d28aed00             or r9.cache, r9.discard, r12.discard
+0x136e  fe2d8e62ad00             and r11.cache, r7.cache, r11.discard
+0x1374  ae2d00602d050000         bfi r11.cache, 0, r11.discard, 5
+0x137c  fe11c86aed00             or r4.cache, r4.discard, r11.discard
+0x1382  fe21d01a4000             xor r8.cache, r8.discard, 1
+0x1388  922194020000010d         icmpsel ueq, r8.cache, r10.cache, 0, 0, r8.discard
+0x1390  fe1dce1a4000             xor r7.cache, r7.discard, 1
+0x1396  921dd4020000e10c         icmpsel ueq, r7.cache, r10.discard, 0, 0, r7.discard
+0x139e  aea900a068060000         bfeil r10.cache, 0, r5.cache, 6, mask 0x1
+0x13a6  fe2d941a4000             xor r11.cache, r10.cache, 1
+0x13ac  fe319062a900             and r12.cache, r8.cache, r11.cache
+0x13b2  ae3100802d060000         bfi r12.cache, 0, r12.discard, 6
+0x13ba  fe25d28aed00             or r9.cache, r9.discard, r12.discard
+0x13c0  fe2d8e62ad00             and r11.cache, r7.cache, r11.discard
+0x13c6  ae2d00602d060000         bfi r11.cache, 0, r11.discard, 6
+0x13ce  fe11c86aed00             or r4.cache, r4.discard, r11.discard
+0x13d4  fe21d01a4000             xor r8.cache, r8.discard, 1
+0x13da  922194020000010d         icmpsel ueq, r8.cache, r10.cache, 0, 0, r8.discard
+0x13e2  fe1dce1a4000             xor r7.cache, r7.discard, 1
+0x13e8  921dd4020000e10c         icmpsel ueq, r7.cache, r10.discard, 0, 0, r7.discard
+0x13f0  aea900a068070000         bfeil r10.cache, 0, r5.cache, 7, mask 0x1
+0x13f8  fe2d941a4000             xor r11.cache, r10.cache, 1
+0x13fe  fe319062a900             and r12.cache, r8.cache, r11.cache
+0x1404  ae3100802d070000         bfi r12.cache, 0, r12.discard, 7
+0x140c  fe25d28aed00             or r9.cache, r9.discard, r12.discard
+0x1412  fe2d8e62ad00             and r11.cache, r7.cache, r11.discard
+0x1418  ae2d00602d070000         bfi r11.cache, 0, r11.discard, 7
+0x1420  fe11c86aed00             or r4.cache, r4.discard, r11.discard
+0x1426  fe21d01a4000             xor r8.cache, r8.discard, 1
+0x142c  922194020000010d         icmpsel ueq, r8.cache, r10.cache, 0, 0, r8.discard
+0x1434  fe1dce1a4000             xor r7.cache, r7.discard, 1
+0x143a  921dd4020000e10c         icmpsel ueq, r7.cache, r10.discard, 0, 0, r7.discard
+0x1442  aea900a068080000         bfeil r10.cache, 0, r5.cache, 8, mask 0x1
+0x144a  fe2d941a4000             xor r11.cache, r10.cache, 1
+0x1450  fe319062a900             and r12.cache, r8.cache, r11.cache
+0x1456  ae3100802d080000         bfi r12.cache, 0, r12.discard, 8
+0x145e  fe25d28aed00             or r9.cache, r9.discard, r12.discard
+0x1464  fe2d8e62ad00             and r11.cache, r7.cache, r11.discard
+0x146a  ae2d00602d080000         bfi r11.cache, 0, r11.discard, 8
+0x1472  fe11c86aed00             or r4.cache, r4.discard, r11.discard
+0x1478  fe21d01a4000             xor r8.cache, r8.discard, 1
+0x147e  922194020000010d         icmpsel ueq, r8.cache, r10.cache, 0, 0, r8.discard
+0x1486  fe1dce1a4000             xor r7.cache, r7.discard, 1
+0x148c  921dd4020000e10c         icmpsel ueq, r7.cache, r10.discard, 0, 0, r7.discard
+0x1494  aea900a068090000         bfeil r10.cache, 0, r5.cache, 9, mask 0x1
+0x149c  fe2d941a4000             xor r11.cache, r10.cache, 1
+0x14a2  fe319062a900             and r12.cache, r8.cache, r11.cache
+0x14a8  ae3100802d090000         bfi r12.cache, 0, r12.discard, 9
+0x14b0  fe25d28aed00             or r9.cache, r9.discard, r12.discard
+0x14b6  fe2d8e62ad00             and r11.cache, r7.cache, r11.discard
+0x14bc  ae2d00602d090000         bfi r11.cache, 0, r11.discard, 9
+0x14c4  fe11c86aed00             or r4.cache, r4.discard, r11.discard
+0x14ca  fe21d01a4000             xor r8.cache, r8.discard, 1
+0x14d0  922194020000010d         icmpsel ueq, r8.cache, r10.cache, 0, 0, r8.discard
+0x14d8  fe1dce1a4000             xor r7.cache, r7.discard, 1
+0x14de  921dd4020000e10c         icmpsel ueq, r7.cache, r10.discard, 0, 0, r7.discard
+0x14e6  aea900a0680a0000         bfeil r10.cache, 0, r5.cache, 10, mask 0x1
+0x14ee  fe2d941a4000             xor r11.cache, r10.cache, 1
+0x14f4  fe319062a900             and r12.cache, r8.cache, r11.cache
+0x14fa  ae3100802d0a0000         bfi r12.cache, 0, r12.discard, 10
+0x1502  fe25d28aed00             or r9.cache, r9.discard, r12.discard
+0x1508  fe2d8e62ad00             and r11.cache, r7.cache, r11.discard
+0x150e  ae2d00602d0a0000         bfi r11.cache, 0, r11.discard, 10
+0x1516  fe11c86aed00             or r4.cache, r4.discard, r11.discard
+0x151c  fe21d01a4000             xor r8.cache, r8.discard, 1
+0x1522  922194020000010d         icmpsel ueq, r8.cache, r10.cache, 0, 0, r8.discard
+0x152a  fe1dce1a4000             xor r7.cache, r7.discard, 1
+0x1530  921dd4020000e10c         icmpsel ueq, r7.cache, r10.discard, 0, 0, r7.discard
+0x1538  aea900a0680b0000         bfeil r10.cache, 0, r5.cache, 11, mask 0x1
+0x1540  fe2d941a4000             xor r11.cache, r10.cache, 1
+0x1546  fe319062a900             and r12.cache, r8.cache, r11.cache
+0x154c  ae3100802d0b0000         bfi r12.cache, 0, r12.discard, 11
+0x1554  fe25d28aed00             or r9.cache, r9.discard, r12.discard
+0x155a  fe2d8e62ad00             and r11.cache, r7.cache, r11.discard
+0x1560  ae2d00602d0b0000         bfi r11.cache, 0, r11.discard, 11
+0x1568  fe11c86aed00             or r4.cache, r4.discard, r11.discard
+0x156e  fe21d01a4000             xor r8.cache, r8.discard, 1
+0x1574  922194020000010d         icmpsel ueq, r8.cache, r10.cache, 0, 0, r8.discard
+0x157c  fe1dce1a4000             xor r7.cache, r7.discard, 1
+0x1582  921dd4020000e10c         icmpsel ueq, r7.cache, r10.discard, 0, 0, r7.discard
+0x158a  aea900a0680c0000         bfeil r10.cache, 0, r5.cache, 12, mask 0x1
+0x1592  fe2d941a4000             xor r11.cache, r10.cache, 1
+0x1598  fe319062a900             and r12.cache, r8.cache, r11.cache
+0x159e  ae3100802d0c0000         bfi r12.cache, 0, r12.discard, 12
+0x15a6  fe25d28aed00             or r9.cache, r9.discard, r12.discard
+0x15ac  fe2d8e62ad00             and r11.cache, r7.cache, r11.discard
+0x15b2  ae2d00602d0c0000         bfi r11.cache, 0, r11.discard, 12
+0x15ba  fe11c86aed00             or r4.cache, r4.discard, r11.discard
+0x15c0  fe21d01a4000             xor r8.cache, r8.discard, 1
+0x15c6  922194020000010d         icmpsel ueq, r8.cache, r10.cache, 0, 0, r8.discard
+0x15ce  fe1dce1a4000             xor r7.cache, r7.discard, 1
+0x15d4  921dd4020000e10c         icmpsel ueq, r7.cache, r10.discard, 0, 0, r7.discard
+0x15dc  aea900a0680d0000         bfeil r10.cache, 0, r5.cache, 13, mask 0x1
+0x15e4  fe2d941a4000             xor r11.cache, r10.cache, 1
+0x15ea  fe319062a900             and r12.cache, r8.cache, r11.cache
+0x15f0  ae3100802d0d0000         bfi r12.cache, 0, r12.discard, 13
+0x15f8  fe25d28aed00             or r9.cache, r9.discard, r12.discard
+0x15fe  fe2d8e62ad00             and r11.cache, r7.cache, r11.discard
+0x1604  ae2d00602d0d0000         bfi r11.cache, 0, r11.discard, 13
+0x160c  fe11c86aed00             or r4.cache, r4.discard, r11.discard
+0x1612  fe21d01a4000             xor r8.cache, r8.discard, 1
+0x1618  922194020000010d         icmpsel ueq, r8.cache, r10.cache, 0, 0, r8.discard
+0x1620  fe1dce1a4000             xor r7.cache, r7.discard, 1
+0x1626  921dd4020000e10c         icmpsel ueq, r7.cache, r10.discard, 0, 0, r7.discard
+0x162e  aea900a0680e0000         bfeil r10.cache, 0, r5.cache, 14, mask 0x1
+0x1636  fe2d941a4000             xor r11.cache, r10.cache, 1
+0x163c  fe319062a900             and r12.cache, r8.cache, r11.cache
+0x1642  ae3100802d0e0000         bfi r12.cache, 0, r12.discard, 14
+0x164a  fe25d28aed00             or r9.cache, r9.discard, r12.discard
+0x1650  fe2d8e62ad00             and r11.cache, r7.cache, r11.discard
+0x1656  ae2d00602d0e0000         bfi r11.cache, 0, r11.discard, 14
+0x165e  fe11c86aed00             or r4.cache, r4.discard, r11.discard
+0x1664  fe21d01a4000             xor r8.cache, r8.discard, 1
+0x166a  922194020000010d         icmpsel ueq, r8.cache, r10.cache, 0, 0, r8.discard
+0x1672  fe1dce1a4000             xor r7.cache, r7.discard, 1
+0x1678  921dd4020000e10c         icmpsel ueq, r7.cache, r10.discard, 0, 0, r7.discard
+0x1680  aea900a0680f0000         bfeil r10.cache, 0, r5.cache, 15, mask 0x1
+0x1688  fe2d941a4000             xor r11.cache, r10.cache, 1
+0x168e  fe319062a900             and r12.cache, r8.cache, r11.cache
+0x1694  ae3100802d0f0000         bfi r12.cache, 0, r12.discard, 15
+0x169c  fe25d28aed00             or r9.cache, r9.discard, r12.discard
+0x16a2  fe2d8e62ad00             and r11.cache, r7.cache, r11.discard
+0x16a8  ae2d00602d0f0000         bfi r11.cache, 0, r11.discard, 15
+0x16b0  fe11c86aed00             or r4.cache, r4.discard, r11.discard
+0x16b6  fe21d01a4000             xor r8.cache, r8.discard, 1
+0x16bc  922194020000010d         icmpsel ueq, r8.cache, r10.cache, 0, 0, r8.discard
+0x16c4  fe1dce1a4000             xor r7.cache, r7.discard, 1
+0x16ca  921dd4020000e10c         icmpsel ueq, r7.cache, r10.discard, 0, 0, r7.discard
+0x16d2  fe028b088000             mov r0h.cache, r5h.cache
+0x16d8  fe29c1108000             and r10.cache, r0h.discard, 1
+0x16de  fe29d41a4000             xor r10.cache, r10.discard, 1
+0x16e4  fe2d9042a900             and r11.cache, r8.cache, r10.cache
+0x16ea  ae2d00602d100000         bfi r11.cache, 0, r11.discard, 16
+0x16f2  fe25d26aed00             or r9.cache, r9.discard, r11.discard
+0x16f8  fe298e42ad00             and r10.cache, r7.cache, r10.discard
+0x16fe  ae2900402d100000         bfi r10.cache, 0, r10.discard, 16
+0x1706  fe11c84aed00             or r4.cache, r4.discard, r10.discard
+0x170c  fe21d01a4000             xor r8.cache, r8.discard, 1
+0x1712  fe298a829900             and r10.cache, r5.cache, u12
+0x1718  922194020000010d         icmpsel ueq, r8.cache, r10.cache, 0, 0, r8.discard
+0x1720  fe1dce1a4000             xor r7.cache, r7.discard, 1
+0x1726  921dd4020000e10c         icmpsel ueq, r7.cache, r10.discard, 0, 0, r7.discard
+0x172e  aea900a068110000         bfeil r10.cache, 0, r5.cache, 17, mask 0x1
+0x1736  fe2d941a4000             xor r11.cache, r10.cache, 1
+0x173c  fe319062a900             and r12.cache, r8.cache, r11.cache
+0x1742  ae3100802d110000         bfi r12.cache, 0, r12.discard, 17
+0x174a  fe25d28aed00             or r9.cache, r9.discard, r12.discard
+0x1750  fe2d8e62ad00             and r11.cache, r7.cache, r11.discard
+0x1756  ae2d00602d110000         bfi r11.cache, 0, r11.discard, 17
+0x175e  fe11c86aed00             or r4.cache, r4.discard, r11.discard
+0x1764  fe21d01a4000             xor r8.cache, r8.discard, 1
+0x176a  922194020000010d         icmpsel ueq, r8.cache, r10.cache, 0, 0, r8.discard
+0x1772  fe1dce1a4000             xor r7.cache, r7.discard, 1
+0x1778  921dd4020000e10c         icmpsel ueq, r7.cache, r10.discard, 0, 0, r7.discard
+0x1780  aea900a068120000         bfeil r10.cache, 0, r5.cache, 18, mask 0x1
+0x1788  fe2d941a4000             xor r11.cache, r10.cache, 1
+0x178e  fe319062a900             and r12.cache, r8.cache, r11.cache
+0x1794  ae3100802d120000         bfi r12.cache, 0, r12.discard, 18
+0x179c  fe25d28aed00             or r9.cache, r9.discard, r12.discard
+0x17a2  fe2d8e62ad00             and r11.cache, r7.cache, r11.discard
+0x17a8  ae2d00602d120000         bfi r11.cache, 0, r11.discard, 18
+0x17b0  fe11c86aed00             or r4.cache, r4.discard, r11.discard
+0x17b6  fe21d01a4000             xor r8.cache, r8.discard, 1
+0x17bc  922194020000010d         icmpsel ueq, r8.cache, r10.cache, 0, 0, r8.discard
+0x17c4  fe1dce1a4000             xor r7.cache, r7.discard, 1
+0x17ca  921dd4020000e10c         icmpsel ueq, r7.cache, r10.discard, 0, 0, r7.discard
+0x17d2  aea900a068130000         bfeil r10.cache, 0, r5.cache, 19, mask 0x1
+0x17da  fe2d941a4000             xor r11.cache, r10.cache, 1
+0x17e0  fe319062a900             and r12.cache, r8.cache, r11.cache
+0x17e6  ae3100802d130000         bfi r12.cache, 0, r12.discard, 19
+0x17ee  fe25d28aed00             or r9.cache, r9.discard, r12.discard
+0x17f4  fe2d8e62ad00             and r11.cache, r7.cache, r11.discard
+0x17fa  ae2d00602d130000         bfi r11.cache, 0, r11.discard, 19
+0x1802  fe11c86aed00             or r4.cache, r4.discard, r11.discard
+0x1808  fe21d01a4000             xor r8.cache, r8.discard, 1
+0x180e  922194020000010d         icmpsel ueq, r8.cache, r10.cache, 0, 0, r8.discard
+0x1816  fe1dce1a4000             xor r7.cache, r7.discard, 1
+0x181c  921dd4020000e10c         icmpsel ueq, r7.cache, r10.discard, 0, 0, r7.discard
+0x1824  aea900a068140000         bfeil r10.cache, 0, r5.cache, 20, mask 0x1
+0x182c  fe2d941a4000             xor r11.cache, r10.cache, 1
+0x1832  fe319062a900             and r12.cache, r8.cache, r11.cache
+0x1838  ae3100802d140000         bfi r12.cache, 0, r12.discard, 20
+0x1840  fe25d28aed00             or r9.cache, r9.discard, r12.discard
+0x1846  fe2d8e62ad00             and r11.cache, r7.cache, r11.discard
+0x184c  ae2d00602d140000         bfi r11.cache, 0, r11.discard, 20
+0x1854  fe11c86aed00             or r4.cache, r4.discard, r11.discard
+0x185a  fe21d01a4000             xor r8.cache, r8.discard, 1
+0x1860  922194020000010d         icmpsel ueq, r8.cache, r10.cache, 0, 0, r8.discard
+0x1868  fe1dce1a4000             xor r7.cache, r7.discard, 1
+0x186e  921dd4020000e10c         icmpsel ueq, r7.cache, r10.discard, 0, 0, r7.discard
+0x1876  aea900a068150000         bfeil r10.cache, 0, r5.cache, 21, mask 0x1
+0x187e  fe2d941a4000             xor r11.cache, r10.cache, 1
+0x1884  fe319062a900             and r12.cache, r8.cache, r11.cache
+0x188a  ae3100802d150000         bfi r12.cache, 0, r12.discard, 21
+0x1892  fe25d28aed00             or r9.cache, r9.discard, r12.discard
+0x1898  fe2d8e62ad00             and r11.cache, r7.cache, r11.discard
+0x189e  ae2d00602d150000         bfi r11.cache, 0, r11.discard, 21
+0x18a6  fe11c86aed00             or r4.cache, r4.discard, r11.discard
+0x18ac  fe21d01a4000             xor r8.cache, r8.discard, 1
+0x18b2  922194020000010d         icmpsel ueq, r8.cache, r10.cache, 0, 0, r8.discard
+0x18ba  fe1dce1a4000             xor r7.cache, r7.discard, 1
+0x18c0  921dd4020000e10c         icmpsel ueq, r7.cache, r10.discard, 0, 0, r7.discard
+0x18c8  aea900a068160000         bfeil r10.cache, 0, r5.cache, 22, mask 0x1
+0x18d0  fe2d941a4000             xor r11.cache, r10.cache, 1
+0x18d6  fe319062a900             and r12.cache, r8.cache, r11.cache
+0x18dc  ae3100802d160000         bfi r12.cache, 0, r12.discard, 22
+0x18e4  fe25d28aed00             or r9.cache, r9.discard, r12.discard
+0x18ea  fe2d8e62ad00             and r11.cache, r7.cache, r11.discard
+0x18f0  ae2d00602d160000         bfi r11.cache, 0, r11.discard, 22
+0x18f8  fe11c86aed00             or r4.cache, r4.discard, r11.discard
+0x18fe  fe21d01a4000             xor r8.cache, r8.discard, 1
+0x1904  922194020000010d         icmpsel ueq, r8.cache, r10.cache, 0, 0, r8.discard
+0x190c  fe1dce1a4000             xor r7.cache, r7.discard, 1
+0x1912  921dd4020000e10c         icmpsel ueq, r7.cache, r10.discard, 0, 0, r7.discard
+0x191a  aea900a068170000         bfeil r10.cache, 0, r5.cache, 23, mask 0x1
+0x1922  fe2d941a4000             xor r11.cache, r10.cache, 1
+0x1928  fe319062a900             and r12.cache, r8.cache, r11.cache
+0x192e  ae3100802d170000         bfi r12.cache, 0, r12.discard, 23
+0x1936  fe25d28aed00             or r9.cache, r9.discard, r12.discard
+0x193c  fe2d8e62ad00             and r11.cache, r7.cache, r11.discard
+0x1942  ae2d00602d170000         bfi r11.cache, 0, r11.discard, 23
+0x194a  fe11c86aed00             or r4.cache, r4.discard, r11.discard
+0x1950  fe21d01a4000             xor r8.cache, r8.discard, 1
+0x1956  922194020000010d         icmpsel ueq, r8.cache, r10.cache, 0, 0, r8.discard
+0x195e  fe1dce1a4000             xor r7.cache, r7.discard, 1
+0x1964  921dd4020000e10c         icmpsel ueq, r7.cache, r10.discard, 0, 0, r7.discard
+0x196c  aea900a068180000         bfeil r10.cache, 0, r5.cache, 24, mask 0x1
+0x1974  fe2d941a4000             xor r11.cache, r10.cache, 1
+0x197a  fe319062a900             and r12.cache, r8.cache, r11.cache
+0x1980  ae3100802d180000         bfi r12.cache, 0, r12.discard, 24
+0x1988  fe25d28aed00             or r9.cache, r9.discard, r12.discard
+0x198e  fe2d8e62ad00             and r11.cache, r7.cache, r11.discard
+0x1994  ae2d00602d180000         bfi r11.cache, 0, r11.discard, 24
+0x199c  fe11c86aed00             or r4.cache, r4.discard, r11.discard
+0x19a2  fe21d01a4000             xor r8.cache, r8.discard, 1
+0x19a8  922194020000010d         icmpsel ueq, r8.cache, r10.cache, 0, 0, r8.discard
+0x19b0  fe1dce1a4000             xor r7.cache, r7.discard, 1
+0x19b6  921dd4020000e10c         icmpsel ueq, r7.cache, r10.discard, 0, 0, r7.discard
+0x19be  aea900a068190000         bfeil r10.cache, 0, r5.cache, 25, mask 0x1
+0x19c6  fe2d941a4000             xor r11.cache, r10.cache, 1
+0x19cc  fe319062a900             and r12.cache, r8.cache, r11.cache
+0x19d2  ae3100802d190000         bfi r12.cache, 0, r12.discard, 25
+0x19da  fe25d28aed00             or r9.cache, r9.discard, r12.discard
+0x19e0  fe2d8e62ad00             and r11.cache, r7.cache, r11.discard
+0x19e6  ae2d00602d190000         bfi r11.cache, 0, r11.discard, 25
+0x19ee  fe11c86aed00             or r4.cache, r4.discard, r11.discard
+0x19f4  fe21d01a4000             xor r8.cache, r8.discard, 1
+0x19fa  922194020000010d         icmpsel ueq, r8.cache, r10.cache, 0, 0, r8.discard
+0x1a02  fe1dce1a4000             xor r7.cache, r7.discard, 1
+0x1a08  921dd4020000e10c         icmpsel ueq, r7.cache, r10.discard, 0, 0, r7.discard
+0x1a10  aea900a0681a0000         bfeil r10.cache, 0, r5.cache, 26, mask 0x1
+0x1a18  fe2d941a4000             xor r11.cache, r10.cache, 1
+0x1a1e  fe319062a900             and r12.cache, r8.cache, r11.cache
+0x1a24  ae3100802d1a0000         bfi r12.cache, 0, r12.discard, 26
+0x1a2c  fe25d28aed00             or r9.cache, r9.discard, r12.discard
+0x1a32  fe2d8e62ad00             and r11.cache, r7.cache, r11.discard
+0x1a38  ae2d00602d1a0000         bfi r11.cache, 0, r11.discard, 26
+0x1a40  fe11c86aed00             or r4.cache, r4.discard, r11.discard
+0x1a46  fe21d01a4000             xor r8.cache, r8.discard, 1
+0x1a4c  922194020000010d         icmpsel ueq, r8.cache, r10.cache, 0, 0, r8.discard
+0x1a54  fe1dce1a4000             xor r7.cache, r7.discard, 1
+0x1a5a  921dd4020000e10c         icmpsel ueq, r7.cache, r10.discard, 0, 0, r7.discard
+0x1a62  aea900a0681b0000         bfeil r10.cache, 0, r5.cache, 27, mask 0x1
+0x1a6a  fe2d941a4000             xor r11.cache, r10.cache, 1
+0x1a70  fe319062a900             and r12.cache, r8.cache, r11.cache
+0x1a76  ae3100802d1b0000         bfi r12.cache, 0, r12.discard, 27
+0x1a7e  fe25d28aed00             or r9.cache, r9.discard, r12.discard
+0x1a84  fe2d8e62ad00             and r11.cache, r7.cache, r11.discard
+0x1a8a  ae2d00602d1b0000         bfi r11.cache, 0, r11.discard, 27
+0x1a92  fe11c86aed00             or r4.cache, r4.discard, r11.discard
+0x1a98  fe21d01a4000             xor r8.cache, r8.discard, 1
+0x1a9e  922194020000010d         icmpsel ueq, r8.cache, r10.cache, 0, 0, r8.discard
+0x1aa6  fe1dce1a4000             xor r7.cache, r7.discard, 1
+0x1aac  921dd4020000e10c         icmpsel ueq, r7.cache, r10.discard, 0, 0, r7.discard
+0x1ab4  aea900a0681c0000         bfeil r10.cache, 0, r5.cache, 28, mask 0x1
+0x1abc  fe2d941a4000             xor r11.cache, r10.cache, 1
+0x1ac2  fe319062a900             and r12.cache, r8.cache, r11.cache
+0x1ac8  ae3100802d1c0000         bfi r12.cache, 0, r12.discard, 28
+0x1ad0  fe25d28aed00             or r9.cache, r9.discard, r12.discard
+0x1ad6  fe2d8e62ad00             and r11.cache, r7.cache, r11.discard
+0x1adc  ae2d00602d1c0000         bfi r11.cache, 0, r11.discard, 28
+0x1ae4  fe11c86aed00             or r4.cache, r4.discard, r11.discard
+0x1aea  fe21d01a4000             xor r8.cache, r8.discard, 1
+0x1af0  922194020000010d         icmpsel ueq, r8.cache, r10.cache, 0, 0, r8.discard
+0x1af8  fe1dce1a4000             xor r7.cache, r7.discard, 1
+0x1afe  921dd4020000e10c         icmpsel ueq, r7.cache, r10.discard, 0, 0, r7.discard
+0x1b06  aea900a0681d0000         bfeil r10.cache, 0, r5.cache, 29, mask 0x1
+0x1b0e  fe2d941a4000             xor r11.cache, r10.cache, 1
+0x1b14  fe319062a900             and r12.cache, r8.cache, r11.cache
+0x1b1a  ae3100802d1d0000         bfi r12.cache, 0, r12.discard, 29
+0x1b22  fe25d28aed00             or r9.cache, r9.discard, r12.discard
+0x1b28  fe2d8e62ad00             and r11.cache, r7.cache, r11.discard
+0x1b2e  ae2d00602d1d0000         bfi r11.cache, 0, r11.discard, 29
+0x1b36  fe11c86aed00             or r4.cache, r4.discard, r11.discard
+0x1b3c  fe21d01a4000             xor r8.cache, r8.discard, 1
+0x1b42  922194020000010d         icmpsel ueq, r8.cache, r10.cache, 0, 0, r8.discard
+0x1b4a  fe1dce1a4000             xor r7.cache, r7.discard, 1
+0x1b50  921dd4020000e10c         icmpsel ueq, r7.cache, r10.discard, 0, 0, r7.discard
+0x1b58  aea900a0681e0000         bfeil r10.cache, 0, r5.cache, 30, mask 0x1
+0x1b60  fe2d941a4000             xor r11.cache, r10.cache, 1
+0x1b66  fe319062a900             and r12.cache, r8.cache, r11.cache
+0x1b6c  ae3100802d1e0000         bfi r12.cache, 0, r12.discard, 30
+0x1b74  fe25d28aed00             or r9.cache, r9.discard, r12.discard
+0x1b7a  fe2d8e62ad00             and r11.cache, r7.cache, r11.discard
+0x1b80  ae2d00602d1e0000         bfi r11.cache, 0, r11.discard, 30
+0x1b88  fe11c86aed00             or r4.cache, r4.discard, r11.discard
+0x1b8e  fe21d01a4000             xor r8.cache, r8.discard, 1
+0x1b94  922194020000010d         icmpsel ueq, r8.cache, r10.cache, 0, 0, r8.discard
+0x1b9c  fe1dce1a4000             xor r7.cache, r7.discard, 1
+0x1ba2  921dd4020000e10c         icmpsel ueq, r7.cache, r10.discard, 0, 0, r7.discard
+0x1baa  ae9500a06c1f0000         bfeil r5.cache, 0, r5.discard, 31, mask 0x1
+0x1bb2  fe298a1a4000             xor r10.cache, r5.cache, 1
+0x1bb8  fe2d9042a900             and r11.cache, r8.cache, r10.cache
+0x1bbe  ae2d00602d1f0000         bfi r11.cache, 0, r11.discard, 31
+0x1bc6  7e25d26aed00             or r9, r9.discard, r11.discard
+0x1bcc  fe298e42ad00             and r10.cache, r7.cache, r10.discard
+0x1bd2  ae2900402d1f0000         bfi r10.cache, 0, r10.discard, 31
+0x1bda  7e11c84aed00             or r4, r4.discard, r10.discard
+0x1be0  fe21d01a4000             xor r8.cache, r8.discard, 1
+0x1be6  92218a020000010d         icmpsel ueq, r8.cache, r5.cache, 0, 0, r8.discard
+0x1bee  fe1dce1a4000             xor r7.cache, r7.discard, 1
+0x1bf4  9215ca020000e10c         icmpsel ueq, r5.cache, r5.discard, 0, 0, r7.discard
+0x1bfc  8e1500a0ec000000         iadd r5.cache, 0, r5.discard.sx, lsl 1
+0x1c04  7e15d0aaec00             or r5, r8.discard, r5.discard
+0x1c0a  8e1d002064001000         iadd r7.cache, 0, r1.sx, lsl 2
+0x1c12  7e024e088000             mov r0h, r7l
+0x1c18  2995010214000000         threadgroup_store i32, x, r5, r0h, 0
+0x1c20  6800                     threadgroup_barrier
+0x1c22  6995010214000000         threadgroup_load i32, x, r5, r0h, 0
+0x1c2a  62000000                 mov_imm r0l, 0
+0x1c2e  520942020000             if_icmp r0l, nueq, r1, 0, 1
+0x1c34  0e214e4e00000000         isub r8, r7.sx, 4
+0x1c3c  69a9100214000000         threadgroup_load i32, x, r10, r8l, 0
+0x1c44  fe2194128000             and r8.cache, r10.cache, 1
+0x1c4a  aea100a068500200         bfeil r8.cache, 0, r5.cache, r8, mask 0x1
+0x1c52  aea9004065010000         bfeil r10.cache, 0, r10, 1, mask 0x1
+0x1c5a  ae9500a064540200         bfeil r5.cache, 0, r5, r10, mask 0x1
+0x1c62  8e1500a0e4000000         iadd r5.cache, 0, r5.sx, lsl 1
+0x1c6a  7e1550aae400             or r5, r8, r5
+0x1c70  520e00000000             pop_exec r0l, 1
+0x1c76  6800                     threadgroup_barrier
+0x1c78  2995010214000000         threadgroup_store i32, x, r5, r0h, 0
+0x1c80  6800                     threadgroup_barrier
+0x1c82  6995010214000000         threadgroup_load i32, x, r5, r0h, 0
+0x1c8a  522942220000             if_icmp r0l, ugte, r1, 2, 1
+0x1c90  0e214e8e00000000         isub r8, r7.sx, 8
+0x1c98  69a9100214000000         threadgroup_load i32, x, r10, r8l, 0
+0x1ca0  fe2194128000             and r8.cache, r10.cache, 1
+0x1ca6  aea100a068500200         bfeil r8.cache, 0, r5.cache, r8, mask 0x1
+0x1cae  aea9004065010000         bfeil r10.cache, 0, r10, 1, mask 0x1
+0x1cb6  ae9500a064540200         bfeil r5.cache, 0, r5, r10, mask 0x1
+0x1cbe  8e1500a0e4000000         iadd r5.cache, 0, r5.sx, lsl 1
+0x1cc6  7e1550aae400             or r5, r8, r5
+0x1ccc  520e00000000             pop_exec r0l, 1
+0x1cd2  6800                     threadgroup_barrier
+0x1cd4  2995010214000000         threadgroup_store i32, x, r5, r0h, 0
+0x1cdc  6800                     threadgroup_barrier
+0x1cde  6995010214000000         threadgroup_load i32, x, r5, r0h, 0
+0x1ce6  522942420000             if_icmp r0l, ugte, r1, 4, 1
+0x1cec  0e214e0e01000000         isub r8, r7.sx, 16
+0x1cf4  69a9100214000000         threadgroup_load i32, x, r10, r8l, 0
+0x1cfc  fe2194128000             and r8.cache, r10.cache, 1
+0x1d02  aea100a068500200         bfeil r8.cache, 0, r5.cache, r8, mask 0x1
+0x1d0a  aea9004065010000         bfeil r10.cache, 0, r10, 1, mask 0x1
+0x1d12  ae9500a064540200         bfeil r5.cache, 0, r5, r10, mask 0x1
+0x1d1a  8e1500a0e4000000         iadd r5.cache, 0, r5.sx, lsl 1
+0x1d22  7e1550aae400             or r5, r8, r5
+0x1d28  520e00000000             pop_exec r0l, 1
+0x1d2e  6800                     threadgroup_barrier
+0x1d30  2995010214000000         threadgroup_store i32, x, r5, r0h, 0
+0x1d38  6800                     threadgroup_barrier
+0x1d3a  6995010214000000         threadgroup_load i32, x, r5, r0h, 0
+0x1d42  522942820000             if_icmp r0l, ugte, r1, 8, 1
+0x1d48  0e214e0e02000000         isub r8, r7.sx, 32
+0x1d50  69a9100214000000         threadgroup_load i32, x, r10, r8l, 0
+0x1d58  fe2194128000             and r8.cache, r10.cache, 1
+0x1d5e  aea100a068500200         bfeil r8.cache, 0, r5.cache, r8, mask 0x1
+0x1d66  aea9004065010000         bfeil r10.cache, 0, r10, 1, mask 0x1
+0x1d6e  ae9500a064540200         bfeil r5.cache, 0, r5, r10, mask 0x1
+0x1d76  8e1500a0e4000000         iadd r5.cache, 0, r5.sx, lsl 1
+0x1d7e  7e1550aae400             or r5, r8, r5
+0x1d84  520e00000000             pop_exec r0l, 1
+0x1d8a  6800                     threadgroup_barrier
+0x1d8c  2995010214000000         threadgroup_store i32, x, r5, r0h, 0
+0x1d94  6800                     threadgroup_barrier
+0x1d96  6995010214000000         threadgroup_load i32, x, r5, r0h, 0
+0x1d9e  522942020100             if_icmp r0l, ugte, r1, 16, 1
+0x1da4  0e214e0e00010000         isub r8, r7.sx, 64
+0x1dac  69a9100214000000         threadgroup_load i32, x, r10, r8l, 0
+0x1db4  fe2194128000             and r8.cache, r10.cache, 1
+0x1dba  aea100a068500200         bfeil r8.cache, 0, r5.cache, r8, mask 0x1
+0x1dc2  aea9004065010000         bfeil r10.cache, 0, r10, 1, mask 0x1
+0x1dca  ae9500a064540200         bfeil r5.cache, 0, r5, r10, mask 0x1
+0x1dd2  8e1500a0e4000000         iadd r5.cache, 0, r5.sx, lsl 1
+0x1dda  7e1550aae400             or r5, r8, r5
+0x1de0  520e00000000             pop_exec r0l, 1
+0x1de6  6800                     threadgroup_barrier
+0x1de8  2995010214000000         threadgroup_store i32, x, r5, r0h, 0
+0x1df0  6800                     threadgroup_barrier
+0x1df2  6995010214000000         threadgroup_load i32, x, r5, r0h, 0
+0x1dfa  522942020200             if_icmp r0l, ugte, r1, 32, 1
+0x1e00  0e214e0e00020000         isub r8, r7.sx, 128
+0x1e08  69a9100214000000         threadgroup_load i32, x, r10, r8l, 0
+0x1e10  fe2194128000             and r8.cache, r10.cache, 1
+0x1e16  aea100a068500200         bfeil r8.cache, 0, r5.cache, r8, mask 0x1
+0x1e1e  aea9004065010000         bfeil r10.cache, 0, r10, 1, mask 0x1
+0x1e26  ae9500a064540200         bfeil r5.cache, 0, r5, r10, mask 0x1
+0x1e2e  8e1500a0e4000000         iadd r5.cache, 0, r5.sx, lsl 1
+0x1e36  7e1550aae400             or r5, r8, r5
+0x1e3c  520e00000000             pop_exec r0l, 1
+0x1e42  6800                     threadgroup_barrier
+0x1e44  2995010214000000         threadgroup_store i32, x, r5, r0h, 0
+0x1e4c  6800                     threadgroup_barrier
+0x1e4e  6995010214000000         threadgroup_load i32, x, r5, r0h, 0
+0x1e56  522942020001             if_icmp r0l, ugte, r1, 64, 1
+0x1e5c  0e214e4659010000         iadd r8, r7.sx, u42.sx
+0x1e64  69a9100214000000         threadgroup_load i32, x, r10, r8l, 0
+0x1e6c  fe2194128000             and r8.cache, r10.cache, 1
+0x1e72  aea100a068500200         bfeil r8.cache, 0, r5.cache, r8, mask 0x1
+0x1e7a  aea9004065010000         bfeil r10.cache, 0, r10, 1, mask 0x1
+0x1e82  ae9500a064540200         bfeil r5.cache, 0, r5, r10, mask 0x1
+0x1e8a  8e1500a0e4000000         iadd r5.cache, 0, r5.sx, lsl 1
+0x1e92  7e1550aae400             or r5, r8, r5
+0x1e98  520e00000000             pop_exec r0l, 1
+0x1e9e  6800                     threadgroup_barrier
+0x1ea0  2995010214000000         threadgroup_store i32, x, r5, r0h, 0
+0x1ea8  6800                     threadgroup_barrier
+0x1eaa  6995010214000000         threadgroup_load i32, x, r5, r0h, 0
+0x1eb2  522942020002             if_icmp r0l, ugte, r1, 128, 1
+0x1eb8  0e214e8659010000         iadd r8, r7.sx, u44.sx
+0x1ec0  69a9100214000000         threadgroup_load i32, x, r10, r8l, 0
+0x1ec8  fe2194128000             and r8.cache, r10.cache, 1
+0x1ece  aea100a068500200         bfeil r8.cache, 0, r5.cache, r8, mask 0x1
+0x1ed6  aea9004065010000         bfeil r10.cache, 0, r10, 1, mask 0x1
+0x1ede  ae9500a064540200         bfeil r5.cache, 0, r5, r10, mask 0x1
+0x1ee6  8e1500a0e4000000         iadd r5.cache, 0, r5.sx, lsl 1
+0x1eee  7e1550aae400             or r5, r8, r5
+0x1ef4  520e00000000             pop_exec r0l, 1
+0x1efa  6800                     threadgroup_barrier
+0x1efc  2995010214000000         threadgroup_store i32, x, r5, r0h, 0
+0x1f04  6800                     threadgroup_barrier
+0x1f06  520942020000             if_icmp r0l, nueq, r1, 0, 1
+0x1f0c  0e154e4e00000000         isub r5, r7.sx, 4
+0x1f14  69a10a0214000000         threadgroup_load i32, x, r8, r5l, 0
+0x1f1c  7e1550128000             and r5, r8, 1
+0x1f22  420a00000000             else_fcmp r0l, eq, 0.0, 0.0, 1
+0x1f28  621500000000             mov_imm r5, 0, 0b0
+0x1f2e  520e00000000             pop_exec r0l, 1
+0x1f34  92114a0200528004         icmpsel ueq, r4.cache, r5, 0, r9, r4
+0x1f3c  fe114c8a2400             bitop 0100, r4.cache, r6, r4
+0x1f42  8e150080e8000000         iadd r5.cache, 0, r4.cache.sx, lsl 1
+0x1f4a  fe1548aa6400             xor r5.cache, r4, r5
+0x1f50  8e1900a068001000         iadd r6.cache, 0, r5.cache.sx, lsl 2
+0x1f58  fe154aca6400             xor r5.cache, r5, r6
+0x1f5e  8e1900a068002000         iadd r6.cache, 0, r5.cache.sx, lsl 4
+0x1f66  fe154aca6400             xor r5.cache, r5, r6
+0x1f6c  ae1900a028080000         bfi r6.cache, 0, r5.cache, 8
+0x1f74  fe154aca6400             xor r5.cache, r5, r6
+0x1f7a  ae1900a028100000         bfi r6.cache, 0, r5.cache, 16
+0x1f82  7e154aca6400             xor r5, r5, r6
+0x1f88  0e199ae564000000         iadd r6, u13.sx, r7.sx
+0x1f90  be11480a0000             popcount r4.cache, r4
+0x1f96  7e1148128000             and r4, r4, 1
+0x1f9c  29910c0214000000         threadgroup_store i32, x, r4, r6l, 0
+0x1fa4  6800                     threadgroup_barrier
+0x1fa6  69910c0214000000         threadgroup_load i32, x, r4, r6l, 0
+0x1fae  520942020000             if_icmp r0l, nueq, r1, 0, 1
+0x1fb4  0e2188e564040000         iadd r8, u36.sx, r7.sx
+0x1fbc  69a1100214000000         threadgroup_load i32, x, r8, r8l, 0
+0x1fc4  7e11480a6500             xor r4, r4, r8
+0x1fca  520e00000000             pop_exec r0l, 1
+0x1fd0  6800                     threadgroup_barrier
+0x1fd2  29910c0214000000         threadgroup_store i32, x, r4, r6l, 0
+0x1fda  6800                     threadgroup_barrier
+0x1fdc  69910c0214000000         threadgroup_load i32, x, r4, r6l, 0
+0x1fe4  522942220000             if_icmp r0l, ugte, r1, 2, 1
+0x1fea  0e218ce564040000         iadd r8, u38.sx, r7.sx
+0x1ff2  69a1100214000000         threadgroup_load i32, x, r8, r8l, 0
+0x1ffa  7e11480a6500             xor r4, r4, r8
+0x2000  520e00000000             pop_exec r0l, 1
+0x2006  6800                     threadgroup_barrier
+0x2008  29910c0214000000         threadgroup_store i32, x, r4, r6l, 0
+0x2010  6800                     threadgroup_barrier
+0x2012  69910c0214000000         threadgroup_load i32, x, r4, r6l, 0
+0x201a  522942420000             if_icmp r0l, ugte, r1, 4, 1
+0x2020  0e218ee564040000         iadd r8, u39.sx, r7.sx
+0x2028  69a1100214000000         threadgroup_load i32, x, r8, r8l, 0
+0x2030  7e11480a6500             xor r4, r4, r8
+0x2036  520e00000000             pop_exec r0l, 1
+0x203c  6800                     threadgroup_barrier
+0x203e  29910c0214000000         threadgroup_store i32, x, r4, r6l, 0
+0x2046  6800                     threadgroup_barrier
+0x2048  69910c0214000000         threadgroup_load i32, x, r4, r6l, 0
+0x2050  522942820000             if_icmp r0l, ugte, r1, 8, 1
+0x2056  0e2190e564040000         iadd r8, u40.sx, r7.sx
+0x205e  69a1100214000000         threadgroup_load i32, x, r8, r8l, 0
+0x2066  7e11480a6500             xor r4, r4, r8
+0x206c  520e00000000             pop_exec r0l, 1
+0x2072  6800                     threadgroup_barrier
+0x2074  29910c0214000000         threadgroup_store i32, x, r4, r6l, 0
+0x207c  6800                     threadgroup_barrier
+0x207e  69910c0214000000         threadgroup_load i32, x, r4, r6l, 0
+0x2086  522942020100             if_icmp r0l, ugte, r1, 16, 1
+0x208c  0e2192e564040000         iadd r8, u41.sx, r7.sx
+0x2094  69a1100214000000         threadgroup_load i32, x, r8, r8l, 0
+0x209c  7e11480a6500             xor r4, r4, r8
+0x20a2  520e00000000             pop_exec r0l, 1
+0x20a8  6800                     threadgroup_barrier
+0x20aa  29910c0214000000         threadgroup_store i32, x, r4, r6l, 0
+0x20b2  6800                     threadgroup_barrier
+0x20b4  69910c0214000000         threadgroup_load i32, x, r4, r6l, 0
+0x20bc  522942020200             if_icmp r0l, ugte, r1, 32, 1
+0x20c2  0e218ae564040000         iadd r8, u37.sx, r7.sx
+0x20ca  69a1100214000000         threadgroup_load i32, x, r8, r8l, 0
+0x20d2  7e11480a6500             xor r4, r4, r8
+0x20d8  520e00000000             pop_exec r0l, 1
+0x20de  6800                     threadgroup_barrier
+0x20e0  29910c0214000000         threadgroup_store i32, x, r4, r6l, 0
+0x20e8  6800                     threadgroup_barrier
+0x20ea  69910c0214000000         threadgroup_load i32, x, r4, r6l, 0
+0x20f2  522942020001             if_icmp r0l, ugte, r1, 64, 1
+0x20f8  0e2196e564040000         iadd r8, u43.sx, r7.sx
+0x2100  69a1100214000000         threadgroup_load i32, x, r8, r8l, 0
+0x2108  7e11480a6500             xor r4, r4, r8
+0x210e  520e00000000             pop_exec r0l, 1
+0x2114  6800                     threadgroup_barrier
+0x2116  29910c0214000000         threadgroup_store i32, x, r4, r6l, 0
+0x211e  6800                     threadgroup_barrier
+0x2120  69910c0214000000         threadgroup_load i32, x, r4, r6l, 0
+0x2128  522942020002             if_icmp r0l, ugte, r1, 128, 1
+0x212e  0e219ce564000000         iadd r8, u14.sx, r7.sx
+0x2136  69a1100214000000         threadgroup_load i32, x, r8, r8l, 0
+0x213e  7e11480a6500             xor r4, r4, r8
+0x2144  520e00000000             pop_exec r0l, 1
+0x214a  6800                     threadgroup_barrier
+0x214c  29910c0214000000         threadgroup_store i32, x, r4, r6l, 0
+0x2154  6800                     threadgroup_barrier
+0x2156  520942020000             if_icmp r0l, nueq, r1, 0, 1
+0x215c  0e0588e564040000         iadd r1, u36.sx, r7.sx
+0x2164  6991020214000000         threadgroup_load i32, x, r4, r1l, 0
+0x216c  420a00000000             else_fcmp r0l, eq, 0.0, 0.0, 1
+0x2172  621100000000             mov_imm r4, 0, 0b0
+0x2178  520e00000000             pop_exec r0l, 1
+0x217e  9205480200001110         icmpsel ueq, r1.cache, r4, 0, 0, 1
+0x2186  8e05002864000000         isub r1.cache, 0, r1.sx
+0x218e  fe0542a6a400             xnor r1.cache, r1, r5
+0x2194  7e054622a400             and r1, r3, r1
+0x219a  4509440e10c01200         device_store 0, i32, x, r1, u10_u11, r2, unsigned, 0
+0x21a2  8800                     stop

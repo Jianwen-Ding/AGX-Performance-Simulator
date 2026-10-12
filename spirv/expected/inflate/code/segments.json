@@ -1,0 +1,22 @@
+{
+ "blob": "/save/workspace/AGX-Performance-Simulator/spirv/expected/inflate/code/shader.bin",
+ "code_start": 2236,
+ "code_size": 131480,
+ "layout": "agx_shader_info",
+ "programs": [
+  {
+   "label": "main",
+   "file": "main.bin",
+   "offset": 128,
+   "bytes": 130980,
+   "instructions": 13914
+  },
+  {
+   "label": "preamble",
+   "file": "preamble.bin",
+   "offset": 131200,
+   "bytes": 264,
+   "instructions": 39
+  }
+ ]
+}

@@ -1,0 +1,100 @@
+{
+ "workload": "inflate",
+ "device": {
+  "device": "Apple M2 Max (G14C B1)",
+  "vendor": 65541,
+  "device_id": 0,
+  "driver_version": 104869894,
+  "api": 4211016,
+  "timestamp_period_ns": 1,
+  "timestamps": 1,
+  "subgroup_size": 32,
+  "shader_object": 1,
+  "executable_properties": 1,
+  "features": {
+   "int64": 1,
+   "float64": 0,
+   "float16": 1,
+   "int8": 1,
+   "buffer_int64_atomics": 0,
+   "shared_int64_atomics": 0,
+   "subgroup_ops": 1791,
+   "buffer_float32_atomic_add": 0,
+   "shared_float32_atomic_add": 0
+  },
+  "limits": {
+   "shared_bytes": 32768,
+   "invocations": 1024,
+   "push_bytes": 256
+  }
+ },
+ "test_recording_not_hardware": false,
+ "recorded_utc": "2026-10-12T22:44:53Z",
+ "inputs_sha256": {
+  "0": "877ce61c580551667498e09d92cbcb81dc3feb15a853c9689b3f181dcfb0f333",
+  "1": "0a58e64a8de5a0f6e042e139e3ac3ea8b3db1ce9ef6bd40552fc3bda30f8598d"
+ },
+ "numpy": "2.5.4",
+ "small": {
+  "functional_ok": true,
+  "functional": {
+   "bad_streams": 0,
+   "decoder_errors": 0,
+   "streams": 8,
+   "bytes_out": 22092,
+   "ratio": 1.87,
+   "blocks": {
+    "stored": 1,
+    "fixed": 2,
+    "dynamic": 5
+   }
+  },
+  "gpu_ns": {
+   "median": 29625,
+   "min": 28625,
+   "max": 30042
+  },
+  "dispatch_ns_median": [
+   29625
+  ],
+  "repeat": 5
+ },
+ "code_extracted": true,
+ "large": {
+  "functional_ok": true,
+  "functional": {
+   "bad_streams": 0,
+   "decoder_errors": 0,
+   "streams": 2048,
+   "bytes_out": 10438306,
+   "ratio": 1.82,
+   "blocks": {
+    "stored": 250,
+    "fixed": 488,
+    "dynamic": 1310
+   }
+  },
+  "gpu_ns": {
+   "median": 30416.5,
+   "min": 28958,
+   "max": 33958
+  },
+  "dispatch_ns_median": [
+   30416.5
+  ],
+  "repeat": 20,
+  "gflops": null,
+  "gbytes_per_s": 343.1790639948712,
+  "work": {
+   "bytes": 10438306
+  },
+  "out_sha256": {
+   "2": "297f58f345d4cf3879609f806a5fe6f0038e5dfa400a23b2a3fdadea1400397e",
+   "3": "de23fac7fe877919e929e5feca9f51f8e8a67971250a8d7f673bb9cf72b42247"
+  },
+  "inputs_sha256": {
+   "0": "2cc2a7b290c9cfc5c1f36e8632a1844d9f578676310175b696d1477d9851d5fc",
+   "1": "5bacd80a2f534faf1894795f24d0d9eda159c078b75a1192b1ca68444caf6a19"
+  }
+ }
+}

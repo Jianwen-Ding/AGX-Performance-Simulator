@@ -1,0 +1,70 @@
+0x0000  f2011004                 get_sr r0.cache, sr80 (thread_position_in_grid.x)
+0x0004  0e01c08658000000         iadd r0, r0.discard.sx, u4.sx
+0x000c  05210c0e80c8f200         device_load 0, i32, xyzw, r4_r5_r6_r7, u70_u71, r0, unsigned, lsl 2
+0x0014  3800                     wait 0
+0x0016  9a8582e12808             fmul32 r1.cache, u65, r7.cache
+0x001c  ba85bac128c20204         fmadd32 r1.cache, u61, r6.cache, r1.discard
+0x0024  9a8984e12808             fmul32 r2.cache, u66, r7.cache
+0x002a  ba89bcc128c40204         fmadd32 r2.cache, u62, r6.cache, r2.discard
+0x0032  9a8d86e12808             fmul32 r3.cache, u67, r7.cache
+0x0038  ba8dbec128c60204         fmadd32 r3.cache, u63, r6.cache, r3.discard
+0x0040  9a9d88e12c08             fmul32 r7.cache, u68, r7.discard
+0x0046  ba9980c12cce0208         fmadd32 r6.cache, u64, r6.discard, r7.discard
+0x004e  ba85b2a128c20204         fmadd32 r1.cache, u57, r5.cache, r1.discard
+0x0056  ba89b4a128c40204         fmadd32 r2.cache, u58, r5.cache, r2.discard
+0x005e  ba8db6a128c60204         fmadd32 r3.cache, u59, r5.cache, r3.discard
+0x0066  ba95b8a12ccc0204         fmadd32 r5.cache, u60, r5.discard, r6.discard
+0x006e  ba85aa8128c20204         fmadd32 r1.cache, u53, r4.cache, r1.discard
+0x0076  ba89ac8128c40204         fmadd32 r2.cache, u54, r4.cache, r2.discard
+0x007e  ba8dae8128c60204         fmadd32 r3.cache, u55, r4.cache, r3.discard
+0x0086  ba91b0812cca0204         fmadd32 r4.cache, u56, r4.discard, r5.discard
+0x008e  9a95a2812804             fmul32 r5.cache, u49, r4.cache
+0x0094  ba959a6128ca0204         fmadd32 r5.cache, u45, r3.cache, r5.discard
+0x009c  9a99a4812804             fmul32 r6.cache, u50, r4.cache
+0x00a2  ba999c6128cc0204         fmadd32 r6.cache, u46, r3.cache, r6.discard
+0x00aa  9a9da6812804             fmul32 r7.cache, u51, r4.cache
+0x00b0  ba9d9e6128ce0204         fmadd32 r7.cache, u47, r3.cache, r7.discard
+0x00b8  9a91a8812c04             fmul32 r4.cache, u52, r4.discard
+0x00be  ba8da0612cc80204         fmadd32 r3.cache, u48, r3.discard, r4.discard
+0x00c6  ba91924128ca0204         fmadd32 r4.cache, u41, r2.cache, r5.discard
+0x00ce  ba95944128cc0204         fmadd32 r5.cache, u42, r2.cache, r6.discard
+0x00d6  ba99964128ce0204         fmadd32 r6.cache, u43, r2.cache, r7.discard
+0x00de  ba8998412cc60204         fmadd32 r2.cache, u44, r2.discard, r3.discard
+0x00e6  ba8d8a2128c80204         fmadd32 r3.cache, u37, r1.cache, r4.discard
+0x00ee  ba918c2128ca0204         fmadd32 r4.cache, u38, r1.cache, r5.discard
+0x00f6  ba958e2128cc0204         fmadd32 r5.cache, u39, r1.cache, r6.discard
+0x00fe  ba8590212cc40204         fmadd32 r1.cache, u40, r1.discard, r2.discard
+0x0106  9a8982212804             fmul32 r2.cache, u33, r1.cache
+0x010c  ba89baa128c40200         fmadd32 r2.cache, u29, r5.cache, r2.discard
+0x0114  9a9984212804             fmul32 r6.cache, u34, r1.cache
+0x011a  ba99bca128cc0200         fmadd32 r6.cache, u30, r5.cache, r6.discard
+0x0122  9a9d86212804             fmul32 r7.cache, u35, r1.cache
+0x0128  ba9dbea128ce0200         fmadd32 r7.cache, u31, r5.cache, r7.discard
+0x0130  9a8588212c04             fmul32 r1.cache, u36, r1.discard
+0x0136  ba8580a12cc20204         fmadd32 r1.cache, u32, r5.discard, r1.discard
+0x013e  ba89b28128c40200         fmadd32 r2.cache, u25, r4.cache, r2.discard
+0x0146  ba95b48128cc0200         fmadd32 r5.cache, u26, r4.cache, r6.discard
+0x014e  ba99b68128ce0200         fmadd32 r6.cache, u27, r4.cache, r7.discard
+0x0156  ba85b8812cc20200         fmadd32 r1.cache, u28, r4.discard, r1.discard
+0x015e  ba89aa6128c40200         fmadd32 r2.cache, u21, r3.cache, r2.discard
+0x0166  ba91ac6128ca0200         fmadd32 r4.cache, u22, r3.cache, r5.discard
+0x016e  ba95ae6128cc0200         fmadd32 r5.cache, u23, r3.cache, r6.discard
+0x0176  ba85b0612cc20200         fmadd32 r1.cache, u24, r3.discard, r1.discard
+0x017e  9a8da2212800             fmul32 r3.cache, u17, r1.cache
+0x0184  ba8d9aa128c60200         fmadd32 r3.cache, u13, r5.cache, r3.discard
+0x018c  9a99a4212800             fmul32 r6.cache, u18, r1.cache
+0x0192  ba999ca128cc0200         fmadd32 r6.cache, u14, r5.cache, r6.discard
+0x019a  9a9da6212800             fmul32 r7.cache, u19, r1.cache
+0x01a0  ba9d9ea128ce0200         fmadd32 r7.cache, u15, r5.cache, r7.discard
+0x01a8  9a85a8212c00             fmul32 r1.cache, u20, r1.discard
+0x01ae  ba85a0a12cc20200         fmadd32 r1.cache, u16, r5.discard, r1.discard
+0x01b6  ba8d928128c60200         fmadd32 r3.cache, u9, r4.cache, r3.discard
+0x01be  ba95948128cc0200         fmadd32 r5.cache, u10, r4.cache, r6.discard
+0x01c6  ba99968128ce0200         fmadd32 r6.cache, u11, r4.cache, r7.discard
+0x01ce  ba8598812cc20200         fmadd32 r1.cache, u12, r4.discard, r1.discard
+0x01d6  3aa18a4128c60200         fmadd32 r8, u5, r2.cache, r3.discard
+0x01de  3aa58c4128ca0200         fmadd32 r9, u6, r2.cache, r5.discard
+0x01e6  3aa98e4128cc0200         fmadd32 r10, u7, r2.cache, r6.discard
+0x01ee  3aad90412cc20200         fmadd32 r11, u8, r2.discard, r1.discard
+0x01f6  4541000e90c8f200         device_store 0, i32, xyzw, r8_r9_r10_r11, u72_u73, r0, unsigned, lsl 2, 0
+0x01fe  8800                     stop

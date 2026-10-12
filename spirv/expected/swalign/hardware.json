@@ -1,0 +1,91 @@
+{
+ "workload": "swalign",
+ "device": {
+  "device": "Apple M2 Max (G14C B1)",
+  "vendor": 65541,
+  "device_id": 0,
+  "driver_version": 104869894,
+  "api": 4211016,
+  "timestamp_period_ns": 1,
+  "timestamps": 1,
+  "subgroup_size": 32,
+  "shader_object": 1,
+  "executable_properties": 1,
+  "features": {
+   "int64": 1,
+   "float64": 0,
+   "float16": 1,
+   "int8": 1,
+   "buffer_int64_atomics": 0,
+   "shared_int64_atomics": 0,
+   "subgroup_ops": 1791,
+   "buffer_float32_atomic_add": 0,
+   "shared_float32_atomic_add": 0
+  },
+  "limits": {
+   "shared_bytes": 32768,
+   "invocations": 1024,
+   "push_bytes": 256
+  }
+ },
+ "test_recording_not_hardware": false,
+ "recorded_utc": "2026-10-12T22:44:23Z",
+ "inputs_sha256": {
+  "0": "73fb0d36ffe74fe32c1b9cd134539094ecd13800119bc914c121d956648d4aa9",
+  "1": "130324b078e6bca900b767e90b35bde12d170f0fcc4e6386f46c3fbb0515b6c3"
+ },
+ "numpy": "2.5.4",
+ "small": {
+  "functional_ok": true,
+  "functional": {
+   "bad_windows": 0,
+   "windows": 128,
+   "planted": 9,
+   "planted_found": 1.0,
+   "false_hits": 0,
+   "max_random_score": 15
+  },
+  "gpu_ns": {
+   "median": 26500,
+   "min": 24917,
+   "max": 32750
+  },
+  "dispatch_ns_median": [
+   26500
+  ],
+  "repeat": 5
+ },
+ "code_extracted": true,
+ "large": {
+  "functional_ok": true,
+  "functional": {
+   "bad_windows": 0,
+   "windows": 16384,
+   "planted": 1044,
+   "planted_found": 1.0,
+   "false_hits": 0,
+   "max_random_score": 27
+  },
+  "gpu_ns": {
+   "median": 39771.0,
+   "min": 23042,
+   "max": 48750
+  },
+  "dispatch_ns_median": [
+   39771.0
+  ],
+  "repeat": 20,
+  "gflops": null,
+  "gbytes_per_s": null,
+  "work": {
+   "cells": 536870912
+  },
+  "out_sha256": {
+   "2": "4cd8cac99e71b1fbb7b83edc5a98640f74cb13e30b1d80f93f75fb697aa5d189"
+  },
+  "inputs_sha256": {
+   "0": "358e327ee1c23fe56549f5a31c8c8ef13d05c642fbf35d7686e60c6c23a8f094",
+   "1": "1183e92b84063d2a217fe048b4660fc4f9451925afc6ec2446132d1a6dd3fc64"
+  }
+ }
+}

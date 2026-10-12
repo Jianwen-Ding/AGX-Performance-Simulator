@@ -5438,6 +5438,12 @@ def real_gpu_problem(dev):
     except OSError:
         compat = b''
     if b'apple' not in compat:
+        # In a container /proc/device-tree may be empty; the render node's own compatible string still names the AGX.
+        try:
+            compat = Path('/sys/class/drm/renderD128/device/uevent').read_bytes()
+        except OSError:
+            compat = b''
+    if b'apple' not in compat:
         return 'not an Apple machine (/proc/device-tree/compatible)'
     return None
 

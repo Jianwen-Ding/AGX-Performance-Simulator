@@ -1,0 +1,22 @@
+{
+ "blob": "/save/workspace/AGX-Performance-Simulator/spirv/expected/aluprobe/code/shader.bin",
+ "code_start": 2236,
+ "code_size": 7240,
+ "layout": "agx_shader_info",
+ "programs": [
+  {
+   "label": "main",
+   "file": "main.bin",
+   "offset": 128,
+   "bytes": 6762,
+   "instructions": 867
+  },
+  {
+   "label": "preamble",
+   "file": "preamble.bin",
+   "offset": 6912,
+   "bytes": 312,
+   "instructions": 47
+  }
+ ]
+}

@@ -1,0 +1,88 @@
+{
+ "workload": "levenshtein",
+ "device": {
+  "device": "Apple M2 Max (G14C B1)",
+  "vendor": 65541,
+  "device_id": 0,
+  "driver_version": 104869894,
+  "api": 4211016,
+  "timestamp_period_ns": 1,
+  "timestamps": 1,
+  "subgroup_size": 32,
+  "shader_object": 1,
+  "executable_properties": 1,
+  "features": {
+   "int64": 1,
+   "float64": 0,
+   "float16": 1,
+   "int8": 1,
+   "buffer_int64_atomics": 0,
+   "shared_int64_atomics": 0,
+   "subgroup_ops": 1791,
+   "buffer_float32_atomic_add": 0,
+   "shared_float32_atomic_add": 0
+  },
+  "limits": {
+   "shared_bytes": 32768,
+   "invocations": 1024,
+   "push_bytes": 256
+  }
+ },
+ "test_recording_not_hardware": false,
+ "recorded_utc": "2026-10-12T22:41:07Z",
+ "inputs_sha256": {
+  "0": "126ac6951812209f06a6b27c51e7f8abc5de64ed21a683fc6fa2b5a0e973bdb5",
+  "1": "390eef016b270dddaa1e74e19de506b2c4d4b30586c1d505d0ffd6476fbf3e17",
+  "2": "a1a158d8c8cc2e4c3fe6be4b0e2d620e7ae5027c6dc543984eab81be45cb832c"
+ },
+ "numpy": "2.5.4",
+ "small": {
+  "functional_ok": true,
+  "functional": {
+   "bad_pairs": 0,
+   "first_bad": [],
+   "mean_distance": 4.177734375
+  },
+  "gpu_ns": {
+   "median": 28584,
+   "min": 26334,
+   "max": 29417
+  },
+  "dispatch_ns_median": [
+   28584
+  ],
+  "repeat": 5
+ },
+ "code_extracted": true,
+ "large": {
+  "functional_ok": true,
+  "functional": {
+   "bad_pairs": 0,
+   "first_bad": [],
+   "mean_distance": 4.204216003417969
+  },
+  "gpu_ns": {
+   "median": 31333.5,
+   "min": 29209,
+   "max": 32833
+  },
+  "dispatch_ns_median": [
+   31333.5
+  ],
+  "repeat": 20,
+  "gflops": null,
+  "gbytes_per_s": null,
+  "work": {
+   "pairs": 262144,
+   "cells": 90155370
+  },
+  "out_sha256": {
+   "3": "dba1ba680234438196ab6c1cb30e2c60f824607cecbbc1a1e0357d6251fbc99f"
+  },
+  "inputs_sha256": {
+   "0": "303baaa5592bc407ea6f445b2be0dda0dc23bc3240a10072fe50b632d079c8a3",
+   "1": "285b530e1c18996777824db1b8300a997a7c5bc6213b6672f4f27f30085f7745",
+   "2": "e5e030f63c57d2363b5c6dea395df6444d513138a637c97afadc63776abb4f98"
+  }
+ }
+}

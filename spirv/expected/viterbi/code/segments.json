@@ -1,0 +1,22 @@
+{
+ "blob": "/save/workspace/AGX-Performance-Simulator/spirv/expected/viterbi/code/shader.bin",
+ "code_start": 2236,
+ "code_size": 1360,
+ "layout": "agx_shader_info",
+ "programs": [
+  {
+   "label": "main",
+   "file": "main.bin",
+   "offset": 128,
+   "bytes": 1084,
+   "instructions": 156
+  },
+  {
+   "label": "preamble",
+   "file": "preamble.bin",
+   "offset": 1280,
+   "bytes": 64,
+   "instructions": 11
+  }
+ ]
+}

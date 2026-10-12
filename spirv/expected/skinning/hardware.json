@@ -1,0 +1,92 @@
+{
+ "workload": "skinning",
+ "device": {
+  "device": "Apple M2 Max (G14C B1)",
+  "vendor": 65541,
+  "device_id": 0,
+  "driver_version": 104869894,
+  "api": 4211016,
+  "timestamp_period_ns": 1,
+  "timestamps": 1,
+  "subgroup_size": 32,
+  "shader_object": 1,
+  "executable_properties": 1,
+  "features": {
+   "int64": 1,
+   "float64": 0,
+   "float16": 1,
+   "int8": 1,
+   "buffer_int64_atomics": 0,
+   "shared_int64_atomics": 0,
+   "subgroup_ops": 1791,
+   "buffer_float32_atomic_add": 0,
+   "shared_float32_atomic_add": 0
+  },
+  "limits": {
+   "shared_bytes": 32768,
+   "invocations": 1024,
+   "push_bytes": 256
+  }
+ },
+ "test_recording_not_hardware": false,
+ "recorded_utc": "2026-10-12T22:41:26Z",
+ "inputs_sha256": {
+  "0": "6a97f971255507980c406baf7938cb2751c0086472ee485010980f9c72701597",
+  "1": "8aa6e1dd8def4782266e1b6eff6b18a8459dd25e2e24c787fbe591c75f2bac9c",
+  "2": "fd8eeebaa5590199e4973f191a8502d253e9cf0bc40b424bc5778aacf9195f76",
+  "3": "534aa51bad41ff86c9833139f3615d3865f5349846d0c498395fa855d9de47b9",
+  "4": "6d3ea1cc739bb1fb6b69246544023974ac84dcbfba02f8b728f052e39729ce1c"
+ },
+ "numpy": "2.5.4",
+ "small": {
+  "functional_ok": true,
+  "functional": {
+   "pos_max_err": 1.103929461176989e-07,
+   "nrm_max_err": 1.0092644364689818e-07,
+   "bound": 3.814697265625e-06
+  },
+  "gpu_ns": {
+   "median": 14750,
+   "min": 13917,
+   "max": 15083
+  },
+  "dispatch_ns_median": [
+   14750
+  ],
+  "repeat": 5
+ },
+ "code_extracted": true,
+ "large": {
+  "functional_ok": true,
+  "functional": {
+   "pos_max_err": 2.0256632482507086e-07,
+   "nrm_max_err": 1.5032195355146882e-07,
+   "bound": 3.814697265625e-06
+  },
+  "gpu_ns": {
+   "median": 33541.5,
+   "min": 32541,
+   "max": 34584
+  },
+  "dispatch_ns_median": [
+   33541.5
+  ],
+  "repeat": 20,
+  "gflops": null,
+  "gbytes_per_s": null,
+  "work": {
+   "vertices": 1048576
+  },
+  "out_sha256": {
+   "5": "fbef550d89fce216e470d1f580bad140b5264eb0ecb8681f16e5cfff4f7ee0cf",
+   "6": "fa90f8d03dba1b8d84c02f3ce0c114260856090d7987b24dbfdf504ec0ff2722"
+  },
+  "inputs_sha256": {
+   "0": "381abd1da9ba817615f319710360bee7af5d102fe4b0ce4c94f749811f4e9ac4",
+   "1": "7f8c7c6d10932955f7b854841e20502e978d22fe3eeadddf12288748dc23742a",
+   "2": "d0d092bd2d2155d0498097d6593d9067107599336c9276fac4c50444f82055bb",
+   "3": "1f1c38a61da49b3826eff4358759460a19e062638b86a9317c88470f9f7b7237",
+   "4": "dc8a2261fcaa987c6a7a905d760fe08217574eeca2ac66b9ab6ff5288a82d237"
+  }
+ }
+}

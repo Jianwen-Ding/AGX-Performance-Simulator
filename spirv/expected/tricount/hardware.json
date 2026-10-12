@@ -1,0 +1,92 @@
+{
+ "workload": "tricount",
+ "device": {
+  "device": "Apple M2 Max (G14C B1)",
+  "vendor": 65541,
+  "device_id": 0,
+  "driver_version": 104869894,
+  "api": 4211016,
+  "timestamp_period_ns": 1,
+  "timestamps": 1,
+  "subgroup_size": 32,
+  "shader_object": 1,
+  "executable_properties": 1,
+  "features": {
+   "int64": 1,
+   "float64": 0,
+   "float16": 1,
+   "int8": 1,
+   "buffer_int64_atomics": 0,
+   "shared_int64_atomics": 0,
+   "subgroup_ops": 1791,
+   "buffer_float32_atomic_add": 0,
+   "shared_float32_atomic_add": 0
+  },
+  "limits": {
+   "shared_bytes": 32768,
+   "invocations": 1024,
+   "push_bytes": 256
+  }
+ },
+ "test_recording_not_hardware": false,
+ "recorded_utc": "2026-10-12T22:42:54Z",
+ "inputs_sha256": {
+  "0": "48ba0da7aa105fc4b0c97aa5cd9b7ab48d9aa6f43f38f4d96d2bf6d5aa4612b6",
+  "1": "e9241c6aec5ae0cd7741a88d9ae3c17aaeb1ea76740c55b86549be4d554e436e",
+  "2": "dd31cf078215e4ccf72ba0475039fbcd73480f5f405d3a0c8e6c4b953d1b2887"
+ },
+ "numpy": "2.5.4",
+ "small": {
+  "functional_ok": true,
+  "functional": {
+   "edges": 11825,
+   "triangles": 1825,
+   "total": 1825,
+   "bad_edges": 0,
+   "max_out_degree": 211
+  },
+  "gpu_ns": {
+   "median": 25541,
+   "min": 25042,
+   "max": 27416
+  },
+  "dispatch_ns_median": [
+   25541
+  ],
+  "repeat": 5
+ },
+ "code_extracted": true,
+ "large": {
+  "functional_ok": true,
+  "functional": {
+   "edges": 1046509,
+   "triangles": 101544,
+   "total": 101544,
+   "bad_edges": 0,
+   "max_out_degree": 1359
+  },
+  "gpu_ns": {
+   "median": 31270.5,
+   "min": 26583,
+   "max": 39416
+  },
+  "dispatch_ns_median": [
+   31270.5
+  ],
+  "repeat": 20,
+  "gflops": null,
+  "gbytes_per_s": null,
+  "work": {
+   "items": 1046509
+  },
+  "out_sha256": {
+   "3": "237d6fef6ae5b4e428b801c38e282edda6044b8ff4df6e0292b15866442e9724",
+   "4": "1a785d02d1e34a1286509594a03334dbdd6a6cf03bbc185f04186c7e5cc51853"
+  },
+  "inputs_sha256": {
+   "0": "6cae03dd44707e49cb0af9a401d037cf440790feeb8c2a8acf672d10b333a732",
+   "1": "94ada8aaea9b9bc683d29c6f051eccda9958fb52b6a4ce5dda1cfdf8f37703cb",
+   "2": "5a1716ed71a03b93fc41359ab7c42edd28278393a48a92d0c193503550acd074"
+  }
+ }
+}

@@ -1,0 +1,59 @@
+0x0000  f2051004                 get_sr r1.cache, sr80 (thread_position_in_grid.x)
+0x0004  f2091104                 get_sr r2.cache, sr81 (thread_position_in_grid.y)
+0x0008  f20d1204                 get_sr r3.cache, sr82 (thread_position_in_grid.z)
+0x000c  8e09c40659000000         iadd r2.cache, r2.discard.sx, u8.sx
+0x0014  9202446219001130         icmpsel ult, r0h.cache, r2, u11, 0, 1
+0x001c  8e05c2e658000000         iadd r1.cache, r1.discard.sx, u7.sx
+0x0024  9210424219001130         icmpsel ult, r4l.cache, r1, u10, 0, 1
+0x002c  fe1288184000             xor r4h.cache, r4l.cache, 1
+0x0032  9202c90000c8100c         icmpsel ueq, r0h.cache, r4h.discard, 0, r4l.discard, r0h.discard
+0x003a  8e0dc62659000000         iadd r3.cache, r3.discard.sx, u9.sx
+0x0042  9210468219001130         icmpsel ult, r4l.cache, r3, u12, 0, 1
+0x004a  fe1281184000             xor r4h.cache, r0h.cache, 1
+0x0050  1202c90000c1800c         icmpsel ueq, r0h, r4h.discard, 0, r0h.discard, r4l.discard
+0x0058  62000000                 mov_imm r0l, 0
+0x005c  5208c1000000             if_icmp r0l, ueq, r0h.discard, 0, 1
+0x0062  20c01c010000             jmp_exec_none pc+284
+0x0068  9e1146a659440600         imadd r4.cache, r3.sx, u13.sx, r2.sx
+0x0070  9e11484659420600         imadd r4.cache, r4.sx, u10.sx, r1.sx
+0x0078  9e110c8064000000         imadd r4.cache, 12, r4.sx, 0
+0x0080  45098c0e10c01200         device_store 0, i32, x, r1, u14_u15, r4, unsigned, 0
+0x0088  0e05881600000000         iadd r1, r4.cache.sx, 1
+0x0090  45112c4e10c01200         device_store 1, i32, x, r2, u14_u15, r1, unsigned, 0
+0x0098  0e05882600000000         iadd r1, r4.cache.sx, 2
+0x00a0  45192c0e10c01200         device_store 0, i32, x, r3, u14_u15, r1, unsigned, 0
+0x00a8  0e05883600000000         iadd r1, r4.cache.sx, 3
+0x00b0  72093000                 get_sr r2, sr48 (thread_position_in_threadgroup.x)
+0x00b4  45112c0e10c01200         device_store 0, i32, x, r2, u14_u15, r1, unsigned, 0
+0x00bc  0e05884600000000         iadd r1, r4.cache.sx, 4
+0x00c4  72093100                 get_sr r2, sr49 (thread_position_in_threadgroup.y)
+0x00c8  45112c0e10c01200         device_store 0, i32, x, r2, u14_u15, r1, unsigned, 0
+0x00d0  0e05885600000000         iadd r1, r4.cache.sx, 5
+0x00d8  72093200                 get_sr r2, sr50 (thread_position_in_threadgroup.z)
+0x00dc  45112c0e10c01200         device_store 0, i32, x, r2, u14_u15, r1, unsigned, 0
+0x00e4  0e05886600000000         iadd r1, r4.cache.sx, 6
+0x00ec  72093300                 get_sr r2, sr51 (thread_index_in_threadgroup)
+0x00f0  45112c0e10c01200         device_store 0, i32, x, r2, u14_u15, r1, unsigned, 0
+0x00f8  f2050000                 get_sr r1.cache, sr0 (threadgroup_position_in_grid.x)
+0x00fc  0e05428658000000         iadd r1, r1.sx, u4.sx
+0x0104  0e09887600000000         iadd r2, r4.cache.sx, 7
+0x010c  45094c0e10c01200         device_store 0, i32, x, r1, u14_u15, r2, unsigned, 0
+0x0114  f2050100                 get_sr r1.cache, sr1 (threadgroup_position_in_grid.y)
+0x0118  0e0542a658000000         iadd r1, r1.sx, u5.sx
+0x0120  0e09888600000000         iadd r2, r4.cache.sx, 8
+0x0128  45094c0e10c01200         device_store 0, i32, x, r1, u14_u15, r2, unsigned, 0
+0x0130  f2050200                 get_sr r1.cache, sr2 (threadgroup_position_in_grid.z)
+0x0134  0e0542c658000000         iadd r1, r1.sx, u6.sx
+0x013c  0e09889600000000         iadd r2, r4.cache.sx, 9
+0x0144  3800                     wait 0
+0x0146  45094c0e10c01200         device_store 0, i32, x, r1, u14_u15, r2, unsigned, 0
+0x014e  0e0588a600000000         iadd r1, r4.cache.sx, 10
+0x0156  7e09a0098000             mov r2, u16
+0x015c  45112c0e10c01200         device_store 0, i32, x, r2, u14_u15, r1, unsigned, 0
+0x0164  0e0548b600000000         iadd r1, r4.sx, 11
+0x016c  7e0920088000             mov r2, 32
+0x0172  45112c0e10c01200         device_store 0, i32, x, r2, u14_u15, r1, unsigned, 0
+0x017a  3800                     wait 0
+0x017c  3801                     wait 1
+0x017e  520e00000000             pop_exec r0l, 1
+0x0184  8800                     stop

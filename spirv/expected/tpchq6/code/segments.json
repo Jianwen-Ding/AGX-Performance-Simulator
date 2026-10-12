@@ -1,0 +1,22 @@
+{
+ "blob": "/save/workspace/AGX-Performance-Simulator/spirv/expected/tpchq6/code/shader.bin",
+ "code_start": 2236,
+ "code_size": 4496,
+ "layout": "agx_shader_info",
+ "programs": [
+  {
+   "label": "main",
+   "file": "main.bin",
+   "offset": 128,
+   "bytes": 3988,
+   "instructions": 591
+  },
+  {
+   "label": "preamble",
+   "file": "preamble.bin",
+   "offset": 4224,
+   "bytes": 256,
+   "instructions": 38
+  }
+ ]
+}

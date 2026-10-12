@@ -1,0 +1,73 @@
+0x0000  f2051004                 get_sr r1.cache, sr80 (thread_position_in_grid.x)
+0x0004  0e05c28658000000         iadd r1, r1.discard.sx, u4.sx
+0x000c  62000000                 mov_imm r0l, 0
+0x0010  522842a21800             if_icmp r0l, ult, r1, u5, 1
+0x0016  20c0ec010000             jmp_exec_none pc+492
+0x001c  8e090020e8000000         iadd r2.cache, 0, r1.cache.sx, lsl 1
+0x0024  0e0d014064000000         iadd r3, 1, r2.sx
+0x002c  05214c0e00c8f200         device_load 0, i32, xyzw, r4_r5_r6_r7, u6_u7, r2, unsigned, lsl 2
+0x0034  05416c4e00c8f200         device_load 1, i32, xyzw, r8_r9_r10_r11, u6_u7, r3, unsigned, lsl 2
+0x003c  3800                     wait 0
+0x003e  3801                     wait 1
+0x0040  8e09908e68000000         isub r2.cache, r8.cache.sx, r4.cache.sx
+0x0048  8e0d8eae68000000         isub r3.cache, r7.cache.sx, r5.cache.sx
+0x0050  9e09464664000000         imadd r2.cache, r3.sx, r2.sx, 0
+0x0058  8e0d92ae68000000         isub r3.cache, r9.cache.sx, r5.cache.sx
+0x0060  8e2d8c8e68000000         isub r11.cache, r6.cache.sx, r4.cache.sx
+0x0068  9e09566e64440600         imsub r2.cache, r11.sx, r3.sx, r2.sx
+0x0070  920d8402008e20a9         icmpsel slt, r3.cache, r2.cache, 0, r7.cache, r9.cache
+0x0078  921d84020052e0a4         icmpsel slt, r7.cache, r2.cache, 0, r9, r7
+0x0080  92258402008c00a9         icmpsel slt, r9.cache, r2.cache, 0, r6.cache, r8.cache
+0x0088  920944020050c0a4         icmpsel slt, r2.cache, r2, 0, r8, r6
+0x0090  ae19004025140000         bfi r6.cache, 0, r10, 20
+0x0098  7e054c2ae400             or r1, r6, r1
+0x009e  92198a62288a60a8         icmpsel slt, r6.cache, r5.cache, r3.cache, r5.cache, r3.cache
+0x00a6  92198ec2248ec0a4         icmpsel slt, r6.cache, r7.cache, r6, r7.cache, r6
+0x00ae  92214a62244a60c4         icmpsel sgt, r8.cache, r5, r3, r5, r3
+0x00b6  92214e02254e00c5         icmpsel sgt, r8.cache, r7, r8, r7, r8
+0x00be  92298822298820c9         icmpsel sgt, r10.cache, r4.cache, r9.cache, r4.cache, r9.cache
+0x00c6  92298442258440c5         icmpsel sgt, r10.cache, r2.cache, r10, r2.cache, r10
+0x00ce  922d4822254820a5         icmpsel slt, r11.cache, r4, r9, r4, r9
+0x00d6  922d4462254460a5         icmpsel slt, r11.cache, r2, r11, r2, r11
+0x00de  12194c02004c00d0         icmpsel sgt, r6, r6, 0, r6, 0
+0x00e6  12215062195060b9         icmpsel slt, r8, r8, u11, r8, u11
+0x00ee  12295442195440b9         icmpsel slt, r10, r10, u10, r10, u10
+0x00f6  122d5602005600d0         icmpsel sgt, r11, r11, 0, r11, 0
+0x00fe  420800000000             push_exec r0l, 1
+0x0104  52ad50c22400             while_icmp r0l, sgte, r8, r6, 1
+0x010a  7e31560a8000             mov r12, r11
+0x0110  420800000000             push_exec r0l, 1
+0x0116  52ad54822900             while_icmp r0l, sgte, r10, r12.cache, 1
+0x011c  8e35848e68000000         isub r13.cache, r2.cache.sx, r4.cache.sx
+0x0124  8e398cae68000000         isub r14.cache, r6.cache.sx, r5.cache.sx
+0x012c  8e3d8eae68000000         isub r15.cache, r7.cache.sx, r5.cache.sx
+0x0134  8e41988e68000000         isub r16.cache, r12.cache.sx, r4.cache.sx
+0x013c  9e3d5e0666000000         imadd r15.cache, r15.sx, r16.sx, 0
+0x0144  9e355ace655e0600         imsub r13.cache, r13.sx, r14.sx, r15.sx
+0x014c  8e39924e68000000         isub r14.cache, r9.cache.sx, r2.cache.sx
+0x0154  8e3d8cee68000000         isub r15.cache, r6.cache.sx, r7.cache.sx
+0x015c  8e4186ee64000000         isub r16.cache, r3.cache.sx, r7.sx
+0x0164  8e45984e64000000         isub r17.cache, r12.cache.sx, r2.sx
+0x016c  9e41602666000000         imadd r16.cache, r16.sx, r17.sx, 0
+0x0174  9e395cee65600600         imsub r14.cache, r14.sx, r15.sx, r16.sx
+0x017c  92355ac2255ac0a5         icmpsel slt, r13.cache, r13, r14, r13, r14
+0x0184  8e39482e69000000         isub r14.cache, r4.sx, r9.cache.sx
+0x018c  8e3d4c6e68000000         isub r15.cache, r6.sx, r3.cache.sx
+0x0194  8e414a6e64000000         isub r16.cache, r5.sx, r3.sx
+0x019c  8e45582e65000000         isub r17.cache, r12.sx, r9.sx
+0x01a4  9e41602666000000         imadd r16.cache, r16.sx, r17.sx, 0
+0x01ac  9e395cee65600600         imsub r14.cache, r14.sx, r15.sx, r16.sx
+0x01b4  12355ca2255ca0a5         icmpsel slt, r13, r14, r13, r14, r13
+0x01bc  52a95a020000             if_icmp r0l, sgte, r13, 0, 1
+0x01c2  1e354c0659580600         imadd r13, r6.sx, u8.sx, r12.sx
+0x01ca  1501a88c11500200         atomic umin, 0, None, u12_u13, r13, signed, r1, 1, 0, 1, 4, 2
+0x01d2  3800                     wait 0
+0x01d4  520e00000000             pop_exec r0l, 1
+0x01da  0e31581600000000         iadd r12, r12.sx, 1
+0x01e2  00c034ffffff             jmp_exec_any pc-204
+0x01e8  520e00000000             pop_exec r0l, 1
+0x01ee  0e194c1600000000         iadd r6, r6.sx, 1
+0x01f6  00c00effffff             jmp_exec_any pc-242
+0x01fc  520e00000000             pop_exec r0l, 1
+0x0202  520e00000000             pop_exec r0l, 1
+0x0208  8800                     stop

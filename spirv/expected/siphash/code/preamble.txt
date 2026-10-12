@@ -1,0 +1,42 @@
+0x0780  0501500d00c87200         device_load 0, i32, xyz, r0_r1_r2, u0_u1, 5, signed, lsl 2
+0x0788  3800                     wait 0
+0x078a  2e0100002c060000         bfi r0, 0, r0.discard, 6
+0x0792  c500803d00803000         uniform_store 2, i16, xy, 0, r0l_r0h, 8
+0x079a  0501f00d01c81200         device_load 0, i32, x, r0, u0_u1, 31, signed, lsl 2
+0x07a2  3800                     wait 0
+0x07a4  c500a03d00803000         uniform_store 2, i16, xy, 0, r0l_r0h, 10
+0x07ac  0501240d00c8f200         device_load 0, i32, xyzw, r0_r1_r2_r3, u2_u3, 2, signed, lsl 2
+0x07b4  3800                     wait 0
+0x07b6  0501004500c0f200         device_load 1, i32, xyzw, r0_r1_r2_r3, r0_r1, 0, signed
+0x07be  0521140d00c8f200         device_load 0, i32, xyzw, r4_r5_r6_r7, u2_u3, 1, signed, lsl 2
+0x07c6  3800                     wait 0
+0x07c8  c520c03d0080f000         uniform_store 2, i16, xyzw, 0, r4l_r4h_r5l_r5h, 12
+0x07d0  e21162646574             mov_imm r4.cache, 1952801890, 0b0
+0x07d6  3801                     wait 1
+0x07d8  7e15868a6c00             xor r5, r3.cache, r4.discard
+0x07de  e21173657479             mov_imm r4.cache, 2037671283, 0b0
+0x07e4  7e11848a6c00             xor r4, r2.cache, r4.discard
+0x07ea  c520003d0180f000         uniform_store 2, i16, xyzw, 0, r4l_r4h_r5l_r5h, 16
+0x07f2  e211656d6f73             mov_imm r4.cache, 1936682341, 0b0
+0x07f8  7e15828a6c00             xor r5, r1.cache, r4.discard
+0x07fe  e21175657370             mov_imm r4.cache, 1886610805, 0b0
+0x0804  7e11808a6c00             xor r4, r0.cache, r4.discard
+0x080a  c520403d0180f000         uniform_store 2, i16, xyzw, 0, r4l_r4h_r5l_r5h, 20
+0x0812  e21161726f64             mov_imm r4.cache, 1685025377, 0b0
+0x0818  7e15c68a6c00             xor r5, r3.discard, r4.discard
+0x081e  e20d6d6f646e             mov_imm r3.cache, 1852075885, 0b0
+0x0824  7e11c46a6c00             xor r4, r2.discard, r3.discard
+0x082a  c520803d0180f000         uniform_store 2, i16, xyzw, 0, r4l_r4h_r5l_r5h, 24
+0x0832  e2096567796c             mov_imm r2.cache, 1819895653, 0b0
+0x0838  7e0dc24a6c00             xor r3, r1.discard, r2.discard
+0x083e  e2056172656e             mov_imm r1.cache, 1852142177, 0b0
+0x0844  7e09c02a6c00             xor r2, r0.discard, r1.discard
+0x084a  c510c03d0180f000         uniform_store 2, i16, xyzw, 0, r2l_r2h_r3l_r3h, 28
+0x0852  0501040d00c0f200         device_load 0, i32, xyzw, r0_r1_r2_r3, u2_u3, 0, signed
+0x085a  3800                     wait 0
+0x085c  c500003d0280f000         uniform_store 2, i16, xyzw, 0, r0l_r0h_r1l_r1h, 32
+0x0864  c500403d0280f000         uniform_store 2, i16, xyzw, 0, r0l_r0h_r1l_r1h, 36
+0x086c  0501340d00c8f200         device_load 0, i32, xyzw, r0_r1_r2_r3, u2_u3, 3, signed, lsl 2
+0x0874  3800                     wait 0
+0x0876  c500803d0280f000         uniform_store 2, i16, xyzw, 0, r0l_r0h_r1l_r1h, 40
+0x087e  8800                     stop

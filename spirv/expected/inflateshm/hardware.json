@@ -1,0 +1,100 @@
+{
+ "workload": "inflateshm",
+ "device": {
+  "device": "Apple M2 Max (G14C B1)",
+  "vendor": 65541,
+  "device_id": 0,
+  "driver_version": 104869894,
+  "api": 4211016,
+  "timestamp_period_ns": 1,
+  "timestamps": 1,
+  "subgroup_size": 32,
+  "shader_object": 1,
+  "executable_properties": 1,
+  "features": {
+   "int64": 1,
+   "float64": 0,
+   "float16": 1,
+   "int8": 1,
+   "buffer_int64_atomics": 0,
+   "shared_int64_atomics": 0,
+   "subgroup_ops": 1791,
+   "buffer_float32_atomic_add": 0,
+   "shared_float32_atomic_add": 0
+  },
+  "limits": {
+   "shared_bytes": 32768,
+   "invocations": 1024,
+   "push_bytes": 256
+  }
+ },
+ "test_recording_not_hardware": false,
+ "recorded_utc": "2026-10-12T22:44:55Z",
+ "inputs_sha256": {
+  "0": "1efaca35cc0b7eef79ca799d4ecfc956e4eca3cb20ee45f2b431561e52d9dba3",
+  "1": "88065209f68d6bf541a4acd3a05acfa4eadd0f8d5f6bc83071ec416162c22d7b"
+ },
+ "numpy": "2.5.4",
+ "small": {
+  "functional_ok": true,
+  "functional": {
+   "bad_streams": 0,
+   "decoder_errors": 0,
+   "streams": 8,
+   "bytes_out": 25851,
+   "ratio": 2.13,
+   "blocks": {
+    "stored": 0,
+    "fixed": 0,
+    "dynamic": 8
+   }
+  },
+  "gpu_ns": {
+   "median": 37917,
+   "min": 33625,
+   "max": 41250
+  },
+  "dispatch_ns_median": [
+   37917
+  ],
+  "repeat": 5
+ },
+ "code_extracted": true,
+ "large": {
+  "functional_ok": true,
+  "functional": {
+   "bad_streams": 0,
+   "decoder_errors": 0,
+   "streams": 2048,
+   "bytes_out": 10413455,
+   "ratio": 1.77,
+   "blocks": {
+    "stored": 274,
+    "fixed": 494,
+    "dynamic": 1280
+   }
+  },
+  "gpu_ns": {
+   "median": 37917.0,
+   "min": 29250,
+   "max": 45292
+  },
+  "dispatch_ns_median": [
+   37917.0
+  ],
+  "repeat": 20,
+  "gflops": null,
+  "gbytes_per_s": 274.63815702719097,
+  "work": {
+   "bytes": 10413455
+  },
+  "out_sha256": {
+   "2": "26fa570845fe9623b8d864b9fb2cf9273fc20c203c927f6389ef2e0070553f67",
+   "3": "50dabcfc3079614bab7de1c2d705e521569741ea5b02e3b0dafc49487ecbd2c9"
+  },
+  "inputs_sha256": {
+   "0": "a083d026ee20f6f68d8de70966656384c4161efddcccbaca0a58a3bd81b52d2e",
+   "1": "17f9504a62eb415eb2fcc714e08adae8bfa4cd06b7be19d61cfccbf09cc66146"
+  }
+ }
+}

@@ -1,0 +1,22 @@
+{
+ "blob": "/save/workspace/AGX-Performance-Simulator/spirv/expected/scrypt/code/shader.bin",
+ "code_start": 2236,
+ "code_size": 15116,
+ "layout": "agx_shader_info",
+ "programs": [
+  {
+   "label": "main",
+   "file": "main.bin",
+   "offset": 0,
+   "bytes": 14884,
+   "instructions": 2053
+  },
+  {
+   "label": "preamble",
+   "file": "preamble.bin",
+   "offset": 14976,
+   "bytes": 124,
+   "instructions": 20
+  }
+ ]
+}

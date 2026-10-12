@@ -1,0 +1,85 @@
+{
+ "workload": "isp",
+ "device": {
+  "device": "Apple M2 Max (G14C B1)",
+  "vendor": 65541,
+  "device_id": 0,
+  "driver_version": 104869894,
+  "api": 4211016,
+  "timestamp_period_ns": 1,
+  "timestamps": 1,
+  "subgroup_size": 32,
+  "shader_object": 1,
+  "executable_properties": 1,
+  "features": {
+   "int64": 1,
+   "float64": 0,
+   "float16": 1,
+   "int8": 1,
+   "buffer_int64_atomics": 0,
+   "shared_int64_atomics": 0,
+   "subgroup_ops": 1791,
+   "buffer_float32_atomic_add": 0,
+   "shared_float32_atomic_add": 0
+  },
+  "limits": {
+   "shared_bytes": 32768,
+   "invocations": 1024,
+   "push_bytes": 256
+  }
+ },
+ "test_recording_not_hardware": false,
+ "recorded_utc": "2026-10-12T22:43:41Z",
+ "inputs_sha256": {
+  "0": "8ca5f19356989db080ecd6ce958ef19f4142661d423e54bec0d07aed8e0253d2",
+  "1": "a28aed822382bb638cd0c73caa85b8aa2c03584aa3fce127121a538eb5c890a1",
+  "2": "240b69ea036d2f8a30d514256e07ee3411e597e575321fdf185f46128a21eac5"
+ },
+ "numpy": "2.5.4",
+ "small": {
+  "functional_ok": true,
+  "functional": {
+   "mismatched_pixels": 0,
+   "mean_abs_err_vs_ideal_8bit": 1.06
+  },
+  "gpu_ns": {
+   "median": 14292,
+   "min": 12958,
+   "max": 16166
+  },
+  "dispatch_ns_median": [
+   14292
+  ],
+  "repeat": 5
+ },
+ "code_extracted": true,
+ "large": {
+  "functional_ok": true,
+  "functional": {
+   "mismatched_pixels": 0,
+   "mean_abs_err_vs_ideal_8bit": 0.53
+  },
+  "gpu_ns": {
+   "median": 33853.5,
+   "min": 31291,
+   "max": 37292
+  },
+  "dispatch_ns_median": [
+   33853.5
+  ],
+  "repeat": 20,
+  "gflops": null,
+  "gbytes_per_s": null,
+  "work": {
+   "items": 12192768
+  },
+  "out_sha256": {
+   "3": "76774ca199e72b4da9d9aca60262d94ba5aec0cedad22df2d5c87c519bb81e8f"
+  },
+  "inputs_sha256": {
+   "0": "33a9b5c78c3bb841460b6906dd93fda1474bea4d56554ee011150c87b2e9a829",
+   "1": "a28aed822382bb638cd0c73caa85b8aa2c03584aa3fce127121a538eb5c890a1",
+   "2": "240b69ea036d2f8a30d514256e07ee3411e597e575321fdf185f46128a21eac5"
+  }
+ }
+}

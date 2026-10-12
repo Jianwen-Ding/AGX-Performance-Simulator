@@ -1,0 +1,30 @@
+0x0200  0501500d00c87200         device_load 0, i32, xyz, r0_r1_r2, u0_u1, 5, signed, lsl 2
+0x0208  3800                     wait 0
+0x020a  2e0100002c080000         bfi r0, 0, r0.discard, 8
+0x0212  c500803d00803000         uniform_store 2, i16, xy, 0, r0l_r0h, 8
+0x021a  0501f00d01c83200         device_load 0, i32, xy, r0_r1, u0_u1, 31, signed, lsl 2
+0x0222  3800                     wait 0
+0x0224  7e09800a8000             mov r2, r0.cache
+0x022a  7e0d820a8000             mov r3, r1.cache
+0x0230  c510a03d0080f000         uniform_store 2, i16, xyzw, 0, r2l_r2h_r3l_r3h, 10
+0x0238  0e01c02668000000         iadd r0, r0.discard.sx, r1.cache.sx
+0x0240  c500e03d00803000         uniform_store 2, i16, xy, 0, r0l_r0h, 14
+0x0248  0e0100286c000000         isub r0, 0, r1.discard.sx
+0x0250  c500003d01803000         uniform_store 2, i16, xy, 0, r0l_r0h, 16
+0x0258  0501040d00c0f200         device_load 0, i32, xyzw, r0_r1_r2_r3, u2_u3, 0, signed
+0x0260  3800                     wait 0
+0x0262  c500403d0180f000         uniform_store 2, i16, xyzw, 0, r0l_r0h_r1l_r1h, 20
+0x026a  0521140d00c8f200         device_load 0, i32, xyzw, r4_r5_r6_r7, u2_u3, 1, signed, lsl 2
+0x0272  3800                     wait 0
+0x0274  c520803d0180f000         uniform_store 2, i16, xyzw, 0, r4l_r4h_r5l_r5h, 24
+0x027c  c500c03d0180f000         uniform_store 2, i16, xyzw, 0, r0l_r0h_r1l_r1h, 28
+0x0284  c520003d0280f000         uniform_store 2, i16, xyzw, 0, r4l_r4h_r5l_r5h, 32
+0x028c  c500403d0280f000         uniform_store 2, i16, xyzw, 0, r0l_r0h_r1l_r1h, 36
+0x0294  c520803d0280f000         uniform_store 2, i16, xyzw, 0, r4l_r4h_r5l_r5h, 40
+0x029c  0501240d00c8f200         device_load 0, i32, xyzw, r0_r1_r2_r3, u2_u3, 2, signed, lsl 2
+0x02a4  3800                     wait 0
+0x02a6  c500c03d0280f000         uniform_store 2, i16, xyzw, 0, r0l_r0h_r1l_r1h, 44
+0x02ae  0501340d00c8f200         device_load 0, i32, xyzw, r0_r1_r2_r3, u2_u3, 3, signed, lsl 2
+0x02b6  3800                     wait 0
+0x02b8  c500003d0380f000         uniform_store 2, i16, xyzw, 0, r0l_r0h_r1l_r1h, 48
+0x02c0  8800                     stop

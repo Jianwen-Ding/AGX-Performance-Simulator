@@ -1,0 +1,23 @@
+0x0000  f2051004                 get_sr r1.cache, sr80 (thread_position_in_grid.x)
+0x0004  0e05c28658000000         iadd r1, r1.discard.sx, u4.sx
+0x000c  62000000                 mov_imm r0l, 0
+0x0010  522842a21800             if_icmp r0l, ult, r1, u5, 1
+0x0016  05112c0e00c01200         device_load 0, i32, x, r2, u6_u7, r1, unsigned
+0x001e  9e05072064000000         imadd r1.cache, 7, r1.sx, 0
+0x0026  fe0d82f28100             and r3.cache, r1.cache, 31
+0x002c  3800                     wait 0
+0x002e  fe0944f28301             and r2.cache, r2, 127
+0x0034  2e11004024460200         bfi r4, 0, r2, r3
+0x003c  2e85002024050000         bfeil r1, 0, r1, 5
+0x0044  5502208c10500800         atomic or, 0, None, u8_u9, r1, signed, r4, 1, 0, 1, 4, 2
+0x004c  3800                     wait 0
+0x004e  522819602400             if_icmp r0l, ult, 25, r3, 1
+0x0054  8e0d206864000000         isub r3.cache, 32, r3.sx
+0x005c  fe0d46f28100             and r3.cache, r3, 31
+0x0062  2e89004024460200         bfeil r2, 0, r2, r3
+0x006a  0e05421600000000         iadd r1, r1.sx, 1
+0x0072  5502208c10500400         atomic or, 0, None, u8_u9, r1, signed, r2, 1, 0, 1, 4, 2
+0x007a  3800                     wait 0
+0x007c  520e00000000             pop_exec r0l, 1
+0x0082  520e00000000             pop_exec r0l, 1
+0x0088  8800                     stop

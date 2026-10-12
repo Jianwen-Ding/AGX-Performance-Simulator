@@ -1,0 +1,105 @@
+{
+ "workload": "trig",
+ "device": {
+  "device": "Apple M2 Max (G14C B1)",
+  "vendor": 65541,
+  "device_id": 0,
+  "driver_version": 104869894,
+  "api": 4211016,
+  "timestamp_period_ns": 1,
+  "timestamps": 1,
+  "subgroup_size": 32,
+  "shader_object": 1,
+  "executable_properties": 1,
+  "features": {
+   "int64": 1,
+   "float64": 0,
+   "float16": 1,
+   "int8": 1,
+   "buffer_int64_atomics": 0,
+   "shared_int64_atomics": 0,
+   "subgroup_ops": 1791,
+   "buffer_float32_atomic_add": 0,
+   "shared_float32_atomic_add": 0
+  },
+  "limits": {
+   "shared_bytes": 32768,
+   "invocations": 1024,
+   "push_bytes": 256
+  }
+ },
+ "test_recording_not_hardware": false,
+ "recorded_utc": "2026-10-12T22:40:42Z",
+ "inputs_sha256": {
+  "0": "59f0137db6258950f376ab2f3bef96e27da8260ed435295ba4f339e537e557df"
+ },
+ "numpy": "2.5.4",
+ "small": {
+  "functional_ok": true,
+  "functional": {
+   "worst_err_over_vulkan_bound": {
+    "sin": 0.0008,
+    "cos": 0.0007,
+    "asin": 0.9318,
+    "acos": 0.851,
+    "atan": 0.0594,
+    "atan2": 0.0841,
+    "exp": 0.5275,
+    "exp2": 0.4596,
+    "log": 0.6032,
+    "log2": 0.4242,
+    "sqrt": 0.3456,
+    "inversesqrt": 0.3747
+   }
+  },
+  "gpu_ns": {
+   "median": 14917,
+   "min": 14083,
+   "max": 15541
+  },
+  "dispatch_ns_median": [
+   14917
+  ],
+  "repeat": 5
+ },
+ "code_extracted": true,
+ "large": {
+  "functional_ok": true,
+  "functional": {
+   "worst_err_over_vulkan_bound": {
+    "sin": 0.0008,
+    "cos": 0.0008,
+    "asin": 0.9355,
+    "acos": 0.9573,
+    "atan": 0.0841,
+    "atan2": 0.0848,
+    "exp": 0.6836,
+    "exp2": 0.6515,
+    "log": 0.8318,
+    "log2": 0.5646,
+    "sqrt": 0.3698,
+    "inversesqrt": 0.3775
+   }
+  },
+  "gpu_ns": {
+   "median": 31041.5,
+   "min": 26875,
+   "max": 36333
+  },
+  "dispatch_ns_median": [
+   31041.5
+  ],
+  "repeat": 20,
+  "gflops": null,
+  "gbytes_per_s": null,
+  "work": {
+   "items": 1048576
+  },
+  "out_sha256": {
+   "1": "d9a5d5a1cf92b706d21047910f82dc6990a6fb75f3485d374e7c0379ae862961"
+  },
+  "inputs_sha256": {
+   "0": "95067c154ef0f1401bfb8b5c9d5f75b611f5e89bdefee6a421ff130a8e0d5d7a"
+  }
+ }
+}

@@ -21,7 +21,8 @@ done
 
 fail() { echo "preflight: $*" >&2; exit 1; }
 echo "== preflight"
-grep -qa apple /proc/device-tree/compatible 2>/dev/null || fail "not an Apple machine running Asahi Linux"
+# In a container /proc/device-tree may be empty; the render node's own compatible string still names the AGX.
+grep -qa apple /proc/device-tree/compatible 2>/dev/null || grep -qs 'apple,agx' /sys/class/drm/renderD128/device/uevent || fail "not an Apple machine running Asahi Linux"
 [ -c /dev/dri/renderD128 ] || fail "no /dev/dri/renderD128 (AGX render node)"
 case "${LD_PRELOAD:-}" in *drm*shim*) fail "LD_PRELOAD has a drm-shim: unset it to use the real GPU" ;; esac
 for t in cc cargo python3 glslangValidator spirv-val; do

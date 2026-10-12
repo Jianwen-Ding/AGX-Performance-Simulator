@@ -1,0 +1,42 @@
+0x0080  f2053000                 get_sr r1.cache, sr48 (thread_position_in_threadgroup.x)
+0x0084  72091004                 get_sr r2, sr80 (thread_position_in_grid.x)
+0x0088  62000000                 mov_imm r0l, 0
+0x008c  7e0d420a8000             mov r3, r1
+0x0092  522c86c21800             while_icmp r0l, ult, r3.cache, u6, 1
+0x0098  0504600e10c01000         device_load 0, i8, x, r0h, u8_u9, r3, unsigned
+0x00a0  7e1086088000             mov r4l, r3l.cache
+0x00a6  3800                     wait 0
+0x00a8  2982080014000000         threadgroup_store i8, x, r0h, r4l, 0
+0x00b0  0e0d460600020000         iadd r3, r3.sx, 128
+0x00b8  00c0daffffff             jmp_exec_any pc-38
+0x00be  520e00000000             pop_exec r0l, 1
+0x00c4  522842a21800             if_icmp r0l, ult, r1, u5, 1
+0x00ca  0504240e10c01000         device_load 0, i8, x, r0h, u10_u11, r1, unsigned
+0x00d2  0e05a42564000000         iadd r1, u18.sx, r1.sx
+0x00da  3800                     wait 0
+0x00dc  2982020014000000         threadgroup_store i8, x, r0h, r1l, 0
+0x00e4  520e00000000             pop_exec r0l, 1
+0x00ea  6800                     threadgroup_barrier
+0x00ec  0e05448658000000         iadd r1, r2.sx, u4.sx
+0x00f4  522842821900             if_icmp r0l, ult, r1, u12, 1
+0x00fa  620900000000             mov_imm r2, 0, 0b0
+0x0100  620d00000000             mov_imm r3, 0, 0b0
+0x0106  621100000000             mov_imm r4, 0, 0b0
+0x010c  420800000000             push_exec r0l, 1
+0x0112  522c84020002             while_icmp r0l, ult, r2.cache, 128, 1
+0x0118  1e15420600840602         imadd r5, r1.sx, 128, r2.cache.sx
+0x0120  0504ac0e10c01000         device_load 0, i8, x, r0h, u14_u15, r5, unsigned
+0x0128  3800                     wait 0
+0x012a  1e1148665a410000         imadd r4, r4.sx, u19.sx, r0h
+0x0132  6982080014000000         threadgroup_load i8, x, r0h, r4l, 0
+0x013a  7e1181088000             mov r4, r0h.cache
+0x0140  0e15a41504000000         iadd r5, u18.sx, r0h
+0x0148  69820a0014000000         threadgroup_load i8, x, r0h, r5l, 0
+0x0150  0e0d461604000000         iadd r3, r3.sx, r0h
+0x0158  0e09441600000000         iadd r2, r2.sx, 1
+0x0160  00c0b2ffffff             jmp_exec_any pc-78
+0x0166  520e00000000             pop_exec r0l, 1
+0x016c  4519200e20c01200         device_store 0, i32, x, r3, u16_u17, r1, unsigned, 0
+0x0174  3800                     wait 0
+0x0176  520e00000000             pop_exec r0l, 1
+0x017c  8800                     stop

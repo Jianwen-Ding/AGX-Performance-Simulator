@@ -1,0 +1,40 @@
+0x0000  f2051004                 get_sr r1.cache, sr80 (thread_position_in_grid.x)
+0x0004  0e05c28658000000         iadd r1, r1.discard.sx, u4.sx
+0x000c  62000000                 mov_imm r0l, 0
+0x0010  522842a21800             if_icmp r0l, ult, r1, u5, 1
+0x0016  20c0f4000000             jmp_exec_none pc+244
+0x001c  0e098c2568000000         iadd r2, u6.sx, r1.cache.sx
+0x0024  0511400e10c01200         device_load 0, i32, x, r2, u8_u9, r2, unsigned
+0x002c  8e0d824659000000         iadd r3.cache, r1.cache.sx, u10.sx
+0x0034  1e13866219000000         imadd r4_r5, r3.cache, u11, 0
+0x003c  9e114aa658000000         imadd r4.cache, r5.sx, u5.sx, 0
+0x0044  8e0d468e64000000         isub r3.cache, r3.sx, r4.sx
+0x004c  8e11868659000000         iadd r4.cache, r3.cache.sx, u12.sx
+0x0054  920d46a218468024         icmpsel ult, r3.cache, r3, u5, r3, r4
+0x005c  8e11868659000000         iadd r4.cache, r3.cache.sx, u12.sx
+0x0064  920d46a218468024         icmpsel ult, r3.cache, r3, u5, r3, r4
+0x006c  0e0d8c6564000000         iadd r3, u6.sx, r3.sx
+0x0074  0519604e10c01200         device_load 1, i32, x, r3, u8_u9, r3, unsigned
+0x007c  8e11012068000000         iadd r4.cache, 1, r1.cache.sx
+0x0084  1e1b886219000000         imadd r6_r7, r4.cache, u11, 0
+0x008c  9e154ea658000000         imadd r5.cache, r7.sx, u5.sx, 0
+0x0094  8e1148ae64000000         isub r4.cache, r4.sx, r5.sx
+0x009c  8e15888659000000         iadd r5.cache, r4.cache.sx, u12.sx
+0x00a4  921148a21848a024         icmpsel ult, r4.cache, r4, u5, r4, r5
+0x00ac  8e15888659000000         iadd r5.cache, r4.cache.sx, u12.sx
+0x00b4  921148a21848a024         icmpsel ult, r4.cache, r4, u5, r4, r5
+0x00bc  0e118c8564000000         iadd r4, u6.sx, r4.sx
+0x00c4  0521800e10c01200         device_load 0, i32, x, r4, u8_u9, r4, unsigned
+0x00cc  3800                     wait 0
+0x00ce  3801                     wait 1
+0x00d0  ae0d4646281f0000         extr r3.cache, r3, r2.cache, 31
+0x00d8  ae11848624010000         extr r4.cache, r2.cache, r4, 1
+0x00e0  fe15848ae800             or r5.cache, r2.cache, r4.cache
+0x00e6  fe094642a400             and r2.cache, r3, r2
+0x00ec  fe09484e6400             nand r2.cache, r4, r2
+0x00f2  7e094a42a400             and r2, r5, r2
+0x00f8  0e0542a659000000         iadd r1, r1.sx, u13.sx
+0x0100  4511200e10c01200         device_store 0, i32, x, r2, u8_u9, r1, unsigned, 0
+0x0108  3800                     wait 0
+0x010a  520e00000000             pop_exec r0l, 1
+0x0110  8800                     stop

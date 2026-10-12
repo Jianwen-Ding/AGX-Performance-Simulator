@@ -1,0 +1,867 @@
+0x0080  f2051004                 get_sr r1.cache, sr80 (thread_position_in_grid.x)
+0x0084  0e05c28658000000         iadd r1, r1.discard.sx, u4.sx
+0x008c  62000000                 mov_imm r0l, 0
+0x0090  52090a010000             if_icmp r0l, nueq, u5l, 0, 1
+0x0096  7e0942f28303             and r2, r1, 255
+0x009c  be890a442400             convert u32_to_f, r2.cache, r2, rte
+0x00a2  7e0d440a8000             mov r3, r2
+0x00a8  620900000000             mov_imm r2, 0, 0b0
+0x00ae  420800000000             push_exec r0l, 1
+0x00b4  52ac84021b00             while_icmp r0l, slt, r2.cache, u24, 1
+0x00ba  0e09441600000000         iadd r2, r2.sx, 1
+0x00c2  3a8d46c2188e0100         fmadd32 r3, r3, u6, u7
+0x00ca  00c0eaffffff             jmp_exec_any pc-22
+0x00d0  520e00000000             pop_exec r0l, 1
+0x00d6  3e8908602400             convert f_to_u32, r2, r3, rtz
+0x00dc  420a00000000             else_fcmp r0l, eq, 0.0, 0.0, 1
+0x00e2  20c0f0190000             jmp_exec_none pc+6640
+0x00e8  520910010000             if_icmp r0l, nueq, u8l, 0, 1
+0x00ee  20c042080000             jmp_exec_none pc+2114
+0x00f4  7e0942728000             and r2, r1, 7
+0x00fa  be890a442400             convert u32_to_f, r2.cache, r2, rte
+0x0100  ba8d842219940100         fmadd32 r3.cache, r2.cache, u9, u10
+0x0108  ba8d462219940100         fmadd32 r3.cache, r3, u9, u10
+0x0110  ba8d462219940100         fmadd32 r3.cache, r3, u9, u10
+0x0118  ba8d462219940100         fmadd32 r3.cache, r3, u9, u10
+0x0120  ba8d462219940100         fmadd32 r3.cache, r3, u9, u10
+0x0128  ba8d462219940100         fmadd32 r3.cache, r3, u9, u10
+0x0130  ba8d462219940100         fmadd32 r3.cache, r3, u9, u10
+0x0138  ba8d462219940100         fmadd32 r3.cache, r3, u9, u10
+0x0140  ba8d462219940100         fmadd32 r3.cache, r3, u9, u10
+0x0148  ba8d462219940100         fmadd32 r3.cache, r3, u9, u10
+0x0150  ba8d462219940100         fmadd32 r3.cache, r3, u9, u10
+0x0158  ba8d462219940100         fmadd32 r3.cache, r3, u9, u10
+0x0160  ba8d462219940100         fmadd32 r3.cache, r3, u9, u10
+0x0168  ba8d462219940100         fmadd32 r3.cache, r3, u9, u10
+0x0170  ba8d462219940100         fmadd32 r3.cache, r3, u9, u10
+0x0178  ba8d462219940100         fmadd32 r3.cache, r3, u9, u10
+0x0180  ba8d462219940100         fmadd32 r3.cache, r3, u9, u10
+0x0188  ba8d462219940100         fmadd32 r3.cache, r3, u9, u10
+0x0190  ba8d462219940100         fmadd32 r3.cache, r3, u9, u10
+0x0198  ba8d462219940100         fmadd32 r3.cache, r3, u9, u10
+0x01a0  ba8d462219940100         fmadd32 r3.cache, r3, u9, u10
+0x01a8  ba8d462219940100         fmadd32 r3.cache, r3, u9, u10
+0x01b0  ba8d462219940100         fmadd32 r3.cache, r3, u9, u10
+0x01b8  ba8d462219940100         fmadd32 r3.cache, r3, u9, u10
+0x01c0  ba8d462219940100         fmadd32 r3.cache, r3, u9, u10
+0x01c8  ba8d462219940100         fmadd32 r3.cache, r3, u9, u10
+0x01d0  ba8d462219940100         fmadd32 r3.cache, r3, u9, u10
+0x01d8  ba8d462219940100         fmadd32 r3.cache, r3, u9, u10
+0x01e0  ba8d462219940100         fmadd32 r3.cache, r3, u9, u10
+0x01e8  ba8d462219940100         fmadd32 r3.cache, r3, u9, u10
+0x01f0  ba8d462219940100         fmadd32 r3.cache, r3, u9, u10
+0x01f8  ba8d462219960100         fmadd32 r3.cache, r3, u9, u11
+0x0200  aa9184020300             fadd32 r4.cache, r2.cache, 1.0
+0x0206  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x020e  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x0216  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x021e  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x0226  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x022e  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x0236  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x023e  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x0246  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x024e  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x0256  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x025e  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x0266  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x026e  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x0276  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x027e  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x0286  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x028e  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x0296  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x029e  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x02a6  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x02ae  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x02b6  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x02be  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x02c6  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x02ce  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x02d6  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x02de  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x02e6  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x02ee  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x02f6  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x02fe  ba8d482219460200         fmadd32 r3.cache, r4, u9, r3
+0x0306  aa9184020001             fadd32 r4.cache, r2.cache, 2.0
+0x030c  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x0314  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x031c  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x0324  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x032c  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x0334  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x033c  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x0344  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x034c  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x0354  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x035c  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x0364  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x036c  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x0374  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x037c  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x0384  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x038c  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x0394  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x039c  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x03a4  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x03ac  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x03b4  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x03bc  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x03c4  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x03cc  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x03d4  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x03dc  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x03e4  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x03ec  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x03f4  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x03fc  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x0404  ba8d482219460200         fmadd32 r3.cache, r4, u9, r3
+0x040c  aa9184820001             fadd32 r4.cache, r2.cache, 3.0
+0x0412  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x041a  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x0422  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x042a  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x0432  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x043a  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x0442  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x044a  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x0452  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x045a  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x0462  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x046a  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x0472  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x047a  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x0482  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x048a  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x0492  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x049a  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x04a2  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x04aa  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x04b2  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x04ba  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x04c2  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x04ca  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x04d2  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x04da  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x04e2  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x04ea  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x04f2  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x04fa  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x0502  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x050a  ba8d482219460200         fmadd32 r3.cache, r4, u9, r3
+0x0512  aa9184020101             fadd32 r4.cache, r2.cache, 4.0
+0x0518  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x0520  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x0528  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x0530  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x0538  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x0540  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x0548  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x0550  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x0558  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x0560  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x0568  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x0570  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x0578  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x0580  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x0588  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x0590  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x0598  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x05a0  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x05a8  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x05b0  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x05b8  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x05c0  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x05c8  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x05d0  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x05d8  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x05e0  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x05e8  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x05f0  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x05f8  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x0600  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x0608  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x0610  ba8d482219460200         fmadd32 r3.cache, r4, u9, r3
+0x0618  aa9184420101             fadd32 r4.cache, r2.cache, 5.0
+0x061e  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x0626  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x062e  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x0636  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x063e  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x0646  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x064e  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x0656  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x065e  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x0666  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x066e  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x0676  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x067e  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x0686  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x068e  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x0696  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x069e  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x06a6  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x06ae  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x06b6  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x06be  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x06c6  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x06ce  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x06d6  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x06de  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x06e6  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x06ee  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x06f6  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x06fe  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x0706  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x070e  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x0716  ba8d482219460200         fmadd32 r3.cache, r4, u9, r3
+0x071e  aa9184820101             fadd32 r4.cache, r2.cache, 6.0
+0x0724  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x072c  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x0734  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x073c  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x0744  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x074c  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x0754  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x075c  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x0764  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x076c  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x0774  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x077c  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x0784  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x078c  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x0794  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x079c  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x07a4  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x07ac  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x07b4  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x07bc  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x07c4  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x07cc  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x07d4  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x07dc  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x07e4  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x07ec  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x07f4  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x07fc  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x0804  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x080c  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x0814  ba91482219940100         fmadd32 r4.cache, r4, u9, u10
+0x081c  ba8d482219460200         fmadd32 r3.cache, r4, u9, r3
+0x0824  aa8944c20101             fadd32 r2.cache, r2, 7.0
+0x082a  ba89442219940100         fmadd32 r2.cache, r2, u9, u10
+0x0832  ba89442219940100         fmadd32 r2.cache, r2, u9, u10
+0x083a  ba89442219940100         fmadd32 r2.cache, r2, u9, u10
+0x0842  ba89442219940100         fmadd32 r2.cache, r2, u9, u10
+0x084a  ba89442219940100         fmadd32 r2.cache, r2, u9, u10
+0x0852  ba89442219940100         fmadd32 r2.cache, r2, u9, u10
+0x085a  ba89442219940100         fmadd32 r2.cache, r2, u9, u10
+0x0862  ba89442219940100         fmadd32 r2.cache, r2, u9, u10
+0x086a  ba89442219940100         fmadd32 r2.cache, r2, u9, u10
+0x0872  ba89442219940100         fmadd32 r2.cache, r2, u9, u10
+0x087a  ba89442219940100         fmadd32 r2.cache, r2, u9, u10
+0x0882  ba89442219940100         fmadd32 r2.cache, r2, u9, u10
+0x088a  ba89442219940100         fmadd32 r2.cache, r2, u9, u10
+0x0892  ba89442219940100         fmadd32 r2.cache, r2, u9, u10
+0x089a  ba89442219940100         fmadd32 r2.cache, r2, u9, u10
+0x08a2  ba89442219940100         fmadd32 r2.cache, r2, u9, u10
+0x08aa  ba89442219940100         fmadd32 r2.cache, r2, u9, u10
+0x08b2  ba89442219940100         fmadd32 r2.cache, r2, u9, u10
+0x08ba  ba89442219940100         fmadd32 r2.cache, r2, u9, u10
+0x08c2  ba89442219940100         fmadd32 r2.cache, r2, u9, u10
+0x08ca  ba89442219940100         fmadd32 r2.cache, r2, u9, u10
+0x08d2  ba89442219940100         fmadd32 r2.cache, r2, u9, u10
+0x08da  ba89442219940100         fmadd32 r2.cache, r2, u9, u10
+0x08e2  ba89442219940100         fmadd32 r2.cache, r2, u9, u10
+0x08ea  ba89442219940100         fmadd32 r2.cache, r2, u9, u10
+0x08f2  ba89442219940100         fmadd32 r2.cache, r2, u9, u10
+0x08fa  ba89442219940100         fmadd32 r2.cache, r2, u9, u10
+0x0902  ba89442219940100         fmadd32 r2.cache, r2, u9, u10
+0x090a  ba89442219940100         fmadd32 r2.cache, r2, u9, u10
+0x0912  ba89442219940100         fmadd32 r2.cache, r2, u9, u10
+0x091a  ba89442219940100         fmadd32 r2.cache, r2, u9, u10
+0x0922  3a89442219460200         fmadd32 r2, r2, u9, r3
+0x092a  3e8908402400             convert f_to_u32, r2, r2, rtz
+0x0930  420a00000000             else_fcmp r0l, eq, 0.0, 0.0, 1
+0x0936  20c096110000             jmp_exec_none pc+4502
+0x093c  520918010000             if_icmp r0l, nueq, u12l, 0, 1
+0x0942  7e0942728000             and r2, r1, 7
+0x0948  3e820a442400             convert u32_to_f, r0h, r2, rte
+0x094e  620900000000             mov_imm r2, 0, 0b0
+0x0954  420800000000             push_exec r0l, 1
+0x095a  52ac84021b00             while_icmp r0l, slt, r2.cache, u24, 1
+0x0960  0e09441600000000         iadd r2, r2.sx, 1
+0x0968  36824190111a0100         fmadd16 r0h, r0h, u12h, u13l
+0x0970  00c0eaffffff             jmp_exec_any pc-22
+0x0976  520e00000000             pop_exec r0l, 1
+0x097c  3e8908100400             convert f_to_u32, r2, r0h, rtz
+0x0982  420a00000000             else_fcmp r0l, eq, 0.0, 0.0, 1
+0x0988  20c03e110000             jmp_exec_none pc+4414
+0x098e  52091b010000             if_icmp r0l, nueq, u13h, 0, 1
+0x0994  20c06c080000             jmp_exec_none pc+2156
+0x099a  7e0942728000             and r2, r1, 7
+0x09a0  be820a442400             convert u32_to_f, r0h.cache, r2, rte
+0x09a6  a68881000300             fadd16 r2l.cache, r0h.cache, 1.0
+0x09ac  b68844c0111d0100         fmadd16 r2l.cache, r2l, u14l, u14h
+0x09b4  b68844c0111d0100         fmadd16 r2l.cache, r2l, u14l, u14h
+0x09bc  b68844c0111d0100         fmadd16 r2l.cache, r2l, u14l, u14h
+0x09c4  b68844c0111d0100         fmadd16 r2l.cache, r2l, u14l, u14h
+0x09cc  b68844c0111d0100         fmadd16 r2l.cache, r2l, u14l, u14h
+0x09d4  b68844c0111d0100         fmadd16 r2l.cache, r2l, u14l, u14h
+0x09dc  b68844c0111d0100         fmadd16 r2l.cache, r2l, u14l, u14h
+0x09e4  b68844c0111d0100         fmadd16 r2l.cache, r2l, u14l, u14h
+0x09ec  b68844c0111d0100         fmadd16 r2l.cache, r2l, u14l, u14h
+0x09f4  b68844c0111d0100         fmadd16 r2l.cache, r2l, u14l, u14h
+0x09fc  b68844c0111d0100         fmadd16 r2l.cache, r2l, u14l, u14h
+0x0a04  b68844c0111d0100         fmadd16 r2l.cache, r2l, u14l, u14h
+0x0a0c  b68844c0111d0100         fmadd16 r2l.cache, r2l, u14l, u14h
+0x0a14  b68844c0111d0100         fmadd16 r2l.cache, r2l, u14l, u14h
+0x0a1c  b68844c0111d0100         fmadd16 r2l.cache, r2l, u14l, u14h
+0x0a24  b68844c0111d0100         fmadd16 r2l.cache, r2l, u14l, u14h
+0x0a2c  b68844c0111d0100         fmadd16 r2l.cache, r2l, u14l, u14h
+0x0a34  b68844c0111d0100         fmadd16 r2l.cache, r2l, u14l, u14h
+0x0a3c  b68844c0111d0100         fmadd16 r2l.cache, r2l, u14l, u14h
+0x0a44  b68844c0111d0100         fmadd16 r2l.cache, r2l, u14l, u14h
+0x0a4c  b68844c0111d0100         fmadd16 r2l.cache, r2l, u14l, u14h
+0x0a54  b68844c0111d0100         fmadd16 r2l.cache, r2l, u14l, u14h
+0x0a5c  b68844c0111d0100         fmadd16 r2l.cache, r2l, u14l, u14h
+0x0a64  b68844c0111d0100         fmadd16 r2l.cache, r2l, u14l, u14h
+0x0a6c  b68844c0111d0100         fmadd16 r2l.cache, r2l, u14l, u14h
+0x0a74  b68844c0111d0100         fmadd16 r2l.cache, r2l, u14l, u14h
+0x0a7c  b68844c0111d0100         fmadd16 r2l.cache, r2l, u14l, u14h
+0x0a84  b68844c0111d0100         fmadd16 r2l.cache, r2l, u14l, u14h
+0x0a8c  b68844c0111d0100         fmadd16 r2l.cache, r2l, u14l, u14h
+0x0a94  b68844c0111d0100         fmadd16 r2l.cache, r2l, u14l, u14h
+0x0a9c  b68844c0111d0100         fmadd16 r2l.cache, r2l, u14l, u14h
+0x0aa4  b68844c0111d0100         fmadd16 r2l.cache, r2l, u14l, u14h
+0x0aac  b68a81c0111d0100         fmadd16 r2h.cache, r0h.cache, u14l, u14h
+0x0ab4  b68a45c0111d0100         fmadd16 r2h.cache, r2h, u14l, u14h
+0x0abc  b68a45c0111d0100         fmadd16 r2h.cache, r2h, u14l, u14h
+0x0ac4  b68a45c0111d0100         fmadd16 r2h.cache, r2h, u14l, u14h
+0x0acc  b68a45c0111d0100         fmadd16 r2h.cache, r2h, u14l, u14h
+0x0ad4  b68a45c0111d0100         fmadd16 r2h.cache, r2h, u14l, u14h
+0x0adc  b68a45c0111d0100         fmadd16 r2h.cache, r2h, u14l, u14h
+0x0ae4  b68a45c0111d0100         fmadd16 r2h.cache, r2h, u14l, u14h
+0x0aec  b68a45c0111d0100         fmadd16 r2h.cache, r2h, u14l, u14h
+0x0af4  b68a45c0111d0100         fmadd16 r2h.cache, r2h, u14l, u14h
+0x0afc  b68a45c0111d0100         fmadd16 r2h.cache, r2h, u14l, u14h
+0x0b04  b68a45c0111d0100         fmadd16 r2h.cache, r2h, u14l, u14h
+0x0b0c  b68a45c0111d0100         fmadd16 r2h.cache, r2h, u14l, u14h
+0x0b14  b68a45c0111d0100         fmadd16 r2h.cache, r2h, u14l, u14h
+0x0b1c  b68a45c0111d0100         fmadd16 r2h.cache, r2h, u14l, u14h
+0x0b24  b68a45c0111d0100         fmadd16 r2h.cache, r2h, u14l, u14h
+0x0b2c  b68a45c0111d0100         fmadd16 r2h.cache, r2h, u14l, u14h
+0x0b34  b68a45c0111d0100         fmadd16 r2h.cache, r2h, u14l, u14h
+0x0b3c  b68a45c0111d0100         fmadd16 r2h.cache, r2h, u14l, u14h
+0x0b44  b68a45c0111d0100         fmadd16 r2h.cache, r2h, u14l, u14h
+0x0b4c  b68a45c0111d0100         fmadd16 r2h.cache, r2h, u14l, u14h
+0x0b54  b68a45c0111d0100         fmadd16 r2h.cache, r2h, u14l, u14h
+0x0b5c  b68a45c0111d0100         fmadd16 r2h.cache, r2h, u14l, u14h
+0x0b64  b68a45c0111d0100         fmadd16 r2h.cache, r2h, u14l, u14h
+0x0b6c  b68a45c0111d0100         fmadd16 r2h.cache, r2h, u14l, u14h
+0x0b74  b68a45c0111d0100         fmadd16 r2h.cache, r2h, u14l, u14h
+0x0b7c  b68a45c0111d0100         fmadd16 r2h.cache, r2h, u14l, u14h
+0x0b84  b68a45c0111d0100         fmadd16 r2h.cache, r2h, u14l, u14h
+0x0b8c  b68a45c0111d0100         fmadd16 r2h.cache, r2h, u14l, u14h
+0x0b94  b68a45c0111d0100         fmadd16 r2h.cache, r2h, u14l, u14h
+0x0b9c  b68a45c0111d0100         fmadd16 r2h.cache, r2h, u14l, u14h
+0x0ba4  b68a45c0111d0100         fmadd16 r2h.cache, r2h, u14l, u14h
+0x0bac  aa8d45400400             fadd32 r3.cache, r2h, r2l
+0x0bb2  a68881000001             fadd16 r2l.cache, r0h.cache, 2.0
+0x0bb8  b68844c0111d0100         fmadd16 r2l.cache, r2l, u14l, u14h
+0x0bc0  b68844c0111d0100         fmadd16 r2l.cache, r2l, u14l, u14h
+0x0bc8  b68844c0111d0100         fmadd16 r2l.cache, r2l, u14l, u14h
+0x0bd0  b68844c0111d0100         fmadd16 r2l.cache, r2l, u14l, u14h
+0x0bd8  b68844c0111d0100         fmadd16 r2l.cache, r2l, u14l, u14h
+0x0be0  b68844c0111d0100         fmadd16 r2l.cache, r2l, u14l, u14h
+0x0be8  b68844c0111d0100         fmadd16 r2l.cache, r2l, u14l, u14h
+0x0bf0  b68844c0111d0100         fmadd16 r2l.cache, r2l, u14l, u14h
+0x0bf8  b68844c0111d0100         fmadd16 r2l.cache, r2l, u14l, u14h
+0x0c00  b68844c0111d0100         fmadd16 r2l.cache, r2l, u14l, u14h
+0x0c08  b68844c0111d0100         fmadd16 r2l.cache, r2l, u14l, u14h
+0x0c10  b68844c0111d0100         fmadd16 r2l.cache, r2l, u14l, u14h
+0x0c18  b68844c0111d0100         fmadd16 r2l.cache, r2l, u14l, u14h
+0x0c20  b68844c0111d0100         fmadd16 r2l.cache, r2l, u14l, u14h
+0x0c28  b68844c0111d0100         fmadd16 r2l.cache, r2l, u14l, u14h
+0x0c30  b68844c0111d0100         fmadd16 r2l.cache, r2l, u14l, u14h
+0x0c38  b68844c0111d0100         fmadd16 r2l.cache, r2l, u14l, u14h
+0x0c40  b68844c0111d0100         fmadd16 r2l.cache, r2l, u14l, u14h
+0x0c48  b68844c0111d0100         fmadd16 r2l.cache, r2l, u14l, u14h
+0x0c50  b68844c0111d0100         fmadd16 r2l.cache, r2l, u14l, u14h
+0x0c58  b68844c0111d0100         fmadd16 r2l.cache, r2l, u14l, u14h
+0x0c60  b68844c0111d0100         fmadd16 r2l.cache, r2l, u14l, u14h
+0x0c68  b68844c0111d0100         fmadd16 r2l.cache, r2l, u14l, u14h
+0x0c70  b68844c0111d0100         fmadd16 r2l.cache, r2l, u14l, u14h
+0x0c78  b68844c0111d0100         fmadd16 r2l.cache, r2l, u14l, u14h
+0x0c80  b68844c0111d0100         fmadd16 r2l.cache, r2l, u14l, u14h
+0x0c88  b68844c0111d0100         fmadd16 r2l.cache, r2l, u14l, u14h
+0x0c90  b68844c0111d0100         fmadd16 r2l.cache, r2l, u14l, u14h
+0x0c98  b68844c0111d0100         fmadd16 r2l.cache, r2l, u14l, u14h
+0x0ca0  b68844c0111d0100         fmadd16 r2l.cache, r2l, u14l, u14h
+0x0ca8  b68844c0111d0100         fmadd16 r2l.cache, r2l, u14l, u14h
+0x0cb0  b68844c0111d0100         fmadd16 r2l.cache, r2l, u14l, u14h
+0x0cb8  aa8946420400             fadd32 r2.cache, r3, r2l
+0x0cbe  a68c81800001             fadd16 r3l.cache, r0h.cache, 3.0
+0x0cc4  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x0ccc  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x0cd4  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x0cdc  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x0ce4  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x0cec  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x0cf4  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x0cfc  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x0d04  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x0d0c  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x0d14  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x0d1c  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x0d24  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x0d2c  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x0d34  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x0d3c  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x0d44  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x0d4c  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x0d54  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x0d5c  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x0d64  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x0d6c  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x0d74  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x0d7c  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x0d84  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x0d8c  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x0d94  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x0d9c  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x0da4  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x0dac  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x0db4  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x0dbc  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x0dc4  aa8944620400             fadd32 r2.cache, r2, r3l
+0x0dca  a68c81000101             fadd16 r3l.cache, r0h.cache, 4.0
+0x0dd0  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x0dd8  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x0de0  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x0de8  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x0df0  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x0df8  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x0e00  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x0e08  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x0e10  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x0e18  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x0e20  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x0e28  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x0e30  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x0e38  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x0e40  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x0e48  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x0e50  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x0e58  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x0e60  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x0e68  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x0e70  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x0e78  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x0e80  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x0e88  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x0e90  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x0e98  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x0ea0  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x0ea8  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x0eb0  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x0eb8  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x0ec0  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x0ec8  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x0ed0  aa8944620400             fadd32 r2.cache, r2, r3l
+0x0ed6  a68c81400101             fadd16 r3l.cache, r0h.cache, 5.0
+0x0edc  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x0ee4  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x0eec  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x0ef4  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x0efc  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x0f04  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x0f0c  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x0f14  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x0f1c  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x0f24  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x0f2c  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x0f34  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x0f3c  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x0f44  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x0f4c  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x0f54  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x0f5c  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x0f64  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x0f6c  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x0f74  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x0f7c  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x0f84  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x0f8c  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x0f94  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x0f9c  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x0fa4  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x0fac  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x0fb4  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x0fbc  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x0fc4  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x0fcc  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x0fd4  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x0fdc  aa8944620400             fadd32 r2.cache, r2, r3l
+0x0fe2  a68c81800101             fadd16 r3l.cache, r0h.cache, 6.0
+0x0fe8  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x0ff0  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x0ff8  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x1000  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x1008  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x1010  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x1018  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x1020  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x1028  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x1030  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x1038  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x1040  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x1048  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x1050  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x1058  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x1060  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x1068  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x1070  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x1078  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x1080  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x1088  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x1090  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x1098  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x10a0  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x10a8  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x10b0  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x10b8  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x10c0  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x10c8  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x10d0  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x10d8  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x10e0  b68c46c0111d0100         fmadd16 r3l.cache, r3l, u14l, u14h
+0x10e8  aa8944620400             fadd32 r2.cache, r2, r3l
+0x10ee  a68241c00101             fadd16 r0h.cache, r0h, 7.0
+0x10f4  b68241c0111d0100         fmadd16 r0h.cache, r0h, u14l, u14h
+0x10fc  b68241c0111d0100         fmadd16 r0h.cache, r0h, u14l, u14h
+0x1104  b68241c0111d0100         fmadd16 r0h.cache, r0h, u14l, u14h
+0x110c  b68241c0111d0100         fmadd16 r0h.cache, r0h, u14l, u14h
+0x1114  b68241c0111d0100         fmadd16 r0h.cache, r0h, u14l, u14h
+0x111c  b68241c0111d0100         fmadd16 r0h.cache, r0h, u14l, u14h
+0x1124  b68241c0111d0100         fmadd16 r0h.cache, r0h, u14l, u14h
+0x112c  b68241c0111d0100         fmadd16 r0h.cache, r0h, u14l, u14h
+0x1134  b68241c0111d0100         fmadd16 r0h.cache, r0h, u14l, u14h
+0x113c  b68241c0111d0100         fmadd16 r0h.cache, r0h, u14l, u14h
+0x1144  b68241c0111d0100         fmadd16 r0h.cache, r0h, u14l, u14h
+0x114c  b68241c0111d0100         fmadd16 r0h.cache, r0h, u14l, u14h
+0x1154  b68241c0111d0100         fmadd16 r0h.cache, r0h, u14l, u14h
+0x115c  b68241c0111d0100         fmadd16 r0h.cache, r0h, u14l, u14h
+0x1164  b68241c0111d0100         fmadd16 r0h.cache, r0h, u14l, u14h
+0x116c  b68241c0111d0100         fmadd16 r0h.cache, r0h, u14l, u14h
+0x1174  b68241c0111d0100         fmadd16 r0h.cache, r0h, u14l, u14h
+0x117c  b68241c0111d0100         fmadd16 r0h.cache, r0h, u14l, u14h
+0x1184  b68241c0111d0100         fmadd16 r0h.cache, r0h, u14l, u14h
+0x118c  b68241c0111d0100         fmadd16 r0h.cache, r0h, u14l, u14h
+0x1194  b68241c0111d0100         fmadd16 r0h.cache, r0h, u14l, u14h
+0x119c  b68241c0111d0100         fmadd16 r0h.cache, r0h, u14l, u14h
+0x11a4  b68241c0111d0100         fmadd16 r0h.cache, r0h, u14l, u14h
+0x11ac  b68241c0111d0100         fmadd16 r0h.cache, r0h, u14l, u14h
+0x11b4  b68241c0111d0100         fmadd16 r0h.cache, r0h, u14l, u14h
+0x11bc  b68241c0111d0100         fmadd16 r0h.cache, r0h, u14l, u14h
+0x11c4  b68241c0111d0100         fmadd16 r0h.cache, r0h, u14l, u14h
+0x11cc  b68241c0111d0100         fmadd16 r0h.cache, r0h, u14l, u14h
+0x11d4  b68241c0111d0100         fmadd16 r0h.cache, r0h, u14l, u14h
+0x11dc  b68241c0111d0100         fmadd16 r0h.cache, r0h, u14l, u14h
+0x11e4  b68241c0111d0100         fmadd16 r0h.cache, r0h, u14l, u14h
+0x11ec  b68241c0111d0100         fmadd16 r0h.cache, r0h, u14l, u14h
+0x11f4  2a8941402400             fadd32 r2, r0h, r2
+0x11fa  3e8908402400             convert f_to_u32, r2, r2, rtz
+0x1200  420a00000000             else_fcmp r0l, eq, 0.0, 0.0, 1
+0x1206  20c0ba080000             jmp_exec_none pc+2234
+0x120c  52091e010000             if_icmp r0l, nueq, u15l, 0, 1
+0x1212  620900000000             mov_imm r2, 0, 0b0
+0x1218  7e0d420a8000             mov r3, r1
+0x121e  420800000000             push_exec r0l, 1
+0x1224  52ac84021b00             while_icmp r0l, slt, r2.cache, u24, 1
+0x122a  0e09441600000000         iadd r2, r2.sx, 1
+0x1232  1e0d46065aa20500         imadd r3, r3.sx, u16.sx, u17.sx
+0x123a  00c0eaffffff             jmp_exec_any pc-22
+0x1240  520e00000000             pop_exec r0l, 1
+0x1246  7e09460a8000             mov r2, r3
+0x124c  420a00000000             else_fcmp r0l, eq, 0.0, 0.0, 1
+0x1252  20c068080000             jmp_exec_none pc+2152
+0x1258  8e09012068000000         iadd r2.cache, 1, r1.cache.sx
+0x1260  9e0944465aa60500         imadd r2.cache, r2.sx, u18.sx, u19.sx
+0x1268  9e0944465aa60500         imadd r2.cache, r2.sx, u18.sx, u19.sx
+0x1270  9e0944465aa60500         imadd r2.cache, r2.sx, u18.sx, u19.sx
+0x1278  9e0944465aa60500         imadd r2.cache, r2.sx, u18.sx, u19.sx
+0x1280  9e0944465aa60500         imadd r2.cache, r2.sx, u18.sx, u19.sx
+0x1288  9e0944465aa60500         imadd r2.cache, r2.sx, u18.sx, u19.sx
+0x1290  9e0944465aa60500         imadd r2.cache, r2.sx, u18.sx, u19.sx
+0x1298  9e0944465aa60500         imadd r2.cache, r2.sx, u18.sx, u19.sx
+0x12a0  9e0944465aa60500         imadd r2.cache, r2.sx, u18.sx, u19.sx
+0x12a8  9e0944465aa60500         imadd r2.cache, r2.sx, u18.sx, u19.sx
+0x12b0  9e0944465aa60500         imadd r2.cache, r2.sx, u18.sx, u19.sx
+0x12b8  9e0944465aa60500         imadd r2.cache, r2.sx, u18.sx, u19.sx
+0x12c0  9e0944465aa60500         imadd r2.cache, r2.sx, u18.sx, u19.sx
+0x12c8  9e0944465aa60500         imadd r2.cache, r2.sx, u18.sx, u19.sx
+0x12d0  9e0944465aa60500         imadd r2.cache, r2.sx, u18.sx, u19.sx
+0x12d8  9e0944465aa60500         imadd r2.cache, r2.sx, u18.sx, u19.sx
+0x12e0  9e0944465aa60500         imadd r2.cache, r2.sx, u18.sx, u19.sx
+0x12e8  9e0944465aa60500         imadd r2.cache, r2.sx, u18.sx, u19.sx
+0x12f0  9e0944465aa60500         imadd r2.cache, r2.sx, u18.sx, u19.sx
+0x12f8  9e0944465aa60500         imadd r2.cache, r2.sx, u18.sx, u19.sx
+0x1300  9e0944465aa60500         imadd r2.cache, r2.sx, u18.sx, u19.sx
+0x1308  9e0944465aa60500         imadd r2.cache, r2.sx, u18.sx, u19.sx
+0x1310  9e0944465aa60500         imadd r2.cache, r2.sx, u18.sx, u19.sx
+0x1318  9e0944465aa60500         imadd r2.cache, r2.sx, u18.sx, u19.sx
+0x1320  9e0944465aa60500         imadd r2.cache, r2.sx, u18.sx, u19.sx
+0x1328  9e0944465aa60500         imadd r2.cache, r2.sx, u18.sx, u19.sx
+0x1330  9e0944465aa60500         imadd r2.cache, r2.sx, u18.sx, u19.sx
+0x1338  9e0944465aa60500         imadd r2.cache, r2.sx, u18.sx, u19.sx
+0x1340  9e0944465aa60500         imadd r2.cache, r2.sx, u18.sx, u19.sx
+0x1348  9e0944465aa60500         imadd r2.cache, r2.sx, u18.sx, u19.sx
+0x1350  9e0944465aa60500         imadd r2.cache, r2.sx, u18.sx, u19.sx
+0x1358  9e0944465aa60500         imadd r2.cache, r2.sx, u18.sx, u19.sx
+0x1360  9e0d82465aa60500         imadd r3.cache, r1.cache.sx, u18.sx, u19.sx
+0x1368  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x1370  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x1378  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x1380  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x1388  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x1390  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x1398  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x13a0  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x13a8  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x13b0  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x13b8  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x13c0  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x13c8  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x13d0  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x13d8  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x13e0  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x13e8  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x13f0  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x13f8  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x1400  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x1408  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x1410  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x1418  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x1420  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x1428  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x1430  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x1438  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x1440  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x1448  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x1450  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x1458  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x1460  fe09464a6400             xor r2.cache, r3, r2
+0x1466  8e0d022068000000         iadd r3.cache, 2, r1.cache.sx
+0x146e  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x1476  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x147e  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x1486  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x148e  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x1496  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x149e  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x14a6  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x14ae  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x14b6  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x14be  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x14c6  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x14ce  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x14d6  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x14de  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x14e6  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x14ee  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x14f6  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x14fe  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x1506  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x150e  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x1516  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x151e  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x1526  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x152e  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x1536  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x153e  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x1546  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x154e  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x1556  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x155e  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x1566  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x156e  fe09446a6400             xor r2.cache, r2, r3
+0x1574  8e0d032068000000         iadd r3.cache, 3, r1.cache.sx
+0x157c  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x1584  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x158c  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x1594  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x159c  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x15a4  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x15ac  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x15b4  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x15bc  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x15c4  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x15cc  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x15d4  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x15dc  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x15e4  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x15ec  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x15f4  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x15fc  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x1604  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x160c  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x1614  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x161c  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x1624  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x162c  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x1634  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x163c  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x1644  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x164c  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x1654  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x165c  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x1664  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x166c  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x1674  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x167c  fe09446a6400             xor r2.cache, r2, r3
+0x1682  8e0d042068000000         iadd r3.cache, 4, r1.cache.sx
+0x168a  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x1692  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x169a  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x16a2  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x16aa  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x16b2  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x16ba  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x16c2  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x16ca  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x16d2  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x16da  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x16e2  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x16ea  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x16f2  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x16fa  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x1702  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x170a  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x1712  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x171a  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x1722  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x172a  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x1732  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x173a  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x1742  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x174a  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x1752  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x175a  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x1762  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x176a  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x1772  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x177a  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x1782  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x178a  fe09446a6400             xor r2.cache, r2, r3
+0x1790  8e0d052068000000         iadd r3.cache, 5, r1.cache.sx
+0x1798  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x17a0  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x17a8  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x17b0  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x17b8  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x17c0  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x17c8  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x17d0  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x17d8  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x17e0  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x17e8  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x17f0  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x17f8  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x1800  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x1808  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x1810  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x1818  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x1820  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x1828  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x1830  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x1838  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x1840  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x1848  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x1850  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x1858  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x1860  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x1868  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x1870  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x1878  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x1880  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x1888  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x1890  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x1898  fe09446a6400             xor r2.cache, r2, r3
+0x189e  8e0d062068000000         iadd r3.cache, 6, r1.cache.sx
+0x18a6  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x18ae  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x18b6  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x18be  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x18c6  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x18ce  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x18d6  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x18de  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x18e6  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x18ee  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x18f6  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x18fe  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x1906  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x190e  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x1916  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x191e  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x1926  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x192e  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x1936  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x193e  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x1946  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x194e  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x1956  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x195e  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x1966  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x196e  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x1976  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x197e  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x1986  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x198e  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x1996  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x199e  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x19a6  fe09446a6400             xor r2.cache, r2, r3
+0x19ac  8e0d072064000000         iadd r3.cache, 7, r1.sx
+0x19b4  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x19bc  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x19c4  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x19cc  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x19d4  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x19dc  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x19e4  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x19ec  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x19f4  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x19fc  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x1a04  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x1a0c  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x1a14  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x1a1c  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x1a24  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x1a2c  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x1a34  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x1a3c  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x1a44  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x1a4c  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x1a54  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x1a5c  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x1a64  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x1a6c  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x1a74  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x1a7c  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x1a84  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x1a8c  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x1a94  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x1a9c  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x1aa4  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x1aac  9e0d46465aa60500         imadd r3.cache, r3.sx, u18.sx, u19.sx
+0x1ab4  7e09464a6400             xor r2, r3, r2
+0x1aba  520e00000000             pop_exec r0l, 1
+0x1ac0  520e00000000             pop_exec r0l, 1
+0x1ac6  520e00000000             pop_exec r0l, 1
+0x1acc  520e00000000             pop_exec r0l, 1
+0x1ad2  520e00000000             pop_exec r0l, 1
+0x1ad8  0e05a82564000000         iadd r1, u20.sx, r1.sx
+0x1ae0  45112c0e20c01200         device_store 0, i32, x, r2, u22_u23, r1, unsigned, 0
+0x1ae8  8800                     stop

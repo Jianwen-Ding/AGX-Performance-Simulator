@@ -1,0 +1,93 @@
+{
+ "workload": "swalignpad",
+ "device": {
+  "device": "Apple M2 Max (G14C B1)",
+  "vendor": 65541,
+  "device_id": 0,
+  "driver_version": 104869894,
+  "api": 4211016,
+  "timestamp_period_ns": 1,
+  "timestamps": 1,
+  "subgroup_size": 32,
+  "shader_object": 1,
+  "executable_properties": 1,
+  "features": {
+   "int64": 1,
+   "float64": 0,
+   "float16": 1,
+   "int8": 1,
+   "buffer_int64_atomics": 0,
+   "shared_int64_atomics": 0,
+   "subgroup_ops": 1791,
+   "buffer_float32_atomic_add": 0,
+   "shared_float32_atomic_add": 0
+  },
+  "limits": {
+   "shared_bytes": 32768,
+   "invocations": 1024,
+   "push_bytes": 256
+  }
+ },
+ "test_recording_not_hardware": false,
+ "recorded_utc": "2026-10-12T22:44:31Z",
+ "inputs_sha256": {
+  "0": "ee1cb3d8f47d7814fd040d099b15e2afa970faf5074301968cf3272afb58aeaa",
+  "1": "c11a06497ce845005016120c95235eb08aa8ac3cefd1a3bc69f6266b963980a1",
+  "specs": "f7b8b8c40920b7b262fcc7573fb150f6b5a62c24d009105ffbc433472adb6c6f"
+ },
+ "numpy": "2.5.4",
+ "small": {
+  "functional_ok": true,
+  "functional": {
+   "bad_windows": 0,
+   "windows": 128,
+   "planted": 10,
+   "planted_found": 1.0,
+   "false_hits": 0,
+   "max_random_score": 16
+  },
+  "gpu_ns": {
+   "median": 27833,
+   "min": 26250,
+   "max": 30875
+  },
+  "dispatch_ns_median": [
+   27833
+  ],
+  "repeat": 5
+ },
+ "code_extracted": true,
+ "large": {
+  "functional_ok": true,
+  "functional": {
+   "bad_windows": 0,
+   "windows": 16384,
+   "planted": 1036,
+   "planted_found": 1.0,
+   "false_hits": 0,
+   "max_random_score": 28
+  },
+  "gpu_ns": {
+   "median": 30166.5,
+   "min": 26875,
+   "max": 32250
+  },
+  "dispatch_ns_median": [
+   30166.5
+  ],
+  "repeat": 20,
+  "gflops": null,
+  "gbytes_per_s": null,
+  "work": {
+   "cells": 536870912
+  },
+  "out_sha256": {
+   "2": "bb885a3ce6153f2478140af2eef3b611c034e41422c7364bf42826098183e749"
+  },
+  "inputs_sha256": {
+   "0": "61668664f8943ea646e8ae3bd82be8951352d7d27522e9f401ef753fb8c1814f",
+   "1": "86dd9c625c283098704678d377aad49d12f74b42fa65b236710d5f93a9b8d9d8",
+   "specs": "f7b8b8c40920b7b262fcc7573fb150f6b5a62c24d009105ffbc433472adb6c6f"
+  }
+ }
+}

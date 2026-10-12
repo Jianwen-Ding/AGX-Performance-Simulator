@@ -1,0 +1,136 @@
+{
+ "workload": "advect",
+ "device": {
+  "device": "Apple M2 Max (G14C B1)",
+  "vendor": 65541,
+  "device_id": 0,
+  "driver_version": 104869894,
+  "api": 4211016,
+  "timestamp_period_ns": 1,
+  "timestamps": 1,
+  "subgroup_size": 32,
+  "shader_object": 1,
+  "executable_properties": 1,
+  "features": {
+   "int64": 1,
+   "float64": 0,
+   "float16": 1,
+   "int8": 1,
+   "buffer_int64_atomics": 0,
+   "shared_int64_atomics": 0,
+   "subgroup_ops": 1791,
+   "buffer_float32_atomic_add": 0,
+   "shared_float32_atomic_add": 0
+  },
+  "limits": {
+   "shared_bytes": 32768,
+   "invocations": 1024,
+   "push_bytes": 256
+  }
+ },
+ "test_recording_not_hardware": false,
+ "recorded_utc": "2026-10-12T22:41:55Z",
+ "inputs_sha256": {
+  "0": "452f4b26e9404a3859b4f294a57eeb703f0b6175c92e797d9988b059d51ded74",
+  "1": "787a910f26319f96ee8c6f1db2f0d8aca26b8f91e62da0ea3cb241cfff091e76"
+ },
+ "numpy": "2.5.4",
+ "small": {
+  "functional_ok": true,
+  "functional": {
+   "max_abs_err": 5.78782665505706e-06,
+   "bound": 6.67572021484375e-05,
+   "dye_mass_in": 734.0,
+   "dye_mass_out": 728.9241943359375
+  },
+  "gpu_ns": {
+   "median": 416292,
+   "min": 408334,
+   "max": 452208
+  },
+  "dispatch_ns_median": [
+   23333,
+   12958,
+   53542,
+   11375,
+   10791,
+   10416,
+   11584,
+   11333,
+   11542,
+   11500
+  ],
+  "repeat": 5
+ },
+ "code_extracted": true,
+ "large": {
+  "functional_ok": true,
+  "functional": {
+   "max_abs_err": 0.00027430572671183207,
+   "bound": 0.00492095947265625,
+   "dye_mass_in": 333532.0,
+   "dye_mass_out": 333511.71875
+  },
+  "gpu_ns": {
+   "median": 3281500.0,
+   "min": 3135834,
+   "max": 3394458
+  },
+  "dispatch_ns_median": [
+   18583.5,
+   12333.5,
+   12708.0,
+   12729.0,
+   11833.0,
+   12124.5,
+   12625.0,
+   11250.0,
+   12104.5,
+   11750.0,
+   11708.0,
+   11146.0,
+   12396.0,
+   11937.5,
+   13625.0,
+   11854.0,
+   12270.5,
+   13104.0,
+   14125.0,
+   15437.5,
+   21750.0,
+   23458.0,
+   22354.5,
+   23333.0,
+   24333.0,
+   24563.0,
+   23875.0,
+   23479.5,
+   22354.0,
+   23312.0,
+   22791.5,
+   24041.5,
+   23916.5,
+   23833.5,
+   23146.0,
+   24416.5,
+   24417.0,
+   23791.5,
+   24874.5,
+   24396.0
+  ],
+  "repeat": 20,
+  "gflops": null,
+  "gbytes_per_s": null,
+  "work": {
+   "cell_updates": 41943040
+  },
+  "out_sha256": {
+   "0": "82e7c318cbfd02e3aeb9ccab497d9d1312e3026d549cf3c82e7446303b969f93",
+   "2": "b2af12a1f9a071ea9fba7342b956a1f093c3ff3ca81a94b1eac9fb880583d40f"
+  },
+  "inputs_sha256": {
+   "0": "6665bb2c28d1910314afb0de8c129c9255a0f84a3f60bce1d43d0649f2223712",
+   "1": "e2102382841386f5298163eb006dcdca133b2349b170e437e1009f05d23647a9"
+  }
+ }
+}

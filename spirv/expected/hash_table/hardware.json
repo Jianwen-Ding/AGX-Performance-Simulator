@@ -1,0 +1,92 @@
+{
+ "workload": "hash_table",
+ "device": {
+  "device": "Apple M2 Max (G14C B1)",
+  "vendor": 65541,
+  "device_id": 0,
+  "driver_version": 104869894,
+  "api": 4211016,
+  "timestamp_period_ns": 1,
+  "timestamps": 1,
+  "subgroup_size": 32,
+  "shader_object": 1,
+  "executable_properties": 1,
+  "features": {
+   "int64": 1,
+   "float64": 0,
+   "float16": 1,
+   "int8": 1,
+   "buffer_int64_atomics": 0,
+   "shared_int64_atomics": 0,
+   "subgroup_ops": 1791,
+   "buffer_float32_atomic_add": 0,
+   "shared_float32_atomic_add": 0
+  },
+  "limits": {
+   "shared_bytes": 32768,
+   "invocations": 1024,
+   "push_bytes": 256
+  }
+ },
+ "test_recording_not_hardware": false,
+ "recorded_utc": "2026-10-12T22:40:53Z",
+ "inputs_sha256": {
+  "0": "8b0f3b25cd7c2d1785fcde469336986586944b474909c7377c54e6905d650d57",
+  "1": "fb3437d3b50b764a77c963ba17bfaf42ba0708eee5c77a7cd691f8a5ef195cbe",
+  "2": "2d864c0b789a43214eee8524d3182075125e5ca2cd527f3582ec87ffd94076bc",
+  "3": "b6f9ad3d3fbe4e092dd3adac9c596ea8db18dfcfd1e234b587b1b7e57cfdc8a8"
+ },
+ "numpy": "2.5.4",
+ "small": {
+  "functional_ok": true,
+  "functional": {
+   "lookup_mismatches": 0,
+   "occupied_slots": 2000,
+   "hits": 942
+  },
+  "gpu_ns": {
+   "median": 60916,
+   "min": 58458,
+   "max": 63834
+  },
+  "dispatch_ns_median": [
+   15000,
+   11708
+  ],
+  "repeat": 5
+ },
+ "code_extracted": true,
+ "large": {
+  "functional_ok": true,
+  "functional": {
+   "lookup_mismatches": 0,
+   "occupied_slots": 1048576,
+   "hits": 525028
+  },
+  "gpu_ns": {
+   "median": 339791.0,
+   "min": 337625,
+   "max": 345042
+  },
+  "dispatch_ns_median": [
+   30895.5,
+   22812.5
+  ],
+  "repeat": 20,
+  "gflops": null,
+  "gbytes_per_s": null,
+  "work": {
+   "ops": 2097152
+  },
+  "out_sha256": {
+   "2": "94092d16d12e7b7691adf2868cab4f6a676eadb44983d1b2a644505099d0c928",
+   "4": "ad50e6474ed0bc6f73d59a34df735aaede7196f9389fcd36423244ecd1546a47"
+  },
+  "inputs_sha256": {
+   "0": "4bcdceaba8f200f10dd08eb4d6baece65321dd72b54d3138182094a776375d22",
+   "1": "afa503056fa6e0132bed2b4fe8bec10a75870b6ca9b910546743c677967658c8",
+   "2": "dffab0dd410657cb30c7b2fd7f2586a4792e8472e58882b3532581f8111a646d",
+   "3": "907319e597d6afd3b63f996feae20be1d0c6ad800741676070da0cae3f0b1378"
+  }
+ }
+}

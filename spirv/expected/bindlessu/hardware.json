@@ -1,0 +1,95 @@
+{
+ "workload": "bindlessu",
+ "device": {
+  "device": "Apple M2 Max (G14C B1)",
+  "vendor": 65541,
+  "device_id": 0,
+  "driver_version": 104869894,
+  "api": 4211016,
+  "timestamp_period_ns": 1,
+  "timestamps": 1,
+  "subgroup_size": 32,
+  "shader_object": 1,
+  "executable_properties": 1,
+  "features": {
+   "int64": 1,
+   "float64": 0,
+   "float16": 1,
+   "int8": 1,
+   "buffer_int64_atomics": 0,
+   "shared_int64_atomics": 0,
+   "subgroup_ops": 1791,
+   "buffer_float32_atomic_add": 0,
+   "shared_float32_atomic_add": 0
+  },
+  "limits": {
+   "shared_bytes": 32768,
+   "invocations": 1024,
+   "push_bytes": 256
+  }
+ },
+ "test_recording_not_hardware": false,
+ "recorded_utc": "2026-10-12T22:42:47Z",
+ "inputs_sha256": {
+  "1": "ad4930f50c3d411d7565e4f1f5e9e55f70a5db713f63374d3bb75d969e3080a5",
+  "a0_0": "7ffd596bcc64ada4aa90efd84abf6f450ae3b8b9910e666317038f941784203f",
+  "a0_1": "f2150d6e799387fdd83c98073b130d238b0b94045b3793def533869551d2670e",
+  "a0_2": "f8d57bb50d2c6615db47704c48459fd2fced954ba516a17a0305118e594c9603",
+  "a0_3": "9c1d1f60b66c1899b6442101325554ce3d4c3d98448bf843f916842a8bca73db",
+  "a0_4": "ea670d3ee50e3e19f7811940be48dee68939601e31b43a7e7a1b499b7b1c9085",
+  "a0_5": "e19e3ba81de4450fc2b92b67eee2ab7690e1d02154160f59aa9c8038f567761d",
+  "a0_6": "77052411334c5213fba1e03eea98587f2e64587602673e3d45f0569e7803087b",
+  "a0_7": "350bfb36c679eabde8af26b4e70f639e875486fe12aaed114b7ae2f47188c3e7"
+ },
+ "numpy": "2.5.4",
+ "small": {
+  "functional_ok": true,
+  "functional": {
+   "mismatches": 0
+  },
+  "gpu_ns": {
+   "median": 15292,
+   "min": 12083,
+   "max": 15917
+  },
+  "dispatch_ns_median": [
+   15292
+  ],
+  "repeat": 5
+ },
+ "code_extracted": true,
+ "large": {
+  "functional_ok": true,
+  "functional": {
+   "mismatches": 0
+  },
+  "gpu_ns": {
+   "median": 31021.0,
+   "min": 23541,
+   "max": 36125
+  },
+  "dispatch_ns_median": [
+   31021.0
+  ],
+  "repeat": 20,
+  "gflops": null,
+  "gbytes_per_s": null,
+  "work": {
+   "lookups": 4194304
+  },
+  "out_sha256": {
+   "2": "0854741670b28de149d7ea49587ba49303adb196e2ee8f9d91259854aa5d5359"
+  },
+  "inputs_sha256": {
+   "1": "d17ee6f8843026faf0dfb9cd83a8d9ce7e8a287561ec17388d7d4e62b717582d",
+   "a0_0": "7ffd596bcc64ada4aa90efd84abf6f450ae3b8b9910e666317038f941784203f",
+   "a0_1": "f2150d6e799387fdd83c98073b130d238b0b94045b3793def533869551d2670e",
+   "a0_2": "f8d57bb50d2c6615db47704c48459fd2fced954ba516a17a0305118e594c9603",
+   "a0_3": "9c1d1f60b66c1899b6442101325554ce3d4c3d98448bf843f916842a8bca73db",
+   "a0_4": "ea670d3ee50e3e19f7811940be48dee68939601e31b43a7e7a1b499b7b1c9085",
+   "a0_5": "e19e3ba81de4450fc2b92b67eee2ab7690e1d02154160f59aa9c8038f567761d",
+   "a0_6": "77052411334c5213fba1e03eea98587f2e64587602673e3d45f0569e7803087b",
+   "a0_7": "350bfb36c679eabde8af26b4e70f639e875486fe12aaed114b7ae2f47188c3e7"
+  }
+ }
+}

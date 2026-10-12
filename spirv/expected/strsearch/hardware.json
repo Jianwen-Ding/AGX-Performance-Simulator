@@ -1,0 +1,90 @@
+{
+ "workload": "strsearch",
+ "device": {
+  "device": "Apple M2 Max (G14C B1)",
+  "vendor": 65541,
+  "device_id": 0,
+  "driver_version": 104869894,
+  "api": 4211016,
+  "timestamp_period_ns": 1,
+  "timestamps": 1,
+  "subgroup_size": 32,
+  "shader_object": 1,
+  "executable_properties": 1,
+  "features": {
+   "int64": 1,
+   "float64": 0,
+   "float16": 1,
+   "int8": 1,
+   "buffer_int64_atomics": 0,
+   "shared_int64_atomics": 0,
+   "subgroup_ops": 1791,
+   "buffer_float32_atomic_add": 0,
+   "shared_float32_atomic_add": 0
+  },
+  "limits": {
+   "shared_bytes": 32768,
+   "invocations": 1024,
+   "push_bytes": 256
+  }
+ },
+ "test_recording_not_hardware": false,
+ "recorded_utc": "2026-10-12T22:41:26Z",
+ "inputs_sha256": {
+  "0": "dfa4b2ceea045031a9ade707647c903f424bb78ccd1a84f066aa95f3934d5453",
+  "1": "d7d0a17dfe6de6c700b3e7b4f5c8f28e7e2a3fbb92656997a536d08e17a33aa6",
+  "3": "5981693c8df83eea16da42a0f748facb299546688544a0c2887ed5ffbf086e86"
+ },
+ "numpy": "2.5.4",
+ "small": {
+  "functional_ok": true,
+  "functional": {
+   "flag_mismatches": 0,
+   "count": 4,
+   "ref_count": 4,
+   "first": 186
+  },
+  "gpu_ns": {
+   "median": 14417,
+   "min": 13250,
+   "max": 15375
+  },
+  "dispatch_ns_median": [
+   14417
+  ],
+  "repeat": 5
+ },
+ "code_extracted": true,
+ "large": {
+  "functional_ok": true,
+  "functional": {
+   "flag_mismatches": 0,
+   "count": 17351,
+   "ref_count": 17351,
+   "first": 2215
+  },
+  "gpu_ns": {
+   "median": 35084.0,
+   "min": 33167,
+   "max": 37667
+  },
+  "dispatch_ns_median": [
+   35084.0
+  ],
+  "repeat": 20,
+  "gflops": null,
+  "gbytes_per_s": 1912.8053813704253,
+  "work": {
+   "bytes": 67108864
+  },
+  "out_sha256": {
+   "2": "67d472c881d8b4a86dd7ea3a60954c3fb573d4cfa3708f8425d518e6491600bb",
+   "3": "3244dc2d3e1119adc3ffbd3a0a5e588759e041c58ff1abd9ca8372b8102afa0f"
+  },
+  "inputs_sha256": {
+   "0": "09e164591bde77153daedabb278ed525026a8d92a315be9fefc3c88af1b60c76",
+   "1": "d7d0a17dfe6de6c700b3e7b4f5c8f28e7e2a3fbb92656997a536d08e17a33aa6",
+   "3": "5981693c8df83eea16da42a0f748facb299546688544a0c2887ed5ffbf086e86"
+  }
+ }
+}

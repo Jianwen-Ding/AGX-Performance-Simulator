@@ -1,0 +1,129 @@
+{
+ "workload": "pagerank",
+ "device": {
+  "device": "Apple M2 Max (G14C B1)",
+  "vendor": 65541,
+  "device_id": 0,
+  "driver_version": 104869894,
+  "api": 4211016,
+  "timestamp_period_ns": 1,
+  "timestamps": 1,
+  "subgroup_size": 32,
+  "shader_object": 1,
+  "executable_properties": 1,
+  "features": {
+   "int64": 1,
+   "float64": 0,
+   "float16": 1,
+   "int8": 1,
+   "buffer_int64_atomics": 0,
+   "shared_int64_atomics": 0,
+   "subgroup_ops": 1791,
+   "buffer_float32_atomic_add": 0,
+   "shared_float32_atomic_add": 0
+  },
+  "limits": {
+   "shared_bytes": 32768,
+   "invocations": 1024,
+   "push_bytes": 256
+  }
+ },
+ "test_recording_not_hardware": false,
+ "recorded_utc": "2026-10-12T22:41:24Z",
+ "inputs_sha256": {
+  "0": "baff608d05bd8188f54f5835e362814c05fa9eae96fb3d8520d5d184d3920914",
+  "1": "785f599917992f51cf73b8cb2fb0144b09770bc276142b4cfd7152182a5b15f8",
+  "2": "67cf079997377ecc4de65a18c0a154a92c61eff5e1ba96995eb7c8d2e3987b33",
+  "3": "cf33e0ce21e02d16ec12183495bb8137f0adc91bf63119c73c62927fc3219c26"
+ },
+ "numpy": "2.5.4",
+ "small": {
+  "functional_ok": true,
+  "functional": {
+   "max_rel_err": 3.052365566425435e-07,
+   "top_page": 113,
+   "top_rank": 0.016054626309450613,
+   "rank_sum": 1.0000001192092896
+  },
+  "gpu_ns": {
+   "median": 914125,
+   "min": 904833,
+   "max": 1056416
+  },
+  "dispatch_ns_median": [
+   16959,
+   29458,
+   11541,
+   11000,
+   11041,
+   11750,
+   11125,
+   12209,
+   12125,
+   11000,
+   11708,
+   69541,
+   11375,
+   11583,
+   10625,
+   11375,
+   11667,
+   12167,
+   10834,
+   11416
+  ],
+  "repeat": 5
+ },
+ "code_extracted": true,
+ "large": {
+  "functional_ok": true,
+  "functional": {
+   "max_rel_err": 4.919076447294037e-07,
+   "top_page": 210398,
+   "top_rank": 1.683956481212234e-05,
+   "rank_sum": 1.0
+  },
+  "gpu_ns": {
+   "median": 7607021.0,
+   "min": 7603208,
+   "max": 7622792
+  },
+  "dispatch_ns_median": [
+   17250.0,
+   24687.5,
+   24250.0,
+   21708.0,
+   19354.0,
+   23583.5,
+   22042.0,
+   23125.0,
+   22083.5,
+   20833.0,
+   24812.5,
+   21541.5,
+   24250.0,
+   21791.5,
+   20354.5,
+   24041.5,
+   22145.5,
+   24041.5,
+   22604.0,
+   20437.5
+  ],
+  "repeat": 20,
+  "gflops": null,
+  "gbytes_per_s": null,
+  "work": {
+   "edges": 87967580
+  },
+  "out_sha256": {
+   "3": "291862a4dbefbc36043f7ecce8a05735745d795859d99bd090dabdfbf2b08b6f"
+  },
+  "inputs_sha256": {
+   "0": "8fabe3e133a5b783307992e6bb51300a98afd481f4730f22bf24a7bd9a17aaa7",
+   "1": "e952f84958aa8500e57eabdb52a1c1bd07addba2a4d6d2d06198fa24b7ffc2c8",
+   "2": "62a66b5636e44960a4f4f4c744bd6ad6d2adfba39178e0452f6f29cf087ccd7c",
+   "3": "d46f53fff0af9adbd81816bd8aa86f703cd991d56e04af2ff1b6148417d68d32"
+  }
+ }
+}

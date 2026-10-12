@@ -1,0 +1,92 @@
+{
+ "workload": "bloom",
+ "device": {
+  "device": "Apple M2 Max (G14C B1)",
+  "vendor": 65541,
+  "device_id": 0,
+  "driver_version": 104869894,
+  "api": 4211016,
+  "timestamp_period_ns": 1,
+  "timestamps": 1,
+  "subgroup_size": 32,
+  "shader_object": 1,
+  "executable_properties": 1,
+  "features": {
+   "int64": 1,
+   "float64": 0,
+   "float16": 1,
+   "int8": 1,
+   "buffer_int64_atomics": 0,
+   "shared_int64_atomics": 0,
+   "subgroup_ops": 1791,
+   "buffer_float32_atomic_add": 0,
+   "shared_float32_atomic_add": 0
+  },
+  "limits": {
+   "shared_bytes": 32768,
+   "invocations": 1024,
+   "push_bytes": 256
+  }
+ },
+ "test_recording_not_hardware": false,
+ "recorded_utc": "2026-10-12T22:41:13Z",
+ "inputs_sha256": {
+  "0": "0f7baa8e1cf4fcfa08d3fdd1f88e909366b462c110e927dad5355f582e716128",
+  "1": "c8480951197fbce4ebab9923b03fecb68cd29cc03a8aec33566ca90b604f19b0",
+  "2": "db837dcf7d3f9a80851aad4d6ed4b60565b92dfafc43a5e2d605ff609152ab67"
+ },
+ "numpy": "2.5.4",
+ "small": {
+  "functional_ok": true,
+  "functional": {
+   "bit_mismatches": 0,
+   "hit_mismatches": 0,
+   "false_negatives": 0,
+   "false_positive_rate": 0.006
+  },
+  "gpu_ns": {
+   "median": 58792,
+   "min": 55250,
+   "max": 68750
+  },
+  "dispatch_ns_median": [
+   10834,
+   11667
+  ],
+  "repeat": 5
+ },
+ "code_extracted": true,
+ "large": {
+  "functional_ok": true,
+  "functional": {
+   "bit_mismatches": 0,
+   "hit_mismatches": 0,
+   "false_negatives": 0,
+   "false_positive_rate": 0.008364677429199219
+  },
+  "gpu_ns": {
+   "median": 770771.0,
+   "min": 765791,
+   "max": 778000
+  },
+  "dispatch_ns_median": [
+   29833.5,
+   23583.5
+  ],
+  "repeat": 20,
+  "gflops": null,
+  "gbytes_per_s": null,
+  "work": {
+   "keys": 2097152
+  },
+  "out_sha256": {
+   "1": "b6f1a7a1e1eac0802de89d7e5fdf971d6ac62ff238657b7d9a543e4dc7852a17",
+   "3": "94823bdfb819711b1b0ee1a6b4f416a8400165b155f358c5742566d5309d713d"
+  },
+  "inputs_sha256": {
+   "0": "cbc2e1dbe925b1fe5a6c1545190a9ca9a359dfd20fe65f669b565853f2156fea",
+   "1": "6de7493c5c90f643357c268fbaaf461c1567e0334e4948023ce17268403aa37a",
+   "2": "acfa2334a64ae4883b877a22ec36612fc18b348af7c2cc2228bb0a42f209fd41"
+  }
+ }
+}

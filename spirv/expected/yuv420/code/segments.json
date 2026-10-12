@@ -1,0 +1,22 @@
+{
+ "blob": "/save/workspace/AGX-Performance-Simulator/spirv/expected/yuv420/code/shader.bin",
+ "code_start": 2236,
+ "code_size": 1164,
+ "layout": "agx_shader_info",
+ "programs": [
+  {
+   "label": "main",
+   "file": "main.bin",
+   "offset": 128,
+   "bytes": 798,
+   "instructions": 112
+  },
+  {
+   "label": "preamble",
+   "file": "preamble.bin",
+   "offset": 1024,
+   "bytes": 124,
+   "instructions": 20
+  }
+ ]
+}

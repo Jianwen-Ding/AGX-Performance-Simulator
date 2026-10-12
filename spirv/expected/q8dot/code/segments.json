@@ -1,0 +1,22 @@
+{
+ "blob": "/save/workspace/AGX-Performance-Simulator/spirv/expected/q8dot/code/shader.bin",
+ "code_start": 2236,
+ "code_size": 2080,
+ "layout": "agx_shader_info",
+ "programs": [
+  {
+   "label": "main",
+   "file": "main.bin",
+   "offset": 128,
+   "bytes": 1698,
+   "instructions": 234
+  },
+  {
+   "label": "preamble",
+   "file": "preamble.bin",
+   "offset": 1920,
+   "bytes": 144,
+   "instructions": 24
+  }
+ ]
+}

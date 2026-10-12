@@ -1,0 +1,86 @@
+{
+ "workload": "attndec",
+ "device": {
+  "device": "Apple M2 Max (G14C B1)",
+  "vendor": 65541,
+  "device_id": 0,
+  "driver_version": 104869894,
+  "api": 4211016,
+  "timestamp_period_ns": 1,
+  "timestamps": 1,
+  "subgroup_size": 32,
+  "shader_object": 1,
+  "executable_properties": 1,
+  "features": {
+   "int64": 1,
+   "float64": 0,
+   "float16": 1,
+   "int8": 1,
+   "buffer_int64_atomics": 0,
+   "shared_int64_atomics": 0,
+   "subgroup_ops": 1791,
+   "buffer_float32_atomic_add": 0,
+   "shared_float32_atomic_add": 0
+  },
+  "limits": {
+   "shared_bytes": 32768,
+   "invocations": 1024,
+   "push_bytes": 256
+  }
+ },
+ "test_recording_not_hardware": false,
+ "recorded_utc": "2026-10-12T22:43:38Z",
+ "inputs_sha256": {
+  "0": "1b2894dfa667e95a51d95dd815d1b0f21444a80037a918f296f1612085f79fc6",
+  "1": "9ba6a811b8721a8d6a4c9dfd4633a18a62d656adf7bbecda58b0a9e167e5a265",
+  "2": "66ea7f1fbc78082f57ace603f500b2854cd0b6c728f22548c2e6371e4f31d807"
+ },
+ "numpy": "2.5.4",
+ "small": {
+  "functional_ok": true,
+  "functional": {
+   "max_err_over_weighted_abs_v": 1.3607182765129341e-06,
+   "peak_attention_weight": 0.7467
+  },
+  "gpu_ns": {
+   "median": 25625,
+   "min": 21500,
+   "max": 27333
+  },
+  "dispatch_ns_median": [
+   25625
+  ],
+  "repeat": 5
+ },
+ "code_extracted": true,
+ "large": {
+  "functional_ok": true,
+  "functional": {
+   "max_err_over_weighted_abs_v": 2.5971150187104596e-06,
+   "peak_attention_weight": 0.2964
+  },
+  "gpu_ns": {
+   "median": 33146.0,
+   "min": 29083,
+   "max": 36291
+  },
+  "dispatch_ns_median": [
+   33146.0
+  ],
+  "repeat": 20,
+  "gflops": 2024.6444216496711,
+  "gbytes_per_s": 2024.6444216496711,
+  "work": {
+   "bytes": 67108864,
+   "flops": 67108864
+  },
+  "out_sha256": {
+   "3": "5ffb6c3cfb99c976a9cdf166d96b1a69c50bcfa1a81cbafe878f9517fbdd4cd0"
+  },
+  "inputs_sha256": {
+   "0": "55a45a246df9558bbe8f35cb677f04c7026d37326277b79edde9d3fadb809ab2",
+   "1": "a2a5c988c5db3d3ef19574f8dac73e07711eff031f65c22c9dcfd6696df7b759",
+   "2": "10f10993da8d9b20f4b14b5490903b83e2da065660bbd0c04ecfcd8c1a5ff953"
+  }
+ }
+}
