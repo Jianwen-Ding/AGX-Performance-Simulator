@@ -993,6 +993,10 @@ pub struct MemModel {
     pub dram_gbps: f64,
     /// replay every group's accesses once before timing (steady state of a long-running loop)
     pub warm: bool,
+    /// the dispatch's device data already sits in the system-level cache (written by the CPU or a previous
+    /// dispatch just before, and small enough): first touches hit the SLC instead of DRAM. agx_dispatch sets it
+    /// when the estimated GPU-wide footprint fits `slc_bytes`.
+    pub resident_slc: bool,
     /// device atomics (no return, distinct words): per-core occupancy max(atomic_min, atomic_per_seg x 32-byte
     /// sectors) reference cycles; lanes on one word serialise GPU-wide at atomic_same_word_rate per cycle
     pub atomic_min: f64,
@@ -1024,6 +1028,7 @@ impl Default for MemModel {
             slc_rate: 0.5 / k,
             dram_gbps: 410.0,
             warm: true,
+            resident_slc: false,
             atomic_min: 6.9,
             atomic_per_seg: 1.7,
             atomic_same_word_rate: 2.0,
@@ -1257,6 +1262,21 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
     });
     let memv: Vec<&[(u32, Vec<u64>)]> = mem.map(|(v, _)| v.to_vec()).unwrap_or_default();
     if let (Some(m), Some((_, mm))) = (ms.as_mut(), mem) {
+        if mm.resident_slc && !mm.warm {
+            let mut distinct: std::collections::HashSet<u64> = Default::default();
+            for (gi, v) in memv.iter().enumerate() {
+                for (step, segs) in v.iter() {
+                    let si = &sim[seqs[gi][*step as usize]];
+                    let dev = !si.atomic && !si.tg_name && matches!(si.kind, Kind::Load | Kind::Store);
+                    if dev {
+                        distinct.extend(segs.iter().copied());
+                    }
+                }
+            }
+            for &sg in &distinct {
+                m.slc.touch(sg);
+            }
+        }
         if mm.warm {
             let longest = memv.iter().map(|v| v.len()).max().unwrap_or(0);
             for i in 0..longest {
@@ -1317,6 +1337,8 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
         done: i64,
         lat: i64,
         ins: usize,
+        /// latency beyond an L1 hit (memory hierarchy): a load issued after ALU work waits for done - extra
+        extra: i64,
     }
     let mut pending: Vec<Vec<Pending>> = (0..g).map(|_| vec![]).collect();
     let mut last_t: i64 = 0;
@@ -1714,7 +1736,9 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
                         iiv = tg_issue0;
                     } else {
                         if alu_since_mem[gi] && !pending[gi].is_empty() {
-                            let m = pending[gi].iter().map(|p| p.done).max().unwrap();
+                            // waits until the pending loads have passed the L1, not until they complete
+                            // (ALU-interleaved loads over L2/DRAM windows: ~50 cycles apart, not a full latency)
+                            let m = pending[gi].iter().map(|p| p.done - p.extra).max().unwrap();
                             delay = delay.max(m - t);
                         }
                         lat = (delay + load_fast + mem_extra).max(if inorder_loads { last_load_done[gi] + load_ii - t } else { 0 });
@@ -1733,7 +1757,7 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
                     }
                     slots[gi][r.slot] = Some(slots[gi][r.slot].map_or(t + lat, |m| m.max(t + lat)));
                     let dfr = if tgop { tg_defer } else { defer_fast + if delay != 0 { defer_extra } else { 0 } };
-                    pending[gi].push(Pending { slot: r.slot, done: t + lat, lat: delay + dfr, ins: ri });
+                    pending[gi].push(Pending { slot: r.slot, done: t + lat, lat: delay + dfr, ins: ri, extra: if tgop { 0 } else { mem_extra } });
                     ii = iiv;
                 }
                 Kind::Store => {

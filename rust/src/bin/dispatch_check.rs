@@ -25,6 +25,7 @@ fn main() {
             grid: [g("grid"), 1, 1],
             wg: [g("wg"), 1, 1],
             regs: g("regs"),
+            tg_bytes: r["tg_bytes"].as_u64().unwrap_or(0) as u32,
             uniforms: vec![(4, 0), (5, g("grid")), (7, 1), (9, 2)],
             ..Default::default()
         };

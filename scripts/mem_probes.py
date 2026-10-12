@@ -27,7 +27,7 @@ IDX = list(range(5, 13))
 DST = list(range(13, 21))
 
 
-def mem_loop(steps, kind, s, j, w, data, advance=0, mask=0, glob=False, private=False, pad=0, pad_kind='indep'):
+def mem_loop(steps, kind, s, j, w, data, advance=0, mask=0, glob=False, private=False, pad=0, pad_kind='indep', inter=0):
     """Counted loop (trips in r29) of `steps` memory instructions, wait after every 8.
     private: each workgroup streams through its own window: base r24_r25 = table + 4*(data + SR0*(mask+1)),
     index = (local linear index SR51 * s + j*J + advance...) & mask (validated register-pair base form)."""
@@ -45,6 +45,7 @@ def mem_loop(steps, kind, s, j, w, data, advance=0, mask=0, glob=False, private=
         body = b''
         for k in range(steps):
             body += e(f'device_load 0, i32, x, r{DST[k % 8]}, r24_r25, r{IDX[k % 8]}, unsigned')
+            body += b''.join(e(f'iadd r{26 + m % 2}, r{26 + m % 2}, 1') for m in range(inter))   # r26/r27: head temporaries only
             if k % 8 == 7 or k == steps-1:
                 body += e('wait 0')
                 for r2 in IDX:
@@ -160,6 +161,7 @@ def main():
                     help='lane index = global thread index (r1): groups on every core touch distinct words; with it, '
                          'J defaults to the lane count and --advance to 8 x lanes (grid stride)')
     ap.add_argument('--mask-bytes', default='0', help='streaming window sizes in bytes (powers of two)')
+    ap.add_argument('--inter', type=int, default=0, help='private mode: ALU instructions after every load')
     ap.add_argument('--pad', default='0', help='ALU instructions after each wait (list)')
     ap.add_argument('--pad-kind', default='indep', choices=['dep', 'indep', 'idx'])
     ap.add_argument('--trips', type=int, default=200)
@@ -199,7 +201,7 @@ def main():
                     if top > a.shared_bytes: raise SystemExit(f'threadgroup offsets reach {top} > {a.shared_bytes}')
                     ph = lambda s: mem_loop(s, a.kind, 4*st, jj, a.w, 0, 0, 0)
                 else:
-                    ph = lambda s: mem_loop(s, a.kind, st, jj, a.w, data, adv, mask, a.glob, a.private, pad, a.pad_kind)
+                    ph = lambda s: mem_loop(s, a.kind, st, jj, a.w, data, adv, mask, a.glob, a.private, pad, a.pad_kind, a.inter)
                 body = S.program(None, 0, G, s1, s2, a.trips, a.ref_trips, count, 2000, phase=ph)
                 best = None
                 for att in range(1, 5):
@@ -207,7 +209,7 @@ def main():
                     m = S.analyse(ts, G, a.trips, a.ref_trips, s1, s2)
                     if m['stable_cores'] >= 10: best = m; break
                     best = best or m
-                row = {'kind': a.kind, 'pad': pad, 'pad_kind': a.pad_kind, 'stride': st, 'j': jj, 'w': a.w, 'advance': adv, 'global': a.glob, 'private': a.private, 'window_bytes': wb,
+                row = {'kind': a.kind, 'inter': a.inter, 'pad': pad, 'pad_kind': a.pad_kind, 'stride': st, 'j': jj, 'w': a.w, 'advance': adv, 'global': a.glob, 'private': a.private, 'window_bytes': wb,
                        'groups': G, 'trips': a.trips, 'attempts': att, **{k: v for k, v in best.items() if k != 'slots'}}
                 out['rows'].append(row)
                 print(json.dumps({k: (round(v, 2) if isinstance(v, float) else v) for k, v in row.items() if k not in ('spread',)}), flush=True)

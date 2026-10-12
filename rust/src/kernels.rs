@@ -390,7 +390,7 @@ pub fn mem_loop_pad(steps: u32, store_kind: bool, s: u32, jstride: u32, w: u32, 
     let mut h = mov(3, 0);
     h.extend(e("iadd r4, r29, 0"));
     if glob && w == u32::MAX {
-        return mem_loop_private(h, steps, s, jstride, data, advance, mask);
+        return mem_loop_private(h, steps, s, jstride, data, advance, mask, 0);
     }
     h.extend(e(if glob { "iadd r23, r1, 0" } else { "and r23, r1, 31" }));
     h.extend(mov(21, s));
@@ -443,7 +443,14 @@ pub fn mem_loop_pad(steps: u32, store_kind: bool, s: u32, jstride: u32, w: u32, 
 
 /// mem_probes.mem_loop(private=True): each workgroup streams its own window (register-pair base
 /// r24_r25 = u8_u9 + 4*(data + SR0*(mask+1)), index = (SR51*s + j*J + k*advance) & mask).
-fn mem_loop_private(mut h: Vec<u8>, steps: u32, s: u32, jstride: u32, data: u32, advance: u32, mask: u32) -> Vec<u8> {
+pub fn mem_loop_private_inter(steps: u32, s: u32, jstride: u32, data: u32, advance: u32, mask: u32, inter: u32) -> Vec<u8> {
+    let mut h = mov(3, 0);
+    h.extend(e("iadd r4, r29, 0"));
+    mem_loop_private(h, steps, s, jstride, data, advance, mask, inter)
+}
+
+#[allow(clippy::too_many_arguments)]
+fn mem_loop_private(mut h: Vec<u8>, steps: u32, s: u32, jstride: u32, data: u32, advance: u32, mask: u32, inter: u32) -> Vec<u8> {
     h.extend(e("iadd r24, u8, 0"));
     h.extend(e("iadd r25, u9, 0"));
     h.extend(get_sr(0, 26));
@@ -469,6 +476,9 @@ fn mem_loop_private(mut h: Vec<u8>, steps: u32, s: u32, jstride: u32, data: u32,
     let mut body = vec![];
     for k in 0..steps {
         body.extend(e(&format!("device_load 0, i32, x, r{}, r24_r25, r{}, unsigned", 13 + k % 8, 5 + k % 8)));
+        for m in 0..inter {
+            body.extend(e(&format!("iadd r{}, r{}, 1", 26 + m % 2, 26 + m % 2)));
+        }
         if k % 8 == 7 || k == steps - 1 {
             body.extend(e("wait 0"));
             for r2 in 5..13 {

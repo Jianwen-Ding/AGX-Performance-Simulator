@@ -33,8 +33,12 @@ pub fn predict(p: &Params, row: &serde_json::Value, steps: [u32; 2], mm: &MemMod
         } else {
         let private = row["private"].as_bool().unwrap_or(false);
         let w = if private { u32::MAX } else { g("w") };
+        if private && g("inter") > 0 {
+            code.extend(kernels::mem_loop_private_inter(s, g("stride"), g("j"), data, g("advance"), mask, g("inter")));
+        } else {
         code.extend(kernels::mem_loop_pad(s, store, g("stride"), g("j"), w, data, g("advance"), mask, glob || private, g("pad"),
             row["pad_kind"].as_str().unwrap_or("indep")));
+        }
         }
         let ins = cost::decode(&code, p).unwrap();
         let traces: Vec<cost::Trace> = (0..groups)
@@ -61,7 +65,7 @@ fn main() {
     if args.iter().any(|a| a == "--stored") {
         let r = cost::repo_root().join("results/2026-10-11-memory-hierarchy");
         for f in ["coalesce-shared.json", "coalesce-private.json", "store.json", "pad.json", "private.json", "stream-dram.json", "tg.json",
-            "tgstore.json", "atomic-global.json", "barrier.json"] {
+            "tgstore.json", "atomic-global.json", "barrier.json", "inter.json"] {
             files.push(r.join(f).display().to_string());
         }
     }

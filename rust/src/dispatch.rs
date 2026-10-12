@@ -35,6 +35,9 @@ pub struct Launch {
     pub clusters: Vec<u32>,
     pub uniforms: Vec<(usize, u32)>,
     pub mem: bool,
+    /// effective DRAM bandwidth of a whole dispatch (GB/s): 360 fits the streaming and reduction dispatches;
+    /// steady per-core streaming (mem_probes) reaches ~410
+    pub dram_gbps: f64,
     /// simulate at most this many distinct waves (first, last); others are extrapolated
     pub max_waves: usize,
     pub max_steps: usize,
@@ -56,6 +59,7 @@ impl Default for Launch {
             clusters: vec![10, 9, 9, 10],
             uniforms: vec![],
             mem: true,
+            dram_gbps: std::env::var("AGX_DRAM_GBPS").ok().and_then(|v| v.parse().ok()).unwrap_or(360.0),
             max_waves: 2,
             max_steps: 20_000_000,
         }
@@ -115,7 +119,9 @@ pub fn simulate(code: &[u8], l: &Launch, p: &Params) -> Result<Report, String> {
     rep.busiest_core_wgs = m;
     let waves = m.div_ceil(r as u64).max(1);
     rep.waves = waves;
-    let mm = MemModel { clock_mhz: l.clock_mhz, active_cores: (cores.min(n)) as f64, warm: false, ..Default::default() };
+    let mm = MemModel { clock_mhz: l.clock_mhz, active_cores: (cores.min(n)) as f64, warm: false, dram_gbps: l.dram_gbps, ..Default::default() };
+    let device_pcs: std::collections::HashSet<usize> =
+        ins.iter().filter(|i| i.name == "device_load" || i.name == "device_store").map(|i| i.pc).collect();
     let wg_coords = |k: u64| -> [u32; 3] {
         let k = k as u32;
         [k % dims[0], (k / dims[0]) % dims[1], k / (dims[0] * dims[1])]
@@ -144,6 +150,18 @@ pub fn simulate(code: &[u8], l: &Launch, p: &Params) -> Result<Report, String> {
         }
         let seqs: Vec<&[usize]> = traces.iter().map(|t| t.pcs.as_slice()).collect();
         let mems: Vec<&[(u32, Vec<u64>)]> = traces.iter().map(|t| t.mem.as_slice()).collect();
+        // GPU-wide device footprint: this wave's distinct segments, scaled to the busiest core's workgroups and
+        // to every active core; if it fits the system-level cache, the data is taken to be resident there
+        let mut distinct: std::collections::HashSet<u64> = Default::default();
+        for t in &traces {
+            for (step, segs) in &t.mem {
+                if device_pcs.contains(&t.pcs[*step as usize]) {
+                    distinct.extend(segs.iter().copied());
+                }
+            }
+        }
+        let footprint = distinct.len() as f64 * 64.0 * (m as f64 / count.max(1) as f64) * cores.min(n) as f64;
+        let mm = MemModel { resident_slc: footprint <= mm.slc_bytes as f64, ..mm.clone() };
         let mem = if l.mem { Some((mems.as_slice(), &mm)) } else { None };
         let c = cost::simulate_groups(&ins, &seqs, mem, p, false, Some(&wg_of))?.0;
         Ok((count, c, warn))

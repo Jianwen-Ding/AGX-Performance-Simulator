@@ -581,6 +581,167 @@
 1139125
 ],
 "code": "cases/diverge32.bin"
+},
+{
+"case": "reduce",
+"grid": 9728,
+"wg": 256,
+"regs": 64,
+"tg_bytes": 1024,
+"table_words": 77824,
+"loads_per_thread": 8,
+"exact": true,
+"min_us": 7.666,
+"median_us": 7.875,
+"fw_ns": [
+9250,
+7709,
+7666,
+7917,
+7833,
+7875,
+7916,
+7833
+],
+"code": "cases/reduce_9728_1.bin"
+},
+{
+"case": "reduce",
+"grid": 9728,
+"wg": 256,
+"regs": 64,
+"tg_bytes": 1024,
+"table_words": 1245184,
+"loads_per_thread": 128,
+"exact": true,
+"min_us": 20.125,
+"median_us": 20.375,
+"fw_ns": [
+25459,
+20708,
+20542,
+20333,
+20375,
+20292,
+20333,
+20125
+],
+"code": "cases/reduce_9728_16.bin"
+},
+{
+"case": "reduce",
+"grid": 38912,
+"wg": 256,
+"regs": 64,
+"tg_bytes": 1024,
+"table_words": 4980736,
+"loads_per_thread": 128,
+"exact": true,
+"min_us": 71.5,
+"median_us": 71.959,
+"fw_ns": [
+76500,
+71958,
+71792,
+71917,
+72125,
+71959,
+71500,
+72000
+],
+"code": "cases/reduce_38912_16.bin"
+},
+{
+"case": "reduce",
+"grid": 155648,
+"wg": 256,
+"regs": 64,
+"tg_bytes": 1024,
+"table_words": 9961472,
+"loads_per_thread": 64,
+"exact": true,
+"min_us": 115.291,
+"median_us": 115.959,
+"fw_ns": [
+129500,
+115958,
+115959,
+118000,
+115291,
+115708,
+115959,
+118500
+],
+"code": "cases/reduce_155648_8.bin"
+},
+{
+"case": "reduce",
+"grid": 155648,
+"wg": 256,
+"regs": 64,
+"tg_bytes": 1024,
+"table_words": 39845888,
+"loads_per_thread": 256,
+"exact": true,
+"min_us": 483.459,
+"median_us": 485.25,
+"fw_ns": [
+547208,
+484041,
+484291,
+483459,
+485750,
+485375,
+485250,
+484542
+],
+"code": "cases/reduce_155648_32.bin"
+},
+{
+"case": "reduce",
+"grid": 1048576,
+"wg": 256,
+"regs": 64,
+"tg_bytes": 1024,
+"table_words": 33554432,
+"loads_per_thread": 32,
+"exact": true,
+"min_us": 411.041,
+"median_us": 413.25,
+"fw_ns": [
+450125,
+411041,
+411750,
+414042,
+413250,
+411875,
+416167,
+411875
+],
+"code": "cases/reduce_1048576_4.bin"
+},
+{
+"case": "reduce",
+"grid": 1048576,
+"wg": 256,
+"regs": 64,
+"tg_bytes": 1024,
+"table_words": 67108864,
+"loads_per_thread": 64,
+"exact": true,
+"min_us": 786.083,
+"median_us": 791.667,
+"fw_ns": [
+827042,
+786083,
+803625,
+823083,
+791667,
+788375,
+790625,
+789041
+],
+"code": "cases/reduce_1048576_8.bin"
 }
 ]
 }
