@@ -1690,7 +1690,18 @@ def cmd_predict(a):
                    '--tg-bytes', str(a.tg_bytes if a.tg_bytes is not None else L.shared)] + args
             if a.no_mem: cmd.append('--no-mem')
             rows.append(cmd)
-        rows = pmap(run_dispatch, rows)        # each dispatch starts from the initial buffers: independent
+        # each dispatch starts from the initial buffers, so dispatches are independent and those whose launch is the
+        # same (root table, group count and arguments: e.g. lbm's and poisson's two ping-pong parities) give the
+        # same result: run each distinct one once
+        per_k = {}
+        for k, cmd in enumerate(rows):
+            files = {str(L.work / f'root{k}.bin'), str(L.work / f'group_count{k}.bin')}
+            per_k[k] = tuple(x.split('=')[0] + '=' + (L.work / x.split('=', 1)[1]).read_bytes().hex()
+                             if '=' in x and x.split('=', 1)[1] in files else x for x in cmd)
+        uniq = list(dict.fromkeys(per_k.values()))
+        first = {key: rows[k] for k, key in reversed(list(per_k.items()))}
+        res = dict(zip(uniq, pmap(run_dispatch, [first[key] for key in uniq])))
+        rows = [res[per_k[k]] for k in range(len(rows))]
     else:
         if not a.code:
             sys.exit('predict needs --code-dir (extract output) or --code main.bin')
