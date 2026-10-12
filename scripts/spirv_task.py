@@ -1259,6 +1259,25 @@ def w_q4gemv(size, rng):
              requires=['storage_buffer_8bit', 'subgroup_arithmetic'])
 
 
+def w_attndec(size, rng):
+    heads, seq = (4, 256) if size == 'small' else (32, 4096)
+    q = f32(rng.normal(0, 1, (heads, 128)))
+    k = rng.normal(0, 1, (heads, seq, 128)).astype(np.float16)
+    k[:, ::97] += (q[:, None, :] * 0.5).astype(np.float16)                     # some keys aligned with the query
+    v = rng.normal(0, 1, (heads, seq, 128)).astype(np.float16)
+    def check(o):
+        got = o[3].view(np.float32)[:heads * 128].reshape(heads, 128).astype(np.float64)
+        s_ = np.einsum('hd,hsd->hs', q.astype(np.float64) / np.sqrt(128), k.astype(np.float64))
+        w_ = np.exp(s_ - s_.max(1, keepdims=True)); w_ /= w_.sum(1, keepdims=True)
+        ref = np.einsum('hs,hsd->hd', w_, v.astype(np.float64))
+        scale = np.einsum('hs,hsd->hd', w_, np.abs(v.astype(np.float64)))           # sum_p w_p |v_pd|
+        err = float(np.max(np.abs(got - ref) / (scale + 1e-30)))
+        return err <= 1e-4, {'max_err_over_weighted_abs_v': err, 'peak_attention_weight': round(float(w_.max()), 4)}
+    return W('attndec', {0: (q, False), 1: (np.ascontiguousarray(k.reshape(-1)), False), 2: (np.ascontiguousarray(v.reshape(-1)), False),
+                         3: (4 * 128 * heads, True)}, [(heads, 1, 1, push(seq))], check, 128,
+             {'bytes': 2 * k.nbytes, 'flops': 4 * heads * seq * 128}, requires=['storage_buffer_16bit'])
+
+
 def w_spmv(size, rng):
     rows, cols = (512, 512) if size == 'small' else (1 << 18, 1 << 18)
     nnz = rng.integers(0, 64, rows) * (rng.random(rows) < 0.95)    # some empty rows
@@ -3788,7 +3807,7 @@ WORKLOADS = {'reduce': w_reduce, 'scan': w_scan, 'sgemm': w_sgemm, 'conv2d': w_c
              'aluprobe': w_aluprobe, 'ubopalette': w_ubopalette, 'uboparams': w_uboparams,
              'bindless': w_bindless, 'bindlessu': w_bindlessu,
              # appended only: the input seed is the index in this dict
-             'rle': w_rle, 'huffdec': w_huffdec, 'lookback': w_lookback, 'hll': w_hll, 'tricount': w_tricount, 'sha3': w_sha3, 'stereo': w_stereo, 'viterbi': w_viterbi, 'viterbifix': w_viterbifix, 'shiftfuse': w_shiftfuse, 'bc1enc': w_bc1enc, 'lz4dec': w_lz4dec, 'nttmul': w_nttmul, 'topk': w_topk, 'cellsort': w_cellsort, 'boruvka': w_boruvka, 'biquad': w_biquad, 'edt': w_edt, 'mt19937': w_mt19937, 'bitap': w_bitap, 'cholesky': w_cholesky, 'rsshash': w_rsshash, 'poly1305': w_poly1305, 'crc32c': w_crc32c, 'siphash': w_siphash, 'blake2s': w_blake2s, 'blake2sfast': w_blake2sfast, 'q4gemv': w_q4gemv}
+             'rle': w_rle, 'huffdec': w_huffdec, 'lookback': w_lookback, 'hll': w_hll, 'tricount': w_tricount, 'sha3': w_sha3, 'stereo': w_stereo, 'viterbi': w_viterbi, 'viterbifix': w_viterbifix, 'shiftfuse': w_shiftfuse, 'bc1enc': w_bc1enc, 'lz4dec': w_lz4dec, 'nttmul': w_nttmul, 'topk': w_topk, 'cellsort': w_cellsort, 'boruvka': w_boruvka, 'biquad': w_biquad, 'edt': w_edt, 'mt19937': w_mt19937, 'bitap': w_bitap, 'cholesky': w_cholesky, 'rsshash': w_rsshash, 'poly1305': w_poly1305, 'crc32c': w_crc32c, 'siphash': w_siphash, 'blake2s': w_blake2s, 'blake2sfast': w_blake2sfast, 'q4gemv': w_q4gemv, 'attndec': w_attndec}
 
 
 # ---------------------------------------------------------------------------------------------------------------
