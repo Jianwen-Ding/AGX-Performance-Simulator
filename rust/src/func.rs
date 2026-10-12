@@ -9,6 +9,7 @@
 //! return the old value; cmpxchg's source holds the new value, source+1 the compare value).
 
 use crate::cost::{is_barrier78, GroupCtx};
+use crate::fsem;
 use crate::isa::{self, compiled::Compiled, exec::CoreState, fget, Desc, Fields, Operand};
 
 /// Sparse byte-addressed memory made of mapped regions.
@@ -223,6 +224,15 @@ fn step_group(g: &mut Group, code: &[u8], cache: &mut [Option<Info>], mem: &mut 
             "device_load" | "device_store" => device_mem(g, f, mem, desc.name == "device_load")?,
             "threadgroup_load" | "threadgroup_store" => tg_mem(g, f, tg, desc.name == "threadgroup_load")?,
             "atomic" => device_atomic(g, f, mem)?,
+            "fadd32" | "fmul32" | "fmadd32" | "fadd16" | "fmul16" | "fmadd16" => fsem::float_arith(desc.name, f, &vals(&info.ops), &mut g.st)?,
+            "icmpsel" | "fcmpsel" => fsem::cmpsel(desc.name == "fcmpsel", f, &vals(&info.ops), &mut g.st)?,
+            "icmp_ballot" | "fcmp_ballot" | "icmp_quad_ballot" | "fcmp_quad_ballot" => {
+                fsem::ballot(desc.name.starts_with('f'), desc.name.contains("quad"), f, &vals(&info.ops), &mut g.st)?
+            }
+            "if_icmp" | "if_fcmp" | "else_icmp" | "else_fcmp" | "while_icmp" | "while_fcmp" => {
+                let kind = desc.name.split('_').next().unwrap();
+                fsem::mask_ctl(kind, desc.name.ends_with("fcmp"), f, &vals(&info.ops), &mut g.st)?
+            }
             "threadgroup_atomic" => tg_atomic(g, f, tg)?,
             _ => {
                 info.op.as_ref().unwrap().exec(&mut g.st).map_err(|e| format!("{} ({}): {}", desc.name, isa::disassemble_normalized(desc, 0).unwrap_or_default(), e))?;
@@ -404,4 +414,13 @@ fn tg_atomic(g: &mut Group, f: &Fields, tg: &mut [u8]) -> Result<(), String> {
         }
     }
     Ok(())
+}
+
+/// value operands (registers, uniforms, immediates) in order, without condition codes and other fields
+fn vals(ops: &[Operand]) -> Vec<Operand> {
+    ops.iter()
+        .filter(|o| matches!(o, Operand::Reg16(..) | Operand::Reg32(..) | Operand::Reg64(..) | Operand::UReg16(..) | Operand::UReg32(..)
+            | Operand::UReg64(..) | Operand::Imm(..)))
+        .cloned()
+        .collect()
 }

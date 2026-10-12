@@ -4,6 +4,7 @@
 pub mod cost;
 pub mod dispatch;
 pub mod func;
+pub mod fsem;
 pub mod isa;
 pub mod kernels;
 pub mod pyrandom;
