@@ -1176,7 +1176,7 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
     let local: Vec<usize> = (0..groups).map(|i| (0..i).filter(|&j| wg[j] == wg[i]).count()).collect();
     let mut bar_count = vec![0u64; groups];
     let mut bar_arrive: Vec<Option<i64>> = vec![None; groups];
-    let mut bar_release: HashMap<(u32, usize, u64), i64> = HashMap::new();
+    let mut bar_release: HashMap<(u32, usize, u64), i64, SegBuild> = HashMap::default(); // lookups only: the hasher cannot change results
     let p_branch = match p.branch {
         Some(b) => b,
         None => {
