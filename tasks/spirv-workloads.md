@@ -54,7 +54,7 @@ The rest of this file is the detailed procedure, for investigating results.
 
 ## Workloads
 
-One hundred and fifty-five realistic compute kernels, written in GLSL (`spirv/shaders/*.comp`) and compiled to SPIR-V:
+One hundred and fifty-six realistic compute kernels, written in GLSL (`spirv/shaders/*.comp`) and compiled to SPIR-V:
 
 | Workload | Kernel | Stresses |
 |---|---|---|
@@ -213,6 +213,7 @@ One hundred and fifty-five realistic compute kernels, written in GLSL (`spirv/sh
 | `attndec` | Single-query attention decode over an fp16 KV cache, one workgroup per head | 16-bit storage loads, `exp`, workgroup max / sum reductions, 16 KiB of scores in shared memory, few workgroups (one per head); requires `storage_buffer_16bit` |
 | `attndecsplit` | The same decode split along the sequence (flash-decoding): one workgroup per (head, 256-position chunk), then a merge pass rescaling partial softmaxes | 16× more workgroups for the same work; with `attndec`, what filling the GPU buys |
 | `rmsrope` | Fused RMSNorm and rotary position embedding of 2048 tokens' 4096-element hidden vectors | `subgroupAdd` reduction, `inversesqrt`, `pow`, `sin` / `cos` of angles up to 4095 rad (outside the range where Vulkan specifies their precision) |
+| `q8dot` | int8 GEMV with packed dot products (`OpSDotKHR` on 4×8-bit words; llama.cpp's Q8 integer path), per-block fp32 scales | `VK_KHR_shader_integer_dot_product`, which AGX lowers to byte sign-extension (`bfi` / `asr`) and `imadd`; requires `integer_dot_product` |
 
 Each workload has two sizes:
 

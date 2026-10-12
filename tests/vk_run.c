@@ -19,7 +19,7 @@
  *                                 copied back to after the functional run, or '-'
  *   require FEATURE               a device feature the shader needs (int64, float64, float16, int8, buffer_int64_atomics,
  *                                 shared_int64_atomics, subgroup_vote / arithmetic / ballot / shuffle / shuffle_relative /
- *                                 clustered / quad in compute, storage_buffer_8bit / 16bit) or a minimum limit (shared_bytes=N, invocations=N,
+ *                                 clustered / quad in compute, storage_buffer_8bit / 16bit, integer_dot_product) or a minimum limit (shared_bytes=N, invocations=N,
  *                                 push_bytes=N): without it vk_run prints {"unsupported": FEATURE} and exits 3
  *   specialize ID VALUE           a 32-bit specialization constant (also applied to the exported shader object)
  *   dispatch_indirect BINDING OFFSET [PUSHHEX]
@@ -212,7 +212,9 @@ int main(int argc, char **argv) {
     VkPhysicalDeviceShaderObjectFeaturesEXT sof = {.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_OBJECT_FEATURES_EXT,
                                                    .pNext = has_af ? &aff : NULL};
     VkPhysicalDevicePipelineExecutablePropertiesFeaturesKHR pef = {.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PIPELINE_EXECUTABLE_PROPERTIES_FEATURES_KHR, .pNext = &sof};
-    VkPhysicalDeviceVulkan12Features f12 = {.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES, .pNext = &pef};
+    VkPhysicalDeviceVulkan13Features f13 = {.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES, .pNext = &pef};
+    int v13 = props.apiVersion >= VK_API_VERSION_1_3;                    /* Vulkan 1.3 features: integer dot product */
+    VkPhysicalDeviceVulkan12Features f12 = {.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES, .pNext = v13 ? (void *)&f13 : (void *)&pef};
     VkPhysicalDeviceVulkan11Features f11 = {.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES, .pNext = &f12};
     VkPhysicalDeviceFeatures2 f2 = {.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2, .pNext = &f11};
     vkGetPhysicalDeviceFeatures2(pd, &f2);
@@ -236,6 +238,9 @@ int main(int argc, char **argv) {
         .shaderBufferFloat32AtomicAdd = aff.shaderBufferFloat32AtomicAdd, .shaderSharedFloat32AtomicAdd = aff.shaderSharedFloat32AtomicAdd,
         .shaderBufferFloat32Atomics = aff.shaderBufferFloat32Atomics, .shaderSharedFloat32Atomics = aff.shaderSharedFloat32Atomics};
     if (has_af) { *tail = &eaf; tail = &eaf.pNext; }
+    VkPhysicalDeviceVulkan13Features e13 = {.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES,
+        .shaderIntegerDotProduct = f13.shaderIntegerDotProduct};
+    if (v13) { *tail = &e13; tail = &e13.pNext; }
     VkPhysicalDeviceFeatures2 e2 = {.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2, .pNext = &e11,
         .features = {.shaderInt64 = f2.features.shaderInt64, .shaderInt16 = f2.features.shaderInt16, .shaderFloat64 = f2.features.shaderFloat64,
                      .shaderStorageBufferArrayDynamicIndexing = f2.features.shaderStorageBufferArrayDynamicIndexing}};
@@ -262,7 +267,7 @@ int main(int argc, char **argv) {
                                "subgroup_vote", "subgroup_arithmetic", "subgroup_ballot", "subgroup_shuffle",
                                "subgroup_shuffle_relative", "subgroup_clustered", "subgroup_quad", "vulkan_memory_model", "buffer_float32_atomic_add",
                                "shared_float32_atomic_add", "storage_buffer_array_dynamic",
-                               "storage_buffer_array_nonuniform", "storage_buffer_8bit", "storage_buffer_16bit"};
+                               "storage_buffer_array_nonuniform", "storage_buffer_8bit", "storage_buffer_16bit", "integer_dot_product"};
         VkSubgroupFeatureFlags ops = sg_compute ? sgp.supportedOperations : 0;
         int have[] = {f2.features.shaderInt64, f2.features.shaderFloat64, f12.shaderFloat16, f12.shaderInt8,
                       f12.shaderBufferInt64Atomics, f12.shaderSharedInt64Atomics,
@@ -272,7 +277,7 @@ int main(int argc, char **argv) {
                       !!(ops & VK_SUBGROUP_FEATURE_QUAD_BIT), f12.vulkanMemoryModel,
                       aff.shaderBufferFloat32AtomicAdd, aff.shaderSharedFloat32AtomicAdd,
                       f2.features.shaderStorageBufferArrayDynamicIndexing, f12.shaderStorageBufferArrayNonUniformIndexing,
-                      f12.storageBuffer8BitAccess, f11.storageBuffer16BitAccess};
+                      f12.storageBuffer8BitAccess, f11.storageBuffer16BitAccess, v13 && f13.shaderIntegerDotProduct};
         int known = 0, ok = 0;
         _Static_assert(sizeof names / sizeof names[0] == sizeof have / sizeof have[0], "names / have");
         for (int k = 0; k < (int)(sizeof names / sizeof names[0]); k++) if (!strcmp(req[i], names[k])) { known = 1; ok = have[k]; }

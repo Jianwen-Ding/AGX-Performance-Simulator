@@ -1,0 +1,40 @@
+#version 450
+// int8 quantised GEMV with packed dot products (llama.cpp's integer path: Q8_0 weights times Q8 activations):
+// weights and activations in blocks of 32 int8 with an fp32 scale each; a block's integer dot is 8
+// dotPacked4x8EXT on words of 4 packed int8 (VK_KHR_shader_integer_dot_product), exact in int32; blocks combine as
+// sum_b d_w d_x dot_b in fp32. One workgroup per output row, subgroupAdd + shared reduction.
+#extension GL_EXT_spirv_intrinsics : require
+// OpSDotKHR on 4x8-bit packed operands (what GL_EXT_integer_dot_product's dotPacked4x8EXT emits; the installed
+// glslang predates that extension): SPV_KHR_integer_dot_product, capabilities DotProduct (6019) and
+// DotProductInput4x8BitPacked (6018), packed-vector-format operand 0 (PackedVectorFormat4x8Bit)
+spirv_instruction(extensions = ["SPV_KHR_integer_dot_product"], capabilities = [6019, 6018], id = 4450)
+int sdot4x8(int a, int b, spirv_literal int fmt);
+#define dotPacked4x8EXT(a, b) sdot4x8(a, b, 0)
+#extension GL_KHR_shader_subgroup_arithmetic : require
+layout(local_size_x = 64) in;
+layout(std430, binding = 0) readonly buffer WQ { int wq[]; };         // rows x cols / 4 packed int8
+layout(std430, binding = 1) readonly buffer WD { float wd[]; };       // rows x cols / 32 scales
+layout(std430, binding = 2) readonly buffer XQ { int xq[]; };
+layout(std430, binding = 3) readonly buffer XD { float xd[]; };
+layout(std430, binding = 4) writeonly buffer Y { float y[]; };
+layout(push_constant) uniform P { uint cols; } p;
+shared float part[64];
+
+void main() {
+    uint row = gl_WorkGroupID.x, l = gl_LocalInvocationID.x, nb = p.cols / 32u;
+    float acc = 0.0;
+    for (uint b = l; b < nb; b += 64u) {
+        uint wo = (row * nb + b) * 8u, xo = b * 8u;
+        int s = 0;
+        for (uint k = 0u; k < 8u; k++) s += dotPacked4x8EXT(wq[wo + k], xq[xo + k]);
+        acc += wd[row * nb + b] * xd[b] * float(s);
+    }
+    acc = subgroupAdd(acc);
+    if (subgroupElect()) part[gl_SubgroupID] = acc;
+    barrier();
+    if (l == 0u) {
+        float t = 0.0;
+        for (uint k = 0u; k < gl_NumSubgroups; k++) t += part[k];
+        y[row] = t;
+    }
+}

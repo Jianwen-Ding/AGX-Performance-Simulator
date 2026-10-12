@@ -1,7 +1,7 @@
 # Task SPIR-V 8: applications (ray tracer, neural networks, image processing, cellular automaton, graph search,
 # encryption, hashing, text, compression)
 
-**Workloads:** `raytrace`, `mlp`, `sobel`, `life`, `bfs`, `conv_layer`, `hist_eq`, `aes`, `hash_table`, `word_count`, `dct8`, `attention`, `resize`, `median3`, `poisson`, `lbm`, `base64`, `md5`, `gemv`, `levenshtein`, `blur`, `yuv420`, `montecarlo`, `xxhash`, `bloom`, `collatz`, `tridiag`, `merge`, `ccl`, `pagerank`, `skinning`, `strsearch`, `quantize`, `rule110`, `voxel`, `nms`, `sat`, `sssp`, `morton`, `utf8`, `fir`, `composite`, `nqueens`, `lzmatch`, `bitpack`, `perlin`, `adler32`, `sieve`, `gcd`, `dither`, `advect`, `knn`, `csvparse`, `pip`, `lift53`, `chacha20`, `modexp`, `floyd`, `f16pack`, `raster`, `canny`, `secded`, `bicubic`, `dfa`, `b64decode`, `cordic`, `rsenc`, `texfetch`, `texfilter`, `imgerode`, `imgtonemap`, `argmax64`, `minmax64`, `dsum`, `quadmip`, `clustered`, `specblur`, `cullindirect`, `bigsort`, `pushmat`, `mplitmus`, `splat`, `splatfix`, `smembank`, `coalesce`, `atomcontend`, `barriercost`, `aluprobe`, `ubopalette`, `uboparams`, `bindless`, `bindlessu`, `rle`, `huffdec`, `lookback`, `hll`, `tricount`, `sha3`, `stereo`, `viterbi`, `viterbifix`, `shiftfuse`, `bc1enc`, `lz4dec`, `nttmul`, `topk`, `cellsort`, `boruvka`, `biquad`, `edt`, `mt19937`, `bitap`, `cholesky`, `rsshash`, `poly1305`, `crc32c`, `siphash`, `blake2s`, `blake2sfast`, `q4gemv`, `attndec`, `attndecsplit`, `rmsrope`. These are recorded and verified by `make asahi-verify` with the others;
+**Workloads:** `raytrace`, `mlp`, `sobel`, `life`, `bfs`, `conv_layer`, `hist_eq`, `aes`, `hash_table`, `word_count`, `dct8`, `attention`, `resize`, `median3`, `poisson`, `lbm`, `base64`, `md5`, `gemv`, `levenshtein`, `blur`, `yuv420`, `montecarlo`, `xxhash`, `bloom`, `collatz`, `tridiag`, `merge`, `ccl`, `pagerank`, `skinning`, `strsearch`, `quantize`, `rule110`, `voxel`, `nms`, `sat`, `sssp`, `morton`, `utf8`, `fir`, `composite`, `nqueens`, `lzmatch`, `bitpack`, `perlin`, `adler32`, `sieve`, `gcd`, `dither`, `advect`, `knn`, `csvparse`, `pip`, `lift53`, `chacha20`, `modexp`, `floyd`, `f16pack`, `raster`, `canny`, `secded`, `bicubic`, `dfa`, `b64decode`, `cordic`, `rsenc`, `texfetch`, `texfilter`, `imgerode`, `imgtonemap`, `argmax64`, `minmax64`, `dsum`, `quadmip`, `clustered`, `specblur`, `cullindirect`, `bigsort`, `pushmat`, `mplitmus`, `splat`, `splatfix`, `smembank`, `coalesce`, `atomcontend`, `barriercost`, `aluprobe`, `ubopalette`, `uboparams`, `bindless`, `bindlessu`, `rle`, `huffdec`, `lookback`, `hll`, `tricount`, `sha3`, `stereo`, `viterbi`, `viterbifix`, `shiftfuse`, `bc1enc`, `lz4dec`, `nttmul`, `topk`, `cellsort`, `boruvka`, `biquad`, `edt`, `mt19937`, `bitap`, `cholesky`, `rsshash`, `poly1305`, `crc32c`, `siphash`, `blake2s`, `blake2sfast`, `q4gemv`, `attndec`, `attndecsplit`, `rmsrope`, `q8dot`. These are recorded and verified by `make asahi-verify` with the others;
 they are **PENDING** until then. The detailed procedure is in `tasks/spirv-workloads.md`.
 
 ## Why these
@@ -135,6 +135,7 @@ reference.
 | `attndec` | 32 heads × 4096 cached positions × 128 dims, fp16 K / V (some keys aligned with the query) | Error ≤ 1e-4 of Σ softmax·\|v\| per output against float64 numpy on the same fp16 K / V (2.4e-6 offline) |
 | `attndecsplit` | Same sizes and distribution as `attndec` | The same check (1.4e-6 offline) |
 | `rmsrope` | 2048 tokens at positions 0-4095 (including 0, 1, 1000, 4095), hidden size 4096, head size 128 | Error per rotated pair ≤ 2⁻⁹ of its magnitude against float64 (3.7e-4 on lavapipe, 3.2e-4 simulated) |
+| `q8dot` | 4096 × 4096 Q8_0 weights times a Q8 vector, int8 extremes (127, -128) included | Within the fp32 bound of the exact integer block dots combined with the scales; quantisation error against fp32 reported (0.8%) |
 
 ## Offline sanity checks (not hardware verification)
 
@@ -516,3 +517,13 @@ reference.
       simulator 3.2e-4.
     - `probes` reports the M2's `max_rel_error`, which shows how the hardware's range reduction behaves at real RoPE
       angles. Predicted 0.2 ms.
+59. **Packed int8 dot products.**
+    - The shader uses `OpSDotKHR` with `PackedVectorFormat4x8Bit`, emitted through `GL_EXT_spirv_intrinsics`
+      because the installed glslang predates `GL_EXT_integer_dot_product`. The SPIR-V is the same.
+    - The Asahi driver advertises `shaderIntegerDotProduct`, but AGX has no packed-dot instruction. NIR lowers each
+      dot to 8 byte sign-extensions (a `bfi` / `asr` pair each) and 4 `imadd`: 112 `bfi` / `asr` and 33 `imadd` in
+      the loop.
+    - Predicted 64 µs for 16 MB of weights, memory-bound if the lowering keeps up. The M2 time shows whether it
+      does.
+    - `vk_run` now queries and enables the Vulkan 1.3 features (`shaderIntegerDotProduct`) on 1.3+ devices and
+      accepts `require integer_dot_product`.

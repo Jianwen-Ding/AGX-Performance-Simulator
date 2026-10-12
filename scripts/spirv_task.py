@@ -1311,6 +1311,36 @@ def w_rmsrope(size, rng):
              [(tokens, 1, 1, b'')], check, 256, {'bytes': 8 * 4096 * tokens}, requires=['subgroup_arithmetic'])
 
 
+def w_q8dot(size, rng):
+    rows, cols = (64, 1024) if size == 'small' else (4096, 4096)
+    nb = cols // 32
+    def quant(a):                                                              # Q8_0: scale = amax / 127, round
+        blk = a.reshape(*a.shape[:-1], -1, 32)
+        d = np.abs(blk).max(-1) / 127.0
+        q = np.rint(blk / np.where(d == 0, 1, d)[..., None]).astype(np.int8)
+        return q, d.astype(np.float32)
+    W_ = rng.normal(0, 0.02, (rows, cols)).astype(np.float32); x = rng.normal(0, 1, cols).astype(np.float32)
+    wq, wd = quant(W_); xq, xd = quant(x)
+    wq[0, 0, 0] = 127; xq[0, 0] = 127; wq[0, 0, 1] = -128; xq[0, 1] = -128     # extremes of the int8 range
+    def check(o):
+        got = o[4].view(np.float32)[:rows].astype(np.float64)
+        dots = np.einsum('rbj,bj->rb', wq.astype(np.int64), xq.astype(np.int64))         # exact block dots
+        terms = wd.astype(np.float64) * xd.astype(np.float64)[None, :] * dots
+        ref = terms.sum(1)
+        bound = np.abs(terms).sum(1) * (nb + 4) * 2.0 ** -24 + 1e-30
+        excess = float(np.max(np.abs(got - ref) / bound))
+        # quantisation error against fp32 weights / activations, with the injected extremes at their dequantised values
+        Wr = W_.astype(np.float64).copy(); xr = x.astype(np.float64).copy()
+        Wr[0, :2] = wq[0, 0, :2] * float(wd[0, 0]); xr[:2] = xq[0, :2] * float(xd[0])
+        return excess <= 1.0, {'max_err_over_bound': excess, 'quantisation_rel_error': round(float(
+            np.linalg.norm(got - Wr @ xr) / np.linalg.norm(Wr @ xr)), 4)}
+    pk = lambda q: np.ascontiguousarray(q.reshape(-1)).view(np.int32)
+    return W('q8dot', {0: (pk(wq), False), 1: (np.ascontiguousarray(wd.reshape(-1)), False), 2: (pk(xq), False),
+                       3: (np.ascontiguousarray(xd), False), 4: (4 * rows, True)},
+             [(rows, 1, 1, push(cols))], check, 64, {'bytes': rows * cols + 4 * rows * nb},
+             requires=['integer_dot_product', 'subgroup_arithmetic'])
+
+
 def w_spmv(size, rng):
     rows, cols = (512, 512) if size == 'small' else (1 << 18, 1 << 18)
     nnz = rng.integers(0, 64, rows) * (rng.random(rows) < 0.95)    # some empty rows
@@ -3840,7 +3870,7 @@ WORKLOADS = {'reduce': w_reduce, 'scan': w_scan, 'sgemm': w_sgemm, 'conv2d': w_c
              'aluprobe': w_aluprobe, 'ubopalette': w_ubopalette, 'uboparams': w_uboparams,
              'bindless': w_bindless, 'bindlessu': w_bindlessu,
              # appended only: the input seed is the index in this dict
-             'rle': w_rle, 'huffdec': w_huffdec, 'lookback': w_lookback, 'hll': w_hll, 'tricount': w_tricount, 'sha3': w_sha3, 'stereo': w_stereo, 'viterbi': w_viterbi, 'viterbifix': w_viterbifix, 'shiftfuse': w_shiftfuse, 'bc1enc': w_bc1enc, 'lz4dec': w_lz4dec, 'nttmul': w_nttmul, 'topk': w_topk, 'cellsort': w_cellsort, 'boruvka': w_boruvka, 'biquad': w_biquad, 'edt': w_edt, 'mt19937': w_mt19937, 'bitap': w_bitap, 'cholesky': w_cholesky, 'rsshash': w_rsshash, 'poly1305': w_poly1305, 'crc32c': w_crc32c, 'siphash': w_siphash, 'blake2s': w_blake2s, 'blake2sfast': w_blake2sfast, 'q4gemv': w_q4gemv, 'attndec': w_attndec, 'attndecsplit': w_attndecsplit, 'rmsrope': w_rmsrope}
+             'rle': w_rle, 'huffdec': w_huffdec, 'lookback': w_lookback, 'hll': w_hll, 'tricount': w_tricount, 'sha3': w_sha3, 'stereo': w_stereo, 'viterbi': w_viterbi, 'viterbifix': w_viterbifix, 'shiftfuse': w_shiftfuse, 'bc1enc': w_bc1enc, 'lz4dec': w_lz4dec, 'nttmul': w_nttmul, 'topk': w_topk, 'cellsort': w_cellsort, 'boruvka': w_boruvka, 'biquad': w_biquad, 'edt': w_edt, 'mt19937': w_mt19937, 'bitap': w_bitap, 'cholesky': w_cholesky, 'rsshash': w_rsshash, 'poly1305': w_poly1305, 'crc32c': w_crc32c, 'siphash': w_siphash, 'blake2s': w_blake2s, 'blake2sfast': w_blake2sfast, 'q4gemv': w_q4gemv, 'attndec': w_attndec, 'attndecsplit': w_attndecsplit, 'rmsrope': w_rmsrope, 'q8dot': w_q8dot}
 
 
 # ---------------------------------------------------------------------------------------------------------------
