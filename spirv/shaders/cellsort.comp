@@ -1,0 +1,44 @@
+#version 450
+// Particle binning by counting sort (neighbour lists in SPH / molecular dynamics / n-body, spatial hashing), in
+// three dispatches over 16.16 fixed-point positions on a 256 x 256 cell grid:
+// pass 0: count particles per cell (device atomicAdd)
+// pass 1: one workgroup turns the 65536 counts into start offsets (64 per invocation, a shared scan of the sums)
+//         and copies them to the per-cell cursors
+// pass 2: each particle takes a slot with atomicAdd on its cell's cursor (the returned value) and stores its id.
+// Order inside a cell depends on atomic arbitration; the check compares cells as sets.
+layout(local_size_x = 1024) in;
+layout(std430, binding = 0) readonly buffer X { uvec2 pos[]; };
+layout(std430, binding = 1) buffer CN { uint cnt[65536]; };
+layout(std430, binding = 2) buffer ST { uint start[65536]; };
+layout(std430, binding = 3) buffer CU { uint cursor[65536]; };
+layout(std430, binding = 4) writeonly buffer O { uint ids[]; };
+layout(push_constant) uniform P { uint pass; uint n; } p;
+shared uint part[1024];
+
+uint cell(uvec2 q) { return (q.y >> 24) * 256u + (q.x >> 24); }
+
+void main() {
+    uint i = gl_GlobalInvocationID.x, l = gl_LocalInvocationID.x;
+    if (p.pass == 1u) {
+        uint s = 0u;
+        for (uint k = 0u; k < 64u; k++) s += cnt[64u * l + k];
+        part[l] = s;
+        barrier();
+        for (uint d = 1u; d < 1024u; d <<= 1) {
+            uint x = l >= d ? part[l - d] : 0u;
+            barrier();
+            part[l] += x;
+            barrier();
+        }
+        uint acc = part[l] - s;                                     // exclusive prefix of this invocation's 64 cells
+        for (uint k = 0u; k < 64u; k++) {
+            uint c = 64u * l + k;
+            start[c] = acc; cursor[c] = acc; acc += cnt[c];
+        }
+        return;
+    }
+    if (i >= p.n) return;
+    uint c = cell(pos[i]);
+    if (p.pass == 0u) atomicAdd(cnt[c], 1u);
+    else ids[atomicAdd(cursor[c], 1u)] = i;
+}

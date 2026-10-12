@@ -818,6 +818,29 @@ def w_topk(size, rng):
              {'items': arrays * 1024, 'bytes': 4096 * arrays})
 
 
+def w_cellsort(size, rng):
+    n = 1 << 14 if size == 'small' else 1 << 22
+    # clustered particles: a few Gaussian blobs over a uniform background, positions in 32-bit fixed point
+    blobs = rng.uniform(0.1, 0.9, (8, 2)); which = rng.integers(0, 9, n)
+    xy = np.where((which < 8)[:, None], blobs[np.minimum(which, 7)] + rng.normal(0, 0.03, (n, 2)), rng.uniform(0, 1, (n, 2)))
+    pos = u32(np.clip(xy, 0, 1 - 2.0 ** -32) * 2.0 ** 32)
+    cells = ((pos[:, 1] >> 24).astype(np.int64) << 8) | (pos[:, 0] >> 24).astype(np.int64)
+    def check(o):
+        cnt = o[1].view(np.uint32)[:65536].astype(np.int64); start = o[2].view(np.uint32)[:65536].astype(np.int64)
+        ids = o[4].view(np.uint32)[:n].astype(np.int64)
+        rc = np.bincount(cells, minlength=65536); rs = np.concatenate([[0], np.cumsum(rc)[:-1]])
+        order = np.argsort(cells, kind='stable')                               # reference: ids sorted by cell
+        # compare each cell as a set: sort ids within cells on both sides
+        got_sorted = np.lexsort((ids, np.repeat(np.arange(65536), rc))) if np.array_equal(cnt, rc) else None
+        sets_ok = got_sorted is not None and np.array_equal(ids[got_sorted], order)
+        return bool(np.array_equal(cnt, rc) and np.array_equal(start, rs) and sets_ok), {
+            'count_mismatches': int(np.sum(cnt != rc)), 'start_mismatches': int(np.sum(start != rs)), 'cell_sets_ok': bool(sets_ok),
+            'max_cell': int(rc.max()), 'empty_cells': int(np.sum(rc == 0))}
+    ds = [((n + 1023) // 1024, 1, 1, push(0, n)), (1, 1, 1, push(1, n)), ((n + 1023) // 1024, 1, 1, push(2, n))]
+    return W('cellsort', {0: (pos, False), 1: (4 * 65536, True), 2: (4 * 65536, True), 3: (4 * 65536, False), 4: (4 * n, True)},
+             ds, check, 1024, {'items': n})
+
+
 def w_spmv(size, rng):
     rows, cols = (512, 512) if size == 'small' else (1 << 18, 1 << 18)
     nnz = rng.integers(0, 64, rows) * (rng.random(rows) < 0.95)    # some empty rows
@@ -3347,7 +3370,7 @@ WORKLOADS = {'reduce': w_reduce, 'scan': w_scan, 'sgemm': w_sgemm, 'conv2d': w_c
              'aluprobe': w_aluprobe, 'ubopalette': w_ubopalette, 'uboparams': w_uboparams,
              'bindless': w_bindless, 'bindlessu': w_bindlessu,
              # appended only: the input seed is the index in this dict
-             'rle': w_rle, 'huffdec': w_huffdec, 'lookback': w_lookback, 'hll': w_hll, 'tricount': w_tricount, 'sha3': w_sha3, 'stereo': w_stereo, 'viterbi': w_viterbi, 'viterbifix': w_viterbifix, 'shiftfuse': w_shiftfuse, 'bc1enc': w_bc1enc, 'lz4dec': w_lz4dec, 'nttmul': w_nttmul, 'topk': w_topk}
+             'rle': w_rle, 'huffdec': w_huffdec, 'lookback': w_lookback, 'hll': w_hll, 'tricount': w_tricount, 'sha3': w_sha3, 'stereo': w_stereo, 'viterbi': w_viterbi, 'viterbifix': w_viterbifix, 'shiftfuse': w_shiftfuse, 'bc1enc': w_bc1enc, 'lz4dec': w_lz4dec, 'nttmul': w_nttmul, 'topk': w_topk, 'cellsort': w_cellsort}
 
 
 # ---------------------------------------------------------------------------------------------------------------
