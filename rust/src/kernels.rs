@@ -534,7 +534,12 @@ pub fn mem_loop_kind(steps: u32, kind: &str, s: u32, jstride: u32, w: u32, data:
     let mut body = vec![];
     for k in 0..steps {
         let (ri, rd) = (5 + k % 8, 13 + k % 8);
+        let d0 = if k % 2 == 0 { 13 } else { 17 };
         body.extend(match kind {
+            "load_v4" => e(&format!("device_load 0, i32, xyzw, r{}_r{}_r{}_r{}, u8_u9, r{}, unsigned", d0, d0 + 1, d0 + 2, d0 + 3, ri)),
+            "load_v2" => e(&format!("device_load 0, i32, xy, r{}_r{}, u8_u9, r{}, unsigned", d0, d0 + 1, ri)),
+            "load_i16" => e(&format!("device_load 0, i16, x, r{}l, u8_u9, r{}, unsigned", d0, ri)),
+            "load_i8" => e(&format!("device_load 0, i8, x, r{}l, u8_u9, r{}, unsigned", d0, ri)),
             "atomic" => atomic_add(8, ri, rd),
             "tgload" => tg(true, "i32", rd, Some(ri), 0, 1),
             _ => tg(false, "i32", rd, Some(ri), 0, 1),

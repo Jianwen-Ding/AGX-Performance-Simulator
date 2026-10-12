@@ -69,6 +69,11 @@ def mem_loop(steps, kind, s, j, w, data, advance=0, mask=0, glob=False, private=
             body += e(f'device_load 0, i32, x, r{DST[k % 8]}, u8_u9, r{r}, unsigned')
         elif kind == 'store':
             body += agx_loop.store(DST[k % 8], 8, r)
+        elif kind in VEC:
+            fmt, mask, regs = VEC[kind]
+            d0 = DST[0] if k % 2 == 0 else DST[4]
+            names = {'4': f'r{d0}_r{d0+1}_r{d0+2}_r{d0+3}', '2': f'r{d0}_r{d0+1}', 'h': f'r{d0}l', 'b': f'r{d0}l'}[regs]
+            body += e(f'device_load 0, {fmt}, {mask}, {names}, u8_u9, r{r}, unsigned')
         elif kind == 'atomic':          # device atomic add without return: [u8_u9 + idx*4] += value
             body += agx_loop.atomic_add(8, r, DST[k % 8])
         else:                           # threadgroup load/store: byte address in the 16-bit base register
@@ -82,6 +87,10 @@ def mem_loop(steps, kind, s, j, w, data, advance=0, mask=0, glob=False, private=
                     body += e(f'iadd r{r2}, r{r2}, r21')+e(f'and r{r2}, r{r2}, r22')
     body += e('iadd r3, 1, r3.sx')+e('while_icmp r0l, ult, r3, r4, 1')
     return head+body+e(f'jmp_exec_any pc-{len(body)}', f'jmp_exec_any pc-{len(body)}')+e('pop_exec r0l, 1')
+
+
+# vector / narrow device loads (index counts format elements; vec_probe.py)
+VEC = {'load_v4': ('i32', 'xyzw', '4'), 'load_v2': ('i32', 'xy', '2'), 'load_i16': ('i16', 'x', 'h'), 'load_i8': ('i8', 'x', 'b')}
 
 
 def pad_alu(n, kind):
@@ -147,7 +156,7 @@ def gate_private():
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument('what', choices=['run', 'gate'])
-    ap.add_argument('--kind', default='load', choices=['load', 'store', 'atomic', 'tgload', 'tgstore'])
+    ap.add_argument('--kind', default='load', choices=['load', 'store', 'atomic', 'tgload', 'tgstore', 'load_v4', 'load_v2', 'load_i16', 'load_i8'])
     ap.add_argument('--shared-bytes', type=int, default=32768, help='threadgroup memory declared for tg kinds')
     ap.add_argument('--groups', default='1,4,8,16,32')
     ap.add_argument('--stride', default='0,1,2,4,8,16,32', help='S: words between lanes')

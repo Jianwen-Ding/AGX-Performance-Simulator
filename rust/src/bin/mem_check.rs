@@ -28,8 +28,8 @@ pub fn predict(p: &Params, row: &serde_json::Value, steps: [u32; 2], mm: &MemMod
         if let Some(bar) = row["barrier"].as_str() {
             code.extend(kernels::barrier_loop_kind(s, bar == "0x78", row["filler_iadds"].as_u64().unwrap_or(0) as u32,
                 row["fill_kind"].as_str() == Some("dep")));
-        } else if matches!(kind, "tgload" | "tgstore" | "atomic") {
-            let (st, d) = if kind == "atomic" { (g("stride"), data) } else { (4 * g("stride"), 0) };
+        } else if matches!(kind, "tgload" | "tgstore" | "atomic" | "load_v4" | "load_v2" | "load_i16" | "load_i8") {
+            let (st, d) = if kind == "atomic" || kind.starts_with("load_") { (g("stride"), data) } else { (4 * g("stride"), 0) };
             code.extend(kernels::mem_loop_kind(s, kind, st, g("j"), g("w"), d, glob));
         } else {
         let private = row["private"].as_bool().unwrap_or(false);
@@ -66,7 +66,7 @@ fn main() {
     if args.iter().any(|a| a == "--stored") {
         let r = cost::repo_root().join("results/2026-10-11-memory-hierarchy");
         for f in ["coalesce-shared.json", "coalesce-private.json", "store.json", "pad.json", "private.json", "stream-dram.json", "tg.json",
-            "tgstore.json", "atomic-global.json", "barrier.json", "inter.json", "barrier-fill.json", "barrier-dep.json"] {
+            "tgstore.json", "atomic-global.json", "barrier.json", "inter.json", "barrier-fill.json", "barrier-dep.json", "vec.json"] {
             files.push(r.join(f).display().to_string());
         }
     }

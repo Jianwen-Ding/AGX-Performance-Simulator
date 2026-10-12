@@ -1241,6 +1241,7 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
         tg_free: i64,
         at_free: i64,
         tg_group_free: Vec<i64>,
+        last_load: Option<Vec<u64>>,
     }
     let mut ms: Option<MemState> = mem.map(|(_, m)| {
         let per_tick = |segs_per_cycle: f64| segs_per_cycle / TICKS as f64;
@@ -1261,6 +1262,7 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
             tg_free: 0,
             at_free: 0,
             tg_group_free: vec![0; groups],
+            last_load: None,
         }
     });
     let memv: Vec<&[(u32, Vec<u64>)]> = mem.map(|(v, _)| v.to_vec()).unwrap_or_default();
@@ -1605,7 +1607,11 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
                         if store {
                             need[1] = n.max(1.0).max(m_l1_store_min(mem));
                         } else {
-                            need[0] = n.max(m_l1_load_min(mem));
+                            // the same lines as the core's previous load (every group on one line): 1.22 cycles per
+                            // load instead of 1.0 (coalesce-shared vs coalesce-private)
+                            let same = m.last_load.as_ref() == Some(segs);
+                            need[0] = n.max(m_l1_load_min(mem) * if same { 1.22 } else { 1.0 });
+                            m.last_load = Some(segs.clone());
                         }
                         let mut level = 0usize;
                         for &sg in segs {
