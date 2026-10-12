@@ -1,7 +1,7 @@
 # Task SPIR-V 8: applications (ray tracer, neural networks, image processing, cellular automaton, graph search,
 # encryption, hashing, text, compression)
 
-**Workloads:** `raytrace`, `mlp`, `sobel`, `life`, `bfs`, `conv_layer`, `hist_eq`, `aes`, `hash_table`, `word_count`, `dct8`, `attention`, `resize`, `median3`, `poisson`, `lbm`, `base64`, `md5`, `gemv`, `levenshtein`, `blur`, `yuv420`, `montecarlo`, `xxhash`, `bloom`, `collatz`, `tridiag`, `merge`, `ccl`, `pagerank`, `skinning`. These are recorded and verified by `make asahi-verify` with the others;
+**Workloads:** `raytrace`, `mlp`, `sobel`, `life`, `bfs`, `conv_layer`, `hist_eq`, `aes`, `hash_table`, `word_count`, `dct8`, `attention`, `resize`, `median3`, `poisson`, `lbm`, `base64`, `md5`, `gemv`, `levenshtein`, `blur`, `yuv420`, `montecarlo`, `xxhash`, `bloom`, `collatz`, `tridiag`, `merge`, `ccl`, `pagerank`, `skinning`, `strsearch`, `quantize`, `rule110`, `voxel`. These are recorded and verified by `make asahi-verify` with the others;
 they are **PENDING** until then. The detailed procedure is in `tasks/spirv-workloads.md`.
 
 ## Why these
@@ -43,11 +43,15 @@ reference.
 | `ccl` | Connected components of a 512 × 512 binary image by label propagation with `atomicMin`, 308 dispatches | Exact labels (smallest pixel index per component); the dispatch count covers the slowest (Jacobi) order |
 | `pagerank` | 20 PageRank iterations on a 2^20-page graph with heavy-tailed out-degrees (CSR, pull form) | Within 1e-4 relative of float64; rank sum 1 |
 | `skinning` | Linear blend skinning of 2^20 vertices by 4 of 64 bone matrices: positions and normals | Within 2^-18 of float64 |
+| `strsearch` | Find an 8-byte pattern in 64 MiB of DNA-like text: per-position flags, `atomicAdd` count, `atomicMin` first | Exact flags, count and first position |
+| `quantize` | Per-row int8 quantization of 32768 × 256 fp32 activations (round half to even), with per-row Σ\|q\| in shared memory | Exact; row 0 holds ties (0.5 → 0, 1.5 → 2, 2.5 → 2) |
+| `rule110` | Rule 110 automaton on an 8192-cell ring, 1000 dependent dispatches building the space-time history | Exact every row; `sim_image0.pgm` / `image0.pgm` show the history |
+| `voxel` | Bin 2^22 clustered points into a 64³ grid: counts and 16.16 fixed-point coordinate sums with `atomicAdd` | Exact under any atomic order |
 
 ## Offline sanity checks (not hardware verification)
 
 - **lavapipe:** all pass at both sizes.
-- **Shim-compiled Mesa 25.2.8 and 26.0.3 code on the functional simulator:** 62 of 62.
+- **Shim-compiled Mesa 25.2.8 and 26.0.3 code on the functional simulator:** 70 of 70.
   - `bfs` found a simulator bug. Mesa aggregates `atomicAdd(found[l], 1)` under divergence: one lane, chosen with SR58
     (`active_thread_index_in_simdgroup`), adds SR59, the number of active lanes. The simulator modelled both from the
     launch shape (lane index, 32), which is only right when every lane is active, so the counts came out as multiples
@@ -82,3 +86,6 @@ reference.
    because each update can only lower a label faster than the Jacobi order that sets the dispatch count. Its
    prediction runs every dispatch from the initial labels. `pagerank` and `skinning` are fp32 sums, so expect CLOSE
    or PASS. `pagerank` is irregular gathers; compare its time with `predict` as a memory-latency case.
+9. `strsearch`, `quantize`, `rule110` and `voxel` are exact and must PASS. `quantize` confirms `roundEven` and the
+   fp32 → int conversion. `rule110` is 1000 dispatches of 128 threads each: its time per dispatch is a direct
+   measure of launch overhead (the model predicts 6.4 µs, of which 5.6 µs is launch).

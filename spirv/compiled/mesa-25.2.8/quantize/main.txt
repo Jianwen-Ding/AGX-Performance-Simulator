@@ -1,0 +1,36 @@
+0x0080  72050000                 get_sr r1, sr0 (threadgroup_position_in_grid.x)
+0x0084  72093000                 get_sr r2, sr48 (thread_position_in_threadgroup.x)
+0x0088  620d00000000             mov_imm r3, 0, 0b0
+0x008e  62000000                 mov_imm r0l, 0
+0x0092  520844020000             if_icmp r0l, ueq, r2, 0, 1
+0x0098  298d800214000000         threadgroup_store i32, x, r3, 0, 0
+0x00a0  520e00000000             pop_exec r0l, 1
+0x00a6  6800                     threadgroup_barrier
+0x00a8  0e05428658000000         iadd r1, r1.sx, u4.sx
+0x00b0  1e0d42465a440600         imadd r3, r1.sx, u18.sx, r2.sx
+0x00b8  0521600e10c01200         device_load 0, i32, x, r4, u8_u9, r3, unsigned
+0x00c0  0529244e10c01200         device_load 1, i32, x, r5, u10_u11, r1, unsigned
+0x00c8  3800                     wait 0
+0x00ca  3801                     wait 1
+0x00cc  1a9148a22400             fmul32 r4, r4, r5
+0x00d2  0a9148020300             rint r4, r4
+0x00d8  021148221a4820fa         fcmpsel gtn, r4, r4, u17, r4, u17
+0x00e0  021148021a48007a         fcmpsel ltn, r4, r4, u16, r4, u16
+0x00e8  3e9109802400             convert f_to_s32, r4, r4, rtz
+0x00ee  0e15008864000000         isub r5, 0, r4.sx
+0x00f6  121548a22448a0c4         icmpsel sgt, r5, r4, r5, r4, r5
+0x00fe  7e0248f28303             and r0h, r4, 255
+0x0104  4504680e10c01000         device_store 0, i8, x, r0h, u12_u13, r3, unsigned, 0
+0x010c  6f8d4a220080             simd_iadd r3, r5
+0x0112  72023a00                 get_sr r0h, sr58 (active_thread_index_in_simdgroup)
+0x0116  3800                     wait 0
+0x0118  520841000000             if_icmp r0l, ueq, r0h, 0, 1
+0x011e  19808000148000000600     threadgroup_atomic add, None, 0, 0, r3, 0, 2, 128, 0
+0x0128  520e00000000             pop_exec r0l, 1
+0x012e  6800                     threadgroup_barrier
+0x0130  520844020000             if_icmp r0l, ueq, r2, 0, 1
+0x0136  6989800214000000         threadgroup_load i32, x, r2, 0, 0
+0x013e  45112c0e10c01200         device_store 0, i32, x, r2, u14_u15, r1, unsigned, 0
+0x0146  3800                     wait 0
+0x0148  520e00000000             pop_exec r0l, 1
+0x014e  8800                     stop

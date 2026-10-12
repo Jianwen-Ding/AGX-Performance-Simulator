@@ -43,7 +43,7 @@ class W:
     check(outputs) -> (ok, detail), metrics for throughput"""
     def __init__(self, shader, buffers, dispatches, check, wg, work=None, images=None):
         self.shader, self.buffers, self.dispatches, self.check, self.wg, self.work = shader, buffers, dispatches, check, wg, work or {}
-        self.images = images or []       # [(binding, width, height, 'rgba8' | 'gray8')]: written as .ppm / .pgm for viewing
+        self.images = images or []       # [(binding, width, height, 'rgba8' | 'gray8' | 'bits')]: written as .ppm / .pgm for viewing
 
 
 def write_images(w, outs, out_dir, tag):
@@ -55,6 +55,9 @@ def write_images(w, outs, out_dir, tag):
         if kind == 'rgba8':
             px = raw[:4 * wd * ht].reshape(ht, wd, 4)[..., :3]
             (Path(out_dir) / f'{tag}{b}.ppm').write_bytes(f'P6 {wd} {ht} 255\n'.encode() + px.tobytes())
+        elif kind == 'bits':                                                    # bit-packed cells, bit j of word w = cell 32 w + j
+            px = (255 - 255 * np.unpackbits(raw[:wd * ht // 8], bitorder='little')).astype(np.uint8)
+            (Path(out_dir) / f'{tag}{b}.pgm').write_bytes(f'P5 {wd} {ht} 255\n'.encode() + px.tobytes())
         else:
             (Path(out_dir) / f'{tag}{b}.pgm').write_bytes(f'P5 {wd} {ht} 255\n'.encode() + raw[:wd * ht].tobytes())
 
@@ -1451,6 +1454,79 @@ def w_skinning(size, rng):
                           5: (16 * n, True), 6: (16 * n, True)}, [((n + 63) // 64, 1, 1, push(n))], check, 64, {'vertices': n})
 
 
+def w_strsearch(size, rng):
+    n = 4096 if size == 'small' else 1 << 26
+    text = np.frombuffer(b'acgt', np.uint8)[rng.integers(0, 4, n)]            # DNA-like text
+    pat = np.frombuffer(b'gattacag', np.uint8).copy()
+    for pos in rng.choice(n - 8, max(4, n // 4096), replace=False):           # planted occurrences (some overlap or clobber)
+        text[pos:pos + 8] = pat
+    def check(o):
+        flags = o[2][:n]; count, first = (int(v) for v in o[3].view(np.uint32)[:2])
+        win = np.lib.stride_tricks.sliding_window_view(text, 8)
+        ref = np.zeros(n, np.uint8); ref[:n - 7] = np.all(win == pat, axis=1)
+        hits = np.flatnonzero(ref)
+        ok = np.array_equal(flags, ref) and count == len(hits) and first == (int(hits[0]) if len(hits) else 0xffffffff)
+        return ok, {'flag_mismatches': int(np.sum(flags != ref)), 'count': count, 'ref_count': int(len(hits)), 'first': first}
+    return W('strsearch', {0: (text, False), 1: (pat, False), 2: (n, True), 3: (u32([0, 0xffffffff]), True)},
+             [((n + 255) // 256, 1, 1, push(n))], check, 256, {'bytes': n})
+
+
+def w_quantize(size, rng):
+    rows = 64 if size == 'small' else 1 << 15
+    x = f32(rng.standard_normal((rows, 256)) * rng.uniform(0.01, 10, (rows, 1)))
+    x[np.abs(x) < 1e-30] = 1e-30                                              # no denormals (the GPU flushes them)
+    x[0, :8] = [0.5, 1.5, 2.5, -0.5, -2.5, 126.5, -126.5, 127.0]                 # ties: round half to even
+    inv = f32(127.0 / np.max(np.abs(x), axis=1)); inv[0] = 1.0
+    def check(o):
+        got = o[2].view(np.int8)[:rows * 256].reshape(rows, 256); sums = o[3].view(np.uint32)[:rows]
+        ref = np.clip(np.rint(f32(x * inv[:, None])), -127, 127).astype(np.int8)  # fp32 product, then half-to-even
+        ok = np.array_equal(got, ref) and np.array_equal(sums, np.abs(ref.astype(np.int64)).sum(1))
+        deq = got.astype(np.float64) / inv[:, None]
+        return ok, {'mismatches': int(np.sum(got != ref)), 'row0_ties': got[0, :8].tolist(),
+                    'max_dequant_err_over_step': float(np.max(np.abs(deq - x) * inv[:, None]))}
+    return W('quantize', {0: (x, False), 1: (inv, False), 2: (rows * 256, True), 3: (4 * rows, True)},
+             [(rows, 1, 1, push(rows))], check, 256, {'elements': rows * 256})
+
+
+def w_rule110(size, rng):
+    cells, steps = (512, 64) if size == 'small' else (8192, 1000)
+    words = cells // 32
+    hist = np.zeros((steps + 1, words), np.uint32)
+    hist[0] = u32(rng.integers(0, 1 << 32, words, dtype=np.uint64))
+    def check(o):
+        got = o[0].view(np.uint32)[:(steps + 1) * words].reshape(steps + 1, words)
+        c = np.unpackbits(hist[0].view(np.uint8), bitorder='little').astype(bool)
+        ref = [c]
+        for _ in range(steps):
+            l, r = np.roll(c, 1), np.roll(c, -1)                              # cell k's left neighbour is k - 1 (ring)
+            c = (c | r) & ~(l & c & r); ref.append(c)
+        ref = np.packbits(np.array(ref), axis=1, bitorder='little').view(np.uint32)
+        bad = np.flatnonzero(np.any(got != ref, axis=1))
+        return len(bad) == 0, {'bad_rows': int(len(bad)), 'first_bad_row': int(bad[0]) if len(bad) else None,
+                               'live_cells_last_row': int(np.unpackbits(got[-1].view(np.uint8)).sum())}
+    ds = [((words + 63) // 64, 1, 1, push(words, k)) for k in range(steps)]
+    return W('rule110', {0: (hist, True)}, ds, check, 64, {'cell_updates': cells * steps}, images=[(0, cells, steps + 1, 'bits')])
+
+
+def w_voxel(size, rng):
+    n = 4096 if size == 'small' else 1 << 22
+    centers = rng.uniform(0.2, 0.8, (8, 3))
+    pts = centers[rng.integers(0, 8, n)] + rng.standard_normal((n, 3)) * 0.06  # clustered, like scanned surfaces
+    pts = f32(np.clip(pts, 0, np.nextafter(np.float32(1), np.float32(0))))
+    pts4 = f32(np.concatenate([pts, np.ones((n, 1), np.float32)], 1))
+    def check(o):
+        cnt = o[1].view(np.uint32)[:64 ** 3]; sm = o[2].view(np.uint32)[:3 * 64 ** 3].reshape(-1, 3)
+        v = (pts * 64).astype(np.int64); vid = (v[:, 2] * 64 + v[:, 1]) * 64 + v[:, 0]
+        rc = np.bincount(vid, minlength=64 ** 3)
+        fx = (pts.astype(np.float64) * 65536).astype(np.int64)
+        rs = np.stack([np.bincount(vid, weights=fx[:, k], minlength=64 ** 3) for k in range(3)], 1).astype(np.int64)
+        ok = np.array_equal(cnt, rc) and np.array_equal(sm.astype(np.int64), rs)
+        return ok, {'count_mismatches': int(np.sum(cnt != rc)), 'sum_mismatches': int(np.sum(sm != rs)),
+                    'occupied_voxels': int(np.sum(rc > 0)), 'max_points_per_voxel': int(rc.max())}
+    return W('voxel', {0: (pts4, False), 1: (u32(np.zeros(64 ** 3)), True), 2: (u32(np.zeros(3 * 64 ** 3)), True)},
+             [((n + 255) // 256, 1, 1, push(n))], check, 256, {'points': n})
+
+
 WORKLOADS = {'reduce': w_reduce, 'scan': w_scan, 'sgemm': w_sgemm, 'conv2d': w_conv2d, 'histogram': w_histogram,
              'nbody': w_nbody, 'bitonic': w_bitonic, 'sha256': w_sha256, 'fp16': w_fp16, 'int64': w_int64, 'bitops': w_bitops,
              'intdiv': w_intdiv, 'compact': w_compact, 'spmv': w_spmv, 'transpose': w_transpose, 'mandelbrot': w_mandelbrot,
@@ -1463,7 +1539,8 @@ WORKLOADS = {'reduce': w_reduce, 'scan': w_scan, 'sgemm': w_sgemm, 'conv2d': w_c
              'lbm': w_lbm, 'base64': w_base64, 'md5': w_md5, 'gemv': w_gemv,
              'levenshtein': w_levenshtein, 'blur': w_blur, 'yuv420': w_yuv420, 'montecarlo': w_montecarlo,
              'xxhash': w_xxhash, 'bloom': w_bloom, 'collatz': w_collatz, 'tridiag': w_tridiag,
-             'merge': w_merge, 'ccl': w_ccl, 'pagerank': w_pagerank, 'skinning': w_skinning}
+             'merge': w_merge, 'ccl': w_ccl, 'pagerank': w_pagerank, 'skinning': w_skinning,
+             'strsearch': w_strsearch, 'quantize': w_quantize, 'rule110': w_rule110, 'voxel': w_voxel}
 
 
 # ---------------------------------------------------------------------------------------------------------------

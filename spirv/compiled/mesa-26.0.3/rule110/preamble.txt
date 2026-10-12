@@ -1,0 +1,35 @@
+0x0180  0501500d00c87200         device_load 0, i32, xyz, r0_r1_r2, u0_u1, 5, signed, lsl 2
+0x0188  3800                     wait 0
+0x018a  2e0100002c060000         bfi r0, 0, r0.discard, 6
+0x0192  c500803d00803000         uniform_store 2, i16, xy, 0, r0l_r0h, 8
+0x019a  0501d00d03c41200         device_load 0, i32, x, r0, u0_u1, 61, signed, lsl 1
+0x01a2  3800                     wait 0
+0x01a4  c500a03d00803000         uniform_store 2, i16, xy, 0, r0l_r0h, 10
+0x01ac  0509b00d07c01200         device_load 0, i32, x, r1, u0_u1, 123, signed
+0x01b4  3800                     wait 0
+0x01b6  9e05c20668000000         imadd r1.cache, r1.discard.sx, r0.cache.sx, 0
+0x01be  c508c03d00803000         uniform_store 2, i16, xy, 0, r1l_r1h, 12
+0x01c6  0521040d00c0f200         device_load 0, i32, xyzw, r4_r5_r6_r7, u2_u3, 0, signed
+0x01ce  3800                     wait 0
+0x01d0  c520003d0180f000         uniform_store 2, i16, xyzw, 0, r4l_r4h_r5l_r5h, 16
+0x01d8  e209ffffffff             mov_imm r2.cache, 4294967295, 0b0
+0x01de  0e09c40668000000         iadd r2, r2.discard.sx, r0.cache.sx
+0x01e6  c510403d01803000         uniform_store 2, i16, xy, 0, r2l_r2h, 20
+0x01ee  be890a042800             convert u32_to_f, r2.cache, r0.cache, rte
+0x01f4  8a0d8482                 rcp r3.cache, r2.cache
+0x01f8  ba09c46a2830             fmadd32 r2.cache, r2.discard.neg, r3.cache, 1.0
+0x01fe  ba89c46228860200         fmadd32 r2.cache, r2.discard, r3.cache, r3.cache
+0x0206  8209c4422cc4600c         fcmpsel eq, r2.cache, r2.discard, r2.discard, r2.discard, r3.discard
+0x020e  e20dfeff7f4f             mov_imm r3.cache, 1333788670, 0b0
+0x0214  1a89c4622c00             fmul32 r2, r2.discard, r3.discard
+0x021a  be8908402c00             convert f_to_u32, r2.cache, r2.discard, rtz
+0x0220  9e0d804668000000         imadd r3.cache, r0.cache.sx, r2.cache.sx, 0
+0x0228  8e0d00686c000000         isub r3.cache, 0, r3.discard.sx
+0x0230  1e1384622c000000         imadd r4_r5, r2.cache, r3.discard, 0
+0x0238  0e09c4a66c000000         iadd r2, r2.discard.sx, r5.discard.sx
+0x0240  c510603d01803000         uniform_store 2, i16, xy, 0, r2l_r2h, 22
+0x0248  0e09000868000000         isub r2, 0, r0.cache.sx
+0x0250  c510803d01803000         uniform_store 2, i16, xy, 0, r2l_r2h, 24
+0x0258  0e01c2066c000000         iadd r0, r1.discard.sx, r0.discard.sx
+0x0260  c500a03d01803000         uniform_store 2, i16, xy, 0, r0l_r0h, 26
+0x0268  8800                     stop

@@ -1,0 +1,18 @@
+#version 450
+// Rule 110 cellular automaton (Turing-complete) on a ring of bit-packed cells: dispatch k computes row k + 1 of the
+// space-time history from row k, 32 cells per thread with shifts that pull in the neighbouring words' edge bits.
+// Hundreds of tiny dependent dispatches (launch-bound); integer-exact. The history is the image.
+layout(local_size_x = 64) in;
+layout(std430, binding = 0) buffer H { uint hist[]; };
+layout(push_constant) uniform P { uint words; uint row; } p;
+
+void main() {
+    uint w = gl_GlobalInvocationID.x;
+    if (w >= p.words) return;
+    uint base = p.row * p.words;
+    uint c = hist[base + w];
+    uint prev = hist[base + (w + p.words - 1u) % p.words], next = hist[base + (w + 1u) % p.words];
+    uint l = (c << 1) | (prev >> 31);           // bit j of word w is cell 32 w + j; left neighbour is cell - 1
+    uint r = (c >> 1) | (next << 31);
+    hist[base + p.words + w] = (c | r) & ~(l & c & r);
+}
