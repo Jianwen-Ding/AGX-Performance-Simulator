@@ -724,6 +724,63 @@ def w_bc1enc(size, rng):
              {'items': nb, 'bytes': 4 * Wd * H + 8 * nb})
 
 
+def lz4_block(data):
+    """greedy LZ4 block encoder (4-byte hash of the last position, min match 4, the last 5 bytes as literals and no
+    match starting in the last 12)"""
+    n, out, anchor, i, table = len(data), bytearray(), 0, 0, {}
+    def lenbytes(v):
+        r = bytearray()
+        while v >= 255:
+            r.append(255); v -= 255
+        r.append(v); return r
+    while i + 12 <= n:
+        key = data[i:i + 4]; cand = table.get(key); table[key] = i
+        if cand is not None and i - cand <= 65535:
+            ml = 4
+            while i + ml < n - 5 and data[cand + ml] == data[i + ml]:
+                ml += 1
+            lit = i - anchor
+            out.append((min(lit, 15) << 4) | min(ml - 4, 15))
+            if lit >= 15: out += lenbytes(lit - 15)
+            out += data[anchor:i]
+            out += (i - cand).to_bytes(2, 'little')
+            if ml - 4 >= 15: out += lenbytes(ml - 4 - 15)
+            i += ml; anchor = i
+        else:
+            i += 1
+    lit = n - anchor
+    out.append(min(lit, 15) << 4)
+    if lit >= 15: out += lenbytes(lit - 15)
+    out += data[anchor:]
+    return bytes(out)
+
+
+def w_lz4dec(size, rng):
+    nb = 64 if size == 'small' else 512
+    vocab = [b'GET ', b'POST ', b'/api/v1/', b'users/', b'items/', b'HTTP/1.1 ', b'200 ', b'404 ', b'\n', b'id=', b'&', b'aaaaaaaaaaaa']
+    raw = []
+    for _ in range(nb):
+        parts = []
+        while sum(map(len, parts)) < 4096:
+            k = int(rng.integers(0, len(vocab) + 3))
+            parts.append(vocab[k] if k < len(vocab) else bytes(rng.integers(48, 123, int(rng.integers(1, 9)), dtype=np.uint8)))
+        raw.append(b''.join(parts)[:4096])
+    blocks = [lz4_block(r) for r in raw]
+    spans = np.zeros((nb, 2), np.uint32); pos = 0
+    for k, c in enumerate(blocks):
+        spans[k] = (pos, len(c)); pos += len(c)
+    stream = b''.join(blocks); stream += bytes(-len(stream) % 4 + 4)
+    comp = np.frombuffer(stream, np.uint32).copy()
+    ref = np.frombuffer(b''.join(raw), np.uint8)
+    def check(o):
+        got = o[2][:4096 * nb]; produced = o[3].view(np.uint32)[:nb]
+        bad_blocks = int(np.sum((got.reshape(nb, 4096) != ref.reshape(nb, 4096)).any(1)))
+        return bad_blocks == 0 and bool(np.all(produced == 4096)), {
+            'bad_blocks': bad_blocks, 'short_blocks': int(np.sum(produced != 4096)), 'ratio': round(4096 * nb / pos, 3)}
+    return W('lz4dec', {0: (comp, False), 1: (spans, False), 2: (4096 * nb, True), 3: (4 * nb, True)},
+             [((nb + 63) // 64, 1, 1, push(nb))], check, 64, {'bytes': 4096 * nb + pos})
+
+
 def w_spmv(size, rng):
     rows, cols = (512, 512) if size == 'small' else (1 << 18, 1 << 18)
     nnz = rng.integers(0, 64, rows) * (rng.random(rows) < 0.95)    # some empty rows
@@ -3253,7 +3310,7 @@ WORKLOADS = {'reduce': w_reduce, 'scan': w_scan, 'sgemm': w_sgemm, 'conv2d': w_c
              'aluprobe': w_aluprobe, 'ubopalette': w_ubopalette, 'uboparams': w_uboparams,
              'bindless': w_bindless, 'bindlessu': w_bindlessu,
              # appended only: the input seed is the index in this dict
-             'rle': w_rle, 'huffdec': w_huffdec, 'lookback': w_lookback, 'hll': w_hll, 'tricount': w_tricount, 'sha3': w_sha3, 'stereo': w_stereo, 'viterbi': w_viterbi, 'viterbifix': w_viterbifix, 'shiftfuse': w_shiftfuse, 'bc1enc': w_bc1enc}
+             'rle': w_rle, 'huffdec': w_huffdec, 'lookback': w_lookback, 'hll': w_hll, 'tricount': w_tricount, 'sha3': w_sha3, 'stereo': w_stereo, 'viterbi': w_viterbi, 'viterbifix': w_viterbifix, 'shiftfuse': w_shiftfuse, 'bc1enc': w_bc1enc, 'lz4dec': w_lz4dec}
 
 
 # ---------------------------------------------------------------------------------------------------------------

@@ -54,7 +54,7 @@ The rest of this file is the detailed procedure, for investigating results.
 
 ## Workloads
 
-One hundred and thirty-five realistic compute kernels, written in GLSL (`spirv/shaders/*.comp`) and compiled to SPIR-V:
+One hundred and thirty-six realistic compute kernels, written in GLSL (`spirv/shaders/*.comp`) and compiled to SPIR-V:
 
 | Workload | Kernel | Stresses |
 |---|---|---|
@@ -189,10 +189,11 @@ One hundred and thirty-five realistic compute kernels, written in GLSL (`spirv/s
 | `tricount` | Triangle counting: one edge per invocation, merge-intersection of two sorted forward-neighbour lists | Irregular, data-dependent loop lengths (load imbalance within a SIMD group), dependent CSR loads, sparse atomics |
 | `sha3` | SHA3-256 (Keccak-f[1600]) of independent 64-byte messages | 64-bit xor / and-not / rotate on 32-bit hardware, a 25-lane state in registers, a 6000-instruction unrolled body |
 | `stereo` | Stereo depth: 5×5 census transform, then per pixel the best of 64 disparities by windowed Hamming cost | `bitCount`, 3200 independent loads per pixel (1600 census pairs) from L1-resident rows, an argmin loop |
-| `viterbi` | Viterbi decoding of the K = 7 rate-1/2 convolutional code, one frame per workgroup, one state per invocation | Shared-memory add-compare-select with a barrier per step, shared `atomicOr`, a single-thread traceback; exposes a compiler fusion that drops a shift mask (expected FAIL, see the applications notes) |
-| `viterbifix` | The same decoder with the traceback bit test written as `bitfieldExtract` with a masked offset | The workaround: expected PASS |
+| `viterbi` | Viterbi decoding of the K = 7 rate-1/2 convolutional code, one frame per workgroup, one state per invocation | Shared-memory add-compare-select with a barrier per step, shared `atomicOr`, a single-thread traceback; its bit test compiles to a masked `bfeil` with an unmasked shift, whose hardware behaviour is still open (applications note 37) |
+| `viterbifix` | The same decoder with the traceback bit test written as `bitfieldExtract` with a masked offset | The workaround: correct whichever way that question goes |
 | `shiftfuse` | Ten bit-manipulation idioms with variable, explicitly masked shifts, one output column each | Which shift / mask / or fusions (`bfeil`, `bfi`, `extr`) keep the shift mask; per-column mismatch counts |
 | `bc1enc` | BC1 (DXT1) texture compression of 4×4 blocks: bounding-box endpoints in RGB565, nearest of 4 palette entries per texel | Integer divides by 255 and 3, a 16-texel block held in registers (140 GPRs, low occupancy), unrolled distance search |
+| `lz4dec` | LZ4 block decompression, one 4 KiB block per invocation, safe decoding | Byte-serial parsing with data-dependent lengths, overlapping back-reference copies, device read-modify-write per byte |
 
 Each workload has two sizes:
 

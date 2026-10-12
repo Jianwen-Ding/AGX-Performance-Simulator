@@ -5,9 +5,10 @@
 // metrics in shared memory (ties keep the predecessor with top bit 0), recording its decision with a shared
 // atomicOr; invocation 0 then traces back from state 0.
 // The traceback's (x >> (st & 31u)) & 1u, st < 64, is compiled by the AGX backend (NIR drops the & 31 that ushr
-// implies, then fuses shift-and-mask into ubitfield_extract -> bfeil) into a bfeil whose shift takes 7 bits on the
-// hardware, so states >= 32 read 0: the functional simulator fails it, and the M2 is expected to. viterbifix is the
-// same kernel with bitfieldExtract and an explicitly masked offset.
+// implies, then fuses shift-and-mask into ubitfield_extract) into a bfeil with an immediate mask and the unmasked
+// shift. It decodes correctly only if that form of bfeil takes its shift modulo 32, which no recording shows yet
+// (the full-width form takes 7 bits): see the applications notes. viterbifix is the same kernel with
+// bitfieldExtract and an explicitly masked offset, correct either way.
 layout(local_size_x = 64) in;
 layout(std430, binding = 0) readonly buffer RX { uint rx[]; };        // 256 per frame: bit 0 = first, bit 1 = second
 layout(std430, binding = 1) writeonly buffer O { uint dec[]; };       // 8 words per frame, bit t = input bit of step t

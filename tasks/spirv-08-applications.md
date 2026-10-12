@@ -1,7 +1,7 @@
 # Task SPIR-V 8: applications (ray tracer, neural networks, image processing, cellular automaton, graph search,
 # encryption, hashing, text, compression)
 
-**Workloads:** `raytrace`, `mlp`, `sobel`, `life`, `bfs`, `conv_layer`, `hist_eq`, `aes`, `hash_table`, `word_count`, `dct8`, `attention`, `resize`, `median3`, `poisson`, `lbm`, `base64`, `md5`, `gemv`, `levenshtein`, `blur`, `yuv420`, `montecarlo`, `xxhash`, `bloom`, `collatz`, `tridiag`, `merge`, `ccl`, `pagerank`, `skinning`, `strsearch`, `quantize`, `rule110`, `voxel`, `nms`, `sat`, `sssp`, `morton`, `utf8`, `fir`, `composite`, `nqueens`, `lzmatch`, `bitpack`, `perlin`, `adler32`, `sieve`, `gcd`, `dither`, `advect`, `knn`, `csvparse`, `pip`, `lift53`, `chacha20`, `modexp`, `floyd`, `f16pack`, `raster`, `canny`, `secded`, `bicubic`, `dfa`, `b64decode`, `cordic`, `rsenc`, `texfetch`, `texfilter`, `imgerode`, `imgtonemap`, `argmax64`, `minmax64`, `dsum`, `quadmip`, `clustered`, `specblur`, `cullindirect`, `bigsort`, `pushmat`, `mplitmus`, `splat`, `splatfix`, `smembank`, `coalesce`, `atomcontend`, `barriercost`, `aluprobe`, `ubopalette`, `uboparams`, `bindless`, `bindlessu`, `rle`, `huffdec`, `lookback`, `hll`, `tricount`, `sha3`, `stereo`, `viterbi`, `viterbifix`, `shiftfuse`, `bc1enc`. These are recorded and verified by `make asahi-verify` with the others;
+**Workloads:** `raytrace`, `mlp`, `sobel`, `life`, `bfs`, `conv_layer`, `hist_eq`, `aes`, `hash_table`, `word_count`, `dct8`, `attention`, `resize`, `median3`, `poisson`, `lbm`, `base64`, `md5`, `gemv`, `levenshtein`, `blur`, `yuv420`, `montecarlo`, `xxhash`, `bloom`, `collatz`, `tridiag`, `merge`, `ccl`, `pagerank`, `skinning`, `strsearch`, `quantize`, `rule110`, `voxel`, `nms`, `sat`, `sssp`, `morton`, `utf8`, `fir`, `composite`, `nqueens`, `lzmatch`, `bitpack`, `perlin`, `adler32`, `sieve`, `gcd`, `dither`, `advect`, `knn`, `csvparse`, `pip`, `lift53`, `chacha20`, `modexp`, `floyd`, `f16pack`, `raster`, `canny`, `secded`, `bicubic`, `dfa`, `b64decode`, `cordic`, `rsenc`, `texfetch`, `texfilter`, `imgerode`, `imgtonemap`, `argmax64`, `minmax64`, `dsum`, `quadmip`, `clustered`, `specblur`, `cullindirect`, `bigsort`, `pushmat`, `mplitmus`, `splat`, `splatfix`, `smembank`, `coalesce`, `atomcontend`, `barriercost`, `aluprobe`, `ubopalette`, `uboparams`, `bindless`, `bindlessu`, `rle`, `huffdec`, `lookback`, `hll`, `tricount`, `sha3`, `stereo`, `viterbi`, `viterbifix`, `shiftfuse`, `bc1enc`, `lz4dec`. These are recorded and verified by `make asahi-verify` with the others;
 they are **PENDING** until then. The detailed procedure is in `tasks/spirv-workloads.md`.
 
 ## Why these
@@ -111,10 +111,11 @@ reference.
 | `tricount` | 65536 vertices, about 1.05M forward edges with skewed degrees (up to 1359), 101544 triangles | Exact per-edge counts and total |
 | `sha3` | 262144 messages of 64 bytes | Digests equal Python's `hashlib.sha3_256` (all at small size; 12021 sampled at large) |
 | `stereo` | 1024 × 512 synthetic layered scene (disparities 4-59), 64 disparities | Exact disparity map; fraction within 1 px of the true disparity reported (0.90 offline) |
-| `viterbi` | 8192 frames of 256 steps through a 3% bit-flip channel | Exact decoded bits (residual bit error rate about 1e-4 offline). Expected to FAIL on the M2: see note 37 |
+| `viterbi` | 8192 frames of 256 steps through a 3% bit-flip channel | Exact decoded bits (residual bit error rate about 1e-4 offline). Passes or fails depending on an open `bfeil` question: note 37 |
 | `viterbifix` | The same frames | Exact decoded bits |
-| `shiftfuse` | 1M random (x, y, s) triples, 10 idioms | Exact per column; expected on the M2: 3 columns fail (note 38) |
+| `shiftfuse` | 1M random (x, y, s) triples, 10 idioms | Exact per column; 3 columns depend on the open `bfeil` question (notes 37-38) |
 | `bc1enc` | 2048 × 2048 synthetic RGB image (gradients, flat rectangles, noise): 262144 blocks | Bit-exact blocks; decoded PSNR reported (32.2 dB offline) |
+| `lz4dec` | 512 blocks of 4 KiB of request-log-like text (ratio 1.79) | Every block decodes to the original bytes; the streams also decode with the reference `lz4` library |
 
 ## Offline sanity checks (not hardware verification)
 
@@ -297,45 +298,55 @@ reference.
       the two census images, so it measures L1 hit throughput and `bitCount` rather than DRAM.
     - Predicted 3.6 ms (0.19 ms census, 3.4 ms matching). `within_1px_of_truth` shows that the output is a usable
       depth map, not just equal to the reference.
-37. **Viterbi decoding and a shift-mask compiler fusion.**
-    - The traceback tests bit `st & 31` of a survivor word as `(x >> (st & 31u)) & 1u`, with `st` up to 63. In
-      Mesa 25.2.8 and 26.0.3 the AGX backend compiles this to `bfeil r, 0, x, st, mask 0x1`. NIR drops the `& 31`
-      because `ushr` already masks its shift, and `agx_nir_algebraic.py`'s `fuse_ubfe` then turns shift-and-mask
-      into `ubitfield_extract` and a `bfeil` with the unmasked shift.
-    - The recorded M2 case `alu/bfeil_r14_r6_r7_r8` shows that `bfeil` takes 7 bits of its shift (shifts of 32 or
-      more give 0). The functional simulator, which matches that recording, therefore fails `viterbi`: states 32-63
-      read their decisions as 0, and about 30% of decoded bits are wrong. lavapipe passes.
-    - So the M2 is expected to fail `viterbi` the same way, and to pass `viterbifix`, which uses `bitfieldExtract`
-      with an explicitly masked offset (the compiler keeps that mask). `probes` reports both `mismatched_bits`.
-    - If the M2 passes `viterbi`, the hardware's `bfeil` with an immediate mask uses fewer shift bits than the
-      recorded case, and the simulator needs that distinction.
-    - Predicted time (viterbifix): about 3.6 ms for 8192 frames, dominated by 256 barrier-separated steps per
-      workgroup.
-38. **Shift-mask fusion probe.**
-    - `shiftfuse` isolates the `viterbi` miscompilation. On code from Mesa 25.2.8 and 26.0.3 the functional simulator
-      fails exactly the three columns where a shift right by `s & 31` is followed by a constant low mask:
-      `bit_test` (`& 1`), `byte_extract` (`& 0xFF`) and `double_and_mask` (`s & 63 & 31`, then `& 0x7FFF`). Each
-      becomes `bfeil ..., s, mask K` with the unmasked shift.
-    - The other seven columns pass. In the funnel shift, rotate, byte insert, shift-left-then-mask,
-      arithmetic-shift-then-mask and signed `bitfieldExtract` columns the compiler keeps the `& 31`. A
-      variable-width mask is not fused at all.
-    - lavapipe passes all ten. On the M2, `probes` lists the failing columns. The expectation is the same three; any
-      difference refines the simulator's `bfeil` shift semantics, which are fitted to the one recorded case.
-    - **Root cause (Mesa 25.2.8 and 26.0.3 source).**
-      - AGX shifts use more than 5 bits of the shift amount. `agx_nir_lower_algebraic_late` therefore re-adds `& 31`
-        to every shift (`lower_sm5_shift`, whose comment says so), and runs late on purpose: after
-        `agx_nir_fuse_algebraic_late`, "since this inserts &s for shifts so we want to do it after fusing constant
-        shifts" (`agx_compile.c`).
-      - In that earlier fusion pass, `fuse_ubfe` (`agx_nir_algebraic.py`) rewrites
-        `iand(ushr(a, b), (1 << bits) - 1)` into `ubitfield_extract(a, b, bits)` for *any* `b`, not only constants.
-        A variable shift is therefore absorbed into a `bfeil` before its `& 31` is restored.
-      - The other fusions in the pass only match constant shifts: `fuse_extr` 0-31, and the shift fusions in
-        `fuse_imad` 1-4.
+37. **Viterbi decoding, and an open question about `bfeil`.**
+    - The traceback tests bit `st & 31` of a survivor word as `(x >> (st & 31u)) & 1u`, with `st` up to 63.
+      Mesa 25.2.8 and 26.0.3 compile this to `bfeil r, 0, x, st, mask 0x1`: NIR drops the `& 31` (`ushr` already
+      takes its shift modulo 32), and `fuse_ubfe` (`agx_nir_algebraic.py`) turns shift-and-mask into
+      `ubitfield_extract`, emitted as a `bfeil` with an immediate mask and the unmasked shift.
+    - Whether that is correct depends on how `bfeil` *with an immediate mask* treats a shift of 32 or more, and nothing
+      recorded so far shows it.
+      - The one recorded case, `alu/bfeil_r14_r6_r7_r8`, is the full-width form with no mask field: the form Mesa emits
+        for `ushr`. It takes 7 bits of the shift (32 or more give 0), which is why Mesa re-adds `& 31` to every `ushr`
+        in `agx_nir_lower_algebraic_late`.
+      - That pass runs after `agx_nir_fuse_algebraic_late` ("after fusing constant shifts"), but `fuse_ubfe` matches
+        variable shifts too.
+    - **Hypothesis A** (the simulator's default, extrapolated from the full-width recording): the masked form also
+      takes 7 bits.
+      - Then this is a Mesa bug. `viterbi` fails (states 32-63 read 0, about 30% of bits wrong), and so do the three
+        `shiftfuse` columns and `lz4dec` (note 40).
       - A minimal fix would match only constant shifts in `fuse_ubfe` (`'#b'`), or emit
         `ubitfield_extract(a, iand(b, 31), bits)`.
-      - Confirm on the M2 before reporting it: `viterbi` and the three `shiftfuse` columns failing, with `viterbifix`
-        and the other columns passing.
+    - **Hypothesis B**: the masked form takes its shift modulo 32.
+      - Then the compiler is right and the simulator must change. Set `AGX_BFEIL_MASKED_SHIFT32=1` to simulate it:
+        all of these workloads then pass, and the 721-case suite is unchanged (691 / 721 either way).
+      - B is the more plausible one a priori. `lz4dec` shows the fused form arising from the most ordinary byte
+        unpacking, `(w >> ((i & 3) * 8)) & 255`, and the driver is Vulkan-conformant.
+    - The M2 run decides. A: `viterbi`, the three `shiftfuse` columns and `lz4dec` fail, and `viterbifix` passes.
+      B: everything passes, and `AGX_BFEIL_MASKED_SHIFT32` semantics should become the default.
+    - `viterbifix` writes the bit test as `bitfieldExtract` with an explicitly masked offset, which the compiler keeps,
+      so it is correct under both hypotheses.
+    - Predicted time (`viterbifix`): about 3.6 ms for 8192 frames, dominated by 256 barrier-separated steps per
+      workgroup.
+38. **Shift-mask fusion probe.**
+    - `shiftfuse` maps which idioms produce the masked `bfeil` with an unmasked shift. On code from Mesa 25.2.8 and
+      26.0.3 these are exactly the three columns where a shift right by `s & 31` is followed by a constant low mask:
+      `bit_test` (`& 1`), `byte_extract` (`& 0xFF`) and `double_and_mask` (`s & 63 & 31`, then `& 0x7FFF`).
+    - In the other seven columns the compiler keeps the `& 31` or fuses nothing: the funnel shift, rotate, byte
+      insert, shift-left-then-mask, arithmetic-shift-then-mask and signed `bitfieldExtract` columns, and a
+      variable-width mask.
+    - The simulator fails those three columns under hypothesis A and passes all ten under B (note 37). lavapipe
+      passes all ten. On the M2, `probes` lists the failing columns.
 39. **BC1 texture compression.**
     - The driver keeps the 16 texels in registers: 140 GPRs, so few SIMD groups per core are resident. The M2 time
       checks the model's occupancy limit on a kernel with little memory traffic: 64 B in and 8 B out per block.
     - Predicted 0.10 ms. `psnr_db` shows that the blocks decode to a usable image.
+40. **LZ4 decompression.**
+    - Each invocation decodes one 4 KiB block: token nibbles, 255-continued lengths, literal runs and back-references,
+      including overlapping copies. Decoding is "safe" (input bounded by the block, bad offsets stop the block), so a
+      wrong decode shows up as `short_blocks`, never as stray memory accesses.
+    - The streams come from a small greedy LZ4 block encoder in the harness. The reference `lz4` Python library decodes
+      all of them to the original data, so this is the real format.
+    - Its byte read `(comp[i >> 2] >> ((i & 3) * 8)) & 255` compiles to `bfeil ..., i * 8, mask 0xFF`: NIR folds
+      `(i & 3) * 8` to `i * 8` under `ushr`'s modulo-32 shift. So it decodes only under hypothesis B of note 37: the
+      simulator fails every block by default and passes with `AGX_BFEIL_MASKED_SHIFT32=1`.
+    - Predicted (under B) 4.1 ms: byte-serial, with a device read-modify-write per output byte.

@@ -481,7 +481,7 @@ impl Compiled {
                 let mask: u128 = if *m != 0 { (1u128 << m) - 1 } else { 0xFFFFFFFF };
                 let r = match op {
                     Bf::Bfi => (av & !shl(mask, s)) | shl(bv & mask, s),
-                    Bf::Bfeil => (av & !mask) | (shr(bv, s) & mask),
+                    Bf::Bfeil => (av & !mask) | (shr(bv, super::exec::bfeil_shift(s, *m as u32)) & mask),
                     Bf::Extr => shr((bv << 32) | av, s) & mask,
                     Bf::Shlhi => {
                         let sm = shl(mask, s.saturating_sub(32));

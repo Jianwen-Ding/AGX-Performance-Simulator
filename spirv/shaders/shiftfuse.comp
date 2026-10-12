@@ -1,7 +1,8 @@
 #version 450
 // Bit-manipulation idioms with variable, explicitly masked shift amounts (all well defined in GLSL), one output
-// word each. The AGX backend fuses shift / and / or patterns into bfeil, bfi and extr, whose hardware shift fields
-// are wider than 5 bits; a fusion that loses the & 31 (as in viterbi) shows up here as mismatches in one column.
+// word each. The AGX backend fuses shift / and / or patterns into bfeil, bfi and extr. The full-width forms take
+// 7 bits of the shift; if the masked bfeil does too, a fusion that loses the & 31 (as in viterbi) shows up here
+// as mismatches in one column (see the applications notes for the open question).
 layout(local_size_x = 64) in;
 layout(std430, binding = 0) readonly buffer I { uvec4 inp[]; };    // x, y, s (any 32-bit value), unused
 layout(std430, binding = 1) writeonly buffer O { uint o[]; };      // 10 per element

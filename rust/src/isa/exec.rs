@@ -237,6 +237,19 @@ impl Ctx<'_> {
 }
 
 #[inline]
+/// Shift amount of bfeil: 7 bits, as the recorded full-width form (`bfeil r14, r6, r7, r8`, no mask field) shows.
+/// For the form with an immediate mask (what Mesa emits for ubitfield_extract) there is no recording yet;
+/// AGX_BFEIL_MASKED_SHIFT32=1 makes it take the shift modulo 32 instead (the alternative to test on the M2:
+/// viterbi, shiftfuse and lz4dec decide between them).
+pub fn bfeil_shift(s: u32, m: u32) -> u32 {
+    static MOD32: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    if m != 0 && *MOD32.get_or_init(|| std::env::var("AGX_BFEIL_MASKED_SHIFT32").map_or(false, |v| v == "1")) {
+        s & 31
+    } else {
+        s
+    }
+}
+
 fn shl(x: u128, s: u32) -> u128 {
     if s >= 128 { 0 } else { x << s }
 }
@@ -313,7 +326,7 @@ fn exec_thread(c: &Ctx, ex: Ex, st: &mut CoreState, t: usize) -> R<()> {
             // big-int expressions evaluated modulo 2^128 (only the low 64 bits reach a register)
             let r = match ex {
                 Ex::Bfi => (a & !shl(mask, s)) | shl(b & mask, s),
-                Ex::Bfeil => (a & !mask) | (shr(b, s) & mask),
+                Ex::Bfeil => (a & !mask) | (shr(b, bfeil_shift(s, m)) & mask),
                 Ex::Extr => shr((b << 32) | a, s) & mask,
                 Ex::Shlhi => {
                     let sm = shl(mask, s.saturating_sub(32));
