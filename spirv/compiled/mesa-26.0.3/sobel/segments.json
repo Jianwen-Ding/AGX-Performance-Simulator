@@ -1,0 +1,22 @@
+{
+ "blob": "spirv/compiled/mesa-26.0.3/sobel/shader.bin",
+ "code_start": 2244,
+ "code_size": 1074,
+ "layout": "agx_shader_info",
+ "programs": [
+  {
+   "label": "main",
+   "file": "main.bin",
+   "offset": 128,
+   "bytes": 694,
+   "instructions": 94
+  },
+  {
+   "label": "preamble",
+   "file": "preamble.bin",
+   "offset": 896,
+   "bytes": 162,
+   "instructions": 26
+  }
+ ]
+}

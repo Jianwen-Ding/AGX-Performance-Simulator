@@ -31,7 +31,7 @@ The rest of this file is the detailed procedure, for investigating results.
 
 ## Workloads
 
-Thirty-two realistic compute kernels, written in GLSL (`spirv/shaders/*.comp`) and compiled to SPIR-V:
+Thirty-five realistic compute kernels, written in GLSL (`spirv/shaders/*.comp`) and compiled to SPIR-V:
 
 | Workload | Kernel | Stresses |
 |---|---|---|
@@ -67,13 +67,16 @@ Thirty-two realistic compute kernels, written in GLSL (`spirv/shaders/*.comp`) a
 | `stencil3d` | 7-point Jacobi step on a 3-D grid, 8×8×4 workgroups | 3-D addressing, clamped neighbours |
 | `int16` | int16 / uint16 wrapping arithmetic, shifts, min / max, widening | 16-bit integer ALU and storage |
 | `trig` | sin, cos, asin, acos, atan, atan2, exp, exp2, log, log2, sqrt, inversesqrt | Transcendental lowerings, against Vulkan's precision bounds |
+| `raytrace` | Ray tracer: 3 spheres, checkered ground, hard shadows, one mirror bounce, RGBA8 image (1920×1080 large) | Divergent shading, sqrt / normalize, packUnorm; writes a viewable `.ppm` |
+| `mlp` | Two-layer perceptron inference (128 → 256 ReLU → 16 softmax), one workgroup per input | Matrix-vector FMA chains, shared-memory activations, exp |
+| `sobel` | Sobel edge detection on an 8-bit image (3840×2160 large), shared-memory halo tile | Byte loads / stores, integer stencil (exact); writes a viewable `.pgm` |
 
 Each workload has two sizes:
 
 - **small:** for the simulator.
 - **large:** for timing. 3–470 ms per run on lavapipe (CPU).
 
-The seven task files group them:
+The eight task files group them:
 
 - `spirv-01-reduce-scan.md`
 - `spirv-02-sgemm-conv2d.md`
@@ -82,6 +85,7 @@ The seven task files group them:
 - `spirv-05-isa-coverage.md` (integer, fp16, 64-bit, 8-bit and subgroup features the first eight do not reach)
 - `spirv-06-semantics.md` (atomics, 3-D geometry, spills, control flow, shuffles, exact float operations)
 - `spirv-07-algorithms.md` (radix sort, FFT, CRC-32, k-means, int8 GEMM, 3-D stencil, int16, transcendentals)
+- `spirv-08-applications.md` (a ray tracer, neural-network inference, edge detection: end-to-end results a person can look at)
 
 Every workload passes its numpy reference on Mesa lavapipe (CPU Vulkan), at both sizes. That only shows the shaders and
 references are right; a wrong result on the M2 is therefore a GPU, driver or runner finding, not a shader bug.
@@ -152,7 +156,7 @@ references are right; a wrong result on the M2 is therefore a GPU, driver or run
    python3 -B scripts/spirv_task.py sim sgemm --code-dir spirv/out/sgemm-small/code --hardware spirv/out/sgemm-small
    ```
 
-   - Offline, all thirty-two workloads pass their numpy references with shim-compiled Mesa 25.2.8 and 26.0.3 code
+   - Offline, all thirty-five workloads pass their numpy references with shim-compiled Mesa 25.2.8 and 26.0.3 code
      (`make spirv-sim`). That is a sanity check; verification is `make spirv-verify` against the M2 recordings.
    - Integer workloads (`scan`, `histogram`, `bitonic`, `sha256`, `int64`, `bitops`, `intdiv`, `compact`, `transpose`,
      `mandelbrot`, `atomics`, `geom3d`, `spill`, `control`, `shuffle`, `floatops`, `radix_sort`, `crc32`, `int8dot`, `int16`, and

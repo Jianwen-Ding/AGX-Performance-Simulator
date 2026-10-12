@@ -41,8 +41,22 @@ def u32(a): return np.ascontiguousarray(a, dtype=np.uint32)
 class W:
     """a workload instance: buffers {binding: (init array or byte size, read back?)}, dispatches [(gx, gy, gz, push)],
     check(outputs) -> (ok, detail), metrics for throughput"""
-    def __init__(self, shader, buffers, dispatches, check, wg, work=None):
+    def __init__(self, shader, buffers, dispatches, check, wg, work=None, images=None):
         self.shader, self.buffers, self.dispatches, self.check, self.wg, self.work = shader, buffers, dispatches, check, wg, work or {}
+        self.images = images or []       # [(binding, width, height, 'rgba8' | 'gray8')]: written as .ppm / .pgm for viewing
+
+
+def write_images(w, outs, out_dir, tag):
+    """the workload's image outputs as binary PPM (RGBA8 -> RGB) / PGM files, for looking at the result"""
+    for b, wd, ht, kind in w.images:
+        if b not in outs:
+            continue
+        raw = outs[b]
+        if kind == 'rgba8':
+            px = raw[:4 * wd * ht].reshape(ht, wd, 4)[..., :3]
+            (Path(out_dir) / f'{tag}{b}.ppm').write_bytes(f'P6 {wd} {ht} 255\n'.encode() + px.tobytes())
+        else:
+            (Path(out_dir) / f'{tag}{b}.pgm').write_bytes(f'P5 {wd} {ht} 255\n'.encode() + raw[:wd * ht].tobytes())
 
 
 def wg_of(w, name):
@@ -684,12 +698,106 @@ def w_trig(size, rng):
     return W('trig', {0: (inp, False), 1: (48 * n, True)}, [((n + 63) // 64, 1, 1, push(n))], check, 64, {'items': n})
 
 
+
+def raytrace_ref(Wd, H):
+    """the shader's scene in float64 numpy (same structure), RGB 0..1"""
+    S = np.array([[-1.2, 1.0, 5.0, 1.0], [1.1, 0.7, 4.2, 0.7], [0.2, 0.4, 2.8, 0.4]])
+    C = np.array([[0.9, 0.2, 0.2], [0.2, 0.8, 0.3], [0.3, 0.4, 0.95]])
+    L = np.array([0.4472136, 0.8944272, 0.0])
+    def hit(ro, rd):
+        best = np.full(rd.shape[:-1], 1e30); n = np.zeros_like(rd); col = np.zeros_like(rd); refl = np.zeros(rd.shape[:-1])
+        for i in range(3):
+            oc = ro - S[i, :3]
+            b = (oc * rd).sum(-1); c = (oc * oc).sum(-1) - S[i, 3] ** 2; h = b * b - c
+            with np.errstate(invalid='ignore'):
+                t = -b - np.sqrt(np.where(h >= 0, h, 0))
+            m = (h >= 0) & (t > 1e-3) & (t < best)
+            best = np.where(m, t, best)
+            n = np.where(m[..., None], (ro + t[..., None] * rd - S[i, :3]) / S[i, 3], n)
+            col = np.where(m[..., None], C[i], col); refl = np.where(m, 0.6 if i == 2 else 0.1, refl)
+        with np.errstate(divide='ignore', invalid='ignore'):
+            t = np.where(rd[..., 1] < 0, -ro[..., 1] / np.where(rd[..., 1] < 0, rd[..., 1], -1), -1)
+        m = (rd[..., 1] < 0) & (t > 1e-3) & (t < best)
+        q = ro + t[..., None] * rd
+        chk = ((np.floor(q[..., 0]).astype(np.int64) + np.floor(q[..., 2]).astype(np.int64)) & 1) == 0
+        best = np.where(m, t, best); n = np.where(m[..., None], [0.0, 1.0, 0.0], n)
+        col = np.where(m[..., None], np.where((t > 20)[..., None], 0.55, np.where(chk[..., None], 0.8, 0.3)), col); refl = np.where(m, 0.2, refl)
+        return np.where(best < 1e30, best, -1.0), n, col, refl
+    def shade(ro, rd):
+        t, n, col, refl = hit(ro, rd)
+        anyh = t > 0
+        hp = ro + t[..., None] * rd
+        ts, *_ = hit(hp + n * 1e-3, np.broadcast_to(L, rd.shape))
+        lit = np.where(ts > 0, 0.0, np.maximum((n * L).sum(-1), 0.0))
+        c = np.where(anyh[..., None], col * (0.15 + 0.85 * lit)[..., None], np.array([0.5, 0.7, 1.0]) * (0.6 + 0.4 * rd[..., 1:2]))
+        return c, hp, n, refl, anyh
+    gy, gx = np.mgrid[0:H, 0:Wd]
+    uv = np.stack([(gx + 0.5) / Wd * 2 - 1, (gy + 0.5) / H * 2 - 1], -1)
+    uv[..., 0] *= Wd / H
+    rd = np.stack([uv[..., 0], -uv[..., 1], np.full(uv.shape[:-1], 1.5)], -1)
+    rd /= np.linalg.norm(rd, axis=-1, keepdims=True)
+    ro = np.broadcast_to(np.array([0.0, 1.0, -1.0]), rd.shape)
+    c, hp, hn, refl, anyh = shade(ro, rd)
+    rd2 = rd - 2 * (rd * hn).sum(-1, keepdims=True) * hn
+    c2, *_ = shade(hp + hn * 1e-3, rd2)
+    use = (anyh & (refl > 0))[..., None]
+    return np.clip(np.where(use, c * (1 - refl[..., None]) + c2 * refl[..., None], c), 0, 1)
+
+
+def w_raytrace(size, rng):
+    Wd, H = (96, 64) if size == 'small' else (1920, 1080)
+    def check(o):
+        got = o[0][:4 * Wd * H].reshape(H, Wd, 4).astype(np.int64)
+        ref = np.round(raytrace_ref(Wd, H) * 255).astype(np.int64)
+        d = np.abs(got[..., :3] - ref).max(-1)
+        # silhouettes and shadow edges may flip between float implementations: a small fraction of pixels
+        far = float(np.mean(d > 2))
+        return far < 0.01 and bool(np.all(got[..., 3] == 255)), {'pixels_off_by_more_than_2': far, 'mean_abs_diff': float(d.mean())}
+    return W('raytrace', {0: (4 * Wd * H, True)}, [((Wd + 7) // 8, (H + 7) // 8, 1, push(Wd, H))], check, (8, 8, 1),
+             {'pixels': Wd * H}, images=[(0, Wd, H, 'rgba8')])
+
+
+def w_mlp(size, rng):
+    batch = 64 if size == 'small' else 16384
+    x = f32(rng.standard_normal((batch, 128)))
+    w1 = f32(rng.standard_normal((256, 128)) / np.sqrt(128)); b1 = f32(rng.standard_normal(256) * 0.1)
+    w2 = f32(rng.standard_normal((16, 256)) / np.sqrt(256)); b2 = f32(rng.standard_normal(16) * 0.1)
+    def check(o):
+        got = o[5].view(np.float32)[:batch * 16].reshape(batch, 16)
+        h = np.maximum(x.astype(np.float64) @ w1.T.astype(np.float64) + b1, 0)
+        lg = h @ w2.T.astype(np.float64) + b2
+        e = np.exp(lg - lg.max(1, keepdims=True)); ref = e / e.sum(1, keepdims=True)
+        err = float(np.max(np.abs(got - ref)))
+        same_class = float(np.mean(got.argmax(1) == ref.argmax(1)))
+        return err < 1e-4 and same_class == 1.0, {'max_abs_prob_err': err, 'same_argmax': same_class}
+    return W('mlp', {0: (x, False), 1: (w1, False), 2: (b1, False), 3: (w2, False), 4: (b2, False), 5: (64 * batch, True)},
+             [(batch, 1, 1, b'')], check, 256, {'flops': 2 * batch * (128 * 256 + 256 * 16)})
+
+
+def w_sobel(size, rng):
+    Wd, H = (80, 60) if size == 'small' else (3840, 2160)
+    gy, gx = np.mgrid[0:H, 0:Wd]
+    img = (127 + 60 * np.sin(gx / 7.0) * np.cos(gy / 11.0) + 50 * ((gx // 16 + gy // 16) % 2)
+           + rng.integers(-10, 11, (H, Wd))).clip(0, 255).astype(np.uint8)
+    def check(o):
+        got = o[1][:Wd * H].reshape(H, Wd).astype(np.int64)
+        q = np.pad(img.astype(np.int64), 1, mode='edge')
+        P = lambda dy, dx: q[1 + dy:1 + dy + H, 1 + dx:1 + dx + Wd]
+        gxx = -P(-1, -1) - 2 * P(0, -1) - P(1, -1) + P(-1, 1) + 2 * P(0, 1) + P(1, 1)
+        gyy = -P(-1, -1) - 2 * P(-1, 0) - P(-1, 1) + P(1, -1) + 2 * P(1, 0) + P(1, 1)
+        ref = np.minimum(np.abs(gxx) + np.abs(gyy), 255)
+        return np.array_equal(got, ref), {'mismatches': int(np.sum(got != ref))}
+    return W('sobel', {0: (img, False), 1: (Wd * H, True)}, [((Wd + 15) // 16, (H + 15) // 16, 1, push(Wd, H))], check, (16, 16, 1),
+             {'pixels': Wd * H}, images=[(1, Wd, H, 'gray8')])
+
+
 WORKLOADS = {'reduce': w_reduce, 'scan': w_scan, 'sgemm': w_sgemm, 'conv2d': w_conv2d, 'histogram': w_histogram,
              'nbody': w_nbody, 'bitonic': w_bitonic, 'sha256': w_sha256, 'fp16': w_fp16, 'int64': w_int64, 'bitops': w_bitops,
              'intdiv': w_intdiv, 'compact': w_compact, 'spmv': w_spmv, 'transpose': w_transpose, 'mandelbrot': w_mandelbrot,
              'softmax': w_softmax, 'rgba8': w_rgba8, 'atomics': w_atomics, 'geom3d': w_geom3d, 'spill': w_spill,
              'control': w_control, 'shuffle': w_shuffle, 'floatops': w_floatops, 'radix_sort': w_radix_sort, 'fft': w_fft,
-             'crc32': w_crc32, 'kmeans': w_kmeans, 'int8dot': w_int8dot, 'stencil3d': w_stencil3d, 'int16': w_int16, 'trig': w_trig}
+             'crc32': w_crc32, 'kmeans': w_kmeans, 'int8dot': w_int8dot, 'stencil3d': w_stencil3d, 'int16': w_int16, 'trig': w_trig,
+             'raytrace': w_raytrace, 'mlp': w_mlp, 'sobel': w_sobel}
 
 
 # ---------------------------------------------------------------------------------------------------------------
@@ -735,6 +843,7 @@ def run_one(name, size, repeat, out_root, export=True, seed=1):
         raise RuntimeError(f'{name}: vk_run failed: {r.stdout[-400:]} {r.stderr[-400:]}')
     outs = {b: np.fromfile(out / f'out{b}.bin', dtype=np.uint8) for b, (_, rb) in w.buffers.items() if rb}
     ok, detail = w.check(outs)
+    write_images(w, outs, out, 'image')
     reps = [l for l in lines if 'rep' in l]
     dev = next(l for l in lines if 'device' in l)
     res = {'workload': name, 'size': size, 'device': dev, 'functional_ok': bool(ok), 'functional': detail,
@@ -1089,6 +1198,7 @@ def cmd_sim(a):
         total += json.loads(r.stdout)['instructions']
     outs = {b: np.fromfile(L.files[b], dtype=np.uint8) for b, (_, rb) in L.w.buffers.items() if rb}
     ok, detail = L.w.check(outs)
+    write_images(L.w, outs, L.work, 'sim_image')
     res = {'workload': a.workload, 'size': a.size, 'simulated_ok': bool(ok), 'functional': detail, 'simulated_instructions': total}
     if a.hardware:
         hw = Path(a.hardware)
