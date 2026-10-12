@@ -589,8 +589,8 @@ def w_stereo(size, rng):
     right[ok] = left[ys[ok], xsrc[ok]]
     left = np.clip(left + rng.integers(-3, 4, left.shape), 0, 255).astype(np.uint32)
     right = np.clip(right + rng.integers(-3, 4, right.shape), 0, 255).astype(np.uint32)
-    ref = stereo_ref(left, right)
     def check(o):
+        ref = stereo_ref(left, right)                                            # only check needs it
         got = o[4].view(np.uint32)[:Wd * H].reshape(H, Wd)
         bad = int(np.sum(got != ref))
         return bad == 0, {'mismatches': bad, 'within_1px_of_truth': round(float(np.mean(np.abs(got.astype(np.int64) - dmap) <= 1)), 4)}
