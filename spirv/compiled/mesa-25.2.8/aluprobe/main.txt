@@ -1,0 +1,874 @@
+0x0080  72051004                 get_sr r1, sr80 (thread_position_in_grid.x)
+0x0084  0e05428658000000         iadd r1, r1.sx, u4.sx
+0x008c  62000000                 mov_imm r0l, 0
+0x0090  52090a010000             if_icmp r0l, nueq, u5l, 0, 1
+0x0096  7e0942f28303             and r2, r1, 255
+0x009c  3e890a442400             convert u32_to_f, r2, r2, rte
+0x00a2  7e0d440a8000             mov r3, r2
+0x00a8  620900000000             mov_imm r2, 0, 0b0
+0x00ae  420800000000             push_exec r0l, 1
+0x00b4  52ac44c21a00             while_icmp r0l, slt, r2, u22, 1
+0x00ba  0e09441600000000         iadd r2, r2.sx, 1
+0x00c2  3a8d46c2188e0100         fmadd32 r3, r3, u6, u7
+0x00ca  00c0eaffffff             jmp_exec_any pc-22
+0x00d0  520e00000000             pop_exec r0l, 1
+0x00d6  3e8908602400             convert f_to_u32, r2, r3, rtz
+0x00dc  420a00000000             else_fcmp r0l, eq, 0.0, 0.0, 1
+0x00e2  20c01a1a0000             jmp_exec_none pc+6682
+0x00e8  520910010000             if_icmp r0l, nueq, u8l, 0, 1
+0x00ee  20c06c080000             jmp_exec_none pc+2156
+0x00f4  7e0942728000             and r2, r1, 7
+0x00fa  3e890a442400             convert u32_to_f, r2, r2, rte
+0x0100  2a8d44020300             fadd32 r3, r2, 1.0
+0x0106  3a8d462219940100         fmadd32 r3, r3, u9, u10
+0x010e  3a8d462219940100         fmadd32 r3, r3, u9, u10
+0x0116  3a8d462219940100         fmadd32 r3, r3, u9, u10
+0x011e  3a8d462219940100         fmadd32 r3, r3, u9, u10
+0x0126  3a8d462219940100         fmadd32 r3, r3, u9, u10
+0x012e  3a8d462219940100         fmadd32 r3, r3, u9, u10
+0x0136  3a8d462219940100         fmadd32 r3, r3, u9, u10
+0x013e  3a8d462219940100         fmadd32 r3, r3, u9, u10
+0x0146  3a8d462219940100         fmadd32 r3, r3, u9, u10
+0x014e  3a8d462219940100         fmadd32 r3, r3, u9, u10
+0x0156  3a8d462219940100         fmadd32 r3, r3, u9, u10
+0x015e  3a8d462219940100         fmadd32 r3, r3, u9, u10
+0x0166  3a8d462219940100         fmadd32 r3, r3, u9, u10
+0x016e  3a8d462219940100         fmadd32 r3, r3, u9, u10
+0x0176  3a8d462219940100         fmadd32 r3, r3, u9, u10
+0x017e  3a8d462219940100         fmadd32 r3, r3, u9, u10
+0x0186  3a8d462219940100         fmadd32 r3, r3, u9, u10
+0x018e  3a8d462219940100         fmadd32 r3, r3, u9, u10
+0x0196  3a8d462219940100         fmadd32 r3, r3, u9, u10
+0x019e  3a8d462219940100         fmadd32 r3, r3, u9, u10
+0x01a6  3a8d462219940100         fmadd32 r3, r3, u9, u10
+0x01ae  3a8d462219940100         fmadd32 r3, r3, u9, u10
+0x01b6  3a8d462219940100         fmadd32 r3, r3, u9, u10
+0x01be  3a8d462219940100         fmadd32 r3, r3, u9, u10
+0x01c6  3a8d462219940100         fmadd32 r3, r3, u9, u10
+0x01ce  3a8d462219940100         fmadd32 r3, r3, u9, u10
+0x01d6  3a8d462219940100         fmadd32 r3, r3, u9, u10
+0x01de  3a8d462219940100         fmadd32 r3, r3, u9, u10
+0x01e6  3a8d462219940100         fmadd32 r3, r3, u9, u10
+0x01ee  3a8d462219940100         fmadd32 r3, r3, u9, u10
+0x01f6  3a8d462219940100         fmadd32 r3, r3, u9, u10
+0x01fe  3a8d462219940100         fmadd32 r3, r3, u9, u10
+0x0206  3a91442219940100         fmadd32 r4, r2, u9, u10
+0x020e  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x0216  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x021e  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x0226  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x022e  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x0236  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x023e  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x0246  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x024e  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x0256  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x025e  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x0266  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x026e  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x0276  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x027e  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x0286  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x028e  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x0296  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x029e  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x02a6  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x02ae  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x02b6  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x02be  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x02c6  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x02ce  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x02d6  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x02de  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x02e6  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x02ee  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x02f6  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x02fe  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x0306  2a8d48622400             fadd32 r3, r4, r3
+0x030c  2a9144020001             fadd32 r4, r2, 2.0
+0x0312  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x031a  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x0322  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x032a  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x0332  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x033a  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x0342  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x034a  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x0352  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x035a  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x0362  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x036a  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x0372  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x037a  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x0382  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x038a  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x0392  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x039a  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x03a2  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x03aa  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x03b2  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x03ba  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x03c2  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x03ca  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x03d2  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x03da  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x03e2  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x03ea  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x03f2  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x03fa  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x0402  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x040a  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x0412  2a8d46822400             fadd32 r3, r3, r4
+0x0418  2a9144820001             fadd32 r4, r2, 3.0
+0x041e  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x0426  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x042e  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x0436  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x043e  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x0446  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x044e  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x0456  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x045e  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x0466  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x046e  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x0476  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x047e  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x0486  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x048e  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x0496  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x049e  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x04a6  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x04ae  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x04b6  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x04be  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x04c6  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x04ce  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x04d6  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x04de  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x04e6  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x04ee  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x04f6  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x04fe  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x0506  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x050e  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x0516  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x051e  2a8d46822400             fadd32 r3, r3, r4
+0x0524  2a9144020101             fadd32 r4, r2, 4.0
+0x052a  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x0532  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x053a  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x0542  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x054a  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x0552  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x055a  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x0562  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x056a  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x0572  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x057a  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x0582  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x058a  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x0592  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x059a  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x05a2  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x05aa  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x05b2  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x05ba  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x05c2  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x05ca  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x05d2  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x05da  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x05e2  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x05ea  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x05f2  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x05fa  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x0602  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x060a  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x0612  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x061a  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x0622  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x062a  2a8d46822400             fadd32 r3, r3, r4
+0x0630  2a9144420101             fadd32 r4, r2, 5.0
+0x0636  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x063e  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x0646  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x064e  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x0656  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x065e  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x0666  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x066e  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x0676  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x067e  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x0686  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x068e  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x0696  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x069e  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x06a6  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x06ae  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x06b6  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x06be  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x06c6  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x06ce  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x06d6  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x06de  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x06e6  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x06ee  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x06f6  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x06fe  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x0706  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x070e  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x0716  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x071e  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x0726  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x072e  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x0736  2a8d46822400             fadd32 r3, r3, r4
+0x073c  2a9144820101             fadd32 r4, r2, 6.0
+0x0742  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x074a  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x0752  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x075a  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x0762  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x076a  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x0772  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x077a  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x0782  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x078a  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x0792  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x079a  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x07a2  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x07aa  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x07b2  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x07ba  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x07c2  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x07ca  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x07d2  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x07da  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x07e2  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x07ea  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x07f2  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x07fa  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x0802  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x080a  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x0812  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x081a  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x0822  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x082a  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x0832  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x083a  3a91482219940100         fmadd32 r4, r4, u9, u10
+0x0842  2a8d46822400             fadd32 r3, r3, r4
+0x0848  2a8944c20101             fadd32 r2, r2, 7.0
+0x084e  3a89442219940100         fmadd32 r2, r2, u9, u10
+0x0856  3a89442219940100         fmadd32 r2, r2, u9, u10
+0x085e  3a89442219940100         fmadd32 r2, r2, u9, u10
+0x0866  3a89442219940100         fmadd32 r2, r2, u9, u10
+0x086e  3a89442219940100         fmadd32 r2, r2, u9, u10
+0x0876  3a89442219940100         fmadd32 r2, r2, u9, u10
+0x087e  3a89442219940100         fmadd32 r2, r2, u9, u10
+0x0886  3a89442219940100         fmadd32 r2, r2, u9, u10
+0x088e  3a89442219940100         fmadd32 r2, r2, u9, u10
+0x0896  3a89442219940100         fmadd32 r2, r2, u9, u10
+0x089e  3a89442219940100         fmadd32 r2, r2, u9, u10
+0x08a6  3a89442219940100         fmadd32 r2, r2, u9, u10
+0x08ae  3a89442219940100         fmadd32 r2, r2, u9, u10
+0x08b6  3a89442219940100         fmadd32 r2, r2, u9, u10
+0x08be  3a89442219940100         fmadd32 r2, r2, u9, u10
+0x08c6  3a89442219940100         fmadd32 r2, r2, u9, u10
+0x08ce  3a89442219940100         fmadd32 r2, r2, u9, u10
+0x08d6  3a89442219940100         fmadd32 r2, r2, u9, u10
+0x08de  3a89442219940100         fmadd32 r2, r2, u9, u10
+0x08e6  3a89442219940100         fmadd32 r2, r2, u9, u10
+0x08ee  3a89442219940100         fmadd32 r2, r2, u9, u10
+0x08f6  3a89442219940100         fmadd32 r2, r2, u9, u10
+0x08fe  3a89442219940100         fmadd32 r2, r2, u9, u10
+0x0906  3a89442219940100         fmadd32 r2, r2, u9, u10
+0x090e  3a89442219940100         fmadd32 r2, r2, u9, u10
+0x0916  3a89442219940100         fmadd32 r2, r2, u9, u10
+0x091e  3a89442219940100         fmadd32 r2, r2, u9, u10
+0x0926  3a89442219940100         fmadd32 r2, r2, u9, u10
+0x092e  3a89442219940100         fmadd32 r2, r2, u9, u10
+0x0936  3a89442219940100         fmadd32 r2, r2, u9, u10
+0x093e  3a89442219940100         fmadd32 r2, r2, u9, u10
+0x0946  3a89442219940100         fmadd32 r2, r2, u9, u10
+0x094e  2a8946422400             fadd32 r2, r3, r2
+0x0954  3e8908402400             convert f_to_u32, r2, r2, rtz
+0x095a  420a00000000             else_fcmp r0l, eq, 0.0, 0.0, 1
+0x0960  20c096110000             jmp_exec_none pc+4502
+0x0966  520916010000             if_icmp r0l, nueq, u11l, 0, 1
+0x096c  7e0942728000             and r2, r1, 7
+0x0972  3e820a442400             convert u32_to_f, r0h, r2, rte
+0x0978  620900000000             mov_imm r2, 0, 0b0
+0x097e  420800000000             push_exec r0l, 1
+0x0984  52ac44c21a00             while_icmp r0l, slt, r2, u22, 1
+0x098a  0e09441600000000         iadd r2, r2.sx, 1
+0x0992  3682417011180100         fmadd16 r0h, r0h, u11h, u12l
+0x099a  00c0eaffffff             jmp_exec_any pc-22
+0x09a0  520e00000000             pop_exec r0l, 1
+0x09a6  3e8908100400             convert f_to_u32, r2, r0h, rtz
+0x09ac  420a00000000             else_fcmp r0l, eq, 0.0, 0.0, 1
+0x09b2  20c03e110000             jmp_exec_none pc+4414
+0x09b8  520919010000             if_icmp r0l, nueq, u12h, 0, 1
+0x09be  20c06c080000             jmp_exec_none pc+2156
+0x09c4  7e0942728000             and r2, r1, 7
+0x09ca  3e820a442400             convert u32_to_f, r0h, r2, rte
+0x09d0  268841000300             fadd16 r2l, r0h, 1.0
+0x09d6  368844a0111b0100         fmadd16 r2l, r2l, u13l, u13h
+0x09de  368844a0111b0100         fmadd16 r2l, r2l, u13l, u13h
+0x09e6  368844a0111b0100         fmadd16 r2l, r2l, u13l, u13h
+0x09ee  368844a0111b0100         fmadd16 r2l, r2l, u13l, u13h
+0x09f6  368844a0111b0100         fmadd16 r2l, r2l, u13l, u13h
+0x09fe  368844a0111b0100         fmadd16 r2l, r2l, u13l, u13h
+0x0a06  368844a0111b0100         fmadd16 r2l, r2l, u13l, u13h
+0x0a0e  368844a0111b0100         fmadd16 r2l, r2l, u13l, u13h
+0x0a16  368844a0111b0100         fmadd16 r2l, r2l, u13l, u13h
+0x0a1e  368844a0111b0100         fmadd16 r2l, r2l, u13l, u13h
+0x0a26  368844a0111b0100         fmadd16 r2l, r2l, u13l, u13h
+0x0a2e  368844a0111b0100         fmadd16 r2l, r2l, u13l, u13h
+0x0a36  368844a0111b0100         fmadd16 r2l, r2l, u13l, u13h
+0x0a3e  368844a0111b0100         fmadd16 r2l, r2l, u13l, u13h
+0x0a46  368844a0111b0100         fmadd16 r2l, r2l, u13l, u13h
+0x0a4e  368844a0111b0100         fmadd16 r2l, r2l, u13l, u13h
+0x0a56  368844a0111b0100         fmadd16 r2l, r2l, u13l, u13h
+0x0a5e  368844a0111b0100         fmadd16 r2l, r2l, u13l, u13h
+0x0a66  368844a0111b0100         fmadd16 r2l, r2l, u13l, u13h
+0x0a6e  368844a0111b0100         fmadd16 r2l, r2l, u13l, u13h
+0x0a76  368844a0111b0100         fmadd16 r2l, r2l, u13l, u13h
+0x0a7e  368844a0111b0100         fmadd16 r2l, r2l, u13l, u13h
+0x0a86  368844a0111b0100         fmadd16 r2l, r2l, u13l, u13h
+0x0a8e  368844a0111b0100         fmadd16 r2l, r2l, u13l, u13h
+0x0a96  368844a0111b0100         fmadd16 r2l, r2l, u13l, u13h
+0x0a9e  368844a0111b0100         fmadd16 r2l, r2l, u13l, u13h
+0x0aa6  368844a0111b0100         fmadd16 r2l, r2l, u13l, u13h
+0x0aae  368844a0111b0100         fmadd16 r2l, r2l, u13l, u13h
+0x0ab6  368844a0111b0100         fmadd16 r2l, r2l, u13l, u13h
+0x0abe  368844a0111b0100         fmadd16 r2l, r2l, u13l, u13h
+0x0ac6  368844a0111b0100         fmadd16 r2l, r2l, u13l, u13h
+0x0ace  368844a0111b0100         fmadd16 r2l, r2l, u13l, u13h
+0x0ad6  368a41a0111b0100         fmadd16 r2h, r0h, u13l, u13h
+0x0ade  368a45a0111b0100         fmadd16 r2h, r2h, u13l, u13h
+0x0ae6  368a45a0111b0100         fmadd16 r2h, r2h, u13l, u13h
+0x0aee  368a45a0111b0100         fmadd16 r2h, r2h, u13l, u13h
+0x0af6  368a45a0111b0100         fmadd16 r2h, r2h, u13l, u13h
+0x0afe  368a45a0111b0100         fmadd16 r2h, r2h, u13l, u13h
+0x0b06  368a45a0111b0100         fmadd16 r2h, r2h, u13l, u13h
+0x0b0e  368a45a0111b0100         fmadd16 r2h, r2h, u13l, u13h
+0x0b16  368a45a0111b0100         fmadd16 r2h, r2h, u13l, u13h
+0x0b1e  368a45a0111b0100         fmadd16 r2h, r2h, u13l, u13h
+0x0b26  368a45a0111b0100         fmadd16 r2h, r2h, u13l, u13h
+0x0b2e  368a45a0111b0100         fmadd16 r2h, r2h, u13l, u13h
+0x0b36  368a45a0111b0100         fmadd16 r2h, r2h, u13l, u13h
+0x0b3e  368a45a0111b0100         fmadd16 r2h, r2h, u13l, u13h
+0x0b46  368a45a0111b0100         fmadd16 r2h, r2h, u13l, u13h
+0x0b4e  368a45a0111b0100         fmadd16 r2h, r2h, u13l, u13h
+0x0b56  368a45a0111b0100         fmadd16 r2h, r2h, u13l, u13h
+0x0b5e  368a45a0111b0100         fmadd16 r2h, r2h, u13l, u13h
+0x0b66  368a45a0111b0100         fmadd16 r2h, r2h, u13l, u13h
+0x0b6e  368a45a0111b0100         fmadd16 r2h, r2h, u13l, u13h
+0x0b76  368a45a0111b0100         fmadd16 r2h, r2h, u13l, u13h
+0x0b7e  368a45a0111b0100         fmadd16 r2h, r2h, u13l, u13h
+0x0b86  368a45a0111b0100         fmadd16 r2h, r2h, u13l, u13h
+0x0b8e  368a45a0111b0100         fmadd16 r2h, r2h, u13l, u13h
+0x0b96  368a45a0111b0100         fmadd16 r2h, r2h, u13l, u13h
+0x0b9e  368a45a0111b0100         fmadd16 r2h, r2h, u13l, u13h
+0x0ba6  368a45a0111b0100         fmadd16 r2h, r2h, u13l, u13h
+0x0bae  368a45a0111b0100         fmadd16 r2h, r2h, u13l, u13h
+0x0bb6  368a45a0111b0100         fmadd16 r2h, r2h, u13l, u13h
+0x0bbe  368a45a0111b0100         fmadd16 r2h, r2h, u13l, u13h
+0x0bc6  368a45a0111b0100         fmadd16 r2h, r2h, u13l, u13h
+0x0bce  368a45a0111b0100         fmadd16 r2h, r2h, u13l, u13h
+0x0bd6  2a8d45400400             fadd32 r3, r2h, r2l
+0x0bdc  268841000001             fadd16 r2l, r0h, 2.0
+0x0be2  368844a0111b0100         fmadd16 r2l, r2l, u13l, u13h
+0x0bea  368844a0111b0100         fmadd16 r2l, r2l, u13l, u13h
+0x0bf2  368844a0111b0100         fmadd16 r2l, r2l, u13l, u13h
+0x0bfa  368844a0111b0100         fmadd16 r2l, r2l, u13l, u13h
+0x0c02  368844a0111b0100         fmadd16 r2l, r2l, u13l, u13h
+0x0c0a  368844a0111b0100         fmadd16 r2l, r2l, u13l, u13h
+0x0c12  368844a0111b0100         fmadd16 r2l, r2l, u13l, u13h
+0x0c1a  368844a0111b0100         fmadd16 r2l, r2l, u13l, u13h
+0x0c22  368844a0111b0100         fmadd16 r2l, r2l, u13l, u13h
+0x0c2a  368844a0111b0100         fmadd16 r2l, r2l, u13l, u13h
+0x0c32  368844a0111b0100         fmadd16 r2l, r2l, u13l, u13h
+0x0c3a  368844a0111b0100         fmadd16 r2l, r2l, u13l, u13h
+0x0c42  368844a0111b0100         fmadd16 r2l, r2l, u13l, u13h
+0x0c4a  368844a0111b0100         fmadd16 r2l, r2l, u13l, u13h
+0x0c52  368844a0111b0100         fmadd16 r2l, r2l, u13l, u13h
+0x0c5a  368844a0111b0100         fmadd16 r2l, r2l, u13l, u13h
+0x0c62  368844a0111b0100         fmadd16 r2l, r2l, u13l, u13h
+0x0c6a  368844a0111b0100         fmadd16 r2l, r2l, u13l, u13h
+0x0c72  368844a0111b0100         fmadd16 r2l, r2l, u13l, u13h
+0x0c7a  368844a0111b0100         fmadd16 r2l, r2l, u13l, u13h
+0x0c82  368844a0111b0100         fmadd16 r2l, r2l, u13l, u13h
+0x0c8a  368844a0111b0100         fmadd16 r2l, r2l, u13l, u13h
+0x0c92  368844a0111b0100         fmadd16 r2l, r2l, u13l, u13h
+0x0c9a  368844a0111b0100         fmadd16 r2l, r2l, u13l, u13h
+0x0ca2  368844a0111b0100         fmadd16 r2l, r2l, u13l, u13h
+0x0caa  368844a0111b0100         fmadd16 r2l, r2l, u13l, u13h
+0x0cb2  368844a0111b0100         fmadd16 r2l, r2l, u13l, u13h
+0x0cba  368844a0111b0100         fmadd16 r2l, r2l, u13l, u13h
+0x0cc2  368844a0111b0100         fmadd16 r2l, r2l, u13l, u13h
+0x0cca  368844a0111b0100         fmadd16 r2l, r2l, u13l, u13h
+0x0cd2  368844a0111b0100         fmadd16 r2l, r2l, u13l, u13h
+0x0cda  368844a0111b0100         fmadd16 r2l, r2l, u13l, u13h
+0x0ce2  2a8946420400             fadd32 r2, r3, r2l
+0x0ce8  268c41800001             fadd16 r3l, r0h, 3.0
+0x0cee  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x0cf6  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x0cfe  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x0d06  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x0d0e  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x0d16  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x0d1e  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x0d26  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x0d2e  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x0d36  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x0d3e  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x0d46  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x0d4e  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x0d56  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x0d5e  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x0d66  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x0d6e  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x0d76  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x0d7e  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x0d86  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x0d8e  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x0d96  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x0d9e  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x0da6  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x0dae  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x0db6  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x0dbe  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x0dc6  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x0dce  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x0dd6  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x0dde  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x0de6  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x0dee  2a8944620400             fadd32 r2, r2, r3l
+0x0df4  268c41000101             fadd16 r3l, r0h, 4.0
+0x0dfa  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x0e02  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x0e0a  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x0e12  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x0e1a  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x0e22  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x0e2a  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x0e32  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x0e3a  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x0e42  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x0e4a  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x0e52  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x0e5a  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x0e62  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x0e6a  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x0e72  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x0e7a  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x0e82  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x0e8a  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x0e92  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x0e9a  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x0ea2  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x0eaa  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x0eb2  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x0eba  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x0ec2  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x0eca  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x0ed2  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x0eda  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x0ee2  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x0eea  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x0ef2  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x0efa  2a8944620400             fadd32 r2, r2, r3l
+0x0f00  268c41400101             fadd16 r3l, r0h, 5.0
+0x0f06  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x0f0e  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x0f16  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x0f1e  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x0f26  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x0f2e  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x0f36  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x0f3e  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x0f46  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x0f4e  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x0f56  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x0f5e  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x0f66  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x0f6e  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x0f76  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x0f7e  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x0f86  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x0f8e  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x0f96  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x0f9e  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x0fa6  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x0fae  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x0fb6  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x0fbe  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x0fc6  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x0fce  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x0fd6  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x0fde  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x0fe6  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x0fee  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x0ff6  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x0ffe  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x1006  2a8944620400             fadd32 r2, r2, r3l
+0x100c  268c41800101             fadd16 r3l, r0h, 6.0
+0x1012  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x101a  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x1022  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x102a  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x1032  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x103a  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x1042  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x104a  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x1052  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x105a  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x1062  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x106a  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x1072  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x107a  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x1082  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x108a  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x1092  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x109a  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x10a2  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x10aa  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x10b2  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x10ba  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x10c2  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x10ca  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x10d2  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x10da  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x10e2  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x10ea  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x10f2  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x10fa  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x1102  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x110a  368c46a0111b0100         fmadd16 r3l, r3l, u13l, u13h
+0x1112  2a8944620400             fadd32 r2, r2, r3l
+0x1118  268241c00101             fadd16 r0h, r0h, 7.0
+0x111e  368241a0111b0100         fmadd16 r0h, r0h, u13l, u13h
+0x1126  368241a0111b0100         fmadd16 r0h, r0h, u13l, u13h
+0x112e  368241a0111b0100         fmadd16 r0h, r0h, u13l, u13h
+0x1136  368241a0111b0100         fmadd16 r0h, r0h, u13l, u13h
+0x113e  368241a0111b0100         fmadd16 r0h, r0h, u13l, u13h
+0x1146  368241a0111b0100         fmadd16 r0h, r0h, u13l, u13h
+0x114e  368241a0111b0100         fmadd16 r0h, r0h, u13l, u13h
+0x1156  368241a0111b0100         fmadd16 r0h, r0h, u13l, u13h
+0x115e  368241a0111b0100         fmadd16 r0h, r0h, u13l, u13h
+0x1166  368241a0111b0100         fmadd16 r0h, r0h, u13l, u13h
+0x116e  368241a0111b0100         fmadd16 r0h, r0h, u13l, u13h
+0x1176  368241a0111b0100         fmadd16 r0h, r0h, u13l, u13h
+0x117e  368241a0111b0100         fmadd16 r0h, r0h, u13l, u13h
+0x1186  368241a0111b0100         fmadd16 r0h, r0h, u13l, u13h
+0x118e  368241a0111b0100         fmadd16 r0h, r0h, u13l, u13h
+0x1196  368241a0111b0100         fmadd16 r0h, r0h, u13l, u13h
+0x119e  368241a0111b0100         fmadd16 r0h, r0h, u13l, u13h
+0x11a6  368241a0111b0100         fmadd16 r0h, r0h, u13l, u13h
+0x11ae  368241a0111b0100         fmadd16 r0h, r0h, u13l, u13h
+0x11b6  368241a0111b0100         fmadd16 r0h, r0h, u13l, u13h
+0x11be  368241a0111b0100         fmadd16 r0h, r0h, u13l, u13h
+0x11c6  368241a0111b0100         fmadd16 r0h, r0h, u13l, u13h
+0x11ce  368241a0111b0100         fmadd16 r0h, r0h, u13l, u13h
+0x11d6  368241a0111b0100         fmadd16 r0h, r0h, u13l, u13h
+0x11de  368241a0111b0100         fmadd16 r0h, r0h, u13l, u13h
+0x11e6  368241a0111b0100         fmadd16 r0h, r0h, u13l, u13h
+0x11ee  368241a0111b0100         fmadd16 r0h, r0h, u13l, u13h
+0x11f6  368241a0111b0100         fmadd16 r0h, r0h, u13l, u13h
+0x11fe  368241a0111b0100         fmadd16 r0h, r0h, u13l, u13h
+0x1206  368241a0111b0100         fmadd16 r0h, r0h, u13l, u13h
+0x120e  368241a0111b0100         fmadd16 r0h, r0h, u13l, u13h
+0x1216  368241a0111b0100         fmadd16 r0h, r0h, u13l, u13h
+0x121e  2a8944120400             fadd32 r2, r2, r0h
+0x1224  3e8908402400             convert f_to_u32, r2, r2, rtz
+0x122a  420a00000000             else_fcmp r0l, eq, 0.0, 0.0, 1
+0x1230  20c0ba080000             jmp_exec_none pc+2234
+0x1236  52091c010000             if_icmp r0l, nueq, u14l, 0, 1
+0x123c  620900000000             mov_imm r2, 0, 0b0
+0x1242  7e0d420a8000             mov r3, r1
+0x1248  420800000000             push_exec r0l, 1
+0x124e  52ac44c21a00             while_icmp r0l, slt, r2, u22, 1
+0x1254  0e09441600000000         iadd r2, r2.sx, 1
+0x125c  1e0d46e659a00500         imadd r3, r3.sx, u15.sx, u16.sx
+0x1264  00c0eaffffff             jmp_exec_any pc-22
+0x126a  520e00000000             pop_exec r0l, 1
+0x1270  7e09460a8000             mov r2, r3
+0x1276  420a00000000             else_fcmp r0l, eq, 0.0, 0.0, 1
+0x127c  20c068080000             jmp_exec_none pc+2152
+0x1282  0e09012064000000         iadd r2, 1, r1.sx
+0x128a  1e0944265aa40500         imadd r2, r2.sx, u17.sx, u18.sx
+0x1292  1e0944265aa40500         imadd r2, r2.sx, u17.sx, u18.sx
+0x129a  1e0944265aa40500         imadd r2, r2.sx, u17.sx, u18.sx
+0x12a2  1e0944265aa40500         imadd r2, r2.sx, u17.sx, u18.sx
+0x12aa  1e0944265aa40500         imadd r2, r2.sx, u17.sx, u18.sx
+0x12b2  1e0944265aa40500         imadd r2, r2.sx, u17.sx, u18.sx
+0x12ba  1e0944265aa40500         imadd r2, r2.sx, u17.sx, u18.sx
+0x12c2  1e0944265aa40500         imadd r2, r2.sx, u17.sx, u18.sx
+0x12ca  1e0944265aa40500         imadd r2, r2.sx, u17.sx, u18.sx
+0x12d2  1e0944265aa40500         imadd r2, r2.sx, u17.sx, u18.sx
+0x12da  1e0944265aa40500         imadd r2, r2.sx, u17.sx, u18.sx
+0x12e2  1e0944265aa40500         imadd r2, r2.sx, u17.sx, u18.sx
+0x12ea  1e0944265aa40500         imadd r2, r2.sx, u17.sx, u18.sx
+0x12f2  1e0944265aa40500         imadd r2, r2.sx, u17.sx, u18.sx
+0x12fa  1e0944265aa40500         imadd r2, r2.sx, u17.sx, u18.sx
+0x1302  1e0944265aa40500         imadd r2, r2.sx, u17.sx, u18.sx
+0x130a  1e0944265aa40500         imadd r2, r2.sx, u17.sx, u18.sx
+0x1312  1e0944265aa40500         imadd r2, r2.sx, u17.sx, u18.sx
+0x131a  1e0944265aa40500         imadd r2, r2.sx, u17.sx, u18.sx
+0x1322  1e0944265aa40500         imadd r2, r2.sx, u17.sx, u18.sx
+0x132a  1e0944265aa40500         imadd r2, r2.sx, u17.sx, u18.sx
+0x1332  1e0944265aa40500         imadd r2, r2.sx, u17.sx, u18.sx
+0x133a  1e0944265aa40500         imadd r2, r2.sx, u17.sx, u18.sx
+0x1342  1e0944265aa40500         imadd r2, r2.sx, u17.sx, u18.sx
+0x134a  1e0944265aa40500         imadd r2, r2.sx, u17.sx, u18.sx
+0x1352  1e0944265aa40500         imadd r2, r2.sx, u17.sx, u18.sx
+0x135a  1e0944265aa40500         imadd r2, r2.sx, u17.sx, u18.sx
+0x1362  1e0944265aa40500         imadd r2, r2.sx, u17.sx, u18.sx
+0x136a  1e0944265aa40500         imadd r2, r2.sx, u17.sx, u18.sx
+0x1372  1e0944265aa40500         imadd r2, r2.sx, u17.sx, u18.sx
+0x137a  1e0944265aa40500         imadd r2, r2.sx, u17.sx, u18.sx
+0x1382  1e0944265aa40500         imadd r2, r2.sx, u17.sx, u18.sx
+0x138a  1e0d42265aa40500         imadd r3, r1.sx, u17.sx, u18.sx
+0x1392  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x139a  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x13a2  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x13aa  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x13b2  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x13ba  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x13c2  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x13ca  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x13d2  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x13da  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x13e2  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x13ea  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x13f2  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x13fa  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x1402  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x140a  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x1412  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x141a  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x1422  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x142a  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x1432  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x143a  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x1442  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x144a  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x1452  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x145a  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x1462  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x146a  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x1472  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x147a  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x1482  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x148a  7e09464a6400             xor r2, r3, r2
+0x1490  0e0d022064000000         iadd r3, 2, r1.sx
+0x1498  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x14a0  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x14a8  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x14b0  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x14b8  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x14c0  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x14c8  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x14d0  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x14d8  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x14e0  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x14e8  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x14f0  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x14f8  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x1500  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x1508  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x1510  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x1518  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x1520  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x1528  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x1530  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x1538  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x1540  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x1548  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x1550  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x1558  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x1560  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x1568  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x1570  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x1578  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x1580  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x1588  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x1590  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x1598  7e09446a6400             xor r2, r2, r3
+0x159e  0e0d032064000000         iadd r3, 3, r1.sx
+0x15a6  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x15ae  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x15b6  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x15be  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x15c6  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x15ce  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x15d6  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x15de  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x15e6  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x15ee  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x15f6  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x15fe  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x1606  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x160e  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x1616  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x161e  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x1626  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x162e  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x1636  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x163e  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x1646  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x164e  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x1656  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x165e  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x1666  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x166e  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x1676  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x167e  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x1686  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x168e  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x1696  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x169e  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x16a6  7e09446a6400             xor r2, r2, r3
+0x16ac  0e0d042064000000         iadd r3, 4, r1.sx
+0x16b4  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x16bc  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x16c4  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x16cc  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x16d4  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x16dc  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x16e4  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x16ec  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x16f4  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x16fc  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x1704  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x170c  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x1714  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x171c  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x1724  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x172c  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x1734  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x173c  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x1744  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x174c  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x1754  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x175c  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x1764  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x176c  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x1774  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x177c  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x1784  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x178c  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x1794  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x179c  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x17a4  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x17ac  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x17b4  7e09446a6400             xor r2, r2, r3
+0x17ba  0e0d052064000000         iadd r3, 5, r1.sx
+0x17c2  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x17ca  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x17d2  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x17da  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x17e2  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x17ea  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x17f2  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x17fa  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x1802  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x180a  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x1812  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x181a  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x1822  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x182a  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x1832  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x183a  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x1842  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x184a  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x1852  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x185a  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x1862  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x186a  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x1872  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x187a  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x1882  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x188a  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x1892  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x189a  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x18a2  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x18aa  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x18b2  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x18ba  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x18c2  7e09446a6400             xor r2, r2, r3
+0x18c8  0e0d062064000000         iadd r3, 6, r1.sx
+0x18d0  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x18d8  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x18e0  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x18e8  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x18f0  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x18f8  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x1900  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x1908  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x1910  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x1918  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x1920  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x1928  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x1930  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x1938  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x1940  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x1948  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x1950  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x1958  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x1960  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x1968  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x1970  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x1978  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x1980  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x1988  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x1990  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x1998  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x19a0  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x19a8  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x19b0  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x19b8  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x19c0  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x19c8  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x19d0  7e09446a6400             xor r2, r2, r3
+0x19d6  0e0d072064000000         iadd r3, 7, r1.sx
+0x19de  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x19e6  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x19ee  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x19f6  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x19fe  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x1a06  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x1a0e  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x1a16  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x1a1e  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x1a26  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x1a2e  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x1a36  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x1a3e  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x1a46  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x1a4e  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x1a56  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x1a5e  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x1a66  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x1a6e  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x1a76  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x1a7e  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x1a86  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x1a8e  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x1a96  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x1a9e  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x1aa6  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x1aae  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x1ab6  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x1abe  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x1ac6  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x1ace  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x1ad6  1e0d46265aa40500         imadd r3, r3.sx, u17.sx, u18.sx
+0x1ade  7e09446a6400             xor r2, r2, r3
+0x1ae4  520e00000000             pop_exec r0l, 1
+0x1aea  520e00000000             pop_exec r0l, 1
+0x1af0  520e00000000             pop_exec r0l, 1
+0x1af6  520e00000000             pop_exec r0l, 1
+0x1afc  520e00000000             pop_exec r0l, 1
+0x1b02  0e05a62564000000         iadd r1, u19.sx, r1.sx
+0x1b0a  4511280e20c01200         device_store 0, i32, x, r2, u20_u21, r1, unsigned, 0
+0x1b12  8800                     stop

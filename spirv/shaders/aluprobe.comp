@@ -1,0 +1,50 @@
+#version 450
+// ALU latency / throughput probe: each dispatch runs 256 steps of one operation kind (push constant `kind`):
+// fp32 fma, fp16 fma and 32-bit integer multiply-add, each as one dependent chain (latency) or 8 independent chains
+// (throughput). The operands come from push constants (nothing folds) and keep every result exact: float chains
+// add integers below the mantissa limit, the integer chain wraps mod 2^32. Per-dispatch M2 times check the model's
+// ALU rules.
+#extension GL_EXT_shader_explicit_arithmetic_types_float16 : require
+layout(local_size_x = 256) in;
+layout(std430, binding = 0) writeonly buffer O { uint outv[]; };
+layout(push_constant) uniform P { uint kind; float a; float b; uint ia; uint ib; uint slot; } p;
+
+void main() {
+    uint i = gl_GlobalInvocationID.x, r = 0u;
+    if (p.kind == 0u) {
+        float x = float(i & 255u);
+        for (int k = 0; k < 256; k++) x = fma(x, p.a, p.b);
+        r = uint(x);
+    } else if (p.kind == 1u) {
+        float x0 = float(i & 7u), x1 = x0 + 1.0, x2 = x0 + 2.0, x3 = x0 + 3.0, x4 = x0 + 4.0, x5 = x0 + 5.0, x6 = x0 + 6.0, x7 = x0 + 7.0;
+        for (int k = 0; k < 32; k++) {
+            x0 = fma(x0, p.a, p.b); x1 = fma(x1, p.a, p.b); x2 = fma(x2, p.a, p.b); x3 = fma(x3, p.a, p.b);
+            x4 = fma(x4, p.a, p.b); x5 = fma(x5, p.a, p.b); x6 = fma(x6, p.a, p.b); x7 = fma(x7, p.a, p.b);
+        }
+        r = uint(x0 + x1 + x2 + x3 + x4 + x5 + x6 + x7);
+    } else if (p.kind == 2u) {
+        float16_t x = float16_t(i & 7u), a = float16_t(p.a), b = float16_t(p.b);
+        for (int k = 0; k < 256; k++) x = fma(x, a, b);
+        r = uint(float(x));
+    } else if (p.kind == 3u) {
+        float16_t a = float16_t(p.a), b = float16_t(p.b), x0 = float16_t(i & 7u), x1 = x0 + 1.0hf, x2 = x0 + 2.0hf, x3 = x0 + 3.0hf;
+        float16_t x4 = x0 + 4.0hf, x5 = x0 + 5.0hf, x6 = x0 + 6.0hf, x7 = x0 + 7.0hf;
+        for (int k = 0; k < 32; k++) {
+            x0 = fma(x0, a, b); x1 = fma(x1, a, b); x2 = fma(x2, a, b); x3 = fma(x3, a, b);
+            x4 = fma(x4, a, b); x5 = fma(x5, a, b); x6 = fma(x6, a, b); x7 = fma(x7, a, b);
+        }
+        r = uint(float(x0) + float(x1) + float(x2) + float(x3) + float(x4) + float(x5) + float(x6) + float(x7));
+    } else if (p.kind == 4u) {
+        uint x = i;
+        for (int k = 0; k < 256; k++) x = x * p.ia + p.ib;
+        r = x;
+    } else {
+        uint x0 = i, x1 = i + 1u, x2 = i + 2u, x3 = i + 3u, x4 = i + 4u, x5 = i + 5u, x6 = i + 6u, x7 = i + 7u;
+        for (int k = 0; k < 32; k++) {
+            x0 = x0 * p.ia + p.ib; x1 = x1 * p.ia + p.ib; x2 = x2 * p.ia + p.ib; x3 = x3 * p.ia + p.ib;
+            x4 = x4 * p.ia + p.ib; x5 = x5 * p.ia + p.ib; x6 = x6 * p.ia + p.ib; x7 = x7 * p.ia + p.ib;
+        }
+        r = x0 ^ x1 ^ x2 ^ x3 ^ x4 ^ x5 ^ x6 ^ x7;
+    }
+    outv[p.slot * gl_NumWorkGroups.x * 256u + i] = r;
+}

@@ -2773,6 +2773,30 @@ def w_barriercost(size, rng):
     return W('barriercost', {0: (4 * len(BARRIER_ROUNDS) * n, True)}, ds, check, 256, {'barriers': 2 * sum(BARRIER_ROUNDS) * groups})
 
 
+def w_aluprobe(size, rng):
+    groups = 4 if size == 'small' else 2048
+    n = groups * 256
+    a, b, ia, ib = 1.0, 3.0, 1664525, 1013904223                                # float chains add 3 per step (exact)
+    def check(o):
+        got = o[0].view(np.uint32)[:6 * n].reshape(6, n).astype(np.int64)
+        i = np.arange(n, dtype=np.int64)
+        def lcg(x, steps):
+            for _ in range(steps):
+                x = (x * ia + ib) & 0xffffffff
+            return x
+        ref = np.stack([
+            (i & 255) + 256 * 3,
+            sum((i & 7) + j + 32 * 3 for j in range(8)),
+            (i & 7) + 256 * 3,                                                  # at most 775 < 2048: exact in fp16
+            sum((i & 7) + j + 32 * 3 for j in range(8)),
+            lcg(i, 256),
+            np.bitwise_xor.reduce(np.stack([lcg(i + j, 32) for j in range(8)]), axis=0)])
+        return np.array_equal(got, ref), {'mismatches_per_kind': [int(np.sum(got[k] != ref[k])) for k in range(6)],
+                                          'kinds': ['fma32 dep', 'fma32 x8', 'fma16 dep', 'fma16 x8', 'imad dep', 'imad x8']}
+    ds = [(groups, 1, 1, push(k, a, b, ia, ib, k)) for k in range(6)]
+    return W('aluprobe', {0: (24 * n, True)}, ds, check, 256, {'ops': 6 * 256 * n}, requires=['float16'])
+
+
 WORKLOADS = {'reduce': w_reduce, 'scan': w_scan, 'sgemm': w_sgemm, 'conv2d': w_conv2d, 'histogram': w_histogram,
              'nbody': w_nbody, 'bitonic': w_bitonic, 'sha256': w_sha256, 'fp16': w_fp16, 'int64': w_int64, 'bitops': w_bitops,
              'intdiv': w_intdiv, 'compact': w_compact, 'spmv': w_spmv, 'transpose': w_transpose, 'mandelbrot': w_mandelbrot,
@@ -2803,7 +2827,8 @@ WORKLOADS = {'reduce': w_reduce, 'scan': w_scan, 'sgemm': w_sgemm, 'conv2d': w_c
              'bigsort': w_bigsort, 'pushmat': w_pushmat, 'mplitmus': w_mplitmus,
              'splat': w_splat, 'splatfix': w_splatfix,
              'smembank': w_smembank, 'coalesce': w_coalesce,
-             'atomcontend': w_atomcontend, 'barriercost': w_barriercost}
+             'atomcontend': w_atomcontend, 'barriercost': w_barriercost,
+             'aluprobe': w_aluprobe}
 
 
 # ---------------------------------------------------------------------------------------------------------------
