@@ -197,9 +197,66 @@ pub fn compare_cc(float_cmp: bool, cc: u64, a: &Operand, b: &Operand, st: &CoreS
     }
 }
 
+/// A source operand resolved once per instruction: a lane register (16 / 32-bit) or a value that is the same in every
+/// lane (uniform, immediate). `raw` without the per-lane operand match.
+#[derive(Clone, Copy)]
+enum Src {
+    L16(usize),
+    L32(usize),
+    K(u64, u32),
+}
+
+fn src_of(st: &CoreState, o: &Operand) -> R<Option<Src>> {
+    Ok(match o {
+        Operand::Reg16(n, _) => Some(Src::L16(*n as usize)),
+        Operand::Reg32(n, _) => Some(Src::L32(*n as usize)),
+        Operand::UReg16(..) | Operand::UReg32(..) | Operand::Imm(ImmVal::Int(_), _) => {
+            let (v, sz) = raw(st, o, 0)?;
+            Some(Src::K(v, sz))
+        }
+        _ => None,
+    })
+}
+
+#[inline]
+fn src_get(st: &CoreState, s: Src, t: usize) -> R<(u64, u32)> {
+    Ok(match s {
+        Src::L16(n) => (st.get_reg16(n, t)? as u64, 16),
+        Src::L32(n) => (st.get_reg32(n, t)? as u64, 32),
+        Src::K(v, sz) => (v, sz),
+    })
+}
+
+/// icmpsel with 16 / 32-bit register, uniform or immediate operands: the common case, without per-lane operand
+/// dispatch. Same result as the general path (compare masks to the operand size and sign-extends for signed codes).
+fn icmpsel_fast(cc: u64, ops: &[Operand], st: &mut CoreState) -> R<bool> {
+    let (Some(a), Some(b), Some(x), Some(y)) = (src_of(st, &ops[1])?, src_of(st, &ops[2])?, src_of(st, &ops[3])?, src_of(st, &ops[4])?)
+    else {
+        return Ok(false);
+    };
+    if !matches!(ops[0], Operand::Reg16(..) | Operand::Reg32(..)) {
+        return Ok(false);
+    }
+    for t in 0..SIMD_WIDTH {
+        if !st.exec[t] {
+            continue;
+        }
+        let (av, asz) = src_get(st, a, t)?;
+        let (bv, bsz) = src_get(st, b, t)?;
+        let am = (av & ((1u64 << asz) - 1)) as i128;
+        let bm = (bv & ((1u64 << bsz) - 1)) as i128;
+        let (v, _) = src_get(st, if icond(cc, am, asz, bm, bsz) { x } else { y }, t)?;
+        put(st, &ops[0], t, v)?;
+    }
+    Ok(true)
+}
+
 /// icmpsel / fcmpsel: D = cond(A, B) ? X : Y  (ops: D, A, B, X, Y)
 pub fn cmpsel(float_cmp: bool, f: &Fields, ops: &[Operand], st: &mut CoreState) -> R<()> {
     let cc = cc_of(f);
+    if !float_cmp && icmpsel_fast(cc, ops, st)? {
+        return Ok(());
+    }
     for t in 0..SIMD_WIDTH {
         if !st.exec[t] {
             continue;
@@ -236,26 +293,38 @@ pub fn mask_ctl(kind: &str, float_cmp: bool, f: &Fields, ops: &[Operand], st: &m
     let k = match kind { "if" => 0u8, "while" => 1, _ => 2 };
     // operands: r0l (destination), A, B
     let (a, b) = (&ops[1], &ops[2]);
+    // integer compares on 16 / 32-bit registers, uniforms or immediates: operands resolved once (as icmpsel_fast)
+    let fast = if float_cmp { None } else { match (src_of(st, a)?, src_of(st, b)?) { (Some(x), Some(y)) => Some((x, y)), _ => None } };
+    let cmp = |st: &CoreState, t: usize| -> R<bool> {
+        match fast {
+            Some((x, y)) => {
+                let (av, asz) = src_get(st, x, t)?;
+                let (bv, bsz) = src_get(st, y, t)?;
+                Ok(icond(cc, (av & ((1u64 << asz) - 1)) as i128, asz, (bv & ((1u64 << bsz) - 1)) as i128, bsz))
+            }
+            None => compare_cc(float_cmp, cc, a, b, st, t),
+        }
+    };
     for t in 0..SIMD_WIDTH {
         let mut v = st.get_reg16(0, t)?;
         match k {
             0 => {
                 if v != 0 {
                     v += n;
-                } else if !compare_cc(float_cmp, cc, a, b, st, t)? {
+                } else if !cmp(st, t)? {
                     v = 1;
                 }
             }
             1 => {
                 if v < n {
-                    v = if compare_cc(float_cmp, cc, a, b, st, t)? { 0 } else { n };
+                    v = if cmp(st, t)? { 0 } else { n };
                 }
             }
             _ => {
                 if v == 0 {
                     v = n;
                 } else if v == 1 {
-                    v = if compare_cc(float_cmp, cc, a, b, st, t)? { 0 } else { 1 };
+                    v = if cmp(st, t)? { 0 } else { 1 };
                 }
             }
         }
