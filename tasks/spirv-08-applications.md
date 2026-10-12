@@ -1,7 +1,7 @@
 # Task SPIR-V 8: applications (ray tracer, neural networks, image processing, cellular automaton, graph search,
 # encryption, hashing, text, compression)
 
-**Workloads:** `raytrace`, `mlp`, `sobel`, `life`, `bfs`, `conv_layer`, `hist_eq`, `aes`, `hash_table`, `word_count`, `dct8`, `attention`, `resize`, `median3`, `poisson`, `lbm`, `base64`, `md5`, `gemv`, `levenshtein`, `blur`, `yuv420`, `montecarlo`, `xxhash`, `bloom`, `collatz`, `tridiag`, `merge`, `ccl`, `pagerank`, `skinning`, `strsearch`, `quantize`, `rule110`, `voxel`, `nms`, `sat`, `sssp`, `morton`, `utf8`, `fir`, `composite`, `nqueens`, `lzmatch`, `bitpack`, `perlin`, `adler32`, `sieve`, `gcd`, `dither`, `advect`, `knn`, `csvparse`, `pip`, `lift53`, `chacha20`, `modexp`, `floyd`, `f16pack`, `raster`, `canny`, `secded`, `bicubic`, `dfa`, `b64decode`, `cordic`, `rsenc`, `texfetch`, `texfilter`, `imgerode`, `imgtonemap`, `argmax64`, `minmax64`, `dsum`, `quadmip`, `clustered`, `specblur`, `cullindirect`, `bigsort`, `pushmat`, `mplitmus`, `splat`, `splatfix`, `smembank`, `coalesce`, `atomcontend`, `barriercost`, `aluprobe`, `ubopalette`, `uboparams`, `bindless`, `bindlessu`, `rle`, `huffdec`, `lookback`, `hll`, `tricount`, `sha3`, `stereo`, `viterbi`, `viterbifix`, `shiftfuse`, `bc1enc`, `lz4dec`, `nttmul`, `topk`, `cellsort`, `boruvka`, `biquad`, `edt`, `mt19937`, `bitap`, `cholesky`, `rsshash`, `poly1305`, `crc32c`, `siphash`, `blake2s`, `blake2sfast`, `q4gemv`, `attndec`, `attndecsplit`, `rmsrope`, `q8dot`, `isp`, `contour`, `hough`, `spmvsg`, `varint`. These are recorded and verified by `make asahi-verify` with the others;
+**Workloads:** `raytrace`, `mlp`, `sobel`, `life`, `bfs`, `conv_layer`, `hist_eq`, `aes`, `hash_table`, `word_count`, `dct8`, `attention`, `resize`, `median3`, `poisson`, `lbm`, `base64`, `md5`, `gemv`, `levenshtein`, `blur`, `yuv420`, `montecarlo`, `xxhash`, `bloom`, `collatz`, `tridiag`, `merge`, `ccl`, `pagerank`, `skinning`, `strsearch`, `quantize`, `rule110`, `voxel`, `nms`, `sat`, `sssp`, `morton`, `utf8`, `fir`, `composite`, `nqueens`, `lzmatch`, `bitpack`, `perlin`, `adler32`, `sieve`, `gcd`, `dither`, `advect`, `knn`, `csvparse`, `pip`, `lift53`, `chacha20`, `modexp`, `floyd`, `f16pack`, `raster`, `canny`, `secded`, `bicubic`, `dfa`, `b64decode`, `cordic`, `rsenc`, `texfetch`, `texfilter`, `imgerode`, `imgtonemap`, `argmax64`, `minmax64`, `dsum`, `quadmip`, `clustered`, `specblur`, `cullindirect`, `bigsort`, `pushmat`, `mplitmus`, `splat`, `splatfix`, `smembank`, `coalesce`, `atomcontend`, `barriercost`, `aluprobe`, `ubopalette`, `uboparams`, `bindless`, `bindlessu`, `rle`, `huffdec`, `lookback`, `hll`, `tricount`, `sha3`, `stereo`, `viterbi`, `viterbifix`, `shiftfuse`, `bc1enc`, `lz4dec`, `nttmul`, `topk`, `cellsort`, `boruvka`, `biquad`, `edt`, `mt19937`, `bitap`, `cholesky`, `rsshash`, `poly1305`, `crc32c`, `siphash`, `blake2s`, `blake2sfast`, `q4gemv`, `attndec`, `attndecsplit`, `rmsrope`, `q8dot`, `isp`, `contour`, `hough`, `spmvsg`, `varint`, `bvhrays`. These are recorded and verified by `make asahi-verify` with the others;
 they are **PENDING** until then. The detailed procedure is in `tasks/spirv-workloads.md`.
 
 ## Why these
@@ -141,6 +141,7 @@ reference.
 | `hough` | 2048 × 2048 edge image: 12 planted lines through the interior plus noise (37622 points) | Exact accumulator against numpy; the 12 strongest peaks recover all 12 planted lines |
 | `spmvsg` | 131072 × 131072, 1.75M nonzeros, Pareto row lengths (23% empty rows) | Within the fp32 summation bound of a float64 product (any summation order); empty rows exactly 0 |
 | `varint` | 4M int32: 80% small magnitudes, the rest up to 2^31, both signs; 0, -1, INT_MAX, INT_MIN first | Output bytes identical to a Python protobuf-style encoder (whose output matches protobuf's documented examples) |
+| `bvhrays` | 8264 triangles (terrain + boxes), 4239 BVH nodes, 65536 camera rays (70% hit) | Every ray's hit triangle and distance equal a float64 brute-force test against all triangles (no BVH), allowing fp32 ties on shared edges (1 offline) |
 
 ## Offline sanity checks (not hardware verification)
 
@@ -561,3 +562,9 @@ reference.
       at offsets that neighbouring invocations share words with.
     - Predicted 2.1 ms, of which 1.77 ms is the serial offsets pass over 16384 workgroup counts, the same pattern as
       `rle`'s (note 30). The two M2 times give two measurements of a dependent device load-add-store chain.
+65. **BVH ray traversal.**
+    - Each lane walks its own path through the tree, so a SIMD group runs as long as its deepest traversal and
+      re-converges only at the end. Node and triangle fetches are dependent loads from data-dependent addresses.
+    - The traversal stack lives in shared memory (48 entries × 64 invocations = 12 KiB), so occupancy is limited by
+      shared memory rather than by registers (80 GPRs, no scratch).
+    - Predicted 0.46 ms for 65536 rays: the M2 time checks the model on divergent pointer chasing.

@@ -54,7 +54,7 @@ The rest of this file is the detailed procedure, for investigating results.
 
 ## Workloads
 
-One hundred and sixty-one realistic compute kernels, written in GLSL (`spirv/shaders/*.comp`) and compiled to SPIR-V:
+One hundred and sixty-two realistic compute kernels, written in GLSL (`spirv/shaders/*.comp`) and compiled to SPIR-V:
 
 | Workload | Kernel | Stresses |
 |---|---|---|
@@ -219,6 +219,7 @@ One hundred and sixty-one realistic compute kernels, written in GLSL (`spirv/sha
 | `hough` | Hough line transform: every edge point votes for 180 angles with Q14 fixed-point trig, `atomicAdd` into a θ × ρ accumulator | 6.8M device atomics spread over 1M counters, with hot bins at the line peaks |
 | `spmvsg` | CSR SpMV, vector kernel: one subgroup per row, `subgroupAdd` row sums, power-law row lengths (up to 2047 nonzeros) | Lanes striding over a row's gathers, subgroup reduction; with `spmv` (one invocation per row), scalar vs vector SpMV |
 | `varint` | Protobuf sint32 serialisation: zigzag + LEB128 varints packed back to back (count, scan, scatter) | 8-bit storage-buffer stores at unaligned byte offsets, a shared-memory scan per workgroup, a serial one-invocation offsets pass; requires `storage_buffer_8bit` |
+| `bvhrays` | Closest-hit ray traversal of a median-split BVH over a triangle mesh, short stack in shared memory, Möller-Trumbore tests | Pointer-chasing node fetches, per-lane divergent traversal depth and order, `1/x` and cross products, a 12 KiB shared-memory stack |
 
 Each workload has two sizes:
 

@@ -1539,6 +1539,86 @@ def w_varint(size, rng):
              {'items': n}, requires=['storage_buffer_8bit'])
 
 
+def bvh_build(V, leaf=4):
+    """median-split BVH over triangles V [n, 3, 3]: nodes [m, 2, 4] float32 (min | left child or first triangle,
+    max | triangle count, 0 for inner nodes; children adjacent) and the triangle order the leaves index"""
+    cen = V.mean(1)
+    nodes, order, work = [None], [], [(0, np.arange(len(V)))]
+    while work:
+        k, idx = work.pop()
+        pts = V[idx].reshape(-1, 3); lo, hi = pts.min(0), pts.max(0)
+        if len(idx) <= leaf:
+            nodes[k] = (lo, hi, len(order), len(idx)); order.extend(idx.tolist()); continue
+        ax = int(np.argmax(hi - lo)); srt = idx[np.argsort(cen[idx, ax], kind='stable')]; h = len(srt) // 2
+        c = len(nodes); nodes += [None, None]
+        nodes[k] = (lo, hi, c, 0)
+        work += [(c, srt[:h]), (c + 1, srt[h:])]
+    out = np.zeros((len(nodes), 2, 4), np.float32)
+    for k, (lo, hi, first, cnt) in enumerate(nodes):
+        out[k, 0, :3] = lo; out[k, 1, :3] = hi
+        out[k, 0, 3] = np.uint32(first).view(np.float32); out[k, 1, 3] = np.uint32(cnt).view(np.float32)
+    return out, np.array(order)
+
+
+def w_bvhrays(size, rng):
+    gx, gy, side = (16, 16, 64) if size == 'small' else (64, 64, 256)
+    # terrain: a height-field grid of 2 triangles per cell, plus a few boxes standing on it
+    xs, ys = np.meshgrid(np.linspace(-1, 1, gx + 1), np.linspace(-1, 1, gy + 1))
+    zs = 0.15 * np.sin(3 * xs) * np.cos(2 * ys) + 0.03 * rng.normal(size=xs.shape)
+    P = np.stack([xs, ys, zs], -1)
+    tris = []
+    for j in range(gy):
+        for i in range(gx):
+            a, b, c, d = P[j, i], P[j, i + 1], P[j + 1, i], P[j + 1, i + 1]
+            tris += [(a, b, d), (a, d, c)]
+    for _ in range(6):
+        cx, cy, hz = rng.uniform(-0.7, 0.7), rng.uniform(-0.7, 0.7), rng.uniform(0.1, 0.4)
+        e = rng.uniform(0.05, 0.15)
+        cub = np.array([[cx + sx * e, cy + sy * e, sz * hz] for sz in (0, 1) for sy in (-1, 1) for sx in (-1, 1)])
+        for f in ((0, 1, 3), (0, 3, 2), (4, 6, 7), (4, 7, 5), (0, 4, 5), (0, 5, 1), (2, 3, 7), (2, 7, 6), (0, 2, 6), (0, 6, 4), (1, 5, 7), (1, 7, 3)):
+            tris.append(tuple(cub[list(f)]))
+    V = np.array(tris, np.float64)
+    nodes, order = bvh_build(V)
+    T = np.zeros((len(V), 3, 4), np.float32); T[:, :, :3] = V[order]
+    T[:, 0, 3] = order.astype(np.uint32).view(np.float32)
+    # camera rays from above and to the side, looking at the scene
+    u, v = np.meshgrid(np.linspace(-1, 1, side), np.linspace(-1, 1, side))
+    org = np.array([0.0, -2.2, 1.4]); fwd = -org / np.linalg.norm(org)
+    right = np.cross(fwd, [0, 0, 1.0]); right /= np.linalg.norm(right); up = np.cross(right, fwd)
+    dirs = fwd + 0.33 * u[..., None] * right + 0.33 * v[..., None] * up
+    dirs = (dirs / np.linalg.norm(dirs, axis=-1, keepdims=True)).reshape(-1, 3)
+    R = np.zeros((len(dirs), 2, 4), np.float32); R[:, 0, :3] = org; R[:, 1, :3] = dirs
+    n = len(dirs)
+    def check(o):
+        got = o[3].view(np.float32)[:2 * n].reshape(n, 2)
+        gid = got[:, 0].view(np.uint32).astype(np.int64); gt = got[:, 1].astype(np.float64)
+        Rd = R[:, 1, :3].astype(np.float64); Ro = R[:, 0, :3].astype(np.float64)
+        Vf = V.astype(np.float32).astype(np.float64)                         # the fp32 vertices the GPU sees
+        bt = np.full(n, np.inf); bid = np.full(n, -1)
+        v0, e1, e2 = Vf[:, 0], Vf[:, 1] - Vf[:, 0], Vf[:, 2] - Vf[:, 0]
+        for c0 in range(0, n, 512):                                           # brute force, float64
+            d = Rd[c0:c0 + 512, None, :]; oo = Ro[c0:c0 + 512, None, :]
+            pv = np.cross(d, e2[None]); det = np.einsum('rtk,tk->rt', pv, e1)
+            with np.errstate(divide='ignore', invalid='ignore'):
+                idet = 1 / det; tv = oo - v0[None]
+                uu = np.einsum('rtk,rtk->rt', tv, pv) * idet; qv = np.cross(tv, e1[None])
+                vv = np.einsum('rtk,rtk->rt', np.broadcast_to(d, qv.shape), qv) * idet
+                tt = np.einsum('tk,rtk->rt', e2, qv) * idet
+            ok = (np.abs(det) > 1e-12) & (uu >= 0) & (vv >= 0) & (uu + vv <= 1) & (tt > 1e-6)
+            tt = np.where(ok, tt, np.inf)
+            k = tt.argmin(1); bt[c0:c0 + 512] = tt[np.arange(len(k)), k]; bid[c0:c0 + 512] = np.where(np.isfinite(bt[c0:c0 + 512]), k, -1)
+        gmiss = gid == 0xffffffff; rmiss = bid < 0
+        same = (gmiss & rmiss) | (~gmiss & ~rmiss & (gid == bid))
+        # fp32 ties on shared edges may pick the neighbouring triangle at the same distance
+        tie = ~gmiss & ~rmiss & (gid != bid) & (np.abs(gt - bt) <= 1e-5 * np.maximum(1, bt))
+        tclose = np.all(np.abs(gt[~gmiss & ~rmiss] - bt[~gmiss & ~rmiss]) <= 1e-4 * np.maximum(1, bt[~gmiss & ~rmiss]))
+        bad = int(np.sum(~same & ~tie))
+        return bad <= n // 2000 and bool(tclose), {'rays': n, 'hits': int(np.sum(~rmiss)), 'edge_ties': int(tie.sum()),
+                                                   'disagreements': bad, 'triangles': len(V), 'nodes': len(nodes)}
+    return W('bvhrays', {0: (np.ascontiguousarray(nodes.reshape(-1, 4)), False), 1: (np.ascontiguousarray(T.reshape(-1, 4)), False),
+                         2: (np.ascontiguousarray(R.reshape(-1, 4)), False), 3: (8 * n, True)},
+             [((n + 63) // 64, 1, 1, push(n))], check, 64, {'items': n})
+
 def w_spmv(size, rng):
     rows, cols = (512, 512) if size == 'small' else (1 << 18, 1 << 18)
     nnz = rng.integers(0, 64, rows) * (rng.random(rows) < 0.95)    # some empty rows
@@ -4068,7 +4148,7 @@ WORKLOADS = {'reduce': w_reduce, 'scan': w_scan, 'sgemm': w_sgemm, 'conv2d': w_c
              'aluprobe': w_aluprobe, 'ubopalette': w_ubopalette, 'uboparams': w_uboparams,
              'bindless': w_bindless, 'bindlessu': w_bindlessu,
              # appended only: the input seed is the index in this dict
-             'rle': w_rle, 'huffdec': w_huffdec, 'lookback': w_lookback, 'hll': w_hll, 'tricount': w_tricount, 'sha3': w_sha3, 'stereo': w_stereo, 'viterbi': w_viterbi, 'viterbifix': w_viterbifix, 'shiftfuse': w_shiftfuse, 'bc1enc': w_bc1enc, 'lz4dec': w_lz4dec, 'nttmul': w_nttmul, 'topk': w_topk, 'cellsort': w_cellsort, 'boruvka': w_boruvka, 'biquad': w_biquad, 'edt': w_edt, 'mt19937': w_mt19937, 'bitap': w_bitap, 'cholesky': w_cholesky, 'rsshash': w_rsshash, 'poly1305': w_poly1305, 'crc32c': w_crc32c, 'siphash': w_siphash, 'blake2s': w_blake2s, 'blake2sfast': w_blake2sfast, 'q4gemv': w_q4gemv, 'attndec': w_attndec, 'attndecsplit': w_attndecsplit, 'rmsrope': w_rmsrope, 'q8dot': w_q8dot, 'isp': w_isp, 'contour': w_contour, 'hough': w_hough, 'spmvsg': w_spmvsg, 'varint': w_varint}
+             'rle': w_rle, 'huffdec': w_huffdec, 'lookback': w_lookback, 'hll': w_hll, 'tricount': w_tricount, 'sha3': w_sha3, 'stereo': w_stereo, 'viterbi': w_viterbi, 'viterbifix': w_viterbifix, 'shiftfuse': w_shiftfuse, 'bc1enc': w_bc1enc, 'lz4dec': w_lz4dec, 'nttmul': w_nttmul, 'topk': w_topk, 'cellsort': w_cellsort, 'boruvka': w_boruvka, 'biquad': w_biquad, 'edt': w_edt, 'mt19937': w_mt19937, 'bitap': w_bitap, 'cholesky': w_cholesky, 'rsshash': w_rsshash, 'poly1305': w_poly1305, 'crc32c': w_crc32c, 'siphash': w_siphash, 'blake2s': w_blake2s, 'blake2sfast': w_blake2sfast, 'q4gemv': w_q4gemv, 'attndec': w_attndec, 'attndecsplit': w_attndecsplit, 'rmsrope': w_rmsrope, 'q8dot': w_q8dot, 'isp': w_isp, 'contour': w_contour, 'hough': w_hough, 'spmvsg': w_spmvsg, 'varint': w_varint, 'bvhrays': w_bvhrays}
 
 
 # ---------------------------------------------------------------------------------------------------------------
