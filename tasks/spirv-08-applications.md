@@ -1,7 +1,7 @@
 # Task SPIR-V 8: applications (ray tracer, neural networks, image processing, cellular automaton, graph search,
 # encryption, hashing, text, compression)
 
-**Workloads:** `raytrace`, `mlp`, `sobel`, `life`, `bfs`, `conv_layer`, `hist_eq`, `aes`, `hash_table`, `word_count`, `dct8`, `attention`, `resize`, `median3`, `poisson`, `lbm`, `base64`, `md5`, `gemv`, `levenshtein`, `blur`, `yuv420`, `montecarlo`, `xxhash`, `bloom`, `collatz`, `tridiag`, `merge`, `ccl`, `pagerank`, `skinning`, `strsearch`, `quantize`, `rule110`, `voxel`, `nms`, `sat`, `sssp`, `morton`, `utf8`, `fir`, `composite`, `nqueens`, `lzmatch`, `bitpack`, `perlin`, `adler32`, `sieve`, `gcd`, `dither`, `advect`, `knn`, `csvparse`, `pip`, `lift53`, `chacha20`, `modexp`, `floyd`, `f16pack`, `raster`, `canny`, `secded`, `bicubic`, `dfa`, `b64decode`, `cordic`, `rsenc`, `texfetch`, `texfilter`, `imgerode`, `imgtonemap`, `argmax64`, `minmax64`. These are recorded and verified by `make asahi-verify` with the others;
+**Workloads:** `raytrace`, `mlp`, `sobel`, `life`, `bfs`, `conv_layer`, `hist_eq`, `aes`, `hash_table`, `word_count`, `dct8`, `attention`, `resize`, `median3`, `poisson`, `lbm`, `base64`, `md5`, `gemv`, `levenshtein`, `blur`, `yuv420`, `montecarlo`, `xxhash`, `bloom`, `collatz`, `tridiag`, `merge`, `ccl`, `pagerank`, `skinning`, `strsearch`, `quantize`, `rule110`, `voxel`, `nms`, `sat`, `sssp`, `morton`, `utf8`, `fir`, `composite`, `nqueens`, `lzmatch`, `bitpack`, `perlin`, `adler32`, `sieve`, `gcd`, `dither`, `advect`, `knn`, `csvparse`, `pip`, `lift53`, `chacha20`, `modexp`, `floyd`, `f16pack`, `raster`, `canny`, `secded`, `bicubic`, `dfa`, `b64decode`, `cordic`, `rsenc`, `texfetch`, `texfilter`, `imgerode`, `imgtonemap`, `argmax64`, `minmax64`, `dsum`, `quadmip`, `clustered`. These are recorded and verified by `make asahi-verify` with the others;
 they are **PENDING** until then. The detailed procedure is in `tasks/spirv-workloads.md`.
 
 ## Why these
@@ -85,11 +85,14 @@ reference.
 | `imgtonemap` | Exposure + Reinhard tone mapping in place on a 4K RGBA8 storage image | Within one level of round-to-nearest (Vulkan's allowance); alpha untouched; the fraction rounding to nearest is reported |
 | `argmax64` | Argmax of 4M float scores into 4096 buckets via 64-bit `atomicMax` on (order-preserving float bits, index) keys | Exact, ties to the largest index |
 | `minmax64` | Min, max and xor of 4M uint64 values, shared-memory 64-bit atomics per workgroup, then global | Exact |
+| `dsum` | fp64 dot products of 4M doubles with a wide dynamic range, a fixed 256-wide tree per workgroup | Bit-exact against the same tree in float64 |
+| `quadmip` | 2 × 2 mipmap of a 4096² image, one quad per block via quad swaps; diagonal swap and quad broadcast written per lane | Exact; pixels follow the subgroup ids, so any subgroup layout is valid |
+| `clustered` | Clustered add (2, 4, 8 lanes) and max (8 lanes) over 4M values | Exact, grouped by the ids the device reports |
 
 ## Offline sanity checks (not hardware verification)
 
 - **lavapipe:** all pass at both sizes.
-- **Shim-compiled Mesa 25.2.8 and 26.0.3 code on the functional simulator:** 134 of 134.
+- **Shim-compiled Mesa 25.2.8 and 26.0.3 code on the functional simulator:** 138 of 138 buffer workloads (plus quadmip and clustered).
   - `bfs` found a simulator bug. Mesa aggregates `atomicAdd(found[l], 1)` under divergence: one lane, chosen with SR58
     (`active_thread_index_in_simdgroup`), adds SR59, the number of active lanes. The simulator modelled both from the
     launch shape (lane index, 32), which is only right when every lane is active, so the counts came out as multiples
@@ -166,3 +169,11 @@ reference.
       `unsupported_on_device` and not run.
     - If a newer Mesa on the M2 advertises them, they run and must PASS. That is the first check of 64-bit atomics on
       AGX.
+21. More device features:
+    - **`dsum`** requires fp64. The offline Asahi driver reports `float64: 0`, so expect NODEV unless the M2's Mesa
+      adds it.
+    - **`quadmip` and `clustered`** need quad and clustered subgroup operations, which the driver offers (subgroup op
+      mask 1791). They must PASS on the M2.
+    - Their references group lanes by the subgroup ids the device writes out. The 8-lane subgroups of lavapipe and
+      the 32-lane subgroups of AGX are both checked correctly.
+    - `vk_run`'s device line now lists these features and the subgroup op mask for every recording.

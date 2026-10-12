@@ -1,0 +1,18 @@
+#version 450
+// Clustered subgroup reductions (segmented sums / maxima, as in sparse kernels and attention blocks):
+// subgroupClusteredAdd over clusters of 2, 4 and 8 lanes and subgroupClusteredMax over 8, per lane; each lane also
+// writes its subgroup ids so the reference can group by the device's actual layout. Integer-exact.
+#extension GL_KHR_shader_subgroup_clustered : require
+#extension GL_KHR_shader_subgroup_basic : require
+layout(local_size_x = 256) in;
+layout(std430, binding = 0) readonly buffer I { uint v[]; };
+layout(std430, binding = 1) writeonly buffer O { uvec4 sums[]; };     // add2, add4, add8, max8
+layout(std430, binding = 2) writeonly buffer D { uvec2 ids[]; };      // subgroup (global), invocation
+layout(push_constant) uniform P { uint n; } p;
+
+void main() {
+    uint i = gl_GlobalInvocationID.x;
+    uint x = v[i];
+    sums[i] = uvec4(subgroupClusteredAdd(x, 2), subgroupClusteredAdd(x, 4), subgroupClusteredAdd(x, 8), subgroupClusteredMax(x, 8));
+    ids[i] = uvec2(gl_WorkGroupID.x * gl_NumSubgroups + gl_SubgroupID, gl_SubgroupInvocationID);
+}

@@ -1,0 +1,22 @@
+{
+ "blob": "spirv/compiled/mesa-25.2.8/quadmip/shader.bin",
+ "code_start": 2236,
+ "code_size": 788,
+ "layout": "agx_shader_info",
+ "programs": [
+  {
+   "label": "main",
+   "file": "main.bin",
+   "offset": 128,
+   "bytes": 300,
+   "instructions": 45
+  },
+  {
+   "label": "preamble",
+   "file": "preamble.bin",
+   "offset": 512,
+   "bytes": 260,
+   "instructions": 40
+  }
+ ]
+}

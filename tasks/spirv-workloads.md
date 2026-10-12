@@ -40,7 +40,7 @@ The rest of this file is the detailed procedure, for investigating results.
 
 ## Workloads
 
-One hundred and five realistic compute kernels, written in GLSL (`spirv/shaders/*.comp`) and compiled to SPIR-V:
+One hundred and eight realistic compute kernels, written in GLSL (`spirv/shaders/*.comp`) and compiled to SPIR-V:
 
 | Workload | Kernel | Stresses |
 |---|---|---|
@@ -149,6 +149,9 @@ One hundred and five realistic compute kernels, written in GLSL (`spirv/shaders/
 | `imgtonemap` | In-place Reinhard tone mapping of an RGBA8 storage image | unorm load / store conversion; hardware-only (UNSIM) |
 | `argmax64` | Per-bucket argmax by 64-bit packed-key `atomicMax` | `GL_EXT_shader_atomic_int64` on buffers; requires `buffer_int64_atomics` |
 | `minmax64` | Min / max / xor with shared then global 64-bit atomics | 64-bit atomics on shared memory and buffers |
+| `dsum` | fp64 dot-product tree reduction | `shaderFloat64`; requires `float64` (NODEV on the offline Asahi driver) |
+| `quadmip` | 2 × 2 mipmap downsampling with quad operations | `quad_shuffle` / `quad_shuffle_xor`, subgroup ids |
+| `clustered` | Clustered subgroup add / max over 2, 4, 8 lanes | `simd_shuffle` trees and `quad_iadd` |
 
 Each workload has two sizes:
 

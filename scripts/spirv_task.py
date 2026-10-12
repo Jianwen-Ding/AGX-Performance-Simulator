@@ -2514,6 +2514,61 @@ def w_minmax64(size, rng):
              requires=['int64', 'buffer_int64_atomics', 'shared_int64_atomics'])
 
 
+def w_dsum(size, rng):
+    n = 4096 if size == 'small' else 1 << 22
+    x = rng.standard_normal(n) * np.exp(rng.uniform(-20, 20, n)); y = rng.standard_normal(n)   # wide dynamic range
+    def check(o):
+        got = o[2].view(np.float64)[:n // 256]
+        sm = (x * y).reshape(-1, 256)                                             # the shader's tree, same order, float64
+        k = 128
+        while k:
+            sm[:, :k] = sm[:, :k] + sm[:, k:2 * k]; k >>= 1
+        ref = sm[:, 0]
+        return np.array_equal(got.view(np.uint64), ref.view(np.uint64)), {'mismatches': int(np.sum(got != ref))}
+    return W('dsum', {0: (x, False), 1: (y, False), 2: (8 * (n // 256), True)}, [(n // 256, 1, 1, b'')], check, 256,
+             {'flops': 2 * n}, requires=['float64'])
+
+
+def w_quadmip(size, rng):
+    Wd, H = (32, 32) if size == 'small' else (4096, 4096)
+    img = u32(rng.integers(0, 1 << 16, (H, Wd)))
+    n = Wd * H
+    def check(o):
+        mip = o[1].view(np.uint32)[:n // 4]; lanes = o[2].view(np.uint32)[:4 * n].reshape(n, 4)
+        flat = img.ravel().astype(np.int64)
+        blocks = flat.reshape(H // 2, 2, Wd // 2, 2).transpose(0, 2, 1, 3).reshape(-1, 4)          # block b: (x0y0, x1y0, x0y1, x1y1)
+        ref_mip = ((blocks.sum(1) + 2) >> 2).astype(np.uint32)
+        pix = lanes[:, 0].astype(np.int64)
+        covered = np.array_equal(np.sort(pix), np.arange(n))                     # every pixel taken by exactly one lane
+        bx, by = (pix % Wd) // 2, (pix // Wd) // 2; q = (pix % 2) + 2 * ((pix // Wd) % 2)
+        blk = by * (Wd // 2) + bx
+        ok_diag = np.array_equal(lanes[:, 1], blocks[blk, 3 - q].astype(np.uint32))
+        ok_bcast = np.array_equal(lanes[:, 2], blocks[blk, 2].astype(np.uint32))
+        ok = covered and np.array_equal(mip, ref_mip) and ok_diag and ok_bcast
+        return ok, {'mip_mismatches': int(np.sum(mip != ref_mip)), 'lanes_cover_image': covered, 'diagonal_ok': ok_diag, 'broadcast_ok': ok_bcast}
+    return W('quadmip', {0: (img, False), 1: (n, True), 2: (16 * n, True)}, [(n // 256, 1, 1, push(Wd))], check, 256, {'pixels': n},
+             requires=['subgroup_quad'])
+
+
+def w_clustered(size, rng):
+    n = 4096 if size == 'small' else 1 << 22
+    v = u32(rng.integers(0, 1 << 20, n))
+    def check(o):
+        got = o[1].view(np.uint32)[:4 * n].reshape(n, 4).astype(np.int64); ids = o[2].view(np.uint32)[:2 * n].reshape(n, 2).astype(np.int64)
+        ref = np.zeros((n, 4), np.int64)
+        for col, (c, op) in enumerate([(2, 'add'), (4, 'add'), (8, 'add'), (8, 'max')]):
+            key = ids[:, 0] * 4096 + ids[:, 1] // c                                # cluster = (subgroup, invocation // size)
+            uk, inv = np.unique(key, return_inverse=True)
+            agg = np.zeros(len(uk), np.int64)
+            if op == 'add': np.add.at(agg, inv, v.astype(np.int64))
+            else: np.maximum.at(agg, inv, v.astype(np.int64))
+            ref[:, col] = agg[inv]
+        ok = np.array_equal(got, ref)
+        return ok, {'mismatches': int(np.sum(np.any(got != ref, axis=1))), 'subgroup_size_seen': int(ids[:, 1].max() + 1)}
+    return W('clustered', {0: (v, False), 1: (16 * n, True), 2: (8 * n, True)}, [(n // 256, 1, 1, push(n))], check, 256, {'elements': n},
+             requires=['subgroup_clustered'])
+
+
 WORKLOADS = {'reduce': w_reduce, 'scan': w_scan, 'sgemm': w_sgemm, 'conv2d': w_conv2d, 'histogram': w_histogram,
              'nbody': w_nbody, 'bitonic': w_bitonic, 'sha256': w_sha256, 'fp16': w_fp16, 'int64': w_int64, 'bitops': w_bitops,
              'intdiv': w_intdiv, 'compact': w_compact, 'spmv': w_spmv, 'transpose': w_transpose, 'mandelbrot': w_mandelbrot,
@@ -2538,7 +2593,8 @@ WORKLOADS = {'reduce': w_reduce, 'scan': w_scan, 'sgemm': w_sgemm, 'conv2d': w_c
              'dfa': w_dfa, 'b64decode': w_b64decode, 'cordic': w_cordic, 'rsenc': w_rsenc,
              'texfetch': w_texfetch, 'texfilter': w_texfilter,
              'imgerode': w_imgerode, 'imgtonemap': w_imgtonemap,
-             'argmax64': w_argmax64, 'minmax64': w_minmax64}
+             'argmax64': w_argmax64, 'minmax64': w_minmax64,
+             'dsum': w_dsum, 'quadmip': w_quadmip, 'clustered': w_clustered}
 
 
 # ---------------------------------------------------------------------------------------------------------------

@@ -15,7 +15,8 @@
  *                                 or '-' (zeros), copied in before the dispatches of every run; OUT = file the image is
  *                                 copied back to after the functional run, or '-'
  *   require FEATURE               a device feature the shader needs (int64, float64, float16, int8, buffer_int64_atomics,
- *                                 shared_int64_atomics): without it vk_run prints {"unsupported": FEATURE} and exits 3
+ *                                 shared_int64_atomics, subgroup_vote / arithmetic / ballot / shuffle / shuffle_relative /
+ *                                 clustered / quad in compute): without it vk_run prints {"unsupported": FEATURE}, exits 3
  *   dispatch GX GY GZ [PUSHHEX]   one vkCmdDispatch (push constants as hex bytes); dispatches run in order with a
  *                                 compute->compute memory barrier between them
  *   repeat N                      timed runs after the functional run (buffers re-initialised before each)
@@ -215,16 +216,24 @@ int main(int argc, char **argv) {
     printf("{\"device\":"); jstr(stdout, props.deviceName);
     printf(",\"vendor\":%u,\"device_id\":%u,\"driver_version\":%u,\"api\":%u,\"timestamp_period_ns\":%g,\"timestamps\":%d,"
            "\"subgroup_size\":%u,\"shader_object\":%d,\"executable_properties\":%d,\"features\":{\"int64\":%d,\"float64\":%d,"
-           "\"float16\":%d,\"int8\":%d,\"buffer_int64_atomics\":%d,\"shared_int64_atomics\":%d}}\n",
+           "\"float16\":%d,\"int8\":%d,\"buffer_int64_atomics\":%d,\"shared_int64_atomics\":%d,\"subgroup_ops\":%u}}\n",
            props.vendorID, props.deviceID, props.driverVersion, props.apiVersion, props.limits.timestampPeriod, timestamps,
            sgp.subgroupSize, use_so, use_pe, f2.features.shaderInt64, f2.features.shaderFloat64, f12.shaderFloat16, f12.shaderInt8,
-           f12.shaderBufferInt64Atomics, f12.shaderSharedInt64Atomics);
+           f12.shaderBufferInt64Atomics, f12.shaderSharedInt64Atomics, sgp.supportedOperations);
+    int sg_compute = (sgp.supportedStages & VK_SHADER_STAGE_COMPUTE_BIT) != 0;
     for (int i = 0; i < nreq; i++) {
-        const char *names[] = {"int64", "float64", "float16", "int8", "buffer_int64_atomics", "shared_int64_atomics"};
+        const char *names[] = {"int64", "float64", "float16", "int8", "buffer_int64_atomics", "shared_int64_atomics",
+                               "subgroup_vote", "subgroup_arithmetic", "subgroup_ballot", "subgroup_shuffle",
+                               "subgroup_shuffle_relative", "subgroup_clustered", "subgroup_quad"};
+        VkSubgroupFeatureFlags ops = sg_compute ? sgp.supportedOperations : 0;
         int have[] = {f2.features.shaderInt64, f2.features.shaderFloat64, f12.shaderFloat16, f12.shaderInt8,
-                      f12.shaderBufferInt64Atomics, f12.shaderSharedInt64Atomics};
+                      f12.shaderBufferInt64Atomics, f12.shaderSharedInt64Atomics,
+                      !!(ops & VK_SUBGROUP_FEATURE_VOTE_BIT), !!(ops & VK_SUBGROUP_FEATURE_ARITHMETIC_BIT),
+                      !!(ops & VK_SUBGROUP_FEATURE_BALLOT_BIT), !!(ops & VK_SUBGROUP_FEATURE_SHUFFLE_BIT),
+                      !!(ops & VK_SUBGROUP_FEATURE_SHUFFLE_RELATIVE_BIT), !!(ops & VK_SUBGROUP_FEATURE_CLUSTERED_BIT),
+                      !!(ops & VK_SUBGROUP_FEATURE_QUAD_BIT)};
         int known = 0, ok = 0;
-        for (int k = 0; k < 6; k++) if (!strcmp(req[i], names[k])) { known = 1; ok = have[k]; }
+        for (int k = 0; k < 13; k++) if (!strcmp(req[i], names[k])) { known = 1; ok = have[k]; }
         if (!known) die("unknown required feature", 0);
         if (!ok) { printf("{\"unsupported\":\"%s\"}\n", req[i]); exit(3); }
     }

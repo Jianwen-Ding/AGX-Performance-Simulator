@@ -1,0 +1,24 @@
+#version 450
+// 2 x 2 mipmap downsampling with quad operations (how fragment derivatives and texture LOD work in hardware): each
+// subgroup quad (invocations 4k .. 4k + 3) takes one 2 x 2 pixel block, sums it with subgroupQuadSwapHorizontal /
+// Vertical, and lane 0 of the quad writes the rounded average; every lane also writes subgroupQuadSwapDiagonal and
+// subgroupQuadBroadcast(.., 2) of its pixel. Pixels follow the subgroup ids, so any subgroup layout is valid; the ids
+// are written out for the reference. Integer-exact.
+#extension GL_KHR_shader_subgroup_quad : require
+#extension GL_KHR_shader_subgroup_basic : require
+layout(local_size_x = 256) in;
+layout(std430, binding = 0) readonly buffer I { uint img[]; };
+layout(std430, binding = 1) writeonly buffer M { uint mip[]; };
+layout(std430, binding = 2) writeonly buffer Q { uvec4 lanes[]; };    // pixel index, diagonal, broadcast(2), unused
+layout(push_constant) uniform P { uint width; } p;
+
+void main() {
+    uint slot = (gl_WorkGroupID.x * gl_NumSubgroups + gl_SubgroupID) * gl_SubgroupSize + gl_SubgroupInvocationID;
+    uint blk = slot >> 2, q = gl_SubgroupInvocationID & 3u, half_w = p.width >> 1;
+    uint px = 2u * (blk % half_w) + (q & 1u), py = 2u * (blk / half_w) + (q >> 1);
+    uint pix = py * p.width + px, v = img[pix];
+    uint s = v + subgroupQuadSwapHorizontal(v);
+    s += subgroupQuadSwapVertical(s);
+    if (q == 0u) mip[blk] = (s + 2u) >> 2;
+    lanes[gl_GlobalInvocationID.x] = uvec4(pix, subgroupQuadSwapDiagonal(v), subgroupQuadBroadcast(v, 2u), 0u);
+}

@@ -1,0 +1,1 @@
+{"device": "Apple M2 Max (G14C B1)", "vendor": 65541, "device_id": 0, "driver_version": 109051907, "api": 4211023, "timestamp_period_ns": 1, "timestamps": 1, "subgroup_size": 32, "shader_object": 1, "executable_properties": 1, "features": {"int64": 1, "float64": 0, "float16": 1, "int8": 1, "buffer_int64_atomics": 0, "shared_int64_atomics": 0, "subgroup_ops": 1791}}
