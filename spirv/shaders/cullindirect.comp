@@ -1,0 +1,31 @@
+#version 450
+// GPU-driven culling with indirect dispatch: pass 0 tests bounding spheres against six frustum planes (exact integer
+// dot products) and compacts the visible ids with atomicAdd; pass 1 turns the count into dispatch arguments; pass 2 is
+// launched with vkCmdDispatchIndirect from those arguments and gives every visible object a level of detail from its
+// squared distance. Integer-exact (the compacted order varies; the check compares sets and per-object results).
+layout(local_size_x = 64) in;
+layout(std430, binding = 0) readonly buffer S { ivec4 spheres[]; };      // x, y, z, radius
+layout(std430, binding = 1) readonly buffer F { ivec4 planes[6]; };      // nx, ny, nz, d: inside when n.c + d >= -r
+layout(std430, binding = 2) buffer V { uint visible[]; };
+layout(std430, binding = 3) buffer A { uint args[3]; uint count; };
+layout(std430, binding = 4) writeonly buffer L { uint lod[]; };
+layout(push_constant) uniform P { uint n; uint pass_; } p;
+
+void main() {
+    uint i = gl_GlobalInvocationID.x;
+    if (p.pass_ == 0u) {
+        if (i >= p.n) return;
+        ivec4 s = spheres[i];
+        bool in_ = true;
+        for (int k = 0; k < 6; k++) in_ = in_ && planes[k].x * s.x + planes[k].y * s.y + planes[k].z * s.z + planes[k].w >= -s.w;
+        if (in_) visible[atomicAdd(count, 1u)] = i;
+    } else if (p.pass_ == 1u) {
+        if (i == 0u) { args[0] = (count + 63u) / 64u; args[1] = 1u; args[2] = 1u; }
+    } else {
+        if (i >= count) return;
+        uint id = visible[i];
+        ivec4 s = spheres[id];
+        uint d2 = uint(s.x * s.x + s.y * s.y + s.z * s.z);
+        lod[id] = d2 < 1000000u ? 0u : d2 < 9000000u ? 1u : d2 < 36000000u ? 2u : 3u;
+    }
+}

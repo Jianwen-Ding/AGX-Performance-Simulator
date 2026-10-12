@@ -1,0 +1,20 @@
+#version 450
+// Horizontal box filter whose radius and workgroup size are specialization constants (pipelines specialized per
+// kernel size, as engines do for blur / bloom passes): the compiler folds R into the loop bound and the workgroup
+// size into the launch. Clamped borders, 32-bit sums of 8-bit pixels; integer-exact.
+#extension GL_EXT_shader_8bit_storage : require
+#extension GL_EXT_shader_explicit_arithmetic_types_int8 : require
+layout(local_size_x_id = 1) in;
+layout(constant_id = 0) const int R = 1;
+layout(std430, binding = 0) readonly buffer I { uint8_t img[]; };
+layout(std430, binding = 1) writeonly buffer O { uint sums[]; };
+layout(push_constant) uniform P { int width; int height; } p;
+
+void main() {
+    uint i = gl_GlobalInvocationID.x;
+    if (i >= uint(p.width * p.height)) return;
+    int y = int(i) / p.width, x = int(i) % p.width;
+    uint s = 0u;
+    for (int d = -R; d <= R; d++) s += uint(img[y * p.width + clamp(x + d, 0, p.width - 1)]);
+    sums[i] = s;
+}

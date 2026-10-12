@@ -1,7 +1,7 @@
 # Task SPIR-V 8: applications (ray tracer, neural networks, image processing, cellular automaton, graph search,
 # encryption, hashing, text, compression)
 
-**Workloads:** `raytrace`, `mlp`, `sobel`, `life`, `bfs`, `conv_layer`, `hist_eq`, `aes`, `hash_table`, `word_count`, `dct8`, `attention`, `resize`, `median3`, `poisson`, `lbm`, `base64`, `md5`, `gemv`, `levenshtein`, `blur`, `yuv420`, `montecarlo`, `xxhash`, `bloom`, `collatz`, `tridiag`, `merge`, `ccl`, `pagerank`, `skinning`, `strsearch`, `quantize`, `rule110`, `voxel`, `nms`, `sat`, `sssp`, `morton`, `utf8`, `fir`, `composite`, `nqueens`, `lzmatch`, `bitpack`, `perlin`, `adler32`, `sieve`, `gcd`, `dither`, `advect`, `knn`, `csvparse`, `pip`, `lift53`, `chacha20`, `modexp`, `floyd`, `f16pack`, `raster`, `canny`, `secded`, `bicubic`, `dfa`, `b64decode`, `cordic`, `rsenc`, `texfetch`, `texfilter`, `imgerode`, `imgtonemap`, `argmax64`, `minmax64`, `dsum`, `quadmip`, `clustered`. These are recorded and verified by `make asahi-verify` with the others;
+**Workloads:** `raytrace`, `mlp`, `sobel`, `life`, `bfs`, `conv_layer`, `hist_eq`, `aes`, `hash_table`, `word_count`, `dct8`, `attention`, `resize`, `median3`, `poisson`, `lbm`, `base64`, `md5`, `gemv`, `levenshtein`, `blur`, `yuv420`, `montecarlo`, `xxhash`, `bloom`, `collatz`, `tridiag`, `merge`, `ccl`, `pagerank`, `skinning`, `strsearch`, `quantize`, `rule110`, `voxel`, `nms`, `sat`, `sssp`, `morton`, `utf8`, `fir`, `composite`, `nqueens`, `lzmatch`, `bitpack`, `perlin`, `adler32`, `sieve`, `gcd`, `dither`, `advect`, `knn`, `csvparse`, `pip`, `lift53`, `chacha20`, `modexp`, `floyd`, `f16pack`, `raster`, `canny`, `secded`, `bicubic`, `dfa`, `b64decode`, `cordic`, `rsenc`, `texfetch`, `texfilter`, `imgerode`, `imgtonemap`, `argmax64`, `minmax64`, `dsum`, `quadmip`, `clustered`, `specblur`, `cullindirect`. These are recorded and verified by `make asahi-verify` with the others;
 they are **PENDING** until then. The detailed procedure is in `tasks/spirv-workloads.md`.
 
 ## Why these
@@ -88,6 +88,8 @@ reference.
 | `dsum` | fp64 dot products of 4M doubles with a wide dynamic range, a fixed 256-wide tree per workgroup | Bit-exact against the same tree in float64 |
 | `quadmip` | 2 × 2 mipmap of a 4096² image, one quad per block via quad swaps; diagonal swap and quad broadcast written per lane | Exact; pixels follow the subgroup ids, so any subgroup layout is valid |
 | `clustered` | Clustered add (2, 4, 8 lanes) and max (8 lanes) over 4M values | Exact, grouped by the ids the device reports |
+| `specblur` | 15-tap horizontal box filter of a 4K 8-bit image; radius 7 and workgroup 128 from specialization constants | Exact |
+| `cullindirect` | Cull 2^20 spheres against a 6-plane frustum, write dispatch arguments from the visible count, then an indirect dispatch assigns levels of detail | Exact visible set, count, arguments and per-object LOD |
 
 ## Offline sanity checks (not hardware verification)
 
@@ -177,3 +179,7 @@ reference.
     - Their references group lanes by the subgroup ids the device writes out. The 8-lane subgroups of lavapipe and
       the 32-lane subgroups of AGX are both checked correctly.
     - `vk_run`'s device line now lists these features and the subgroup op mask for every recording.
+22. **`specblur`** checks that specialization constants reach the driver: the recorded AGX code has them folded
+    in, and the simulator runs that code.
+    **`cullindirect`** is the first launch whose size the GPU itself computes (`vkCmdDispatchIndirect`). Expect PASS;
+    it is UNSIM in verification.

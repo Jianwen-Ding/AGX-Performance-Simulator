@@ -41,7 +41,8 @@ def u32(a): return np.ascontiguousarray(a, dtype=np.uint32)
 class W:
     """a workload instance: buffers {binding: (init array or byte size, read back?)}, dispatches [(gx, gy, gz, push)],
     check(outputs) -> (ok, detail), metrics for throughput"""
-    def __init__(self, shader, buffers, dispatches, check, wg, work=None, images=None, textures=None, simages=None, requires=None):
+    def __init__(self, shader, buffers, dispatches, check, wg, work=None, images=None, textures=None, simages=None, requires=None,
+                 specs=None):
         self.shader, self.buffers, self.dispatches, self.check, self.wg, self.work = shader, buffers, dispatches, check, wg, work or {}
         # sampled textures {binding: (texels, width, height, 'rgba8' | 'r32f', 'nearest' | 'linear')}: read through the
         # GPU's texture unit, which the simulator does not model (sim / predict report such workloads as unsupported)
@@ -51,6 +52,9 @@ class W:
         self.simages = simages or {}
         # device features the shader needs (vk_run 'require'): a device without one reports the workload as unsupported
         self.requires = requires or []
+        # specialization constants {constant_id: uint32}; a dispatch ('indirect', binding, offset, push) takes its group
+        # counts from a buffer the GPU wrote (vkCmdDispatchIndirect): such workloads are hardware-only
+        self.specs = specs or {}
         self.images = images or []       # [(binding, width, height, 'rgba8' | 'gray8' | 'bits')]: written as .ppm / .pgm for viewing
 
 
@@ -85,11 +89,17 @@ def texture_spec(w, d):
 
 
 def hw_only(w):
-    """workloads using the texture unit or storage images: verified on the hardware against the reference only"""
-    return bool(w.textures or w.simages)
+    """workloads using the texture unit, storage images or indirect dispatch: verified on the hardware against the
+    reference only"""
+    return bool(w.textures or w.simages or any(d[0] == 'indirect' for d in w.dispatches))
 
 
-NO_TEXTURE_UNIT = 'texture sampling / image access is not modelled by the simulator (hardware verification only)'
+def dispatch_spec(d):
+    gx, gy, gz, pc = d
+    return f'dispatch_indirect {gy} {gz} {pc.hex() or "-"}' if gx == 'indirect' else f'dispatch {gx} {gy} {gz} {pc.hex() or "-"}'
+
+
+NO_TEXTURE_UNIT = 'texture sampling, image access and indirect dispatch are not modelled by the simulator (hardware verification only)'
 
 
 def wg_of(w, name):
@@ -2569,6 +2579,37 @@ def w_clustered(size, rng):
              requires=['subgroup_clustered'])
 
 
+def w_specblur(size, rng):
+    Wd, H, R, wg = (100, 30, 7, 128) if size == 'small' else (3840, 2160, 7, 128)
+    img = rng.integers(0, 256, (H, Wd), dtype=np.uint8)
+    def check(o):
+        got = o[1].view(np.uint32)[:Wd * H].reshape(H, Wd)
+        q = np.pad(img.astype(np.int64), ((0, 0), (R, R)), mode='edge')
+        ref = sum(q[:, k:k + Wd] for k in range(2 * R + 1)).astype(np.uint32)
+        return np.array_equal(got, ref), {'mismatches': int(np.sum(got != ref)), 'radius': R, 'workgroup': wg}
+    return W('specblur', {0: (img, False), 1: (4 * Wd * H, True)}, [((Wd * H + wg - 1) // wg, 1, 1, push(Wd, H))], check, wg,
+             {'pixels': Wd * H}, specs={0: R, 1: wg})
+
+
+def w_cullindirect(size, rng):
+    n = 2048 if size == 'small' else 1 << 20
+    spheres = np.stack([rng.integers(-9000, 9001, n), rng.integers(-9000, 9001, n), rng.integers(100, 9001, n), rng.integers(1, 400, n)], 1).astype(np.int32)
+    planes = np.array([[1, 0, 1, 0], [-1, 0, 1, 0], [0, 1, 1, 0], [0, -1, 1, 0], [0, 0, 1, -200], [0, 0, -1, 8000]], np.int32)   # a 90-degree frustum, near 200, far 8000
+    def check(o):
+        vis = o[2].view(np.uint32); count = int(o[3].view(np.uint32)[3]); args = o[3].view(np.uint32)[:3]; lod = o[4].view(np.uint32)[:n]
+        sp = spheres.astype(np.int64)
+        inside = np.all((planes[None, :, :3].astype(np.int64) * sp[:, None, :3]).sum(-1) + planes[None, :, 3] >= -sp[:, None, 3], axis=1)
+        ids = np.flatnonzero(inside)
+        d2 = (sp[:, :3] ** 2).sum(1)
+        ref_lod = np.where(inside, np.select([d2 < 1000000, d2 < 9000000, d2 < 36000000], [0, 1, 2], 3), 0xffffffff).astype(np.uint32)
+        ok = (count == len(ids) and np.array_equal(np.sort(vis[:count]), ids) and list(args) == [(count + 63) // 64, 1, 1]
+              and np.array_equal(lod, ref_lod))
+        return ok, {'visible': count, 'ref_visible': int(len(ids)), 'lod_mismatches': int(np.sum(lod != ref_lod)), 'indirect_groups': int(args[0])}
+    ds = [((n + 63) // 64, 1, 1, push(n, 0)), (1, 1, 1, push(n, 1)), ('indirect', 3, 0, push(n, 2))]
+    return W('cullindirect', {0: (spheres, False), 1: (planes, False), 2: (4 * n, True), 3: (16, True),
+                              4: (u32(np.full(n, 0xffffffff, np.uint64)), True)}, ds, check, 64, {'objects': n})
+
+
 WORKLOADS = {'reduce': w_reduce, 'scan': w_scan, 'sgemm': w_sgemm, 'conv2d': w_conv2d, 'histogram': w_histogram,
              'nbody': w_nbody, 'bitonic': w_bitonic, 'sha256': w_sha256, 'fp16': w_fp16, 'int64': w_int64, 'bitops': w_bitops,
              'intdiv': w_intdiv, 'compact': w_compact, 'spmv': w_spmv, 'transpose': w_transpose, 'mandelbrot': w_mandelbrot,
@@ -2594,7 +2635,8 @@ WORKLOADS = {'reduce': w_reduce, 'scan': w_scan, 'sgemm': w_sgemm, 'conv2d': w_c
              'texfetch': w_texfetch, 'texfilter': w_texfilter,
              'imgerode': w_imgerode, 'imgtonemap': w_imgtonemap,
              'argmax64': w_argmax64, 'minmax64': w_minmax64,
-             'dsum': w_dsum, 'quadmip': w_quadmip, 'clustered': w_clustered}
+             'dsum': w_dsum, 'quadmip': w_quadmip, 'clustered': w_clustered,
+             'specblur': w_specblur, 'cullindirect': w_cullindirect}
 
 
 # ---------------------------------------------------------------------------------------------------------------
@@ -2629,8 +2671,8 @@ def run_one(name, size, repeat, out_root, export=True, seed=1):
         spec.append(f'buffer {binding} {nbytes} {initp} {out / f"out{binding}.bin" if readback else "-"}')
     spec += texture_spec(w, out)
     spec += [f'require {f}' for f in w.requires]
-    for gx, gy, gz, pc in w.dispatches:
-        spec.append(f'dispatch {gx} {gy} {gz} {pc.hex() or "-"}')
+    spec += [f'specialize {k} {v}' for k, v in sorted(w.specs.items())]
+    spec += [dispatch_spec(d) for d in w.dispatches]
     spec.append(f'repeat {repeat}')
     if export:
         spec += [f'export {out / "shader.bin"}', f'props {out / "props.json"}']
@@ -2705,8 +2747,8 @@ def cmd_compile(a):
             spec.append(f'buffer {binding} {init if isinstance(init, int) else init.nbytes} - -')
         spec += texture_spec(w, run)
         spec += [f'require {f}' for f in w.requires]
-        gx, gy, gz, pc = w.dispatches[0]
-        spec += [f'dispatch {gx} {gy} {gz} {pc.hex() or "-"}', 'repeat 1', f'export {run / "shader.bin"}', f'props {run / "props.json"}']
+        spec += [f'specialize {k} {v}' for k, v in sorted(w.specs.items())]
+        spec += [dispatch_spec(w.dispatches[0]), 'repeat 1', f'export {run / "shader.bin"}', f'props {run / "props.json"}']
         (run / 'spec.txt').write_text('\n'.join(spec) + '\n')
         r = subprocess.run([str(VK_RUN), str(run / 'spec.txt')], capture_output=True, text=True, timeout=600, env=env)
         dev = next((json.loads(l) for l in r.stdout.splitlines() if l.startswith('{"device"')), {})
@@ -3060,7 +3102,7 @@ def cmd_predict(a):
         per_k = {}
         for k, cmd in enumerate(rows):
             files = {str(L.work / f'root{k}.bin'), str(L.work / f'group_count{k}.bin')}
-            per_k[k] = tuple(x.split('=')[0] + '=' + (L.work / x.split('=', 1)[1]).read_bytes().hex()
+            per_k[k] = tuple(x.split('=')[0] + '=' + Path(x.split('=', 1)[1]).read_bytes().hex()
                              if '=' in x and x.split('=', 1)[1] in files else x for x in cmd)
         uniq = list(dict.fromkeys(per_k.values()))
         first = {key: rows[k] for k, key in reversed(list(per_k.items()))}
@@ -3119,6 +3161,8 @@ def input_hashes(w):
     h = {str(b): hashlib.sha256(init.tobytes()).hexdigest() for b, (init, _) in sorted(w.buffers.items()) if not isinstance(init, int)}
     h.update({f't{b}': hashlib.sha256(np.ascontiguousarray(t[0]).tobytes()).hexdigest() for b, t in sorted(w.textures.items())})
     h.update({f'i{b}': hashlib.sha256(np.ascontiguousarray(t[0]).tobytes()).hexdigest() for b, t in sorted(w.simages.items()) if t[0] is not None})
+    if w.specs:
+        h['specs'] = hashlib.sha256(json.dumps(sorted(w.specs.items())).encode()).hexdigest()
     return h
 
 

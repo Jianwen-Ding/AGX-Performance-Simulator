@@ -23,7 +23,7 @@ and the reference agree; that is a sanity check, not hardware verification.
    | CLOSE | Differs, but both are within the reference tolerance |
    | FAIL | A difference to investigate |
    | STALE | The recording no longer matches the workload's inputs |
-   | UNSIM | Texture / storage-image workloads only: the GPU's result matches the reference; the simulator does not model that path |
+   | UNSIM | Texture / storage-image / indirect-dispatch workloads only: the GPU's result matches the reference; the simulator does not model that path |
    | NODEV | The device's driver does not offer a feature the shader needs (`vk_run` `require`); nothing was run |
 
 3. Also compares the large-size GPU time with the cost model's prediction. The last line of `verify.txt` sums this
@@ -40,7 +40,7 @@ The rest of this file is the detailed procedure, for investigating results.
 
 ## Workloads
 
-One hundred and eight realistic compute kernels, written in GLSL (`spirv/shaders/*.comp`) and compiled to SPIR-V:
+One hundred and ten realistic compute kernels, written in GLSL (`spirv/shaders/*.comp`) and compiled to SPIR-V:
 
 | Workload | Kernel | Stresses |
 |---|---|---|
@@ -152,6 +152,8 @@ One hundred and eight realistic compute kernels, written in GLSL (`spirv/shaders
 | `dsum` | fp64 dot-product tree reduction | `shaderFloat64`; requires `float64` (NODEV on the offline Asahi driver) |
 | `quadmip` | 2 × 2 mipmap downsampling with quad operations | `quad_shuffle` / `quad_shuffle_xor`, subgroup ids |
 | `clustered` | Clustered subgroup add / max over 2, 4, 8 lanes | `simd_shuffle` trees and `quad_iadd` |
+| `specblur` | Box blur with radius and workgroup size as specialization constants | `vk_run` `specialize`; constants folded by the compiler (simulated) |
+| `cullindirect` | Frustum culling → dispatch arguments → `vkCmdDispatchIndirect` | GPU-driven launch; hardware-only (UNSIM) |
 
 Each workload has two sizes:
 

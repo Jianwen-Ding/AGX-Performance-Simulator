@@ -17,6 +17,10 @@
  *   require FEATURE               a device feature the shader needs (int64, float64, float16, int8, buffer_int64_atomics,
  *                                 shared_int64_atomics, subgroup_vote / arithmetic / ballot / shuffle / shuffle_relative /
  *                                 clustered / quad in compute): without it vk_run prints {"unsupported": FEATURE}, exits 3
+ *   specialize ID VALUE           a 32-bit specialization constant (also applied to the exported shader object)
+ *   dispatch_indirect BINDING OFFSET [PUSHHEX]
+ *                                 vkCmdDispatchIndirect with the group counts read by the GPU from storage buffer BINDING
+ *                                 at byte OFFSET (written there by an earlier dispatch)
  *   dispatch GX GY GZ [PUSHHEX]   one vkCmdDispatch (push constants as hex bytes); dispatches run in order with a
  *                                 compute->compute memory barrier between them
  *   repeat N                      timed runs after the functional run (buffers re-initialised before each)
@@ -78,7 +82,7 @@ static void jstr(FILE *f, const char *s) {
 }
 
 struct buf { int binding; VkDeviceSize size; char init[512], out[512]; VkBuffer b; VkDeviceMemory m; void *map; void *initdata; size_t initlen; };
-struct disp { uint32_t g[3]; uint8_t push[128]; uint32_t npush; };
+struct disp { uint32_t g[3]; uint8_t push[128]; uint32_t npush; int indirect, ibinding; uint32_t ioffset; };
 struct tex { int binding; uint32_t w, h; VkFormat fmt; uint32_t texel; VkFilter filter; char init[512]; VkImage img; VkDeviceMemory m;
              VkImageView view; VkSampler smp; };
 #define MAXT 8
@@ -94,6 +98,7 @@ int main(int argc, char **argv) {
     struct tex T[MAXT]; int nt = 0;
     struct simg I[MAXT]; int ni = 0;
     char req[8][32]; int nreq = 0;
+    VkSpecializationMapEntry spe[16]; uint32_t spv_vals[16]; int nspec = 0;
     int repeat = 0;
     uint32_t maxpush = 0;
     FILE *sf = fopen(argv[1], "r");
@@ -134,11 +139,19 @@ int main(int argc, char **argv) {
         } else if (!strcmp(kw, "require")) {
             if (nreq == 8 || sscanf(line, "%*s %31s", req[nreq]) != 1) die("spec require", 0);
             nreq++;
-        } else if (!strcmp(kw, "dispatch")) {
+        } else if (!strcmp(kw, "specialize")) {
+            if (nspec == 16) die("too many specialization constants", 0);
+            unsigned id, val;
+            if (sscanf(line, "%*s %u %u", &id, &val) != 2) die("spec specialize", 0);
+            spe[nspec] = (VkSpecializationMapEntry){.constantID = id, .offset = 4u * nspec, .size = 4}; spv_vals[nspec++] = val;
+        } else if (!strcmp(kw, "dispatch") || !strcmp(kw, "dispatch_indirect")) {
             if (nd == MAXD) die("too many dispatches", 0);
             struct disp *d = &D[nd++]; memset(d, 0, sizeof *d);
             char hex[300] = "";
-            if (sscanf(line, "%*s %u %u %u %299s", &d->g[0], &d->g[1], &d->g[2], hex) < 3) die("spec dispatch", 0);
+            if (!strcmp(kw, "dispatch_indirect")) {
+                d->indirect = 1;
+                if (sscanf(line, "%*s %d %u %299s", &d->ibinding, &d->ioffset, hex) < 2) die("spec dispatch_indirect", 0);
+            } else if (sscanf(line, "%*s %u %u %u %299s", &d->g[0], &d->g[1], &d->g[2], hex) < 3) die("spec dispatch", 0);
             if (hex[0] && strcmp(hex, "-")) {
                 size_t n = strlen(hex) / 2; if (n > 128 || n % 4) die("push constants: up to 128 bytes, multiple of 4", 0);
                 for (size_t i = 0; i < n; i++) { unsigned v; sscanf(hex + 2 * i, "%2x", &v); d->push[i] = v; }
@@ -251,7 +264,7 @@ int main(int argc, char **argv) {
     for (int i = 0; i < nb; i++) {
         struct buf *b = &B[i];
         VkBufferCreateInfo bci = {.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO, .size = b->size,
-                                  .usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, .sharingMode = VK_SHARING_MODE_EXCLUSIVE};
+                                  .usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT, .sharingMode = VK_SHARING_MODE_EXCLUSIVE};
         CK(vkCreateBuffer(dev, &bci, NULL, &b->b));
         VkMemoryRequirements mr; vkGetBufferMemoryRequirements(dev, b->b, &mr);
         uint32_t want = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, ti = UINT32_MAX;
@@ -390,9 +403,11 @@ int main(int argc, char **argv) {
     VkPipelineLayoutCreateInfo plci = {.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO, .setLayoutCount = 1, .pSetLayouts = &dsl,
                                        .pushConstantRangeCount = 1, .pPushConstantRanges = &pcr};
     VkPipelineLayout pl; CK(vkCreatePipelineLayout(dev, &plci, NULL, &pl));
+    VkSpecializationInfo spi = {.mapEntryCount = (uint32_t)nspec, .pMapEntries = spe, .dataSize = 4u * nspec, .pData = spv_vals};
     VkComputePipelineCreateInfo cpci = {.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO,
         .flags = use_pe ? (VK_PIPELINE_CREATE_CAPTURE_STATISTICS_BIT_KHR | VK_PIPELINE_CREATE_CAPTURE_INTERNAL_REPRESENTATIONS_BIT_KHR) : 0,
-        .stage = {.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, .stage = VK_SHADER_STAGE_COMPUTE_BIT, .module = sm, .pName = "main"},
+        .stage = {.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, .stage = VK_SHADER_STAGE_COMPUTE_BIT, .module = sm, .pName = "main",
+                  .pSpecializationInfo = nspec ? &spi : NULL},
         .layout = pl};
     double t0 = now_ns();
     VkPipeline pipe; CK(vkCreateComputePipelines(dev, VK_NULL_HANDLE, 1, &cpci, NULL, &pipe));
@@ -443,7 +458,7 @@ int main(int argc, char **argv) {
     if (use_so) {   /* the driver's compiled binary for the same SPIR-V and layout */
         DF(vkCreateShadersEXT); DF(vkGetShaderBinaryDataEXT);
         VkShaderCreateInfoEXT sci = {.sType = VK_STRUCTURE_TYPE_SHADER_CREATE_INFO_EXT, .stage = VK_SHADER_STAGE_COMPUTE_BIT,
-            .codeType = VK_SHADER_CODE_TYPE_SPIRV_EXT, .codeSize = spvlen, .pCode = spv, .pName = "main",
+            .codeType = VK_SHADER_CODE_TYPE_SPIRV_EXT, .codeSize = spvlen, .pCode = spv, .pName = "main", .pSpecializationInfo = nspec ? &spi : NULL,
             .setLayoutCount = 1, .pSetLayouts = &dsl, .pushConstantRangeCount = 1, .pPushConstantRanges = &pcr};
         VkShaderEXT so; CK(vkCreateShadersEXT(dev, 1, &sci, NULL, &so));
         size_t n = 0; CK(vkGetShaderBinaryDataEXT(dev, so, &n, NULL));
@@ -507,12 +522,19 @@ int main(int argc, char **argv) {
     vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_COMPUTE, pipe);
     vkCmdBindDescriptorSets(cb, VK_PIPELINE_BIND_POINT_COMPUTE, pl, 0, 1, &ds, 0, NULL);
     VkMemoryBarrier mb = {.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER, .srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT,
-                          .dstAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT};
+                          .dstAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT | VK_ACCESS_INDIRECT_COMMAND_READ_BIT};
+    DF(vkCmdDispatchIndirect);
     for (int i = 0; i < nd; i++) {
-        if (i) vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0, 1, &mb, 0, NULL, 0, NULL);
+        if (i) vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT,
+                                    0, 1, &mb, 0, NULL, 0, NULL);
         if (D[i].npush) vkCmdPushConstants(cb, pl, VK_SHADER_STAGE_COMPUTE_BIT, 0, D[i].npush, D[i].push);
         if (timestamps) vkCmdWriteTimestamp(cb, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, qp, 2 * i);
-        vkCmdDispatch(cb, D[i].g[0], D[i].g[1], D[i].g[2]);
+        if (D[i].indirect) {
+            int k = 0;
+            while (k < nb && B[k].binding != D[i].ibinding) k++;
+            if (k == nb) die("dispatch_indirect: no such buffer", D[i].ibinding);
+            vkCmdDispatchIndirect(cb, B[k].b, D[i].ioffset);
+        } else vkCmdDispatch(cb, D[i].g[0], D[i].g[1], D[i].g[2]);
         if (timestamps) vkCmdWriteTimestamp(cb, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, qp, 2 * i + 1);
     }
     for (int i = 0; i < ni; i++) {   /* copy the image back for readback */
