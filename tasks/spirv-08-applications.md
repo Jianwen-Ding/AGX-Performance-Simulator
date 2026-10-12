@@ -155,14 +155,14 @@ reference.
 
 ## Offline sanity checks (not hardware verification)
 
-- **lavapipe:** all pass at both sizes. Last whole-suite rerun at the small size: 157 of 157 functionally correct.
-- **Shim-compiled Mesa 25.2.8 and 26.0.3 code on the functional simulator:** 138 of 138 buffer workloads (plus quadmip and clustered).
-  - Last whole-suite rerun (`simall`, Mesa 26.0.3): 153 compiled workloads.
-    - 144 pass.
+- **lavapipe:** all pass at both sizes. Last whole-suite rerun at the small size: 174 of 174 functionally correct.
+- **Shim-compiled Mesa 25.2.8 and 26.0.3 code on the functional simulator:** every workload the simulator can run, under
+  `bfeil` semantics B; under the default, all but the five of question 1 (below).
+  - Last whole-suite rerun (`simall`, Mesa 26.0.3): 170 compiled workloads.
+    - 160 pass.
     - 5 are hardware-only (texture, image and indirect workloads, UNSIM).
-    - 4 fail by design under the default `bfeil` semantics: `viterbi`, `shiftfuse`, `lz4dec` and `bitap` (note 37).
-      `cdc`, added since, is a fifth (note 70).
-      All 4 pass with `AGX_BFEIL_MASKED_SHIFT32=1`.
+    - 5 fail by design under the default `bfeil` semantics: `viterbi`, `shiftfuse`, `lz4dec`, `bitap` and `cdc`
+      (notes 37, 70). All 5 pass with `AGX_BFEIL_MASKED_SHIFT32=1`, under which nothing fails.
   - The 4 workloads without compiled code need features the offline Asahi driver does not offer (NODEV).
   - `bfs` found a simulator bug. Mesa aggregates `atomicAdd(found[l], 1)` under divergence: one lane, chosen with SR58
     (`active_thread_index_in_simdgroup`), adds SR59, the number of active lanes. The simulator modelled both from the
