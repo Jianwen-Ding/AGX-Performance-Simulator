@@ -878,6 +878,47 @@ def w_boruvka(size, rng):
              ds, check, 256, {'edges': ne, 'dispatches': len(ds)})
 
 
+def biquad_ref(x, coef):
+    """the shader's arithmetic on x [samples, channels] (int64 numpy): 4 DF1 sections, Q14, >> 14, saturate"""
+    st = np.zeros((4, 4, x.shape[1]), np.int64); y = np.empty_like(x)
+    for t in range(x.shape[0]):
+        v = x[t]
+        for s in range(4):
+            b0, b1, b2, a1, a2 = coef[5 * s:5 * s + 5]
+            acc = b0 * v + b1 * st[s, 0] + b2 * st[s, 1] - a1 * st[s, 2] - a2 * st[s, 3]
+            yy = np.clip(acc >> 14, -32768, 32767)
+            st[s, 1] = st[s, 0]; st[s, 0] = v; st[s, 3] = st[s, 2]; st[s, 2] = yy
+            v = yy
+        y[t] = v
+    return y
+
+
+def w_biquad(size, rng):
+    from scipy.signal import butter
+    ch, ns = (64, 512) if size == 'small' else (4096, 4096)
+    sos = butter(8, 0.1, output='sos')                                         # 8th-order low-pass, cutoff 0.05 fs
+    # scipy puts the whole (tiny) gain in the first section, which Q14 would round to zero: give every section unit
+    # DC gain instead (the product is the same filter)
+    sos[:, :3] /= (sos[:, :3].sum(1) / sos[:, 3:].sum(1))[:, None]
+    coef = np.round(np.concatenate([np.concatenate([sos[k, :3], sos[k, 4:6]]) for k in range(4)]) * 16384).astype(np.int64)
+    t = np.arange(ns)[:, None]
+    tone = 6000 * np.sin(2 * np.pi * (0.01 + 0.02 * rng.random(ch))[None, :] * t)   # in the pass band
+    noise = rng.normal(0, 4000, (ns, ch))                                          # broadband: mostly removed
+    x = np.clip(np.round(tone + noise), -32768, 32767).astype(np.int64)
+    def check(o):
+        from scipy.signal import sosfilt
+        got = o[2].view(np.int32)[:ns * ch].reshape(ns, ch).astype(np.int64)
+        ref = biquad_ref(x, coef)
+        bad = int(np.sum(got != ref))
+        flt = sosfilt(sos, x.astype(np.float64), axis=0)                         # floating-point filter, for reference
+        err = got[ns // 4:] - flt[ns // 4:]
+        snr = 10 * np.log10(np.mean(flt[ns // 4:] ** 2) / np.mean(err ** 2))
+        return bad == 0, {'mismatches': bad, 'fixed_vs_float_snr_db': round(float(snr), 1),
+                          'saturated': int(np.sum(np.abs(ref) == 32767) + np.sum(ref == -32768))}
+    return W('biquad', {0: (x.astype(np.int32), False), 1: (coef.astype(np.int32), False), 2: (4 * ns * ch, True)},
+             [((ch + 63) // 64, 1, 1, push(ch, ns))], check, 64, {'items': ch * ns})
+
+
 def w_spmv(size, rng):
     rows, cols = (512, 512) if size == 'small' else (1 << 18, 1 << 18)
     nnz = rng.integers(0, 64, rows) * (rng.random(rows) < 0.95)    # some empty rows
@@ -3407,7 +3448,7 @@ WORKLOADS = {'reduce': w_reduce, 'scan': w_scan, 'sgemm': w_sgemm, 'conv2d': w_c
              'aluprobe': w_aluprobe, 'ubopalette': w_ubopalette, 'uboparams': w_uboparams,
              'bindless': w_bindless, 'bindlessu': w_bindlessu,
              # appended only: the input seed is the index in this dict
-             'rle': w_rle, 'huffdec': w_huffdec, 'lookback': w_lookback, 'hll': w_hll, 'tricount': w_tricount, 'sha3': w_sha3, 'stereo': w_stereo, 'viterbi': w_viterbi, 'viterbifix': w_viterbifix, 'shiftfuse': w_shiftfuse, 'bc1enc': w_bc1enc, 'lz4dec': w_lz4dec, 'nttmul': w_nttmul, 'topk': w_topk, 'cellsort': w_cellsort, 'boruvka': w_boruvka}
+             'rle': w_rle, 'huffdec': w_huffdec, 'lookback': w_lookback, 'hll': w_hll, 'tricount': w_tricount, 'sha3': w_sha3, 'stereo': w_stereo, 'viterbi': w_viterbi, 'viterbifix': w_viterbifix, 'shiftfuse': w_shiftfuse, 'bc1enc': w_bc1enc, 'lz4dec': w_lz4dec, 'nttmul': w_nttmul, 'topk': w_topk, 'cellsort': w_cellsort, 'boruvka': w_boruvka, 'biquad': w_biquad}
 
 
 # ---------------------------------------------------------------------------------------------------------------
