@@ -2048,6 +2048,30 @@ def w_postings(size, rng):
              [((nq + 63) // 64, 1, 1, push(nq))], check, 64, {'queries': nq})
 
 
+def w_tpchq6(size, rng):
+    n = 1 << 16 if size == 'small' else 1 << 24                              # 128 MiB of columns at the large size
+    # dbgen's distributions: orderdate uniform over 1992-01-01 .. 1998-08-02, shipdate 1-121 days later;
+    # quantity 1-50, discount 0-10 hundredths, extendedprice = quantity * the part's retail price
+    ship = (rng.integers(0, 2406, n) + rng.integers(1, 122, n)).astype(np.uint16)
+    qty = rng.integers(1, 51, n).astype(np.uint8)
+    disc = rng.integers(0, 11, n).astype(np.uint8)
+    pk = rng.integers(1, 200001, n)
+    retail = 90000 + (pk // 10) % 20001 + 100 * (pk % 1000)                 # cents
+    price = u32(qty.astype(np.int64) * retail)
+    hit = (ship >= 731) & (ship < 1096) & (disc >= 5) & (disc <= 7) & (qty < 24)
+    rev = int((price.astype(np.int64) * disc)[hit].sum()); cnt = int(hit.sum())
+    nwg = (n + 4095) // 4096
+    def check(o):
+        part = o[4].view(np.uint64)[:2 * nwg].reshape(nwg, 2)
+        gs, gc = int(part[:, 0].astype(object).sum()), int(part[:, 1].sum())
+        return gs == rev and gc == cnt, {'revenue': f'{rev // 10000}.{rev % 10000:04d}', 'revenue_gpu': f'{gs // 10000}.{gs % 10000:04d}',
+                                         'rows': n, 'selected': cnt, 'selectivity': round(cnt / n, 4)}
+    pad = lambda a, k: np.concatenate([a, np.zeros(-len(a) % k, a.dtype)])   # whole words
+    return W('tpchq6', {0: (pad(ship, 2).view(np.uint32), False), 1: (pad(disc, 4).view(np.uint32), False),
+                        2: (pad(qty, 4).view(np.uint32), False), 3: (price, False), 4: (16 * nwg, True)},
+             [(nwg, 1, 1, push(n))], check, 256, {'bytes': 8 * n}, requires=['storage_buffer_8bit', 'storage_buffer_16bit'])
+
+
 def w_spmv(size, rng):
     rows, cols = (512, 512) if size == 'small' else (1 << 18, 1 << 18)
     nnz = rng.integers(0, 64, rows) * (rng.random(rows) < 0.95)    # some empty rows
@@ -4577,7 +4601,7 @@ WORKLOADS = {'reduce': w_reduce, 'scan': w_scan, 'sgemm': w_sgemm, 'conv2d': w_c
              'aluprobe': w_aluprobe, 'ubopalette': w_ubopalette, 'uboparams': w_uboparams,
              'bindless': w_bindless, 'bindlessu': w_bindlessu,
              # appended only: the input seed is the index in this dict
-             'rle': w_rle, 'huffdec': w_huffdec, 'lookback': w_lookback, 'hll': w_hll, 'tricount': w_tricount, 'sha3': w_sha3, 'stereo': w_stereo, 'viterbi': w_viterbi, 'viterbifix': w_viterbifix, 'shiftfuse': w_shiftfuse, 'bc1enc': w_bc1enc, 'lz4dec': w_lz4dec, 'nttmul': w_nttmul, 'topk': w_topk, 'cellsort': w_cellsort, 'boruvka': w_boruvka, 'biquad': w_biquad, 'edt': w_edt, 'mt19937': w_mt19937, 'bitap': w_bitap, 'cholesky': w_cholesky, 'rsshash': w_rsshash, 'poly1305': w_poly1305, 'crc32c': w_crc32c, 'siphash': w_siphash, 'blake2s': w_blake2s, 'blake2sfast': w_blake2sfast, 'q4gemv': w_q4gemv, 'attndec': w_attndec, 'attndecsplit': w_attndecsplit, 'rmsrope': w_rmsrope, 'q8dot': w_q8dot, 'isp': w_isp, 'contour': w_contour, 'hough': w_hough, 'spmvsg': w_spmvsg, 'varint': w_varint, 'bvhrays': w_bvhrays, 'adamw': w_adamw, 'stream': w_stream, 'motionest': w_motionest, 'jsonidx': w_jsonidx, 'cdc': w_cdc, 'swalign': w_swalign, 'swalignfit': w_swalignfit, 'swalignpad': w_swalignpad, 'jpcolor': w_jpcolor, 'postings': w_postings}
+             'rle': w_rle, 'huffdec': w_huffdec, 'lookback': w_lookback, 'hll': w_hll, 'tricount': w_tricount, 'sha3': w_sha3, 'stereo': w_stereo, 'viterbi': w_viterbi, 'viterbifix': w_viterbifix, 'shiftfuse': w_shiftfuse, 'bc1enc': w_bc1enc, 'lz4dec': w_lz4dec, 'nttmul': w_nttmul, 'topk': w_topk, 'cellsort': w_cellsort, 'boruvka': w_boruvka, 'biquad': w_biquad, 'edt': w_edt, 'mt19937': w_mt19937, 'bitap': w_bitap, 'cholesky': w_cholesky, 'rsshash': w_rsshash, 'poly1305': w_poly1305, 'crc32c': w_crc32c, 'siphash': w_siphash, 'blake2s': w_blake2s, 'blake2sfast': w_blake2sfast, 'q4gemv': w_q4gemv, 'attndec': w_attndec, 'attndecsplit': w_attndecsplit, 'rmsrope': w_rmsrope, 'q8dot': w_q8dot, 'isp': w_isp, 'contour': w_contour, 'hough': w_hough, 'spmvsg': w_spmvsg, 'varint': w_varint, 'bvhrays': w_bvhrays, 'adamw': w_adamw, 'stream': w_stream, 'motionest': w_motionest, 'jsonidx': w_jsonidx, 'cdc': w_cdc, 'swalign': w_swalign, 'swalignfit': w_swalignfit, 'swalignpad': w_swalignpad, 'jpcolor': w_jpcolor, 'postings': w_postings, 'tpchq6': w_tpchq6}
 
 
 # ---------------------------------------------------------------------------------------------------------------

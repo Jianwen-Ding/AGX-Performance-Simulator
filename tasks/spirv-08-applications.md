@@ -1,7 +1,7 @@
 # Task SPIR-V 8: applications (ray tracer, neural networks, image processing, cellular automaton, graph search,
 # encryption, hashing, text, compression)
 
-**Workloads:** `raytrace`, `mlp`, `sobel`, `life`, `bfs`, `conv_layer`, `hist_eq`, `aes`, `hash_table`, `word_count`, `dct8`, `attention`, `resize`, `median3`, `poisson`, `lbm`, `base64`, `md5`, `gemv`, `levenshtein`, `blur`, `yuv420`, `montecarlo`, `xxhash`, `bloom`, `collatz`, `tridiag`, `merge`, `ccl`, `pagerank`, `skinning`, `strsearch`, `quantize`, `rule110`, `voxel`, `nms`, `sat`, `sssp`, `morton`, `utf8`, `fir`, `composite`, `nqueens`, `lzmatch`, `bitpack`, `perlin`, `adler32`, `sieve`, `gcd`, `dither`, `advect`, `knn`, `csvparse`, `pip`, `lift53`, `chacha20`, `modexp`, `floyd`, `f16pack`, `raster`, `canny`, `secded`, `bicubic`, `dfa`, `b64decode`, `cordic`, `rsenc`, `texfetch`, `texfilter`, `imgerode`, `imgtonemap`, `argmax64`, `minmax64`, `dsum`, `quadmip`, `clustered`, `specblur`, `cullindirect`, `bigsort`, `pushmat`, `mplitmus`, `splat`, `splatfix`, `smembank`, `coalesce`, `atomcontend`, `barriercost`, `aluprobe`, `ubopalette`, `uboparams`, `bindless`, `bindlessu`, `rle`, `huffdec`, `lookback`, `hll`, `tricount`, `sha3`, `stereo`, `viterbi`, `viterbifix`, `shiftfuse`, `bc1enc`, `lz4dec`, `nttmul`, `topk`, `cellsort`, `boruvka`, `biquad`, `edt`, `mt19937`, `bitap`, `cholesky`, `rsshash`, `poly1305`, `crc32c`, `siphash`, `blake2s`, `blake2sfast`, `q4gemv`, `attndec`, `attndecsplit`, `rmsrope`, `q8dot`, `isp`, `contour`, `hough`, `spmvsg`, `varint`, `bvhrays`, `adamw`, `stream`, `motionest`, `jsonidx`, `cdc`, `swalign`, `swalignfit`, `swalignpad`, `jpcolor`, `postings`. These are recorded and verified by `make asahi-verify` with the others;
+**Workloads:** `raytrace`, `mlp`, `sobel`, `life`, `bfs`, `conv_layer`, `hist_eq`, `aes`, `hash_table`, `word_count`, `dct8`, `attention`, `resize`, `median3`, `poisson`, `lbm`, `base64`, `md5`, `gemv`, `levenshtein`, `blur`, `yuv420`, `montecarlo`, `xxhash`, `bloom`, `collatz`, `tridiag`, `merge`, `ccl`, `pagerank`, `skinning`, `strsearch`, `quantize`, `rule110`, `voxel`, `nms`, `sat`, `sssp`, `morton`, `utf8`, `fir`, `composite`, `nqueens`, `lzmatch`, `bitpack`, `perlin`, `adler32`, `sieve`, `gcd`, `dither`, `advect`, `knn`, `csvparse`, `pip`, `lift53`, `chacha20`, `modexp`, `floyd`, `f16pack`, `raster`, `canny`, `secded`, `bicubic`, `dfa`, `b64decode`, `cordic`, `rsenc`, `texfetch`, `texfilter`, `imgerode`, `imgtonemap`, `argmax64`, `minmax64`, `dsum`, `quadmip`, `clustered`, `specblur`, `cullindirect`, `bigsort`, `pushmat`, `mplitmus`, `splat`, `splatfix`, `smembank`, `coalesce`, `atomcontend`, `barriercost`, `aluprobe`, `ubopalette`, `uboparams`, `bindless`, `bindlessu`, `rle`, `huffdec`, `lookback`, `hll`, `tricount`, `sha3`, `stereo`, `viterbi`, `viterbifix`, `shiftfuse`, `bc1enc`, `lz4dec`, `nttmul`, `topk`, `cellsort`, `boruvka`, `biquad`, `edt`, `mt19937`, `bitap`, `cholesky`, `rsshash`, `poly1305`, `crc32c`, `siphash`, `blake2s`, `blake2sfast`, `q4gemv`, `attndec`, `attndecsplit`, `rmsrope`, `q8dot`, `isp`, `contour`, `hough`, `spmvsg`, `varint`, `bvhrays`, `adamw`, `stream`, `motionest`, `jsonidx`, `cdc`, `swalign`, `swalignfit`, `swalignpad`, `jpcolor`, `postings`, `tpchq6`. These are recorded and verified by `make asahi-verify` with the others;
 they are **PENDING** until then. The detailed procedure is in `tasks/spirv-workloads.md`.
 
 ## Why these
@@ -150,6 +150,7 @@ reference.
 | `swalign`, `swalignfit`, `swalignpad` | A random 128-base read; 16384 random windows of 256 bases, 1 in 16 holding a copy with ~6% substitutions and an indel | Every window's best score equal to a vectorised numpy Gotoh (clamped E / F), itself checked against the textbook recursion at the small size; every planted copy scores at least half the perfect score, no random window does |
 | `jpcolor` | 2^20 random points in the unit square, edges within the radius that gives ~8 neighbours (4.19M edges), distinct random priorities | Every vertex's colour equal to the reference rounds, which at the small size equal sequential greedy colouring in priority order; the colouring proper |
 | `postings` | 4096 sorted lists of distinct document ids below 2^20, lengths max(16, 65536 / k^0.8) (1.43M postings), ids skewed toward popular documents; 65536 random pairs of different terms | Every query's (count, xor of id * 0x9E3779B1) equal to numpy's `intersect1d` |
+| `tpchq6` | 2^24 rows from dbgen's distributions (shipdate = orderdate + 1-121 days, quantity 1-50, discount 0-10, price = quantity × the part's retail price) | Revenue (sum of price × discount, exact in units of 10^-4) and the selected row count equal to numpy's |
 
 ## Offline sanity checks (not hardware verification)
 
@@ -721,3 +722,19 @@ reference.
     - On the M2 the time tests the model on divergent, data-dependent device loads, a binary search's dependent
       chain. The check is exact against numpy, independently of the shader's algorithm. It passes on lavapipe, and on
       the simulator at both Mesa versions under both `bfeil` semantics.
+74. **`tpchq6`: an analytics query on columnar data.**
+    - TPC-H query 6, the usual first benchmark of GPU databases: a scan with a date range, a discount range and a
+      quantity bound, summing price × discount.
+    - The columns are as narrow as the values allow: shipdate uint16, discount and quantity uint8, price uint32. It
+      needs 8- and 16-bit storage (`requires`).
+    - The selectivity is 1.9%, as in TPC-H.
+    - GLSL's `?:` evaluates only the chosen operand, so the price is loaded only for matching rows (late
+      materialisation). A 64-byte line holds 16 prices, so about 26% of price lines are still read: about 5.0 bytes a
+      row instead of 8.
+    - Each invocation sums 16 rows in 64 bits. A shared-memory tree gives one (sum, count) per workgroup, added on
+      the host.
+    - Predicted 329.5 µs for 16M rows, about 257 GB/s of lines actually read, under the model's DRAM rate.
+      Write-back charging does not change it.
+    - On the M2 the time tests narrow loads and whether skipped loads really save DRAM traffic (8 bytes a row would
+      take ≈ 373 µs at the model's 360 GB/s). The check is exact. It passes on lavapipe, and on the simulator at both
+      Mesa versions under both `bfeil` semantics.
