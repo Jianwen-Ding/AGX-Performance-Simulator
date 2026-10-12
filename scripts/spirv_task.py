@@ -41,7 +41,7 @@ def u32(a): return np.ascontiguousarray(a, dtype=np.uint32)
 class W:
     """a workload instance: buffers {binding: (init array or byte size, read back?)}, dispatches [(gx, gy, gz, push)],
     check(outputs) -> (ok, detail), metrics for throughput"""
-    def __init__(self, shader, buffers, dispatches, check, wg, work=None, images=None, textures=None, simages=None):
+    def __init__(self, shader, buffers, dispatches, check, wg, work=None, images=None, textures=None, simages=None, requires=None):
         self.shader, self.buffers, self.dispatches, self.check, self.wg, self.work = shader, buffers, dispatches, check, wg, work or {}
         # sampled textures {binding: (texels, width, height, 'rgba8' | 'r32f', 'nearest' | 'linear')}: read through the
         # GPU's texture unit, which the simulator does not model (sim / predict report such workloads as unsupported)
@@ -49,6 +49,8 @@ class W:
         # storage images {binding: (initial texels or None, width, height, 'r32ui' | 'rgba8')}, read back after the run as
         # outputs[binding]; image loads / stores also go through units the simulator does not model
         self.simages = simages or {}
+        # device features the shader needs (vk_run 'require'): a device without one reports the workload as unsupported
+        self.requires = requires or []
         self.images = images or []       # [(binding, width, height, 'rgba8' | 'gray8' | 'bits')]: written as .ppm / .pgm for viewing
 
 
@@ -2480,6 +2482,38 @@ def w_imgtonemap(size, rng):
              images=[(0, Wd, H, 'rgba8')], simages={0: (img, Wd, H, 'rgba8')})
 
 
+def w_argmax64(size, rng):
+    n, nb = (4096, 37) if size == 'small' else (1 << 22, 4096)
+    scores = f32(rng.standard_normal(n) * 10)
+    scores[rng.choice(n, n // 50, replace=False)] = np.float32(7.25)              # ties: the largest index must win
+    scores[:3] = [-0.0, 0.0, -np.float32(3e38)]
+    bucket = u32(rng.integers(0, nb, n))
+    def check(o):
+        got = o[2].view(np.uint64)[:nb]
+        f = scores.view(np.uint32).astype(np.uint64)
+        key = np.where(f & 0x80000000, ~f & 0xffffffff, f | 0x80000000)
+        packed = (key << np.uint64(32)) | np.arange(n, dtype=np.uint64)
+        ref = np.zeros(nb, np.uint64); np.maximum.at(ref, bucket, packed)
+        idx = (got & 0xffffffff).astype(np.int64)
+        consistent = bool(np.all([scores[idx[b]] == scores[bucket == b].max() for b in range(min(nb, 64)) if np.any(bucket == b)]))
+        return np.array_equal(got, ref), {'mismatches': int(np.sum(got != ref)), 'winner_is_bucket_max': consistent}
+    return W('argmax64', {0: (scores, False), 1: (bucket, False), 2: (8 * nb, True)}, [((n + 255) // 256, 1, 1, push(n))], check, 256,
+             {'elements': n}, requires=['int64', 'buffer_int64_atomics'])
+
+
+def w_minmax64(size, rng):
+    n = 4096 if size == 'small' else 1 << 22
+    v = rng.integers(0, 1 << 63, n, dtype=np.uint64) * np.uint64(2) + rng.integers(0, 2, n, dtype=np.uint64)
+    v[n // 3] = 0xffffffffffffffff; v[n // 2] = 1                               # extremes far from the first workgroup
+    def check(o):
+        g = o[1].view(np.uint64)[:3]
+        ref = [int(v.min()), int(v.max()), int(np.bitwise_xor.reduce(v))]
+        return [int(x) for x in g] == ref, {'min_ok': int(g[0]) == ref[0], 'max_ok': int(g[1]) == ref[1], 'xor_ok': int(g[2]) == ref[2]}
+    init = np.array([0xffffffffffffffff, 0, 0], np.uint64)
+    return W('minmax64', {0: (v, False), 1: (init, True)}, [((n + 255) // 256, 1, 1, push(n))], check, 256, {'elements': n},
+             requires=['int64', 'buffer_int64_atomics', 'shared_int64_atomics'])
+
+
 WORKLOADS = {'reduce': w_reduce, 'scan': w_scan, 'sgemm': w_sgemm, 'conv2d': w_conv2d, 'histogram': w_histogram,
              'nbody': w_nbody, 'bitonic': w_bitonic, 'sha256': w_sha256, 'fp16': w_fp16, 'int64': w_int64, 'bitops': w_bitops,
              'intdiv': w_intdiv, 'compact': w_compact, 'spmv': w_spmv, 'transpose': w_transpose, 'mandelbrot': w_mandelbrot,
@@ -2503,7 +2537,8 @@ WORKLOADS = {'reduce': w_reduce, 'scan': w_scan, 'sgemm': w_sgemm, 'conv2d': w_c
              'raster': w_raster, 'canny': w_canny, 'secded': w_secded, 'bicubic': w_bicubic,
              'dfa': w_dfa, 'b64decode': w_b64decode, 'cordic': w_cordic, 'rsenc': w_rsenc,
              'texfetch': w_texfetch, 'texfilter': w_texfilter,
-             'imgerode': w_imgerode, 'imgtonemap': w_imgtonemap}
+             'imgerode': w_imgerode, 'imgtonemap': w_imgtonemap,
+             'argmax64': w_argmax64, 'minmax64': w_minmax64}
 
 
 # ---------------------------------------------------------------------------------------------------------------
@@ -2537,6 +2572,7 @@ def run_one(name, size, repeat, out_root, export=True, seed=1):
             initp = out / f'in{binding}.bin'; initp.write_bytes(init.tobytes()); nbytes = init.nbytes
         spec.append(f'buffer {binding} {nbytes} {initp} {out / f"out{binding}.bin" if readback else "-"}')
     spec += texture_spec(w, out)
+    spec += [f'require {f}' for f in w.requires]
     for gx, gy, gz, pc in w.dispatches:
         spec.append(f'dispatch {gx} {gy} {gz} {pc.hex() or "-"}')
     spec.append(f'repeat {repeat}')
@@ -2546,6 +2582,12 @@ def run_one(name, size, repeat, out_root, export=True, seed=1):
     r = subprocess.run([str(VK_RUN), str(out / 'spec.txt')], capture_output=True, text=True, timeout=600)
     lines = [json.loads(l) for l in r.stdout.splitlines() if l.startswith('{')]
     (out / 'vk_run.jsonl').write_text(r.stdout)
+    miss = next((l['unsupported'] for l in lines if 'unsupported' in l), None)
+    if r.returncode == 3 and miss:
+        res = {'workload': name, 'size': size, 'device': next(l for l in lines if 'device' in l), 'functional_ok': None,
+               'unsupported_on_device': miss}
+        (out / 'result.json').write_text(json.dumps(res, indent=1) + '\n')
+        return res
     if r.returncode:
         raise RuntimeError(f'{name}: vk_run failed: {r.stdout[-400:]} {r.stderr[-400:]}')
     outs = {b: np.fromfile(out / f'out{b}.bin', dtype=np.uint8) for b, (_, rb) in w.buffers.items() if rb}
@@ -2606,11 +2648,14 @@ def cmd_compile(a):
         for binding, (init, _) in sorted(w.buffers.items()):
             spec.append(f'buffer {binding} {init if isinstance(init, int) else init.nbytes} - -')
         spec += texture_spec(w, run)
+        spec += [f'require {f}' for f in w.requires]
         gx, gy, gz, pc = w.dispatches[0]
         spec += [f'dispatch {gx} {gy} {gz} {pc.hex() or "-"}', 'repeat 1', f'export {run / "shader.bin"}', f'props {run / "props.json"}']
         (run / 'spec.txt').write_text('\n'.join(spec) + '\n')
         r = subprocess.run([str(VK_RUN), str(run / 'spec.txt')], capture_output=True, text=True, timeout=600, env=env)
         dev = next((json.loads(l) for l in r.stdout.splitlines() if l.startswith('{"device"')), {})
+        if r.returncode == 3 and '"unsupported"' in r.stdout:
+            print(json.dumps({'workload': name, 'unsupported_on_device': json.loads(r.stdout.splitlines()[-1])['unsupported']})); continue
         if not (run / 'shader.bin').exists():
             bad += 1; print(json.dumps({'workload': name, 'error': (r.stdout + r.stderr)[-400:]})); continue
         if 'AGX' not in dev.get('device', '') and 'Apple' not in dev.get('device', ''):
@@ -3056,6 +3101,17 @@ def cmd_record(a):
             why = real_gpu_problem(r['device'])
             if why and not a.any_device:
                 sys.exit(f'refusing to record hardware data: {why} (--any-device only for testing this script)')
+            if r.get('unsupported_on_device'):        # the driver does not offer a feature the shader needs: record that
+                dest = exp / name
+                if dest.exists():
+                    shutil.rmtree(dest)
+                dest.mkdir(parents=True)
+                w = WORKLOADS[name]('small', np.random.default_rng([1, list(WORKLOADS).index(name)]))
+                (dest / 'hardware.json').write_text(json.dumps({'workload': name, 'device': r['device'], 'test_recording_not_hardware': bool(why),
+                    'recorded_utc': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()), 'inputs_sha256': input_hashes(w),
+                    'unsupported_on_device': r['unsupported_on_device'], 'small': {'functional_ok': None}}, indent=1) + '\n')
+                print(json.dumps({'workload': name, 'recorded': str(dest), 'unsupported_on_device': r['unsupported_on_device']}), flush=True)
+                continue
             run = scratch / f'{name}-small'
             dest = exp / name
             if dest.exists():
@@ -3108,6 +3164,9 @@ def verify_one(name, exp, layout, timing):
     w = WORKLOADS[name]('small', np.random.default_rng([1, list(WORKLOADS).index(name)]))
     if input_hashes(w) != rec['inputs_sha256']:
         return {'workload': name, 'status': 'STALE', 'why': 'inputs differ from the recording (workload or numpy changed): re-record'}
+    if rec.get('unsupported_on_device'):
+        return {'workload': name, 'device': rec['device'].get('device'), 'status': 'NODEV',
+                'why': f'the driver does not offer {rec["unsupported_on_device"]}, which the shader needs'}
     if hw_only(w):
         ok = rec['small']['functional_ok']
         return {'workload': name, 'device': rec['device'].get('device'), 'hardware_matches_reference': ok,

@@ -14,6 +14,8 @@
  *                                 storage image (read / write): FMT r32ui or rgba8 (UNORM); INIT = file of W * H texels
  *                                 or '-' (zeros), copied in before the dispatches of every run; OUT = file the image is
  *                                 copied back to after the functional run, or '-'
+ *   require FEATURE               a device feature the shader needs (int64, float64, float16, int8, buffer_int64_atomics,
+ *                                 shared_int64_atomics): without it vk_run prints {"unsupported": FEATURE} and exits 3
  *   dispatch GX GY GZ [PUSHHEX]   one vkCmdDispatch (push constants as hex bytes); dispatches run in order with a
  *                                 compute->compute memory barrier between them
  *   repeat N                      timed runs after the functional run (buffers re-initialised before each)
@@ -90,6 +92,7 @@ int main(int argc, char **argv) {
     struct disp D[MAXD]; int nd = 0;
     struct tex T[MAXT]; int nt = 0;
     struct simg I[MAXT]; int ni = 0;
+    char req[8][32]; int nreq = 0;
     int repeat = 0;
     uint32_t maxpush = 0;
     FILE *sf = fopen(argv[1], "r");
@@ -127,6 +130,9 @@ int main(int argc, char **argv) {
             else if (!strcmp(fmt, "rgba8")) g->fmt = VK_FORMAT_R8G8B8A8_UNORM;
             else die("image format: r32ui or rgba8", 0);
             g->texel = 4;
+        } else if (!strcmp(kw, "require")) {
+            if (nreq == 8 || sscanf(line, "%*s %31s", req[nreq]) != 1) die("spec require", 0);
+            nreq++;
         } else if (!strcmp(kw, "dispatch")) {
             if (nd == MAXD) die("too many dispatches", 0);
             struct disp *d = &D[nd++]; memset(d, 0, sizeof *d);
@@ -208,9 +214,20 @@ int main(int argc, char **argv) {
     CK(vkCreateDevice(pd, &dci, NULL, &dev));
     printf("{\"device\":"); jstr(stdout, props.deviceName);
     printf(",\"vendor\":%u,\"device_id\":%u,\"driver_version\":%u,\"api\":%u,\"timestamp_period_ns\":%g,\"timestamps\":%d,"
-           "\"subgroup_size\":%u,\"shader_object\":%d,\"executable_properties\":%d}\n",
+           "\"subgroup_size\":%u,\"shader_object\":%d,\"executable_properties\":%d,\"features\":{\"int64\":%d,\"float64\":%d,"
+           "\"float16\":%d,\"int8\":%d,\"buffer_int64_atomics\":%d,\"shared_int64_atomics\":%d}}\n",
            props.vendorID, props.deviceID, props.driverVersion, props.apiVersion, props.limits.timestampPeriod, timestamps,
-           sgp.subgroupSize, use_so, use_pe);
+           sgp.subgroupSize, use_so, use_pe, f2.features.shaderInt64, f2.features.shaderFloat64, f12.shaderFloat16, f12.shaderInt8,
+           f12.shaderBufferInt64Atomics, f12.shaderSharedInt64Atomics);
+    for (int i = 0; i < nreq; i++) {
+        const char *names[] = {"int64", "float64", "float16", "int8", "buffer_int64_atomics", "shared_int64_atomics"};
+        int have[] = {f2.features.shaderInt64, f2.features.shaderFloat64, f12.shaderFloat16, f12.shaderInt8,
+                      f12.shaderBufferInt64Atomics, f12.shaderSharedInt64Atomics};
+        int known = 0, ok = 0;
+        for (int k = 0; k < 6; k++) if (!strcmp(req[i], names[k])) { known = 1; ok = have[k]; }
+        if (!known) die("unknown required feature", 0);
+        if (!ok) { printf("{\"unsupported\":\"%s\"}\n", req[i]); exit(3); }
+    }
 
     DF(vkGetDeviceQueue); DF(vkCreateBuffer); DF(vkGetBufferMemoryRequirements); DF(vkAllocateMemory); DF(vkBindBufferMemory);
     DF(vkMapMemory); DF(vkCreateShaderModule); DF(vkCreateDescriptorSetLayout); DF(vkCreatePipelineLayout);

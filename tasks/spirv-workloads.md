@@ -24,6 +24,7 @@ and the reference agree; that is a sanity check, not hardware verification.
    | FAIL | A difference to investigate |
    | STALE | The recording no longer matches the workload's inputs |
    | UNSIM | Texture / storage-image workloads only: the GPU's result matches the reference; the simulator does not model that path |
+   | NODEV | The device's driver does not offer a feature the shader needs (`vk_run` `require`); nothing was run |
 
 3. Also compares the large-size GPU time with the cost model's prediction. The last line of `verify.txt` sums this
    up as `"timing"`:
@@ -39,7 +40,7 @@ The rest of this file is the detailed procedure, for investigating results.
 
 ## Workloads
 
-One hundred and three realistic compute kernels, written in GLSL (`spirv/shaders/*.comp`) and compiled to SPIR-V:
+One hundred and five realistic compute kernels, written in GLSL (`spirv/shaders/*.comp`) and compiled to SPIR-V:
 
 | Workload | Kernel | Stresses |
 |---|---|---|
@@ -146,6 +147,8 @@ One hundred and three realistic compute kernels, written in GLSL (`spirv/shaders
 | `texfilter` | Hardware bilinear filtering of an RGBA8 texture | The texture unit's filtering and sub-texel precision; hardware-only (UNSIM) |
 | `imgerode` | Morphological erosion on r32ui storage images, 4 ping-pong dispatches | `imageLoad` / `imageStore` (`texture_load` / `image_write`), exact; hardware-only (UNSIM) |
 | `imgtonemap` | In-place Reinhard tone mapping of an RGBA8 storage image | unorm load / store conversion; hardware-only (UNSIM) |
+| `argmax64` | Per-bucket argmax by 64-bit packed-key `atomicMax` | `GL_EXT_shader_atomic_int64` on buffers; requires `buffer_int64_atomics` |
+| `minmax64` | Min / max / xor with shared then global 64-bit atomics | 64-bit atomics on shared memory and buffers |
 
 Each workload has two sizes:
 

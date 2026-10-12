@@ -1,7 +1,7 @@
 # Task SPIR-V 8: applications (ray tracer, neural networks, image processing, cellular automaton, graph search,
 # encryption, hashing, text, compression)
 
-**Workloads:** `raytrace`, `mlp`, `sobel`, `life`, `bfs`, `conv_layer`, `hist_eq`, `aes`, `hash_table`, `word_count`, `dct8`, `attention`, `resize`, `median3`, `poisson`, `lbm`, `base64`, `md5`, `gemv`, `levenshtein`, `blur`, `yuv420`, `montecarlo`, `xxhash`, `bloom`, `collatz`, `tridiag`, `merge`, `ccl`, `pagerank`, `skinning`, `strsearch`, `quantize`, `rule110`, `voxel`, `nms`, `sat`, `sssp`, `morton`, `utf8`, `fir`, `composite`, `nqueens`, `lzmatch`, `bitpack`, `perlin`, `adler32`, `sieve`, `gcd`, `dither`, `advect`, `knn`, `csvparse`, `pip`, `lift53`, `chacha20`, `modexp`, `floyd`, `f16pack`, `raster`, `canny`, `secded`, `bicubic`, `dfa`, `b64decode`, `cordic`, `rsenc`, `texfetch`, `texfilter`, `imgerode`, `imgtonemap`. These are recorded and verified by `make asahi-verify` with the others;
+**Workloads:** `raytrace`, `mlp`, `sobel`, `life`, `bfs`, `conv_layer`, `hist_eq`, `aes`, `hash_table`, `word_count`, `dct8`, `attention`, `resize`, `median3`, `poisson`, `lbm`, `base64`, `md5`, `gemv`, `levenshtein`, `blur`, `yuv420`, `montecarlo`, `xxhash`, `bloom`, `collatz`, `tridiag`, `merge`, `ccl`, `pagerank`, `skinning`, `strsearch`, `quantize`, `rule110`, `voxel`, `nms`, `sat`, `sssp`, `morton`, `utf8`, `fir`, `composite`, `nqueens`, `lzmatch`, `bitpack`, `perlin`, `adler32`, `sieve`, `gcd`, `dither`, `advect`, `knn`, `csvparse`, `pip`, `lift53`, `chacha20`, `modexp`, `floyd`, `f16pack`, `raster`, `canny`, `secded`, `bicubic`, `dfa`, `b64decode`, `cordic`, `rsenc`, `texfetch`, `texfilter`, `imgerode`, `imgtonemap`, `argmax64`, `minmax64`. These are recorded and verified by `make asahi-verify` with the others;
 they are **PENDING** until then. The detailed procedure is in `tasks/spirv-workloads.md`.
 
 ## Why these
@@ -83,6 +83,8 @@ reference.
 | `texfilter` | 4M bilinear samples of a 1024² RGBA8 texture (ramps, checker, noise) with clamp-to-edge borders | Within 2/255 of the Vulkan definition at the sub-texel precision that fits best; that precision is reported |
 | `imgerode` | 3 × 3 grey-level erosion of a 2048² r32ui storage image, ping-pong between two images over 4 dispatches | Exact |
 | `imgtonemap` | Exposure + Reinhard tone mapping in place on a 4K RGBA8 storage image | Within one level of round-to-nearest (Vulkan's allowance); alpha untouched; the fraction rounding to nearest is reported |
+| `argmax64` | Argmax of 4M float scores into 4096 buckets via 64-bit `atomicMax` on (order-preserving float bits, index) keys | Exact, ties to the largest index |
+| `minmax64` | Min, max and xor of 4M uint64 values, shared-memory 64-bit atomics per workgroup, then global | Exact |
 
 ## Offline sanity checks (not hardware verification)
 
@@ -156,3 +158,11 @@ reference.
     staging buffer at the start of every run, and copied back after the dispatches. The AGX code uses `texture_load`
     and `image_write`; like the textures, these are UNSIM in verification. Record `imgtonemap`'s
     `round_to_nearest_fraction` (lavapipe: 0.992); it shows how the M2 rounds unorm stores.
+20. **64-bit atomics: `argmax64` and `minmax64`.**
+    - Offline, Mesa 25.2.8 and 26.0.3's Asahi driver do not advertise `shaderBufferInt64Atomics` or
+      `shaderSharedInt64Atomics` (lavapipe does). Forcing the shaders through the compiler hits
+      `no 64-bit atomics yet` in instruction packing.
+    - The workloads therefore `require` those features, and expect NODEV on the M2: recorded as
+      `unsupported_on_device` and not run.
+    - If a newer Mesa on the M2 advertises them, they run and must PASS. That is the first check of 64-bit atomics on
+      AGX.
