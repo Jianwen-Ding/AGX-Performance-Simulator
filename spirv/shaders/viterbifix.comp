@@ -1,0 +1,45 @@
+#version 450
+// Viterbi decoding of the K = 7, rate 1/2 convolutional code (generators 171, 133 octal: 802.11, DVB, deep-space
+// links) with hard decisions. One workgroup decodes one 256-step frame (250 data bits + 6 zero tail bits, so the
+// path ends in state 0): each of the 64 invocations owns one trellis state and does add-compare-select on path
+// metrics in shared memory (ties keep the predecessor with top bit 0), recording its decision with a shared
+// atomicOr; invocation 0 then traces back from state 0.
+// viterbifix: viterbi with the traceback's bit test written as bitfieldExtract with an explicitly masked offset,
+// which the compiler must keep (see viterbi.comp).
+layout(local_size_x = 64) in;
+layout(std430, binding = 0) readonly buffer RX { uint rx[]; };        // 256 per frame: bit 0 = first, bit 1 = second
+layout(std430, binding = 1) writeonly buffer O { uint dec[]; };       // 8 words per frame, bit t = input bit of step t
+shared uint pm[2][64];
+shared uint surv[256][2];
+
+void main() {
+    uint s = gl_LocalInvocationID.x, f = gl_WorkGroupID.x;
+    pm[0][s] = s == 0u ? 0u : 1000u;                     // start in state 0
+    for (uint t = s; t < 512u; t += 64u) surv[t >> 1][t & 1u] = 0u;
+    barrier();
+    uint b = s & 1u;
+    for (uint t = 0u; t < 256u; t++) {
+        uint r = rx[256u * f + t], cur = t & 1u;
+        uint best = 0xffffffffu, pick = 0u;
+        for (uint k = 0u; k < 2u; k++) {
+            uint p = (s >> 1) | (k << 5);
+            uint full = (p << 1) | b;
+            uint e0 = uint(bitCount(full & 121u)) & 1u, e1 = uint(bitCount(full & 91u)) & 1u;
+            uint m = pm[cur][p] + (e0 ^ (r & 1u)) + (e1 ^ (r >> 1));
+            if (m < best) { best = m; pick = k; }
+        }
+        pm[cur ^ 1u][s] = best;
+        if (pick != 0u) atomicOr(surv[t][s >> 5], 1u << (s & 31u));
+        barrier();
+    }
+    if (s == 0u) {
+        uint st = 0u;
+        uint words[8] = uint[8](0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u);
+        for (int t = 255; t >= 0; t--) {
+            words[t >> 5] |= (st & 1u) << (uint(t) & 31u);
+            uint k = bitfieldExtract(surv[t][st >> 5], int(st & 31u), 1);
+            st = (st >> 1) | (k << 5);
+        }
+        for (uint w = 0u; w < 8u; w++) dec[8u * f + w] = words[w];
+    }
+}

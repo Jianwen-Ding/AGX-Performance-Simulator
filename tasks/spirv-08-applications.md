@@ -1,7 +1,7 @@
 # Task SPIR-V 8: applications (ray tracer, neural networks, image processing, cellular automaton, graph search,
 # encryption, hashing, text, compression)
 
-**Workloads:** `raytrace`, `mlp`, `sobel`, `life`, `bfs`, `conv_layer`, `hist_eq`, `aes`, `hash_table`, `word_count`, `dct8`, `attention`, `resize`, `median3`, `poisson`, `lbm`, `base64`, `md5`, `gemv`, `levenshtein`, `blur`, `yuv420`, `montecarlo`, `xxhash`, `bloom`, `collatz`, `tridiag`, `merge`, `ccl`, `pagerank`, `skinning`, `strsearch`, `quantize`, `rule110`, `voxel`, `nms`, `sat`, `sssp`, `morton`, `utf8`, `fir`, `composite`, `nqueens`, `lzmatch`, `bitpack`, `perlin`, `adler32`, `sieve`, `gcd`, `dither`, `advect`, `knn`, `csvparse`, `pip`, `lift53`, `chacha20`, `modexp`, `floyd`, `f16pack`, `raster`, `canny`, `secded`, `bicubic`, `dfa`, `b64decode`, `cordic`, `rsenc`, `texfetch`, `texfilter`, `imgerode`, `imgtonemap`, `argmax64`, `minmax64`, `dsum`, `quadmip`, `clustered`, `specblur`, `cullindirect`, `bigsort`, `pushmat`, `mplitmus`, `splat`, `splatfix`, `smembank`, `coalesce`, `atomcontend`, `barriercost`, `aluprobe`, `ubopalette`, `uboparams`, `bindless`, `bindlessu`, `rle`, `huffdec`, `lookback`, `hll`, `tricount`, `sha3`, `stereo`. These are recorded and verified by `make asahi-verify` with the others;
+**Workloads:** `raytrace`, `mlp`, `sobel`, `life`, `bfs`, `conv_layer`, `hist_eq`, `aes`, `hash_table`, `word_count`, `dct8`, `attention`, `resize`, `median3`, `poisson`, `lbm`, `base64`, `md5`, `gemv`, `levenshtein`, `blur`, `yuv420`, `montecarlo`, `xxhash`, `bloom`, `collatz`, `tridiag`, `merge`, `ccl`, `pagerank`, `skinning`, `strsearch`, `quantize`, `rule110`, `voxel`, `nms`, `sat`, `sssp`, `morton`, `utf8`, `fir`, `composite`, `nqueens`, `lzmatch`, `bitpack`, `perlin`, `adler32`, `sieve`, `gcd`, `dither`, `advect`, `knn`, `csvparse`, `pip`, `lift53`, `chacha20`, `modexp`, `floyd`, `f16pack`, `raster`, `canny`, `secded`, `bicubic`, `dfa`, `b64decode`, `cordic`, `rsenc`, `texfetch`, `texfilter`, `imgerode`, `imgtonemap`, `argmax64`, `minmax64`, `dsum`, `quadmip`, `clustered`, `specblur`, `cullindirect`, `bigsort`, `pushmat`, `mplitmus`, `splat`, `splatfix`, `smembank`, `coalesce`, `atomcontend`, `barriercost`, `aluprobe`, `ubopalette`, `uboparams`, `bindless`, `bindlessu`, `rle`, `huffdec`, `lookback`, `hll`, `tricount`, `sha3`, `stereo`, `viterbi`, `viterbifix`. These are recorded and verified by `make asahi-verify` with the others;
 they are **PENDING** until then. The detailed procedure is in `tasks/spirv-workloads.md`.
 
 ## Why these
@@ -111,6 +111,8 @@ reference.
 | `tricount` | 65536 vertices, about 1.05M forward edges with skewed degrees (up to 1359), 101544 triangles | Exact per-edge counts and total |
 | `sha3` | 262144 messages of 64 bytes | Digests equal Python's `hashlib.sha3_256` (all at small size; 12021 sampled at large) |
 | `stereo` | 1024 × 512 synthetic layered scene (disparities 4-59), 64 disparities | Exact disparity map; fraction within 1 px of the true disparity reported (0.90 offline) |
+| `viterbi` | 8192 frames of 256 steps through a 3% bit-flip channel | Exact decoded bits (residual bit error rate about 1e-4 offline). Expected to FAIL on the M2: see note 37 |
+| `viterbifix` | The same frames | Exact decoded bits |
 
 ## Offline sanity checks (not hardware verification)
 
@@ -293,3 +295,17 @@ reference.
       the two census images, so it measures L1 hit throughput and `bitCount` rather than DRAM.
     - Predicted 3.6 ms (0.19 ms census, 3.4 ms matching). `within_1px_of_truth` shows that the output is a usable
       depth map, not just equal to the reference.
+37. **Viterbi decoding and a shift-mask compiler fusion.**
+    - The traceback tests bit `st & 31` of a survivor word as `(x >> (st & 31u)) & 1u`, with `st` up to 63. In
+      Mesa 25.2.8 and 26.0.3 the AGX backend compiles this to `bfeil r, 0, x, st, mask 0x1`. NIR drops the `& 31`
+      because `ushr` already masks its shift, and `agx_nir_algebraic.py`'s `fuse_ubfe` then turns shift-and-mask
+      into `ubitfield_extract` and a `bfeil` with the unmasked shift.
+    - The recorded M2 case `alu/bfeil_r14_r6_r7_r8` shows that `bfeil` takes 7 bits of its shift (shifts of 32 or
+      more give 0). The functional simulator, which matches that recording, therefore fails `viterbi`: states 32-63
+      read their decisions as 0, and about 30% of decoded bits are wrong. lavapipe passes.
+    - So the M2 is expected to fail `viterbi` the same way, and to pass `viterbifix`, which uses `bitfieldExtract`
+      with an explicitly masked offset (the compiler keeps that mask). `probes` reports both `mismatched_bits`.
+    - If the M2 passes `viterbi`, the hardware's `bfeil` with an immediate mask uses fewer shift bits than the
+      recorded case, and the simulator needs that distinction.
+    - Predicted time (viterbifix): about 3.6 ms for 8192 frames, dominated by 256 barrier-separated steps per
+      workgroup.

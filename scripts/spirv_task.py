@@ -596,6 +596,55 @@ def w_stereo(size, rng):
              ds, check, (16, 16, 1), {'items': n * 64})
 
 
+def viterbi_ref(rx):
+    """Hard-decision Viterbi for K = 7 (171, 133 octal) over frames rx[F, 256] (2 bits per step), ties to the
+    predecessor with top bit 0; returns input bits [F, 256]"""
+    F = rx.shape[0]
+    par = lambda v: np.array([bin(x).count('1') & 1 for x in v])
+    ns = np.arange(64); b = ns & 1
+    pred = [(ns >> 1) | (k << 5) for k in (0, 1)]
+    out = [(par(((p << 1) | b) & 121), par(((p << 1) | b) & 91)) for p in pred]
+    pm = np.full((F, 64), 1000, np.int64); pm[:, 0] = 0
+    surv = np.zeros((F, 256, 64), np.uint8)
+    for t in range(256):
+        r0 = (rx[:, t] & 1).astype(np.int64)[:, None]; r1 = (rx[:, t] >> 1).astype(np.int64)[:, None]
+        m = [pm[:, pred[k]] + (out[k][0][None, :] ^ r0) + (out[k][1][None, :] ^ r1) for k in (0, 1)]
+        pick = m[1] < m[0]
+        surv[:, t] = pick; pm = np.where(pick, m[1], m[0])
+    st = np.zeros(F, np.int64); bits = np.zeros((F, 256), np.uint8)
+    for t in range(255, -1, -1):
+        bits[:, t] = st & 1
+        k = surv[np.arange(F), t, st].astype(np.int64)
+        st = (st >> 1) | (k << 5)
+    return bits
+
+
+def w_viterbi(size, rng):
+    F = 64 if size == 'small' else 8192
+    data = np.zeros((F, 256), np.int64); data[:, :250] = rng.integers(0, 2, (F, 250))
+    reg = np.zeros(F, np.int64); rx = np.zeros((F, 256), np.uint32)
+    for t in range(256):
+        full = ((reg << 1) | data[:, t]) & 127
+        e0 = np.array([bin(int(x) & 121).count('1') & 1 for x in full]); e1 = np.array([bin(int(x) & 91).count('1') & 1 for x in full])
+        flip = rng.random((F, 2)) < 0.03                                       # binary symmetric channel
+        rx[:, t] = (e0 ^ flip[:, 0]) | ((e1 ^ flip[:, 1]) << 1)
+        reg = full & 63
+    ref = viterbi_ref(rx)
+    def check(o):
+        words = o[1].view(np.uint32)[:8 * F].reshape(F, 8)
+        got = ((words[:, :, None] >> np.arange(32, dtype=np.uint32)) & 1).reshape(F, 256)
+        bad = int(np.sum(got != ref))
+        return bad == 0, {'mismatched_bits': bad, 'residual_ber': float(np.mean(got[:, :250] != data[:, :250])),
+                          'channel_ber': 0.03}
+    return W('viterbi', {0: (u32(rx), False), 1: (32 * F, True)}, [(F, 1, 1, b'')], check, 64, {'items': F * 256})
+
+
+def w_viterbifix(size, rng):
+    w = w_viterbi(size, rng)
+    w.shader = 'viterbifix'
+    return w
+
+
 def w_spmv(size, rng):
     rows, cols = (512, 512) if size == 'small' else (1 << 18, 1 << 18)
     nnz = rng.integers(0, 64, rows) * (rng.random(rows) < 0.95)    # some empty rows
@@ -3125,7 +3174,7 @@ WORKLOADS = {'reduce': w_reduce, 'scan': w_scan, 'sgemm': w_sgemm, 'conv2d': w_c
              'aluprobe': w_aluprobe, 'ubopalette': w_ubopalette, 'uboparams': w_uboparams,
              'bindless': w_bindless, 'bindlessu': w_bindlessu,
              # appended only: the input seed is the index in this dict
-             'rle': w_rle, 'huffdec': w_huffdec, 'lookback': w_lookback, 'hll': w_hll, 'tricount': w_tricount, 'sha3': w_sha3, 'stereo': w_stereo}
+             'rle': w_rle, 'huffdec': w_huffdec, 'lookback': w_lookback, 'hll': w_hll, 'tricount': w_tricount, 'sha3': w_sha3, 'stereo': w_stereo, 'viterbi': w_viterbi, 'viterbifix': w_viterbifix}
 
 
 # ---------------------------------------------------------------------------------------------------------------
@@ -3920,7 +3969,8 @@ def cmd_probes(a):
                                              {'dispatches': len(v), 'median': round(float(np.median(v)), 2), 'min': round(min(v), 2), 'max': round(max(v), 2)})
         rows.append({'probe': name, 'measured_us': show(m), 'predicted_us': show(p_), **derive(m, p_)})
     functional = {'texfilter': 'best_subtexel_bits', 'imgtonemap': 'round_to_nearest_fraction', 'mplitmus': 'relaxed_stale_reads',
-                  'f16pack': 'half_mismatches', 'lookback': 'mean_lookback_steps'}
+                  'f16pack': 'half_mismatches', 'lookback': 'mean_lookback_steps',
+                  'viterbi': 'mismatched_bits', 'viterbifix': 'mismatched_bits'}
     for name, key in functional.items():
         r = rec_of(name)
         if r is None:
