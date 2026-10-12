@@ -533,6 +533,11 @@ fn int_to_float(v: i64, half: bool, rtz: bool) -> u64 {
     if !rtz {
         return near;
     }
+    // round toward zero still overflows to ±inf past the fp16 exponent range: 65535 -> 65504 but 65536 -> inf
+    // (coverage convert u32_to_f mode 8 / 9 with a 16-bit destination)
+    if half && v.unsigned_abs() >= 1 << 16 {
+        return if v < 0 { 0xfc00 } else { 0x7c00 };
+    }
     let mag = |b: u64| -> f64 {
         if half { f64::from_bits(f16_to_f64(b, false)).abs() } else { (f32::from_bits(b as u32) as f64).abs() }
     };

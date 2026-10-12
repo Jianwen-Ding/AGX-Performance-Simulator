@@ -52,6 +52,10 @@ fn load(p: &std::path::Path) -> Value {
 
 /// Ok(None) = pass; Ok(Some(msg)) = mismatch; Err = simulator error
 static TRACES: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+/// hardware words accepted as one of several racing stores' values, and placement-dependent words not compared
+static RACE_WORDS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+static PLACE_WORDS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+use std::sync::atomic::Ordering::Relaxed;
 
 /// --traces: the first workgroup's SIMD-group paths from the functional simulator (real memory) against the cost
 /// model's own emulation (memory read as zero); they agree wherever control flow and addresses do not depend on data.
@@ -91,7 +95,7 @@ pub fn check(c: &Value) -> Result<Option<String>, String> {
     let tlen = table.len();
     mem.map(out_va, out_init);
     mem.map(table_va, table);
-    let d = Dispatch {
+    let mut d = Dispatch {
         code: hex(c["code"].as_str().unwrap()),
         grid: dim("grid"),
         wg: dim("wg"),
@@ -99,16 +103,57 @@ pub fn check(c: &Value) -> Result<Option<String>, String> {
         uniforms: vec![(4, 0), (5, count), (6, out_va as u32), (7, (out_va >> 32) as u32), (8, table_va as u32), (9, (table_va >> 32) as u32)],
         num_registers: 128,
         max_steps: 50_000_000,
+        placement: 0,
     };
     if TRACES.load(std::sync::atomic::Ordering::Relaxed) {
         return compare_traces(&d, &mem);
     }
-    func::run(&d, &mut mem)?;
+    let fresh = mem.clone();
+    mem.log = Some(Default::default());
+    let stats = func::run(&d, &mut mem)?;
     let got_out = mem.words(out_va, out_words)?;
     let got_tab = mem.words(table_va, tlen / 4)?;
+    // results that change with another workgroup placement (sr17 slot, sr20 core id) cannot be predicted: not compared
+    let (mut alt_out, mut alt_tab) = (got_out.clone(), got_tab.clone());
+    if stats.placement_read {
+        d.placement = 1;
+        let mut m = fresh;
+        func::run(&d, &mut m)?;
+        alt_out = m.words(out_va, out_words)?;
+        alt_tab = m.words(table_va, tlen / 4)?;
+    }
+    // a word may differ from the simulation only where SIMD groups raced on it (stores to the same address with
+    // no ordering between them): then every byte must be the last value one of the racing groups stored
+    let racy = |va: u64, got: u32, want: u32| -> bool {
+        (0..4).all(|k| {
+            let (g, w) = ((got >> (8 * k)) as u8, (want >> (8 * k)) as u8);
+            g == w || mem.racing(va + k as u64).is_some_and(|c| c.contains(&w))
+        })
+    };
+    let (mut n_race, mut n_place) = (0u64, 0u64);
+    let mut settle = |base: u64, got: &[u32], alt: &[u32], want: &[u32]| -> Vec<u32> {
+        got.iter().enumerate().map(|(i, &g)| {
+            let w = *want.get(i).unwrap_or(&g);
+            if g == w {
+                g
+            } else if alt[i] != g {
+                n_place += 1;
+                w
+            } else if racy(base + 4 * i as u64, g, w) {
+                n_race += 1;
+                w
+            } else {
+                g
+            }
+        }).collect()
+    };
     let want_out = words(&b64(c["expect"]["out"].as_str().unwrap()));
     let want_tab = words(&b64(c["expect"]["table"].as_str().unwrap()));
     let det = |k: &str| c.get(k).and_then(Value::as_bool).unwrap_or(true);
+    let got_out = if det("deterministic_out") { settle(out_va, &got_out, &alt_out, &want_out) } else { got_out };
+    let got_tab = if det("deterministic_table") { settle(table_va, &got_tab, &alt_tab, &want_tab) } else { got_tab };
+    RACE_WORDS.fetch_add(n_race, Relaxed);
+    PLACE_WORDS.fetch_add(n_place, Relaxed);
     // order-dependent words (contended atomics) are not compared: [start, end, step]
     let mut skip = vec![false; want_tab.len()];
     for r in c.get("ignore_table").and_then(Value::as_array).into_iter().flatten() {
@@ -183,6 +228,10 @@ fn main() {
         t += ok + mis + err;
     }
     println!("total        pass {:4} / {:4}", p, t);
+    let (r, pl) = (RACE_WORDS.load(Relaxed), PLACE_WORDS.load(Relaxed));
+    if r + pl > 0 {
+        println!("words taken from racing stores: {}; placement-dependent words (sr17 / sr20) not compared: {}", r, pl);
+    }
     if !reasons.is_empty() {
         println!("unsupported (first error per case): {:?}", reasons);
     }

@@ -74,7 +74,7 @@ fn main() {
         Some(p) => Some(func::run_preamble(p, &uniforms, &mut mem, regs).unwrap_or_else(|e| die(&format!("preamble: {}", e)))),
         None => None,
     };
-    let d = Dispatch { code, grid, wg, shared_bytes: shared, uniforms: after.clone().unwrap_or(uniforms), num_registers: regs, max_steps };
+    let d = Dispatch { code, grid, wg, shared_bytes: shared, uniforms: after.clone().unwrap_or(uniforms), num_registers: regs, max_steps, placement: 0 };
     let st = func::run(&d, &mut mem).unwrap_or_else(|e| die(&e));
     for (va, n, f) in &dumps {
         let mut b = Vec::with_capacity(*n);

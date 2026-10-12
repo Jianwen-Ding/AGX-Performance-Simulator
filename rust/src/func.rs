@@ -17,6 +17,11 @@ use crate::isa::{self, compiled::Compiled, exec::CoreState, fget, Desc, Fields, 
 #[derive(Clone, Debug, Default)]
 pub struct Memory {
     pub regions: Vec<(u64, std::sync::Arc<Vec<u8>>)>,
+    /// optional log of device stores, for checking racing writes: byte address -> the last byte each writer
+    /// (SIMD group, `writer`) stored there, in first-write order. None: not recorded.
+    pub log: Option<std::collections::HashMap<u64, Vec<(u64, u8)>>>,
+    /// the SIMD group now running: (linear workgroup index << 16) | group in workgroup
+    pub writer: u64,
 }
 
 impl Memory {
@@ -43,6 +48,28 @@ impl Memory {
         }
         Ok(())
     }
+    /// `write` from a device store, also recorded in `log` when logging is on
+    pub fn store(&mut self, va: u64, len: usize, v: u64) -> Result<(), String> {
+        self.write(va, len, v)?;
+        let w = self.writer;
+        if let Some(log) = self.log.as_mut() {
+            for k in 0..len {
+                let e = log.entry(va + k as u64).or_default();
+                let b = (v >> (8 * k)) as u8;
+                match e.iter_mut().find(|(x, _)| *x == w) {
+                    Some(slot) => slot.1 = b,
+                    None => e.push((w, b)),
+                }
+            }
+        }
+        Ok(())
+    }
+    /// The values a byte can hold after the run when SIMD groups raced on it: the last byte of every writer
+    /// group, or None if at most one group stored to it (then the simulated value is exact).
+    pub fn racing(&self, va: u64) -> Option<Vec<u8>> {
+        let e = self.log.as_ref()?.get(&va)?;
+        (e.len() > 1).then(|| e.iter().map(|x| x.1).collect())
+    }
     pub fn words(&self, va: u64, n: usize) -> Result<Vec<u32>, String> {
         (0..n).map(|k| self.read(va + 4 * k as u64, 4).map(|x| x as u32)).collect()
     }
@@ -58,12 +85,18 @@ pub struct Dispatch {
     pub uniforms: Vec<(usize, u32)>,
     pub num_registers: usize,
     pub max_steps: u64,
+    /// 0: every workgroup alone on core 0 (sr20 = 0, sr17 = SIMD group in workgroup). Otherwise a seed for a
+    /// different placement (other core ids; with more than one workgroup, other hardware slots), so a checker can
+    /// tell which results depend on where the hardware happened to place the workgroups.
+    pub placement: u32,
 }
 
 #[derive(Debug, Default)]
 pub struct RunStats {
     pub instructions: u64,
     pub groups: u64,
+    /// the program read a placement-dependent special register (sr17 slot, sr20 core id)
+    pub placement_read: bool,
 }
 
 struct Info {
@@ -84,6 +117,7 @@ enum OpKind {
     Jmp { any: bool },
     TgBarrier,
     Nop,
+    Wait,
     GetSr,
     DevMem { load: bool },
     Stack { load: bool },
@@ -111,7 +145,8 @@ fn op_kind(name: &'static str) -> OpKind {
         "jmp_exec_any" => Jmp { any: true },
         "jmp_exec_none" => Jmp { any: false },
         "threadgroup_barrier" => TgBarrier,
-        "wait" | "memory_barrier" => Nop,
+        "wait" => Wait,
+        "memory_barrier" => Nop,
         "get_sr" => GetSr,
         // the .TODO encodings differ from the plain ones only in control bits (Mesa emits them for Vulkan-memory-model
         // atomic loads / stores, between memory_barrier sequences); on one sequentially simulated memory they read and
@@ -152,6 +187,9 @@ struct Group {
     trace: Option<Trace>,
     /// per-lane private stack (scratch) memory for stack_store / stack_load, grown on demand
     stack: Vec<Vec<u8>>,
+    /// device loads issued on scoreboard slot != 0 whose register writes land at the `wait` on that slot:
+    /// (slot, [(32-bit register?, register, component, lane, value)])
+    pending: Vec<(u64, Vec<(bool, usize, usize, usize, i128)>)>,
 }
 
 fn ext(v: i128, bits: u32, signed: bool) -> i128 {
@@ -205,6 +243,26 @@ pub fn trace_workgroups(d: &Dispatch, mem: &Memory, wgs: &[[u32; 3]]) -> Result<
     .collect()
 }
 
+fn wg_linear(d: &Dispatch, [wx, wy, wz]: [u32; 3]) -> u64 {
+    let dims: Vec<u64> = (0..3).map(|i| d.grid[i].div_ceil(d.wg[i]) as u64).collect();
+    wx as u64 + dims[0] * (wy as u64 + dims[1] * wz as u64)
+}
+
+/// (sr20 core id, sr17 hardware slot) of SIMD group `g` of a workgroup under `d.placement`. The hardware gives
+/// every workgroup some core (SR20 = cluster << 4 | core) and its groups slots that equal the group index only
+/// while the core holds nothing else (playground sr-geometry-core-id, sr17-sr32).
+fn placement(d: &Dispatch, wg: [u32; 3], g: u32) -> (u32, u32) {
+    if d.placement == 0 {
+        return (0, g);
+    }
+    let w = wg_linear(d, wg);
+    let gpw = (d.wg[0] * d.wg[1] * d.wg[2]).div_ceil(32);
+    let several = (0..3).any(|i| d.grid[i] > d.wg[i]);
+    let core = 1 + ((w * 7 + d.placement as u64) % 50) as u32;
+    let slot = if several { g + gpw * (1 + ((w + d.placement as u64) % 3) as u32) } else { g };
+    (core, slot)
+}
+
 fn run_workgroup(d: &Dispatch, cache: &mut [Option<Info>], mem: &mut Memory, [wx, wy, wz]: [u32; 3], record: bool,
                  stats: &mut RunStats) -> Result<Vec<Trace>, String> {
     let code = &d.code;
@@ -213,7 +271,8 @@ fn run_workgroup(d: &Dispatch, cache: &mut [Option<Info>], mem: &mut Memory, [wx
     let mut tg = vec![0u8; d.shared_bytes.max(16) as usize];
     let mut groups: Vec<Group> = (0..gpw)
         .map(|g| {
-            let ctx = GroupCtx { wg_size: d.wg, wg_id: [wx, wy, wz], group: g, core: 0, slot: g, uniforms: d.uniforms.clone() };
+            let (core, slot) = placement(d, [wx, wy, wz], g);
+            let ctx = GroupCtx { wg_size: d.wg, wg_id: [wx, wy, wz], group: g, core, slot, uniforms: d.uniforms.clone() };
             let mut st = CoreState::new(d.num_registers, None);
             let lanes = ctx.lanes();
             for t in 0..32 {
@@ -227,7 +286,7 @@ fn run_workgroup(d: &Dispatch, cache: &mut [Option<Info>], mem: &mut Memory, [wx
                 st.uniforms[2 * u] = (v & 0xffff) as u16;
                 st.uniforms[2 * u + 1] = (v >> 16) as u16;
             }
-            Group { st, ctx, pc: 0, done: false, trace: if record { Some(Trace::default()) } else { None }, stack: vec![] }
+            Group { st, ctx, pc: 0, done: false, trace: if record { Some(Trace::default()) } else { None }, stack: vec![], pending: vec![] }
         })
         .collect();
     stats.groups += groups.len() as u64;
@@ -238,6 +297,7 @@ fn run_workgroup(d: &Dispatch, cache: &mut [Option<Info>], mem: &mut Memory, [wx
             if g.done {
                 continue;
             }
+            mem.writer = wg_linear(d, [wx, wy, wz]) << 16 | gi as u64;
             match step_group(g, code, cache, mem, &mut tg, d.max_steps, stats)? {
                 Stop::Done => g.done = true,
                 Stop::Barrier(k) => at_barrier[gi] = Some(k),
@@ -323,8 +383,24 @@ fn step_group(g: &mut Group, code: &[u8], cache: &mut [Option<Info>], mem: &mut 
                 return Ok(Stop::Barrier(1));
             }
             OpKind::Nop => {}
+            OpKind::Wait => {
+                // a wait on slot s completes the loads issued on s (in issue order)
+                let slot = x("i");
+                let mut keep = vec![];
+                for (s, writes) in std::mem::take(&mut g.pending) {
+                    if s == slot {
+                        for (rt, r, k, t, v) in writes {
+                            put(&mut g.st, rt, r, k, t, v)?;
+                        }
+                    } else {
+                        keep.push((s, writes));
+                    }
+                }
+                g.pending = keep;
+            }
             OpKind::GetSr => {
                 let sr = x("SR") as u32;
+                stats.placement_read |= sr == 17 || sr == 20;
                 // 32-bit or 16-bit destination (Mesa writes e.g. sr58 to a half register); a half takes the low 16 bits
                 let (dr, half) = match info.ops.first() {
                     Some(Operand::Reg32(r, _)) => (*r as usize, false),
@@ -473,7 +549,7 @@ pub fn run_preamble(code: &[u8], uniforms: &[(usize, u32)], mem: &mut Memory, nu
         st.uniforms[2 * u] = (v & 0xffff) as u16;
         st.uniforms[2 * u + 1] = (v >> 16) as u16;
     }
-    let mut g = Group { st, ctx, pc: 0, done: false, trace: None, stack: vec![] };
+    let mut g = Group { st, ctx, pc: 0, done: false, trace: None, stack: vec![], pending: vec![] };
     let mut cache: Vec<Option<Info>> = (0..code.len()).map(|_| None).collect();
     let mut tg = vec![0u8; 16];
     let mut stats = RunStats::default();
@@ -505,6 +581,11 @@ fn device_mem(g: &mut Group, f: &Fields, mem: &mut Memory, load: bool) -> Result
     let shift = if x("s") == 3 { 2 } else { x("s") };
     let mask = x("mask");
     let (r, rt) = (x("R") as usize, x("Rt") != 0);
+    // scoreboard slot (applegpu `g`, Mesa scoreboard bit 0): a load on slot 1 writes its registers only at `wait 1`;
+    // read before that, the destination keeps its old value (coverage mem_load device_load_1_*: `wait 0` leaves
+    // the preloaded 0xdeadbeef). Slot-0 loads complete at once (every program waits on slot 0 before reading).
+    let slot = x("g");
+    let mut deferred = vec![];
     // per-lane element address
     let mut addr = [0i128; 32];
     for t in 0..32 {
@@ -527,7 +608,9 @@ fn device_mem(g: &mut Group, f: &Fields, mem: &mut Memory, load: bool) -> Result
         if mask & (1 << c) == 0 {
             continue;
         }
-        for t in 0..32 {
+        // lanes from the highest down: when lanes of one store hit the same address the lowest lane's value stays
+        // (coverage geometry: in 2-D workgroups lane 0's row wins over the rows above it in the same SIMD group)
+        for t in (0..32).rev() {
             if !g.st.exec[t] {
                 continue;
             }
@@ -535,13 +618,20 @@ fn device_mem(g: &mut Group, f: &Fields, mem: &mut Memory, load: bool) -> Result
             if load {
                 let v = mem.read(va, item as usize)?;
                 let v = if fmt == 4 { unorm8(v, rt) } else { v as i128 };
-                put(&mut g.st, rt, r, k, t, v)?;
+                if slot != 0 {
+                    deferred.push((rt, r, k, t, v));
+                } else {
+                    put(&mut g.st, rt, r, k, t, v)?;
+                }
             } else {
                 let v = get(&g.st, rt, r, k, t)?;
-                mem.write(va, item as usize, v as u64)?;
+                mem.store(va, item as usize, v as u64)?;
             }
         }
         k += 1;
+    }
+    if !deferred.is_empty() {
+        g.pending.push((slot, deferred));
     }
     Ok(())
 }
