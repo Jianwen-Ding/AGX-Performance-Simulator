@@ -1,7 +1,7 @@
 # Task SPIR-V 8: applications (ray tracer, neural networks, image processing, cellular automaton, graph search,
 # encryption, hashing, text, compression)
 
-**Workloads:** `raytrace`, `mlp`, `sobel`, `life`, `bfs`, `conv_layer`, `hist_eq`, `aes`, `hash_table`, `word_count`, `dct8`, `attention`, `resize`, `median3`, `poisson`, `lbm`, `base64`, `md5`, `gemv`, `levenshtein`, `blur`, `yuv420`, `montecarlo`. These are recorded and verified by `make asahi-verify` with the others;
+**Workloads:** `raytrace`, `mlp`, `sobel`, `life`, `bfs`, `conv_layer`, `hist_eq`, `aes`, `hash_table`, `word_count`, `dct8`, `attention`, `resize`, `median3`, `poisson`, `lbm`, `base64`, `md5`, `gemv`, `levenshtein`, `blur`, `yuv420`, `montecarlo`, `xxhash`, `bloom`, `collatz`, `tridiag`. These are recorded and verified by `make asahi-verify` with the others;
 they are **PENDING** until then. The detailed procedure is in `tasks/spirv-workloads.md`.
 
 ## Why these
@@ -35,11 +35,15 @@ reference.
 | `blur` | Separable 9-tap Gaussian blur of a 3840 × 2160 fp32 image, row pass then column pass | Within 40 ulp of the image maximum (float64 reference) |
 | `yuv420` | RGBA8 → NV12 (BT.601 limited range, integer coefficients) at 3840 × 2160 | Byte-exact luma and chroma planes; `sim_image1.pgm` / `image1.pgm` show the luma |
 | `montecarlo` | π from 2^28 PCG-hashed points with 15-bit integer coordinates | Exact per-thread counts and total (subgroup sum, one atomic per subgroup) |
+| `xxhash` | xxHash32 of 131072 records of 1036 bytes (deduplication) | Exact; the numpy reference matches the xxHash library |
+| `bloom` | Bloom filter of 2^21 keys (10 bits per key, 6 hashes): insert with `atomicOr`, then query | Exact bit array and answers; no false negatives, ~0.8% false positives |
+| `collatz` | 3n + 1 trajectories of 2^20 starts below 2^31 in uint64: steps and peak | Exact; per-lane trip counts from 20 to ~800 steps (divergence) |
+| `tridiag` | 65536 tridiagonal 64 × 64 systems, Thomas algorithm per thread | Within 64 ulp of float64 `numpy.linalg.solve`; private arrays go to the stack |
 
 ## Offline sanity checks (not hardware verification)
 
 - **lavapipe:** all pass at both sizes.
-- **Shim-compiled Mesa 25.2.8 and 26.0.3 code on the functional simulator:** 46 of 46.
+- **Shim-compiled Mesa 25.2.8 and 26.0.3 code on the functional simulator:** 54 of 54.
   - `bfs` found a simulator bug. Mesa aggregates `atomicAdd(found[l], 1)` under divergence: one lane, chosen with SR58
     (`active_thread_index_in_simdgroup`), adds SR59, the number of active lanes. The simulator modelled both from the
     launch shape (lane index, 32), which is only right when every lane is active, so the counts came out as multiples
@@ -67,3 +71,6 @@ reference.
 6. `levenshtein`, `yuv420` and `montecarlo` are exact and must PASS. `levenshtein` is the first workload where the
    compiler turns a dynamically indexed private array into register selects; compare its time with `predict`, since
    the select chains make it ALU-bound. `blur` is CLOSE or PASS; report megapixels per second for both passes.
+7. `xxhash`, `bloom` and `collatz` are exact and must PASS. `tridiag` divides, so expect CLOSE; report its largest
+   difference. Mesa 25.2.8 compiles it to 1304 instructions and 26.0.3 to 2266 (about 900 extra `xor`), and the
+   simulator executes twice as many with 26.0.3: note which Mesa the M2 runs and compare the time with `predict`.

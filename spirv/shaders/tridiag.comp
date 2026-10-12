@@ -1,0 +1,31 @@
+#version 450
+// Batched tridiagonal solves (Thomas algorithm), one 64-unknown system per thread, as in implicit diffusion / ADI
+// and cubic-spline fitting: forward elimination into private arrays (dynamically indexed: scratch memory or
+// registers), then back substitution. fp32 with divisions; checked against float64.
+layout(local_size_x = 64) in;
+layout(std430, binding = 0) readonly buffer A { float lo[]; };    // sub-diagonal (lo[0] unused)
+layout(std430, binding = 1) readonly buffer B { float di[]; };    // diagonal
+layout(std430, binding = 2) readonly buffer C { float up[]; };    // super-diagonal (up[63] unused)
+layout(std430, binding = 3) readonly buffer D { float rhs[]; };
+layout(std430, binding = 4) writeonly buffer X { float x[]; };
+layout(push_constant) uniform P { uint n; } p;
+
+void main() {
+    uint s = gl_GlobalInvocationID.x;
+    if (s >= p.n) return;
+    uint o = s * 64u;
+    float cp[64], dp[64];
+    cp[0] = up[o] / di[o];
+    dp[0] = rhs[o] / di[o];
+    for (uint k = 1u; k < 64u; k++) {
+        float m = di[o + k] - lo[o + k] * cp[k - 1u];
+        cp[k] = up[o + k] / m;
+        dp[k] = (rhs[o + k] - lo[o + k] * dp[k - 1u]) / m;
+    }
+    float xv = dp[63];
+    x[o + 63u] = xv;
+    for (int k = 62; k >= 0; k--) {
+        xv = dp[k] - cp[k] * xv;
+        x[o + uint(k)] = xv;
+    }
+}

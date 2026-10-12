@@ -1,0 +1,22 @@
+{
+ "blob": "spirv/compiled/mesa-26.0.3/tridiag/shader.bin",
+ "code_start": 2244,
+ "code_size": 16920,
+ "layout": "agx_shader_info",
+ "programs": [
+  {
+   "label": "main",
+   "file": "main.bin",
+   "offset": 0,
+   "bytes": 16656,
+   "instructions": 2266
+  },
+  {
+   "label": "preamble",
+   "file": "preamble.bin",
+   "offset": 16768,
+   "bytes": 136,
+   "instructions": 23
+  }
+ ]
+}

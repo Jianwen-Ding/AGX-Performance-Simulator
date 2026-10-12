@@ -1,0 +1,24 @@
+#version 450
+// Collatz (3n + 1) trajectories in 64-bit integers: steps to reach 1 and the peak value, one start per thread.
+// Loop trip counts differ per lane (tens to hundreds of steps), so SIMD groups diverge and wait on their longest
+// lane. Integer-exact (uint64 multiply-add and shifts).
+#extension GL_ARB_gpu_shader_int64 : require
+layout(local_size_x = 64) in;
+layout(std430, binding = 0) readonly buffer S { uint64_t starts[]; };
+layout(std430, binding = 1) writeonly buffer O { uint steps[]; };
+layout(std430, binding = 2) writeonly buffer M { uint64_t peaks[]; };
+layout(push_constant) uniform P { uint n; } p;
+
+void main() {
+    uint i = gl_GlobalInvocationID.x;
+    if (i >= p.n) return;
+    uint64_t x = starts[i], peak = x;
+    uint s = 0u;
+    while (x != 1ul) {
+        x = (x & 1ul) != 0ul ? 3ul * x + 1ul : x >> 1;
+        peak = max(peak, x);
+        s++;
+    }
+    steps[i] = s;
+    peaks[i] = peak;
+}

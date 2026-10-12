@@ -1239,6 +1239,112 @@ def w_montecarlo(size, rng):
              {'samples': 64 * n})
 
 
+XXP1, XXP2, XXP3, XXP4 = 2654435761, 2246822519, 3266489917, 668265263
+
+
+def rotl32(x, r): return ((x << r) | (x >> (32 - r))) & 0xffffffff
+
+
+def xxh32_rows(words, seed):
+    """xxHash32 of each row of uint32 words (byte length 4 * columns), vectorised over rows in uint64 arithmetic"""
+    M = 0xffffffff
+    n, L = words.shape
+    w = words.astype(np.uint64)
+    v = [np.full(n, (seed + XXP1 + XXP2) & M, np.uint64), np.full(n, (seed + XXP2) & M, np.uint64),
+         np.full(n, seed & M, np.uint64), np.full(n, (seed - XXP1) & M, np.uint64)]
+    for i in range(L // 4):
+        for j in range(4):
+            v[j] = (rotl32((v[j] + w[:, 4 * i + j] * XXP2) & M, 13) * XXP1) & M
+    h = (rotl32(v[0], 1) + rotl32(v[1], 7) + rotl32(v[2], 12) + rotl32(v[3], 18) + 4 * L) & M
+    for i in range(4 * (L // 4), L):
+        h = (rotl32((h + w[:, i] * XXP3) & M, 17) * XXP4) & M
+    h ^= h >> 15; h = (h * XXP2) & M; h ^= h >> 13; h = (h * XXP3) & M; h ^= h >> 16
+    return h
+
+
+def w_xxhash(size, rng):
+    n, L = (256 if size == 'small' else 1 << 17), 259                       # 1036-byte records: 64 stripes + 3 tail words
+    data = u32(rng.integers(0, 1 << 32, (n, L), dtype=np.uint64))
+    data[1::7] = data[0::7][:len(data[1::7])]                               # duplicate records hash alike
+    seed = 0x9747b28c
+    def check(o):
+        got = o[1].view(np.uint32)[:n]
+        ref = xxh32_rows(data, seed).astype(np.uint32)
+        return np.array_equal(got, ref), {'mismatches': int(np.sum(got != ref)), 'distinct_hashes': int(len(np.unique(got)))}
+    return W('xxhash', {0: (data, False), 1: (4 * n, True)}, [((n + 63) // 64, 1, 1, push(n, L, seed))], check, 64,
+             {'bytes': 4 * n * L})
+
+
+def fmix32(h):
+    M = 0xffffffff
+    h = h ^ (h >> 16); h = (h * 0x85ebca6b) & M; h ^= h >> 13; h = (h * 0xc2b2ae35) & M; h ^= h >> 16
+    return h
+
+
+def w_bloom(size, rng):
+    n = 1000 if size == 'small' else 1 << 21
+    mbits = 32 * ((10 * n + 31) // 32)                                       # 10 bits per key, 6 hashes: ~0.8% false positives
+    pool = u32(rng.choice(1 << 32, 2 * n, replace=False))
+    keys = pool[:n]
+    queries = u32(np.concatenate([rng.permutation(keys)[:n // 2], pool[n:n + n - n // 2]]))
+    def bit_positions(k):
+        k = k.astype(np.uint64)
+        h1, h2 = fmix32(k), fmix32(k ^ 0x9e3779b9) | 1
+        return [((h1 + j * h2) & 0xffffffff) % mbits for j in range(6)]
+    def check(o):
+        bits = o[1].view(np.uint32)[:mbits // 32]; hits = o[3].view(np.uint32)[:n]
+        ref = np.zeros(mbits, bool)
+        for b in bit_positions(keys): ref[b.astype(np.int64)] = True
+        ref_bits = np.packbits(ref.reshape(-1, 32)[:, ::-1], axis=1).view('>u4').ravel()
+        ref_hits = np.all([ref[b.astype(np.int64)] for b in bit_positions(queries)], axis=0).astype(np.uint32)
+        ok = np.array_equal(bits, ref_bits) and np.array_equal(hits, ref_hits)
+        return ok, {'bit_mismatches': int(np.sum(bits != ref_bits)), 'hit_mismatches': int(np.sum(hits != ref_hits)),
+                    'false_negatives': int(np.sum(hits[:n // 2] == 0)), 'false_positive_rate': float(np.mean(hits[n // 2:]))}
+    ds = [((n + 255) // 256, 1, 1, push(n, mbits, k)) for k in range(2)]
+    return W('bloom', {0: (keys, False), 1: (u32(np.zeros(mbits // 32)), True), 2: (queries, False), 3: (4 * n, True)}, ds, check, 256,
+             {'keys': n})
+
+
+def w_collatz(size, rng):
+    n = 512 if size == 'small' else 1 << 20
+    starts = rng.integers(2, 1 << 31, n, dtype=np.uint64)
+    starts[:4] = [27, 97, 871, 77031]                                         # long known trajectories (111, 118, 178, 350 steps)
+    def check(o):
+        steps = o[1].view(np.uint32)[:n]; peaks = o[2].view(np.uint64)[:n]
+        x = starts.copy(); pk = x.copy(); st = np.zeros(n, np.uint32); live = x != 1
+        while live.any():
+            xv = x[live]
+            xv = np.where(xv & 1, 3 * xv + 1, xv >> 1)
+            assert int(xv.max()) < 1 << 62
+            x[live] = xv; pk[live] = np.maximum(pk[live], xv); st[live] += 1
+            live = x != 1
+        ok = np.array_equal(steps, st) and np.array_equal(peaks, pk)
+        return ok, {'step_mismatches': int(np.sum(steps != st)), 'peak_mismatches': int(np.sum(peaks != pk)),
+                    'max_steps': int(st.max()), 'mean_steps': float(st.mean()), 'max_peak': int(pk.max())}
+    return W('collatz', {0: (starts, False), 1: (4 * n, True), 2: (8 * n, True)}, [((n + 63) // 64, 1, 1, push(n))], check, 64,
+             {'starts': n})
+
+
+def w_tridiag(size, rng):
+    S = 256 if size == 'small' else 1 << 16
+    lo = f32(rng.uniform(-1, 1, (S, 64))); up = f32(rng.uniform(-1, 1, (S, 64)))
+    lo[:, 0] = 0; up[:, 63] = 0
+    di = f32((np.abs(lo) + np.abs(up)) * rng.choice([-1, 1], (S, 64)) * rng.uniform(1.5, 3, (S, 64)))   # diagonally dominant
+    di[di == 0] = 1
+    rhs = f32(rng.uniform(-1, 1, (S, 64)))
+    def check(o):
+        got = o[4].view(np.float32)[:S * 64].reshape(S, 64).astype(np.float64)
+        A = np.zeros((S, 64, 64))
+        i = np.arange(64)
+        A[:, i, i] = di; A[:, i[1:], i[:-1]] = lo[:, 1:]; A[:, i[:-1], i[1:]] = up[:, :-1]
+        ref = np.linalg.solve(A, rhs.astype(np.float64)[..., None])[..., 0]
+        err = float(np.max(np.abs(got - ref) / np.max(np.abs(ref), axis=1, keepdims=True)))
+        bound = 64 * 2.0 ** -24                                                  # 64 eliminations, each a few ulp at most
+        return err <= bound, {'max_rel_err': err, 'bound': bound}
+    return W('tridiag', {0: (lo, False), 1: (di, False), 2: (up, False), 3: (rhs, False), 4: (4 * S * 64, True)},
+             [((S + 63) // 64, 1, 1, push(S))], check, 64, {'systems': S, 'unknowns': 64 * S})
+
+
 WORKLOADS = {'reduce': w_reduce, 'scan': w_scan, 'sgemm': w_sgemm, 'conv2d': w_conv2d, 'histogram': w_histogram,
              'nbody': w_nbody, 'bitonic': w_bitonic, 'sha256': w_sha256, 'fp16': w_fp16, 'int64': w_int64, 'bitops': w_bitops,
              'intdiv': w_intdiv, 'compact': w_compact, 'spmv': w_spmv, 'transpose': w_transpose, 'mandelbrot': w_mandelbrot,
@@ -1249,7 +1355,8 @@ WORKLOADS = {'reduce': w_reduce, 'scan': w_scan, 'sgemm': w_sgemm, 'conv2d': w_c
              'hist_eq': w_hist_eq, 'aes': w_aes, 'hash_table': w_hash_table, 'word_count': w_word_count, 'dct8': w_dct8,
              'attention': w_attention, 'resize': w_resize, 'median3': w_median3, 'poisson': w_poisson,
              'lbm': w_lbm, 'base64': w_base64, 'md5': w_md5, 'gemv': w_gemv,
-             'levenshtein': w_levenshtein, 'blur': w_blur, 'yuv420': w_yuv420, 'montecarlo': w_montecarlo}
+             'levenshtein': w_levenshtein, 'blur': w_blur, 'yuv420': w_yuv420, 'montecarlo': w_montecarlo,
+             'xxhash': w_xxhash, 'bloom': w_bloom, 'collatz': w_collatz, 'tridiag': w_tridiag}
 
 
 # ---------------------------------------------------------------------------------------------------------------

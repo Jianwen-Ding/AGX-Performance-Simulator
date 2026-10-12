@@ -31,7 +31,7 @@ The rest of this file is the detailed procedure, for investigating results.
 
 ## Workloads
 
-Fifty-five realistic compute kernels, written in GLSL (`spirv/shaders/*.comp`) and compiled to SPIR-V:
+Fifty-nine realistic compute kernels, written in GLSL (`spirv/shaders/*.comp`) and compiled to SPIR-V:
 
 | Workload | Kernel | Stresses |
 |---|---|---|
@@ -90,6 +90,10 @@ Fifty-five realistic compute kernels, written in GLSL (`spirv/shaders/*.comp`) a
 | `blur` | Separable 9-tap Gaussian blur, 4K fp32, two passes | Shared-memory tiles, fp32 FMA, multi-dispatch |
 | `yuv420` | RGBA8 → NV12 colour conversion at 4K | 8-bit stores, integer multiply-add, arithmetic shifts |
 | `montecarlo` | Monte Carlo π from a PCG hash | Integer hashing, subgroup reduction, elected atomics |
+| `xxhash` | xxHash32 of 1036-byte records | 32-bit multiply-rotate rounds, four independent chains |
+| `bloom` | Bloom filter insert and query | `atomicOr`, integer modulo, two dependent dispatches |
+| `collatz` | 3n + 1 trajectories in uint64 | 64-bit integer arithmetic, data-dependent loop lengths |
+| `tridiag` | Batched tridiagonal solves (Thomas algorithm) | fp32 division, private arrays on the stack |
 
 Each workload has two sizes:
 
@@ -176,7 +180,7 @@ references are right; a wrong result on the M2 is therefore a GPU, driver or run
    python3 -B scripts/spirv_task.py sim sgemm --code-dir spirv/out/sgemm-small/code --hardware spirv/out/sgemm-small
    ```
 
-   - Offline, all fifty-five workloads pass their numpy references with shim-compiled Mesa 25.2.8 and 26.0.3 code
+   - Offline, all fifty-nine workloads pass their numpy references with shim-compiled Mesa 25.2.8 and 26.0.3 code
      (`make spirv-sim`). That is a sanity check; verification is `make spirv-verify` against the M2 recordings.
    - Integer workloads (`scan`, `histogram`, `bitonic`, `sha256`, `int64`, `bitops`, `intdiv`, `compact`, `transpose`,
      `mandelbrot`, `atomics`, `geom3d`, `spill`, `control`, `shuffle`, `floatops`, `radix_sort`, `crc32`, `int8dot`, `int16`, `sobel`,
