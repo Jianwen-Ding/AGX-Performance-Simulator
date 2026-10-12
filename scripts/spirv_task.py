@@ -42,7 +42,7 @@ class W:
     """a workload instance: buffers {binding: (init array or byte size, read back?)}, dispatches [(gx, gy, gz, push)],
     check(outputs) -> (ok, detail), metrics for throughput"""
     def __init__(self, shader, buffers, dispatches, check, wg, work=None, images=None, textures=None, simages=None, requires=None,
-                 specs=None):
+                 specs=None, uniform=None):
         self.shader, self.buffers, self.dispatches, self.check, self.wg, self.work = shader, buffers, dispatches, check, wg, work or {}
         # sampled textures {binding: (texels, width, height, 'rgba8' | 'r32f', 'nearest' | 'linear')}: read through the
         # GPU's texture unit, which the simulator does not model (sim / predict report such workloads as unsupported)
@@ -55,6 +55,8 @@ class W:
         # specialization constants {constant_id: uint32}; a dispatch ('indirect', binding, offset, push) takes its group
         # counts from a buffer the GPU wrote (vkCmdDispatchIndirect): such workloads are hardware-only
         self.specs = specs or {}
+        # bindings of w.buffers that are uniform buffers (read-only UBOs) rather than storage buffers
+        self.uniform = set(uniform or [])
         self.images = images or []       # [(binding, width, height, 'rgba8' | 'gray8' | 'bits')]: written as .ppm / .pgm for viewing
 
 
@@ -2797,6 +2799,38 @@ def w_aluprobe(size, rng):
     return W('aluprobe', {0: (24 * n, True)}, ds, check, 256, {'ops': 6 * 256 * n}, requires=['float16'])
 
 
+def w_ubopalette(size, rng):
+    n = 4096 if size == 'small' else 1 << 22
+    bones = f32(rng.integers(-2, 3, (64, 4, 4)))
+    pos = f32(np.concatenate([rng.integers(-64, 65, (n, 3)), np.ones((n, 1))], 1))
+    idx = u32(rng.integers(0, 64, n))
+    def check(o):
+        got = o[3].view(np.float32)[:4 * n].reshape(n, 4)
+        ref = np.einsum('nij,nj->ni', bones.astype(np.float64)[idx], pos.astype(np.float64))
+        return np.array_equal(got, ref.astype(np.float32)), {'mismatches': int(np.sum(np.any(got != ref, axis=1)))}
+    ubo = f32(np.transpose(bones, (0, 2, 1)))                                    # std140 mat4: column-major, 64 bytes each
+    return W('ubopalette', {0: (ubo, False), 1: (pos, False), 2: (idx, False), 3: (16 * n, True)}, [((n + 63) // 64, 1, 1, b'')],
+             check, 64, {'vertices': n}, uniform=[0])
+
+
+def w_uboparams(size, rng):
+    n = 4096 if size == 'small' else 1 << 22
+    rgba = u32(rng.integers(0, 1 << 32, n, dtype=np.uint64))
+    gain = [300, 256, 200, 0]; offs = [-10, 0, 12, 0]
+    mix = [[200, 40, 16, 0], [30, 210, 16, 0], [10, 20, 226, 0]]                 # rows sum to 256
+    lim = [0, 255, 0, 0]
+    ubo = np.array([gain, offs] + mix + [lim], np.int32)                         # std140: six ivec4
+    def check(o):
+        got = o[2].view(np.uint32)[:n]
+        v = np.stack([(rgba >> s_) & 255 for s_ in (0, 8, 16)], 1).astype(np.int64)
+        m = v @ np.array(mix, np.int64)[:, :3].T
+        out = np.clip(((m * np.array(gain[:3])) >> 8) + np.array(offs[:3]), lim[0], lim[1])
+        ref = (out[:, 0] | out[:, 1] << 8 | out[:, 2] << 16 | (rgba.astype(np.int64) & 0xff000000)).astype(np.uint32)
+        return np.array_equal(got, ref), {'mismatches': int(np.sum(got != ref))}
+    return W('uboparams', {0: (ubo, False), 1: (rgba, False), 2: (4 * n, True)}, [((n + 255) // 256, 1, 1, push(n))], check, 256,
+             {'pixels': n}, uniform=[0])
+
+
 WORKLOADS = {'reduce': w_reduce, 'scan': w_scan, 'sgemm': w_sgemm, 'conv2d': w_conv2d, 'histogram': w_histogram,
              'nbody': w_nbody, 'bitonic': w_bitonic, 'sha256': w_sha256, 'fp16': w_fp16, 'int64': w_int64, 'bitops': w_bitops,
              'intdiv': w_intdiv, 'compact': w_compact, 'spmv': w_spmv, 'transpose': w_transpose, 'mandelbrot': w_mandelbrot,
@@ -2828,7 +2862,7 @@ WORKLOADS = {'reduce': w_reduce, 'scan': w_scan, 'sgemm': w_sgemm, 'conv2d': w_c
              'splat': w_splat, 'splatfix': w_splatfix,
              'smembank': w_smembank, 'coalesce': w_coalesce,
              'atomcontend': w_atomcontend, 'barriercost': w_barriercost,
-             'aluprobe': w_aluprobe}
+             'aluprobe': w_aluprobe, 'ubopalette': w_ubopalette, 'uboparams': w_uboparams}
 
 
 # ---------------------------------------------------------------------------------------------------------------
@@ -2860,7 +2894,10 @@ def run_one(name, size, repeat, out_root, export=True, seed=1):
             nbytes, initp = init, '-'
         else:
             initp = out / f'in{binding}.bin'; initp.write_bytes(init.tobytes()); nbytes = init.nbytes
-        spec.append(f'buffer {binding} {nbytes} {initp} {out / f"out{binding}.bin" if readback else "-"}')
+        if binding in w.uniform:
+            spec.append(f'ubuffer {binding} {nbytes} {initp}')
+        else:
+            spec.append(f'buffer {binding} {nbytes} {initp} {out / f"out{binding}.bin" if readback else "-"}')
     spec += texture_spec(w, out)
     spec += [f'require {f}' for f in w.requires]
     spec += [f'specialize {k} {v}' for k, v in sorted(w.specs.items())]
@@ -2936,7 +2973,8 @@ def cmd_compile(a):
         run = tmp / name; run.mkdir(parents=True, exist_ok=True)
         spec = [f'shader {BUILD / (w.shader + ".spv")}']
         for binding, (init, _) in sorted(w.buffers.items()):
-            spec.append(f'buffer {binding} {init if isinstance(init, int) else init.nbytes} - -')
+            nb_ = init if isinstance(init, int) else init.nbytes
+            spec.append(f'ubuffer {binding} {nb_} -' if binding in w.uniform else f'buffer {binding} {nb_} - -')
         spec += texture_spec(w, run)
         spec += [f'require {f}' for f in w.requires]
         spec += [f'specialize {k} {v}' for k, v in sorted(w.specs.items())]

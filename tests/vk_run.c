@@ -6,6 +6,7 @@
  *   shader PATH.spv               compute shader, entry point "main", descriptor set 0
  *   buffer BINDING SIZE INIT OUT  storage buffer: INIT = file of initial bytes (zero-padded) or '-',
  *                                 OUT = file the buffer is read back to after the functional run, or '-'
+ *   ubuffer BINDING SIZE INIT      uniform buffer (read-only), INIT as for buffer
  *   texture BINDING W H FMT FILTER INIT
  *                                 sampled image + sampler (combined image sampler, read-only): FMT rgba8 (UNORM) or r32f,
  *                                 FILTER nearest or linear, clamp-to-edge addressing, normalized coordinates; INIT =
@@ -82,7 +83,8 @@ static void jstr(FILE *f, const char *s) {
     fputc('"', f);
 }
 
-struct buf { int binding; VkDeviceSize size; char init[512], out[512]; VkBuffer b; VkDeviceMemory m; void *map; void *initdata; size_t initlen; };
+struct buf { int binding; VkDeviceSize size; char init[512], out[512]; VkBuffer b; VkDeviceMemory m; void *map; void *initdata; size_t initlen;
+             int uniform; };
 struct disp { uint32_t g[3]; uint8_t push[256]; uint32_t npush; int indirect, ibinding; uint32_t ioffset; };
 struct tex { int binding; uint32_t w, h; VkFormat fmt; uint32_t texel; VkFilter filter; char init[512]; VkImage img; VkDeviceMemory m;
              VkImageView view; VkSampler smp; };
@@ -117,6 +119,11 @@ int main(int argc, char **argv) {
             unsigned long long sz; struct buf *b = &B[nb++]; memset(b, 0, sizeof *b);
             if (sscanf(line, "%*s %d %llu %511s %511s", &b->binding, &sz, b->init, b->out) != 4) die("spec buffer", 0);
             b->size = sz;
+        } else if (!strcmp(kw, "ubuffer")) {
+            if (nb == MAXB) die("too many buffers", 0);
+            unsigned long long sz; struct buf *b = &B[nb++]; memset(b, 0, sizeof *b);
+            if (sscanf(line, "%*s %d %llu %511s", &b->binding, &sz, b->init) != 3) die("spec ubuffer", 0);
+            b->size = sz; b->uniform = 1; strcpy(b->out, "-");
         } else if (!strcmp(kw, "texture")) {
             if (nt == MAXT) die("too many textures", 0);
             struct tex *t = &T[nt++]; memset(t, 0, sizeof *t);
@@ -280,7 +287,8 @@ int main(int argc, char **argv) {
     for (int i = 0; i < nb; i++) {
         struct buf *b = &B[i];
         VkBufferCreateInfo bci = {.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO, .size = b->size,
-                                  .usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT, .sharingMode = VK_SHARING_MODE_EXCLUSIVE};
+                                  .usage = b->uniform ? VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT : (VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT),
+                                  .sharingMode = VK_SHARING_MODE_EXCLUSIVE};
         CK(vkCreateBuffer(dev, &bci, NULL, &b->b));
         VkMemoryRequirements mr; vkGetBufferMemoryRequirements(dev, b->b, &mr);
         uint32_t want = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, ti = UINT32_MAX;
@@ -405,7 +413,8 @@ int main(int argc, char **argv) {
     VkShaderModule sm; CK(vkCreateShaderModule(dev, &smci, NULL, &sm));
     VkDescriptorSetLayoutBinding lb[MAXB + 2 * MAXT];
     for (int i = 0; i < nb; i++)
-        lb[i] = (VkDescriptorSetLayoutBinding){.binding = B[i].binding, .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+        lb[i] = (VkDescriptorSetLayoutBinding){.binding = B[i].binding,
+                                               .descriptorType = B[i].uniform ? VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER : VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
                                                .descriptorCount = 1, .stageFlags = VK_SHADER_STAGE_COMPUTE_BIT};
     for (int i = 0; i < nt; i++)
         lb[nb + i] = (VkDescriptorSetLayoutBinding){.binding = T[i].binding, .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
@@ -483,10 +492,11 @@ int main(int argc, char **argv) {
         printf("{\"exported\":"); jstr(stdout, exportp); printf(",\"bytes\":%zu}\n", n);
     }
 
-    VkDescriptorPoolSize ps[3] = {{.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, .descriptorCount = nb ? nb : 1},
+    VkDescriptorPoolSize ps[4] = {{.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, .descriptorCount = nb ? nb : 1},
+                                  {.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, .descriptorCount = nb ? nb : 1},
                                   {.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, .descriptorCount = nt ? nt : 1},
                                   {.type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, .descriptorCount = ni ? ni : 1}};
-    VkDescriptorPoolCreateInfo dpci = {.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO, .maxSets = 1, .poolSizeCount = 3, .pPoolSizes = ps};
+    VkDescriptorPoolCreateInfo dpci = {.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO, .maxSets = 1, .poolSizeCount = 4, .pPoolSizes = ps};
     VkDescriptorPool dp; CK(vkCreateDescriptorPool(dev, &dpci, NULL, &dp));
     VkDescriptorSetAllocateInfo dsai = {.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO, .descriptorPool = dp, .descriptorSetCount = 1, .pSetLayouts = &dsl};
     VkDescriptorSet ds; CK(vkAllocateDescriptorSets(dev, &dsai, &ds));
@@ -494,7 +504,8 @@ int main(int argc, char **argv) {
     for (int i = 0; i < nb; i++) {
         dbi[i] = (VkDescriptorBufferInfo){.buffer = B[i].b, .offset = 0, .range = VK_WHOLE_SIZE};
         w[i] = (VkWriteDescriptorSet){.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET, .dstSet = ds, .dstBinding = B[i].binding,
-                                      .descriptorCount = 1, .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, .pBufferInfo = &dbi[i]};
+                                      .descriptorCount = 1, .pBufferInfo = &dbi[i],
+                                      .descriptorType = B[i].uniform ? VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER : VK_DESCRIPTOR_TYPE_STORAGE_BUFFER};
     }
     for (int i = 0; i < nt; i++) {
         dii[i] = (VkDescriptorImageInfo){.sampler = T[i].smp, .imageView = T[i].view, .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};

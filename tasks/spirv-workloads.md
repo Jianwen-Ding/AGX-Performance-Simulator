@@ -54,7 +54,7 @@ The rest of this file is the detailed procedure, for investigating results.
 
 ## Workloads
 
-One hundred and twenty realistic compute kernels, written in GLSL (`spirv/shaders/*.comp`) and compiled to SPIR-V:
+One hundred and twenty-two realistic compute kernels, written in GLSL (`spirv/shaders/*.comp`) and compiled to SPIR-V:
 
 | Workload | Kernel | Stresses |
 |---|---|---|
@@ -178,6 +178,8 @@ One hundred and twenty realistic compute kernels, written in GLSL (`spirv/shader
 | `atomcontend` | atomicAdd into 1 .. 2^20 counters, one dispatch each | Atomic contention; a timing probe |
 | `barriercost` | 0 .. 256 rounds of shared exchange + barriers, one dispatch each | Barrier cost; a timing probe |
 | `aluprobe` | fp32 / fp16 fma and integer multiply-add chains, dependent and 8-wide | ALU latency and throughput; a timing probe |
+| `ubopalette` | Vertex transform by a dynamically indexed mat4 palette in a 4 KiB uniform buffer | Uniform buffers (`vk_run` `ubuffer`) |
+| `uboparams` | Colour correction with all parameters from a small uniform buffer | Uniform buffers read uniformly |
 
 Each workload has two sizes:
 

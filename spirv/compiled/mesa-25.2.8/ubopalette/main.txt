@@ -1,0 +1,37 @@
+0x0000  72011004                 get_sr r0, sr80 (thread_position_in_grid.x)
+0x0004  0e01408658000000         iadd r0, r0.sx, u4.sx
+0x000c  05090c0e00c01200         device_load 0, i32, x, r1, u6_u7, r0, unsigned
+0x0014  0521044e10c8f200         device_load 1, i32, xyzw, r4_r5_r6_r7, u10_u11, r0, unsigned, lsl 2
+0x001c  3800                     wait 0
+0x001e  7e0542f28300             and r1, r1, 63
+0x0024  0e05002064001000         iadd r1, 0, r1.sx, lsl 2
+0x002c  0e09032064000000         iadd r2, 3, r1.sx
+0x0034  0541400e10c8f200         device_load 0, i32, xyzw, r8_r9_r10_r11, u8_u9, r2, unsigned, lsl 2
+0x003c  3800                     wait 0
+0x003e  3801                     wait 1
+0x0040  1a8950e22400             fmul32 r2, r8, r7
+0x0046  1a8d52e22400             fmul32 r3, r9, r7
+0x004c  1aa154e22400             fmul32 r8, r10, r7
+0x0052  1a9d56e22400             fmul32 r7, r11, r7
+0x0058  0e25022064000000         iadd r9, 2, r1.sx
+0x0060  0561200e11c8f200         device_load 0, i32, xyzw, r12_r13_r14_r15, u8_u9, r9, unsigned, lsl 2
+0x0068  3800                     wait 0
+0x006a  3a8958c224440200         fmadd32 r2, r12, r6, r2
+0x0072  3a8d5ac224460200         fmadd32 r3, r13, r6, r3
+0x007a  3aa15cc224500200         fmadd32 r8, r14, r6, r8
+0x0082  3a995ec2244e0200         fmadd32 r6, r15, r6, r7
+0x008a  0e1d012064000000         iadd r7, 1, r1.sx
+0x0092  0561e00e10c8f200         device_load 0, i32, xyzw, r12_r13_r14_r15, u8_u9, r7, unsigned, lsl 2
+0x009a  3800                     wait 0
+0x009c  3a8958a224440200         fmadd32 r2, r12, r5, r2
+0x00a4  3a8d5aa224460200         fmadd32 r3, r13, r5, r3
+0x00ac  3a9d5ca224500200         fmadd32 r7, r14, r5, r8
+0x00b4  3a955ea2244c0200         fmadd32 r5, r15, r5, r6
+0x00bc  0541200e10c8f200         device_load 0, i32, xyzw, r8_r9_r10_r11, u8_u9, r1, unsigned, lsl 2
+0x00c4  3800                     wait 0
+0x00c6  3ab1508224440200         fmadd32 r12, r8, r4, r2
+0x00ce  3ab5528224460200         fmadd32 r13, r9, r4, r3
+0x00d6  3ab95482244e0200         fmadd32 r14, r10, r4, r7
+0x00de  3abd5682244a0200         fmadd32 r15, r11, r4, r5
+0x00e6  4561080e10c8f200         device_store 0, i32, xyzw, r12_r13_r14_r15, u12_u13, r0, unsigned, lsl 2, 0
+0x00ee  8800                     stop
