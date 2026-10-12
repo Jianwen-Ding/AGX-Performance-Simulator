@@ -1745,6 +1745,96 @@ def w_nqueens(size, rng):
              {'prefixes': n ** 3})
 
 
+def w_lzmatch(size, rng):
+    n = 4096 if size == 'small' else 1 << 20
+    vocab = [bytes(rng.integers(97, 123, rng.integers(2, 9)).astype(np.uint8)) for _ in range(24)]
+    phrases = [b' '.join(vocab[k] for k in rng.integers(0, 24, rng.integers(2, 6))) for _ in range(12)]
+    text = np.frombuffer(b' '.join(phrases[k] for k in rng.integers(0, 12, n // 8)), np.uint8)[:n].copy()   # repetitive prose
+    def check(o):
+        got = o[1].view(np.uint32)[:n]
+        t = np.concatenate([text, np.zeros(32, np.uint8)]).astype(np.int16); t[n:] = -1   # past the end never matches
+        bl, bd = np.zeros(n, np.int64), np.zeros(n, np.int64)
+        idx = np.arange(n)
+        for d in range(1, 65):
+            run = np.ones(n, bool); k = np.zeros(n, np.int64)
+            for j in range(32):
+                src = idx - d + j
+                run &= (idx >= d) & (t[np.minimum(idx + j, n + 31)] == t[np.where(src >= 0, src, 0)])
+                k += run
+            better = k > bl
+            bl, bd = np.where(better, k, bl), np.where(better, d, bd)
+        ref = (bl | bd << 8).astype(np.uint32)
+        return np.array_equal(got, ref), {'mismatches': int(np.sum(got != ref)), 'mean_match': float(bl.mean()), 'positions_with_32': int(np.sum(bl == 32))}
+    return W('lzmatch', {0: (text, False), 1: (4 * n, True)}, [((n + 127) // 128, 1, 1, push(n))], check, 128, {'positions': n})
+
+
+def w_bitpack(size, rng):
+    n = 4096 if size == 'small' else 1 << 24
+    vals = u32(rng.integers(0, 128, n))
+    nwords = (7 * n + 31) // 32 + 1
+    def check(o):
+        got = o[1].view(np.uint32)[:nwords]
+        bits = ((vals[:, None] >> np.arange(7)) & 1).astype(np.uint8).ravel()   # bit 7i + j of the stream is bit j of value i
+        ref = np.packbits(np.concatenate([bits, np.zeros(32 * nwords - len(bits), np.uint8)]), bitorder='little').view('<u4')
+        back = (got.view(np.uint8))                                              # unpack again from the GPU's words
+        ub = np.unpackbits(back, bitorder='little')[:7 * n].reshape(n, 7)
+        unpacked = (ub.astype(np.uint32) << np.arange(7, dtype=np.uint32)).sum(1)
+        return np.array_equal(got, ref) and np.array_equal(unpacked, vals), {'word_mismatches': int(np.sum(got != ref)), 'roundtrip_ok': bool(np.array_equal(unpacked, vals))}
+    return W('bitpack', {0: (vals, False), 1: (u32(np.zeros(nwords)), True)}, [((n + 255) // 256, 1, 1, push(n))], check, 256,
+             {'values': n})
+
+
+def perlin_ref(perm, Wd, H):
+    gy, gx = np.mgrid[0:H, 0:Wd].astype(np.float64)
+    fade = lambda t: t * t * t * (t * (t * 6 - 15) + 10)
+    grad = lambda h, x, y: np.where(h & 1, -x, x) + np.where(h & 2, -y, y)
+    total, amp, freq = np.zeros((H, Wd)), 0.5, 1 / 64
+    for _ in range(4):
+        qx, qy = gx * freq, gy * freq
+        fx, fy = np.floor(qx), np.floor(qy)
+        X, Y = fx.astype(np.int64) & 255, fy.astype(np.int64) & 255
+        x, y = qx - fx, qy - fy
+        u, v = fade(x), fade(y)
+        a, b = perm[X] + Y, perm[X + 1] + Y
+        n00, n10 = grad(perm[a], x, y), grad(perm[b], x - 1, y)
+        n01, n11 = grad(perm[a + 1], x, y - 1), grad(perm[b + 1], x - 1, y - 1)
+        nx0, nx1 = n00 + u * (n10 - n00), n01 + u * (n11 - n01)
+        total += amp * (nx0 + v * (nx1 - nx0))
+        amp, freq = amp / 2, freq * 2
+    return total
+
+
+def w_perlin(size, rng):
+    Wd, H = (96, 64) if size == 'small' else (2048, 2048)
+    perm = rng.permutation(256)
+    perm2 = u32(np.concatenate([perm, perm]))
+    def check(o):
+        got = o[1].view(np.float32)[:Wd * H].reshape(H, Wd); img = o[2][:Wd * H].reshape(H, Wd).astype(np.int64)
+        ref = perlin_ref(perm2.astype(np.int64), Wd, H)
+        err = float(np.max(np.abs(got - ref)))
+        ref8 = np.floor(np.clip(ref * 0.5 + 0.5, 0, 1) * 255 + 0.5)
+        off8 = int(np.max(np.abs(img - ref8)))
+        return err <= 1e-5 and off8 <= 1, {'max_abs_err': err, 'image_max_level_diff': off8, 'height_range': [float(ref.min()), float(ref.max())]}
+    return W('perlin', {0: (perm2, False), 1: (4 * Wd * H, True), 2: (Wd * H, True)}, [((Wd + 15) // 16, (H + 15) // 16, 1, push(Wd, H))],
+             check, (16, 16, 1), {'pixels': Wd * H}, images=[(2, Wd, H, 'gray8')])
+
+
+def w_adler32(size, rng):
+    blocks = 64 if size == 'small' else 1 << 14
+    data = rng.integers(0, 256, blocks * 4096, dtype=np.uint8)
+    data[:4096] = 255                                                            # worst case for the sums' range
+    def check(o):
+        import zlib
+        got = o[1].view(np.uint32)[:blocks]
+        rows = range(blocks) if size == 'small' else rng.choice(blocks, 2048, replace=False)
+        bad = [int(k) for k in rows if got[k] != zlib.adler32(data[4096 * k:4096 * (k + 1)].tobytes())]
+        if 0 not in rows:
+            bad += [0] if got[0] != zlib.adler32(data[:4096].tobytes()) else []
+        return not bad, {'bad_blocks': len(bad), 'first_bad': bad[:5]}
+    return W('adler32', {0: (data, False), 1: (4 * blocks, True)}, [((blocks + 63) // 64, 1, 1, push(blocks))], check, 64,
+             {'bytes': blocks * 4096})
+
+
 WORKLOADS = {'reduce': w_reduce, 'scan': w_scan, 'sgemm': w_sgemm, 'conv2d': w_conv2d, 'histogram': w_histogram,
              'nbody': w_nbody, 'bitonic': w_bitonic, 'sha256': w_sha256, 'fp16': w_fp16, 'int64': w_int64, 'bitops': w_bitops,
              'intdiv': w_intdiv, 'compact': w_compact, 'spmv': w_spmv, 'transpose': w_transpose, 'mandelbrot': w_mandelbrot,
@@ -1760,7 +1850,8 @@ WORKLOADS = {'reduce': w_reduce, 'scan': w_scan, 'sgemm': w_sgemm, 'conv2d': w_c
              'merge': w_merge, 'ccl': w_ccl, 'pagerank': w_pagerank, 'skinning': w_skinning,
              'strsearch': w_strsearch, 'quantize': w_quantize, 'rule110': w_rule110, 'voxel': w_voxel,
              'nms': w_nms, 'sat': w_sat, 'sssp': w_sssp, 'morton': w_morton,
-             'utf8': w_utf8, 'fir': w_fir, 'composite': w_composite, 'nqueens': w_nqueens}
+             'utf8': w_utf8, 'fir': w_fir, 'composite': w_composite, 'nqueens': w_nqueens,
+             'lzmatch': w_lzmatch, 'bitpack': w_bitpack, 'perlin': w_perlin, 'adler32': w_adler32}
 
 
 # ---------------------------------------------------------------------------------------------------------------

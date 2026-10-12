@@ -1,0 +1,22 @@
+#version 450
+// LZ77 match finding (the search step of deflate / LZ4): for every position, the longest match (up to 32 bytes)
+// starting at one of the previous 64 positions, nearest on ties, may overlap the current position. Nested
+// data-dependent loops over byte loads; integer-exact.
+#extension GL_EXT_shader_8bit_storage : require
+#extension GL_EXT_shader_explicit_arithmetic_types_int8 : require
+layout(local_size_x = 128) in;
+layout(std430, binding = 0) readonly buffer T { uint8_t text[]; };
+layout(std430, binding = 1) writeonly buffer M { uint best[]; };    // length | distance << 8
+layout(push_constant) uniform P { uint n; } p;
+
+void main() {
+    uint i = gl_GlobalInvocationID.x;
+    if (i >= p.n) return;
+    uint maxk = min(32u, p.n - i), bl = 0u, bd = 0u;
+    for (uint d = 1u; d <= 64u && d <= i; d++) {
+        uint k = 0u;
+        while (k < maxk && text[i + k] == text[i - d + k]) k++;
+        if (k > bl) { bl = k; bd = d; }
+    }
+    best[i] = bl | (bd << 8);
+}

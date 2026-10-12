@@ -1,0 +1,37 @@
+#version 450
+// Procedural terrain: four octaves of 2-D improved Perlin noise (permutation-table hashing, quintic fade,
+// gradient dot products, bilinear blend) per pixel, written as fp32 heights and an 8-bit height map image.
+// Power-of-two frequencies keep the lattice coordinates exact; checked against float64.
+#extension GL_EXT_shader_8bit_storage : require
+#extension GL_EXT_shader_explicit_arithmetic_types_int8 : require
+layout(local_size_x = 16, local_size_y = 16) in;
+layout(std430, binding = 0) readonly buffer Pm { uint perm[512]; };
+layout(std430, binding = 1) writeonly buffer H { float height[]; };
+layout(std430, binding = 2) writeonly buffer I { uint8_t img[]; };
+layout(push_constant) uniform P { uint width; uint height_; } p;
+
+float fade(float t) { return t * t * t * (t * (t * 6.0 - 15.0) + 10.0); }
+float grad(uint h, float x, float y) { return ((h & 1u) != 0u ? -x : x) + ((h & 2u) != 0u ? -y : y); }
+
+float noise(vec2 q) {
+    vec2 f = floor(q);
+    uint X = uint(int(f.x)) & 255u, Y = uint(int(f.y)) & 255u;
+    float x = q.x - f.x, y = q.y - f.y, u = fade(x), v = fade(y);
+    uint a = perm[X] + Y, b = perm[X + 1u] + Y;
+    float n00 = grad(perm[a], x, y), n10 = grad(perm[b], x - 1.0, y);
+    float n01 = grad(perm[a + 1u], x, y - 1.0), n11 = grad(perm[b + 1u], x - 1.0, y - 1.0);
+    return mix(mix(n00, n10, u), mix(n01, n11, u), v);
+}
+
+void main() {
+    uvec2 g = gl_GlobalInvocationID.xy;
+    if (g.x >= p.width || g.y >= p.height_) return;
+    float hsum = 0.0, amp = 0.5, freq = 1.0 / 64.0;
+    for (int o = 0; o < 4; o++) {
+        hsum += amp * noise(vec2(g) * freq);
+        amp *= 0.5; freq *= 2.0;
+    }
+    uint i = g.y * p.width + g.x;
+    height[i] = hsum;
+    img[i] = uint8_t(clamp(hsum * 0.5 + 0.5, 0.0, 1.0) * 255.0 + 0.5);
+}

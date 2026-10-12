@@ -1,7 +1,7 @@
 # Task SPIR-V 8: applications (ray tracer, neural networks, image processing, cellular automaton, graph search,
 # encryption, hashing, text, compression)
 
-**Workloads:** `raytrace`, `mlp`, `sobel`, `life`, `bfs`, `conv_layer`, `hist_eq`, `aes`, `hash_table`, `word_count`, `dct8`, `attention`, `resize`, `median3`, `poisson`, `lbm`, `base64`, `md5`, `gemv`, `levenshtein`, `blur`, `yuv420`, `montecarlo`, `xxhash`, `bloom`, `collatz`, `tridiag`, `merge`, `ccl`, `pagerank`, `skinning`, `strsearch`, `quantize`, `rule110`, `voxel`, `nms`, `sat`, `sssp`, `morton`, `utf8`, `fir`, `composite`, `nqueens`. These are recorded and verified by `make asahi-verify` with the others;
+**Workloads:** `raytrace`, `mlp`, `sobel`, `life`, `bfs`, `conv_layer`, `hist_eq`, `aes`, `hash_table`, `word_count`, `dct8`, `attention`, `resize`, `median3`, `poisson`, `lbm`, `base64`, `md5`, `gemv`, `levenshtein`, `blur`, `yuv420`, `montecarlo`, `xxhash`, `bloom`, `collatz`, `tridiag`, `merge`, `ccl`, `pagerank`, `skinning`, `strsearch`, `quantize`, `rule110`, `voxel`, `nms`, `sat`, `sssp`, `morton`, `utf8`, `fir`, `composite`, `nqueens`, `lzmatch`, `bitpack`, `perlin`, `adler32`. These are recorded and verified by `make asahi-verify` with the others;
 they are **PENDING** until then. The detailed procedure is in `tasks/spirv-workloads.md`.
 
 ## Why these
@@ -55,11 +55,15 @@ reference.
 | `fir` | 63-tap windowed-sinc low-pass FIR over 8M audio samples through a shared-memory window | Within the dot-product error bound; the stop-band tone drops ~100 dB |
 | `composite` | Premultiplied RGBA8 "over" onto a 4K background with exact /255 rounding | Exact; `sim_image2.ppm` / `image2.ppm` show the composite |
 | `nqueens` | Count all 13-queens solutions: 2197 three-row prefixes, bitmask DFS with an explicit stack per thread | Exact per prefix and 73712 in total; Mesa keeps the stack in registers (180 `icmpsel`) |
+| `lzmatch` | LZ77 longest-match search (64-byte window, up to 32-byte matches) at every position of 1 MiB of repetitive prose | Exact length and nearest distance per position |
+| `bitpack` | Pack 2^24 7-bit values into a dense bit stream with `atomicOr` (straddling values split over two words) | Exact words, and the stream unpacks back to the values |
+| `perlin` | Four octaves of 2-D improved Perlin noise over 2048 × 2048: fp32 heights and an 8-bit height map | Within 1e-5 of float64, image within one level; `sim_image2.pgm` / `image2.pgm` show the terrain |
+| `adler32` | Adler-32 (zlib / PNG) of 16384 blocks of 4 KiB, deferred modulo as in zlib | Exact against `zlib.adler32` |
 
 ## Offline sanity checks (not hardware verification)
 
 - **lavapipe:** all pass at both sizes.
-- **Shim-compiled Mesa 25.2.8 and 26.0.3 code on the functional simulator:** 86 of 86.
+- **Shim-compiled Mesa 25.2.8 and 26.0.3 code on the functional simulator:** 94 of 94.
   - `bfs` found a simulator bug. Mesa aggregates `atomicAdd(found[l], 1)` under divergence: one lane, chosen with SR58
     (`active_thread_index_in_simdgroup`), adds SR59, the number of active lanes. The simulator modelled both from the
     launch shape (lane index, 32), which is only right when every lane is active, so the counts came out as multiples
@@ -105,3 +109,5 @@ reference.
     - The measured time decides how the model should pick representative workgroups when work is uneven.
 11. `utf8`, `composite` and `nqueens` are exact and must PASS. `fir` is fp32 dot products, so expect CLOSE or PASS.
     `nqueens` is all divergent integer control flow: compare its time with `predict`.
+12. `lzmatch`, `bitpack` and `adler32` are exact and must PASS; `perlin` is fp32, so expect CLOSE or PASS. Look at
+    the `perlin` height map next to the simulator's.
