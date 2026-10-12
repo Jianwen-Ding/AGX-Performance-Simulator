@@ -7,3 +7,5 @@ __pycache__/
 /spirv/build/
 /spirv/out/
 /coverage/.scratch/
+spirv/compiled/**/predict-*/
+spirv/compiled/**/sim-*/
