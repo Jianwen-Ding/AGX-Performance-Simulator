@@ -1036,6 +1036,53 @@ def w_cholesky(size, rng):
              {'flops': nb * n ** 3 // 3})
 
 
+RSS_KEY = bytes.fromhex('6d5a56da255b0ec24167253d43a38fb0d0ca2bcbae7b30b477cb2da38030f20c6a42b73bbeac01fa')
+# Microsoft RSS verification suite, IPv4: (src, sport, dst, dport, hash over the 4-tuple, hash over the addresses)
+RSS_VECTORS = [('66.9.149.187', 2794, '161.142.100.80', 1766, 0x51ccc178, 0x323e8fc2),
+               ('199.92.111.2', 14230, '65.69.140.83', 4739, 0xc626b0ea, 0xd718262a),
+               ('24.19.198.95', 12898, '12.22.207.184', 38024, 0x5c2b394a, 0xd2d0a5de),
+               ('38.27.205.30', 48228, '209.142.163.6', 2217, 0xafc7327f, 0x82989176),
+               ('153.39.163.191', 44251, '202.188.127.2', 1303, 0x10e828a2, 0x5d1809c5)]
+
+
+def toeplitz_ref(data):
+    """Toeplitz hashes of input rows data [n, nbytes] (uint8) with RSS_KEY, vectorised over rows"""
+    k = int.from_bytes(RSS_KEY, 'big'); kb = 8 * len(RSS_KEY)
+    h = np.zeros(len(data), np.uint32)
+    bits = np.unpackbits(data, axis=1)                                         # MSB first
+    for i in range(bits.shape[1]):
+        h ^= np.where(bits[:, i] == 1, np.uint32((k >> (kb - 32 - i)) & 0xffffffff), np.uint32(0))
+    return h
+
+
+def w_rsshash(size, rng):
+    n = 1 << 12 if size == 'small' else 1 << 20
+    hdr = np.zeros((n, 24), np.uint8)
+    hdr[:, 0] = 0x45; hdr[:, 8] = 64; hdr[:, 9] = 6                            # IPv4, IHL 5, TTL 64, TCP
+    hdr[:, 2:4] = np.frombuffer(np.uint16(40).byteswap().tobytes() * n, np.uint8).reshape(n, 2)
+    hdr[:, 4:6] = rng.integers(0, 256, (n, 2)); hdr[:, 12:24] = rng.integers(0, 256, (n, 12))
+    ip = lambda a: list(map(int, a.split('.')))
+    for j, (sa, sp, da, dp, _, _) in enumerate(RSS_VECTORS):                  # the spec's vectors first
+        hdr[j, 12:16] = ip(sa); hdr[j, 16:20] = ip(da); hdr[j, 20:22] = [sp >> 8, sp & 255]; hdr[j, 22:24] = [dp >> 8, dp & 255]
+    words = hdr[:, :20].reshape(n, 10, 2).astype(np.uint32)
+    s16 = (words[:, :, 0] << 8 | words[:, :, 1]).sum(1)
+    s16 = (s16 & 0xffff) + (s16 >> 16); s16 = (s16 & 0xffff) + (s16 >> 16)
+    cks = (~s16) & 0xffff
+    hdr[:, 10] = cks >> 8; hdr[:, 11] = cks & 255
+    bad = rng.random(n) < 0.05; bad[:len(RSS_VECTORS)] = False
+    hdr[bad, 11] ^= 1 + rng.integers(0, 255, int(bad.sum())).astype(np.uint8)  # corrupted checksums
+    def check(o):
+        got = o[2].view(np.uint32)[:4 * n].reshape(n, 4)
+        tcp, ipo = toeplitz_ref(hdr[:, 12:24]), toeplitz_ref(hdr[:, 12:20])
+        okref = ~bad
+        mism = int(np.sum(got[:, 0] != tcp) + np.sum(got[:, 1] != ipo) + np.sum((got[:, 2] == 1) != okref))
+        kat = all(int(got[j, 0]) == v[4] and int(got[j, 1]) == v[5] for j, v in enumerate(RSS_VECTORS))
+        return mism == 0 and kat, {'mismatches': mism, 'spec_vectors_ok': kat, 'bad_checksums': int(bad.sum())}
+    keyw = u32(np.frombuffer(RSS_KEY, '>u4').astype(np.uint32))
+    return W('rsshash', {0: (u32(np.frombuffer(hdr.tobytes(), np.uint32)), False), 1: (keyw, False), 2: (16 * n, True)},
+             [((n + 63) // 64, 1, 1, push(n))], check, 64, {'items': n, 'bytes': 24 * n})
+
+
 def w_spmv(size, rng):
     rows, cols = (512, 512) if size == 'small' else (1 << 18, 1 << 18)
     nnz = rng.integers(0, 64, rows) * (rng.random(rows) < 0.95)    # some empty rows
@@ -3565,7 +3612,7 @@ WORKLOADS = {'reduce': w_reduce, 'scan': w_scan, 'sgemm': w_sgemm, 'conv2d': w_c
              'aluprobe': w_aluprobe, 'ubopalette': w_ubopalette, 'uboparams': w_uboparams,
              'bindless': w_bindless, 'bindlessu': w_bindlessu,
              # appended only: the input seed is the index in this dict
-             'rle': w_rle, 'huffdec': w_huffdec, 'lookback': w_lookback, 'hll': w_hll, 'tricount': w_tricount, 'sha3': w_sha3, 'stereo': w_stereo, 'viterbi': w_viterbi, 'viterbifix': w_viterbifix, 'shiftfuse': w_shiftfuse, 'bc1enc': w_bc1enc, 'lz4dec': w_lz4dec, 'nttmul': w_nttmul, 'topk': w_topk, 'cellsort': w_cellsort, 'boruvka': w_boruvka, 'biquad': w_biquad, 'edt': w_edt, 'mt19937': w_mt19937, 'bitap': w_bitap, 'cholesky': w_cholesky}
+             'rle': w_rle, 'huffdec': w_huffdec, 'lookback': w_lookback, 'hll': w_hll, 'tricount': w_tricount, 'sha3': w_sha3, 'stereo': w_stereo, 'viterbi': w_viterbi, 'viterbifix': w_viterbifix, 'shiftfuse': w_shiftfuse, 'bc1enc': w_bc1enc, 'lz4dec': w_lz4dec, 'nttmul': w_nttmul, 'topk': w_topk, 'cellsort': w_cellsort, 'boruvka': w_boruvka, 'biquad': w_biquad, 'edt': w_edt, 'mt19937': w_mt19937, 'bitap': w_bitap, 'cholesky': w_cholesky, 'rsshash': w_rsshash}
 
 
 # ---------------------------------------------------------------------------------------------------------------

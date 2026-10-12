@@ -54,7 +54,7 @@ The rest of this file is the detailed procedure, for investigating results.
 
 ## Workloads
 
-One hundred and forty-five realistic compute kernels, written in GLSL (`spirv/shaders/*.comp`) and compiled to SPIR-V:
+One hundred and forty-six realistic compute kernels, written in GLSL (`spirv/shaders/*.comp`) and compiled to SPIR-V:
 
 | Workload | Kernel | Stresses |
 |---|---|---|
@@ -203,6 +203,7 @@ One hundred and forty-five realistic compute kernels, written in GLSL (`spirv/sh
 | `mt19937` | Mersenne Twister streams, one per workgroup, 624-word state in shared memory, twist in three parallel phases | A 623-step serial seeding loop on one invocation, 4 barriers per twist with partly idle workgroups, xor-shift tempering |
 | `bitap` | Approximate DNA pattern matching (Wu-Manber bitap, ≤ 2 edits), one 1024-position chunk per invocation | Long serial chains of 32-bit shift / and / or, 2-bit unpacking of packed bases (the masked-`bfeil` form, note 37) |
 | `cholesky` | Batched Cholesky factorisation of 16×16 SPD matrices, one workgroup per matrix in shared memory | fp32 `sqrt` and division (`rsqrt_special`, `rcp`), 48 barriers per workgroup, shrinking active region |
+| `rsshash` | Packet processing: IPv4 header checksum (RFC 1071) and Toeplitz RSS hashes over the TCP 4-tuple and the address pair | Byte swapping, 96 + 64 data-dependent bit tests per packet with a 64-bit-window key extraction, 16-bit ones'-complement folding |
 
 Each workload has two sizes:
 
