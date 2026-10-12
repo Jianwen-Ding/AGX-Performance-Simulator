@@ -3,8 +3,22 @@
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Mutex;
 
-/// Worker threads: `AGX_THREADS` if set, else the available parallelism.
+thread_local! {
+    static LOCAL: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+}
+
+/// Limit the maps this thread starts to `n` threads (0: the default). For callers that already run one
+/// simulation per core, so that the simulations' own maps do not multiply the threads.
+pub fn set_local_threads(n: usize) {
+    LOCAL.with(|c| c.set(n));
+}
+
+/// Worker threads: this thread's limit if set, else `AGX_THREADS` if set, else the available parallelism.
 pub fn threads() -> usize {
+    let l = LOCAL.with(|c| c.get());
+    if l > 0 {
+        return l;
+    }
     std::env::var("AGX_THREADS").ok().and_then(|v| v.parse().ok()).filter(|&n| n > 0)
         .unwrap_or_else(|| std::thread::available_parallelism().map(|x| x.get()).unwrap_or(1))
 }

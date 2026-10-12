@@ -4832,7 +4832,7 @@ def cmd_predict(a):
                              if '=' in x and x.split('=', 1)[1] in files else x for x in cmd)
         uniq = list(dict.fromkeys(per_k.values()))
         first = {key: rows[k] for k, key in reversed(list(per_k.items()))}
-        res = dict(zip(uniq, pmap(run_dispatch, [first[key] for key in uniq])))
+        res = dict(zip(uniq, run_dispatches([first[key] for key in uniq])))
         rows = [res[per_k[k]] for k in range(len(rows))]
     else:
         if not a.code:
@@ -4847,7 +4847,7 @@ def cmd_predict(a):
             for u in a.uniform or []: cmd += ['--uniform', u]
             if a.no_mem: cmd.append('--no-mem')
             rows.append(cmd)
-        rows = pmap(run_dispatch, rows)
+        rows = run_dispatches(rows)
     total = sum(r['time_us'] for r in rows)
     print(json.dumps({'workload': a.workload, 'size': a.size, 'predicted_us': total, **({'stateful': True} if a.stateful else {}),
                       'dispatch_us': [r['time_us'] for r in rows], 'dispatches': rows}))
@@ -5184,6 +5184,27 @@ def cmd_probes(a):
     if a.json:
         Path(a.json).write_text(json.dumps(rows, indent=1) + '\n')
     return 0
+
+
+def run_dispatches(cmds):
+    """run_dispatch over independent agx_dispatch commands (same executable): one agx_dispatch --batch process, which
+    loads the model once and runs them in parallel"""
+    if len(cmds) <= 1:
+        return [run_dispatch(c) for c in cmds]
+    if os.environ.get('AGX_LOG_DISPATCH'):
+        with open(os.environ['AGX_LOG_DISPATCH'], 'a') as f:
+            f.writelines(' '.join(map(str, c)) + '\n' for c in cmds)
+    with tempfile.NamedTemporaryFile('w', suffix='.jobs', delete=False) as f:
+        f.writelines(json.dumps([str(x) for x in c[1:]]) + '\n' for c in cmds)
+    try:
+        r = subprocess.run([str(cmds[0][0]), '--batch', f.name], capture_output=True, text=True)
+    finally:
+        os.unlink(f.name)
+    out = [json.loads(x) for x in r.stdout.splitlines() if x.strip()]
+    bad = [o['error'] for o in out if 'error' in o]
+    if r.returncode or bad or len(out) != len(cmds):
+        sys.exit(f'agx_dispatch failed: {"; ".join(bad) or r.stderr.strip()}')
+    return out
 
 
 def run_dispatch(cmd):
