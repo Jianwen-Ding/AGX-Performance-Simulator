@@ -503,6 +503,31 @@ def w_hll(size, rng):
     return W('hll', {0: (items, False), 1: (4 * 4096, True)}, [(groups, 1, 1, push(n, per))], check, 256, {'items': n, 'bytes': 4 * n})
 
 
+def w_tricount(size, rng):
+    import scipy.sparse as sp
+    nv, m = (2048, 12000) if size == 'small' else (1 << 16, 1 << 20)
+    # skewed degrees (preferential endpoints) so neighbour lists range from empty to a few hundred entries
+    w = 1.0 / np.arange(1, nv + 1) ** 0.5
+    a = rng.choice(nv, m, p=w / w.sum()); b = rng.choice(nv, m, p=w / w.sum())
+    perm = rng.permutation(nv); a, b = perm[a], perm[b]                       # hubs at random ids
+    lo, hi = np.minimum(a, b), np.maximum(a, b)
+    keep = lo != hi
+    key = np.unique(lo[keep].astype(np.int64) * nv + hi[keep])
+    eu, ev = (key // nv).astype(np.int64), (key % nv).astype(np.int64)        # sorted by (u, v)
+    ne = len(eu)
+    rowptr = u32(np.concatenate([[0], np.cumsum(np.bincount(eu, minlength=nv))]))
+    A = sp.csr_matrix((np.ones(ne, np.int64), (eu, ev)), shape=(nv, nv))
+    ref = np.asarray((A @ A.T)[eu, ev]).ravel().astype(np.int64)             # |N+(u) & N+(v)|
+    def check(o):
+        got = o[3].view(np.uint32)[:ne].astype(np.int64)
+        tot = int(o[4].view(np.uint32)[0])
+        bad = int(np.sum(got != ref))
+        return bad == 0 and tot == int(ref.sum()), {'edges': ne, 'triangles': int(ref.sum()), 'total': tot,
+                                                    'bad_edges': bad, 'max_out_degree': int(np.diff(rowptr.astype(np.int64)).max())}
+    return W('tricount', {0: (rowptr, False), 1: (u32(ev), False), 2: (u32(eu), False), 3: (4 * ne, True), 4: (4, True)},
+             [((ne + 127) // 128, 1, 1, push(ne))], check, 128, {'items': ne})
+
+
 def w_spmv(size, rng):
     rows, cols = (512, 512) if size == 'small' else (1 << 18, 1 << 18)
     nnz = rng.integers(0, 64, rows) * (rng.random(rows) < 0.95)    # some empty rows
@@ -3032,7 +3057,7 @@ WORKLOADS = {'reduce': w_reduce, 'scan': w_scan, 'sgemm': w_sgemm, 'conv2d': w_c
              'aluprobe': w_aluprobe, 'ubopalette': w_ubopalette, 'uboparams': w_uboparams,
              'bindless': w_bindless, 'bindlessu': w_bindlessu,
              # appended only: the input seed is the index in this dict
-             'rle': w_rle, 'huffdec': w_huffdec, 'lookback': w_lookback, 'hll': w_hll}
+             'rle': w_rle, 'huffdec': w_huffdec, 'lookback': w_lookback, 'hll': w_hll, 'tricount': w_tricount}
 
 
 # ---------------------------------------------------------------------------------------------------------------

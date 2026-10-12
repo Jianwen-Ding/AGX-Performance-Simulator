@@ -1,0 +1,28 @@
+#version 450
+// Triangle counting (graph analytics: clustering coefficients, community detection). The graph is stored as
+// forward adjacency in CSR: each vertex lists only its neighbours with a larger id, sorted. Every invocation takes
+// one edge (u, v) and counts the common forward neighbours of u and v by merging the two sorted lists; each
+// triangle u < v < w is counted exactly once, at edge (u, v). Per-edge counts and a total (atomicAdd).
+layout(local_size_x = 128) in;
+layout(std430, binding = 0) readonly buffer RP { uint rowptr[]; };
+layout(std430, binding = 1) readonly buffer CI { uint col[]; };
+layout(std430, binding = 2) readonly buffer EU { uint edge_u[]; };   // source of edge e (col[e] is its target)
+layout(std430, binding = 3) writeonly buffer PE { uint per_edge[]; };
+layout(std430, binding = 4) buffer TT { uint total; };
+layout(push_constant) uniform P { uint nedges; } p;
+
+void main() {
+    uint e = gl_GlobalInvocationID.x;
+    if (e >= p.nedges) return;
+    uint u = edge_u[e], v = col[e];
+    uint a = rowptr[u], ae = rowptr[u + 1u], b = rowptr[v], be = rowptr[v + 1u];
+    uint c = 0u;
+    while (a < ae && b < be) {
+        uint x = col[a], y = col[b];
+        c += x == y ? 1u : 0u;
+        a += x <= y ? 1u : 0u;
+        b += y <= x ? 1u : 0u;
+    }
+    per_edge[e] = c;
+    if (c != 0u) atomicAdd(total, c);
+}
