@@ -57,7 +57,7 @@ The rest of this file is the detailed procedure, for investigating results.
 
 ## Workloads
 
-One hundred and seventy-five realistic compute kernels, written in GLSL (`spirv/shaders/*.comp`) and compiled to SPIR-V:
+One hundred and seventy-six realistic compute kernels, written in GLSL (`spirv/shaders/*.comp`) and compiled to SPIR-V:
 
 | Workload | Kernel | Stresses |
 |---|---|---|
@@ -236,6 +236,7 @@ One hundred and seventy-five realistic compute kernels, written in GLSL (`spirv/
 | `tpchq6` | TPC-H query 6 over columnar lineitem data (16M rows: uint16 dates, uint8 discount and quantity, uint32 price) | 8- and 16-bit column loads, a 1.9%-selective predicate with the price loaded only for matching rows, a 64-bit fixed-point shared-memory reduction |
 | `ghash` | GHASH, the authentication half of AES-GCM: 65536 TLS-record-sized messages (256 bytes), each with its own key, one per invocation | GF(2^128) multiplication by 128 shift-and-conditional-xor steps on four words; 17 dependent multiplies per message; byte swaps |
 | `scrypt` | scrypt's ROMix (N = 1024, r = 1), the memory-hard core of the password hash: 2048 hashes, 128 KiB of scratchpad each in device memory | A sequential fill of the scratchpad, then 1024 data-dependent random 128-byte reads per hash; Salsa20/8 rounds on a 32-word state in registers |
+| `pngunfilter` | PNG scanline un-filtering (None / Sub / Up / Average / Paeth) of 2048 RGBA thumbnails, one invocation per image channel | Serial byte chains along rows and down the image (16384 steps per invocation), each reading the row it wrote before; 8-bit loads and stores; low occupancy |
 
 Each workload has two sizes:
 

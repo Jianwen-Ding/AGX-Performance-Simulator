@@ -2115,6 +2115,61 @@ def w_scrypt(size, rng):
              {'hashes': T})
 
 
+def png_filter(img):
+    """PNG-filter every row of RGBA8 images img[n, H, 4 W] with libpng's default heuristic (the filter whose
+    output has the least sum of |signed byte|, ties to the lower type); returns [n, H, 1 + 4 W] uint8"""
+    n, H, S = img.shape
+    out = np.zeros((n, H, S + 1), np.uint8)
+    x = img.astype(np.int16)                                                 # differences fit: -510 .. 510
+    for y in range(H):
+        raw = x[:, y]; up = x[:, y - 1] if y else np.zeros_like(raw)
+        left = np.zeros_like(raw); left[:, 4:] = raw[:, :-4]
+        ul = np.zeros_like(raw); ul[:, 4:] = up[:, :-4]
+        pp = left + up - ul
+        pa, pb, pc = np.abs(pp - left), np.abs(pp - up), np.abs(pp - ul)
+        paeth = np.where((pa <= pb) & (pa <= pc), left, np.where(pb <= pc, up, ul))
+        cand = np.stack([raw, raw - left, raw - up, raw - ((left + up) >> 1), raw - paeth]) & 255   # [5, n, S]
+        cost = np.abs(cand.astype(np.uint8).view(np.int8).astype(np.int32)).sum(2)                   # [5, n]
+        ft = np.argmin(cost, 0)
+        out[:, y, 0] = ft
+        out[:, y, 1:] = cand[ft, np.arange(n)]
+    return out
+
+
+def png_file(filt, W, H):
+    """a PNG file (RGBA8, no interlace) whose IDAT holds the given filtered scanlines"""
+    import zlib, struct as st
+    chunk = lambda t, d: st.pack('>I', len(d)) + t + d + st.pack('>I', zlib.crc32(t + d) & 0xFFFFFFFF)
+    return (b'\x89PNG\r\n\x1a\n' + chunk(b'IHDR', st.pack('>IIBBBBB', W, H, 8, 6, 0, 0, 0))
+            + chunk(b'IDAT', zlib.compress(filt.tobytes(), 6)) + chunk(b'IEND', b''))
+
+
+def w_pngunfilter(size, rng):
+    import io
+    from PIL import Image
+    nimg, Wd, H = (4, 32, 32) if size == 'small' else (2048, 128, 128)        # 128 MiB of RGBA at the large size
+    ph = rng.random((nimg, 4, 3))                                            # smooth gradients, texture and noise
+    sx = np.sin(np.arange(Wd) / (6 + 20 * ph[:, :, 0, None]) + 6 * ph[:, :, 1, None])          # [n, 4, W]
+    cy = np.cos(np.arange(H) / (5 + 25 * ph[:, :, 2, None]))                                     # [n, 4, H]
+    img = 128 + 90 * np.einsum('ncy,ncx->nyxc', cy, sx).astype(np.float32)                       # separable
+    img[..., 3] = np.where(rng.random((nimg, 1, 1)) < 0.5, 255, img[..., 3])   # half the images opaque
+    img = np.clip(np.rint(img) + rng.integers(-4, 5, img.shape, dtype=np.int8), 0, 255).astype(np.uint8).reshape(nimg, H, 4 * Wd)
+    filt = png_filter(img)
+    for k in range(min(nimg, 8)):                                            # the encoding decodes with Pillow
+        got = np.asarray(Image.open(io.BytesIO(png_file(filt[k], Wd, H))).convert('RGBA')).reshape(H, 4 * Wd)
+        assert np.array_equal(got, img[k]), 'filtered stream does not decode to the image with Pillow'
+    types = np.bincount(filt[:, :, 0].ravel(), minlength=5)
+    def check(o):
+        got = o[1][:img.size].view(np.uint8).reshape(img.shape)
+        bad = int(np.count_nonzero((got != img).any(2)))
+        return bad == 0, {'bad_rows': bad, 'images': nimg, 'rows': nimg * H,
+                          'filter_types': {k: int(v) for k, v in zip(['none', 'sub', 'up', 'average', 'paeth'], types)}}
+    pad = lambda a: np.concatenate([a.ravel(), np.zeros(-a.size % 4, np.uint8)]).view(np.uint32)
+    return W('pngunfilter', {0: (pad(filt), False), 1: (img.size + (-img.size % 4), True)},
+             [((4 * nimg + 63) // 64, 1, 1, push(nimg, Wd, H))], check, 64, {'bytes': img.size},
+             requires=['storage_buffer_8bit'])
+
+
 def w_spmv(size, rng):
     rows, cols = (512, 512) if size == 'small' else (1 << 18, 1 << 18)
     nnz = rng.integers(0, 64, rows) * (rng.random(rows) < 0.95)    # some empty rows
@@ -4644,7 +4699,7 @@ WORKLOADS = {'reduce': w_reduce, 'scan': w_scan, 'sgemm': w_sgemm, 'conv2d': w_c
              'aluprobe': w_aluprobe, 'ubopalette': w_ubopalette, 'uboparams': w_uboparams,
              'bindless': w_bindless, 'bindlessu': w_bindlessu,
              # appended only: the input seed is the index in this dict
-             'rle': w_rle, 'huffdec': w_huffdec, 'lookback': w_lookback, 'hll': w_hll, 'tricount': w_tricount, 'sha3': w_sha3, 'stereo': w_stereo, 'viterbi': w_viterbi, 'viterbifix': w_viterbifix, 'shiftfuse': w_shiftfuse, 'bc1enc': w_bc1enc, 'lz4dec': w_lz4dec, 'nttmul': w_nttmul, 'topk': w_topk, 'cellsort': w_cellsort, 'boruvka': w_boruvka, 'biquad': w_biquad, 'edt': w_edt, 'mt19937': w_mt19937, 'bitap': w_bitap, 'cholesky': w_cholesky, 'rsshash': w_rsshash, 'poly1305': w_poly1305, 'crc32c': w_crc32c, 'siphash': w_siphash, 'blake2s': w_blake2s, 'blake2sfast': w_blake2sfast, 'q4gemv': w_q4gemv, 'attndec': w_attndec, 'attndecsplit': w_attndecsplit, 'rmsrope': w_rmsrope, 'q8dot': w_q8dot, 'isp': w_isp, 'contour': w_contour, 'hough': w_hough, 'spmvsg': w_spmvsg, 'varint': w_varint, 'bvhrays': w_bvhrays, 'adamw': w_adamw, 'stream': w_stream, 'motionest': w_motionest, 'jsonidx': w_jsonidx, 'cdc': w_cdc, 'swalign': w_swalign, 'swalignfit': w_swalignfit, 'swalignpad': w_swalignpad, 'jpcolor': w_jpcolor, 'postings': w_postings, 'tpchq6': w_tpchq6, 'ghash': w_ghash, 'scrypt': w_scrypt}
+             'rle': w_rle, 'huffdec': w_huffdec, 'lookback': w_lookback, 'hll': w_hll, 'tricount': w_tricount, 'sha3': w_sha3, 'stereo': w_stereo, 'viterbi': w_viterbi, 'viterbifix': w_viterbifix, 'shiftfuse': w_shiftfuse, 'bc1enc': w_bc1enc, 'lz4dec': w_lz4dec, 'nttmul': w_nttmul, 'topk': w_topk, 'cellsort': w_cellsort, 'boruvka': w_boruvka, 'biquad': w_biquad, 'edt': w_edt, 'mt19937': w_mt19937, 'bitap': w_bitap, 'cholesky': w_cholesky, 'rsshash': w_rsshash, 'poly1305': w_poly1305, 'crc32c': w_crc32c, 'siphash': w_siphash, 'blake2s': w_blake2s, 'blake2sfast': w_blake2sfast, 'q4gemv': w_q4gemv, 'attndec': w_attndec, 'attndecsplit': w_attndecsplit, 'rmsrope': w_rmsrope, 'q8dot': w_q8dot, 'isp': w_isp, 'contour': w_contour, 'hough': w_hough, 'spmvsg': w_spmvsg, 'varint': w_varint, 'bvhrays': w_bvhrays, 'adamw': w_adamw, 'stream': w_stream, 'motionest': w_motionest, 'jsonidx': w_jsonidx, 'cdc': w_cdc, 'swalign': w_swalign, 'swalignfit': w_swalignfit, 'swalignpad': w_swalignpad, 'jpcolor': w_jpcolor, 'postings': w_postings, 'tpchq6': w_tpchq6, 'ghash': w_ghash, 'scrypt': w_scrypt, 'pngunfilter': w_pngunfilter}
 
 
 # ---------------------------------------------------------------------------------------------------------------

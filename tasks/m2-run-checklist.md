@@ -43,6 +43,7 @@ where each answer appears, and what to change for each outcome. The details are 
 | `tpchq6` (note 74) | a columnar scan with narrow (8 / 16-bit) loads and a price column loaded only for 1.9% of rows | 329.5 µs |
 | `ghash` (note 75) | long chains of 32-bit shift / xor / select (GF(2^128) multiplies), one message per invocation | 705 µs |
 | `scrypt` (note 76) | a latency chain of dependent random 128-byte reads at low occupancy (64 SIMD groups on 38 cores) | 17.4 ms |
+| `pngunfilter` (note 77) | a serial byte chain per invocation with store-to-load reuse, at low occupancy | 5.92 ms |
 | `nms` (note 10) | a known under-prediction: work grows with the workgroup index | low |
 
 ## Results that must hold whatever the timings
@@ -61,3 +62,4 @@ These have published or independent references, so a FAIL is a real bug on one s
 - `bvhrays`: a brute-force ray-triangle test.
 - `ghash`: the `cryptography` library's AES-GCM tags (and NIST GCM test case 2).
 - `scrypt`: OpenSSL's `hashlib.scrypt` (and RFC 7914's first vector).
+- `pngunfilter`: the images themselves (the encoding is checked with Pillow).
