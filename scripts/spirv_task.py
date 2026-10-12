@@ -470,6 +470,39 @@ def w_lookback(size, rng):
              [(ntiles, 1, 1, push(ntiles))], check, 256, {'bytes': 8 * n}, requires=['vulkan_memory_model'])
 
 
+def w_hll(size, rng):
+    n, per = ((1 << 15), 4) if size == 'small' else ((1 << 24), 16)
+    distinct = n // 3
+    items = u32(rng.integers(0, 1 << 32, distinct, dtype=np.uint64))[rng.integers(0, distinct, n)]   # repeats
+    M = np.uint64(0xffffffff)
+    def fmix(h):
+        h = h.astype(np.uint64)
+        h ^= h >> np.uint64(16); h = (h * np.uint64(0x85ebca6b)) & M; h ^= h >> np.uint64(13)
+        h = (h * np.uint64(0xc2b2ae35)) & M; h ^= h >> np.uint64(16)
+        return h
+    hi = fmix(items); lo = fmix(hi ^ np.uint64(0x9e3779b9))
+    rest = ((hi & np.uint64(0xfffff)) << np.uint64(32)) | lo                  # 52 bits
+    bl = np.zeros(n, dtype=np.int64); r = rest.copy()
+    for sh in (32, 16, 8, 4, 2, 1):                                             # bit length of rest
+        big = r >= (np.uint64(1) << np.uint64(sh)); bl[big] += sh; r[big] >>= np.uint64(sh)
+    bl += (r > 0)
+    rank = 53 - bl
+    ref = np.zeros(4096, dtype=np.int64)
+    np.maximum.at(ref, (hi >> np.uint64(20)).astype(np.int64), rank)
+    def check(o):
+        got = o[1].view(np.uint32)[:4096].astype(np.int64)
+        bad = int(np.sum(got != ref))
+        m = 4096; z = np.sum(2.0 ** -got); est = 0.7213 / (1 + 1.079 / m) * m * m / z
+        zeros = int(np.sum(got == 0))
+        if est <= 2.5 * m and zeros:
+            est = m * np.log(m / zeros)
+        true = len(np.unique(items))
+        return bad == 0, {'bad_registers': bad, 'estimate': round(float(est)), 'true_distinct': true,
+                          'rel_error': round(float(est / true - 1), 4)}
+    groups = (n + 256 * per - 1) // (256 * per)
+    return W('hll', {0: (items, False), 1: (4 * 4096, True)}, [(groups, 1, 1, push(n, per))], check, 256, {'items': n, 'bytes': 4 * n})
+
+
 def w_spmv(size, rng):
     rows, cols = (512, 512) if size == 'small' else (1 << 18, 1 << 18)
     nnz = rng.integers(0, 64, rows) * (rng.random(rows) < 0.95)    # some empty rows
@@ -2999,7 +3032,7 @@ WORKLOADS = {'reduce': w_reduce, 'scan': w_scan, 'sgemm': w_sgemm, 'conv2d': w_c
              'aluprobe': w_aluprobe, 'ubopalette': w_ubopalette, 'uboparams': w_uboparams,
              'bindless': w_bindless, 'bindlessu': w_bindlessu,
              # appended only: the input seed is the index in this dict
-             'rle': w_rle, 'huffdec': w_huffdec, 'lookback': w_lookback}
+             'rle': w_rle, 'huffdec': w_huffdec, 'lookback': w_lookback, 'hll': w_hll}
 
 
 # ---------------------------------------------------------------------------------------------------------------

@@ -1,0 +1,35 @@
+#version 450
+// HyperLogLog cardinality sketch (as in Redis PFADD and analytics databases): each item is hashed (murmur3 fmix32 of
+// the item, then of the result xor a salt, for a 64-bit hash), the top 12 bits pick one of 4096 registers and the
+// register keeps the maximum rank (leading zeros of the remaining 52 bits, plus 1). Each workgroup builds a
+// private sketch in shared memory with atomicMax, then merges it into the global one with atomicMax.
+layout(local_size_x = 256) in;
+layout(std430, binding = 0) readonly buffer I { uint items[]; };
+layout(std430, binding = 1) buffer R { uint reg[]; };            // 4096 registers
+layout(push_constant) uniform P { uint n; uint per_thread; } p;
+shared uint sreg[4096];
+
+uint fmix(uint h) {
+    h ^= h >> 16; h *= 0x85ebca6bu; h ^= h >> 13; h *= 0xc2b2ae35u; h ^= h >> 16;
+    return h;
+}
+
+void main() {
+    uint l = gl_LocalInvocationID.x;
+    for (uint i = l; i < 4096u; i += 256u) sreg[i] = 0u;
+    barrier();
+    uint base = gl_WorkGroupID.x * 256u * p.per_thread;
+    for (uint k = 0u; k < p.per_thread; k++) {
+        uint i = base + k * 256u + l;
+        if (i >= p.n) break;
+        uint hi = fmix(items[i]);
+        uint lo = fmix(hi ^ 0x9e3779b9u);
+        uint idx = hi >> 20;
+        uint rest_hi = hi & 0xfffffu;                            // 20 bits, then the 32 bits of lo
+        uint rank = rest_hi != 0u ? 20u - uint(findMSB(rest_hi)) : (lo != 0u ? 52u - uint(findMSB(lo)) : 53u);
+        atomicMax(sreg[idx], rank);
+    }
+    barrier();
+    for (uint i = l; i < 4096u; i += 256u)
+        if (sreg[i] != 0u) atomicMax(reg[i], sreg[i]);
+}

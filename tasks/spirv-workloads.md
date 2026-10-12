@@ -54,7 +54,7 @@ The rest of this file is the detailed procedure, for investigating results.
 
 ## Workloads
 
-One hundred and twenty-seven realistic compute kernels, written in GLSL (`spirv/shaders/*.comp`) and compiled to SPIR-V:
+One hundred and twenty-eight realistic compute kernels, written in GLSL (`spirv/shaders/*.comp`) and compiled to SPIR-V:
 
 | Workload | Kernel | Stresses |
 |---|---|---|
@@ -185,6 +185,7 @@ One hundred and twenty-seven realistic compute kernels, written in GLSL (`spirv/
 | `rle` | Chunked run-length encode (count, serial offsets, write runs) then decode by binary search, 4 passes | Ballot-based run detection, a serial single-thread scan, data-dependent binary search |
 | `huffdec` | Canonical Huffman decoding, one 256-symbol block per invocation, 12-bit lookup table in shared memory | Unaligned bit-stream peeks, data-dependent shared-memory lookups, serial per-thread dependency |
 | `lookback` | Single-pass prefix sum with decoupled look-back across workgroups | Atomic tile counter, release / acquire flags between workgroups (Vulkan memory model), spin-waiting on earlier workgroups; requires `vulkan_memory_model` |
+| `hll` | HyperLogLog cardinality sketch: 64-bit hash per item, per-workgroup shared-memory sketch merged into 4096 global registers | Shared-memory and device `atomicMax`, `findMSB`, integer multiply-heavy hashing |
 
 Each workload has two sizes:
 
