@@ -2072,6 +2072,32 @@ def w_tpchq6(size, rng):
              [(nwg, 1, 1, push(n))], check, 256, {'bytes': 8 * n}, requires=['storage_buffer_8bit', 'storage_buffer_16bit'])
 
 
+def w_ghash(size, rng):
+    from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+    from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+    nmsg, blocks = (256, 16) if size == 'small' else (65536, 16)            # 256-byte records, one key each
+    ecb = lambda k, b: Cipher(algorithms.AES(k), modes.ECB()).encryptor().update(b)
+    # NIST GCM test case 2 (K = 0, IV = 0, P = 0^128): tag = AES_K(J0) xor GHASH, as the check composes it
+    k0 = bytes(16); t2 = AESGCM(k0).encrypt(bytes(12), bytes(16), None)
+    assert t2.hex() == '0388dace60b6a392f328c2b971b2fe78' + 'ab6e47d42cec13bdf53a67b21257bddf'
+    assert ecb(k0, bytes(16)).hex() == '66e94bd4ef8a2c3b884cfa59ca342b2e'
+    keys = rng.integers(0, 256, (nmsg, 16), dtype=np.uint8); ivs = rng.integers(0, 256, (nmsg, 12), dtype=np.uint8)
+    pts = rng.integers(0, 256, (nmsg, 16 * blocks), dtype=np.uint8)
+    H = np.zeros((nmsg, 16), np.uint8); C = np.zeros((nmsg, 16 * blocks), np.uint8)
+    tags = np.zeros((nmsg, 16), np.uint8); ekj0 = np.zeros((nmsg, 16), np.uint8)
+    for m in range(nmsg):                                                     # the library's AES-GCM
+        k = keys[m].tobytes(); out = AESGCM(k).encrypt(ivs[m].tobytes(), pts[m].tobytes(), None)
+        C[m] = np.frombuffer(out[:-16], np.uint8); tags[m] = np.frombuffer(out[-16:], np.uint8)
+        e = ecb(k, bytes(16) + ivs[m].tobytes() + b'\x00\x00\x00\x01')
+        H[m] = np.frombuffer(e[:16], np.uint8); ekj0[m] = np.frombuffer(e[16:], np.uint8)
+    def check(o):
+        S = o[2][:16 * nmsg].view(np.uint8).reshape(nmsg, 16)
+        bad = int(np.count_nonzero(((S ^ ekj0) != tags).any(1)))           # S xor AES_K(J0) must be the library's tag
+        return bad == 0, {'bad_tags': bad, 'messages': nmsg, 'bytes_per_message': 16 * blocks}
+    return W('ghash', {0: (H.ravel().view(np.uint32).copy(), False), 1: (C.ravel().view(np.uint32).copy(), False), 2: (16 * nmsg, True)},
+             [((nmsg + 63) // 64, 1, 1, push(nmsg, blocks))], check, 64, {'bytes': nmsg * 16 * blocks})
+
+
 def w_spmv(size, rng):
     rows, cols = (512, 512) if size == 'small' else (1 << 18, 1 << 18)
     nnz = rng.integers(0, 64, rows) * (rng.random(rows) < 0.95)    # some empty rows
@@ -4601,7 +4627,7 @@ WORKLOADS = {'reduce': w_reduce, 'scan': w_scan, 'sgemm': w_sgemm, 'conv2d': w_c
              'aluprobe': w_aluprobe, 'ubopalette': w_ubopalette, 'uboparams': w_uboparams,
              'bindless': w_bindless, 'bindlessu': w_bindlessu,
              # appended only: the input seed is the index in this dict
-             'rle': w_rle, 'huffdec': w_huffdec, 'lookback': w_lookback, 'hll': w_hll, 'tricount': w_tricount, 'sha3': w_sha3, 'stereo': w_stereo, 'viterbi': w_viterbi, 'viterbifix': w_viterbifix, 'shiftfuse': w_shiftfuse, 'bc1enc': w_bc1enc, 'lz4dec': w_lz4dec, 'nttmul': w_nttmul, 'topk': w_topk, 'cellsort': w_cellsort, 'boruvka': w_boruvka, 'biquad': w_biquad, 'edt': w_edt, 'mt19937': w_mt19937, 'bitap': w_bitap, 'cholesky': w_cholesky, 'rsshash': w_rsshash, 'poly1305': w_poly1305, 'crc32c': w_crc32c, 'siphash': w_siphash, 'blake2s': w_blake2s, 'blake2sfast': w_blake2sfast, 'q4gemv': w_q4gemv, 'attndec': w_attndec, 'attndecsplit': w_attndecsplit, 'rmsrope': w_rmsrope, 'q8dot': w_q8dot, 'isp': w_isp, 'contour': w_contour, 'hough': w_hough, 'spmvsg': w_spmvsg, 'varint': w_varint, 'bvhrays': w_bvhrays, 'adamw': w_adamw, 'stream': w_stream, 'motionest': w_motionest, 'jsonidx': w_jsonidx, 'cdc': w_cdc, 'swalign': w_swalign, 'swalignfit': w_swalignfit, 'swalignpad': w_swalignpad, 'jpcolor': w_jpcolor, 'postings': w_postings, 'tpchq6': w_tpchq6}
+             'rle': w_rle, 'huffdec': w_huffdec, 'lookback': w_lookback, 'hll': w_hll, 'tricount': w_tricount, 'sha3': w_sha3, 'stereo': w_stereo, 'viterbi': w_viterbi, 'viterbifix': w_viterbifix, 'shiftfuse': w_shiftfuse, 'bc1enc': w_bc1enc, 'lz4dec': w_lz4dec, 'nttmul': w_nttmul, 'topk': w_topk, 'cellsort': w_cellsort, 'boruvka': w_boruvka, 'biquad': w_biquad, 'edt': w_edt, 'mt19937': w_mt19937, 'bitap': w_bitap, 'cholesky': w_cholesky, 'rsshash': w_rsshash, 'poly1305': w_poly1305, 'crc32c': w_crc32c, 'siphash': w_siphash, 'blake2s': w_blake2s, 'blake2sfast': w_blake2sfast, 'q4gemv': w_q4gemv, 'attndec': w_attndec, 'attndecsplit': w_attndecsplit, 'rmsrope': w_rmsrope, 'q8dot': w_q8dot, 'isp': w_isp, 'contour': w_contour, 'hough': w_hough, 'spmvsg': w_spmvsg, 'varint': w_varint, 'bvhrays': w_bvhrays, 'adamw': w_adamw, 'stream': w_stream, 'motionest': w_motionest, 'jsonidx': w_jsonidx, 'cdc': w_cdc, 'swalign': w_swalign, 'swalignfit': w_swalignfit, 'swalignpad': w_swalignpad, 'jpcolor': w_jpcolor, 'postings': w_postings, 'tpchq6': w_tpchq6, 'ghash': w_ghash}
 
 
 # ---------------------------------------------------------------------------------------------------------------

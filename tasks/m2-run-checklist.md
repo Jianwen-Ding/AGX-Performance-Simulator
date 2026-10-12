@@ -41,6 +41,7 @@ where each answer appears, and what to change for each outcome. The details are 
 | `jpcolor` (note 72) | a converging multi-round workload: default (every round from the start) against stateful prediction | 28.8 / 9.1 ms |
 | `postings` (note 73) | divergent galloping search: dependent, data-dependent loads with 28% lane utilisation | 2.11 ms |
 | `tpchq6` (note 74) | a columnar scan with narrow (8 / 16-bit) loads and a price column loaded only for 1.9% of rows | 329.5 µs |
+| `ghash` (note 75) | long chains of 32-bit shift / xor / select (GF(2^128) multiplies), one message per invocation | 705 µs |
 | `nms` (note 10) | a known under-prediction: work grows with the workgroup index | low |
 
 ## Results that must hold whatever the timings
@@ -57,3 +58,4 @@ These have published or independent references, so a FAIL is a real bug on one s
 - `lz4dec`: streams that decode with the `lz4` library. It depends on question 1.
 - `edt`: scipy's EDT.
 - `bvhrays`: a brute-force ray-triangle test.
+- `ghash`: the `cryptography` library's AES-GCM tags (and NIST GCM test case 2).

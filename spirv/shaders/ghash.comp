@@ -1,0 +1,40 @@
+#version 450
+// GHASH, the authentication half of AES-GCM (the cipher of most TLS traffic): for one message per invocation,
+// S = (((C1 * H) ^ C2) * H ^ ... ^ L) * H in GF(2^128) with GCM's bit order, where L is the length block. A server
+// authenticating many TLS records at once runs one such chain per record, each with its connection's H.
+// The multiply is the NIST SP 800-38D shift-and-add: 128 steps of a conditional xor and a one-bit right shift
+// with reduction by 0xE1 || 0^120, all with constant shifts.
+// Blocks are big-endian 128-bit numbers: (x, y, z, w) = bytes 0-3 .. 12-15, byte-swapped from the buffer's words.
+layout(local_size_x = 64) in;
+layout(std430, binding = 0) readonly buffer HK { uvec4 hkey[]; };    // per message: H = AES_K(0^128)
+layout(std430, binding = 1) readonly buffer CT { uvec4 ct[]; };      // per message: p.blocks ciphertext blocks
+layout(std430, binding = 2) writeonly buffer OU { uvec4 tag[]; };    // per message: S (big-endian words, swapped back)
+layout(push_constant) uniform P { uint nmsg; uint blocks; } p;
+
+uint bswap(uint x) { return (x >> 24) | ((x >> 8) & 0xff00u) | ((x << 8) & 0xff0000u) | (x << 24); }
+uvec4 bswap4(uvec4 v) { return uvec4(bswap(v.x), bswap(v.y), bswap(v.z), bswap(v.w)); }
+
+uvec4 gmul(uvec4 x, uvec4 h) {
+    uvec4 z = uvec4(0u), v = h;
+    for (uint k = 0u; k < 4u; k++) {
+        uint xw = k == 0u ? x.x : k == 1u ? x.y : k == 2u ? x.z : x.w;
+        for (uint b = 0u; b < 32u; b++) {
+            if ((xw & 0x80000000u) != 0u) z ^= v;
+            xw <<= 1;
+            uint lsb = v.w & 1u;
+            v = uvec4(v.x >> 1, (v.y >> 1) | (v.x << 31), (v.z >> 1) | (v.y << 31), (v.w >> 1) | (v.z << 31));
+            if (lsb != 0u) v.x ^= 0xE1000000u;
+        }
+    }
+    return z;
+}
+
+void main() {
+    uint m = gl_GlobalInvocationID.x;
+    if (m >= p.nmsg) return;
+    uvec4 h = bswap4(hkey[m]), s = uvec4(0u);
+    for (uint i = 0u; i < p.blocks; i++)
+        s = gmul(s ^ bswap4(ct[m * p.blocks + i]), h);
+    s = gmul(s ^ uvec4(0u, 0u, 0u, p.blocks * 128u), h);                // len(A) = 0, len(C) in bits
+    tag[m] = bswap4(s);
+}
