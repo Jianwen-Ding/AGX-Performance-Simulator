@@ -33,6 +33,7 @@ where each answer appears, and what to change for each outcome. The details are 
 | `boruvka` (note 44) | per-round dispatch times, default (43 ms) vs stateful (32 ms) prediction | 43 / 32 ms |
 | `adamw` (note 66) | whether dirty-line write-back costs DRAM bandwidth: the model charges reads only | 202 µs; ≈ 325 µs if write-back counts |
 | `stream` (note 67) | measured GB/s per access kind (`probes`): read, fill, copy, scale, add, triad | 316, 213, 357, 318, 308, 291 GB/s |
+| `motionest` (note 68) | shared-memory load throughput in a real encoder kernel, with an idle-lane tail | 4.92 ms |
 | `nms` (note 10) | a known under-prediction: work grows with the workgroup index | low |
 
 ## Results that must hold whatever the timings

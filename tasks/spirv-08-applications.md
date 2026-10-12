@@ -1,7 +1,7 @@
 # Task SPIR-V 8: applications (ray tracer, neural networks, image processing, cellular automaton, graph search,
 # encryption, hashing, text, compression)
 
-**Workloads:** `raytrace`, `mlp`, `sobel`, `life`, `bfs`, `conv_layer`, `hist_eq`, `aes`, `hash_table`, `word_count`, `dct8`, `attention`, `resize`, `median3`, `poisson`, `lbm`, `base64`, `md5`, `gemv`, `levenshtein`, `blur`, `yuv420`, `montecarlo`, `xxhash`, `bloom`, `collatz`, `tridiag`, `merge`, `ccl`, `pagerank`, `skinning`, `strsearch`, `quantize`, `rule110`, `voxel`, `nms`, `sat`, `sssp`, `morton`, `utf8`, `fir`, `composite`, `nqueens`, `lzmatch`, `bitpack`, `perlin`, `adler32`, `sieve`, `gcd`, `dither`, `advect`, `knn`, `csvparse`, `pip`, `lift53`, `chacha20`, `modexp`, `floyd`, `f16pack`, `raster`, `canny`, `secded`, `bicubic`, `dfa`, `b64decode`, `cordic`, `rsenc`, `texfetch`, `texfilter`, `imgerode`, `imgtonemap`, `argmax64`, `minmax64`, `dsum`, `quadmip`, `clustered`, `specblur`, `cullindirect`, `bigsort`, `pushmat`, `mplitmus`, `splat`, `splatfix`, `smembank`, `coalesce`, `atomcontend`, `barriercost`, `aluprobe`, `ubopalette`, `uboparams`, `bindless`, `bindlessu`, `rle`, `huffdec`, `lookback`, `hll`, `tricount`, `sha3`, `stereo`, `viterbi`, `viterbifix`, `shiftfuse`, `bc1enc`, `lz4dec`, `nttmul`, `topk`, `cellsort`, `boruvka`, `biquad`, `edt`, `mt19937`, `bitap`, `cholesky`, `rsshash`, `poly1305`, `crc32c`, `siphash`, `blake2s`, `blake2sfast`, `q4gemv`, `attndec`, `attndecsplit`, `rmsrope`, `q8dot`, `isp`, `contour`, `hough`, `spmvsg`, `varint`, `bvhrays`, `adamw`, `stream`. These are recorded and verified by `make asahi-verify` with the others;
+**Workloads:** `raytrace`, `mlp`, `sobel`, `life`, `bfs`, `conv_layer`, `hist_eq`, `aes`, `hash_table`, `word_count`, `dct8`, `attention`, `resize`, `median3`, `poisson`, `lbm`, `base64`, `md5`, `gemv`, `levenshtein`, `blur`, `yuv420`, `montecarlo`, `xxhash`, `bloom`, `collatz`, `tridiag`, `merge`, `ccl`, `pagerank`, `skinning`, `strsearch`, `quantize`, `rule110`, `voxel`, `nms`, `sat`, `sssp`, `morton`, `utf8`, `fir`, `composite`, `nqueens`, `lzmatch`, `bitpack`, `perlin`, `adler32`, `sieve`, `gcd`, `dither`, `advect`, `knn`, `csvparse`, `pip`, `lift53`, `chacha20`, `modexp`, `floyd`, `f16pack`, `raster`, `canny`, `secded`, `bicubic`, `dfa`, `b64decode`, `cordic`, `rsenc`, `texfetch`, `texfilter`, `imgerode`, `imgtonemap`, `argmax64`, `minmax64`, `dsum`, `quadmip`, `clustered`, `specblur`, `cullindirect`, `bigsort`, `pushmat`, `mplitmus`, `splat`, `splatfix`, `smembank`, `coalesce`, `atomcontend`, `barriercost`, `aluprobe`, `ubopalette`, `uboparams`, `bindless`, `bindlessu`, `rle`, `huffdec`, `lookback`, `hll`, `tricount`, `sha3`, `stereo`, `viterbi`, `viterbifix`, `shiftfuse`, `bc1enc`, `lz4dec`, `nttmul`, `topk`, `cellsort`, `boruvka`, `biquad`, `edt`, `mt19937`, `bitap`, `cholesky`, `rsshash`, `poly1305`, `crc32c`, `siphash`, `blake2s`, `blake2sfast`, `q4gemv`, `attndec`, `attndecsplit`, `rmsrope`, `q8dot`, `isp`, `contour`, `hough`, `spmvsg`, `varint`, `bvhrays`, `adamw`, `stream`, `motionest`. These are recorded and verified by `make asahi-verify` with the others;
 they are **PENDING** until then. The detailed procedure is in `tasks/spirv-workloads.md`.
 
 ## Why these
@@ -144,6 +144,7 @@ reference.
 | `bvhrays` | 8264 triangles (terrain + boxes), 4239 BVH nodes, 65536 camera rays (70% hit) | Every ray's hit triangle and distance equal a float64 brute-force test against all triangles (no BVH), allowing fp32 ties on shared edges (1 offline) |
 | `adamw` | 4M parameters, log-normal gradient scales, step 100 (zero, tiny and large gradients included) | p, m, v within 16 ulps of a float64 step on the same fp32 inputs (≤ 4.3 offline) |
 | `stream` | 3 arrays of 2^24 fp32 + a fill target (64 MiB each) | Each STREAM kernel within 2 ulps of float64 applied in sequence; per-workgroup read sums within the fp32 bound; the fill exact |
+| `motionest` | 1280×720 frames (3600 blocks), the second panned by (5, -3) with noise | Every block's (offset, SAD) equal to a numpy full search with the same tie order; `true_motion_found` (the fraction of blocks whose answer is the pan) is 1.0 at both sizes on lavapipe and the simulator |
 
 ## Offline sanity checks (not hardware verification)
 
@@ -609,3 +610,14 @@ reference.
       store at the end. Case 24 reads 249 MB in 739 µs (337 GB/s), which is where the model's DRAM rate comes from.
       Write-back charging therefore moves `dispatch_check` by under 1% (its 36 dispatches pass either way), and only
       `adamw` and `stream` on the M2 can decide it.
+68. **`motionest`: full-search motion estimation.**
+    - 3600 workgroups of 256 invocations. Each invocation scores 4 or 5 of the 1089 candidates at 256 absolute
+      differences each, two shared-memory loads per difference. 1089 = 4 × 256 + 65, so the fifth round runs 65 of
+      256 lanes: about 22% of the issued SAD work is idle lanes.
+    - Predicted 4.92 ms (19 waves of 5 workgroups per core). That is 2.0 × 10^11 useful absolute differences per
+      second, or about 3.8 per core-cycle.
+    - The tie order (SAD, |dx| + |dy|, dy, dx) makes the answer unique, so the check is word for word against numpy.
+      The 25.2.8 and 26.0.3 builds both pass on the simulator under both `bfeil` semantics, so this one does not
+      depend on question 1.
+    - On the M2, the time against the prediction tests the model's shared-memory load throughput on a realistic
+      kernel: the existing probes (`smembank`) measure it in isolation.

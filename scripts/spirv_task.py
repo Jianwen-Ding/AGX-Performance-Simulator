@@ -1670,6 +1670,46 @@ def w_stream(size, rng):
              {'bytes': sum(STREAM_BYTES) * 4 * n // 4})
 
 
+def motion_ref(cur, ref):
+    """full-search motion vectors as motionest.comp: [(dx + 16, dy + 16, sad)] per 16 x 16 block, row-major"""
+    H, Wd = cur.shape
+    pad = np.pad(ref.astype(np.int64), 16, mode='edge')
+    out = []
+    for by in range(0, H, 16):
+        for bx in range(0, Wd, 16):
+            b = cur[by:by + 16, bx:bx + 16].astype(np.int64)
+            win = pad[by:by + 48, bx:bx + 48]
+            cand = np.lib.stride_tricks.sliding_window_view(win, (16, 16))[:33, :33]   # [dy, dx, 16, 16]
+            sad = np.abs(cand - b).sum((2, 3))
+            dy, dx = np.mgrid[-16:17, -16:17]
+            key = ((np.abs(dx) + np.abs(dy)) << 12) | ((dy + 16) * 33 + dx + 16)
+            order = np.lexsort((key.ravel(), sad.ravel()))[0]
+            out.append((int(dx.ravel()[order]) + 16, int(dy.ravel()[order]) + 16, int(sad.ravel()[order])))
+    return out
+
+
+def w_motionest(size, rng):
+    Wd, H = (64, 48) if size == 'small' else (1280, 720)
+    ys, xs = np.mgrid[0:H + 64, 0:Wd + 64].astype(np.float64)
+    tex = 128 + 60 * np.sin(xs / 7.3) * np.cos(ys / 5.1) + 40 * np.sin((xs + ys) / 11.7)
+    tex += rng.normal(0, 12, tex.shape)                                         # texture so that SAD has a clear minimum
+    gdx, gdy = 5, -3                                                            # camera pan
+    ref = tex[32:32 + H, 32:32 + Wd]
+    cur = tex[32 + gdy:32 + gdy + H, 32 + gdx:32 + gdx + Wd].copy()             # cur(x, y) = ref(x + gdx, y + gdy)
+    cur = np.clip(np.rint(cur + rng.normal(0, 2, cur.shape)), 0, 255).astype(np.uint32)
+    ref = np.clip(np.rint(ref), 0, 255).astype(np.uint32)
+    nb = (Wd // 16) * (H // 16)
+    def check(o):
+        got = o[2].view(np.uint32)[:2 * nb].reshape(nb, 2)
+        r = motion_ref(cur, ref)
+        gdx_, gdy_, gsad = got[:, 0] & 255, got[:, 0] >> 8, got[:, 1]
+        bad = sum((int(a), int(b), int(c)) != t for a, b, c, t in zip(gdx_, gdy_, gsad, r))
+        found = float(np.mean((np.array([t[0] for t in r]) == gdx + 16) & (np.array([t[1] for t in r]) == gdy + 16)))
+        return bad == 0, {'bad_blocks': int(bad), 'blocks': nb, 'true_motion_found': round(found, 4)}
+    return W('motionest', {0: (u32(cur), False), 1: (u32(ref), False), 2: (8 * nb, True)}, [(nb, 1, 1, push(Wd, H))],
+             check, 256, {'ops': nb * 1089 * 256})
+
+
 def w_spmv(size, rng):
     rows, cols = (512, 512) if size == 'small' else (1 << 18, 1 << 18)
     nnz = rng.integers(0, 64, rows) * (rng.random(rows) < 0.95)    # some empty rows
@@ -4199,7 +4239,7 @@ WORKLOADS = {'reduce': w_reduce, 'scan': w_scan, 'sgemm': w_sgemm, 'conv2d': w_c
              'aluprobe': w_aluprobe, 'ubopalette': w_ubopalette, 'uboparams': w_uboparams,
              'bindless': w_bindless, 'bindlessu': w_bindlessu,
              # appended only: the input seed is the index in this dict
-             'rle': w_rle, 'huffdec': w_huffdec, 'lookback': w_lookback, 'hll': w_hll, 'tricount': w_tricount, 'sha3': w_sha3, 'stereo': w_stereo, 'viterbi': w_viterbi, 'viterbifix': w_viterbifix, 'shiftfuse': w_shiftfuse, 'bc1enc': w_bc1enc, 'lz4dec': w_lz4dec, 'nttmul': w_nttmul, 'topk': w_topk, 'cellsort': w_cellsort, 'boruvka': w_boruvka, 'biquad': w_biquad, 'edt': w_edt, 'mt19937': w_mt19937, 'bitap': w_bitap, 'cholesky': w_cholesky, 'rsshash': w_rsshash, 'poly1305': w_poly1305, 'crc32c': w_crc32c, 'siphash': w_siphash, 'blake2s': w_blake2s, 'blake2sfast': w_blake2sfast, 'q4gemv': w_q4gemv, 'attndec': w_attndec, 'attndecsplit': w_attndecsplit, 'rmsrope': w_rmsrope, 'q8dot': w_q8dot, 'isp': w_isp, 'contour': w_contour, 'hough': w_hough, 'spmvsg': w_spmvsg, 'varint': w_varint, 'bvhrays': w_bvhrays, 'adamw': w_adamw, 'stream': w_stream}
+             'rle': w_rle, 'huffdec': w_huffdec, 'lookback': w_lookback, 'hll': w_hll, 'tricount': w_tricount, 'sha3': w_sha3, 'stereo': w_stereo, 'viterbi': w_viterbi, 'viterbifix': w_viterbifix, 'shiftfuse': w_shiftfuse, 'bc1enc': w_bc1enc, 'lz4dec': w_lz4dec, 'nttmul': w_nttmul, 'topk': w_topk, 'cellsort': w_cellsort, 'boruvka': w_boruvka, 'biquad': w_biquad, 'edt': w_edt, 'mt19937': w_mt19937, 'bitap': w_bitap, 'cholesky': w_cholesky, 'rsshash': w_rsshash, 'poly1305': w_poly1305, 'crc32c': w_crc32c, 'siphash': w_siphash, 'blake2s': w_blake2s, 'blake2sfast': w_blake2sfast, 'q4gemv': w_q4gemv, 'attndec': w_attndec, 'attndecsplit': w_attndecsplit, 'rmsrope': w_rmsrope, 'q8dot': w_q8dot, 'isp': w_isp, 'contour': w_contour, 'hough': w_hough, 'spmvsg': w_spmvsg, 'varint': w_varint, 'bvhrays': w_bvhrays, 'adamw': w_adamw, 'stream': w_stream, 'motionest': w_motionest}
 
 
 # ---------------------------------------------------------------------------------------------------------------
