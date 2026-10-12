@@ -54,7 +54,7 @@ The rest of this file is the detailed procedure, for investigating results.
 
 ## Workloads
 
-One hundred and fifty-four realistic compute kernels, written in GLSL (`spirv/shaders/*.comp`) and compiled to SPIR-V:
+One hundred and fifty-five realistic compute kernels, written in GLSL (`spirv/shaders/*.comp`) and compiled to SPIR-V:
 
 | Workload | Kernel | Stresses |
 |---|---|---|
@@ -212,6 +212,7 @@ One hundred and fifty-four realistic compute kernels, written in GLSL (`spirv/sh
 | `q4gemv` | 4-bit quantised GEMV in llama.cpp's Q4_0 block format (LLM token generation) | 8-bit storage-buffer loads (18-byte unaligned blocks), fp16 scale rebuilt from bytes, nibble unpacking, `subgroupAdd` row reduction; requires `storage_buffer_8bit` |
 | `attndec` | Single-query attention decode over an fp16 KV cache, one workgroup per head | 16-bit storage loads, `exp`, workgroup max / sum reductions, 16 KiB of scores in shared memory, few workgroups (one per head); requires `storage_buffer_16bit` |
 | `attndecsplit` | The same decode split along the sequence (flash-decoding): one workgroup per (head, 256-position chunk), then a merge pass rescaling partial softmaxes | 16× more workgroups for the same work; with `attndec`, what filling the GPU buys |
+| `rmsrope` | Fused RMSNorm and rotary position embedding of 2048 tokens' 4096-element hidden vectors | `subgroupAdd` reduction, `inversesqrt`, `pow`, `sin` / `cos` of angles up to 4095 rad (outside the range where Vulkan specifies their precision) |
 
 Each workload has two sizes:
 

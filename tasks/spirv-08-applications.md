@@ -1,7 +1,7 @@
 # Task SPIR-V 8: applications (ray tracer, neural networks, image processing, cellular automaton, graph search,
 # encryption, hashing, text, compression)
 
-**Workloads:** `raytrace`, `mlp`, `sobel`, `life`, `bfs`, `conv_layer`, `hist_eq`, `aes`, `hash_table`, `word_count`, `dct8`, `attention`, `resize`, `median3`, `poisson`, `lbm`, `base64`, `md5`, `gemv`, `levenshtein`, `blur`, `yuv420`, `montecarlo`, `xxhash`, `bloom`, `collatz`, `tridiag`, `merge`, `ccl`, `pagerank`, `skinning`, `strsearch`, `quantize`, `rule110`, `voxel`, `nms`, `sat`, `sssp`, `morton`, `utf8`, `fir`, `composite`, `nqueens`, `lzmatch`, `bitpack`, `perlin`, `adler32`, `sieve`, `gcd`, `dither`, `advect`, `knn`, `csvparse`, `pip`, `lift53`, `chacha20`, `modexp`, `floyd`, `f16pack`, `raster`, `canny`, `secded`, `bicubic`, `dfa`, `b64decode`, `cordic`, `rsenc`, `texfetch`, `texfilter`, `imgerode`, `imgtonemap`, `argmax64`, `minmax64`, `dsum`, `quadmip`, `clustered`, `specblur`, `cullindirect`, `bigsort`, `pushmat`, `mplitmus`, `splat`, `splatfix`, `smembank`, `coalesce`, `atomcontend`, `barriercost`, `aluprobe`, `ubopalette`, `uboparams`, `bindless`, `bindlessu`, `rle`, `huffdec`, `lookback`, `hll`, `tricount`, `sha3`, `stereo`, `viterbi`, `viterbifix`, `shiftfuse`, `bc1enc`, `lz4dec`, `nttmul`, `topk`, `cellsort`, `boruvka`, `biquad`, `edt`, `mt19937`, `bitap`, `cholesky`, `rsshash`, `poly1305`, `crc32c`, `siphash`, `blake2s`, `blake2sfast`, `q4gemv`, `attndec`, `attndecsplit`. These are recorded and verified by `make asahi-verify` with the others;
+**Workloads:** `raytrace`, `mlp`, `sobel`, `life`, `bfs`, `conv_layer`, `hist_eq`, `aes`, `hash_table`, `word_count`, `dct8`, `attention`, `resize`, `median3`, `poisson`, `lbm`, `base64`, `md5`, `gemv`, `levenshtein`, `blur`, `yuv420`, `montecarlo`, `xxhash`, `bloom`, `collatz`, `tridiag`, `merge`, `ccl`, `pagerank`, `skinning`, `strsearch`, `quantize`, `rule110`, `voxel`, `nms`, `sat`, `sssp`, `morton`, `utf8`, `fir`, `composite`, `nqueens`, `lzmatch`, `bitpack`, `perlin`, `adler32`, `sieve`, `gcd`, `dither`, `advect`, `knn`, `csvparse`, `pip`, `lift53`, `chacha20`, `modexp`, `floyd`, `f16pack`, `raster`, `canny`, `secded`, `bicubic`, `dfa`, `b64decode`, `cordic`, `rsenc`, `texfetch`, `texfilter`, `imgerode`, `imgtonemap`, `argmax64`, `minmax64`, `dsum`, `quadmip`, `clustered`, `specblur`, `cullindirect`, `bigsort`, `pushmat`, `mplitmus`, `splat`, `splatfix`, `smembank`, `coalesce`, `atomcontend`, `barriercost`, `aluprobe`, `ubopalette`, `uboparams`, `bindless`, `bindlessu`, `rle`, `huffdec`, `lookback`, `hll`, `tricount`, `sha3`, `stereo`, `viterbi`, `viterbifix`, `shiftfuse`, `bc1enc`, `lz4dec`, `nttmul`, `topk`, `cellsort`, `boruvka`, `biquad`, `edt`, `mt19937`, `bitap`, `cholesky`, `rsshash`, `poly1305`, `crc32c`, `siphash`, `blake2s`, `blake2sfast`, `q4gemv`, `attndec`, `attndecsplit`, `rmsrope`. These are recorded and verified by `make asahi-verify` with the others;
 they are **PENDING** until then. The detailed procedure is in `tasks/spirv-workloads.md`.
 
 ## Why these
@@ -134,6 +134,7 @@ reference.
 | `q4gemv` | 4096 × 4096 weights quantised to Q4_0 (9.4 MB) times an fp32 vector | Within the fp32 summation bound of the exact product with the dequantised weights; the quantisation error against the fp32 weights is reported (about 8.5%) |
 | `attndec` | 32 heads × 4096 cached positions × 128 dims, fp16 K / V (some keys aligned with the query) | Error ≤ 1e-4 of Σ softmax·\|v\| per output against float64 numpy on the same fp16 K / V (2.4e-6 offline) |
 | `attndecsplit` | Same sizes and distribution as `attndec` | The same check (1.4e-6 offline) |
+| `rmsrope` | 2048 tokens at positions 0-4095 (including 0, 1, 1000, 4095), hidden size 4096, head size 128 | Error per rotated pair ≤ 2⁻⁹ of its magnitude against float64 (3.7e-4 on lavapipe, 3.2e-4 simulated) |
 
 ## Offline sanity checks (not hardware verification)
 
@@ -506,3 +507,12 @@ reference.
       partial V sum, then a 32-workgroup merge. Predicted 0.62 + 0.015 ms, 3.9x faster. On lavapipe it is slightly
       slower (40.7 against 35.6 ms): a CPU has few cores to fill.
     - The M2 ratio of the pair measures what occupancy is worth when streaming a KV cache.
+58. **RMSNorm + RoPE, and sin / cos of large angles.**
+    - RoPE rotates by pos · θ_i with θ_0 = 1, so at position 4095 the shader takes `sin` / `cos` of 4095 rad, as
+      llama.cpp's Vulkan backend does. Vulkan specifies their precision only on [-π, π].
+    - The driver computes them with `sin_pt_1` / `sin_pt_2` after its own range reduction, `pow` with `exp2`, and the
+      normalisation with `rsqrt`.
+    - Most of the error is the fp32 angle itself (one ulp of 4095 is 2.4e-4 rad). lavapipe reaches 3.7e-4 and the
+      simulator 3.2e-4.
+    - `probes` reports the M2's `max_rel_error`, which shows how the hardware's range reduction behaves at real RoPE
+      angles. Predicted 0.2 ms.

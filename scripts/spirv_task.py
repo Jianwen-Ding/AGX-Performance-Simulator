@@ -1288,6 +1288,29 @@ def w_attndecsplit(size, rng):
     return w
 
 
+def w_rmsrope(size, rng):
+    tokens = 16 if size == 'small' else 2048
+    x = f32(rng.normal(0, 1, (tokens, 4096)) * rng.uniform(0.1, 10, (tokens, 1)))
+    gamma = f32(rng.uniform(0.5, 1.5, 4096))
+    pos = u32(rng.integers(0, 4096, tokens)); pos[:4] = [0, 1, 1000, 4095]
+    def check(o):
+        got = o[3].view(np.float32)[:tokens * 4096].reshape(tokens, 4096).astype(np.float64)
+        x64 = x.astype(np.float64)
+        nrm = x64 / np.sqrt((x64 ** 2).mean(1, keepdims=True) + 1e-6) * gamma
+        i = np.arange(2048) % 64
+        th = pos[:, None].astype(np.float64) * 10000.0 ** (-2 * i / 128)
+        a, b = nrm[:, 0::2], nrm[:, 1::2]
+        ref = np.empty_like(nrm); ref[:, 0::2] = a * np.cos(th) - b * np.sin(th); ref[:, 1::2] = a * np.sin(th) + b * np.cos(th)
+        # error per pair relative to the pair's magnitude: rotation angle error plus fp32 normalisation
+        mag = np.sqrt(a ** 2 + b ** 2); mag = np.repeat(mag, 2, axis=1) + 1e-30
+        rel = np.abs(got - ref) / mag
+        worst = float(rel.max()); far = float(rel[pos >= 2048].max()) if (pos >= 2048).any() else 0.0
+        return worst <= 2.0 ** -9, {'max_rel_error': worst, 'max_rel_error_pos_ge_2048': far,
+                                     'max_angle_rad': float(th.max())}
+    return W('rmsrope', {0: (x, False), 1: (gamma, False), 2: (pos, False), 3: (4 * 4096 * tokens, True)},
+             [(tokens, 1, 1, b'')], check, 256, {'bytes': 8 * 4096 * tokens}, requires=['subgroup_arithmetic'])
+
+
 def w_spmv(size, rng):
     rows, cols = (512, 512) if size == 'small' else (1 << 18, 1 << 18)
     nnz = rng.integers(0, 64, rows) * (rng.random(rows) < 0.95)    # some empty rows
@@ -3817,7 +3840,7 @@ WORKLOADS = {'reduce': w_reduce, 'scan': w_scan, 'sgemm': w_sgemm, 'conv2d': w_c
              'aluprobe': w_aluprobe, 'ubopalette': w_ubopalette, 'uboparams': w_uboparams,
              'bindless': w_bindless, 'bindlessu': w_bindlessu,
              # appended only: the input seed is the index in this dict
-             'rle': w_rle, 'huffdec': w_huffdec, 'lookback': w_lookback, 'hll': w_hll, 'tricount': w_tricount, 'sha3': w_sha3, 'stereo': w_stereo, 'viterbi': w_viterbi, 'viterbifix': w_viterbifix, 'shiftfuse': w_shiftfuse, 'bc1enc': w_bc1enc, 'lz4dec': w_lz4dec, 'nttmul': w_nttmul, 'topk': w_topk, 'cellsort': w_cellsort, 'boruvka': w_boruvka, 'biquad': w_biquad, 'edt': w_edt, 'mt19937': w_mt19937, 'bitap': w_bitap, 'cholesky': w_cholesky, 'rsshash': w_rsshash, 'poly1305': w_poly1305, 'crc32c': w_crc32c, 'siphash': w_siphash, 'blake2s': w_blake2s, 'blake2sfast': w_blake2sfast, 'q4gemv': w_q4gemv, 'attndec': w_attndec, 'attndecsplit': w_attndecsplit}
+             'rle': w_rle, 'huffdec': w_huffdec, 'lookback': w_lookback, 'hll': w_hll, 'tricount': w_tricount, 'sha3': w_sha3, 'stereo': w_stereo, 'viterbi': w_viterbi, 'viterbifix': w_viterbifix, 'shiftfuse': w_shiftfuse, 'bc1enc': w_bc1enc, 'lz4dec': w_lz4dec, 'nttmul': w_nttmul, 'topk': w_topk, 'cellsort': w_cellsort, 'boruvka': w_boruvka, 'biquad': w_biquad, 'edt': w_edt, 'mt19937': w_mt19937, 'bitap': w_bitap, 'cholesky': w_cholesky, 'rsshash': w_rsshash, 'poly1305': w_poly1305, 'crc32c': w_crc32c, 'siphash': w_siphash, 'blake2s': w_blake2s, 'blake2sfast': w_blake2sfast, 'q4gemv': w_q4gemv, 'attndec': w_attndec, 'attndecsplit': w_attndecsplit, 'rmsrope': w_rmsrope}
 
 
 # ---------------------------------------------------------------------------------------------------------------
@@ -4660,7 +4683,8 @@ def cmd_probes(a):
         rows.append({'probe': name, 'measured_us': show(m), 'predicted_us': show(p_), **derive(m, p_)})
     functional = {'texfilter': 'best_subtexel_bits', 'imgtonemap': 'round_to_nearest_fraction', 'mplitmus': 'relaxed_stale_reads',
                   'f16pack': 'half_mismatches', 'lookback': 'mean_lookback_steps',
-                  'viterbi': 'mismatched_bits', 'viterbifix': 'mismatched_bits', 'shiftfuse': 'mismatches'}
+                  'viterbi': 'mismatched_bits', 'viterbifix': 'mismatched_bits', 'shiftfuse': 'mismatches',
+                  'rmsrope': 'max_rel_error'}
     for name, key in functional.items():
         r = rec_of(name)
         if r is None:
