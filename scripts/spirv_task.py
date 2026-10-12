@@ -2213,6 +2213,52 @@ def w_inflateshm(size, rng):
     return w_inflate(size, rng, shm=True)
 
 
+def kronecker_edges(scale, ef, rng, a=0.57, b=0.19, c=0.19):
+    """Graph500's Kronecker edge generator: ef * 2^scale edges, a quadrant per level, then a random relabelling of
+    the vertices (duplicates and self-loops kept, as Graph500 does)"""
+    m = ef << scale
+    src = np.zeros(m, np.int64); dst = np.zeros(m, np.int64)
+    for lvl in range(scale):
+        r = rng.random(m)
+        si = r >= a + b                                                      # quadrants C and D: source bit set
+        di = ((r >= a) & (r < a + b)) | (r >= a + b + c)                     # quadrants B and D: destination bit set
+        src |= si.astype(np.int64) << lvl; dst |= di.astype(np.int64) << lvl
+    perm = rng.permutation(1 << scale)
+    return perm[src], perm[dst]
+
+
+def w_csrbuild(size, rng):
+    import scipy.sparse as sp
+    scale = 10 if size == 'small' else 18
+    n = 1 << scale
+    src, dst = kronecker_edges(scale, 16, rng)
+    m = len(src); nb = (n + 1023) // 1024
+    assert nb <= 1024
+    order = np.lexsort((dst, src))
+    rp_ref = np.concatenate([[0], np.cumsum(np.bincount(src, minlength=n))])
+    col_ref = dst[order]
+    def check(o):
+        rp = o[2].view(np.uint32)[:n + 1].astype(np.int64)
+        col = o[5].view(np.uint32)[:m].astype(np.int64)
+        rp_ok = bool(np.array_equal(rp, rp_ref))
+        rows = np.repeat(np.arange(n), np.diff(rp)) if rp_ok else np.zeros(m, np.int64)
+        col_ok = rp_ok and bool(np.array_equal(col[np.lexsort((col, rows))], col_ref))   # each row as a multiset
+        # independent of the above: scipy's conversion of the edge list (duplicates summed) equals the GPU's CSR's
+        sp_ok = False
+        if rp_ok:
+            g = sp.csr_matrix((np.ones(m), col, rp), shape=(n, n)); g.sum_duplicates()
+            r = sp.coo_matrix((np.ones(m), (src, dst)), shape=(n, n)).tocsr(); r.sum_duplicates()
+            sp_ok = (g != r).nnz == 0
+        degs = np.diff(rp_ref)
+        return rp_ok and col_ok and sp_ok, {'rowptr_ok': rp_ok, 'rows_ok': col_ok, 'matches_scipy': bool(sp_ok), 'vertices': n,
+                                            'edges': m, 'max_degree': int(degs.max()), 'isolated': int(np.sum(degs == 0))}
+    e = u32(np.stack([src, dst], 1).ravel())
+    ds = [((m + 255) // 256, 1, 1, push(0, n, m)), (nb, 1, 1, push(1, n, m)), (1, 1, 1, push(2, n, m)),
+          ((n + 255) // 256, 1, 1, push(3, n, m)), ((m + 255) // 256, 1, 1, push(4, n, m))]
+    return W('csrbuild', {0: (e, False), 1: (u32(np.zeros(n)), False), 2: (4 * (n + 1), True), 3: (4 * nb, False),
+                          4: (4 * n, False), 5: (4 * m, True)}, ds, check, 256, {'edges': m})
+
+
 def w_spmv(size, rng):
     rows, cols = (512, 512) if size == 'small' else (1 << 18, 1 << 18)
     nnz = rng.integers(0, 64, rows) * (rng.random(rows) < 0.95)    # some empty rows
@@ -4742,7 +4788,7 @@ WORKLOADS = {'reduce': w_reduce, 'scan': w_scan, 'sgemm': w_sgemm, 'conv2d': w_c
              'aluprobe': w_aluprobe, 'ubopalette': w_ubopalette, 'uboparams': w_uboparams,
              'bindless': w_bindless, 'bindlessu': w_bindlessu,
              # appended only: the input seed is the index in this dict
-             'rle': w_rle, 'huffdec': w_huffdec, 'lookback': w_lookback, 'hll': w_hll, 'tricount': w_tricount, 'sha3': w_sha3, 'stereo': w_stereo, 'viterbi': w_viterbi, 'viterbifix': w_viterbifix, 'shiftfuse': w_shiftfuse, 'bc1enc': w_bc1enc, 'lz4dec': w_lz4dec, 'nttmul': w_nttmul, 'topk': w_topk, 'cellsort': w_cellsort, 'boruvka': w_boruvka, 'biquad': w_biquad, 'edt': w_edt, 'mt19937': w_mt19937, 'bitap': w_bitap, 'cholesky': w_cholesky, 'rsshash': w_rsshash, 'poly1305': w_poly1305, 'crc32c': w_crc32c, 'siphash': w_siphash, 'blake2s': w_blake2s, 'blake2sfast': w_blake2sfast, 'q4gemv': w_q4gemv, 'attndec': w_attndec, 'attndecsplit': w_attndecsplit, 'rmsrope': w_rmsrope, 'q8dot': w_q8dot, 'isp': w_isp, 'contour': w_contour, 'hough': w_hough, 'spmvsg': w_spmvsg, 'varint': w_varint, 'bvhrays': w_bvhrays, 'adamw': w_adamw, 'stream': w_stream, 'motionest': w_motionest, 'jsonidx': w_jsonidx, 'cdc': w_cdc, 'swalign': w_swalign, 'swalignfit': w_swalignfit, 'swalignpad': w_swalignpad, 'jpcolor': w_jpcolor, 'postings': w_postings, 'tpchq6': w_tpchq6, 'ghash': w_ghash, 'scrypt': w_scrypt, 'pngunfilter': w_pngunfilter, 'inflate': w_inflate, 'inflateshm': w_inflateshm}
+             'rle': w_rle, 'huffdec': w_huffdec, 'lookback': w_lookback, 'hll': w_hll, 'tricount': w_tricount, 'sha3': w_sha3, 'stereo': w_stereo, 'viterbi': w_viterbi, 'viterbifix': w_viterbifix, 'shiftfuse': w_shiftfuse, 'bc1enc': w_bc1enc, 'lz4dec': w_lz4dec, 'nttmul': w_nttmul, 'topk': w_topk, 'cellsort': w_cellsort, 'boruvka': w_boruvka, 'biquad': w_biquad, 'edt': w_edt, 'mt19937': w_mt19937, 'bitap': w_bitap, 'cholesky': w_cholesky, 'rsshash': w_rsshash, 'poly1305': w_poly1305, 'crc32c': w_crc32c, 'siphash': w_siphash, 'blake2s': w_blake2s, 'blake2sfast': w_blake2sfast, 'q4gemv': w_q4gemv, 'attndec': w_attndec, 'attndecsplit': w_attndecsplit, 'rmsrope': w_rmsrope, 'q8dot': w_q8dot, 'isp': w_isp, 'contour': w_contour, 'hough': w_hough, 'spmvsg': w_spmvsg, 'varint': w_varint, 'bvhrays': w_bvhrays, 'adamw': w_adamw, 'stream': w_stream, 'motionest': w_motionest, 'jsonidx': w_jsonidx, 'cdc': w_cdc, 'swalign': w_swalign, 'swalignfit': w_swalignfit, 'swalignpad': w_swalignpad, 'jpcolor': w_jpcolor, 'postings': w_postings, 'tpchq6': w_tpchq6, 'ghash': w_ghash, 'scrypt': w_scrypt, 'pngunfilter': w_pngunfilter, 'inflate': w_inflate, 'inflateshm': w_inflateshm, 'csrbuild': w_csrbuild}
 
 
 # ---------------------------------------------------------------------------------------------------------------
@@ -5488,7 +5534,7 @@ def verify_one(name, exp, layout, timing):
 
 # multi-pass workloads whose later dispatches depend on earlier results: verify --timing also predicts them with
 # predict --stateful (each dispatch from the buffers the previous ones left)
-STATEFUL = ('bfs', 'sssp', 'ccl', 'pagerank', 'boruvka', 'lookback', 'cellsort', 'jpcolor')
+STATEFUL = ('bfs', 'sssp', 'ccl', 'pagerank', 'boruvka', 'lookback', 'cellsort', 'jpcolor', 'csrbuild')
 
 
 def timing_summary(rows):

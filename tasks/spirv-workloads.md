@@ -57,7 +57,7 @@ The rest of this file is the detailed procedure, for investigating results.
 
 ## Workloads
 
-One hundred and seventy-eight realistic compute kernels, written in GLSL (`spirv/shaders/*.comp`) and compiled to SPIR-V:
+One hundred and seventy-nine realistic compute kernels, written in GLSL (`spirv/shaders/*.comp`) and compiled to SPIR-V:
 
 | Workload | Kernel | Stresses |
 |---|---|---|
@@ -239,6 +239,7 @@ One hundred and seventy-eight realistic compute kernels, written in GLSL (`spirv
 | `pngunfilter` | PNG scanline un-filtering (None / Sub / Up / Average / Paeth) of 2048 RGBA thumbnails, one invocation per image channel | Serial byte chains along rows and down the image (16384 steps per invocation), each reading the row it wrote before; 8-bit loads and stores; low occupancy |
 | `inflate` | DEFLATE decompression (zlib / gzip / PNG / ZIP), one raw stream per invocation, puff-style: stored, fixed- and dynamic-Huffman blocks, LZ77 copies | Bit-serial canonical Huffman decoding, data-indexed private tables (Mesa turns the small ones into select chains: 13897 instructions, 131 KiB of code) and scratch, copies reading back device memory |
 | `inflateshm` | `inflate` with the per-length code counts and offsets in shared memory | The same decoder in 2987 instructions (20.5 KiB): code size and dynamic instruction count against latency |
+| `csrbuild` | Graph construction: a Graph500 Kronecker edge list (2^18 vertices, 4.2M edges) into CSR adjacency | Five passes: degree counting with contended device atomics (hubs of 30000 edges), a two-level shared-memory scan, a scatter through atomic cursors |
 
 Each workload has two sizes:
 

@@ -1,7 +1,7 @@
 # Task SPIR-V 8: applications (ray tracer, neural networks, image processing, cellular automaton, graph search,
 # encryption, hashing, text, compression)
 
-**Workloads:** `raytrace`, `mlp`, `sobel`, `life`, `bfs`, `conv_layer`, `hist_eq`, `aes`, `hash_table`, `word_count`, `dct8`, `attention`, `resize`, `median3`, `poisson`, `lbm`, `base64`, `md5`, `gemv`, `levenshtein`, `blur`, `yuv420`, `montecarlo`, `xxhash`, `bloom`, `collatz`, `tridiag`, `merge`, `ccl`, `pagerank`, `skinning`, `strsearch`, `quantize`, `rule110`, `voxel`, `nms`, `sat`, `sssp`, `morton`, `utf8`, `fir`, `composite`, `nqueens`, `lzmatch`, `bitpack`, `perlin`, `adler32`, `sieve`, `gcd`, `dither`, `advect`, `knn`, `csvparse`, `pip`, `lift53`, `chacha20`, `modexp`, `floyd`, `f16pack`, `raster`, `canny`, `secded`, `bicubic`, `dfa`, `b64decode`, `cordic`, `rsenc`, `texfetch`, `texfilter`, `imgerode`, `imgtonemap`, `argmax64`, `minmax64`, `dsum`, `quadmip`, `clustered`, `specblur`, `cullindirect`, `bigsort`, `pushmat`, `mplitmus`, `splat`, `splatfix`, `smembank`, `coalesce`, `atomcontend`, `barriercost`, `aluprobe`, `ubopalette`, `uboparams`, `bindless`, `bindlessu`, `rle`, `huffdec`, `lookback`, `hll`, `tricount`, `sha3`, `stereo`, `viterbi`, `viterbifix`, `shiftfuse`, `bc1enc`, `lz4dec`, `nttmul`, `topk`, `cellsort`, `boruvka`, `biquad`, `edt`, `mt19937`, `bitap`, `cholesky`, `rsshash`, `poly1305`, `crc32c`, `siphash`, `blake2s`, `blake2sfast`, `q4gemv`, `attndec`, `attndecsplit`, `rmsrope`, `q8dot`, `isp`, `contour`, `hough`, `spmvsg`, `varint`, `bvhrays`, `adamw`, `stream`, `motionest`, `jsonidx`, `cdc`, `swalign`, `swalignfit`, `swalignpad`, `jpcolor`, `postings`, `tpchq6`, `ghash`, `scrypt`, `pngunfilter`, `inflate`, `inflateshm`. These are recorded and verified by `make asahi-verify` with the others;
+**Workloads:** `raytrace`, `mlp`, `sobel`, `life`, `bfs`, `conv_layer`, `hist_eq`, `aes`, `hash_table`, `word_count`, `dct8`, `attention`, `resize`, `median3`, `poisson`, `lbm`, `base64`, `md5`, `gemv`, `levenshtein`, `blur`, `yuv420`, `montecarlo`, `xxhash`, `bloom`, `collatz`, `tridiag`, `merge`, `ccl`, `pagerank`, `skinning`, `strsearch`, `quantize`, `rule110`, `voxel`, `nms`, `sat`, `sssp`, `morton`, `utf8`, `fir`, `composite`, `nqueens`, `lzmatch`, `bitpack`, `perlin`, `adler32`, `sieve`, `gcd`, `dither`, `advect`, `knn`, `csvparse`, `pip`, `lift53`, `chacha20`, `modexp`, `floyd`, `f16pack`, `raster`, `canny`, `secded`, `bicubic`, `dfa`, `b64decode`, `cordic`, `rsenc`, `texfetch`, `texfilter`, `imgerode`, `imgtonemap`, `argmax64`, `minmax64`, `dsum`, `quadmip`, `clustered`, `specblur`, `cullindirect`, `bigsort`, `pushmat`, `mplitmus`, `splat`, `splatfix`, `smembank`, `coalesce`, `atomcontend`, `barriercost`, `aluprobe`, `ubopalette`, `uboparams`, `bindless`, `bindlessu`, `rle`, `huffdec`, `lookback`, `hll`, `tricount`, `sha3`, `stereo`, `viterbi`, `viterbifix`, `shiftfuse`, `bc1enc`, `lz4dec`, `nttmul`, `topk`, `cellsort`, `boruvka`, `biquad`, `edt`, `mt19937`, `bitap`, `cholesky`, `rsshash`, `poly1305`, `crc32c`, `siphash`, `blake2s`, `blake2sfast`, `q4gemv`, `attndec`, `attndecsplit`, `rmsrope`, `q8dot`, `isp`, `contour`, `hough`, `spmvsg`, `varint`, `bvhrays`, `adamw`, `stream`, `motionest`, `jsonidx`, `cdc`, `swalign`, `swalignfit`, `swalignpad`, `jpcolor`, `postings`, `tpchq6`, `ghash`, `scrypt`, `pngunfilter`, `inflate`, `inflateshm`, `csrbuild`. These are recorded and verified by `make asahi-verify` with the others;
 they are **PENDING** until then. The detailed procedure is in `tasks/spirv-workloads.md`.
 
 ## Why these
@@ -155,11 +155,12 @@ reference.
 | `scrypt` | 2048 random passwords (8-16 printable bytes) and 16-byte salts; the host runs PBKDF2-HMAC-SHA256 before and after the GPU's ROMix | Every derived key (64 bytes) equal to `hashlib.scrypt` (OpenSSL) with N = 1024, r = 1, p = 1; RFC 7914's first vector is asserted first |
 | `pngunfilter` | 2048 RGBA8 images of 128×128 (separable gradients, texture, integer noise; half opaque), filtered with libpng's default heuristic (least sum of absolute signed bytes) | Every reconstructed row equal to the image; the filtered streams of the first 8 images, wrapped as PNG files, decode to the same pixels with Pillow |
 | `inflate`, `inflateshm` | 2048 raw-deflate streams of 2-8 KiB from Python's `zlib` (pseudo-English over a Zipf vocabulary, some with a binary prefix): 1 in 8 stored, 1 in 4 `Z_FIXED`, the rest dynamic at levels 1 / 6 / 9 | Every stream's output equal to the original bytes (and its length), with no decoder error; every block type is exercised |
+| `csrbuild` | Graph500's Kronecker generator at scale 18, edge factor 16 (A, B, C = 0.57, 0.19, 0.19, vertices relabelled at random; duplicates and self-loops kept) | `rowptr` exact; every row's neighbours equal to the edge list's as a multiset (the atomics fix no order); the GPU's CSR with duplicates summed equal to scipy's conversion of the edge list |
 
 ## Offline sanity checks (not hardware verification)
 
 - **lavapipe:** all pass at both sizes. Last whole-suite rerun at the small size: 174 of 174 functionally correct
-  (`scrypt`, `pngunfilter`, `inflate` and `inflateshm`, added since, pass at both sizes).
+  (`scrypt`, `pngunfilter`, `inflate`, `inflateshm` and `csrbuild`, added since, pass at both sizes).
 - **Shim-compiled Mesa 25.2.8 and 26.0.3 code on the functional simulator:** every workload the simulator can run, under
   `bfeil` semantics B; under the default, all but the five of question 1 (below).
   - Last whole-suite rerun (`simall`, Mesa 26.0.3): 170 compiled workloads.
@@ -804,3 +805,21 @@ reference.
     - On the M2 the pair measures both: if `inflate` is clearly slower, the select chains or the instruction-cache
       misses of 131 KiB of code cost more than the model allows.
     - Both pass on lavapipe, and on the simulator at both Mesa versions under both `bfeil` semantics.
+79. **`csrbuild`: edge list to CSR.**
+    - Five passes, the usual GPU recipe:
+      1. count each vertex's out-degree with device `atomicAdd`;
+      2. scan the degrees in blocks of 1024 in shared memory;
+      3. scan the block totals in one workgroup;
+      4. add the block offsets and copy the row starts to per-vertex cursors;
+      5. scatter every edge to `atomicAdd(cursor[src], 1)`.
+    - The graph is Graph500's: 2^18 vertices, 4.19M edges, a hub of 30248 edges, and 43% isolated vertices (the
+      Kronecker generator's usual shape).
+    - The order of neighbours within a row depends on the atomics, so the check compares rows as multisets. As an
+      independent check, scipy's own conversion of the edge list must equal the GPU's CSR with duplicates summed.
+    - The prediction depends on the evolving buffers. By default every pass starts from the initial ones, so the
+      scatter's cursors are all 0, its stores land in one small region, and the scatter is predicted at 191 µs.
+      `--stateful` gives it the real cursors: 710 µs of scattered stores. Totals: 386 µs default, 905 µs stateful.
+      It is in `STATEFUL`, so `verify --timing` reports both.
+    - The counting pass (166 µs) puts up to 30248 atomics on one address. The model does not serialise same-address
+      atomics (as for `atomcontend`, `cellsort` and `hough`), so its hub cost is a lower bound.
+    - It passes on lavapipe, and on the simulator at both Mesa versions under both `bfeil` semantics.
