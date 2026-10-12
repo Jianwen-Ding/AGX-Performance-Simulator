@@ -604,3 +604,8 @@ reference.
       not only `adamw`'s read-modify-write.
     - Whichever column the M2 times follow is the setting to keep. If neither, the right charge lies in between, and
       the per-kind GB/s from `probes` give it.
+    - No hardware data recorded so far measures writes. The memory-bound dispatches in
+      `results/2026-10-11-dispatch` (`stream` cases 22-24) are read-only loops: 8 loads summed per iteration, one
+      store at the end. Case 24 reads 249 MB in 739 µs (337 GB/s), which is where the model's DRAM rate comes from.
+      Write-back charging therefore moves `dispatch_check` by under 1% (its 36 dispatches pass either way), and only
+      `adamw` and `stream` on the M2 can decide it.
