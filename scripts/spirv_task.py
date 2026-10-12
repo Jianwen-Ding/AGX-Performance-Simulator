@@ -2117,22 +2117,24 @@ def w_scrypt(size, rng):
 
 def png_filter(img):
     """PNG-filter every row of RGBA8 images img[n, H, 4 W] with libpng's default heuristic (the filter whose
-    output has the least sum of |signed byte|, ties to the lower type); returns [n, H, 1 + 4 W] uint8"""
+    output has the least sum of |signed byte|, ties to the lower type); returns [n, H, 1 + 4 W] uint8. Filters
+    predict from the original image, so all rows are filtered at once (in chunks of images)."""
     n, H, S = img.shape
     out = np.zeros((n, H, S + 1), np.uint8)
-    x = img.astype(np.int16)                                                 # differences fit: -510 .. 510
-    for y in range(H):
-        raw = x[:, y]; up = x[:, y - 1] if y else np.zeros_like(raw)
-        left = np.zeros_like(raw); left[:, 4:] = raw[:, :-4]
-        ul = np.zeros_like(raw); ul[:, 4:] = up[:, :-4]
+    for k0 in range(0, n, 256):
+        raw = img[k0:k0 + 256].astype(np.int16)                             # differences fit: -510 .. 510
+        m = len(raw)
+        up = np.zeros_like(raw); up[:, 1:] = raw[:, :-1]
+        left = np.zeros_like(raw); left[:, :, 4:] = raw[:, :, :-4]
+        ul = np.zeros_like(raw); ul[:, :, 4:] = up[:, :, :-4]
         pp = left + up - ul
         pa, pb, pc = np.abs(pp - left), np.abs(pp - up), np.abs(pp - ul)
         paeth = np.where((pa <= pb) & (pa <= pc), left, np.where(pb <= pc, up, ul))
-        cand = np.stack([raw, raw - left, raw - up, raw - ((left + up) >> 1), raw - paeth]) & 255   # [5, n, S]
-        cost = np.abs(cand.astype(np.uint8).view(np.int8).astype(np.int32)).sum(2)                   # [5, n]
+        cand = (np.stack([raw, raw - left, raw - up, raw - ((left + up) >> 1), raw - paeth]) & 255).astype(np.uint8)   # [5, m, H, S]
+        cost = np.abs(cand.view(np.int8).astype(np.int32)).sum(3)           # [5, m, H]
         ft = np.argmin(cost, 0)
-        out[:, y, 0] = ft
-        out[:, y, 1:] = cand[ft, np.arange(n)]
+        out[k0:k0 + m, :, 0] = ft
+        out[k0:k0 + m, :, 1:] = np.take_along_axis(cand, ft[None, :, :, None], 0)[0]
     return out
 
 
