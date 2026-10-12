@@ -1,0 +1,22 @@
+{
+ "blob": "spirv/compiled/mesa-25.2.8/canny/shader.bin",
+ "code_start": 2236,
+ "code_size": 1412,
+ "layout": "agx_shader_info",
+ "programs": [
+  {
+   "label": "main",
+   "file": "main.bin",
+   "offset": 128,
+   "bytes": 988,
+   "instructions": 142
+  },
+  {
+   "label": "preamble",
+   "file": "preamble.bin",
+   "offset": 1152,
+   "bytes": 244,
+   "instructions": 38
+  }
+ ]
+}

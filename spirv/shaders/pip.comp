@@ -1,0 +1,30 @@
+#version 450
+// Point-in-polygon by winding number (GIS / geofencing): the polygon's vertices sit in shared memory and every
+// thread walks all edges for its point with exact 64-bit cross products (Sunday's isLeft test), so the result is
+// integer-exact for any point, boundaries included.
+#extension GL_ARB_gpu_shader_int64 : require
+layout(local_size_x = 256) in;
+layout(std430, binding = 0) readonly buffer V { ivec2 verts[]; };
+layout(std430, binding = 1) readonly buffer Q { ivec2 pts[]; };
+layout(std430, binding = 2) writeonly buffer W { int wind[]; };
+layout(push_constant) uniform P { uint nv; uint np; } p;
+shared ivec2 poly[512];
+
+int64_t is_left(ivec2 a, ivec2 b, ivec2 c) {
+    return int64_t(b.x - a.x) * int64_t(c.y - a.y) - int64_t(c.x - a.x) * int64_t(b.y - a.y);
+}
+
+void main() {
+    uint i = gl_GlobalInvocationID.x, l = gl_LocalInvocationID.x;
+    for (uint k = l; k < p.nv; k += 256u) poly[k] = verts[k];
+    barrier();
+    if (i >= p.np) return;
+    ivec2 q = pts[i];
+    int wn = 0;
+    for (uint k = 0u; k < p.nv; k++) {
+        ivec2 a = poly[k], b = poly[(k + 1u) % p.nv];
+        if (a.y <= q.y) { if (b.y > q.y && is_left(a, b, q) > 0l) wn++; }
+        else if (b.y <= q.y && is_left(a, b, q) < 0l) wn--;
+    }
+    wind[i] = wn;
+}

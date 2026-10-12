@@ -1,0 +1,46 @@
+0x0400  0501500d00c87200         device_load 0, i32, xyz, r0_r1_r2, u0_u1, 5, signed, lsl 2
+0x0408  3800                     wait 0
+0x040a  0e0100006c002000         iadd r0, 0, r0.discard.sx, lsl 4
+0x0412  c500e03d00803000         uniform_store 2, i16, xy, 0, r0l_r0h, 14
+0x041a  0e0100206c002000         iadd r0, 0, r1.discard.sx, lsl 4
+0x0422  c500003d01803000         uniform_store 2, i16, xy, 0, r0l_r0h, 16
+0x042a  0501d00d03c41200         device_load 0, i32, x, r0, u0_u1, 61, signed, lsl 1
+0x0432  3800                     wait 0
+0x0434  c500a03d00803000         uniform_store 2, i16, xy, 0, r0l_r0h, 10
+0x043c  0509b00d07c01200         device_load 0, i32, x, r1, u0_u1, 123, signed
+0x0444  3800                     wait 0
+0x0446  c508c03d00803000         uniform_store 2, i16, xy, 0, r1l_r1h, 12
+0x044e  0e01c01e00000000         isub r0, r0.discard.sx, 1
+0x0456  c500c03d01803000         uniform_store 2, i16, xy, 0, r0l_r0h, 28
+0x045e  0501b00d07c03200         device_load 0, i32, xy, r0_r1, u0_u1, 123, signed
+0x0466  3800                     wait 0
+0x0468  0e01c01e00000000         isub r0, r0.discard.sx, 1
+0x0470  c500203d01803000         uniform_store 2, i16, xy, 0, r0l_r0h, 18
+0x0478  1200c20200010110         icmpsel ueq, r0l, r1.discard, 0, 1, 0
+0x0480  c500803d00801000         uniform_store 2, i16, x, 0, r0l, 8
+0x0488  ed0010000000000c         tex_state_store ts0, u3_u4, r0
+0x0490  ed0111c00000000c         tex_state_store ts1, u3_u4, r24
+0x0498  ed0210000000000c         tex_state_store ts2, u3_u4, r0
+0x04a0  ed0310c00000000c         tex_state_store ts3, u3_u4, r24
+0x04a8  ed0410000000000c         tex_state_store ts4, u3_u4, r0
+0x04b0  ed0510c00000000c         tex_state_store ts5, u3_u4, r24
+0x04b8  ed0610000000000c         tex_state_store ts6, u3_u4, r0
+0x04c0  ed0710c00000000c         tex_state_store ts7, u3_u4, r24
+0x04c8  ed0810000000000c         tex_state_store ts8, u3_u4, r0
+0x04d0  3800                     wait 0
+0x04d2  ed0910c00000000c         tex_state_store ts9, u3_u4, r24
+0x04da  ed0a10000000000c         tex_state_store ts10, u3_u4, r0
+0x04e2  ed0b10c00000000c         tex_state_store ts11, u3_u4, r24
+0x04ea  ed0c10000000000c         tex_state_store ts12, u3_u4, r0
+0x04f2  ed0d10c00000000c         tex_state_store ts13, u3_u4, r24
+0x04fa  ed0e10000000000c         tex_state_store ts14, u3_u4, r0
+0x0502  ed0f10c00000000c         tex_state_store ts15, u3_u4, r24
+0x050a  7e0100088000             mov r0, 0
+0x0510  c500403d01803000         uniform_store 2, i16, xy, 0, r0l_r0h, 20
+0x0518  7e0130088000             mov r0, 48
+0x051e  c500603d01803000         uniform_store 2, i16, xy, 0, r0l_r0h, 22
+0x0526  7e0108088004             mov r0, 72
+0x052c  c500803d01803000         uniform_store 2, i16, xy, 0, r0l_r0h, 24
+0x0534  7e0118088000             mov r0, 24
+0x053a  c500a03d01803000         uniform_store 2, i16, xy, 0, r0l_r0h, 26
+0x0542  8800                     stop

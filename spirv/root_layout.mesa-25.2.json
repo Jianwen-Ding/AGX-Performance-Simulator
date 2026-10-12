@@ -1,0 +1,21 @@
+{
+  "_comment": [
+    "hk_root_descriptor_table of Mesa 25.2.x (offsetof() on the built driver, 25.2.8). Word = 32-bit word index.",
+    "The driver loads the table's own address into u0_u1 (agx_usc_uniform(root_unif = 0, 4 halves, root_ptr) with",
+    "root_desc_addr first); the preamble loads everything else. Storage-buffer descriptors are hk_buffer_address:",
+    "{u64 base, u32 size, u32 zero}, 16 bytes per binding, at sets[0]."
+  ],
+  "mesa": "25.2",
+  "uniforms": {"0": "root"},
+  "root_bytes": 1720,
+  "root": [
+    {"word": 0, "value": "self", "bytes": 8},
+    {"word": 2, "value": "group_count_addr", "bytes": 8},
+    {"word": 4, "value": "base:x"},
+    {"word": 5, "value": "base:y"},
+    {"word": 6, "value": "base:z"},
+    {"word": 92, "value": "push"},
+    {"word": 156, "value": "set", "bytes": 8}
+  ],
+  "descriptor": {"stride": 16, "fields": [{"word": 0, "value": "buffer:B", "bytes": 8}, {"word": 2, "value": "buffer_size:B"}]}
+}

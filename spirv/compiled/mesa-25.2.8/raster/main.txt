@@ -1,0 +1,73 @@
+0x0000  72051004                 get_sr r1, sr80 (thread_position_in_grid.x)
+0x0004  0e05428658000000         iadd r1, r1.sx, u4.sx
+0x000c  62000000                 mov_imm r0l, 0
+0x0010  522842a21800             if_icmp r0l, ult, r1, u5, 1
+0x0016  20c0ec010000             jmp_exec_none pc+492
+0x001c  0e090020e4000000         iadd r2, 0, r1.sx, lsl 1
+0x0024  0e0d014064000000         iadd r3, 1, r2.sx
+0x002c  05214c0e00c8f200         device_load 0, i32, xyzw, r4_r5_r6_r7, u6_u7, r2, unsigned, lsl 2
+0x0034  05416c4e00c8f200         device_load 1, i32, xyzw, r8_r9_r10_r11, u6_u7, r3, unsigned, lsl 2
+0x003c  3800                     wait 0
+0x003e  3801                     wait 1
+0x0040  0e09508e64000000         isub r2, r8.sx, r4.sx
+0x0048  0e0d4eae64000000         isub r3, r7.sx, r5.sx
+0x0050  1e09464664000000         imadd r2, r3.sx, r2.sx, 0
+0x0058  0e0d52ae64000000         isub r3, r9.sx, r5.sx
+0x0060  0e2d4c8e64000000         isub r11, r6.sx, r4.sx
+0x0068  1e09566e64440600         imsub r2, r11.sx, r3.sx, r2.sx
+0x0070  120d44020052e0a4         icmpsel slt, r3, r2, 0, r9, r7
+0x0078  121d4402004e20a5         icmpsel slt, r7, r2, 0, r7, r9
+0x0080  122544020050c0a4         icmpsel slt, r9, r2, 0, r8, r6
+0x0088  12094402004c00a5         icmpsel slt, r2, r2, 0, r6, r8
+0x0090  2e19004025140000         bfi r6, 0, r10, 20
+0x0098  7e054c2ae400             or r1, r6, r1
+0x009e  12194a62244a60a4         icmpsel slt, r6, r5, r3, r5, r3
+0x00a6  12194ce2244ce0a4         icmpsel slt, r6, r6, r7, r6, r7
+0x00ae  12214a62244a60c4         icmpsel sgt, r8, r5, r3, r5, r3
+0x00b6  122150e22450e0c4         icmpsel sgt, r8, r8, r7, r8, r7
+0x00be  12294822254820c5         icmpsel sgt, r10, r4, r9, r4, r9
+0x00c6  12295442245440c4         icmpsel sgt, r10, r10, r2, r10, r2
+0x00ce  122d4822254820a5         icmpsel slt, r11, r4, r9, r4, r9
+0x00d6  122d5642245640a4         icmpsel slt, r11, r11, r2, r11, r2
+0x00de  12194c02004c00d0         icmpsel sgt, r6, r6, 0, r6, 0
+0x00e6  12215042195040b9         icmpsel slt, r8, r8, u10, r8, u10
+0x00ee  12295422195420b9         icmpsel slt, r10, r10, u9, r10, u9
+0x00f6  122d5602005600d0         icmpsel sgt, r11, r11, 0, r11, 0
+0x00fe  420800000000             push_exec r0l, 1
+0x0104  52ad50c22400             while_icmp r0l, sgte, r8, r6, 1
+0x010a  7e31560a8000             mov r12, r11
+0x0110  420800000000             push_exec r0l, 1
+0x0116  52ad54822500             while_icmp r0l, sgte, r10, r12, 1
+0x011c  0e35528e64000000         isub r13, r9.sx, r4.sx
+0x0124  0e394cae64000000         isub r14, r6.sx, r5.sx
+0x012c  0e3d46ae64000000         isub r15, r3.sx, r5.sx
+0x0134  0e41588e64000000         isub r16, r12.sx, r4.sx
+0x013c  1e3d5e0666000000         imadd r15, r15.sx, r16.sx, 0
+0x0144  1e355ace655e0600         imsub r13, r13.sx, r14.sx, r15.sx
+0x014c  0e39442e65000000         isub r14, r2.sx, r9.sx
+0x0154  0e3d4c6e64000000         isub r15, r6.sx, r3.sx
+0x015c  0e414e6e64000000         isub r16, r7.sx, r3.sx
+0x0164  0e45582e65000000         isub r17, r12.sx, r9.sx
+0x016c  1e41602666000000         imadd r16, r16.sx, r17.sx, 0
+0x0174  1e395cee65600600         imsub r14, r14.sx, r15.sx, r16.sx
+0x017c  12355ac2255ac0a5         icmpsel slt, r13, r13, r14, r13, r14
+0x0184  0e39484e64000000         isub r14, r4.sx, r2.sx
+0x018c  0e3d4cee64000000         isub r15, r6.sx, r7.sx
+0x0194  0e414aee64000000         isub r16, r5.sx, r7.sx
+0x019c  0e45584e64000000         isub r17, r12.sx, r2.sx
+0x01a4  1e41602666000000         imadd r16, r16.sx, r17.sx, 0
+0x01ac  1e395cee65600600         imsub r14, r14.sx, r15.sx, r16.sx
+0x01b4  12355ac2255ac0a5         icmpsel slt, r13, r13, r14, r13, r14
+0x01bc  52a95a020000             if_icmp r0l, sgte, r13, 0, 1
+0x01c2  1e354c0659580600         imadd r13, r6.sx, u8.sx, r12.sx
+0x01ca  1501a88c11500200         atomic umin, 0, None, u12_u13, r13, signed, r1, 1, 0, 1, 4, 2
+0x01d2  3800                     wait 0
+0x01d4  520e00000000             pop_exec r0l, 1
+0x01da  0e31581600000000         iadd r12, r12.sx, 1
+0x01e2  00c034ffffff             jmp_exec_any pc-204
+0x01e8  520e00000000             pop_exec r0l, 1
+0x01ee  0e194c1600000000         iadd r6, r6.sx, 1
+0x01f6  00c00effffff             jmp_exec_any pc-242
+0x01fc  520e00000000             pop_exec r0l, 1
+0x0202  520e00000000             pop_exec r0l, 1
+0x0208  8800                     stop

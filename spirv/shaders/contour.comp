@@ -1,0 +1,66 @@
+#version 450
+// Contour extraction by marching squares (isolines on elevation maps, boundaries of segmented scans): each cell of an
+// integer height grid classifies its corners against the iso level (16 cases; the saddles 5 and 10 resolved by the
+// cell-centre mean) and emits 0-2 segments whose endpoints are interpolated along the cell edges in 16.16 fixed point
+// with exact integer division (64-bit). Segments are appended with atomicAdd (order depends on arbitration); case
+// counts are gathered per workgroup in shared memory and flushed with one atomicAdd per case.
+#extension GL_EXT_shader_explicit_arithmetic_types_int64 : require
+layout(local_size_x = 16, local_size_y = 16) in;
+layout(std430, binding = 0) readonly buffer Hh { int hgt[]; };
+layout(std430, binding = 1) buffer N { uint nseg; uint cases[16]; };
+layout(std430, binding = 2) writeonly buffer S { uvec4 seg[]; };     // x0, y0, x1, y1 in 16.16
+layout(push_constant) uniform P { uint w; uint h; int iso; uint cap; } p;
+shared uint lcases[16];                                               // per-workgroup case counts, flushed once
+
+// point on edge e of cell (x, y): 0 bottom (y, x..x+1), 1 right (x+1, y..y+1), 2 top (y+1, x..x+1), 3 left (x, y..y+1)
+uvec2 edge_pt(uint x, uint y, uint e, int c0, int c1, int c2, int c3) {
+    int a, b; uint bx, by; bool horiz;
+    if (e == 0u) { a = c0; b = c1; bx = x; by = y; horiz = true; }
+    else if (e == 1u) { a = c1; b = c2; bx = x + 1u; by = y; horiz = false; }
+    else if (e == 2u) { a = c3; b = c2; bx = x; by = y + 1u; horiz = true; }
+    else { a = c0; b = c3; bx = x; by = y; horiz = false; }
+    uint t = uint((int64_t(p.iso - a) * 65536) / int64_t(b - a));     // b != a on a crossed edge
+    return horiz ? uvec2((bx << 16) + t, by << 16) : uvec2(bx << 16, (by << 16) + t);
+}
+
+void emit(uvec2 a, uvec2 b) {
+    uint k = atomicAdd(nseg, 1u);
+    if (k < p.cap) seg[k] = uvec4(a, b);
+}
+
+void main() {
+    uint x = gl_GlobalInvocationID.x, y = gl_GlobalInvocationID.y, li = gl_LocalInvocationIndex;
+    if (li < 16u) lcases[li] = 0u;
+    barrier();
+    bool inside = x + 1u < p.w && y + 1u < p.h;
+    uint cs = 0u;
+    int c0 = 0, c1 = 0, c2 = 0, c3 = 0;
+    if (inside) {
+        c0 = hgt[y * p.w + x]; c1 = hgt[y * p.w + x + 1u]; c3 = hgt[(y + 1u) * p.w + x]; c2 = hgt[(y + 1u) * p.w + x + 1u];
+        cs = (c0 >= p.iso ? 1u : 0u) | (c1 >= p.iso ? 2u : 0u) | (c2 >= p.iso ? 4u : 0u) | (c3 >= p.iso ? 8u : 0u);
+        atomicAdd(lcases[cs], 1u);
+    }
+    barrier();
+    if (li < 16u && lcases[li] != 0u) atomicAdd(cases[li], lcases[li]);
+    if (!inside) return;
+    if (cs == 0u || cs == 15u) return;
+    // edges crossed: e0 c0-c1, e1 c1-c2, e2 c3-c2, e3 c0-c3
+    bool center = ((c0 + c1 + c2 + c3) >> 2) >= p.iso;
+    uint e[4]; uint n = 0u;
+    if (cs == 5u || cs == 10u) {                                       // saddles
+        // saddle: a centre above joins the above-iso corners, so the segments cut off the other two (edge pairs
+        // (0, 1), (2, 3) cut off c1 and c3); a centre below cuts off the above-iso ones
+        bool pairA = (cs == 5u) == center;
+        if (pairA) { e[0] = 0u; e[1] = 1u; e[2] = 2u; e[3] = 3u; } else { e[0] = 0u; e[1] = 3u; e[2] = 1u; e[3] = 2u; }
+        n = 2u;
+    } else {
+        uint k = 0u;
+        if (((cs ^ (cs >> 1)) & 1u) != 0u) e[k++] = 0u;
+        if ((((cs >> 1) ^ (cs >> 2)) & 1u) != 0u) e[k++] = 1u;
+        if ((((cs >> 3) ^ (cs >> 2)) & 1u) != 0u) e[k++] = 2u;
+        if (((cs ^ (cs >> 3)) & 1u) != 0u) e[k++] = 3u;
+        n = 1u;
+    }
+    for (uint s = 0u; s < n; s++)
+        emit(edge_pt(x, y, e[2u * s], c0, c1, c2, c3), edge_pt(x, y, e[2u * s + 1u], c0, c1, c2, c3));
+}

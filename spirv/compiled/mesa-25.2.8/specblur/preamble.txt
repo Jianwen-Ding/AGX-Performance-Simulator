@@ -1,0 +1,40 @@
+0x0400  0501100d00c87200         device_load 0, i32, xyz, r0_r1_r2, u0_u1, 1, signed, lsl 2
+0x0408  3800                     wait 0
+0x040a  2e01000024070000         bfi r0, 0, r0, 7
+0x0412  c500803d00803000         uniform_store 2, i16, xy, 0, r0l_r0h, 8
+0x041a  0501700d01c83200         device_load 0, i32, xy, r0_r1, u0_u1, 23, signed, lsl 2
+0x0422  3800                     wait 0
+0x0424  0e09000864000000         isub r2, 0, r0.sx
+0x042c  12094042244040c4         icmpsel sgt, r2, r0, r2, r0, r2
+0x0434  c500a03d00803000         uniform_store 2, i16, xy, 0, r0l_r0h, 10
+0x043c  1e05402664000000         imadd r1, r0.sx, r1.sx, 0
+0x0444  c508c03d00803000         uniform_store 2, i16, xy, 0, r1l_r1h, 12
+0x044c  c510e03d00803000         uniform_store 2, i16, xy, 0, r2l_r2h, 14
+0x0454  3e850a442400             convert u32_to_f, r1, r2, rte
+0x045a  0a0d4282                 rcp r3, r1
+0x045e  3a05426a2430             fmadd32 r1, r1.neg, r3, 1.0
+0x0464  3a85426224460200         fmadd32 r1, r1, r3, r3
+0x046c  0205422224426004         fcmpsel eq, r1, r1, r1, r1, r3
+0x0474  620dfeff7f4f             mov_imm r3, 1333788670, 0b0
+0x047a  1a8542622400             fmul32 r1, r1, r3
+0x0480  3e8508202400             convert f_to_u32, r1, r1, rtz
+0x0486  1e0d442664000000         imadd r3, r2.sx, r1.sx, 0
+0x048e  0e0d006864000000         isub r3, 0, r3.sx
+0x0496  1e13426224000000         imadd r4_r5, r1, r3, 0
+0x049e  0e0542a664000000         iadd r1, r1.sx, r5.sx
+0x04a6  c508003d01803000         uniform_store 2, i16, xy, 0, r1l_r1h, 16
+0x04ae  0e05004864000000         isub r1, 0, r2.sx
+0x04b6  c508203d01803000         uniform_store 2, i16, xy, 0, r1l_r1h, 18
+0x04be  12044002000101b0         icmpsel slt, r1l, r0, 0, 1, 0
+0x04c6  c508403d01801000         uniform_store 2, i16, x, 0, r1l, 20
+0x04ce  0e01401e00000000         isub r0, r0.sx, 1
+0x04d6  c500603d01803000         uniform_store 2, i16, xy, 0, r0l_r0h, 22
+0x04de  0501700d02c83200         device_load 0, i32, xy, r0_r1, u0_u1, 39, signed, lsl 2
+0x04e6  3800                     wait 0
+0x04e8  0521004500c0f200         device_load 1, i32, xyzw, r4_r5_r6_r7, r0_r1, 0, signed
+0x04f0  3801                     wait 1
+0x04f2  c520803d0180f000         uniform_store 2, i16, xyzw, 0, r4l_r4h_r5l_r5h, 24
+0x04fa  0501100500c8f200         device_load 0, i32, xyzw, r0_r1_r2_r3, r0_r1, 1, signed, lsl 2
+0x0502  3800                     wait 0
+0x0504  c500c03d0180f000         uniform_store 2, i16, xyzw, 0, r0l_r0h_r1l_r1h, 28
+0x050c  8800                     stop

@@ -1,0 +1,64 @@
+#version 450
+// JSON structural indexing, the bit-parallel first stage of simdjson-style parsers: for every byte, whether it is a
+// structural character ({ } [ ] : ,) outside a string. A quote is real unless escaped (preceded by an odd run of
+// backslashes); the bytes between real quotes are in a string. One workgroup per 8 KiB document, 32 bytes (one
+// 32-bit mask) per invocation. The two carries between chunks - whether the chunk starts escaped, and whether it
+// starts inside a string - are workgroup scans in shared memory: a scan of carry functions (an all-backslash chunk
+// passes its carry on flipped or not), then an xor scan of quote parities. Output: one structural mask per chunk.
+layout(local_size_x = 256) in;
+layout(std430, binding = 0) readonly buffer D { uint doc[]; };     // 4 bytes per word, little-endian
+layout(std430, binding = 1) writeonly buffer O { uint mask[]; };   // bit i: byte 32 * chunk + i is structural
+shared uint fn[256];    // carry function: bit 0 = carry out for carry in 0, bit 1 = carry out for carry in 1
+shared uint par[256];
+
+uint compose(uint f, uint g) {          // f then g
+    return ((g >> (f & 1u)) & 1u) | (((g >> ((f >> 1) & 1u)) & 1u) << 1);
+}
+
+void main() {
+    uint l = gl_LocalInvocationID.x, c = gl_WorkGroupID.x * 256u + l;
+    uint bs = 0u, qt = 0u, st = 0u;
+    for (uint k = 0u; k < 8u; k++) {
+        uint wd = doc[c * 8u + k];
+        for (uint b = 0u; b < 4u; b++) {
+            uint ch = (wd >> (8u * b)) & 255u, bit = 1u << (4u * k + b);
+            if (ch == 92u) bs |= bit;                                      // backslash
+            if (ch == 34u) qt |= bit;                                      // quote
+            if (ch == 123u || ch == 125u || ch == 91u || ch == 93u || ch == 58u || ch == 44u) st |= bit;
+        }
+    }
+    // escaped bytes for both carries in: a byte is escaped when the backslash run before it is odd
+    uint esc0 = 0u, esc1 = 0u, odd0 = 0u, odd1 = 1u;
+    for (uint i = 0u; i < 32u; i++) {
+        uint isbs = (bs >> i) & 1u;
+        esc0 |= (odd0 & (isbs ^ 1u)) << i;
+        esc1 |= (odd1 & (isbs ^ 1u)) << i;
+        odd0 = isbs != 0u ? odd0 ^ 1u : 0u;                                 // a backslash extends the run, any other byte ends it
+        odd1 = isbs != 0u ? odd1 ^ 1u : 0u;
+    }
+    fn[l] = odd0 | (odd1 << 1);
+    barrier();
+    for (uint s = 1u; s < 256u; s <<= 1) {                                   // inclusive scan, compose earlier first
+        uint v = fn[l];
+        if (l >= s) v = compose(fn[l - s], v);
+        barrier();
+        fn[l] = v;
+        barrier();
+    }
+    uint cin = l == 0u ? 0u : fn[l - 1u] & 1u;                               // the document starts unescaped
+    uint q = qt & ~(cin != 0u ? esc1 : esc0);
+    uint pq = q;                                                              // prefix xor: bit i = parity of q[0..i]
+    pq ^= pq << 1; pq ^= pq << 2; pq ^= pq << 4; pq ^= pq << 8; pq ^= pq << 16;
+    par[l] = bitCount(q) & 1u;
+    barrier();
+    for (uint s = 1u; s < 256u; s <<= 1) {
+        uint v = par[l];
+        if (l >= s) v ^= par[l - s];
+        barrier();
+        par[l] = v;
+        barrier();
+    }
+    uint inside = l == 0u ? 0u : par[l - 1u];
+    uint instr = pq ^ (inside != 0u ? 0xffffffffu : 0u);
+    mask[c] = st & ~instr;
+}

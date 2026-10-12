@@ -1,0 +1,25 @@
+#version 450
+// Per-row symmetric int8 quantization of fp32 activations (ML inference): q = clamp(roundEven(x * inv_scale),
+// -127, 127) with the row's 127 / max|x| given, stored as int8; one workgroup per 256-wide row also sums |q| in
+// shared memory. Integer-exact (one rounded fp32 multiply, round-half-even, float-to-int conversion).
+#extension GL_EXT_shader_8bit_storage : require
+#extension GL_EXT_shader_explicit_arithmetic_types_int8 : require
+layout(local_size_x = 256) in;
+layout(std430, binding = 0) readonly buffer X { float x[]; };
+layout(std430, binding = 1) readonly buffer S { float inv_scale[]; };
+layout(std430, binding = 2) writeonly buffer Q { int8_t q[]; };
+layout(std430, binding = 3) writeonly buffer A { uint abs_sum[]; };
+layout(push_constant) uniform P { uint rows; } p;
+shared uint acc;
+
+void main() {
+    uint row = gl_WorkGroupID.x, t = gl_LocalInvocationID.x;
+    if (t == 0u) acc = 0u;
+    barrier();
+    uint i = row * 256u + t;
+    int v = int(clamp(roundEven(x[i] * inv_scale[row]), -127.0, 127.0));
+    q[i] = int8_t(v);
+    atomicAdd(acc, uint(abs(v)));
+    barrier();
+    if (t == 0u) abs_sum[row] = acc;
+}

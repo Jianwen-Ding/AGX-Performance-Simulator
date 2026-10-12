@@ -1,0 +1,20 @@
+#version 450
+// One Jacobi step of the 7-point Laplacian stencil on an nx x ny x nz fp32 grid (clamped boundaries), 8 x 8 x 4
+// workgroups: out = c0 * u + c1 * (sum of the six neighbours).
+layout(local_size_x = 8, local_size_y = 8, local_size_z = 4) in;
+layout(std430, binding = 0) readonly buffer U { float u[]; };
+layout(std430, binding = 1) writeonly buffer O { float o[]; };
+layout(push_constant) uniform P { int nx; int ny; int nz; float c0; float c1; } p;
+
+float at(int x, int y, int z) {
+    x = clamp(x, 0, p.nx - 1); y = clamp(y, 0, p.ny - 1); z = clamp(z, 0, p.nz - 1);
+    return u[(z * p.ny + y) * p.nx + x];
+}
+
+void main() {
+    ivec3 g = ivec3(gl_GlobalInvocationID);
+    if (g.x >= p.nx || g.y >= p.ny || g.z >= p.nz) return;
+    float nb = at(g.x - 1, g.y, g.z) + at(g.x + 1, g.y, g.z) + at(g.x, g.y - 1, g.z) + at(g.x, g.y + 1, g.z)
+             + at(g.x, g.y, g.z - 1) + at(g.x, g.y, g.z + 1);
+    o[(g.z * p.ny + g.y) * p.nx + g.x] = p.c0 * at(g.x, g.y, g.z) + p.c1 * nb;
+}

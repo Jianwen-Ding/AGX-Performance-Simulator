@@ -1,0 +1,41 @@
+0x5200  0501100d00c87200         device_load 0, i32, xyz, r0_r1_r2, u0_u1, 1, signed, lsl 2
+0x5208  3800                     wait 0
+0x520a  2e01000024060000         bfi r0, 0, r0, 6
+0x5212  c500803d00803000         uniform_store 2, i16, xy, 0, r0l_r0h, 8
+0x521a  0501700d01c81200         device_load 0, i32, x, r0, u0_u1, 23, signed, lsl 2
+0x5222  3800                     wait 0
+0x5224  c500a03d00803000         uniform_store 2, i16, xy, 0, r0l_r0h, 10
+0x522c  0501700d02c83200         device_load 0, i32, xy, r0_r1, u0_u1, 39, signed, lsl 2
+0x5234  3800                     wait 0
+0x5236  0521004500c0f200         device_load 1, i32, xyzw, r4_r5_r6_r7, r0_r1, 0, signed
+0x523e  3801                     wait 1
+0x5240  c520c03d0080f000         uniform_store 2, i16, xyzw, 0, r4l_r4h_r5l_r5h, 12
+0x5248  0511d00d05c01200         device_load 0, i32, x, r2, u0_u1, 93, signed
+0x5250  3800                     wait 0
+0x5252  c510003d01803000         uniform_store 2, i16, xy, 0, r2l_r2h, 16
+0x525a  0521100500c8f200         device_load 0, i32, xyzw, r4_r5_r6_r7, r0_r1, 1, signed, lsl 2
+0x5262  3800                     wait 0
+0x5264  c520403d0180f000         uniform_store 2, i16, xyzw, 0, r4l_r4h_r5l_r5h, 20
+0x526c  c520803d0180f000         uniform_store 2, i16, xyzw, 0, r4l_r4h_r5l_r5h, 24
+0x5274  c520c03d0180f000         uniform_store 2, i16, xyzw, 0, r4l_r4h_r5l_r5h, 28
+0x527c  0541200500c8f200         device_load 0, i32, xyzw, r8_r9_r10_r11, r0_r1, 2, signed, lsl 2
+0x5284  3800                     wait 0
+0x5286  c540003d0280f000         uniform_store 2, i16, xyzw, 0, r8l_r8h_r9l_r9h, 32
+0x528e  c520403d0280f000         uniform_store 2, i16, xyzw, 0, r4l_r4h_r5l_r5h, 36
+0x5296  c520803d0280f000         uniform_store 2, i16, xyzw, 0, r4l_r4h_r5l_r5h, 40
+0x529e  c520c03d0280f000         uniform_store 2, i16, xyzw, 0, r4l_r4h_r5l_r5h, 44
+0x52a6  c520003d0380f000         uniform_store 2, i16, xyzw, 0, r4l_r4h_r5l_r5h, 48
+0x52ae  c520403d0380f000         uniform_store 2, i16, xyzw, 0, r4l_r4h_r5l_r5h, 52
+0x52b6  c520803d0380f000         uniform_store 2, i16, xyzw, 0, r4l_r4h_r5l_r5h, 56
+0x52be  c520c03d0380f000         uniform_store 2, i16, xyzw, 0, r4l_r4h_r5l_r5h, 60
+0x52c6  c520003d0480f000         uniform_store 2, i16, xyzw, 0, r4l_r4h_r5l_r5h, 64
+0x52ce  c520403d0480f000         uniform_store 2, i16, xyzw, 0, r4l_r4h_r5l_r5h, 68
+0x52d6  c540803d0480f000         uniform_store 2, i16, xyzw, 0, r8l_r8h_r9l_r9h, 72
+0x52de  c520c03d0480f000         uniform_store 2, i16, xyzw, 0, r4l_r4h_r5l_r5h, 76
+0x52e6  c520003d0580f000         uniform_store 2, i16, xyzw, 0, r4l_r4h_r5l_r5h, 80
+0x52ee  c520403d0580f000         uniform_store 2, i16, xyzw, 0, r4l_r4h_r5l_r5h, 84
+0x52f6  c540803d0580f000         uniform_store 2, i16, xyzw, 0, r8l_r8h_r9l_r9h, 88
+0x52fe  0501300500c8f200         device_load 0, i32, xyzw, r0_r1_r2_r3, r0_r1, 3, signed, lsl 2
+0x5306  3800                     wait 0
+0x5308  c500c03d0580f000         uniform_store 2, i16, xyzw, 0, r0l_r0h_r1l_r1h, 92
+0x5310  8800                     stop

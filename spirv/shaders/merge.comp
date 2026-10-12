@@ -1,0 +1,24 @@
+#version 450
+// Stable merge of two sorted int32 arrays by merge path: each thread finds where output position k's diagonal
+// crosses the merge path with a binary search, then emits one element and its source index (A first on ties).
+// Integer-exact; the building block of GPU merge sort and of joining sorted key lists.
+layout(local_size_x = 256) in;
+layout(std430, binding = 0) readonly buffer A { int a[]; };
+layout(std430, binding = 1) readonly buffer B { int b[]; };
+layout(std430, binding = 2) writeonly buffer O { int outv[]; };
+layout(std430, binding = 3) writeonly buffer S { uint src[]; };
+layout(push_constant) uniform P { uint n; uint m; } p;
+
+void main() {
+    uint k = gl_GlobalInvocationID.x;
+    if (k >= p.n + p.m) return;
+    uint lo = k > p.m ? k - p.m : 0u, hi = min(k, p.n);
+    while (lo < hi) {
+        uint mid = (lo + hi) >> 1;
+        if (a[mid] <= b[k - 1u - mid]) lo = mid + 1u; else hi = mid;
+    }
+    uint i = lo, j = k - lo;
+    bool take_a = i < p.n && (j >= p.m || a[i] <= b[j]);
+    outv[k] = take_a ? a[i] : b[j];
+    src[k] = take_a ? i : p.n + j;
+}

@@ -1,0 +1,145 @@
+0x0080  f2051004                 get_sr r1.cache, sr80 (thread_position_in_grid.x)
+0x0084  f2091104                 get_sr r2.cache, sr81 (thread_position_in_grid.y)
+0x0088  8e11c2e658000000         iadd r4.cache, r1.discard.sx, u7.sx
+0x0090  8e15c40659000000         iadd r5.cache, r2.discard.sx, u8.sx
+0x0098  92024ac2180011b0         icmpsel slt, r0h.cache, r5, u6, 0, 1
+0x00a0  120248a218c110b0         icmpsel slt, r0h, r4, u5, r0h.discard, 1
+0x00a8  62000000                 mov_imm r0l, 0
+0x00ac  5208c1000000             if_icmp r0l, ueq, r0h.discard, 0, 1
+0x00b2  20c022030000             jmp_exec_none pc+802
+0x00b8  8e05a08564000000         iadd r1.cache, u16.sx, r4.sx
+0x00c0  92054202004200d0         icmpsel sgt, r1.cache, r1, 0, r1, 0
+0x00c8  120942c21942c0b9         icmpsel slt, r2, r1, u14, r1, u14
+0x00d0  8e05a0a564000000         iadd r1.cache, u16.sx, r5.sx
+0x00d8  92054202004200d0         icmpsel sgt, r1.cache, r1, 0, r1, 0
+0x00e0  121d4222194220b9         icmpsel slt, r7, r1, u9, r1, u9
+0x00e8  520908010000             if_icmp r0l, nueq, u4l, 0, 1
+0x00ee  7e21440a8000             mov r8, r2
+0x00f4  7e254e0a8000             mov r9, r7
+0x00fa  7121101e006a2100         texture_load 0, 0b1101, 0b0, none, x, 0b00, r8, None, ts0, ss0, tex_2d, r8_r9, lod_min, u15l
+0x0102  3800                     wait 0
+0x0104  420a00000000             else_fcmp r0l, eq, 0.0, 0.0, 1
+0x010a  7e21440a8000             mov r8, r2
+0x0110  7e254e0a8000             mov r9, r7
+0x0116  7121101e016a2100         texture_load 0, 0b1101, 0b0, none, x, 0b00, r8, None, ts1, ss0, tex_2d, r8_r9, lod_min, u15l
+0x011e  3800                     wait 0
+0x0120  520e00000000             pop_exec r0l, 1
+0x0126  92054802004800d0         icmpsel sgt, r1.cache, r4, 0, r4, 0
+0x012e  122942c21942c0b9         icmpsel slt, r10, r1, u14, r1, u14
+0x0136  520908010000             if_icmp r0l, nueq, u4l, 0, 1
+0x013c  7e31540a8000             mov r12, r10
+0x0142  7e354e0a8000             mov r13, r7
+0x0148  7131181e026a2100         texture_load 0, 0b1101, 0b0, none, x, 0b00, r12, None, ts2, ss0, tex_2d, r12_r13, lod_min, u15l
+0x0150  3800                     wait 0
+0x0152  420a00000000             else_fcmp r0l, eq, 0.0, 0.0, 1
+0x0158  7e31540a8000             mov r12, r10
+0x015e  7e354e0a8000             mov r13, r7
+0x0164  7131181e036a2100         texture_load 0, 0b1101, 0b0, none, x, 0b00, r12, None, ts3, ss0, tex_2d, r12_r13, lod_min, u15l
+0x016c  3800                     wait 0
+0x016e  520e00000000             pop_exec r0l, 1
+0x0174  1205508225508025         icmpsel ult, r1, r8, r12, r8, r12
+0x017c  8e0d018064000000         iadd r3.cache, 1, r4.sx
+0x0184  920d4602004600d0         icmpsel sgt, r3.cache, r3, 0, r3, 0
+0x018c  122146c21946c0b9         icmpsel slt, r8, r3, u14, r3, u14
+0x0194  520908010000             if_icmp r0l, nueq, u4l, 0, 1
+0x019a  7e31500a8000             mov r12, r8
+0x01a0  7e354e0a8000             mov r13, r7
+0x01a6  7131181e046a2100         texture_load 0, 0b1101, 0b0, none, x, 0b00, r12, None, ts4, ss0, tex_2d, r12_r13, lod_min, u15l
+0x01ae  3800                     wait 0
+0x01b0  420a00000000             else_fcmp r0l, eq, 0.0, 0.0, 1
+0x01b6  7e31500a8000             mov r12, r8
+0x01bc  7e354e0a8000             mov r13, r7
+0x01c2  7131181e056a2100         texture_load 0, 0b1101, 0b0, none, x, 0b00, r12, None, ts5, ss0, tex_2d, r12_r13, lod_min, u15l
+0x01ca  3800                     wait 0
+0x01cc  520e00000000             pop_exec r0l, 1
+0x01d2  1205428225428025         icmpsel ult, r1, r1, r12, r1, r12
+0x01da  920d4a02004a00d0         icmpsel sgt, r3.cache, r5, 0, r5, 0
+0x01e2  12254622194620b9         icmpsel slt, r9, r3, u9, r3, u9
+0x01ea  520908010000             if_icmp r0l, nueq, u4l, 0, 1
+0x01f0  7e19440a8000             mov r6, r2
+0x01f6  7e1d520a8000             mov r7, r9
+0x01fc  71310c1e066a2100         texture_load 0, 0b1101, 0b0, none, x, 0b00, r12, None, ts6, ss0, tex_2d, r6_r7, lod_min, u15l
+0x0204  3800                     wait 0
+0x0206  420a00000000             else_fcmp r0l, eq, 0.0, 0.0, 1
+0x020c  7e19440a8000             mov r6, r2
+0x0212  7e1d520a8000             mov r7, r9
+0x0218  71310c1e076a2100         texture_load 0, 0b1101, 0b0, none, x, 0b00, r12, None, ts7, ss0, tex_2d, r6_r7, lod_min, u15l
+0x0220  3800                     wait 0
+0x0222  520e00000000             pop_exec r0l, 1
+0x0228  1205428225428025         icmpsel ult, r1, r1, r12, r1, r12
+0x0230  520908010000             if_icmp r0l, nueq, u4l, 0, 1
+0x0236  7e19540a8000             mov r6, r10
+0x023c  7e1d520a8000             mov r7, r9
+0x0242  71310c1e086a2100         texture_load 0, 0b1101, 0b0, none, x, 0b00, r12, None, ts8, ss0, tex_2d, r6_r7, lod_min, u15l
+0x024a  3800                     wait 0
+0x024c  420a00000000             else_fcmp r0l, eq, 0.0, 0.0, 1
+0x0252  7e19540a8000             mov r6, r10
+0x0258  7e1d520a8000             mov r7, r9
+0x025e  71310c1e096a2100         texture_load 0, 0b1101, 0b0, none, x, 0b00, r12, None, ts9, ss0, tex_2d, r6_r7, lod_min, u15l
+0x0266  3800                     wait 0
+0x0268  520e00000000             pop_exec r0l, 1
+0x026e  1205428225428025         icmpsel ult, r1, r1, r12, r1, r12
+0x0276  520908010000             if_icmp r0l, nueq, u4l, 0, 1
+0x027c  7e19500a8000             mov r6, r8
+0x0282  7e1d520a8000             mov r7, r9
+0x0288  71310c1e0a6a2100         texture_load 0, 0b1101, 0b0, none, x, 0b00, r12, None, ts10, ss0, tex_2d, r6_r7, lod_min, u15l
+0x0290  3800                     wait 0
+0x0292  420a00000000             else_fcmp r0l, eq, 0.0, 0.0, 1
+0x0298  7e19500a8000             mov r6, r8
+0x029e  7e1d520a8000             mov r7, r9
+0x02a4  71310c1e0b6a2100         texture_load 0, 0b1101, 0b0, none, x, 0b00, r12, None, ts11, ss0, tex_2d, r6_r7, lod_min, u15l
+0x02ac  3800                     wait 0
+0x02ae  520e00000000             pop_exec r0l, 1
+0x02b4  1205428225428025         icmpsel ult, r1, r1, r12, r1, r12
+0x02bc  8e0d01a064000000         iadd r3.cache, 1, r5.sx
+0x02c4  920d4602004600d0         icmpsel sgt, r3.cache, r3, 0, r3, 0
+0x02cc  12254622194620b9         icmpsel slt, r9, r3, u9, r3, u9
+0x02d4  520908010000             if_icmp r0l, nueq, u4l, 0, 1
+0x02da  7e19440a8000             mov r6, r2
+0x02e0  7e1d520a8000             mov r7, r9
+0x02e6  71310c1e0c6a2100         texture_load 0, 0b1101, 0b0, none, x, 0b00, r12, None, ts12, ss0, tex_2d, r6_r7, lod_min, u15l
+0x02ee  3800                     wait 0
+0x02f0  420a00000000             else_fcmp r0l, eq, 0.0, 0.0, 1
+0x02f6  7e19440a8000             mov r6, r2
+0x02fc  7e1d520a8000             mov r7, r9
+0x0302  71310c1e0d6a2100         texture_load 0, 0b1101, 0b0, none, x, 0b00, r12, None, ts13, ss0, tex_2d, r6_r7, lod_min, u15l
+0x030a  3800                     wait 0
+0x030c  520e00000000             pop_exec r0l, 1
+0x0312  1205428225428025         icmpsel ult, r1, r1, r12, r1, r12
+0x031a  520908010000             if_icmp r0l, nueq, u4l, 0, 1
+0x0320  7e2d520a8000             mov r11, r9
+0x0326  7131141e0e6a2100         texture_load 0, 0b1101, 0b0, none, x, 0b00, r12, None, ts14, ss0, tex_2d, r10_r11, lod_min, u15l
+0x032e  3800                     wait 0
+0x0330  420a00000000             else_fcmp r0l, eq, 0.0, 0.0, 1
+0x0336  7e2d520a8000             mov r11, r9
+0x033c  7131141e0f6a2100         texture_load 0, 0b1101, 0b0, none, x, 0b00, r12, None, ts15, ss0, tex_2d, r10_r11, lod_min, u15l
+0x0344  3800                     wait 0
+0x0346  520e00000000             pop_exec r0l, 1
+0x034c  1205428225428025         icmpsel ult, r1, r1, r12, r1, r12
+0x0354  520908010000             if_icmp r0l, nueq, u4l, 0, 1
+0x035a  7e0994098000             mov r2, u10
+0x0360  71a1101ec46a210001000000 texture_load 0, 0b1101, 0b0, none, x, 0b00, r8, u2_u3, r2, ss0, tex_2d, r8_r9, lod_min, u15l
+0x036c  3800                     wait 0
+0x036e  420a00000000             else_fcmp r0l, eq, 0.0, 0.0, 1
+0x0374  7e0996098000             mov r2, u11
+0x037a  71a1101ec46a210001000000 texture_load 0, 0b1101, 0b0, none, x, 0b00, r8, u2_u3, r2, ss0, tex_2d, r8_r9, lod_min, u15l
+0x0386  3800                     wait 0
+0x0388  520e00000000             pop_exec r0l, 1
+0x038e  1221420225420025         icmpsel ult, r8, r1, r8, r1, r8
+0x0396  520908010000             if_icmp r0l, nueq, u4l, 0, 1
+0x039c  7e0598098000             mov r1, u12
+0x03a2  f1a18880c24a0100         image_write r8_r9_r10_r11, r4_r5, 0, u2_u3, r1, tex_2d, rte, 1, 0, 9, 0
+0x03aa  f5aa                     memory_barrier 2, 2, 10
+0x03ac  f5ae                     memory_barrier 3, 2, 10
+0x03ae  f5a9                     memory_barrier 2, 1, 10
+0x03b0  f5ad                     memory_barrier 3, 1, 10
+0x03b2  420a00000000             else_fcmp r0l, eq, 0.0, 0.0, 1
+0x03b8  7e059a098000             mov r1, u13
+0x03be  f1a18880c24a0100         image_write r8_r9_r10_r11, r4_r5, 0, u2_u3, r1, tex_2d, rte, 1, 0, 9, 0
+0x03c6  f5aa                     memory_barrier 2, 2, 10
+0x03c8  f5ae                     memory_barrier 3, 2, 10
+0x03ca  f5a9                     memory_barrier 2, 1, 10
+0x03cc  f5ad                     memory_barrier 3, 1, 10
+0x03ce  520e00000000             pop_exec r0l, 1
+0x03d4  520e00000000             pop_exec r0l, 1
+0x03da  8800                     stop

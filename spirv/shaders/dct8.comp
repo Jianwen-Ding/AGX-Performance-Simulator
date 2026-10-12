@@ -1,0 +1,30 @@
+#version 450
+// JPEG-style forward DCT and quantisation: every 8 x 8 block of an 8-bit image (one workgroup), one thread per
+// coefficient: F(u,v) = 1/4 C(u) C(v) sum (f - 128) cos((2x+1) u pi / 16) cos((2y+1) v pi / 16), then round(F / Q(u,v))
+// with the standard luminance table. Block pixels in shared memory.
+#extension GL_EXT_shader_8bit_storage : require
+#extension GL_EXT_shader_explicit_arithmetic_types_int8 : require
+layout(local_size_x = 8, local_size_y = 8) in;
+layout(std430, binding = 0) readonly buffer I { uint8_t img[]; };
+layout(std430, binding = 1) readonly buffer Q { int quant[64]; };
+layout(std430, binding = 2) writeonly buffer O { int coef[]; };   // per block, 64 coefficients (u + 8 v)
+layout(push_constant) uniform P { uint width; uint height; } p;
+shared float blk[64];
+
+// cos(k pi / 16) with k reduced exactly to [-16, 16], so the argument stays in [-pi, pi] (where Vulkan bounds cos)
+float cos16(uint k) { int r = int(k % 32u); if (r > 16) r -= 32; return cos(float(r) * 0.19634954); }
+
+void main() {
+    uvec2 l = gl_LocalInvocationID.xy, b = gl_WorkGroupID.xy;
+    blk[l.y * 8u + l.x] = float(img[(b.y * 8u + l.y) * p.width + b.x * 8u + l.x]) - 128.0;
+    barrier();
+    uint u = l.x, v = l.y;
+    float s = 0.0;
+    for (uint y = 0u; y < 8u; y++)
+        for (uint x = 0u; x < 8u; x++)
+            s += blk[y * 8u + x] * cos16((2u * x + 1u) * u) * cos16((2u * y + 1u) * v);
+    float cu = u == 0u ? 0.70710678 : 1.0, cv = v == 0u ? 0.70710678 : 1.0;
+    float F = 0.25 * cu * cv * s;
+    uint block = b.y * (p.width / 8u) + b.x;
+    coef[block * 64u + v * 8u + u] = int(round(F / float(quant[v * 8u + u])));
+}

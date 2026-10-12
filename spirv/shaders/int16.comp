@@ -1,0 +1,32 @@
+#version 450
+// 16-bit integer arithmetic (int16 / uint16 types, 16-bit storage): wrapping add / sub / mul, shifts, min / max,
+// compares, widening to 32 bits, and a 16-bit dot-like accumulation loop.
+#extension GL_EXT_shader_explicit_arithmetic_types_int16 : require
+#extension GL_EXT_shader_16bit_storage : require
+layout(local_size_x = 64) in;
+layout(std430, binding = 0) readonly buffer I { uint16_t inp[]; };   // 4 per thread
+layout(std430, binding = 1) writeonly buffer O { uint16_t o[]; };    // 10 per thread
+layout(std430, binding = 2) writeonly buffer W { uint wide[]; };     // 2 per thread
+layout(push_constant) uniform P { uint n; } p;
+
+void main() {
+    uint i = gl_GlobalInvocationID.x;
+    if (i >= p.n) return;
+    uint16_t a = inp[4u * i], b = inp[4u * i + 1u], c = inp[4u * i + 2u], d = inp[4u * i + 3u];
+    int16_t sa = int16_t(a), sb = int16_t(b);
+    uint base = 10u * i;
+    o[base + 0u] = a + b;
+    o[base + 1u] = a - b;
+    o[base + 2u] = a * b;
+    o[base + 3u] = a >> (c & uint16_t(15));
+    o[base + 4u] = a << (d & uint16_t(15));
+    o[base + 5u] = uint16_t(sa >> int16_t(c & uint16_t(15)));
+    o[base + 6u] = max(a, b);
+    o[base + 7u] = uint16_t(min(sa, sb));
+    o[base + 8u] = uint16_t((a < b ? 1 : 0) | (sa < sb ? 2 : 0) | (a == c ? 4 : 0));
+    uint16_t acc = uint16_t(0);
+    for (uint k = 0u; k < 8u; k++) acc += uint16_t(a + uint16_t(k)) * uint16_t(b ^ uint16_t(k));
+    o[base + 9u] = acc;
+    wide[2u * i] = uint(a) * uint(b);
+    wide[2u * i + 1u] = uint(int(sa) * int(sb));
+}

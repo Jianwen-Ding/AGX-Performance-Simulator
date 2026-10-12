@@ -1,0 +1,35 @@
+#version 450
+// Brute-force k-nearest neighbours (k = 8) of integer 2-D query points among reference points streamed through a
+// 256-point shared tile; each thread keeps its best 8 (distance, index) pairs sorted by insertion (ties to the lower
+// index). Exact integer squared distances. The core of kNN classification and point-cloud processing.
+layout(local_size_x = 256) in;
+layout(std430, binding = 0) readonly buffer R { ivec2 refs[]; };
+layout(std430, binding = 1) readonly buffer Q { ivec2 queries[]; };
+layout(std430, binding = 2) writeonly buffer I { uint nn[]; };      // 8 indices per query
+layout(std430, binding = 3) writeonly buffer D { uint nd[]; };      // 8 squared distances per query
+layout(push_constant) uniform P { uint nref; uint nq; } p;
+shared ivec2 tile[256];
+
+void main() {
+    uint q = gl_GlobalInvocationID.x, l = gl_LocalInvocationID.x;
+    ivec2 me = q < p.nq ? queries[q] : ivec2(0);
+    uint bd[8], bi[8];
+    for (int k = 0; k < 8; k++) { bd[k] = 0xffffffffu; bi[k] = 0xffffffffu; }
+    for (uint base = 0u; base < p.nref; base += 256u) {
+        barrier();
+        if (base + l < p.nref) tile[l] = refs[base + l];
+        barrier();
+        uint cnt = min(256u, p.nref - base);
+        for (uint j = 0u; j < cnt; j++) {
+            ivec2 d = tile[j] - me;
+            uint dist = uint(d.x * d.x + d.y * d.y), idx = base + j;
+            if (dist < bd[7]) {                       // equal distances keep the earlier (lower) index
+                int k = 7;
+                while (k > 0 && dist < bd[k - 1]) { bd[k] = bd[k - 1]; bi[k] = bi[k - 1]; k--; }
+                bd[k] = dist; bi[k] = idx;
+            }
+        }
+    }
+    if (q < p.nq)
+        for (int k = 0; k < 8; k++) { nn[8u * q + uint(k)] = bi[k]; nd[8u * q + uint(k)] = bd[k]; }
+}

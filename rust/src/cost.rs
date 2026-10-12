@@ -632,9 +632,22 @@ impl GroupCtx {
     }
 }
 
+/// Threadgroup memory base address (bytes) of lane t, as applegpu decodes the base operand: At = 0 a 16-bit
+/// register, 2 zero, 1 / 3 a 16-bit uniform (A | (At >> 1) << 8; Mesa keeps constant offsets such as part[1] there).
+pub fn tg_base(st: &exec::CoreState, at: u64, a: u64, t: usize) -> Result<usize, String> {
+    Ok(match at {
+        0 => st.get_reg16(a as usize, t)? as usize,
+        2 => 0,
+        _ => {
+            let u = (a | (at >> 1) << 8) as usize;
+            *st.uniforms.get(u).ok_or_else(|| format!("threadgroup base: uniform half {} out of range", u))? as usize
+        }
+    })
+}
+
 /// Word addresses (byte / 4) of a threadgroup load / store / atomic for every active lane and component:
 /// byte = base + 4 * size * index + size * component (playground threadgroup-addressing finding).
-fn tg_words(f: &isa::Fields, st: &exec::CoreState) -> Option<Vec<u64>> {
+pub fn tg_words(f: &isa::Fields, st: &exec::CoreState) -> Option<Vec<u64>> {
     let g = |k: &str| fget(f, k);
     let item: i128 = match g("F") {
         Some(1 | 3 | 6 | 7) => 2,
@@ -642,13 +655,16 @@ fn tg_words(f: &isa::Fields, st: &exec::CoreState) -> Option<Vec<u64>> {
         _ => 1,
     };
     let mask = g("mask").unwrap_or(1);
-    let mut w = vec![];
+    let mut w = Vec::with_capacity(4 * exec::SIMD_WIDTH);
+    // field lookups once per instruction (applied with `?` per lane as before: a missing field matters only
+    // when a lane is active)
+    let (f_at, f_a, f_ot, f_o) = (g("At"), g("A"), g("Ot"), g("O"));
     for t in 0..exec::SIMD_WIDTH {
         if !st.exec[t] {
             continue;
         }
-        let base = if g("At")? == 0 { st.get_reg16(g("A")? as usize, t).ok()? } else { 0 };
-        let idx = if g("Ot")? != 0 { g("O")? as i128 } else { st.get_reg16(g("O")? as usize, t).ok()? };
+        let base = tg_base(st, f_at?, f_a?, t).ok()? as i128;
+        let idx = if f_ot? != 0 { f_o? as i128 } else { st.get_reg16(f_o? as usize, t).ok()? };
         for c in 0..4 {
             if mask & (1 << c) != 0 {
                 w.push(((base + 4 * item * idx + item * c) / 4) as u64);
@@ -659,19 +675,20 @@ fn tg_words(f: &isa::Fields, st: &exec::CoreState) -> Option<Vec<u64>> {
 }
 
 /// Word addresses of a device `atomic` (32-bit) for every active lane.
-fn atomic_words(f: &isa::Fields, st: &exec::CoreState) -> Option<Vec<u64>> {
+pub fn atomic_words(f: &isa::Fields, st: &exec::CoreState) -> Option<Vec<u64>> {
     let g = |k: &str| fget(f, k);
-    let mut w = vec![];
+    let mut w = Vec::with_capacity(exec::SIMD_WIDTH);
+    let (f_at, f_a, f_ot, f_o, f_ou) = (g("At"), g("A"), g("Ot"), g("O"), g("Ou"));
     for t in 0..exec::SIMD_WIDTH {
         if !st.exec[t] {
             continue;
         }
-        let base = if g("At")? != 0 { st.ureg64((g("A")? >> 1) as usize).ok()? } else { st.get_reg64((g("A")? >> 1) as usize, t).ok()? };
-        let off: i128 = if g("Ot")? != 0 {
-            isa::desc::sign_extend(g("O")? as i128, 16)
+        let base = if f_at? != 0 { st.ureg64((f_a? >> 1) as usize).ok()? } else { st.get_reg64((f_a? >> 1) as usize, t).ok()? };
+        let off: i128 = if f_ot? != 0 {
+            isa::desc::sign_extend(f_o? as i128, 16)
         } else {
-            let o = st.get_reg32((g("O")? >> 1) as usize, t).ok()?;
-            if g("Ou")? == 0 { isa::desc::sign_extend(o, 32) } else { o }
+            let o = st.get_reg32((f_o? >> 1) as usize, t).ok()?;
+            if f_ou? == 0 { isa::desc::sign_extend(o, 32) } else { o }
         };
         w.push(((base + 4 * off) >> 2) as u64);
     }
@@ -680,7 +697,7 @@ fn atomic_words(f: &isa::Fields, st: &exec::CoreState) -> Option<Vec<u64>> {
 
 /// Per-lane byte addresses of a device_load / device_store (same formula as the emulator's
 /// device_load), for the active lanes; None if an operand cannot be read.
-fn mem_segments(f: &isa::Fields, st: &exec::CoreState) -> Option<Vec<u64>> {
+pub fn mem_segments(f: &isa::Fields, st: &exec::CoreState) -> Option<Vec<u64>> {
     let g = |k: &str| fget(f, k);
     let mut segs = vec![];
     let fmt = g("F")?;
@@ -698,16 +715,19 @@ fn mem_segments(f: &isa::Fields, st: &exec::CoreState) -> Option<Vec<u64>> {
         _ => 1,
     };
     let mask = if bit_packed { 0xF } else { g("mask")? };
+    // field lookups once per instruction (applied with `?` per lane as before: a missing field matters only
+    // when a lane is active)
+    let (f_at, f_a, f_ot, f_o, f_ou) = (g("At"), g("A"), g("Ot"), g("O"), g("Ou"));
     for t in 0..exec::SIMD_WIDTH {
         if !st.exec[t] {
             continue;
         }
-        let base = if g("At")? != 0 { st.ureg64((g("A")? >> 1) as usize).ok()? } else { st.get_reg64((g("A")? >> 1) as usize, t).ok()? };
-        let mut off: i128 = if g("Ot")? != 0 {
-            isa::desc::sign_extend(g("O")? as i128, 16)
+        let base = if f_at? != 0 { st.ureg64((f_a? >> 1) as usize).ok()? } else { st.get_reg64((f_a? >> 1) as usize, t).ok()? };
+        let mut off: i128 = if f_ot? != 0 {
+            isa::desc::sign_extend(f_o? as i128, 16)
         } else {
-            let o = st.get_reg32((g("O")? >> 1) as usize, t).ok()?;
-            if g("Ou")? == 0 { isa::desc::sign_extend(o, 32) } else { o }
+            let o = st.get_reg32((f_o? >> 1) as usize, t).ok()?;
+            if f_ou? == 0 { isa::desc::sign_extend(o, 32) } else { o }
         };
         off <<= shift;
         let a = base & !(item - 1);
@@ -1052,31 +1072,87 @@ impl Default for MemModel {
     }
 }
 
-/// Least-recently-used set of 64-byte segments.
+/// Hasher for segment numbers: the splitmix64 finalizer (SipHash dominated memory-bound runs). Only lookups use
+/// it; nothing iterates the maps it serves, so results do not depend on it.
+#[derive(Default, Clone, Copy)]
+struct SegHash(u64);
+
+impl std::hash::Hasher for SegHash {
+    fn finish(&self) -> u64 {
+        let mut z = self.0.wrapping_add(0x9e37_79b9_7f4a_7c15);
+        z = (z ^ (z >> 30)).wrapping_mul(0xbf58_476d_1ce4_e5b9);
+        z = (z ^ (z >> 27)).wrapping_mul(0x94d0_49bb_1331_11eb);
+        z ^ (z >> 31)
+    }
+    fn write(&mut self, bytes: &[u8]) {
+        for &b in bytes {
+            self.0 = (self.0 << 8 | self.0 >> 56) ^ b as u64;
+        }
+    }
+    fn write_u64(&mut self, x: u64) {
+        self.0 ^= x;
+    }
+}
+
+type SegBuild = std::hash::BuildHasherDefault<SegHash>;
+
+/// Least-recently-used set of 64-byte segments: a hash map to slots of a doubly linked list in recency order
+/// (head = least recent), so a touch is O(1). Evicts exactly as an order-by-last-touch map would.
 struct Lru {
     cap: usize,
-    stamp: u64,
-    at: HashMap<u64, u64>,
-    order: std::collections::BTreeMap<u64, u64>,
+    at: HashMap<u64, u32, SegBuild>,
+    /// slot: (segment, previous (less recent), next (more recent)); NIL ends the list
+    slot: Vec<(u64, u32, u32)>,
+    free: Vec<u32>,
+    head: u32,
+    tail: u32,
 }
+
+const NIL: u32 = u32::MAX;
 
 impl Lru {
     fn new(bytes: usize) -> Self {
-        Lru { cap: (bytes / 64).max(1), stamp: 0, at: HashMap::new(), order: Default::default() }
+        Lru { cap: (bytes / 64).max(1), at: HashMap::default(), slot: Vec::new(), free: Vec::new(), head: NIL, tail: NIL }
     }
     fn contains(&self, s: u64) -> bool {
         self.at.contains_key(&s)
     }
+    fn unlink(&mut self, i: u32) {
+        let (_, p, n) = self.slot[i as usize];
+        if p == NIL { self.head = n } else { self.slot[p as usize].2 = n }
+        if n == NIL { self.tail = p } else { self.slot[n as usize].1 = p }
+    }
+    fn push_tail(&mut self, i: u32) {
+        self.slot[i as usize].1 = self.tail;
+        self.slot[i as usize].2 = NIL;
+        if self.tail == NIL { self.head = i } else { self.slot[self.tail as usize].2 = i }
+        self.tail = i;
+    }
     fn touch(&mut self, s: u64) {
-        self.stamp += 1;
-        if let Some(old) = self.at.insert(s, self.stamp) {
-            self.order.remove(&old);
+        if let Some(&i) = self.at.get(&s) {
+            if i != self.tail {
+                self.unlink(i);
+                self.push_tail(i);
+            }
+            return;
         }
-        self.order.insert(self.stamp, s);
+        let i = match self.free.pop() {
+            Some(i) => {
+                self.slot[i as usize].0 = s;
+                i
+            }
+            None => {
+                self.slot.push((s, NIL, NIL));
+                (self.slot.len() - 1) as u32
+            }
+        };
+        self.at.insert(s, i);
+        self.push_tail(i);
         if self.at.len() > self.cap {
-            let (&o, &victim) = self.order.iter().next().unwrap();
-            self.order.remove(&o);
-            self.at.remove(&victim);
+            let h = self.head;
+            self.unlink(h);
+            self.at.remove(&self.slot[h as usize].0);
+            self.free.push(h);
         }
     }
 }
@@ -1100,7 +1176,7 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
     let local: Vec<usize> = (0..groups).map(|i| (0..i).filter(|&j| wg[j] == wg[i]).count()).collect();
     let mut bar_count = vec![0u64; groups];
     let mut bar_arrive: Vec<Option<i64>> = vec![None; groups];
-    let mut bar_release: HashMap<(u32, usize, u64), i64> = HashMap::new();
+    let mut bar_release: HashMap<(u32, usize, u64), i64, SegBuild> = HashMap::default(); // lookups only: the hasher cannot change results
     let p_branch = match p.branch {
         Some(b) => b,
         None => {
@@ -1232,8 +1308,13 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
         });
     }
     let mut seqs: Vec<Vec<usize>> = vec![];
+    // pc -> index into `sim`, as `by_pc` (later entries win), without hashing every dynamic pc
+    let mut pc_index: Vec<Option<usize>> = vec![None; by_pc.keys().max().map_or(0, |&m| m + 1)];
+    for (&pc, &i) in &by_pc {
+        pc_index[pc] = Some(i);
+    }
     for pcs in seqs_pcs {
-        seqs.push(pcs.iter().map(|pc| by_pc.get(pc).copied().ok_or_else(|| format!("KeyError: pc {}", pc))).collect::<Result<_, _>>()?);
+        seqs.push(pcs.iter().map(|&pc| pc_index.get(pc).copied().flatten().ok_or_else(|| format!("KeyError: pc {}", pc))).collect::<Result<_, _>>()?);
     }
     // ---- memory hierarchy state (one core)
     struct MemState {
@@ -1252,8 +1333,18 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
         tg_free: i64,
         at_free: i64,
         tg_group_free: Vec<i64>,
-        last_load: Option<Vec<u64>>,
+        /// (group, index into its memory steps) of the core's previous load: its lines are compared by value
+        last_load: Option<(usize, usize)>,
+        /// bumped whenever the caches change (an issued access touches its lines)
+        epoch: u64,
+        /// per group: (memory step, epoch, segments missing L1 per level, deepest level) for the step being retried
+        lv_cache: Vec<Option<(usize, u64, [f64; 3], usize)>>,
     }
+    // AGX_CHARGE_WRITEBACK=1: a store also takes DRAM bandwidth for its lines when the working set does not fit the
+    // SLC, even if they were just loaded (the dirty lines must be written back). Off by default: no hardware data
+    // yet (applications notes 66-67: adamw, stream).
+    let charge_writeback = std::env::var("AGX_CHARGE_WRITEBACK").map_or(false, |v| v == "1")
+        && mem.is_some_and(|(_, m)| !m.resident_slc);
     let mut ms: Option<MemState> = mem.map(|(_, m)| {
         let per_tick = |segs_per_cycle: f64| segs_per_cycle / TICKS as f64;
         let dram = m.dram_gbps * 1e9 / m.active_cores / (m.clock_mhz * 1e6) / 64.0;
@@ -1277,9 +1368,16 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
             at_free: 0,
             tg_group_free: vec![0; groups],
             last_load: None,
+            epoch: 0,
+            lv_cache: vec![None; groups],
         }
     });
     let memv: Vec<&[(u32, Vec<u64>)]> = mem.map(|(v, _)| v.to_vec()).unwrap_or_default();
+    // a fingerprint of each access's segment list: lists with different fingerprints differ, so only equal
+    // fingerprints need the full comparison
+    let memfp: Vec<Vec<u64>> = memv.iter().map(|v| v.iter().map(|(_, sg)| {
+        sg.iter().fold(sg.len() as u64, |h, &x| (h ^ x).wrapping_mul(0x100_0000_01b3).rotate_left(29))
+    }).collect()).collect();
     if let (Some(m), Some((_, mm))) = (ms.as_mut(), mem) {
         if mm.resident_slc && !mm.warm {
             let mut distinct: std::collections::HashSet<u64> = Default::default();
@@ -1365,12 +1463,34 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
         extra: i64,
     }
     let mut pending: Vec<Vec<Pending>> = (0..g).map(|_| vec![]).collect();
+    /// pending loads already moved by an ALU push: their done is last_push + lat, merged per (slot, instruction)
+    struct Settled {
+        slot: usize,
+        ins: usize,
+        lat: i64,
+        lat_less_extra: i64,
+    }
+    let mut settled: Vec<Vec<Settled>> = (0..g).map(|_| vec![]).collect();
+    let mut last_push = vec![NEG_INF; g];
     let mut last_t: i64 = 0;
     let mut stats: Vec<(u64, i64, i64, i64)> = vec![(0, 0, 0, 0); sim.len()];
-    let mut wake: Vec<i64> = Vec::with_capacity(g);
+    // wake times offered this tick: only their minimum, and the minimum of those after t + 1, are ever read
+    let mut wk_min: i64;
+    let mut wk_gt: i64;
     let mut sr_cache: Vec<Option<i64>> = vec![None; g];
+    #[derive(Clone, Copy)]
+    enum Retest {
+        Issue,
+        Bucket(usize, f64),
+        Port(usize, f64),
+    }
+    let mut retest: Vec<Retest> = Vec::new();
+    let mut rt_at: Vec<usize> = vec![usize::MAX; buckets.len()];
+    let mut bar_ver: u64 = 0;
+    let mut bar_none_at: Vec<u64> = vec![u64::MAX; g];
+    let mut unblocked = vec![false; g];
+    let mut fresh_cache: Vec<Option<(usize, i64)>> = vec![None; g];
     let mut blk_cache: Vec<Option<i64>> = vec![None; g];
-    let mut order: Vec<usize> = Vec::with_capacity(g);
 
     #[inline]
     fn touch(ready: &mut [i64], present: &mut [bool], list: &mut Vec<u32>, h: u32) -> usize {
@@ -1384,32 +1504,42 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
     }
 
     let mut t: i64 = 0;
+    macro_rules! wake {
+        ($x:expr) => {{
+            let x_: i64 = $x;
+            wk_min = wk_min.min(x_);
+            if x_ > t + 1 {
+                wk_gt = wk_gt.min(x_);
+            }
+        }};
+    }
     let mut done = 0usize;
     let npcs: Vec<usize> = seqs.iter().map(Vec::len).collect();
+    // Groups busy until free[gi] > t wait in a min-heap; the tick visits only the others (`elig`, a bitset), in the
+    // same rotated order. free[gi] changes only when the group issues, so a busy group's only effect on the tick was
+    // to offer free[gi] as a wake time: the heap's minimum gives the same min(wake).
+    let words = g.div_ceil(64).max(1);
+    let mut elig: Vec<u64> = vec![0; words];
+    let mut busy: std::collections::BinaryHeap<std::cmp::Reverse<(i64, usize)>> = std::collections::BinaryHeap::new();
+    for gi in 0..g {
+        if nxt[gi] < npcs[gi] {
+            busy.push(std::cmp::Reverse((0, gi)));
+        }
+    }
+    let mut issued_now: Vec<usize> = Vec::with_capacity(g);
     while done < g {
         let mut issued = 0;
-        order.clear();
-        let k0 = if g == 1 { 0 } else { (((t / t_) as u64).wrapping_mul(2654435761) >> 7) as usize % g };
-        order.extend((k0..g).chain(0..k0));
-        wake.clear();
-        for flag in tick_issued.iter_mut() {
-            *flag = false;
-        }
-        for pass in 0..npass {
-        for oi in 0..order.len() {
-            let gi = order[oi];
-            if nxt[gi] >= npcs[gi] || tick_issued[gi] {
-                continue;
+        while let Some(&std::cmp::Reverse((f, gi))) = busy.peek() {
+            if f > t {
+                break;
             }
-            if free[gi] > t {
-                wake.push(free[gi]);
-                continue;
-            }
+            busy.pop();
+            // A group's blocks (src_ready, a wait's slot, wait_idle) depend only on its own state, which changes only
+            // when it issues, so they are tested once, here, when it becomes eligible (the value the first visit this
+            // tick would compute): a group still blocked goes back to the heap until the block lifts, and the groups
+            // in `elig` are all unblocked.
             let ri = seqs[gi][nxt[gi]];
             let r = &sim[ri];
-            // src_ready. It depends only on this group's ready / wtime / rcache, which change only when
-            // this group issues, so it is computed once per instruction and group (same value as
-            // recomputing it every tick; the defaultdict insertions it makes are idempotent).
             let sr = match sr_cache[gi] {
                 Some(v) => v,
                 None => {
@@ -1433,22 +1563,121 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
                     sr
                 }
             };
-            if sr > t {
-                wake.push(sr);
+            // These three blocks depend only on this group's own state, which changes only when it issues:
+            // park the group in the heap until the block lifts (same wake time as rechecking every tick).
+            let blocked = if sr > t {
+                sr
+            } else if r.kind == Kind::Wait {
+                match slots[gi][r.slot] {
+                    Some(m) if m > t => m,
+                    _ if last_wait[gi] + wait_idle > t => last_wait[gi] + wait_idle,
+                    _ => 0,
+                }
+            } else {
+                0
+            };
+            if blocked > t {
+                busy.push(std::cmp::Reverse((blocked, gi)));
                 continue;
             }
-            if r.kind == Kind::Wait {
-                if let Some(m) = slots[gi][r.slot] {
-                    if m > t {
-                        wake.push(m);
-                        continue;
-                    }
-                }
-                if last_wait[gi] + wait_idle > t {
-                    wake.push(last_wait[gi] + wait_idle);
-                    continue;
+            unblocked[gi] = true;
+            elig[gi / 64] |= 1 << (gi % 64);
+        }
+        let k0 = if g == 1 { 0 } else { (((t / t_) as u64).wrapping_mul(2654435761) >> 7) as usize % g };
+        wk_min = i64::MAX;
+        wk_gt = i64::MAX;
+        // Pass 0 tries only the group's own scheduler, and a scheduler busy at the tick start stays busy all tick
+        // (sched_free only grows, by issuing through a free one). Its eligible groups would each offer
+        // sched_free[home] as a wake time and do nothing else, so they are not visited in pass 0: the scheduler offers
+        // the wake time once. Groups gi with gi % SCHEDULERS == s are the bits (0x1111.. << s) of every word.
+        let mut free_mask = 0u64;
+        for s in 0..SCHEDULERS {
+            let m = 0x1111_1111_1111_1111u64 << s;
+            if sched_free[s] <= t {
+                free_mask |= m;
+            } else if elig.iter().any(|&e| e & m != 0) {
+                wake!(sched_free[s]);
+            }
+        }
+        for x in &retest {
+            if let Retest::Bucket(b, _) = *x {
+                rt_at[b] = usize::MAX;
+            }
+        }
+        retest.clear();
+        let mut ff_ok = true;
+        let mut wmin_time = i64::MAX;
+        for &gi in &issued_now {
+            tick_issued[gi] = false;
+        }
+        issued_now.clear();
+        for pass in 0..npass {
+        // pass 1 issues only through a scheduler that is free this tick: with none free, every group would skip
+        if pass == 1 && sched_free.iter().all(|&f| f > t) {
+            break;
+        }
+        if pass == 1 {
+            // Pass 1 acts only through a group whose home scheduler is busy (the others skip), and only such a group
+            // can make another home busy by stealing: with none eligible, the pass does nothing.
+            let mut busy_mask = 0u64;
+            for s in 0..SCHEDULERS {
+                if sched_free[s] > t {
+                    busy_mask |= 0x1111_1111_1111_1111u64 << s;
                 }
             }
+            if elig.iter().all(|&e| e & busy_mask == 0) {
+                break;
+            }
+        }
+        // Visit the eligible groups in the rotated order k0..g, 0..k0 with a cursor over `elig`, which is read as it
+        // changes: groups only leave it during a tick (by issuing), and a group that issued is behind the cursor.
+        // Eligible groups are unfinished, not busy (free <= t), unblocked, and have not issued this tick.
+        // Pass 0 visits the groups of the schedulers free at the tick start (`free_mask`, above). In pass 1 a group
+        // whose home scheduler is free skips, so it visits those whose home is busy at the moment the cursor
+        // reaches them: the mask is recomputed after each steal, and a home made busy by a steal brings in its
+        // groups ahead of the cursor, as the full order would.
+        let mut mask = if pass == 0 { free_mask } else { 0 };
+        let mut mask_stale = true; // sched_free changed since `mask` was computed
+        let segs = [(k0, g), (0, k0)];
+        let mut seg = 0;
+        let mut cur = k0;
+        loop {
+            if pass == 1 && mask_stale {
+                mask = 0;
+                for s in 0..SCHEDULERS {
+                    if sched_free[s] > t {
+                        mask |= 0x1111_1111_1111_1111u64 << s;
+                    }
+                }
+                mask_stale = false;
+            }
+            let mut gi = usize::MAX;
+            while seg < 2 {
+                let hi = segs[seg].1;
+                while cur < hi {
+                    let wd = (elig[cur / 64] & mask) >> (cur % 64);
+                    if wd == 0 {
+                        cur = (cur / 64 + 1) * 64;
+                        continue;
+                    }
+                    cur += wd.trailing_zeros() as usize;
+                    break;
+                }
+                if cur < hi {
+                    gi = cur;
+                    break;
+                }
+                seg += 1;
+                if seg < 2 {
+                    cur = segs[1].0;
+                }
+            }
+            if gi == usize::MAX {
+                break;
+            }
+            cur = gi + 1;
+            debug_assert!(nxt[gi] < npcs[gi] && !tick_issued[gi] && free[gi] <= t);
+            debug_assert!(unblocked[gi]);
             let home = gi % SCHEDULERS;
             let half = home % 2;
             let mut need = 0.0;
@@ -1465,11 +1694,14 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
                 }
             };
             if sched_free[sch] > t {
-                wake.push(sched_free[sch]);
+                wake!(sched_free[sch]);
                 continue;
             }
+            let ri = seqs[gi][nxt[gi]];
+            let r = &sim[ri];
             if issue_tok < t_ {
-                wake.push(t + 1);
+                wake!(t + 1);
+                retest.push(Retest::Issue);
                 continue;
             }
             if r.unit.is_some() {
@@ -1481,13 +1713,51 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
                         refilling.push(b);
                     }
                 }
+                // (the token test first: the forwarding count only matters once the unit has a token)
+                if tok[b].unwrap() < r.cost {
+                    wake!(t + 1);
+                    // one entry per bucket with the least cost: any(tok >= c_i) is tok >= min(c_i)
+                    match rt_at[b] {
+                        usize::MAX => {
+                            rt_at[b] = retest.len();
+                            retest.push(Retest::Bucket(b, r.cost));
+                        }
+                        k => {
+                            if let Retest::Bucket(_, c) = &mut retest[k] {
+                                if r.cost < *c {
+                                    *c = r.cost;
+                                }
+                            }
+                        }
+                    }
+                    continue;
+                }
                 need = r.need_port;
                 if need > 0.0 {
-                    let fresh = r.src32.iter().filter(|&&reg| matches!(wtime[gi].get(reg as usize), Some(Some((t0, _))) if t - t0 <= fwd)).count();
+                    // registers written within the forwarding window. Depends on this group's write times (which
+                    // change only when it issues) and can only drop as t grows: cached with the last tick it holds.
+                    let fresh = match fresh_cache[gi] {
+                        Some((n, until)) if t <= until => n,
+                        _ => {
+                            let wt = &wtime[gi];
+                            let (mut n, mut until) = (0usize, i64::MAX);
+                            for &reg in &r.src32 {
+                                if let Some(Some((t0, _))) = wt.get(reg as usize) {
+                                    if t - t0 <= fwd {
+                                        n += 1;
+                                        until = until.min(t0 + fwd);
+                                    }
+                                }
+                            }
+                            fresh_cache[gi] = Some((n, until));
+                            n
+                        }
+                    };
                     need = (need - (fresh as i64 * t_) as f64).max(0.0);
                 }
-                if tok[b].unwrap() < r.cost || port[half] < need {
-                    wake.push(t + 1);
+                if port[half] < need {
+                    wake!(t + 1);
+                    retest.push(Retest::Port(half, need));
                     continue;
                 }
             }
@@ -1511,7 +1781,8 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
                     }
                 };
                 if h > t {
-                    wake.push(h);
+                    wake!(h);
+                    wmin_time = wmin_time.min(h);
                     continue;
                 }
             }
@@ -1526,26 +1797,29 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
                     gate = gate.max(core_wb[0] + core_wb_gap - l_).max(if r.core_slow.is_some() { core_slow[half] } else { core_fast[half] });
                 }
                 if gate > t {
-                    wake.push(gate);
+                    wake!(gate);
+                    wmin_time = wmin_time.min(gate);
                     continue;
                 }
             }
             if g > 1 && r.wide_cost.is_some() {
                 let gate = core_fast[half].max(core_slow[half]);
                 if gate > t {
-                    wake.push(gate);
+                    wake!(gate);
+                    wmin_time = wmin_time.min(gate);
                     continue;
                 }
             }
             // barrier: wait until every group of the scope has arrived (after draining its ALU work)
             if r.barrier != 0 {
                 if bar_arrive[gi].is_none() {
+                    ff_ok = false; // arrival spends writeback tokens without issuing
                     // arriving writes back every register in the group's result cache (barrier-fill probe:
                     // 2 writebacks per cycle per core for F dirty registers per group)
                     let n = wbc[gi].len() as f64;
                     if n > 0.0 {
                         if wb_tok < n.min(WRITEBACK_CAP) {
-                            wake.push(t + (((n.min(WRITEBACK_CAP) - wb_tok) / wb_rate).ceil() as i64).max(1));
+                            wake!(t + (((n.min(WRITEBACK_CAP) - wb_tok) / wb_rate).ceil() as i64).max(1));
                             continue;
                         }
                         wb_tok -= n.min(WRITEBACK_CAP);
@@ -1558,11 +1832,17 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
                         wb_tok -= take;
                         wb_debt[gi] -= take;
                         if wb_debt[gi] > 0.0 {
-                            wake.push(t + ((wb_debt[gi] / wb_rate).ceil() as i64).max(1));
+                            wake!(t + ((wb_debt[gi] / wb_rate).ceil() as i64).max(1));
                             continue;
                         }
                     }
                     bar_arrive[gi] = Some(t.max(alu_done[gi] + bar_drain));
+                    bar_ver += 1;
+                }
+                // still waiting with nothing arrived or issued since the last look: still waiting (the scan below
+                // depends only on arrivals, barrier counts and finished groups)
+                if bar_none_at[gi] == bar_ver {
+                    continue;
                 }
                 let scope = if r.barrier == 1 { 0 } else { 1 + local[gi] / 4 };
                 let key = (wg[gi], scope, bar_count[gi]);
@@ -1596,9 +1876,13 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
                     }
                 };
                 match rel {
-                    None => continue,
+                    None => {
+                        bar_none_at[gi] = bar_ver;
+                        continue;
+                    }
                     Some(x) if x > t => {
-                        wake.push(x);
+                        wake!(x);
+                        wmin_time = wmin_time.min(x);
                         continue;
                     }
                     _ => {}
@@ -1609,6 +1893,7 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
             if let Some(m) = ms.as_mut() {
                 let dev = !r.atomic && ((r.kind == Kind::Load && !r.tgop && !r.tg_name) || (r.kind == Kind::Store && !r.tg_name));
                 if dev && !memv.is_empty() {
+                    ff_ok = false; // the visit records the core's last load lines
                     let mv = memv[gi];
                     while m.cur[gi] < mv.len() && (mv[m.cur[gi]].0 as usize) < nxt[gi] {
                         m.cur[gi] += 1;
@@ -1623,17 +1908,34 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
                         } else {
                             // the same lines as the core's previous load (every group on one line): 1.22 cycles per
                             // load instead of 1.0 (coalesce-shared vs coalesce-private)
-                            let same = m.last_load.as_ref() == Some(segs);
+                            let fp = memfp[gi][m.cur[gi]];
+                            let same = m.last_load.is_some_and(|(g2, c2)| memfp[g2][c2] == fp && memv[g2][c2].1 == *segs);
                             need[0] = n.max(m_l1_load_min(mem) * if same { 1.22 } else { 1.0 });
-                            m.last_load = Some(segs.clone());
+                            m.last_load = Some((gi, m.cur[gi]));
                         }
-                        let mut level = 0usize;
-                        for &sg in segs {
-                            let lv = if m.l1.contains(sg) { 0 } else if m.l2.contains(sg) { 1 } else if m.slc.contains(sg) { 2 } else { 3 };
-                            if lv >= 1 {
-                                need[1 + lv] += 1.0;
+                        // each line's level depends only on the cache contents: reused while they are unchanged
+                        let level = match m.lv_cache[gi] {
+                            Some((c, e, nd, lv)) if c == m.cur[gi] && e == m.epoch => {
+                                need[2] = nd[0];
+                                need[3] = nd[1];
+                                need[4] = nd[2];
+                                lv
                             }
-                            level = level.max(lv);
+                            _ => {
+                                let mut level = 0usize;
+                                for &sg in segs {
+                                    let lv = if m.l1.contains(sg) { 0 } else if m.l2.contains(sg) { 1 } else if m.slc.contains(sg) { 2 } else { 3 };
+                                    if lv >= 1 {
+                                        need[1 + lv] += 1.0;
+                                    }
+                                    level = level.max(lv);
+                                }
+                                m.lv_cache[gi] = Some((m.cur[gi], m.epoch, [need[2], need[3], need[4]], level));
+                                level
+                            }
+                        };
+                        if store && charge_writeback {
+                            need[4] = need[4].max(n.max(1.0)); // every written line goes back to DRAM
                         }
                         let mut until = 0i64;
                         for i in 2..5 {
@@ -1643,7 +1945,7 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
                             }
                         }
                         if until > 0 {
-                            wake.push(t + until.max(1));
+                            wake!(t + until.max(1));
                             continue;
                         }
                         mem_charge = Some((need, if store { 0 } else { m.extra[level] }, segs.clone()));
@@ -1659,7 +1961,8 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
                 let fresh = r.dst_regs.iter().filter(|reg| !wbc[gi].contains(reg)).count();
                 evict = (wbc[gi].len() + fresh).saturating_sub(nc);
                 if evict > 0 && wb_tok < evict as f64 {
-                    wake.push(t + (((evict as f64 - wb_tok) / wb_rate).ceil() as i64).max(1));
+                    ff_ok = false;
+                    wake!(t + (((evict as f64 - wb_tok) / wb_rate).ceil() as i64).max(1));
                     continue;
                 }
             }
@@ -1709,14 +2012,20 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
                             // bank conflicts: 32 banks of 4 bytes; lanes on the same word share one access, except
                             // for threadgroup atomics, which serialise per lane (one word for all lanes: 32 cycles)
                             let tga = r.kind == Kind::TgAtomic;
-                            let mut per_bank: HashMap<u64, Vec<u64>> = HashMap::new();
-                            for &w in words {
-                                let e = per_bank.entry(w % 32).or_default();
-                                if tga || !e.contains(&w) {
-                                    e.push(w);
+                            let mut per_bank = [0usize; 32];
+                            if tga {
+                                for &w in words {
+                                    per_bank[(w % 32) as usize] += 1;
+                                }
+                            } else {
+                                let mut ws = words.clone();
+                                ws.sort_unstable();
+                                ws.dedup();
+                                for &w in &ws {
+                                    per_bank[(w % 32) as usize] += 1;
                                 }
                             }
-                            let degree = per_bank.values().map(Vec::len).max().unwrap_or(1).max(1);
+                            let degree = per_bank.iter().copied().max().unwrap_or(1).max(1);
                             // the group's own threadgroup accesses are serial
                             let base = if tga {
                                 if r.dst.is_empty() { mm.tg_group_atomic } else { mm.tg_group_atomic_ret }
@@ -1753,6 +2062,7 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
                     m.l2.touch(sg);
                     m.slc.touch(sg);
                 }
+                m.epoch += 1;
             }
             let mem_extra = mem_charge.as_ref().map(|c| c.1).unwrap_or(0) + pipe_extra;
             if r.unit.is_some() {
@@ -1799,17 +2109,42 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
                     last_alu[gi] = t;
                     alu_done[gi] = alu_done[gi].max(t + lat);
                     alu_since_mem[gi] = true;
-                    for pi in 0..pending[gi].len() {
-                        let newdone = t + pending[gi][pi].lat;
-                        if newdone > pending[gi][pi].done {
-                            pending[gi][pi].done = newdone;
-                            let ins = pending[gi][pi].ins;
-                            for &h in &sim[ins].dst {
-                                let i = touch(&mut ready[gi], &mut present[gi], &mut present_list[gi], h);
-                                ready[gi][i] = ready[gi][i].max(newdone);
+                    // the load's issue touched its destinations (`present` is never cleared), so they are indexed
+                    // directly here
+                    // Settled entries (pushed at least once) always move to t + lat here; they are merged per
+                    // (slot, instruction) with the largest lat, which gives the same maxima as one push each.
+                    let (rg, sl) = (&mut ready[gi], &mut slots[gi]);
+                    last_push[gi] = t;
+                    for a in settled[gi].iter() {
+                        let newdone = t + a.lat;
+                        for &h in &sim[a.ins].dst {
+                            let x = &mut rg[h as usize];
+                            *x = (*x).max(newdone);
+                        }
+                        let m = &mut sl[a.slot];
+                        *m = Some(m.map_or(newdone, |m| m.max(newdone)));
+                    }
+                    let mut k = 0;
+                    while k < pending[gi].len() {
+                        let p = &pending[gi][k];
+                        let newdone = t + p.lat;
+                        if newdone > p.done {
+                            for &h in &sim[p.ins].dst {
+                                let x = &mut rg[h as usize];
+                                *x = (*x).max(newdone);
                             }
-                            let s = pending[gi][pi].slot;
-                            slots[gi][s] = Some(slots[gi][s].map_or(newdone, |m| m.max(newdone)));
+                            let m = &mut sl[p.slot];
+                            *m = Some(m.map_or(newdone, |m| m.max(newdone)));
+                            let p = pending[gi].swap_remove(k);
+                            match settled[gi].iter_mut().find(|a| a.slot == p.slot && a.ins == p.ins) {
+                                Some(a) => {
+                                    a.lat = a.lat.max(p.lat);
+                                    a.lat_less_extra = a.lat_less_extra.max(p.lat - p.extra);
+                                }
+                                None => settled[gi].push(Settled { slot: p.slot, ins: p.ins, lat: p.lat, lat_less_extra: p.lat - p.extra }),
+                            }
+                        } else {
+                            k += 1;
                         }
                     }
                 }
@@ -1822,10 +2157,11 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
                         lat = delay + tg_lat0 + mem_extra;
                         iiv = tg_issue0;
                     } else {
-                        if alu_since_mem[gi] && !pending[gi].is_empty() {
+                        if alu_since_mem[gi] && !(pending[gi].is_empty() && settled[gi].is_empty()) {
                             // waits until the pending loads have passed the L1, not until they complete
                             // (ALU-interleaved loads over L2/DRAM windows: ~50 cycles apart, not a full latency)
-                            let m = pending[gi].iter().map(|p| p.done - p.extra).max().unwrap();
+                            let m = pending[gi].iter().map(|p| p.done - p.extra)
+                                .chain(settled[gi].iter().map(|a| last_push[gi] + a.lat_less_extra)).max().unwrap();
                             delay = delay.max(m - t);
                         }
                         lat = (delay + load_fast + mem_extra).max(if inorder_loads { last_load_done[gi] + load_ii - t } else { 0 });
@@ -1886,6 +2222,7 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
                     slots[gi][r.slot] = None;
                     let s = r.slot;
                     pending[gi].retain(|p| p.slot != s);
+                    settled[gi].retain(|a| a.slot != s);
                 }
                 Kind::Control => {
                     ii = ci;
@@ -1932,6 +2269,7 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
             }
             let occ = t_.max(ii) + branch;
             if r.barrier == 0 {
+                mask_stale = true;
                 sched_free[sch] = t + if r.kind == Kind::Alu && !r.reduce {
                     t_.max(ii)
                 } else if r.exec_stack && g > 1 {
@@ -1953,52 +2291,97 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
             last_t = last_t.max(free[gi]);
             nxt[gi] += 1;
             sr_cache[gi] = None;
+            unblocked[gi] = false;
             blk_cache[gi] = None;
+            fresh_cache[gi] = None;
             issued += 1;
+            bar_ver += 1;
             tick_issued[gi] = true;
+            issued_now.push(gi);
+            elig[gi / 64] &= !(1 << (gi % 64));
             if nxt[gi] >= npcs[gi] {
                 done += 1;
+            } else {
+                busy.push(std::cmp::Reverse((free[gi], gi)));
             }
         }
         }
-        if done >= g {
+         if done >= g {
             break;
         }
-        let nt = if issued > 0 || wake.is_empty() { t + 1 } else { (t + 1).max(*wake.iter().min().unwrap()) };
+        let wmin = match (busy.peek().map(|r| r.0 .0), wk_min) {
+            (Some(b), a) => Some(a.min(b)),
+            (None, i64::MAX) => None,
+            (None, a) => Some(a),
+        };
+        let nt = match wmin {
+            Some(m) if issued == 0 => (t + 1).max(m),
+            _ => t + 1,
+        };
         // refill(nt - t). Python min(a, b) is `b if b < a else a`; a bucket already at its cap stays
         // there (cap + non-negative refill, clamped), so only buckets below their cap are visited.
-        let dt = (nt - t) as f64;
-        if let Some(m) = ms.as_mut() {
-            for i in 0..5 {
-                m.tok[i] = (m.tok[i] + m.rate[i] * dt).min(m.cap[i]);
+        // A tick that issued nothing and whose groups all stopped at a time threshold or at a resource that only
+        // refills (issue slots, unit tokens, register ports) repeats unchanged until a threshold passes or a
+        // resource suffices. Those ticks are stepped here with the same per-tick refill, without visiting groups.
+        let ff = issued == 0 && ff_ok && !retest.is_empty();
+        if ff {
+            for &f in &sched_free {
+                if f > t {
+                    wmin_time = wmin_time.min(f);
+                }
+            }
+            wmin_time = wmin_time.min(wk_gt);
+            if let Some(r) = busy.peek() {
+                wmin_time = wmin_time.min(r.0 .0);
             }
         }
-        for pt in port.iter_mut() {
-            *pt = pymin(*pt + HALF_READ_PORTS * dt, (HALF_READ_PORTS + 2.0) * t_ as f64);
-        }
-        issue_tok = (issue_tok + ISSUE_PER_CORE * (nt - t)).min(ISSUE_PER_CORE * t_);
-        wb_tok = (wb_tok + wb_rate * dt).min(WRITEBACK_CAP);
-        let mut i = 0;
-        while i < refilling.len() {
-            let b = refilling[i];
-            let bk = &buckets[b];
-            let cur = tok[b].unwrap();
-            let v = if bk.shared {
-                pymin(cur + dt * TOKSCALE as f64, bk.capmax)
-            } else {
-                pymin(cur + bk.cap * dt * TOKSCALE as f64, bk.capmax)
-            };
-            tok[b] = Some(v);
-            if v == bk.capmax {
-                in_refill[b] = false;
-                refilling.swap_remove(i);
-            } else {
-                i += 1;
+        let mut nt = nt;
+        loop {
+            let dt = (nt - t) as f64;
+            if let Some(m) = ms.as_mut() {
+                for i in 0..5 {
+                    m.tok[i] = (m.tok[i] + m.rate[i] * dt).min(m.cap[i]);
+                }
             }
-        }
-        t = nt;
-        if t > 50_000_000 * t_ {
-            return Err("simulation limit".into());
+            for pt in port.iter_mut() {
+                *pt = pymin(*pt + HALF_READ_PORTS * dt, (HALF_READ_PORTS + 2.0) * t_ as f64);
+            }
+            issue_tok = (issue_tok + ISSUE_PER_CORE * (nt - t)).min(ISSUE_PER_CORE * t_);
+            wb_tok = (wb_tok + wb_rate * dt).min(WRITEBACK_CAP);
+            let mut i = 0;
+            while i < refilling.len() {
+                let b = refilling[i];
+                let bk = &buckets[b];
+                let cur = tok[b].unwrap();
+                let v = if bk.shared {
+                    pymin(cur + dt * TOKSCALE as f64, bk.capmax)
+                } else {
+                    pymin(cur + bk.cap * dt * TOKSCALE as f64, bk.capmax)
+                };
+                tok[b] = Some(v);
+                if v == bk.capmax {
+                    in_refill[b] = false;
+                    refilling.swap_remove(i);
+                } else {
+                    i += 1;
+                }
+            }
+            t = nt;
+            if t > 50_000_000 * t_ {
+                return Err("simulation limit".into());
+            }
+            if !ff || t >= wmin_time {
+                break;
+            }
+            let pass = retest.iter().any(|x| match *x {
+                Retest::Issue => issue_tok >= t_,
+                Retest::Bucket(b, cost) => tok[b].unwrap() >= cost,
+                Retest::Port(h, need) => port[h] >= need,
+            });
+            if pass {
+                break;
+            }
+            nt = t + 1;
         }
     }
     let total = last_t as f64 / t_ as f64;

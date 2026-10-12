@@ -1,0 +1,66 @@
+0x0080  f2051004                 get_sr r1.cache, sr80 (thread_position_in_grid.x)
+0x0084  0e05c28658000000         iadd r1, r1.discard.sx, u4.sx
+0x008c  62000000                 mov_imm r0l, 0
+0x0090  522842a21800             if_icmp r0l, ult, r1, u5, 1
+0x0096  20c0a8010000             jmp_exec_none pc+424
+0x009c  05212c0e00c8f200         device_load 0, i32, xyzw, r4_r5_r6_r7, u6_u7, r1, unsigned, lsl 2
+0x00a4  3800                     wait 0
+0x00a6  fe098cf28100             and r2.cache, r6.cache, 31
+0x00ac  ae8d008028840200         bfeil r3.cache, 0, r4.cache, r2.cache
+0x00b4  2e9d0080688c0200         bfeil r7, 0, r4.cache, r6.cache, mask 0x1
+0x00bc  9e050a2064000000         imadd r1.cache, 10, r1.sx, 0
+0x00c4  4539200e10c01200         device_store 0, i32, x, r7, u8_u9, r1, unsigned, 0
+0x00cc  2e9d0080288c0a00         bfeil r7, 0, r4.cache, r6.cache, mask 0xFF
+0x00d4  0e21821600000000         iadd r8, r1.cache.sx, 1
+0x00dc  4539004e11c01200         device_store 1, i32, x, r7, u8_u9, r8, unsigned, 0
+0x00e4  fe1d8cf28300             and r7.cache, r6.cache, 63
+0x00ea  2e9d0080e84e0e00         bfeil r7, 0, r4.cache, r7, mask 0x7FFF
+0x00f2  0e21822600000000         iadd r8, r1.cache.sx, 2
+0x00fa  4539000e11c01200         device_store 0, i32, x, r7, u8_u9, r8, unsigned, 0
+0x0102  fe194cf28000             and r6.cache, r6, 15
+0x0108  ae9d0080288c0a00         bfeil r7.cache, 0, r4.cache, r6.cache, mask 0xFF
+0x0110  0e21823600000000         iadd r8, r1.cache.sx, 3
+0x0118  ae1d00e024180000         bfi r7.cache, 0, r7, 24
+0x0120  2e9d4e8601000000         asr r7, r7, 24
+0x0128  4539000e11c01200         device_store 0, i32, x, r7, u8_u9, r8, unsigned, 0
+0x0130  8e1d1f4868000000         isub r7.cache, 31, r2.cache.sx
+0x0138  fe1d4ef28100             and r7.cache, r7, 31
+0x013e  8e2100a0e8000000         iadd r8.cache, 0, r5.cache.sx, lsl 1
+0x0146  ae1d0000254e0200         bfi r7.cache, 0, r8, r7
+0x014e  7e0d46eae400             or r3, r3, r7
+0x0154  0e1d824600000000         iadd r7, r1.cache.sx, 4
+0x015c  4519e00e10c01200         device_store 0, i32, x, r3, u8_u9, r7, unsigned, 0
+0x0164  ae0d008028840200         bfi r3.cache, 0, r4.cache, r2.cache
+0x016c  8e1d204868000000         isub r7.cache, 32, r2.cache.sx
+0x0174  fe1d4ef28100             and r7.cache, r7, 31
+0x017a  ae9d0080284e0200         bfeil r7.cache, 0, r4.cache, r7
+0x0182  7e1d86eae400             or r7, r3.cache, r7
+0x0188  0e21825600000000         iadd r8, r1.cache.sx, 5
+0x0190  4539000e11c01200         device_store 0, i32, x, r7, u8_u9, r8, unsigned, 0
+0x0198  ae1d00f003840203         bfi r7.cache, 0, 255, r2.cache
+0x01a0  fe1d88ea2400             bitop 0100, r7.cache, r4.cache, r7
+0x01a6  fe218af28303             and r8.cache, r5.cache, 255
+0x01ac  ae21000025840200         bfi r8.cache, 0, r8, r2.cache
+0x01b4  7e1d4e0ae500             or r7, r7, r8
+0x01ba  0e21826600000000         iadd r8, r1.cache.sx, 6
+0x01c2  4539000e11c01200         device_store 0, i32, x, r7, u8_u9, r8, unsigned, 0
+0x01ca  7e1d46088000             mov r7, r3l
+0x01d0  0e0d827600000000         iadd r3, r1.cache.sx, 7
+0x01d8  4539600e10c01200         device_store 0, i32, x, r7, u8_u9, r3, unsigned, 0
+0x01e0  ae89884624000000         asr r2.cache, r4.cache, r2
+0x01e8  7e0944429900             and r2, r2, u10
+0x01ee  0e0d828600000000         iadd r3, r1.cache.sx, 8
+0x01f6  4511600e10c01200         device_store 0, i32, x, r2, u8_u9, r3, unsigned, 0
+0x01fe  fe094af28100             and r2.cache, r5, 31
+0x0204  ae89008024440200         bfeil r2.cache, 0, r4, r2
+0x020c  fe0d4cf28100             and r3.cache, r6, 31
+0x0212  ae0d001000460200         bfi r3.cache, 0, 1, r3
+0x021a  8e0d461e00000000         isub r3.cache, r3.sx, 1
+0x0222  7e094462a400             and r2, r2, r3
+0x0228  0e05429600000000         iadd r1, r1.sx, 9
+0x0230  3800                     wait 0
+0x0232  4511200e10c01200         device_store 0, i32, x, r2, u8_u9, r1, unsigned, 0
+0x023a  3800                     wait 0
+0x023c  3801                     wait 1
+0x023e  520e00000000             pop_exec r0l, 1
+0x0244  8800                     stop

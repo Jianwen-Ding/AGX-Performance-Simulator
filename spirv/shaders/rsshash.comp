@@ -1,0 +1,38 @@
+#version 450
+// Receive-side scaling packet processing (NIC / DPDK / XDP fast path): for each IPv4 + TCP packet (a 20-byte IPv4
+// header and the 4 port bytes, network byte order), validate the header checksum (RFC 1071 ones'-complement sum
+// of the ten 16-bit words must be 0xffff) and compute the Toeplitz RSS hashes with the 40-byte key: over
+// (src ip, dst ip, src port, dst port) and over (src ip, dst ip), as Microsoft's RSS specification defines them.
+layout(local_size_x = 64) in;
+layout(std430, binding = 0) readonly buffer P { uint pkt[]; };      // 6 words (24 bytes) per packet
+layout(std430, binding = 1) readonly buffer K { uint key[10]; };    // key bytes as big-endian words
+layout(std430, binding = 2) writeonly buffer O { uvec4 res[]; };    // tcp hash, ip-only hash, checksum ok, 0
+layout(push_constant) uniform PC { uint n; } p;
+
+uint bswap(uint x) { return (x >> 24) | ((x >> 8) & 0xff00u) | ((x << 8) & 0xff0000u) | (x << 24); }
+
+uint key32(uint i) {                                                  // key bits i .. i + 31
+    uint w = i >> 5, s = i & 31u;
+    return s == 0u ? key[w] : (key[w] << s) | (key[w + 1u] >> (32u - s));
+}
+
+uint toeplitz(uvec3 in3, uint nbits) {
+    uint h = 0u;
+    for (uint i = 0u; i < nbits; i++) {
+        uint word = in3[i >> 5];
+        if (((word >> (31u - (i & 31u))) & 1u) != 0u) h ^= key32(i);
+    }
+    return h;
+}
+
+void main() {
+    uint i = gl_GlobalInvocationID.x;
+    if (i >= p.n) return;
+    uint w[6];
+    for (int k = 0; k < 6; k++) w[k] = bswap(pkt[6u * i + uint(k)]);  // big-endian words
+    uint sum = 0u;
+    for (int k = 0; k < 5; k++) sum += (w[k] >> 16) + (w[k] & 0xffffu);
+    sum = (sum & 0xffffu) + (sum >> 16); sum = (sum & 0xffffu) + (sum >> 16);
+    uvec3 t = uvec3(w[3], w[4], w[5]);                                // src ip, dst ip, ports
+    res[i] = uvec4(toeplitz(t, 96u), toeplitz(t, 64u), sum == 0xffffu ? 1u : 0u, 0u);
+}

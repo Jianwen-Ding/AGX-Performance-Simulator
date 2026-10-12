@@ -1,0 +1,2053 @@
+0x0000  72051004                 get_sr r1, sr80 (thread_position_in_grid.x)
+0x0004  0e05428658000000         iadd r1, r1.sx, u4.sx
+0x000c  62000000                 mov_imm r0l, 0
+0x0010  522842a21800             if_icmp r0l, ult, r1, u5, 1
+0x0016  20c0063a0000             jmp_exec_none pc+14854
+0x001c  2e09002024050000         bfi r2, 0, r1, 5
+0x0024  05194c0e00c01200         device_load 0, i32, x, r3, u6_u7, r2, unsigned
+0x002c  0e11104064000000         iadd r4, 16, r2.sx
+0x0034  05298c4e00c01200         device_load 1, i32, x, r5, u6_u7, r4, unsigned
+0x003c  0e19014064000000         iadd r6, 1, r2.sx
+0x0044  0539cc0e00c01200         device_load 0, i32, x, r7, u6_u7, r6, unsigned
+0x004c  0e21114064000000         iadd r8, 17, r2.sx
+0x0054  05490c0e01c01200         device_load 0, i32, x, r9, u6_u7, r8, unsigned
+0x005c  0e29024064000000         iadd r10, 2, r2.sx
+0x0064  05594c0e01c01200         device_load 0, i32, x, r11, u6_u7, r10, unsigned
+0x006c  0e31124064000000         iadd r12, 18, r2.sx
+0x0074  05698c0e01c01200         device_load 0, i32, x, r13, u6_u7, r12, unsigned
+0x007c  0e39034064000000         iadd r14, 3, r2.sx
+0x0084  0579cc0e01c01200         device_load 0, i32, x, r15, u6_u7, r14, unsigned
+0x008c  0e41134064000000         iadd r16, 19, r2.sx
+0x0094  05890c0e02c01200         device_load 0, i32, x, r17, u6_u7, r16, unsigned
+0x009c  0e49044064000000         iadd r18, 4, r2.sx
+0x00a4  05994c0e02c01200         device_load 0, i32, x, r19, u6_u7, r18, unsigned
+0x00ac  0e51144064000000         iadd r20, 20, r2.sx
+0x00b4  3800                     wait 0
+0x00b6  05a98c0e02c01200         device_load 0, i32, x, r21, u6_u7, r20, unsigned
+0x00be  0e59054064000000         iadd r22, 5, r2.sx
+0x00c6  05b9cc0e02c01200         device_load 0, i32, x, r23, u6_u7, r22, unsigned
+0x00ce  0e61154064000000         iadd r24, 21, r2.sx
+0x00d6  05c90c0e03c01200         device_load 0, i32, x, r25, u6_u7, r24, unsigned
+0x00de  0e69064064000000         iadd r26, 6, r2.sx
+0x00e6  05d94c0e03c01200         device_load 0, i32, x, r27, u6_u7, r26, unsigned
+0x00ee  0e71164064000000         iadd r28, 22, r2.sx
+0x00f6  05e98c0e03c01200         device_load 0, i32, x, r29, u6_u7, r28, unsigned
+0x00fe  0e79074064000000         iadd r30, 7, r2.sx
+0x0106  05f9cc0e03c01200         device_load 0, i32, x, r31, u6_u7, r30, unsigned
+0x010e  0e01174064100000         iadd r32, 23, r2.sx
+0x0116  05090c0e04c11200         device_load 0, i32, x, r33, u6_u7, r32, unsigned
+0x011e  0e09084064100000         iadd r34, 8, r2.sx
+0x0126  05194c0e04c11200         device_load 0, i32, x, r35, u6_u7, r34, unsigned
+0x012e  0e11184064100000         iadd r36, 24, r2.sx
+0x0136  3800                     wait 0
+0x0138  05298c0e04c11200         device_load 0, i32, x, r37, u6_u7, r36, unsigned
+0x0140  0e19094064100000         iadd r38, 9, r2.sx
+0x0148  0539cc0e04c11200         device_load 0, i32, x, r39, u6_u7, r38, unsigned
+0x0150  0e21194064100000         iadd r40, 25, r2.sx
+0x0158  05490c0e05c11200         device_load 0, i32, x, r41, u6_u7, r40, unsigned
+0x0160  0e290a4064100000         iadd r42, 10, r2.sx
+0x0168  05594c0e05c11200         device_load 0, i32, x, r43, u6_u7, r42, unsigned
+0x0170  0e311a4064100000         iadd r44, 26, r2.sx
+0x0178  05698c0e05c11200         device_load 0, i32, x, r45, u6_u7, r44, unsigned
+0x0180  0e390b4064100000         iadd r46, 11, r2.sx
+0x0188  0579cc0e05c11200         device_load 0, i32, x, r47, u6_u7, r46, unsigned
+0x0190  0e411b4064100000         iadd r48, 27, r2.sx
+0x0198  05890c0e06c11200         device_load 0, i32, x, r49, u6_u7, r48, unsigned
+0x01a0  0e490c4064100000         iadd r50, 12, r2.sx
+0x01a8  05994c0e06c11200         device_load 0, i32, x, r51, u6_u7, r50, unsigned
+0x01b0  0e511c4064100000         iadd r52, 28, r2.sx
+0x01b8  3800                     wait 0
+0x01ba  05a98c0e06c11200         device_load 0, i32, x, r53, u6_u7, r52, unsigned
+0x01c2  0e590d4064100000         iadd r54, 13, r2.sx
+0x01ca  05b9cc0e06c11200         device_load 0, i32, x, r55, u6_u7, r54, unsigned
+0x01d2  0e611d4064100000         iadd r56, 29, r2.sx
+0x01da  05c90c0e07c11200         device_load 0, i32, x, r57, u6_u7, r56, unsigned
+0x01e2  0e690e4064100000         iadd r58, 14, r2.sx
+0x01ea  05d94c0e07c11200         device_load 0, i32, x, r59, u6_u7, r58, unsigned
+0x01f2  0e711e4064100000         iadd r60, 30, r2.sx
+0x01fa  05e98c0e07c11200         device_load 0, i32, x, r61, u6_u7, r60, unsigned
+0x0202  0e790f4064100000         iadd r62, 15, r2.sx
+0x020a  05f9cc0e07c11200         device_load 0, i32, x, r63, u6_u7, r62, unsigned
+0x0212  0e011f4064200000         iadd r64, 31, r2.sx
+0x021a  05090c0e08c21200         device_load 0, i32, x, r65, u6_u7, r64, unsigned
+0x0222  6289000000000020         mov_imm r66, 0, 0b0
+0x022a  3800                     wait 0
+0x022c  3801                     wait 1
+0x022e  420800000000             push_exec r0l, 1
+0x0234  522c44021908             while_icmp r0l, ult, r66, u8, 1
+0x023a  20c0de1a0000             jmp_exec_none pc+6878
+0x0240  2e0d004024050022         bfi r67, 0, r66, 5
+0x0248  1e1146a658420628         imadd r68, r67.sx, u5.sx, r1.sx
+0x0250  4519840e18c01200         device_store 0, i32, x, r3, u10_u11, r68, unsigned, 0
+0x0258  0e11460601280000         iadd r68, r67.sx, 16
+0x0260  1e1148a658420628         imadd r68, r68.sx, u5.sx, r1.sx
+0x0268  4529844e18c01200         device_store 1, i32, x, r5, u10_u11, r68, unsigned, 0
+0x0270  0e11461600280000         iadd r68, r67.sx, 1
+0x0278  1e1148a658420628         imadd r68, r68.sx, u5.sx, r1.sx
+0x0280  4539840e18c01200         device_store 0, i32, x, r7, u10_u11, r68, unsigned, 0
+0x0288  0e11116064220000         iadd r68, 17, r67.sx
+0x0290  1e1148a658420628         imadd r68, r68.sx, u5.sx, r1.sx
+0x0298  4549840e18c01200         device_store 0, i32, x, r9, u10_u11, r68, unsigned, 0
+0x02a0  0e11462600280000         iadd r68, r67.sx, 2
+0x02a8  1e1148a658420628         imadd r68, r68.sx, u5.sx, r1.sx
+0x02b0  4559840e18c01200         device_store 0, i32, x, r11, u10_u11, r68, unsigned, 0
+0x02b8  0e11126064220000         iadd r68, 18, r67.sx
+0x02c0  1e1148a658420628         imadd r68, r68.sx, u5.sx, r1.sx
+0x02c8  4569840e18c01200         device_store 0, i32, x, r13, u10_u11, r68, unsigned, 0
+0x02d0  0e11463600280000         iadd r68, r67.sx, 3
+0x02d8  1e1148a658420628         imadd r68, r68.sx, u5.sx, r1.sx
+0x02e0  4579840e18c01200         device_store 0, i32, x, r15, u10_u11, r68, unsigned, 0
+0x02e8  0e11136064220000         iadd r68, 19, r67.sx
+0x02f0  1e1148a658420628         imadd r68, r68.sx, u5.sx, r1.sx
+0x02f8  4589840e18c01200         device_store 0, i32, x, r17, u10_u11, r68, unsigned, 0
+0x0300  0e11464600280000         iadd r68, r67.sx, 4
+0x0308  1e1148a658420628         imadd r68, r68.sx, u5.sx, r1.sx
+0x0310  4599840e18c01200         device_store 0, i32, x, r19, u10_u11, r68, unsigned, 0
+0x0318  0e11146064220000         iadd r68, 20, r67.sx
+0x0320  1e1148a658420628         imadd r68, r68.sx, u5.sx, r1.sx
+0x0328  3800                     wait 0
+0x032a  45a9840e18c01200         device_store 0, i32, x, r21, u10_u11, r68, unsigned, 0
+0x0332  0e11465600280000         iadd r68, r67.sx, 5
+0x033a  1e1148a658420628         imadd r68, r68.sx, u5.sx, r1.sx
+0x0342  45b9840e18c01200         device_store 0, i32, x, r23, u10_u11, r68, unsigned, 0
+0x034a  0e11156064220000         iadd r68, 21, r67.sx
+0x0352  1e1148a658420628         imadd r68, r68.sx, u5.sx, r1.sx
+0x035a  45c9840e18c01200         device_store 0, i32, x, r25, u10_u11, r68, unsigned, 0
+0x0362  0e11466600280000         iadd r68, r67.sx, 6
+0x036a  1e1148a658420628         imadd r68, r68.sx, u5.sx, r1.sx
+0x0372  45d9840e18c01200         device_store 0, i32, x, r27, u10_u11, r68, unsigned, 0
+0x037a  0e11166064220000         iadd r68, 22, r67.sx
+0x0382  1e1148a658420628         imadd r68, r68.sx, u5.sx, r1.sx
+0x038a  45e9840e18c01200         device_store 0, i32, x, r29, u10_u11, r68, unsigned, 0
+0x0392  0e11467600280000         iadd r68, r67.sx, 7
+0x039a  1e1148a658420628         imadd r68, r68.sx, u5.sx, r1.sx
+0x03a2  45f9840e18c01200         device_store 0, i32, x, r31, u10_u11, r68, unsigned, 0
+0x03aa  0e11176064220000         iadd r68, 23, r67.sx
+0x03b2  1e1148a658420628         imadd r68, r68.sx, u5.sx, r1.sx
+0x03ba  4509840e18c11200         device_store 0, i32, x, r33, u10_u11, r68, unsigned, 0
+0x03c2  0e11468600280000         iadd r68, r67.sx, 8
+0x03ca  1e1148a658420628         imadd r68, r68.sx, u5.sx, r1.sx
+0x03d2  4519840e18c11200         device_store 0, i32, x, r35, u10_u11, r68, unsigned, 0
+0x03da  0e11186064220000         iadd r68, 24, r67.sx
+0x03e2  1e1148a658420628         imadd r68, r68.sx, u5.sx, r1.sx
+0x03ea  3800                     wait 0
+0x03ec  4529840e18c11200         device_store 0, i32, x, r37, u10_u11, r68, unsigned, 0
+0x03f4  0e11469600280000         iadd r68, r67.sx, 9
+0x03fc  1e1148a658420628         imadd r68, r68.sx, u5.sx, r1.sx
+0x0404  4539840e18c11200         device_store 0, i32, x, r39, u10_u11, r68, unsigned, 0
+0x040c  0e11196064220000         iadd r68, 25, r67.sx
+0x0414  1e1148a658420628         imadd r68, r68.sx, u5.sx, r1.sx
+0x041c  4549840e18c11200         device_store 0, i32, x, r41, u10_u11, r68, unsigned, 0
+0x0424  0e1146a600280000         iadd r68, r67.sx, 10
+0x042c  1e1148a658420628         imadd r68, r68.sx, u5.sx, r1.sx
+0x0434  4559840e18c11200         device_store 0, i32, x, r43, u10_u11, r68, unsigned, 0
+0x043c  0e111a6064220000         iadd r68, 26, r67.sx
+0x0444  1e1148a658420628         imadd r68, r68.sx, u5.sx, r1.sx
+0x044c  4569840e18c11200         device_store 0, i32, x, r45, u10_u11, r68, unsigned, 0
+0x0454  0e1146b600280000         iadd r68, r67.sx, 11
+0x045c  1e1148a658420628         imadd r68, r68.sx, u5.sx, r1.sx
+0x0464  4579840e18c11200         device_store 0, i32, x, r47, u10_u11, r68, unsigned, 0
+0x046c  0e111b6064220000         iadd r68, 27, r67.sx
+0x0474  1e1148a658420628         imadd r68, r68.sx, u5.sx, r1.sx
+0x047c  4589840e18c11200         device_store 0, i32, x, r49, u10_u11, r68, unsigned, 0
+0x0484  0e1146c600280000         iadd r68, r67.sx, 12
+0x048c  1e1148a658420628         imadd r68, r68.sx, u5.sx, r1.sx
+0x0494  4599840e18c11200         device_store 0, i32, x, r51, u10_u11, r68, unsigned, 0
+0x049c  0e111c6064220000         iadd r68, 28, r67.sx
+0x04a4  1e1148a658420628         imadd r68, r68.sx, u5.sx, r1.sx
+0x04ac  3800                     wait 0
+0x04ae  45a9840e18c11200         device_store 0, i32, x, r53, u10_u11, r68, unsigned, 0
+0x04b6  0e1146d600280000         iadd r68, r67.sx, 13
+0x04be  1e1148a658420628         imadd r68, r68.sx, u5.sx, r1.sx
+0x04c6  45b9840e18c11200         device_store 0, i32, x, r55, u10_u11, r68, unsigned, 0
+0x04ce  0e111d6064220000         iadd r68, 29, r67.sx
+0x04d6  1e1148a658420628         imadd r68, r68.sx, u5.sx, r1.sx
+0x04de  45c9840e18c11200         device_store 0, i32, x, r57, u10_u11, r68, unsigned, 0
+0x04e6  0e1146e600280000         iadd r68, r67.sx, 14
+0x04ee  1e1148a658420628         imadd r68, r68.sx, u5.sx, r1.sx
+0x04f6  45d9840e18c11200         device_store 0, i32, x, r59, u10_u11, r68, unsigned, 0
+0x04fe  0e111e6064220000         iadd r68, 30, r67.sx
+0x0506  1e1148a658420628         imadd r68, r68.sx, u5.sx, r1.sx
+0x050e  45e9840e18c11200         device_store 0, i32, x, r61, u10_u11, r68, unsigned, 0
+0x0516  0e1146f600280000         iadd r68, r67.sx, 15
+0x051e  1e1148a658420628         imadd r68, r68.sx, u5.sx, r1.sx
+0x0526  45f9840e18c11200         device_store 0, i32, x, r63, u10_u11, r68, unsigned, 0
+0x052e  0e0d1f6064220000         iadd r67, 31, r67.sx
+0x0536  1e0d46a658420628         imadd r67, r67.sx, u5.sx, r1.sx
+0x053e  4509640e18c21200         device_store 0, i32, x, r65, u10_u11, r67, unsigned, 0
+0x0546  7e0d46aa6400             xor r3, r3, r5
+0x054c  7e1d4e2a6500             xor r7, r7, r9
+0x0552  7e2d56aa6500             xor r11, r11, r13
+0x0558  7e3d5e2a6600             xor r15, r15, r17
+0x055e  7e4d66aa6600             xor r19, r19, r21
+0x0564  7e5d6e2a6700             xor r23, r23, r25
+0x056a  7e6d76aa6700             xor r27, r27, r29
+0x0570  7e7d7e2a6401             xor r31, r31, r33
+0x0576  7e0d46aa6415             xor r35, r35, r37
+0x057c  7e1d4e2a6515             xor r39, r39, r41
+0x0582  7e2d56aa6515             xor r43, r43, r45
+0x0588  7e3d5e2a6615             xor r47, r47, r49
+0x058e  7e4d66aa6615             xor r51, r51, r53
+0x0594  7e5d6e2a6715             xor r55, r55, r57
+0x059a  7e6d76aa6715             xor r59, r59, r61
+0x05a0  7e7d7e2a6416             xor r63, r63, r65
+0x05a6  0e0d466666210000         iadd r67, r3.sx, r51.sx
+0x05ae  2e0d46662419002a         extr r67, r67, r67, 25
+0x05b6  7e0d666a6422             xor r67, r19, r67
+0x05bc  0e11466664280000         iadd r68, r67.sx, r3.sx
+0x05c4  2e1148862417002a         extr r68, r68, r68, 23
+0x05cc  7e11468a6426             xor r68, r35, r68
+0x05d2  0e154866642a0000         iadd r69, r68.sx, r67.sx
+0x05da  2e154aa62413002a         extr r69, r69, r69, 19
+0x05e2  7e1566aa6426             xor r69, r51, r69
+0x05e8  0e194a86642a0000         iadd r70, r69.sx, r68.sx
+0x05f0  2e194cc6240e002a         extr r70, r70, r70, 14
+0x05f8  7e1946ca6422             xor r70, r3, r70
+0x05fe  0e1d6ee664200000         iadd r71, r23.sx, r7.sx
+0x0606  2e1d4ee62419002a         extr r71, r71, r71, 25
+0x060e  7e1d4eea6426             xor r71, r39, r71
+0x0614  0e214ee666280000         iadd r72, r71.sx, r23.sx
+0x061c  2e2150062517002a         extr r72, r72, r72, 23
+0x0624  7e216e0a6526             xor r72, r55, r72
+0x062a  0e2550e6642a0000         iadd r73, r72.sx, r71.sx
+0x0632  2e2552262513002a         extr r73, r73, r73, 19
+0x063a  7e254e2a6522             xor r73, r7, r73
+0x0640  0e295206652a0000         iadd r74, r73.sx, r72.sx
+0x0648  2e295446250e002a         extr r74, r74, r74, 14
+0x0650  7e296e4a6522             xor r74, r23, r74
+0x0656  0e2d566667240000         iadd r75, r43.sx, r27.sx
+0x065e  2e2d56662519002a         extr r75, r75, r75, 25
+0x0666  7e2d766a6526             xor r75, r59, r75
+0x066c  0e31566665290000         iadd r76, r75.sx, r43.sx
+0x0674  2e3158862517002a         extr r76, r76, r76, 23
+0x067c  7e31568a6522             xor r76, r11, r76
+0x0682  0e355866652a0000         iadd r77, r76.sx, r75.sx
+0x068a  2e355aa62513002a         extr r77, r77, r77, 19
+0x0692  7e3576aa6522             xor r77, r27, r77
+0x0698  0e395a86652a0000         iadd r78, r77.sx, r76.sx
+0x06a0  2e395cc6250e002a         extr r78, r78, r78, 14
+0x06a8  7e3956ca6526             xor r78, r43, r78
+0x06ae  0e3d7ee665250000         iadd r79, r63.sx, r47.sx
+0x06b6  2e3d5ee62519002a         extr r79, r79, r79, 25
+0x06be  7e3d5eea6522             xor r79, r15, r79
+0x06c4  0e415ee667290000         iadd r80, r79.sx, r63.sx
+0x06cc  2e4160062617002a         extr r80, r80, r80, 23
+0x06d4  7e417e0a6622             xor r80, r31, r80
+0x06da  0e4560e6652a0000         iadd r81, r80.sx, r79.sx
+0x06e2  2e4562262613002a         extr r81, r81, r81, 19
+0x06ea  7e455e2a6626             xor r81, r47, r81
+0x06f0  0e496206662a0000         iadd r82, r81.sx, r80.sx
+0x06f8  2e496446260e002a         extr r82, r82, r82, 14
+0x0700  7e497e4a6626             xor r82, r63, r82
+0x0706  0e4d4ce6652a0000         iadd r83, r70.sx, r79.sx
+0x070e  2e4d66662619002a         extr r83, r83, r83, 25
+0x0716  7e25526a662a             xor r73, r73, r83
+0x071c  0e4d52c6642a0000         iadd r83, r73.sx, r70.sx
+0x0724  2e4d66662617002a         extr r83, r83, r83, 23
+0x072c  7e31586a662a             xor r76, r76, r83
+0x0732  0e4d5826652a0000         iadd r83, r76.sx, r73.sx
+0x073a  2e4d66662613002a         extr r83, r83, r83, 19
+0x0742  7e3d5e6a662a             xor r79, r79, r83
+0x0748  0e4d5e86652a0000         iadd r83, r79.sx, r76.sx
+0x0750  2e4d6666260e002a         extr r83, r83, r83, 14
+0x0758  7e194c6a662a             xor r70, r70, r83
+0x075e  0e4d5466642a0000         iadd r83, r74.sx, r67.sx
+0x0766  2e4d66662619002a         extr r83, r83, r83, 25
+0x076e  7e355a6a662a             xor r77, r77, r83
+0x0774  0e4d5a46652a0000         iadd r83, r77.sx, r74.sx
+0x077c  2e4d66662617002a         extr r83, r83, r83, 23
+0x0784  7e41606a662a             xor r80, r80, r83
+0x078a  0e4d60a6652a0000         iadd r83, r80.sx, r77.sx
+0x0792  2e4d66662613002a         extr r83, r83, r83, 19
+0x079a  7e0d466a662a             xor r67, r67, r83
+0x07a0  0e4d4606662a0000         iadd r83, r67.sx, r80.sx
+0x07a8  2e4d6666260e002a         extr r83, r83, r83, 14
+0x07b0  7e29546a662a             xor r74, r74, r83
+0x07b6  0e4d5ce6642a0000         iadd r83, r78.sx, r71.sx
+0x07be  2e4d66662619002a         extr r83, r83, r83, 25
+0x07c6  7e45626a662a             xor r81, r81, r83
+0x07cc  0e4d62c6652a0000         iadd r83, r81.sx, r78.sx
+0x07d4  2e4d66662617002a         extr r83, r83, r83, 23
+0x07dc  7e11486a662a             xor r68, r68, r83
+0x07e2  0e4d4826662a0000         iadd r83, r68.sx, r81.sx
+0x07ea  2e4d66662613002a         extr r83, r83, r83, 19
+0x07f2  7e1d4e6a662a             xor r71, r71, r83
+0x07f8  0e4d4e86642a0000         iadd r83, r71.sx, r68.sx
+0x0800  2e4d6666260e002a         extr r83, r83, r83, 14
+0x0808  7e395c6a662a             xor r78, r78, r83
+0x080e  0e4d6466652a0000         iadd r83, r82.sx, r75.sx
+0x0816  2e4d66662619002a         extr r83, r83, r83, 25
+0x081e  7e154a6a662a             xor r69, r69, r83
+0x0824  0e4d4a46662a0000         iadd r83, r69.sx, r82.sx
+0x082c  2e4d66662617002a         extr r83, r83, r83, 23
+0x0834  7e21506a662a             xor r72, r72, r83
+0x083a  0e4d50a6642a0000         iadd r83, r72.sx, r69.sx
+0x0842  2e4d66662613002a         extr r83, r83, r83, 19
+0x084a  7e2d566a662a             xor r75, r75, r83
+0x0850  0e4d5606652a0000         iadd r83, r75.sx, r72.sx
+0x0858  2e4d6666260e002a         extr r83, r83, r83, 14
+0x0860  7e49646a662a             xor r82, r82, r83
+0x0866  0e4d4ca6642a0000         iadd r83, r70.sx, r69.sx
+0x086e  2e4d66662619002a         extr r83, r83, r83, 25
+0x0876  7e0d466a662a             xor r67, r67, r83
+0x087c  0e4d46c6642a0000         iadd r83, r67.sx, r70.sx
+0x0884  2e4d66662617002a         extr r83, r83, r83, 23
+0x088c  7e11486a662a             xor r68, r68, r83
+0x0892  0e4d4866642a0000         iadd r83, r68.sx, r67.sx
+0x089a  2e4d66662613002a         extr r83, r83, r83, 19
+0x08a2  7e154a6a662a             xor r69, r69, r83
+0x08a8  0e4d4a86642a0000         iadd r83, r69.sx, r68.sx
+0x08b0  2e4d6666260e002a         extr r83, r83, r83, 14
+0x08b8  7e194c6a662a             xor r70, r70, r83
+0x08be  0e4d5426652a0000         iadd r83, r74.sx, r73.sx
+0x08c6  2e4d66662619002a         extr r83, r83, r83, 25
+0x08ce  7e1d4e6a662a             xor r71, r71, r83
+0x08d4  0e4d4e46652a0000         iadd r83, r71.sx, r74.sx
+0x08dc  2e4d66662617002a         extr r83, r83, r83, 23
+0x08e4  7e21506a662a             xor r72, r72, r83
+0x08ea  0e4d50e6642a0000         iadd r83, r72.sx, r71.sx
+0x08f2  2e4d66662613002a         extr r83, r83, r83, 19
+0x08fa  7e25526a662a             xor r73, r73, r83
+0x0900  0e4d5206652a0000         iadd r83, r73.sx, r72.sx
+0x0908  2e4d6666260e002a         extr r83, r83, r83, 14
+0x0910  7e29546a662a             xor r74, r74, r83
+0x0916  0e4d5ca6652a0000         iadd r83, r78.sx, r77.sx
+0x091e  2e4d66662619002a         extr r83, r83, r83, 25
+0x0926  7e2d566a662a             xor r75, r75, r83
+0x092c  0e4d56c6652a0000         iadd r83, r75.sx, r78.sx
+0x0934  2e4d66662617002a         extr r83, r83, r83, 23
+0x093c  7e31586a662a             xor r76, r76, r83
+0x0942  0e4d5866652a0000         iadd r83, r76.sx, r75.sx
+0x094a  2e4d66662613002a         extr r83, r83, r83, 19
+0x0952  7e355a6a662a             xor r77, r77, r83
+0x0958  0e4d5a86652a0000         iadd r83, r77.sx, r76.sx
+0x0960  2e4d6666260e002a         extr r83, r83, r83, 14
+0x0968  7e395c6a662a             xor r78, r78, r83
+0x096e  0e4d6426662a0000         iadd r83, r82.sx, r81.sx
+0x0976  2e4d66662619002a         extr r83, r83, r83, 25
+0x097e  7e3d5e6a662a             xor r79, r79, r83
+0x0984  0e4d5e46662a0000         iadd r83, r79.sx, r82.sx
+0x098c  2e4d66662617002a         extr r83, r83, r83, 23
+0x0994  7e41606a662a             xor r80, r80, r83
+0x099a  0e4d60e6652a0000         iadd r83, r80.sx, r79.sx
+0x09a2  2e4d66662613002a         extr r83, r83, r83, 19
+0x09aa  7e45626a662a             xor r81, r81, r83
+0x09b0  0e4d6206662a0000         iadd r83, r81.sx, r80.sx
+0x09b8  2e4d6666260e002a         extr r83, r83, r83, 14
+0x09c0  7e49646a662a             xor r82, r82, r83
+0x09c6  0e4d4ce6652a0000         iadd r83, r70.sx, r79.sx
+0x09ce  2e4d66662619002a         extr r83, r83, r83, 25
+0x09d6  7e25526a662a             xor r73, r73, r83
+0x09dc  0e4d52c6642a0000         iadd r83, r73.sx, r70.sx
+0x09e4  2e4d66662617002a         extr r83, r83, r83, 23
+0x09ec  7e31586a662a             xor r76, r76, r83
+0x09f2  0e4d5826652a0000         iadd r83, r76.sx, r73.sx
+0x09fa  2e4d66662613002a         extr r83, r83, r83, 19
+0x0a02  7e3d5e6a662a             xor r79, r79, r83
+0x0a08  0e4d5e86652a0000         iadd r83, r79.sx, r76.sx
+0x0a10  2e4d6666260e002a         extr r83, r83, r83, 14
+0x0a18  7e194c6a662a             xor r70, r70, r83
+0x0a1e  0e4d5466642a0000         iadd r83, r74.sx, r67.sx
+0x0a26  2e4d66662619002a         extr r83, r83, r83, 25
+0x0a2e  7e355a6a662a             xor r77, r77, r83
+0x0a34  0e4d5a46652a0000         iadd r83, r77.sx, r74.sx
+0x0a3c  2e4d66662617002a         extr r83, r83, r83, 23
+0x0a44  7e41606a662a             xor r80, r80, r83
+0x0a4a  0e4d60a6652a0000         iadd r83, r80.sx, r77.sx
+0x0a52  2e4d66662613002a         extr r83, r83, r83, 19
+0x0a5a  7e0d466a662a             xor r67, r67, r83
+0x0a60  0e4d4606662a0000         iadd r83, r67.sx, r80.sx
+0x0a68  2e4d6666260e002a         extr r83, r83, r83, 14
+0x0a70  7e29546a662a             xor r74, r74, r83
+0x0a76  0e4d5ce6642a0000         iadd r83, r78.sx, r71.sx
+0x0a7e  2e4d66662619002a         extr r83, r83, r83, 25
+0x0a86  7e45626a662a             xor r81, r81, r83
+0x0a8c  0e4d62c6652a0000         iadd r83, r81.sx, r78.sx
+0x0a94  2e4d66662617002a         extr r83, r83, r83, 23
+0x0a9c  7e11486a662a             xor r68, r68, r83
+0x0aa2  0e4d4826662a0000         iadd r83, r68.sx, r81.sx
+0x0aaa  2e4d66662613002a         extr r83, r83, r83, 19
+0x0ab2  7e1d4e6a662a             xor r71, r71, r83
+0x0ab8  0e4d4e86642a0000         iadd r83, r71.sx, r68.sx
+0x0ac0  2e4d6666260e002a         extr r83, r83, r83, 14
+0x0ac8  7e395c6a662a             xor r78, r78, r83
+0x0ace  0e4d6466652a0000         iadd r83, r82.sx, r75.sx
+0x0ad6  2e4d66662619002a         extr r83, r83, r83, 25
+0x0ade  7e154a6a662a             xor r69, r69, r83
+0x0ae4  0e4d4a46662a0000         iadd r83, r69.sx, r82.sx
+0x0aec  2e4d66662617002a         extr r83, r83, r83, 23
+0x0af4  7e21506a662a             xor r72, r72, r83
+0x0afa  0e4d50a6642a0000         iadd r83, r72.sx, r69.sx
+0x0b02  2e4d66662613002a         extr r83, r83, r83, 19
+0x0b0a  7e2d566a662a             xor r75, r75, r83
+0x0b10  0e4d5606652a0000         iadd r83, r75.sx, r72.sx
+0x0b18  2e4d6666260e002a         extr r83, r83, r83, 14
+0x0b20  7e49646a662a             xor r82, r82, r83
+0x0b26  0e4d4ca6642a0000         iadd r83, r70.sx, r69.sx
+0x0b2e  2e4d66662619002a         extr r83, r83, r83, 25
+0x0b36  7e0d466a662a             xor r67, r67, r83
+0x0b3c  0e4d46c6642a0000         iadd r83, r67.sx, r70.sx
+0x0b44  2e4d66662617002a         extr r83, r83, r83, 23
+0x0b4c  7e11486a662a             xor r68, r68, r83
+0x0b52  0e4d4866642a0000         iadd r83, r68.sx, r67.sx
+0x0b5a  2e4d66662613002a         extr r83, r83, r83, 19
+0x0b62  7e154a6a662a             xor r69, r69, r83
+0x0b68  0e4d4a86642a0000         iadd r83, r69.sx, r68.sx
+0x0b70  2e4d6666260e002a         extr r83, r83, r83, 14
+0x0b78  7e194c6a662a             xor r70, r70, r83
+0x0b7e  0e4d5426652a0000         iadd r83, r74.sx, r73.sx
+0x0b86  2e4d66662619002a         extr r83, r83, r83, 25
+0x0b8e  7e1d4e6a662a             xor r71, r71, r83
+0x0b94  0e4d4e46652a0000         iadd r83, r71.sx, r74.sx
+0x0b9c  2e4d66662617002a         extr r83, r83, r83, 23
+0x0ba4  7e21506a662a             xor r72, r72, r83
+0x0baa  0e4d50e6642a0000         iadd r83, r72.sx, r71.sx
+0x0bb2  2e4d66662613002a         extr r83, r83, r83, 19
+0x0bba  7e25526a662a             xor r73, r73, r83
+0x0bc0  0e4d5206652a0000         iadd r83, r73.sx, r72.sx
+0x0bc8  2e4d6666260e002a         extr r83, r83, r83, 14
+0x0bd0  7e29546a662a             xor r74, r74, r83
+0x0bd6  0e4d5ca6652a0000         iadd r83, r78.sx, r77.sx
+0x0bde  2e4d66662619002a         extr r83, r83, r83, 25
+0x0be6  7e2d566a662a             xor r75, r75, r83
+0x0bec  0e4d56c6652a0000         iadd r83, r75.sx, r78.sx
+0x0bf4  2e4d66662617002a         extr r83, r83, r83, 23
+0x0bfc  7e31586a662a             xor r76, r76, r83
+0x0c02  0e4d5866652a0000         iadd r83, r76.sx, r75.sx
+0x0c0a  2e4d66662613002a         extr r83, r83, r83, 19
+0x0c12  7e355a6a662a             xor r77, r77, r83
+0x0c18  0e4d5a86652a0000         iadd r83, r77.sx, r76.sx
+0x0c20  2e4d6666260e002a         extr r83, r83, r83, 14
+0x0c28  7e395c6a662a             xor r78, r78, r83
+0x0c2e  0e4d6426662a0000         iadd r83, r82.sx, r81.sx
+0x0c36  2e4d66662619002a         extr r83, r83, r83, 25
+0x0c3e  7e3d5e6a662a             xor r79, r79, r83
+0x0c44  0e4d5e46662a0000         iadd r83, r79.sx, r82.sx
+0x0c4c  2e4d66662617002a         extr r83, r83, r83, 23
+0x0c54  7e41606a662a             xor r80, r80, r83
+0x0c5a  0e4d60e6652a0000         iadd r83, r80.sx, r79.sx
+0x0c62  2e4d66662613002a         extr r83, r83, r83, 19
+0x0c6a  7e45626a662a             xor r81, r81, r83
+0x0c70  0e4d6206662a0000         iadd r83, r81.sx, r80.sx
+0x0c78  2e4d6666260e002a         extr r83, r83, r83, 14
+0x0c80  7e49646a662a             xor r82, r82, r83
+0x0c86  0e4d4ce6652a0000         iadd r83, r70.sx, r79.sx
+0x0c8e  2e4d66662619002a         extr r83, r83, r83, 25
+0x0c96  7e25526a662a             xor r73, r73, r83
+0x0c9c  0e4d52c6642a0000         iadd r83, r73.sx, r70.sx
+0x0ca4  2e4d66662617002a         extr r83, r83, r83, 23
+0x0cac  7e31586a662a             xor r76, r76, r83
+0x0cb2  0e4d5826652a0000         iadd r83, r76.sx, r73.sx
+0x0cba  2e4d66662613002a         extr r83, r83, r83, 19
+0x0cc2  7e3d5e6a662a             xor r79, r79, r83
+0x0cc8  0e4d5e86652a0000         iadd r83, r79.sx, r76.sx
+0x0cd0  2e4d6666260e002a         extr r83, r83, r83, 14
+0x0cd8  7e194c6a662a             xor r70, r70, r83
+0x0cde  0e4d5466642a0000         iadd r83, r74.sx, r67.sx
+0x0ce6  2e4d66662619002a         extr r83, r83, r83, 25
+0x0cee  7e355a6a662a             xor r77, r77, r83
+0x0cf4  0e4d5a46652a0000         iadd r83, r77.sx, r74.sx
+0x0cfc  2e4d66662617002a         extr r83, r83, r83, 23
+0x0d04  7e41606a662a             xor r80, r80, r83
+0x0d0a  0e4d60a6652a0000         iadd r83, r80.sx, r77.sx
+0x0d12  2e4d66662613002a         extr r83, r83, r83, 19
+0x0d1a  7e0d466a662a             xor r67, r67, r83
+0x0d20  0e4d4606662a0000         iadd r83, r67.sx, r80.sx
+0x0d28  2e4d6666260e002a         extr r83, r83, r83, 14
+0x0d30  7e29546a662a             xor r74, r74, r83
+0x0d36  0e4d5ce6642a0000         iadd r83, r78.sx, r71.sx
+0x0d3e  2e4d66662619002a         extr r83, r83, r83, 25
+0x0d46  7e45626a662a             xor r81, r81, r83
+0x0d4c  0e4d62c6652a0000         iadd r83, r81.sx, r78.sx
+0x0d54  2e4d66662617002a         extr r83, r83, r83, 23
+0x0d5c  7e11486a662a             xor r68, r68, r83
+0x0d62  0e4d4826662a0000         iadd r83, r68.sx, r81.sx
+0x0d6a  2e4d66662613002a         extr r83, r83, r83, 19
+0x0d72  7e1d4e6a662a             xor r71, r71, r83
+0x0d78  0e4d4e86642a0000         iadd r83, r71.sx, r68.sx
+0x0d80  2e4d6666260e002a         extr r83, r83, r83, 14
+0x0d88  7e395c6a662a             xor r78, r78, r83
+0x0d8e  0e4d6466652a0000         iadd r83, r82.sx, r75.sx
+0x0d96  2e4d66662619002a         extr r83, r83, r83, 25
+0x0d9e  7e154a6a662a             xor r69, r69, r83
+0x0da4  0e4d4a46662a0000         iadd r83, r69.sx, r82.sx
+0x0dac  2e4d66662617002a         extr r83, r83, r83, 23
+0x0db4  7e21506a662a             xor r72, r72, r83
+0x0dba  0e4d50a6642a0000         iadd r83, r72.sx, r69.sx
+0x0dc2  2e4d66662613002a         extr r83, r83, r83, 19
+0x0dca  7e2d566a662a             xor r75, r75, r83
+0x0dd0  0e4d5606652a0000         iadd r83, r75.sx, r72.sx
+0x0dd8  2e4d6666260e002a         extr r83, r83, r83, 14
+0x0de0  7e49646a662a             xor r82, r82, r83
+0x0de6  0e4d4ca6642a0000         iadd r83, r70.sx, r69.sx
+0x0dee  2e4d66662619002a         extr r83, r83, r83, 25
+0x0df6  7e0d466a662a             xor r67, r67, r83
+0x0dfc  0e4d46c6642a0000         iadd r83, r67.sx, r70.sx
+0x0e04  2e4d66662617002a         extr r83, r83, r83, 23
+0x0e0c  7e11486a662a             xor r68, r68, r83
+0x0e12  0e4d4866642a0000         iadd r83, r68.sx, r67.sx
+0x0e1a  2e4d66662613002a         extr r83, r83, r83, 19
+0x0e22  7e154a6a662a             xor r69, r69, r83
+0x0e28  0e4d4a86642a0000         iadd r83, r69.sx, r68.sx
+0x0e30  2e4d6666260e002a         extr r83, r83, r83, 14
+0x0e38  7e194c6a662a             xor r70, r70, r83
+0x0e3e  0e4d5426652a0000         iadd r83, r74.sx, r73.sx
+0x0e46  2e4d66662619002a         extr r83, r83, r83, 25
+0x0e4e  7e1d4e6a662a             xor r71, r71, r83
+0x0e54  0e4d4e46652a0000         iadd r83, r71.sx, r74.sx
+0x0e5c  2e4d66662617002a         extr r83, r83, r83, 23
+0x0e64  7e21506a662a             xor r72, r72, r83
+0x0e6a  0e4d50e6642a0000         iadd r83, r72.sx, r71.sx
+0x0e72  2e4d66662613002a         extr r83, r83, r83, 19
+0x0e7a  7e25526a662a             xor r73, r73, r83
+0x0e80  0e4d5206652a0000         iadd r83, r73.sx, r72.sx
+0x0e88  2e4d6666260e002a         extr r83, r83, r83, 14
+0x0e90  7e29546a662a             xor r74, r74, r83
+0x0e96  0e4d5ca6652a0000         iadd r83, r78.sx, r77.sx
+0x0e9e  2e4d66662619002a         extr r83, r83, r83, 25
+0x0ea6  7e2d566a662a             xor r75, r75, r83
+0x0eac  0e4d56c6652a0000         iadd r83, r75.sx, r78.sx
+0x0eb4  2e4d66662617002a         extr r83, r83, r83, 23
+0x0ebc  7e31586a662a             xor r76, r76, r83
+0x0ec2  0e4d5866652a0000         iadd r83, r76.sx, r75.sx
+0x0eca  2e4d66662613002a         extr r83, r83, r83, 19
+0x0ed2  7e355a6a662a             xor r77, r77, r83
+0x0ed8  0e4d5a86652a0000         iadd r83, r77.sx, r76.sx
+0x0ee0  2e4d6666260e002a         extr r83, r83, r83, 14
+0x0ee8  7e395c6a662a             xor r78, r78, r83
+0x0eee  0e4d6426662a0000         iadd r83, r82.sx, r81.sx
+0x0ef6  2e4d66662619002a         extr r83, r83, r83, 25
+0x0efe  7e3d5e6a662a             xor r79, r79, r83
+0x0f04  0e4d5e46662a0000         iadd r83, r79.sx, r82.sx
+0x0f0c  2e4d66662617002a         extr r83, r83, r83, 23
+0x0f14  7e41606a662a             xor r80, r80, r83
+0x0f1a  0e4d60e6652a0000         iadd r83, r80.sx, r79.sx
+0x0f22  2e4d66662613002a         extr r83, r83, r83, 19
+0x0f2a  7e45626a662a             xor r81, r81, r83
+0x0f30  0e4d6206662a0000         iadd r83, r81.sx, r80.sx
+0x0f38  2e4d6666260e002a         extr r83, r83, r83, 14
+0x0f40  7e49646a662a             xor r82, r82, r83
+0x0f46  0e4d4ce6652a0000         iadd r83, r70.sx, r79.sx
+0x0f4e  2e4d66662619002a         extr r83, r83, r83, 25
+0x0f56  7e25526a662a             xor r73, r73, r83
+0x0f5c  0e4d52c6642a0000         iadd r83, r73.sx, r70.sx
+0x0f64  2e4d66662617002a         extr r83, r83, r83, 23
+0x0f6c  7e31586a662a             xor r76, r76, r83
+0x0f72  0e4d5826652a0000         iadd r83, r76.sx, r73.sx
+0x0f7a  2e4d66662613002a         extr r83, r83, r83, 19
+0x0f82  7e3d5e6a662a             xor r79, r79, r83
+0x0f88  0e4d5e86652a0000         iadd r83, r79.sx, r76.sx
+0x0f90  2e4d6666260e002a         extr r83, r83, r83, 14
+0x0f98  7e194c6a662a             xor r70, r70, r83
+0x0f9e  0e4d5466642a0000         iadd r83, r74.sx, r67.sx
+0x0fa6  2e4d66662619002a         extr r83, r83, r83, 25
+0x0fae  7e355a6a662a             xor r77, r77, r83
+0x0fb4  0e4d5a46652a0000         iadd r83, r77.sx, r74.sx
+0x0fbc  2e4d66662617002a         extr r83, r83, r83, 23
+0x0fc4  7e41606a662a             xor r80, r80, r83
+0x0fca  0e4d60a6652a0000         iadd r83, r80.sx, r77.sx
+0x0fd2  2e4d66662613002a         extr r83, r83, r83, 19
+0x0fda  7e0d466a662a             xor r67, r67, r83
+0x0fe0  0e4d4606662a0000         iadd r83, r67.sx, r80.sx
+0x0fe8  2e4d6666260e002a         extr r83, r83, r83, 14
+0x0ff0  7e29546a662a             xor r74, r74, r83
+0x0ff6  0e4d5ce6642a0000         iadd r83, r78.sx, r71.sx
+0x0ffe  2e4d66662619002a         extr r83, r83, r83, 25
+0x1006  7e45626a662a             xor r81, r81, r83
+0x100c  0e4d62c6652a0000         iadd r83, r81.sx, r78.sx
+0x1014  2e4d66662617002a         extr r83, r83, r83, 23
+0x101c  7e11486a662a             xor r68, r68, r83
+0x1022  0e4d4826662a0000         iadd r83, r68.sx, r81.sx
+0x102a  2e4d66662613002a         extr r83, r83, r83, 19
+0x1032  7e1d4e6a662a             xor r71, r71, r83
+0x1038  0e4d4e86642a0000         iadd r83, r71.sx, r68.sx
+0x1040  2e4d6666260e002a         extr r83, r83, r83, 14
+0x1048  7e395c6a662a             xor r78, r78, r83
+0x104e  0e4d6466652a0000         iadd r83, r82.sx, r75.sx
+0x1056  2e4d66662619002a         extr r83, r83, r83, 25
+0x105e  7e154a6a662a             xor r69, r69, r83
+0x1064  0e4d4a46662a0000         iadd r83, r69.sx, r82.sx
+0x106c  2e4d66662617002a         extr r83, r83, r83, 23
+0x1074  7e21506a662a             xor r72, r72, r83
+0x107a  0e4d50a6642a0000         iadd r83, r72.sx, r69.sx
+0x1082  2e4d66662613002a         extr r83, r83, r83, 19
+0x108a  7e2d566a662a             xor r75, r75, r83
+0x1090  0e4d5606652a0000         iadd r83, r75.sx, r72.sx
+0x1098  2e4d6666260e002a         extr r83, r83, r83, 14
+0x10a0  7e49646a662a             xor r82, r82, r83
+0x10a6  0e0d46c664020000         iadd r3, r3.sx, r70.sx
+0x10ae  0e1d4e2665020000         iadd r7, r7.sx, r73.sx
+0x10b6  0e2d568665020000         iadd r11, r11.sx, r76.sx
+0x10be  0e3d5ee665020000         iadd r15, r15.sx, r79.sx
+0x10c6  0e4d666664020000         iadd r19, r19.sx, r67.sx
+0x10ce  0e5d6e4665020000         iadd r23, r23.sx, r74.sx
+0x10d6  0e6d76a665020000         iadd r27, r27.sx, r77.sx
+0x10de  0e7d7e0666020000         iadd r31, r31.sx, r80.sx
+0x10e6  0e0d468664160000         iadd r35, r35.sx, r68.sx
+0x10ee  0e1d4ee664160000         iadd r39, r39.sx, r71.sx
+0x10f6  0e2d56c665160000         iadd r43, r43.sx, r78.sx
+0x10fe  0e3d5e2666160000         iadd r47, r47.sx, r81.sx
+0x1106  0e4d66a664160000         iadd r51, r51.sx, r69.sx
+0x110e  0e5d6e0665160000         iadd r55, r55.sx, r72.sx
+0x1116  0e6d766665160000         iadd r59, r59.sx, r75.sx
+0x111e  0e7d7e4666160000         iadd r63, r63.sx, r82.sx
+0x1126  7e154a6a6400             xor r5, r5, r3
+0x112c  7e2552ea6400             xor r9, r9, r7
+0x1132  7e355a6a6500             xor r13, r13, r11
+0x1138  7e4562ea6500             xor r17, r17, r15
+0x113e  7e556a6a6600             xor r21, r21, r19
+0x1144  7e6572ea6600             xor r25, r25, r23
+0x114a  7e757a6a6700             xor r29, r29, r27
+0x1150  7e0542ea6714             xor r33, r33, r31
+0x1156  7e154a6a6415             xor r37, r37, r35
+0x115c  7e2552ea6415             xor r41, r41, r39
+0x1162  7e355a6a6515             xor r45, r45, r43
+0x1168  7e4562ea6515             xor r49, r49, r47
+0x116e  7e556a6a6615             xor r53, r53, r51
+0x1174  7e6572ea6615             xor r57, r57, r55
+0x117a  7e757a6a6715             xor r61, r61, r59
+0x1180  7e0542ea6729             xor r65, r65, r63
+0x1186  0e0d4aa666210000         iadd r67, r5.sx, r53.sx
+0x118e  2e0d46662419002a         extr r67, r67, r67, 25
+0x1196  7e0d6a6a6422             xor r67, r21, r67
+0x119c  0e1146a664280000         iadd r68, r67.sx, r5.sx
+0x11a4  2e1148862417002a         extr r68, r68, r68, 23
+0x11ac  7e114a8a6426             xor r68, r37, r68
+0x11b2  0e154866642a0000         iadd r69, r68.sx, r67.sx
+0x11ba  2e154aa62413002a         extr r69, r69, r69, 19
+0x11c2  7e156aaa6426             xor r69, r53, r69
+0x11c8  0e194a86642a0000         iadd r70, r69.sx, r68.sx
+0x11d0  2e194cc6240e002a         extr r70, r70, r70, 14
+0x11d8  7e194aca6422             xor r70, r5, r70
+0x11de  0e1d722665200000         iadd r71, r25.sx, r9.sx
+0x11e6  2e1d4ee62419002a         extr r71, r71, r71, 25
+0x11ee  7e1d52ea6426             xor r71, r41, r71
+0x11f4  0e214e2667280000         iadd r72, r71.sx, r25.sx
+0x11fc  2e2150062517002a         extr r72, r72, r72, 23
+0x1204  7e21720a6526             xor r72, r57, r72
+0x120a  0e2550e6642a0000         iadd r73, r72.sx, r71.sx
+0x1212  2e2552262513002a         extr r73, r73, r73, 19
+0x121a  7e25522a6522             xor r73, r9, r73
+0x1220  0e295206652a0000         iadd r74, r73.sx, r72.sx
+0x1228  2e295446250e002a         extr r74, r74, r74, 14
+0x1230  7e29724a6522             xor r74, r25, r74
+0x1236  0e2d5aa667240000         iadd r75, r45.sx, r29.sx
+0x123e  2e2d56662519002a         extr r75, r75, r75, 25
+0x1246  7e2d7a6a6526             xor r75, r61, r75
+0x124c  0e3156a665290000         iadd r76, r75.sx, r45.sx
+0x1254  2e3158862517002a         extr r76, r76, r76, 23
+0x125c  7e315a8a6522             xor r76, r13, r76
+0x1262  0e355866652a0000         iadd r77, r76.sx, r75.sx
+0x126a  2e355aa62513002a         extr r77, r77, r77, 19
+0x1272  7e357aaa6522             xor r77, r29, r77
+0x1278  0e395a86652a0000         iadd r78, r77.sx, r76.sx
+0x1280  2e395cc6250e002a         extr r78, r78, r78, 14
+0x1288  7e395aca6526             xor r78, r45, r78
+0x128e  0e3d422666290000         iadd r79, r65.sx, r49.sx
+0x1296  2e3d5ee62519002a         extr r79, r79, r79, 25
+0x129e  7e3d62ea6522             xor r79, r17, r79
+0x12a4  0e415e26642a0000         iadd r80, r79.sx, r65.sx
+0x12ac  2e4160062617002a         extr r80, r80, r80, 23
+0x12b4  7e41420a6626             xor r80, r33, r80
+0x12ba  0e4560e6652a0000         iadd r81, r80.sx, r79.sx
+0x12c2  2e4562262613002a         extr r81, r81, r81, 19
+0x12ca  7e45622a6626             xor r81, r49, r81
+0x12d0  0e496206662a0000         iadd r82, r81.sx, r80.sx
+0x12d8  2e496446260e002a         extr r82, r82, r82, 14
+0x12e0  7e49424a662a             xor r82, r65, r82
+0x12e6  0e4d4ce6652a0000         iadd r83, r70.sx, r79.sx
+0x12ee  2e4d66662619002a         extr r83, r83, r83, 25
+0x12f6  7e25526a662a             xor r73, r73, r83
+0x12fc  0e4d52c6642a0000         iadd r83, r73.sx, r70.sx
+0x1304  2e4d66662617002a         extr r83, r83, r83, 23
+0x130c  7e31586a662a             xor r76, r76, r83
+0x1312  0e4d5826652a0000         iadd r83, r76.sx, r73.sx
+0x131a  2e4d66662613002a         extr r83, r83, r83, 19
+0x1322  7e3d5e6a662a             xor r79, r79, r83
+0x1328  0e4d5e86652a0000         iadd r83, r79.sx, r76.sx
+0x1330  2e4d6666260e002a         extr r83, r83, r83, 14
+0x1338  7e194c6a662a             xor r70, r70, r83
+0x133e  0e4d5466642a0000         iadd r83, r74.sx, r67.sx
+0x1346  2e4d66662619002a         extr r83, r83, r83, 25
+0x134e  7e355a6a662a             xor r77, r77, r83
+0x1354  0e4d5a46652a0000         iadd r83, r77.sx, r74.sx
+0x135c  2e4d66662617002a         extr r83, r83, r83, 23
+0x1364  7e41606a662a             xor r80, r80, r83
+0x136a  0e4d60a6652a0000         iadd r83, r80.sx, r77.sx
+0x1372  2e4d66662613002a         extr r83, r83, r83, 19
+0x137a  7e0d466a662a             xor r67, r67, r83
+0x1380  0e4d4606662a0000         iadd r83, r67.sx, r80.sx
+0x1388  2e4d6666260e002a         extr r83, r83, r83, 14
+0x1390  7e29546a662a             xor r74, r74, r83
+0x1396  0e4d5ce6642a0000         iadd r83, r78.sx, r71.sx
+0x139e  2e4d66662619002a         extr r83, r83, r83, 25
+0x13a6  7e45626a662a             xor r81, r81, r83
+0x13ac  0e4d62c6652a0000         iadd r83, r81.sx, r78.sx
+0x13b4  2e4d66662617002a         extr r83, r83, r83, 23
+0x13bc  7e11486a662a             xor r68, r68, r83
+0x13c2  0e4d4826662a0000         iadd r83, r68.sx, r81.sx
+0x13ca  2e4d66662613002a         extr r83, r83, r83, 19
+0x13d2  7e1d4e6a662a             xor r71, r71, r83
+0x13d8  0e4d4e86642a0000         iadd r83, r71.sx, r68.sx
+0x13e0  2e4d6666260e002a         extr r83, r83, r83, 14
+0x13e8  7e395c6a662a             xor r78, r78, r83
+0x13ee  0e4d6466652a0000         iadd r83, r82.sx, r75.sx
+0x13f6  2e4d66662619002a         extr r83, r83, r83, 25
+0x13fe  7e154a6a662a             xor r69, r69, r83
+0x1404  0e4d4a46662a0000         iadd r83, r69.sx, r82.sx
+0x140c  2e4d66662617002a         extr r83, r83, r83, 23
+0x1414  7e21506a662a             xor r72, r72, r83
+0x141a  0e4d50a6642a0000         iadd r83, r72.sx, r69.sx
+0x1422  2e4d66662613002a         extr r83, r83, r83, 19
+0x142a  7e2d566a662a             xor r75, r75, r83
+0x1430  0e4d5606652a0000         iadd r83, r75.sx, r72.sx
+0x1438  2e4d6666260e002a         extr r83, r83, r83, 14
+0x1440  7e49646a662a             xor r82, r82, r83
+0x1446  0e4d4ca6642a0000         iadd r83, r70.sx, r69.sx
+0x144e  2e4d66662619002a         extr r83, r83, r83, 25
+0x1456  7e0d466a662a             xor r67, r67, r83
+0x145c  0e4d46c6642a0000         iadd r83, r67.sx, r70.sx
+0x1464  2e4d66662617002a         extr r83, r83, r83, 23
+0x146c  7e11486a662a             xor r68, r68, r83
+0x1472  0e4d4866642a0000         iadd r83, r68.sx, r67.sx
+0x147a  2e4d66662613002a         extr r83, r83, r83, 19
+0x1482  7e154a6a662a             xor r69, r69, r83
+0x1488  0e4d4a86642a0000         iadd r83, r69.sx, r68.sx
+0x1490  2e4d6666260e002a         extr r83, r83, r83, 14
+0x1498  7e194c6a662a             xor r70, r70, r83
+0x149e  0e4d5426652a0000         iadd r83, r74.sx, r73.sx
+0x14a6  2e4d66662619002a         extr r83, r83, r83, 25
+0x14ae  7e1d4e6a662a             xor r71, r71, r83
+0x14b4  0e4d4e46652a0000         iadd r83, r71.sx, r74.sx
+0x14bc  2e4d66662617002a         extr r83, r83, r83, 23
+0x14c4  7e21506a662a             xor r72, r72, r83
+0x14ca  0e4d50e6642a0000         iadd r83, r72.sx, r71.sx
+0x14d2  2e4d66662613002a         extr r83, r83, r83, 19
+0x14da  7e25526a662a             xor r73, r73, r83
+0x14e0  0e4d5206652a0000         iadd r83, r73.sx, r72.sx
+0x14e8  2e4d6666260e002a         extr r83, r83, r83, 14
+0x14f0  7e29546a662a             xor r74, r74, r83
+0x14f6  0e4d5ca6652a0000         iadd r83, r78.sx, r77.sx
+0x14fe  2e4d66662619002a         extr r83, r83, r83, 25
+0x1506  7e2d566a662a             xor r75, r75, r83
+0x150c  0e4d56c6652a0000         iadd r83, r75.sx, r78.sx
+0x1514  2e4d66662617002a         extr r83, r83, r83, 23
+0x151c  7e31586a662a             xor r76, r76, r83
+0x1522  0e4d5866652a0000         iadd r83, r76.sx, r75.sx
+0x152a  2e4d66662613002a         extr r83, r83, r83, 19
+0x1532  7e355a6a662a             xor r77, r77, r83
+0x1538  0e4d5a86652a0000         iadd r83, r77.sx, r76.sx
+0x1540  2e4d6666260e002a         extr r83, r83, r83, 14
+0x1548  7e395c6a662a             xor r78, r78, r83
+0x154e  0e4d6426662a0000         iadd r83, r82.sx, r81.sx
+0x1556  2e4d66662619002a         extr r83, r83, r83, 25
+0x155e  7e3d5e6a662a             xor r79, r79, r83
+0x1564  0e4d5e46662a0000         iadd r83, r79.sx, r82.sx
+0x156c  2e4d66662617002a         extr r83, r83, r83, 23
+0x1574  7e41606a662a             xor r80, r80, r83
+0x157a  0e4d60e6652a0000         iadd r83, r80.sx, r79.sx
+0x1582  2e4d66662613002a         extr r83, r83, r83, 19
+0x158a  7e45626a662a             xor r81, r81, r83
+0x1590  0e4d6206662a0000         iadd r83, r81.sx, r80.sx
+0x1598  2e4d6666260e002a         extr r83, r83, r83, 14
+0x15a0  7e49646a662a             xor r82, r82, r83
+0x15a6  0e4d4ce6652a0000         iadd r83, r70.sx, r79.sx
+0x15ae  2e4d66662619002a         extr r83, r83, r83, 25
+0x15b6  7e25526a662a             xor r73, r73, r83
+0x15bc  0e4d52c6642a0000         iadd r83, r73.sx, r70.sx
+0x15c4  2e4d66662617002a         extr r83, r83, r83, 23
+0x15cc  7e31586a662a             xor r76, r76, r83
+0x15d2  0e4d5826652a0000         iadd r83, r76.sx, r73.sx
+0x15da  2e4d66662613002a         extr r83, r83, r83, 19
+0x15e2  7e3d5e6a662a             xor r79, r79, r83
+0x15e8  0e4d5e86652a0000         iadd r83, r79.sx, r76.sx
+0x15f0  2e4d6666260e002a         extr r83, r83, r83, 14
+0x15f8  7e194c6a662a             xor r70, r70, r83
+0x15fe  0e4d5466642a0000         iadd r83, r74.sx, r67.sx
+0x1606  2e4d66662619002a         extr r83, r83, r83, 25
+0x160e  7e355a6a662a             xor r77, r77, r83
+0x1614  0e4d5a46652a0000         iadd r83, r77.sx, r74.sx
+0x161c  2e4d66662617002a         extr r83, r83, r83, 23
+0x1624  7e41606a662a             xor r80, r80, r83
+0x162a  0e4d60a6652a0000         iadd r83, r80.sx, r77.sx
+0x1632  2e4d66662613002a         extr r83, r83, r83, 19
+0x163a  7e0d466a662a             xor r67, r67, r83
+0x1640  0e4d4606662a0000         iadd r83, r67.sx, r80.sx
+0x1648  2e4d6666260e002a         extr r83, r83, r83, 14
+0x1650  7e29546a662a             xor r74, r74, r83
+0x1656  0e4d5ce6642a0000         iadd r83, r78.sx, r71.sx
+0x165e  2e4d66662619002a         extr r83, r83, r83, 25
+0x1666  7e45626a662a             xor r81, r81, r83
+0x166c  0e4d62c6652a0000         iadd r83, r81.sx, r78.sx
+0x1674  2e4d66662617002a         extr r83, r83, r83, 23
+0x167c  7e11486a662a             xor r68, r68, r83
+0x1682  0e4d4826662a0000         iadd r83, r68.sx, r81.sx
+0x168a  2e4d66662613002a         extr r83, r83, r83, 19
+0x1692  7e1d4e6a662a             xor r71, r71, r83
+0x1698  0e4d4e86642a0000         iadd r83, r71.sx, r68.sx
+0x16a0  2e4d6666260e002a         extr r83, r83, r83, 14
+0x16a8  7e395c6a662a             xor r78, r78, r83
+0x16ae  0e4d6466652a0000         iadd r83, r82.sx, r75.sx
+0x16b6  2e4d66662619002a         extr r83, r83, r83, 25
+0x16be  7e154a6a662a             xor r69, r69, r83
+0x16c4  0e4d4a46662a0000         iadd r83, r69.sx, r82.sx
+0x16cc  2e4d66662617002a         extr r83, r83, r83, 23
+0x16d4  7e21506a662a             xor r72, r72, r83
+0x16da  0e4d50a6642a0000         iadd r83, r72.sx, r69.sx
+0x16e2  2e4d66662613002a         extr r83, r83, r83, 19
+0x16ea  7e2d566a662a             xor r75, r75, r83
+0x16f0  0e4d5606652a0000         iadd r83, r75.sx, r72.sx
+0x16f8  2e4d6666260e002a         extr r83, r83, r83, 14
+0x1700  7e49646a662a             xor r82, r82, r83
+0x1706  0e4d4ca6642a0000         iadd r83, r70.sx, r69.sx
+0x170e  2e4d66662619002a         extr r83, r83, r83, 25
+0x1716  7e0d466a662a             xor r67, r67, r83
+0x171c  0e4d46c6642a0000         iadd r83, r67.sx, r70.sx
+0x1724  2e4d66662617002a         extr r83, r83, r83, 23
+0x172c  7e11486a662a             xor r68, r68, r83
+0x1732  0e4d4866642a0000         iadd r83, r68.sx, r67.sx
+0x173a  2e4d66662613002a         extr r83, r83, r83, 19
+0x1742  7e154a6a662a             xor r69, r69, r83
+0x1748  0e4d4a86642a0000         iadd r83, r69.sx, r68.sx
+0x1750  2e4d6666260e002a         extr r83, r83, r83, 14
+0x1758  7e194c6a662a             xor r70, r70, r83
+0x175e  0e4d5426652a0000         iadd r83, r74.sx, r73.sx
+0x1766  2e4d66662619002a         extr r83, r83, r83, 25
+0x176e  7e1d4e6a662a             xor r71, r71, r83
+0x1774  0e4d4e46652a0000         iadd r83, r71.sx, r74.sx
+0x177c  2e4d66662617002a         extr r83, r83, r83, 23
+0x1784  7e21506a662a             xor r72, r72, r83
+0x178a  0e4d50e6642a0000         iadd r83, r72.sx, r71.sx
+0x1792  2e4d66662613002a         extr r83, r83, r83, 19
+0x179a  7e25526a662a             xor r73, r73, r83
+0x17a0  0e4d5206652a0000         iadd r83, r73.sx, r72.sx
+0x17a8  2e4d6666260e002a         extr r83, r83, r83, 14
+0x17b0  7e29546a662a             xor r74, r74, r83
+0x17b6  0e4d5ca6652a0000         iadd r83, r78.sx, r77.sx
+0x17be  2e4d66662619002a         extr r83, r83, r83, 25
+0x17c6  7e2d566a662a             xor r75, r75, r83
+0x17cc  0e4d56c6652a0000         iadd r83, r75.sx, r78.sx
+0x17d4  2e4d66662617002a         extr r83, r83, r83, 23
+0x17dc  7e31586a662a             xor r76, r76, r83
+0x17e2  0e4d5866652a0000         iadd r83, r76.sx, r75.sx
+0x17ea  2e4d66662613002a         extr r83, r83, r83, 19
+0x17f2  7e355a6a662a             xor r77, r77, r83
+0x17f8  0e4d5a86652a0000         iadd r83, r77.sx, r76.sx
+0x1800  2e4d6666260e002a         extr r83, r83, r83, 14
+0x1808  7e395c6a662a             xor r78, r78, r83
+0x180e  0e4d6426662a0000         iadd r83, r82.sx, r81.sx
+0x1816  2e4d66662619002a         extr r83, r83, r83, 25
+0x181e  7e3d5e6a662a             xor r79, r79, r83
+0x1824  0e4d5e46662a0000         iadd r83, r79.sx, r82.sx
+0x182c  2e4d66662617002a         extr r83, r83, r83, 23
+0x1834  7e41606a662a             xor r80, r80, r83
+0x183a  0e4d60e6652a0000         iadd r83, r80.sx, r79.sx
+0x1842  2e4d66662613002a         extr r83, r83, r83, 19
+0x184a  7e45626a662a             xor r81, r81, r83
+0x1850  0e4d6206662a0000         iadd r83, r81.sx, r80.sx
+0x1858  2e4d6666260e002a         extr r83, r83, r83, 14
+0x1860  7e49646a662a             xor r82, r82, r83
+0x1866  0e4d4ce6652a0000         iadd r83, r70.sx, r79.sx
+0x186e  2e4d66662619002a         extr r83, r83, r83, 25
+0x1876  7e25526a662a             xor r73, r73, r83
+0x187c  0e4d52c6642a0000         iadd r83, r73.sx, r70.sx
+0x1884  2e4d66662617002a         extr r83, r83, r83, 23
+0x188c  7e31586a662a             xor r76, r76, r83
+0x1892  0e4d5826652a0000         iadd r83, r76.sx, r73.sx
+0x189a  2e4d66662613002a         extr r83, r83, r83, 19
+0x18a2  7e3d5e6a662a             xor r79, r79, r83
+0x18a8  0e4d5e86652a0000         iadd r83, r79.sx, r76.sx
+0x18b0  2e4d6666260e002a         extr r83, r83, r83, 14
+0x18b8  7e194c6a662a             xor r70, r70, r83
+0x18be  0e4d5466642a0000         iadd r83, r74.sx, r67.sx
+0x18c6  2e4d66662619002a         extr r83, r83, r83, 25
+0x18ce  7e355a6a662a             xor r77, r77, r83
+0x18d4  0e4d5a46652a0000         iadd r83, r77.sx, r74.sx
+0x18dc  2e4d66662617002a         extr r83, r83, r83, 23
+0x18e4  7e41606a662a             xor r80, r80, r83
+0x18ea  0e4d60a6652a0000         iadd r83, r80.sx, r77.sx
+0x18f2  2e4d66662613002a         extr r83, r83, r83, 19
+0x18fa  7e0d466a662a             xor r67, r67, r83
+0x1900  0e4d4606662a0000         iadd r83, r67.sx, r80.sx
+0x1908  2e4d6666260e002a         extr r83, r83, r83, 14
+0x1910  7e29546a662a             xor r74, r74, r83
+0x1916  0e4d5ce6642a0000         iadd r83, r78.sx, r71.sx
+0x191e  2e4d66662619002a         extr r83, r83, r83, 25
+0x1926  7e45626a662a             xor r81, r81, r83
+0x192c  0e4d62c6652a0000         iadd r83, r81.sx, r78.sx
+0x1934  2e4d66662617002a         extr r83, r83, r83, 23
+0x193c  7e11486a662a             xor r68, r68, r83
+0x1942  0e4d4826662a0000         iadd r83, r68.sx, r81.sx
+0x194a  2e4d66662613002a         extr r83, r83, r83, 19
+0x1952  7e1d4e6a662a             xor r71, r71, r83
+0x1958  0e4d4e86642a0000         iadd r83, r71.sx, r68.sx
+0x1960  2e4d6666260e002a         extr r83, r83, r83, 14
+0x1968  7e395c6a662a             xor r78, r78, r83
+0x196e  0e4d6466652a0000         iadd r83, r82.sx, r75.sx
+0x1976  2e4d66662619002a         extr r83, r83, r83, 25
+0x197e  7e154a6a662a             xor r69, r69, r83
+0x1984  0e4d4a46662a0000         iadd r83, r69.sx, r82.sx
+0x198c  2e4d66662617002a         extr r83, r83, r83, 23
+0x1994  7e21506a662a             xor r72, r72, r83
+0x199a  0e4d50a6642a0000         iadd r83, r72.sx, r69.sx
+0x19a2  2e4d66662613002a         extr r83, r83, r83, 19
+0x19aa  7e2d566a662a             xor r75, r75, r83
+0x19b0  0e4d5606652a0000         iadd r83, r75.sx, r72.sx
+0x19b8  2e4d6666260e002a         extr r83, r83, r83, 14
+0x19c0  7e49646a662a             xor r82, r82, r83
+0x19c6  0e4d4ca6642a0000         iadd r83, r70.sx, r69.sx
+0x19ce  2e4d66662619002a         extr r83, r83, r83, 25
+0x19d6  7e0d466a662a             xor r67, r67, r83
+0x19dc  0e4d46c6642a0000         iadd r83, r67.sx, r70.sx
+0x19e4  2e4d66662617002a         extr r83, r83, r83, 23
+0x19ec  7e11486a662a             xor r68, r68, r83
+0x19f2  0e4d4866642a0000         iadd r83, r68.sx, r67.sx
+0x19fa  2e4d66662613002a         extr r83, r83, r83, 19
+0x1a02  7e154a6a662a             xor r69, r69, r83
+0x1a08  0e4d4a86642a0000         iadd r83, r69.sx, r68.sx
+0x1a10  2e4d6666260e002a         extr r83, r83, r83, 14
+0x1a18  7e194c6a662a             xor r70, r70, r83
+0x1a1e  0e4d5426652a0000         iadd r83, r74.sx, r73.sx
+0x1a26  2e4d66662619002a         extr r83, r83, r83, 25
+0x1a2e  7e1d4e6a662a             xor r71, r71, r83
+0x1a34  0e4d4e46652a0000         iadd r83, r71.sx, r74.sx
+0x1a3c  2e4d66662617002a         extr r83, r83, r83, 23
+0x1a44  7e21506a662a             xor r72, r72, r83
+0x1a4a  0e4d50e6642a0000         iadd r83, r72.sx, r71.sx
+0x1a52  2e4d66662613002a         extr r83, r83, r83, 19
+0x1a5a  7e25526a662a             xor r73, r73, r83
+0x1a60  0e4d5206652a0000         iadd r83, r73.sx, r72.sx
+0x1a68  2e4d6666260e002a         extr r83, r83, r83, 14
+0x1a70  7e29546a662a             xor r74, r74, r83
+0x1a76  0e4d5ca6652a0000         iadd r83, r78.sx, r77.sx
+0x1a7e  2e4d66662619002a         extr r83, r83, r83, 25
+0x1a86  7e2d566a662a             xor r75, r75, r83
+0x1a8c  0e4d56c6652a0000         iadd r83, r75.sx, r78.sx
+0x1a94  2e4d66662617002a         extr r83, r83, r83, 23
+0x1a9c  7e31586a662a             xor r76, r76, r83
+0x1aa2  0e4d5866652a0000         iadd r83, r76.sx, r75.sx
+0x1aaa  2e4d66662613002a         extr r83, r83, r83, 19
+0x1ab2  7e355a6a662a             xor r77, r77, r83
+0x1ab8  0e4d5a86652a0000         iadd r83, r77.sx, r76.sx
+0x1ac0  2e4d6666260e002a         extr r83, r83, r83, 14
+0x1ac8  7e395c6a662a             xor r78, r78, r83
+0x1ace  0e4d6426662a0000         iadd r83, r82.sx, r81.sx
+0x1ad6  2e4d66662619002a         extr r83, r83, r83, 25
+0x1ade  7e3d5e6a662a             xor r79, r79, r83
+0x1ae4  0e4d5e46662a0000         iadd r83, r79.sx, r82.sx
+0x1aec  2e4d66662617002a         extr r83, r83, r83, 23
+0x1af4  7e41606a662a             xor r80, r80, r83
+0x1afa  0e4d60e6652a0000         iadd r83, r80.sx, r79.sx
+0x1b02  2e4d66662613002a         extr r83, r83, r83, 19
+0x1b0a  7e45626a662a             xor r81, r81, r83
+0x1b10  0e4d6206662a0000         iadd r83, r81.sx, r80.sx
+0x1b18  2e4d6666260e002a         extr r83, r83, r83, 14
+0x1b20  7e49646a662a             xor r82, r82, r83
+0x1b26  0e4d4ce6652a0000         iadd r83, r70.sx, r79.sx
+0x1b2e  2e4d66662619002a         extr r83, r83, r83, 25
+0x1b36  7e25526a662a             xor r73, r73, r83
+0x1b3c  0e4d52c6642a0000         iadd r83, r73.sx, r70.sx
+0x1b44  2e4d66662617002a         extr r83, r83, r83, 23
+0x1b4c  7e31586a662a             xor r76, r76, r83
+0x1b52  0e4d5826652a0000         iadd r83, r76.sx, r73.sx
+0x1b5a  2e4d66662613002a         extr r83, r83, r83, 19
+0x1b62  7e3d5e6a662a             xor r79, r79, r83
+0x1b68  0e4d5e86652a0000         iadd r83, r79.sx, r76.sx
+0x1b70  2e4d6666260e002a         extr r83, r83, r83, 14
+0x1b78  7e194c6a662a             xor r70, r70, r83
+0x1b7e  0e4d5466642a0000         iadd r83, r74.sx, r67.sx
+0x1b86  2e4d66662619002a         extr r83, r83, r83, 25
+0x1b8e  7e355a6a662a             xor r77, r77, r83
+0x1b94  0e4d5a46652a0000         iadd r83, r77.sx, r74.sx
+0x1b9c  2e4d66662617002a         extr r83, r83, r83, 23
+0x1ba4  7e41606a662a             xor r80, r80, r83
+0x1baa  0e4d60a6652a0000         iadd r83, r80.sx, r77.sx
+0x1bb2  2e4d66662613002a         extr r83, r83, r83, 19
+0x1bba  7e0d466a662a             xor r67, r67, r83
+0x1bc0  0e4d4606662a0000         iadd r83, r67.sx, r80.sx
+0x1bc8  2e4d6666260e002a         extr r83, r83, r83, 14
+0x1bd0  7e29546a662a             xor r74, r74, r83
+0x1bd6  0e4d5ce6642a0000         iadd r83, r78.sx, r71.sx
+0x1bde  2e4d66662619002a         extr r83, r83, r83, 25
+0x1be6  7e45626a662a             xor r81, r81, r83
+0x1bec  0e4d62c6652a0000         iadd r83, r81.sx, r78.sx
+0x1bf4  2e4d66662617002a         extr r83, r83, r83, 23
+0x1bfc  7e11486a662a             xor r68, r68, r83
+0x1c02  0e4d4826662a0000         iadd r83, r68.sx, r81.sx
+0x1c0a  2e4d66662613002a         extr r83, r83, r83, 19
+0x1c12  7e1d4e6a662a             xor r71, r71, r83
+0x1c18  0e4d4e86642a0000         iadd r83, r71.sx, r68.sx
+0x1c20  2e4d6666260e002a         extr r83, r83, r83, 14
+0x1c28  7e395c6a662a             xor r78, r78, r83
+0x1c2e  0e4d6466652a0000         iadd r83, r82.sx, r75.sx
+0x1c36  2e4d66662619002a         extr r83, r83, r83, 25
+0x1c3e  7e154a6a662a             xor r69, r69, r83
+0x1c44  0e4d4a46662a0000         iadd r83, r69.sx, r82.sx
+0x1c4c  2e4d66662617002a         extr r83, r83, r83, 23
+0x1c54  7e21506a662a             xor r72, r72, r83
+0x1c5a  0e4d50a6642a0000         iadd r83, r72.sx, r69.sx
+0x1c62  2e4d66662613002a         extr r83, r83, r83, 19
+0x1c6a  7e2d566a662a             xor r75, r75, r83
+0x1c70  0e4d5606652a0000         iadd r83, r75.sx, r72.sx
+0x1c78  2e4d6666260e002a         extr r83, r83, r83, 14
+0x1c80  7e49646a662a             xor r82, r82, r83
+0x1c86  0e154ac664020000         iadd r5, r5.sx, r70.sx
+0x1c8e  0e25522665020000         iadd r9, r9.sx, r73.sx
+0x1c96  0e355a8665020000         iadd r13, r13.sx, r76.sx
+0x1c9e  0e4562e665020000         iadd r17, r17.sx, r79.sx
+0x1ca6  0e556a6664020000         iadd r21, r21.sx, r67.sx
+0x1cae  0e65724665020000         iadd r25, r25.sx, r74.sx
+0x1cb6  0e757aa665020000         iadd r29, r29.sx, r77.sx
+0x1cbe  0e05420666160000         iadd r33, r33.sx, r80.sx
+0x1cc6  0e154a8664160000         iadd r37, r37.sx, r68.sx
+0x1cce  0e2552e664160000         iadd r41, r41.sx, r71.sx
+0x1cd6  0e355ac665160000         iadd r45, r45.sx, r78.sx
+0x1cde  0e45622666160000         iadd r49, r49.sx, r81.sx
+0x1ce6  0e556aa664160000         iadd r53, r53.sx, r69.sx
+0x1cee  0e65720665160000         iadd r57, r57.sx, r72.sx
+0x1cf6  0e757a6665160000         iadd r61, r61.sx, r75.sx
+0x1cfe  0e054246662a0000         iadd r65, r65.sx, r82.sx
+0x1d06  0e09441600280000         iadd r66, r66.sx, 1
+0x1d0e  3800                     wait 0
+0x1d10  3801                     wait 1
+0x1d12  00c022e5ffff             jmp_exec_any pc-6878
+0x1d18  520e00000000             pop_exec r0l, 1
+0x1d1e  6289000000000020         mov_imm r66, 0, 0b0
+0x1d26  420800000000             push_exec r0l, 1
+0x1d2c  522c44021908             while_icmp r0l, ult, r66, u8, 1
+0x1d32  20c0da1b0000             jmp_exec_none pc+7130
+0x1d38  7e0d4a829920             and r67, r5, u12
+0x1d3e  2e0d006024050022         bfi r67, 0, r67, 5
+0x1d46  1e1146a658420628         imadd r68, r67.sx, u5.sx, r1.sx
+0x1d4e  05218c0e18c21200         device_load 0, i32, x, r68, u14_u15, r68, unsigned
+0x1d56  3800                     wait 0
+0x1d58  7e0d468a6402             xor r3, r3, r68
+0x1d5e  0e11460601280000         iadd r68, r67.sx, 16
+0x1d66  1e1148a658420628         imadd r68, r68.sx, u5.sx, r1.sx
+0x1d6e  05218c0e18c21200         device_load 0, i32, x, r68, u14_u15, r68, unsigned
+0x1d76  3800                     wait 0
+0x1d78  7e154a8a6402             xor r5, r5, r68
+0x1d7e  0e11461600280000         iadd r68, r67.sx, 1
+0x1d86  1e1148a658420628         imadd r68, r68.sx, u5.sx, r1.sx
+0x1d8e  05218c0e18c21200         device_load 0, i32, x, r68, u14_u15, r68, unsigned
+0x1d96  3800                     wait 0
+0x1d98  7e1d4e8a6402             xor r7, r7, r68
+0x1d9e  0e11116064220000         iadd r68, 17, r67.sx
+0x1da6  1e1148a658420628         imadd r68, r68.sx, u5.sx, r1.sx
+0x1dae  05218c0e18c21200         device_load 0, i32, x, r68, u14_u15, r68, unsigned
+0x1db6  3800                     wait 0
+0x1db8  7e25528a6402             xor r9, r9, r68
+0x1dbe  0e11462600280000         iadd r68, r67.sx, 2
+0x1dc6  1e1148a658420628         imadd r68, r68.sx, u5.sx, r1.sx
+0x1dce  05218c0e18c21200         device_load 0, i32, x, r68, u14_u15, r68, unsigned
+0x1dd6  3800                     wait 0
+0x1dd8  7e2d568a6402             xor r11, r11, r68
+0x1dde  0e11126064220000         iadd r68, 18, r67.sx
+0x1de6  1e1148a658420628         imadd r68, r68.sx, u5.sx, r1.sx
+0x1dee  05218c0e18c21200         device_load 0, i32, x, r68, u14_u15, r68, unsigned
+0x1df6  3800                     wait 0
+0x1df8  7e355a8a6402             xor r13, r13, r68
+0x1dfe  0e11463600280000         iadd r68, r67.sx, 3
+0x1e06  1e1148a658420628         imadd r68, r68.sx, u5.sx, r1.sx
+0x1e0e  05218c0e18c21200         device_load 0, i32, x, r68, u14_u15, r68, unsigned
+0x1e16  3800                     wait 0
+0x1e18  7e3d5e8a6402             xor r15, r15, r68
+0x1e1e  0e11136064220000         iadd r68, 19, r67.sx
+0x1e26  1e1148a658420628         imadd r68, r68.sx, u5.sx, r1.sx
+0x1e2e  05218c0e18c21200         device_load 0, i32, x, r68, u14_u15, r68, unsigned
+0x1e36  3800                     wait 0
+0x1e38  7e45628a6402             xor r17, r17, r68
+0x1e3e  0e11464600280000         iadd r68, r67.sx, 4
+0x1e46  1e1148a658420628         imadd r68, r68.sx, u5.sx, r1.sx
+0x1e4e  05218c0e18c21200         device_load 0, i32, x, r68, u14_u15, r68, unsigned
+0x1e56  3800                     wait 0
+0x1e58  7e4d668a6402             xor r19, r19, r68
+0x1e5e  0e11146064220000         iadd r68, 20, r67.sx
+0x1e66  1e1148a658420628         imadd r68, r68.sx, u5.sx, r1.sx
+0x1e6e  05218c0e18c21200         device_load 0, i32, x, r68, u14_u15, r68, unsigned
+0x1e76  3800                     wait 0
+0x1e78  7e556a8a6402             xor r21, r21, r68
+0x1e7e  0e11465600280000         iadd r68, r67.sx, 5
+0x1e86  1e1148a658420628         imadd r68, r68.sx, u5.sx, r1.sx
+0x1e8e  05218c0e18c21200         device_load 0, i32, x, r68, u14_u15, r68, unsigned
+0x1e96  3800                     wait 0
+0x1e98  7e5d6e8a6402             xor r23, r23, r68
+0x1e9e  0e11156064220000         iadd r68, 21, r67.sx
+0x1ea6  1e1148a658420628         imadd r68, r68.sx, u5.sx, r1.sx
+0x1eae  05218c0e18c21200         device_load 0, i32, x, r68, u14_u15, r68, unsigned
+0x1eb6  3800                     wait 0
+0x1eb8  7e65728a6402             xor r25, r25, r68
+0x1ebe  0e11466600280000         iadd r68, r67.sx, 6
+0x1ec6  1e1148a658420628         imadd r68, r68.sx, u5.sx, r1.sx
+0x1ece  05218c0e18c21200         device_load 0, i32, x, r68, u14_u15, r68, unsigned
+0x1ed6  3800                     wait 0
+0x1ed8  7e6d768a6402             xor r27, r27, r68
+0x1ede  0e11166064220000         iadd r68, 22, r67.sx
+0x1ee6  1e1148a658420628         imadd r68, r68.sx, u5.sx, r1.sx
+0x1eee  05218c0e18c21200         device_load 0, i32, x, r68, u14_u15, r68, unsigned
+0x1ef6  3800                     wait 0
+0x1ef8  7e757a8a6402             xor r29, r29, r68
+0x1efe  0e11467600280000         iadd r68, r67.sx, 7
+0x1f06  1e1148a658420628         imadd r68, r68.sx, u5.sx, r1.sx
+0x1f0e  05218c0e18c21200         device_load 0, i32, x, r68, u14_u15, r68, unsigned
+0x1f16  3800                     wait 0
+0x1f18  7e7d7e8a6402             xor r31, r31, r68
+0x1f1e  0e11176064220000         iadd r68, 23, r67.sx
+0x1f26  1e1148a658420628         imadd r68, r68.sx, u5.sx, r1.sx
+0x1f2e  05218c0e18c21200         device_load 0, i32, x, r68, u14_u15, r68, unsigned
+0x1f36  3800                     wait 0
+0x1f38  7e05428a6416             xor r33, r33, r68
+0x1f3e  0e11468600280000         iadd r68, r67.sx, 8
+0x1f46  1e1148a658420628         imadd r68, r68.sx, u5.sx, r1.sx
+0x1f4e  05218c0e18c21200         device_load 0, i32, x, r68, u14_u15, r68, unsigned
+0x1f56  3800                     wait 0
+0x1f58  7e0d468a6416             xor r35, r35, r68
+0x1f5e  0e11186064220000         iadd r68, 24, r67.sx
+0x1f66  1e1148a658420628         imadd r68, r68.sx, u5.sx, r1.sx
+0x1f6e  05218c0e18c21200         device_load 0, i32, x, r68, u14_u15, r68, unsigned
+0x1f76  3800                     wait 0
+0x1f78  7e154a8a6416             xor r37, r37, r68
+0x1f7e  0e11469600280000         iadd r68, r67.sx, 9
+0x1f86  1e1148a658420628         imadd r68, r68.sx, u5.sx, r1.sx
+0x1f8e  05218c0e18c21200         device_load 0, i32, x, r68, u14_u15, r68, unsigned
+0x1f96  3800                     wait 0
+0x1f98  7e1d4e8a6416             xor r39, r39, r68
+0x1f9e  0e11196064220000         iadd r68, 25, r67.sx
+0x1fa6  1e1148a658420628         imadd r68, r68.sx, u5.sx, r1.sx
+0x1fae  05218c0e18c21200         device_load 0, i32, x, r68, u14_u15, r68, unsigned
+0x1fb6  3800                     wait 0
+0x1fb8  7e25528a6416             xor r41, r41, r68
+0x1fbe  0e1146a600280000         iadd r68, r67.sx, 10
+0x1fc6  1e1148a658420628         imadd r68, r68.sx, u5.sx, r1.sx
+0x1fce  05218c0e18c21200         device_load 0, i32, x, r68, u14_u15, r68, unsigned
+0x1fd6  3800                     wait 0
+0x1fd8  7e2d568a6416             xor r43, r43, r68
+0x1fde  0e111a6064220000         iadd r68, 26, r67.sx
+0x1fe6  1e1148a658420628         imadd r68, r68.sx, u5.sx, r1.sx
+0x1fee  05218c0e18c21200         device_load 0, i32, x, r68, u14_u15, r68, unsigned
+0x1ff6  3800                     wait 0
+0x1ff8  7e355a8a6416             xor r45, r45, r68
+0x1ffe  0e1146b600280000         iadd r68, r67.sx, 11
+0x2006  1e1148a658420628         imadd r68, r68.sx, u5.sx, r1.sx
+0x200e  05218c0e18c21200         device_load 0, i32, x, r68, u14_u15, r68, unsigned
+0x2016  3800                     wait 0
+0x2018  7e3d5e8a6416             xor r47, r47, r68
+0x201e  0e111b6064220000         iadd r68, 27, r67.sx
+0x2026  1e1148a658420628         imadd r68, r68.sx, u5.sx, r1.sx
+0x202e  05218c0e18c21200         device_load 0, i32, x, r68, u14_u15, r68, unsigned
+0x2036  3800                     wait 0
+0x2038  7e45628a6416             xor r49, r49, r68
+0x203e  0e1146c600280000         iadd r68, r67.sx, 12
+0x2046  1e1148a658420628         imadd r68, r68.sx, u5.sx, r1.sx
+0x204e  05218c0e18c21200         device_load 0, i32, x, r68, u14_u15, r68, unsigned
+0x2056  3800                     wait 0
+0x2058  7e4d668a6416             xor r51, r51, r68
+0x205e  0e111c6064220000         iadd r68, 28, r67.sx
+0x2066  1e1148a658420628         imadd r68, r68.sx, u5.sx, r1.sx
+0x206e  05218c0e18c21200         device_load 0, i32, x, r68, u14_u15, r68, unsigned
+0x2076  3800                     wait 0
+0x2078  7e556a8a6416             xor r53, r53, r68
+0x207e  0e1146d600280000         iadd r68, r67.sx, 13
+0x2086  1e1148a658420628         imadd r68, r68.sx, u5.sx, r1.sx
+0x208e  05218c0e18c21200         device_load 0, i32, x, r68, u14_u15, r68, unsigned
+0x2096  3800                     wait 0
+0x2098  7e5d6e8a6416             xor r55, r55, r68
+0x209e  0e111d6064220000         iadd r68, 29, r67.sx
+0x20a6  1e1148a658420628         imadd r68, r68.sx, u5.sx, r1.sx
+0x20ae  05218c0e18c21200         device_load 0, i32, x, r68, u14_u15, r68, unsigned
+0x20b6  3800                     wait 0
+0x20b8  7e65728a6416             xor r57, r57, r68
+0x20be  0e1146e600280000         iadd r68, r67.sx, 14
+0x20c6  1e1148a658420628         imadd r68, r68.sx, u5.sx, r1.sx
+0x20ce  05218c0e18c21200         device_load 0, i32, x, r68, u14_u15, r68, unsigned
+0x20d6  3800                     wait 0
+0x20d8  7e6d768a6416             xor r59, r59, r68
+0x20de  0e111e6064220000         iadd r68, 30, r67.sx
+0x20e6  1e1148a658420628         imadd r68, r68.sx, u5.sx, r1.sx
+0x20ee  05218c0e18c21200         device_load 0, i32, x, r68, u14_u15, r68, unsigned
+0x20f6  3800                     wait 0
+0x20f8  7e757a8a6416             xor r61, r61, r68
+0x20fe  0e1146f600280000         iadd r68, r67.sx, 15
+0x2106  1e1148a658420628         imadd r68, r68.sx, u5.sx, r1.sx
+0x210e  05218c0e18c21200         device_load 0, i32, x, r68, u14_u15, r68, unsigned
+0x2116  3800                     wait 0
+0x2118  7e7d7e8a6416             xor r63, r63, r68
+0x211e  0e0d1f6064220000         iadd r67, 31, r67.sx
+0x2126  1e0d46a658420628         imadd r67, r67.sx, u5.sx, r1.sx
+0x212e  05196c0e18c21200         device_load 0, i32, x, r67, u14_u15, r67, unsigned
+0x2136  3800                     wait 0
+0x2138  7e05426a642a             xor r65, r65, r67
+0x213e  7e0d46aa6400             xor r3, r3, r5
+0x2144  7e1d4e2a6500             xor r7, r7, r9
+0x214a  7e2d56aa6500             xor r11, r11, r13
+0x2150  7e3d5e2a6600             xor r15, r15, r17
+0x2156  7e4d66aa6600             xor r19, r19, r21
+0x215c  7e5d6e2a6700             xor r23, r23, r25
+0x2162  7e6d76aa6700             xor r27, r27, r29
+0x2168  7e7d7e2a6401             xor r31, r31, r33
+0x216e  7e0d46aa6415             xor r35, r35, r37
+0x2174  7e1d4e2a6515             xor r39, r39, r41
+0x217a  7e2d56aa6515             xor r43, r43, r45
+0x2180  7e3d5e2a6615             xor r47, r47, r49
+0x2186  7e4d66aa6615             xor r51, r51, r53
+0x218c  7e5d6e2a6715             xor r55, r55, r57
+0x2192  7e6d76aa6715             xor r59, r59, r61
+0x2198  7e7d7e2a6416             xor r63, r63, r65
+0x219e  0e0d466666210000         iadd r67, r3.sx, r51.sx
+0x21a6  2e0d46662419002a         extr r67, r67, r67, 25
+0x21ae  7e0d666a6422             xor r67, r19, r67
+0x21b4  0e11466664280000         iadd r68, r67.sx, r3.sx
+0x21bc  2e1148862417002a         extr r68, r68, r68, 23
+0x21c4  7e11468a6426             xor r68, r35, r68
+0x21ca  0e154866642a0000         iadd r69, r68.sx, r67.sx
+0x21d2  2e154aa62413002a         extr r69, r69, r69, 19
+0x21da  7e1566aa6426             xor r69, r51, r69
+0x21e0  0e194a86642a0000         iadd r70, r69.sx, r68.sx
+0x21e8  2e194cc6240e002a         extr r70, r70, r70, 14
+0x21f0  7e1946ca6422             xor r70, r3, r70
+0x21f6  0e1d6ee664200000         iadd r71, r23.sx, r7.sx
+0x21fe  2e1d4ee62419002a         extr r71, r71, r71, 25
+0x2206  7e1d4eea6426             xor r71, r39, r71
+0x220c  0e214ee666280000         iadd r72, r71.sx, r23.sx
+0x2214  2e2150062517002a         extr r72, r72, r72, 23
+0x221c  7e216e0a6526             xor r72, r55, r72
+0x2222  0e2550e6642a0000         iadd r73, r72.sx, r71.sx
+0x222a  2e2552262513002a         extr r73, r73, r73, 19
+0x2232  7e254e2a6522             xor r73, r7, r73
+0x2238  0e295206652a0000         iadd r74, r73.sx, r72.sx
+0x2240  2e295446250e002a         extr r74, r74, r74, 14
+0x2248  7e296e4a6522             xor r74, r23, r74
+0x224e  0e2d566667240000         iadd r75, r43.sx, r27.sx
+0x2256  2e2d56662519002a         extr r75, r75, r75, 25
+0x225e  7e2d766a6526             xor r75, r59, r75
+0x2264  0e31566665290000         iadd r76, r75.sx, r43.sx
+0x226c  2e3158862517002a         extr r76, r76, r76, 23
+0x2274  7e31568a6522             xor r76, r11, r76
+0x227a  0e355866652a0000         iadd r77, r76.sx, r75.sx
+0x2282  2e355aa62513002a         extr r77, r77, r77, 19
+0x228a  7e3576aa6522             xor r77, r27, r77
+0x2290  0e395a86652a0000         iadd r78, r77.sx, r76.sx
+0x2298  2e395cc6250e002a         extr r78, r78, r78, 14
+0x22a0  7e3956ca6526             xor r78, r43, r78
+0x22a6  0e3d7ee665250000         iadd r79, r63.sx, r47.sx
+0x22ae  2e3d5ee62519002a         extr r79, r79, r79, 25
+0x22b6  7e3d5eea6522             xor r79, r15, r79
+0x22bc  0e415ee667290000         iadd r80, r79.sx, r63.sx
+0x22c4  2e4160062617002a         extr r80, r80, r80, 23
+0x22cc  7e417e0a6622             xor r80, r31, r80
+0x22d2  0e4560e6652a0000         iadd r81, r80.sx, r79.sx
+0x22da  2e4562262613002a         extr r81, r81, r81, 19
+0x22e2  7e455e2a6626             xor r81, r47, r81
+0x22e8  0e496206662a0000         iadd r82, r81.sx, r80.sx
+0x22f0  2e496446260e002a         extr r82, r82, r82, 14
+0x22f8  7e497e4a6626             xor r82, r63, r82
+0x22fe  0e4d4ce6652a0000         iadd r83, r70.sx, r79.sx
+0x2306  2e4d66662619002a         extr r83, r83, r83, 25
+0x230e  7e25526a662a             xor r73, r73, r83
+0x2314  0e4d52c6642a0000         iadd r83, r73.sx, r70.sx
+0x231c  2e4d66662617002a         extr r83, r83, r83, 23
+0x2324  7e31586a662a             xor r76, r76, r83
+0x232a  0e4d5826652a0000         iadd r83, r76.sx, r73.sx
+0x2332  2e4d66662613002a         extr r83, r83, r83, 19
+0x233a  7e3d5e6a662a             xor r79, r79, r83
+0x2340  0e4d5e86652a0000         iadd r83, r79.sx, r76.sx
+0x2348  2e4d6666260e002a         extr r83, r83, r83, 14
+0x2350  7e194c6a662a             xor r70, r70, r83
+0x2356  0e4d5466642a0000         iadd r83, r74.sx, r67.sx
+0x235e  2e4d66662619002a         extr r83, r83, r83, 25
+0x2366  7e355a6a662a             xor r77, r77, r83
+0x236c  0e4d5a46652a0000         iadd r83, r77.sx, r74.sx
+0x2374  2e4d66662617002a         extr r83, r83, r83, 23
+0x237c  7e41606a662a             xor r80, r80, r83
+0x2382  0e4d60a6652a0000         iadd r83, r80.sx, r77.sx
+0x238a  2e4d66662613002a         extr r83, r83, r83, 19
+0x2392  7e0d466a662a             xor r67, r67, r83
+0x2398  0e4d4606662a0000         iadd r83, r67.sx, r80.sx
+0x23a0  2e4d6666260e002a         extr r83, r83, r83, 14
+0x23a8  7e29546a662a             xor r74, r74, r83
+0x23ae  0e4d5ce6642a0000         iadd r83, r78.sx, r71.sx
+0x23b6  2e4d66662619002a         extr r83, r83, r83, 25
+0x23be  7e45626a662a             xor r81, r81, r83
+0x23c4  0e4d62c6652a0000         iadd r83, r81.sx, r78.sx
+0x23cc  2e4d66662617002a         extr r83, r83, r83, 23
+0x23d4  7e11486a662a             xor r68, r68, r83
+0x23da  0e4d4826662a0000         iadd r83, r68.sx, r81.sx
+0x23e2  2e4d66662613002a         extr r83, r83, r83, 19
+0x23ea  7e1d4e6a662a             xor r71, r71, r83
+0x23f0  0e4d4e86642a0000         iadd r83, r71.sx, r68.sx
+0x23f8  2e4d6666260e002a         extr r83, r83, r83, 14
+0x2400  7e395c6a662a             xor r78, r78, r83
+0x2406  0e4d6466652a0000         iadd r83, r82.sx, r75.sx
+0x240e  2e4d66662619002a         extr r83, r83, r83, 25
+0x2416  7e154a6a662a             xor r69, r69, r83
+0x241c  0e4d4a46662a0000         iadd r83, r69.sx, r82.sx
+0x2424  2e4d66662617002a         extr r83, r83, r83, 23
+0x242c  7e21506a662a             xor r72, r72, r83
+0x2432  0e4d50a6642a0000         iadd r83, r72.sx, r69.sx
+0x243a  2e4d66662613002a         extr r83, r83, r83, 19
+0x2442  7e2d566a662a             xor r75, r75, r83
+0x2448  0e4d5606652a0000         iadd r83, r75.sx, r72.sx
+0x2450  2e4d6666260e002a         extr r83, r83, r83, 14
+0x2458  7e49646a662a             xor r82, r82, r83
+0x245e  0e4d4ca6642a0000         iadd r83, r70.sx, r69.sx
+0x2466  2e4d66662619002a         extr r83, r83, r83, 25
+0x246e  7e0d466a662a             xor r67, r67, r83
+0x2474  0e4d46c6642a0000         iadd r83, r67.sx, r70.sx
+0x247c  2e4d66662617002a         extr r83, r83, r83, 23
+0x2484  7e11486a662a             xor r68, r68, r83
+0x248a  0e4d4866642a0000         iadd r83, r68.sx, r67.sx
+0x2492  2e4d66662613002a         extr r83, r83, r83, 19
+0x249a  7e154a6a662a             xor r69, r69, r83
+0x24a0  0e4d4a86642a0000         iadd r83, r69.sx, r68.sx
+0x24a8  2e4d6666260e002a         extr r83, r83, r83, 14
+0x24b0  7e194c6a662a             xor r70, r70, r83
+0x24b6  0e4d5426652a0000         iadd r83, r74.sx, r73.sx
+0x24be  2e4d66662619002a         extr r83, r83, r83, 25
+0x24c6  7e1d4e6a662a             xor r71, r71, r83
+0x24cc  0e4d4e46652a0000         iadd r83, r71.sx, r74.sx
+0x24d4  2e4d66662617002a         extr r83, r83, r83, 23
+0x24dc  7e21506a662a             xor r72, r72, r83
+0x24e2  0e4d50e6642a0000         iadd r83, r72.sx, r71.sx
+0x24ea  2e4d66662613002a         extr r83, r83, r83, 19
+0x24f2  7e25526a662a             xor r73, r73, r83
+0x24f8  0e4d5206652a0000         iadd r83, r73.sx, r72.sx
+0x2500  2e4d6666260e002a         extr r83, r83, r83, 14
+0x2508  7e29546a662a             xor r74, r74, r83
+0x250e  0e4d5ca6652a0000         iadd r83, r78.sx, r77.sx
+0x2516  2e4d66662619002a         extr r83, r83, r83, 25
+0x251e  7e2d566a662a             xor r75, r75, r83
+0x2524  0e4d56c6652a0000         iadd r83, r75.sx, r78.sx
+0x252c  2e4d66662617002a         extr r83, r83, r83, 23
+0x2534  7e31586a662a             xor r76, r76, r83
+0x253a  0e4d5866652a0000         iadd r83, r76.sx, r75.sx
+0x2542  2e4d66662613002a         extr r83, r83, r83, 19
+0x254a  7e355a6a662a             xor r77, r77, r83
+0x2550  0e4d5a86652a0000         iadd r83, r77.sx, r76.sx
+0x2558  2e4d6666260e002a         extr r83, r83, r83, 14
+0x2560  7e395c6a662a             xor r78, r78, r83
+0x2566  0e4d6426662a0000         iadd r83, r82.sx, r81.sx
+0x256e  2e4d66662619002a         extr r83, r83, r83, 25
+0x2576  7e3d5e6a662a             xor r79, r79, r83
+0x257c  0e4d5e46662a0000         iadd r83, r79.sx, r82.sx
+0x2584  2e4d66662617002a         extr r83, r83, r83, 23
+0x258c  7e41606a662a             xor r80, r80, r83
+0x2592  0e4d60e6652a0000         iadd r83, r80.sx, r79.sx
+0x259a  2e4d66662613002a         extr r83, r83, r83, 19
+0x25a2  7e45626a662a             xor r81, r81, r83
+0x25a8  0e4d6206662a0000         iadd r83, r81.sx, r80.sx
+0x25b0  2e4d6666260e002a         extr r83, r83, r83, 14
+0x25b8  7e49646a662a             xor r82, r82, r83
+0x25be  0e4d4ce6652a0000         iadd r83, r70.sx, r79.sx
+0x25c6  2e4d66662619002a         extr r83, r83, r83, 25
+0x25ce  7e25526a662a             xor r73, r73, r83
+0x25d4  0e4d52c6642a0000         iadd r83, r73.sx, r70.sx
+0x25dc  2e4d66662617002a         extr r83, r83, r83, 23
+0x25e4  7e31586a662a             xor r76, r76, r83
+0x25ea  0e4d5826652a0000         iadd r83, r76.sx, r73.sx
+0x25f2  2e4d66662613002a         extr r83, r83, r83, 19
+0x25fa  7e3d5e6a662a             xor r79, r79, r83
+0x2600  0e4d5e86652a0000         iadd r83, r79.sx, r76.sx
+0x2608  2e4d6666260e002a         extr r83, r83, r83, 14
+0x2610  7e194c6a662a             xor r70, r70, r83
+0x2616  0e4d5466642a0000         iadd r83, r74.sx, r67.sx
+0x261e  2e4d66662619002a         extr r83, r83, r83, 25
+0x2626  7e355a6a662a             xor r77, r77, r83
+0x262c  0e4d5a46652a0000         iadd r83, r77.sx, r74.sx
+0x2634  2e4d66662617002a         extr r83, r83, r83, 23
+0x263c  7e41606a662a             xor r80, r80, r83
+0x2642  0e4d60a6652a0000         iadd r83, r80.sx, r77.sx
+0x264a  2e4d66662613002a         extr r83, r83, r83, 19
+0x2652  7e0d466a662a             xor r67, r67, r83
+0x2658  0e4d4606662a0000         iadd r83, r67.sx, r80.sx
+0x2660  2e4d6666260e002a         extr r83, r83, r83, 14
+0x2668  7e29546a662a             xor r74, r74, r83
+0x266e  0e4d5ce6642a0000         iadd r83, r78.sx, r71.sx
+0x2676  2e4d66662619002a         extr r83, r83, r83, 25
+0x267e  7e45626a662a             xor r81, r81, r83
+0x2684  0e4d62c6652a0000         iadd r83, r81.sx, r78.sx
+0x268c  2e4d66662617002a         extr r83, r83, r83, 23
+0x2694  7e11486a662a             xor r68, r68, r83
+0x269a  0e4d4826662a0000         iadd r83, r68.sx, r81.sx
+0x26a2  2e4d66662613002a         extr r83, r83, r83, 19
+0x26aa  7e1d4e6a662a             xor r71, r71, r83
+0x26b0  0e4d4e86642a0000         iadd r83, r71.sx, r68.sx
+0x26b8  2e4d6666260e002a         extr r83, r83, r83, 14
+0x26c0  7e395c6a662a             xor r78, r78, r83
+0x26c6  0e4d6466652a0000         iadd r83, r82.sx, r75.sx
+0x26ce  2e4d66662619002a         extr r83, r83, r83, 25
+0x26d6  7e154a6a662a             xor r69, r69, r83
+0x26dc  0e4d4a46662a0000         iadd r83, r69.sx, r82.sx
+0x26e4  2e4d66662617002a         extr r83, r83, r83, 23
+0x26ec  7e21506a662a             xor r72, r72, r83
+0x26f2  0e4d50a6642a0000         iadd r83, r72.sx, r69.sx
+0x26fa  2e4d66662613002a         extr r83, r83, r83, 19
+0x2702  7e2d566a662a             xor r75, r75, r83
+0x2708  0e4d5606652a0000         iadd r83, r75.sx, r72.sx
+0x2710  2e4d6666260e002a         extr r83, r83, r83, 14
+0x2718  7e49646a662a             xor r82, r82, r83
+0x271e  0e4d4ca6642a0000         iadd r83, r70.sx, r69.sx
+0x2726  2e4d66662619002a         extr r83, r83, r83, 25
+0x272e  7e0d466a662a             xor r67, r67, r83
+0x2734  0e4d46c6642a0000         iadd r83, r67.sx, r70.sx
+0x273c  2e4d66662617002a         extr r83, r83, r83, 23
+0x2744  7e11486a662a             xor r68, r68, r83
+0x274a  0e4d4866642a0000         iadd r83, r68.sx, r67.sx
+0x2752  2e4d66662613002a         extr r83, r83, r83, 19
+0x275a  7e154a6a662a             xor r69, r69, r83
+0x2760  0e4d4a86642a0000         iadd r83, r69.sx, r68.sx
+0x2768  2e4d6666260e002a         extr r83, r83, r83, 14
+0x2770  7e194c6a662a             xor r70, r70, r83
+0x2776  0e4d5426652a0000         iadd r83, r74.sx, r73.sx
+0x277e  2e4d66662619002a         extr r83, r83, r83, 25
+0x2786  7e1d4e6a662a             xor r71, r71, r83
+0x278c  0e4d4e46652a0000         iadd r83, r71.sx, r74.sx
+0x2794  2e4d66662617002a         extr r83, r83, r83, 23
+0x279c  7e21506a662a             xor r72, r72, r83
+0x27a2  0e4d50e6642a0000         iadd r83, r72.sx, r71.sx
+0x27aa  2e4d66662613002a         extr r83, r83, r83, 19
+0x27b2  7e25526a662a             xor r73, r73, r83
+0x27b8  0e4d5206652a0000         iadd r83, r73.sx, r72.sx
+0x27c0  2e4d6666260e002a         extr r83, r83, r83, 14
+0x27c8  7e29546a662a             xor r74, r74, r83
+0x27ce  0e4d5ca6652a0000         iadd r83, r78.sx, r77.sx
+0x27d6  2e4d66662619002a         extr r83, r83, r83, 25
+0x27de  7e2d566a662a             xor r75, r75, r83
+0x27e4  0e4d56c6652a0000         iadd r83, r75.sx, r78.sx
+0x27ec  2e4d66662617002a         extr r83, r83, r83, 23
+0x27f4  7e31586a662a             xor r76, r76, r83
+0x27fa  0e4d5866652a0000         iadd r83, r76.sx, r75.sx
+0x2802  2e4d66662613002a         extr r83, r83, r83, 19
+0x280a  7e355a6a662a             xor r77, r77, r83
+0x2810  0e4d5a86652a0000         iadd r83, r77.sx, r76.sx
+0x2818  2e4d6666260e002a         extr r83, r83, r83, 14
+0x2820  7e395c6a662a             xor r78, r78, r83
+0x2826  0e4d6426662a0000         iadd r83, r82.sx, r81.sx
+0x282e  2e4d66662619002a         extr r83, r83, r83, 25
+0x2836  7e3d5e6a662a             xor r79, r79, r83
+0x283c  0e4d5e46662a0000         iadd r83, r79.sx, r82.sx
+0x2844  2e4d66662617002a         extr r83, r83, r83, 23
+0x284c  7e41606a662a             xor r80, r80, r83
+0x2852  0e4d60e6652a0000         iadd r83, r80.sx, r79.sx
+0x285a  2e4d66662613002a         extr r83, r83, r83, 19
+0x2862  7e45626a662a             xor r81, r81, r83
+0x2868  0e4d6206662a0000         iadd r83, r81.sx, r80.sx
+0x2870  2e4d6666260e002a         extr r83, r83, r83, 14
+0x2878  7e49646a662a             xor r82, r82, r83
+0x287e  0e4d4ce6652a0000         iadd r83, r70.sx, r79.sx
+0x2886  2e4d66662619002a         extr r83, r83, r83, 25
+0x288e  7e25526a662a             xor r73, r73, r83
+0x2894  0e4d52c6642a0000         iadd r83, r73.sx, r70.sx
+0x289c  2e4d66662617002a         extr r83, r83, r83, 23
+0x28a4  7e31586a662a             xor r76, r76, r83
+0x28aa  0e4d5826652a0000         iadd r83, r76.sx, r73.sx
+0x28b2  2e4d66662613002a         extr r83, r83, r83, 19
+0x28ba  7e3d5e6a662a             xor r79, r79, r83
+0x28c0  0e4d5e86652a0000         iadd r83, r79.sx, r76.sx
+0x28c8  2e4d6666260e002a         extr r83, r83, r83, 14
+0x28d0  7e194c6a662a             xor r70, r70, r83
+0x28d6  0e4d5466642a0000         iadd r83, r74.sx, r67.sx
+0x28de  2e4d66662619002a         extr r83, r83, r83, 25
+0x28e6  7e355a6a662a             xor r77, r77, r83
+0x28ec  0e4d5a46652a0000         iadd r83, r77.sx, r74.sx
+0x28f4  2e4d66662617002a         extr r83, r83, r83, 23
+0x28fc  7e41606a662a             xor r80, r80, r83
+0x2902  0e4d60a6652a0000         iadd r83, r80.sx, r77.sx
+0x290a  2e4d66662613002a         extr r83, r83, r83, 19
+0x2912  7e0d466a662a             xor r67, r67, r83
+0x2918  0e4d4606662a0000         iadd r83, r67.sx, r80.sx
+0x2920  2e4d6666260e002a         extr r83, r83, r83, 14
+0x2928  7e29546a662a             xor r74, r74, r83
+0x292e  0e4d5ce6642a0000         iadd r83, r78.sx, r71.sx
+0x2936  2e4d66662619002a         extr r83, r83, r83, 25
+0x293e  7e45626a662a             xor r81, r81, r83
+0x2944  0e4d62c6652a0000         iadd r83, r81.sx, r78.sx
+0x294c  2e4d66662617002a         extr r83, r83, r83, 23
+0x2954  7e11486a662a             xor r68, r68, r83
+0x295a  0e4d4826662a0000         iadd r83, r68.sx, r81.sx
+0x2962  2e4d66662613002a         extr r83, r83, r83, 19
+0x296a  7e1d4e6a662a             xor r71, r71, r83
+0x2970  0e4d4e86642a0000         iadd r83, r71.sx, r68.sx
+0x2978  2e4d6666260e002a         extr r83, r83, r83, 14
+0x2980  7e395c6a662a             xor r78, r78, r83
+0x2986  0e4d6466652a0000         iadd r83, r82.sx, r75.sx
+0x298e  2e4d66662619002a         extr r83, r83, r83, 25
+0x2996  7e154a6a662a             xor r69, r69, r83
+0x299c  0e4d4a46662a0000         iadd r83, r69.sx, r82.sx
+0x29a4  2e4d66662617002a         extr r83, r83, r83, 23
+0x29ac  7e21506a662a             xor r72, r72, r83
+0x29b2  0e4d50a6642a0000         iadd r83, r72.sx, r69.sx
+0x29ba  2e4d66662613002a         extr r83, r83, r83, 19
+0x29c2  7e2d566a662a             xor r75, r75, r83
+0x29c8  0e4d5606652a0000         iadd r83, r75.sx, r72.sx
+0x29d0  2e4d6666260e002a         extr r83, r83, r83, 14
+0x29d8  7e49646a662a             xor r82, r82, r83
+0x29de  0e4d4ca6642a0000         iadd r83, r70.sx, r69.sx
+0x29e6  2e4d66662619002a         extr r83, r83, r83, 25
+0x29ee  7e0d466a662a             xor r67, r67, r83
+0x29f4  0e4d46c6642a0000         iadd r83, r67.sx, r70.sx
+0x29fc  2e4d66662617002a         extr r83, r83, r83, 23
+0x2a04  7e11486a662a             xor r68, r68, r83
+0x2a0a  0e4d4866642a0000         iadd r83, r68.sx, r67.sx
+0x2a12  2e4d66662613002a         extr r83, r83, r83, 19
+0x2a1a  7e154a6a662a             xor r69, r69, r83
+0x2a20  0e4d4a86642a0000         iadd r83, r69.sx, r68.sx
+0x2a28  2e4d6666260e002a         extr r83, r83, r83, 14
+0x2a30  7e194c6a662a             xor r70, r70, r83
+0x2a36  0e4d5426652a0000         iadd r83, r74.sx, r73.sx
+0x2a3e  2e4d66662619002a         extr r83, r83, r83, 25
+0x2a46  7e1d4e6a662a             xor r71, r71, r83
+0x2a4c  0e4d4e46652a0000         iadd r83, r71.sx, r74.sx
+0x2a54  2e4d66662617002a         extr r83, r83, r83, 23
+0x2a5c  7e21506a662a             xor r72, r72, r83
+0x2a62  0e4d50e6642a0000         iadd r83, r72.sx, r71.sx
+0x2a6a  2e4d66662613002a         extr r83, r83, r83, 19
+0x2a72  7e25526a662a             xor r73, r73, r83
+0x2a78  0e4d5206652a0000         iadd r83, r73.sx, r72.sx
+0x2a80  2e4d6666260e002a         extr r83, r83, r83, 14
+0x2a88  7e29546a662a             xor r74, r74, r83
+0x2a8e  0e4d5ca6652a0000         iadd r83, r78.sx, r77.sx
+0x2a96  2e4d66662619002a         extr r83, r83, r83, 25
+0x2a9e  7e2d566a662a             xor r75, r75, r83
+0x2aa4  0e4d56c6652a0000         iadd r83, r75.sx, r78.sx
+0x2aac  2e4d66662617002a         extr r83, r83, r83, 23
+0x2ab4  7e31586a662a             xor r76, r76, r83
+0x2aba  0e4d5866652a0000         iadd r83, r76.sx, r75.sx
+0x2ac2  2e4d66662613002a         extr r83, r83, r83, 19
+0x2aca  7e355a6a662a             xor r77, r77, r83
+0x2ad0  0e4d5a86652a0000         iadd r83, r77.sx, r76.sx
+0x2ad8  2e4d6666260e002a         extr r83, r83, r83, 14
+0x2ae0  7e395c6a662a             xor r78, r78, r83
+0x2ae6  0e4d6426662a0000         iadd r83, r82.sx, r81.sx
+0x2aee  2e4d66662619002a         extr r83, r83, r83, 25
+0x2af6  7e3d5e6a662a             xor r79, r79, r83
+0x2afc  0e4d5e46662a0000         iadd r83, r79.sx, r82.sx
+0x2b04  2e4d66662617002a         extr r83, r83, r83, 23
+0x2b0c  7e41606a662a             xor r80, r80, r83
+0x2b12  0e4d60e6652a0000         iadd r83, r80.sx, r79.sx
+0x2b1a  2e4d66662613002a         extr r83, r83, r83, 19
+0x2b22  7e45626a662a             xor r81, r81, r83
+0x2b28  0e4d6206662a0000         iadd r83, r81.sx, r80.sx
+0x2b30  2e4d6666260e002a         extr r83, r83, r83, 14
+0x2b38  7e49646a662a             xor r82, r82, r83
+0x2b3e  0e4d4ce6652a0000         iadd r83, r70.sx, r79.sx
+0x2b46  2e4d66662619002a         extr r83, r83, r83, 25
+0x2b4e  7e25526a662a             xor r73, r73, r83
+0x2b54  0e4d52c6642a0000         iadd r83, r73.sx, r70.sx
+0x2b5c  2e4d66662617002a         extr r83, r83, r83, 23
+0x2b64  7e31586a662a             xor r76, r76, r83
+0x2b6a  0e4d5826652a0000         iadd r83, r76.sx, r73.sx
+0x2b72  2e4d66662613002a         extr r83, r83, r83, 19
+0x2b7a  7e3d5e6a662a             xor r79, r79, r83
+0x2b80  0e4d5e86652a0000         iadd r83, r79.sx, r76.sx
+0x2b88  2e4d6666260e002a         extr r83, r83, r83, 14
+0x2b90  7e194c6a662a             xor r70, r70, r83
+0x2b96  0e4d5466642a0000         iadd r83, r74.sx, r67.sx
+0x2b9e  2e4d66662619002a         extr r83, r83, r83, 25
+0x2ba6  7e355a6a662a             xor r77, r77, r83
+0x2bac  0e4d5a46652a0000         iadd r83, r77.sx, r74.sx
+0x2bb4  2e4d66662617002a         extr r83, r83, r83, 23
+0x2bbc  7e41606a662a             xor r80, r80, r83
+0x2bc2  0e4d60a6652a0000         iadd r83, r80.sx, r77.sx
+0x2bca  2e4d66662613002a         extr r83, r83, r83, 19
+0x2bd2  7e0d466a662a             xor r67, r67, r83
+0x2bd8  0e4d4606662a0000         iadd r83, r67.sx, r80.sx
+0x2be0  2e4d6666260e002a         extr r83, r83, r83, 14
+0x2be8  7e29546a662a             xor r74, r74, r83
+0x2bee  0e4d5ce6642a0000         iadd r83, r78.sx, r71.sx
+0x2bf6  2e4d66662619002a         extr r83, r83, r83, 25
+0x2bfe  7e45626a662a             xor r81, r81, r83
+0x2c04  0e4d62c6652a0000         iadd r83, r81.sx, r78.sx
+0x2c0c  2e4d66662617002a         extr r83, r83, r83, 23
+0x2c14  7e11486a662a             xor r68, r68, r83
+0x2c1a  0e4d4826662a0000         iadd r83, r68.sx, r81.sx
+0x2c22  2e4d66662613002a         extr r83, r83, r83, 19
+0x2c2a  7e1d4e6a662a             xor r71, r71, r83
+0x2c30  0e4d4e86642a0000         iadd r83, r71.sx, r68.sx
+0x2c38  2e4d6666260e002a         extr r83, r83, r83, 14
+0x2c40  7e395c6a662a             xor r78, r78, r83
+0x2c46  0e4d6466652a0000         iadd r83, r82.sx, r75.sx
+0x2c4e  2e4d66662619002a         extr r83, r83, r83, 25
+0x2c56  7e154a6a662a             xor r69, r69, r83
+0x2c5c  0e4d4a46662a0000         iadd r83, r69.sx, r82.sx
+0x2c64  2e4d66662617002a         extr r83, r83, r83, 23
+0x2c6c  7e21506a662a             xor r72, r72, r83
+0x2c72  0e4d50a6642a0000         iadd r83, r72.sx, r69.sx
+0x2c7a  2e4d66662613002a         extr r83, r83, r83, 19
+0x2c82  7e2d566a662a             xor r75, r75, r83
+0x2c88  0e4d5606652a0000         iadd r83, r75.sx, r72.sx
+0x2c90  2e4d6666260e002a         extr r83, r83, r83, 14
+0x2c98  7e49646a662a             xor r82, r82, r83
+0x2c9e  0e0d46c664020000         iadd r3, r3.sx, r70.sx
+0x2ca6  0e1d4e2665020000         iadd r7, r7.sx, r73.sx
+0x2cae  0e2d568665020000         iadd r11, r11.sx, r76.sx
+0x2cb6  0e3d5ee665020000         iadd r15, r15.sx, r79.sx
+0x2cbe  0e4d666664020000         iadd r19, r19.sx, r67.sx
+0x2cc6  0e5d6e4665020000         iadd r23, r23.sx, r74.sx
+0x2cce  0e6d76a665020000         iadd r27, r27.sx, r77.sx
+0x2cd6  0e7d7e0666020000         iadd r31, r31.sx, r80.sx
+0x2cde  0e0d468664160000         iadd r35, r35.sx, r68.sx
+0x2ce6  0e1d4ee664160000         iadd r39, r39.sx, r71.sx
+0x2cee  0e2d56c665160000         iadd r43, r43.sx, r78.sx
+0x2cf6  0e3d5e2666160000         iadd r47, r47.sx, r81.sx
+0x2cfe  0e4d66a664160000         iadd r51, r51.sx, r69.sx
+0x2d06  0e5d6e0665160000         iadd r55, r55.sx, r72.sx
+0x2d0e  0e6d766665160000         iadd r59, r59.sx, r75.sx
+0x2d16  0e7d7e4666160000         iadd r63, r63.sx, r82.sx
+0x2d1e  7e154a6a6400             xor r5, r5, r3
+0x2d24  7e2552ea6400             xor r9, r9, r7
+0x2d2a  7e355a6a6500             xor r13, r13, r11
+0x2d30  7e4562ea6500             xor r17, r17, r15
+0x2d36  7e556a6a6600             xor r21, r21, r19
+0x2d3c  7e6572ea6600             xor r25, r25, r23
+0x2d42  7e757a6a6700             xor r29, r29, r27
+0x2d48  7e0542ea6714             xor r33, r33, r31
+0x2d4e  7e154a6a6415             xor r37, r37, r35
+0x2d54  7e2552ea6415             xor r41, r41, r39
+0x2d5a  7e355a6a6515             xor r45, r45, r43
+0x2d60  7e4562ea6515             xor r49, r49, r47
+0x2d66  7e556a6a6615             xor r53, r53, r51
+0x2d6c  7e6572ea6615             xor r57, r57, r55
+0x2d72  7e757a6a6715             xor r61, r61, r59
+0x2d78  7e0542ea6729             xor r65, r65, r63
+0x2d7e  0e0d4aa666210000         iadd r67, r5.sx, r53.sx
+0x2d86  2e0d46662419002a         extr r67, r67, r67, 25
+0x2d8e  7e0d6a6a6422             xor r67, r21, r67
+0x2d94  0e1146a664280000         iadd r68, r67.sx, r5.sx
+0x2d9c  2e1148862417002a         extr r68, r68, r68, 23
+0x2da4  7e114a8a6426             xor r68, r37, r68
+0x2daa  0e154866642a0000         iadd r69, r68.sx, r67.sx
+0x2db2  2e154aa62413002a         extr r69, r69, r69, 19
+0x2dba  7e156aaa6426             xor r69, r53, r69
+0x2dc0  0e194a86642a0000         iadd r70, r69.sx, r68.sx
+0x2dc8  2e194cc6240e002a         extr r70, r70, r70, 14
+0x2dd0  7e194aca6422             xor r70, r5, r70
+0x2dd6  0e1d722665200000         iadd r71, r25.sx, r9.sx
+0x2dde  2e1d4ee62419002a         extr r71, r71, r71, 25
+0x2de6  7e1d52ea6426             xor r71, r41, r71
+0x2dec  0e214e2667280000         iadd r72, r71.sx, r25.sx
+0x2df4  2e2150062517002a         extr r72, r72, r72, 23
+0x2dfc  7e21720a6526             xor r72, r57, r72
+0x2e02  0e2550e6642a0000         iadd r73, r72.sx, r71.sx
+0x2e0a  2e2552262513002a         extr r73, r73, r73, 19
+0x2e12  7e25522a6522             xor r73, r9, r73
+0x2e18  0e295206652a0000         iadd r74, r73.sx, r72.sx
+0x2e20  2e295446250e002a         extr r74, r74, r74, 14
+0x2e28  7e29724a6522             xor r74, r25, r74
+0x2e2e  0e2d5aa667240000         iadd r75, r45.sx, r29.sx
+0x2e36  2e2d56662519002a         extr r75, r75, r75, 25
+0x2e3e  7e2d7a6a6526             xor r75, r61, r75
+0x2e44  0e3156a665290000         iadd r76, r75.sx, r45.sx
+0x2e4c  2e3158862517002a         extr r76, r76, r76, 23
+0x2e54  7e315a8a6522             xor r76, r13, r76
+0x2e5a  0e355866652a0000         iadd r77, r76.sx, r75.sx
+0x2e62  2e355aa62513002a         extr r77, r77, r77, 19
+0x2e6a  7e357aaa6522             xor r77, r29, r77
+0x2e70  0e395a86652a0000         iadd r78, r77.sx, r76.sx
+0x2e78  2e395cc6250e002a         extr r78, r78, r78, 14
+0x2e80  7e395aca6526             xor r78, r45, r78
+0x2e86  0e3d422666290000         iadd r79, r65.sx, r49.sx
+0x2e8e  2e3d5ee62519002a         extr r79, r79, r79, 25
+0x2e96  7e3d62ea6522             xor r79, r17, r79
+0x2e9c  0e415e26642a0000         iadd r80, r79.sx, r65.sx
+0x2ea4  2e4160062617002a         extr r80, r80, r80, 23
+0x2eac  7e41420a6626             xor r80, r33, r80
+0x2eb2  0e4560e6652a0000         iadd r81, r80.sx, r79.sx
+0x2eba  2e4562262613002a         extr r81, r81, r81, 19
+0x2ec2  7e45622a6626             xor r81, r49, r81
+0x2ec8  0e496206662a0000         iadd r82, r81.sx, r80.sx
+0x2ed0  2e496446260e002a         extr r82, r82, r82, 14
+0x2ed8  7e49424a662a             xor r82, r65, r82
+0x2ede  0e4d4ce6652a0000         iadd r83, r70.sx, r79.sx
+0x2ee6  2e4d66662619002a         extr r83, r83, r83, 25
+0x2eee  7e25526a662a             xor r73, r73, r83
+0x2ef4  0e4d52c6642a0000         iadd r83, r73.sx, r70.sx
+0x2efc  2e4d66662617002a         extr r83, r83, r83, 23
+0x2f04  7e31586a662a             xor r76, r76, r83
+0x2f0a  0e4d5826652a0000         iadd r83, r76.sx, r73.sx
+0x2f12  2e4d66662613002a         extr r83, r83, r83, 19
+0x2f1a  7e3d5e6a662a             xor r79, r79, r83
+0x2f20  0e4d5e86652a0000         iadd r83, r79.sx, r76.sx
+0x2f28  2e4d6666260e002a         extr r83, r83, r83, 14
+0x2f30  7e194c6a662a             xor r70, r70, r83
+0x2f36  0e4d5466642a0000         iadd r83, r74.sx, r67.sx
+0x2f3e  2e4d66662619002a         extr r83, r83, r83, 25
+0x2f46  7e355a6a662a             xor r77, r77, r83
+0x2f4c  0e4d5a46652a0000         iadd r83, r77.sx, r74.sx
+0x2f54  2e4d66662617002a         extr r83, r83, r83, 23
+0x2f5c  7e41606a662a             xor r80, r80, r83
+0x2f62  0e4d60a6652a0000         iadd r83, r80.sx, r77.sx
+0x2f6a  2e4d66662613002a         extr r83, r83, r83, 19
+0x2f72  7e0d466a662a             xor r67, r67, r83
+0x2f78  0e4d4606662a0000         iadd r83, r67.sx, r80.sx
+0x2f80  2e4d6666260e002a         extr r83, r83, r83, 14
+0x2f88  7e29546a662a             xor r74, r74, r83
+0x2f8e  0e4d5ce6642a0000         iadd r83, r78.sx, r71.sx
+0x2f96  2e4d66662619002a         extr r83, r83, r83, 25
+0x2f9e  7e45626a662a             xor r81, r81, r83
+0x2fa4  0e4d62c6652a0000         iadd r83, r81.sx, r78.sx
+0x2fac  2e4d66662617002a         extr r83, r83, r83, 23
+0x2fb4  7e11486a662a             xor r68, r68, r83
+0x2fba  0e4d4826662a0000         iadd r83, r68.sx, r81.sx
+0x2fc2  2e4d66662613002a         extr r83, r83, r83, 19
+0x2fca  7e1d4e6a662a             xor r71, r71, r83
+0x2fd0  0e4d4e86642a0000         iadd r83, r71.sx, r68.sx
+0x2fd8  2e4d6666260e002a         extr r83, r83, r83, 14
+0x2fe0  7e395c6a662a             xor r78, r78, r83
+0x2fe6  0e4d6466652a0000         iadd r83, r82.sx, r75.sx
+0x2fee  2e4d66662619002a         extr r83, r83, r83, 25
+0x2ff6  7e154a6a662a             xor r69, r69, r83
+0x2ffc  0e4d4a46662a0000         iadd r83, r69.sx, r82.sx
+0x3004  2e4d66662617002a         extr r83, r83, r83, 23
+0x300c  7e21506a662a             xor r72, r72, r83
+0x3012  0e4d50a6642a0000         iadd r83, r72.sx, r69.sx
+0x301a  2e4d66662613002a         extr r83, r83, r83, 19
+0x3022  7e2d566a662a             xor r75, r75, r83
+0x3028  0e4d5606652a0000         iadd r83, r75.sx, r72.sx
+0x3030  2e4d6666260e002a         extr r83, r83, r83, 14
+0x3038  7e49646a662a             xor r82, r82, r83
+0x303e  0e4d4ca6642a0000         iadd r83, r70.sx, r69.sx
+0x3046  2e4d66662619002a         extr r83, r83, r83, 25
+0x304e  7e0d466a662a             xor r67, r67, r83
+0x3054  0e4d46c6642a0000         iadd r83, r67.sx, r70.sx
+0x305c  2e4d66662617002a         extr r83, r83, r83, 23
+0x3064  7e11486a662a             xor r68, r68, r83
+0x306a  0e4d4866642a0000         iadd r83, r68.sx, r67.sx
+0x3072  2e4d66662613002a         extr r83, r83, r83, 19
+0x307a  7e154a6a662a             xor r69, r69, r83
+0x3080  0e4d4a86642a0000         iadd r83, r69.sx, r68.sx
+0x3088  2e4d6666260e002a         extr r83, r83, r83, 14
+0x3090  7e194c6a662a             xor r70, r70, r83
+0x3096  0e4d5426652a0000         iadd r83, r74.sx, r73.sx
+0x309e  2e4d66662619002a         extr r83, r83, r83, 25
+0x30a6  7e1d4e6a662a             xor r71, r71, r83
+0x30ac  0e4d4e46652a0000         iadd r83, r71.sx, r74.sx
+0x30b4  2e4d66662617002a         extr r83, r83, r83, 23
+0x30bc  7e21506a662a             xor r72, r72, r83
+0x30c2  0e4d50e6642a0000         iadd r83, r72.sx, r71.sx
+0x30ca  2e4d66662613002a         extr r83, r83, r83, 19
+0x30d2  7e25526a662a             xor r73, r73, r83
+0x30d8  0e4d5206652a0000         iadd r83, r73.sx, r72.sx
+0x30e0  2e4d6666260e002a         extr r83, r83, r83, 14
+0x30e8  7e29546a662a             xor r74, r74, r83
+0x30ee  0e4d5ca6652a0000         iadd r83, r78.sx, r77.sx
+0x30f6  2e4d66662619002a         extr r83, r83, r83, 25
+0x30fe  7e2d566a662a             xor r75, r75, r83
+0x3104  0e4d56c6652a0000         iadd r83, r75.sx, r78.sx
+0x310c  2e4d66662617002a         extr r83, r83, r83, 23
+0x3114  7e31586a662a             xor r76, r76, r83
+0x311a  0e4d5866652a0000         iadd r83, r76.sx, r75.sx
+0x3122  2e4d66662613002a         extr r83, r83, r83, 19
+0x312a  7e355a6a662a             xor r77, r77, r83
+0x3130  0e4d5a86652a0000         iadd r83, r77.sx, r76.sx
+0x3138  2e4d6666260e002a         extr r83, r83, r83, 14
+0x3140  7e395c6a662a             xor r78, r78, r83
+0x3146  0e4d6426662a0000         iadd r83, r82.sx, r81.sx
+0x314e  2e4d66662619002a         extr r83, r83, r83, 25
+0x3156  7e3d5e6a662a             xor r79, r79, r83
+0x315c  0e4d5e46662a0000         iadd r83, r79.sx, r82.sx
+0x3164  2e4d66662617002a         extr r83, r83, r83, 23
+0x316c  7e41606a662a             xor r80, r80, r83
+0x3172  0e4d60e6652a0000         iadd r83, r80.sx, r79.sx
+0x317a  2e4d66662613002a         extr r83, r83, r83, 19
+0x3182  7e45626a662a             xor r81, r81, r83
+0x3188  0e4d6206662a0000         iadd r83, r81.sx, r80.sx
+0x3190  2e4d6666260e002a         extr r83, r83, r83, 14
+0x3198  7e49646a662a             xor r82, r82, r83
+0x319e  0e4d4ce6652a0000         iadd r83, r70.sx, r79.sx
+0x31a6  2e4d66662619002a         extr r83, r83, r83, 25
+0x31ae  7e25526a662a             xor r73, r73, r83
+0x31b4  0e4d52c6642a0000         iadd r83, r73.sx, r70.sx
+0x31bc  2e4d66662617002a         extr r83, r83, r83, 23
+0x31c4  7e31586a662a             xor r76, r76, r83
+0x31ca  0e4d5826652a0000         iadd r83, r76.sx, r73.sx
+0x31d2  2e4d66662613002a         extr r83, r83, r83, 19
+0x31da  7e3d5e6a662a             xor r79, r79, r83
+0x31e0  0e4d5e86652a0000         iadd r83, r79.sx, r76.sx
+0x31e8  2e4d6666260e002a         extr r83, r83, r83, 14
+0x31f0  7e194c6a662a             xor r70, r70, r83
+0x31f6  0e4d5466642a0000         iadd r83, r74.sx, r67.sx
+0x31fe  2e4d66662619002a         extr r83, r83, r83, 25
+0x3206  7e355a6a662a             xor r77, r77, r83
+0x320c  0e4d5a46652a0000         iadd r83, r77.sx, r74.sx
+0x3214  2e4d66662617002a         extr r83, r83, r83, 23
+0x321c  7e41606a662a             xor r80, r80, r83
+0x3222  0e4d60a6652a0000         iadd r83, r80.sx, r77.sx
+0x322a  2e4d66662613002a         extr r83, r83, r83, 19
+0x3232  7e0d466a662a             xor r67, r67, r83
+0x3238  0e4d4606662a0000         iadd r83, r67.sx, r80.sx
+0x3240  2e4d6666260e002a         extr r83, r83, r83, 14
+0x3248  7e29546a662a             xor r74, r74, r83
+0x324e  0e4d5ce6642a0000         iadd r83, r78.sx, r71.sx
+0x3256  2e4d66662619002a         extr r83, r83, r83, 25
+0x325e  7e45626a662a             xor r81, r81, r83
+0x3264  0e4d62c6652a0000         iadd r83, r81.sx, r78.sx
+0x326c  2e4d66662617002a         extr r83, r83, r83, 23
+0x3274  7e11486a662a             xor r68, r68, r83
+0x327a  0e4d4826662a0000         iadd r83, r68.sx, r81.sx
+0x3282  2e4d66662613002a         extr r83, r83, r83, 19
+0x328a  7e1d4e6a662a             xor r71, r71, r83
+0x3290  0e4d4e86642a0000         iadd r83, r71.sx, r68.sx
+0x3298  2e4d6666260e002a         extr r83, r83, r83, 14
+0x32a0  7e395c6a662a             xor r78, r78, r83
+0x32a6  0e4d6466652a0000         iadd r83, r82.sx, r75.sx
+0x32ae  2e4d66662619002a         extr r83, r83, r83, 25
+0x32b6  7e154a6a662a             xor r69, r69, r83
+0x32bc  0e4d4a46662a0000         iadd r83, r69.sx, r82.sx
+0x32c4  2e4d66662617002a         extr r83, r83, r83, 23
+0x32cc  7e21506a662a             xor r72, r72, r83
+0x32d2  0e4d50a6642a0000         iadd r83, r72.sx, r69.sx
+0x32da  2e4d66662613002a         extr r83, r83, r83, 19
+0x32e2  7e2d566a662a             xor r75, r75, r83
+0x32e8  0e4d5606652a0000         iadd r83, r75.sx, r72.sx
+0x32f0  2e4d6666260e002a         extr r83, r83, r83, 14
+0x32f8  7e49646a662a             xor r82, r82, r83
+0x32fe  0e4d4ca6642a0000         iadd r83, r70.sx, r69.sx
+0x3306  2e4d66662619002a         extr r83, r83, r83, 25
+0x330e  7e0d466a662a             xor r67, r67, r83
+0x3314  0e4d46c6642a0000         iadd r83, r67.sx, r70.sx
+0x331c  2e4d66662617002a         extr r83, r83, r83, 23
+0x3324  7e11486a662a             xor r68, r68, r83
+0x332a  0e4d4866642a0000         iadd r83, r68.sx, r67.sx
+0x3332  2e4d66662613002a         extr r83, r83, r83, 19
+0x333a  7e154a6a662a             xor r69, r69, r83
+0x3340  0e4d4a86642a0000         iadd r83, r69.sx, r68.sx
+0x3348  2e4d6666260e002a         extr r83, r83, r83, 14
+0x3350  7e194c6a662a             xor r70, r70, r83
+0x3356  0e4d5426652a0000         iadd r83, r74.sx, r73.sx
+0x335e  2e4d66662619002a         extr r83, r83, r83, 25
+0x3366  7e1d4e6a662a             xor r71, r71, r83
+0x336c  0e4d4e46652a0000         iadd r83, r71.sx, r74.sx
+0x3374  2e4d66662617002a         extr r83, r83, r83, 23
+0x337c  7e21506a662a             xor r72, r72, r83
+0x3382  0e4d50e6642a0000         iadd r83, r72.sx, r71.sx
+0x338a  2e4d66662613002a         extr r83, r83, r83, 19
+0x3392  7e25526a662a             xor r73, r73, r83
+0x3398  0e4d5206652a0000         iadd r83, r73.sx, r72.sx
+0x33a0  2e4d6666260e002a         extr r83, r83, r83, 14
+0x33a8  7e29546a662a             xor r74, r74, r83
+0x33ae  0e4d5ca6652a0000         iadd r83, r78.sx, r77.sx
+0x33b6  2e4d66662619002a         extr r83, r83, r83, 25
+0x33be  7e2d566a662a             xor r75, r75, r83
+0x33c4  0e4d56c6652a0000         iadd r83, r75.sx, r78.sx
+0x33cc  2e4d66662617002a         extr r83, r83, r83, 23
+0x33d4  7e31586a662a             xor r76, r76, r83
+0x33da  0e4d5866652a0000         iadd r83, r76.sx, r75.sx
+0x33e2  2e4d66662613002a         extr r83, r83, r83, 19
+0x33ea  7e355a6a662a             xor r77, r77, r83
+0x33f0  0e4d5a86652a0000         iadd r83, r77.sx, r76.sx
+0x33f8  2e4d6666260e002a         extr r83, r83, r83, 14
+0x3400  7e395c6a662a             xor r78, r78, r83
+0x3406  0e4d6426662a0000         iadd r83, r82.sx, r81.sx
+0x340e  2e4d66662619002a         extr r83, r83, r83, 25
+0x3416  7e3d5e6a662a             xor r79, r79, r83
+0x341c  0e4d5e46662a0000         iadd r83, r79.sx, r82.sx
+0x3424  2e4d66662617002a         extr r83, r83, r83, 23
+0x342c  7e41606a662a             xor r80, r80, r83
+0x3432  0e4d60e6652a0000         iadd r83, r80.sx, r79.sx
+0x343a  2e4d66662613002a         extr r83, r83, r83, 19
+0x3442  7e45626a662a             xor r81, r81, r83
+0x3448  0e4d6206662a0000         iadd r83, r81.sx, r80.sx
+0x3450  2e4d6666260e002a         extr r83, r83, r83, 14
+0x3458  7e49646a662a             xor r82, r82, r83
+0x345e  0e4d4ce6652a0000         iadd r83, r70.sx, r79.sx
+0x3466  2e4d66662619002a         extr r83, r83, r83, 25
+0x346e  7e25526a662a             xor r73, r73, r83
+0x3474  0e4d52c6642a0000         iadd r83, r73.sx, r70.sx
+0x347c  2e4d66662617002a         extr r83, r83, r83, 23
+0x3484  7e31586a662a             xor r76, r76, r83
+0x348a  0e4d5826652a0000         iadd r83, r76.sx, r73.sx
+0x3492  2e4d66662613002a         extr r83, r83, r83, 19
+0x349a  7e3d5e6a662a             xor r79, r79, r83
+0x34a0  0e4d5e86652a0000         iadd r83, r79.sx, r76.sx
+0x34a8  2e4d6666260e002a         extr r83, r83, r83, 14
+0x34b0  7e194c6a662a             xor r70, r70, r83
+0x34b6  0e4d5466642a0000         iadd r83, r74.sx, r67.sx
+0x34be  2e4d66662619002a         extr r83, r83, r83, 25
+0x34c6  7e355a6a662a             xor r77, r77, r83
+0x34cc  0e4d5a46652a0000         iadd r83, r77.sx, r74.sx
+0x34d4  2e4d66662617002a         extr r83, r83, r83, 23
+0x34dc  7e41606a662a             xor r80, r80, r83
+0x34e2  0e4d60a6652a0000         iadd r83, r80.sx, r77.sx
+0x34ea  2e4d66662613002a         extr r83, r83, r83, 19
+0x34f2  7e0d466a662a             xor r67, r67, r83
+0x34f8  0e4d4606662a0000         iadd r83, r67.sx, r80.sx
+0x3500  2e4d6666260e002a         extr r83, r83, r83, 14
+0x3508  7e29546a662a             xor r74, r74, r83
+0x350e  0e4d5ce6642a0000         iadd r83, r78.sx, r71.sx
+0x3516  2e4d66662619002a         extr r83, r83, r83, 25
+0x351e  7e45626a662a             xor r81, r81, r83
+0x3524  0e4d62c6652a0000         iadd r83, r81.sx, r78.sx
+0x352c  2e4d66662617002a         extr r83, r83, r83, 23
+0x3534  7e11486a662a             xor r68, r68, r83
+0x353a  0e4d4826662a0000         iadd r83, r68.sx, r81.sx
+0x3542  2e4d66662613002a         extr r83, r83, r83, 19
+0x354a  7e1d4e6a662a             xor r71, r71, r83
+0x3550  0e4d4e86642a0000         iadd r83, r71.sx, r68.sx
+0x3558  2e4d6666260e002a         extr r83, r83, r83, 14
+0x3560  7e395c6a662a             xor r78, r78, r83
+0x3566  0e4d6466652a0000         iadd r83, r82.sx, r75.sx
+0x356e  2e4d66662619002a         extr r83, r83, r83, 25
+0x3576  7e154a6a662a             xor r69, r69, r83
+0x357c  0e4d4a46662a0000         iadd r83, r69.sx, r82.sx
+0x3584  2e4d66662617002a         extr r83, r83, r83, 23
+0x358c  7e21506a662a             xor r72, r72, r83
+0x3592  0e4d50a6642a0000         iadd r83, r72.sx, r69.sx
+0x359a  2e4d66662613002a         extr r83, r83, r83, 19
+0x35a2  7e2d566a662a             xor r75, r75, r83
+0x35a8  0e4d5606652a0000         iadd r83, r75.sx, r72.sx
+0x35b0  2e4d6666260e002a         extr r83, r83, r83, 14
+0x35b8  7e49646a662a             xor r82, r82, r83
+0x35be  0e4d4ca6642a0000         iadd r83, r70.sx, r69.sx
+0x35c6  2e4d66662619002a         extr r83, r83, r83, 25
+0x35ce  7e0d466a662a             xor r67, r67, r83
+0x35d4  0e4d46c6642a0000         iadd r83, r67.sx, r70.sx
+0x35dc  2e4d66662617002a         extr r83, r83, r83, 23
+0x35e4  7e11486a662a             xor r68, r68, r83
+0x35ea  0e4d4866642a0000         iadd r83, r68.sx, r67.sx
+0x35f2  2e4d66662613002a         extr r83, r83, r83, 19
+0x35fa  7e154a6a662a             xor r69, r69, r83
+0x3600  0e4d4a86642a0000         iadd r83, r69.sx, r68.sx
+0x3608  2e4d6666260e002a         extr r83, r83, r83, 14
+0x3610  7e194c6a662a             xor r70, r70, r83
+0x3616  0e4d5426652a0000         iadd r83, r74.sx, r73.sx
+0x361e  2e4d66662619002a         extr r83, r83, r83, 25
+0x3626  7e1d4e6a662a             xor r71, r71, r83
+0x362c  0e4d4e46652a0000         iadd r83, r71.sx, r74.sx
+0x3634  2e4d66662617002a         extr r83, r83, r83, 23
+0x363c  7e21506a662a             xor r72, r72, r83
+0x3642  0e4d50e6642a0000         iadd r83, r72.sx, r71.sx
+0x364a  2e4d66662613002a         extr r83, r83, r83, 19
+0x3652  7e25526a662a             xor r73, r73, r83
+0x3658  0e4d5206652a0000         iadd r83, r73.sx, r72.sx
+0x3660  2e4d6666260e002a         extr r83, r83, r83, 14
+0x3668  7e29546a662a             xor r74, r74, r83
+0x366e  0e4d5ca6652a0000         iadd r83, r78.sx, r77.sx
+0x3676  2e4d66662619002a         extr r83, r83, r83, 25
+0x367e  7e2d566a662a             xor r75, r75, r83
+0x3684  0e4d56c6652a0000         iadd r83, r75.sx, r78.sx
+0x368c  2e4d66662617002a         extr r83, r83, r83, 23
+0x3694  7e31586a662a             xor r76, r76, r83
+0x369a  0e4d5866652a0000         iadd r83, r76.sx, r75.sx
+0x36a2  2e4d66662613002a         extr r83, r83, r83, 19
+0x36aa  7e355a6a662a             xor r77, r77, r83
+0x36b0  0e4d5a86652a0000         iadd r83, r77.sx, r76.sx
+0x36b8  2e4d6666260e002a         extr r83, r83, r83, 14
+0x36c0  7e395c6a662a             xor r78, r78, r83
+0x36c6  0e4d6426662a0000         iadd r83, r82.sx, r81.sx
+0x36ce  2e4d66662619002a         extr r83, r83, r83, 25
+0x36d6  7e3d5e6a662a             xor r79, r79, r83
+0x36dc  0e4d5e46662a0000         iadd r83, r79.sx, r82.sx
+0x36e4  2e4d66662617002a         extr r83, r83, r83, 23
+0x36ec  7e41606a662a             xor r80, r80, r83
+0x36f2  0e4d60e6652a0000         iadd r83, r80.sx, r79.sx
+0x36fa  2e4d66662613002a         extr r83, r83, r83, 19
+0x3702  7e45626a662a             xor r81, r81, r83
+0x3708  0e4d6206662a0000         iadd r83, r81.sx, r80.sx
+0x3710  2e4d6666260e002a         extr r83, r83, r83, 14
+0x3718  7e49646a662a             xor r82, r82, r83
+0x371e  0e4d4ce6652a0000         iadd r83, r70.sx, r79.sx
+0x3726  2e4d66662619002a         extr r83, r83, r83, 25
+0x372e  7e25526a662a             xor r73, r73, r83
+0x3734  0e4d52c6642a0000         iadd r83, r73.sx, r70.sx
+0x373c  2e4d66662617002a         extr r83, r83, r83, 23
+0x3744  7e31586a662a             xor r76, r76, r83
+0x374a  0e4d5826652a0000         iadd r83, r76.sx, r73.sx
+0x3752  2e4d66662613002a         extr r83, r83, r83, 19
+0x375a  7e3d5e6a662a             xor r79, r79, r83
+0x3760  0e4d5e86652a0000         iadd r83, r79.sx, r76.sx
+0x3768  2e4d6666260e002a         extr r83, r83, r83, 14
+0x3770  7e194c6a662a             xor r70, r70, r83
+0x3776  0e4d5466642a0000         iadd r83, r74.sx, r67.sx
+0x377e  2e4d66662619002a         extr r83, r83, r83, 25
+0x3786  7e355a6a662a             xor r77, r77, r83
+0x378c  0e4d5a46652a0000         iadd r83, r77.sx, r74.sx
+0x3794  2e4d66662617002a         extr r83, r83, r83, 23
+0x379c  7e41606a662a             xor r80, r80, r83
+0x37a2  0e4d60a6652a0000         iadd r83, r80.sx, r77.sx
+0x37aa  2e4d66662613002a         extr r83, r83, r83, 19
+0x37b2  7e0d466a662a             xor r67, r67, r83
+0x37b8  0e4d4606662a0000         iadd r83, r67.sx, r80.sx
+0x37c0  2e4d6666260e002a         extr r83, r83, r83, 14
+0x37c8  7e29546a662a             xor r74, r74, r83
+0x37ce  0e4d5ce6642a0000         iadd r83, r78.sx, r71.sx
+0x37d6  2e4d66662619002a         extr r83, r83, r83, 25
+0x37de  7e45626a662a             xor r81, r81, r83
+0x37e4  0e4d62c6652a0000         iadd r83, r81.sx, r78.sx
+0x37ec  2e4d66662617002a         extr r83, r83, r83, 23
+0x37f4  7e11486a662a             xor r68, r68, r83
+0x37fa  0e4d4826662a0000         iadd r83, r68.sx, r81.sx
+0x3802  2e4d66662613002a         extr r83, r83, r83, 19
+0x380a  7e1d4e6a662a             xor r71, r71, r83
+0x3810  0e4d4e86642a0000         iadd r83, r71.sx, r68.sx
+0x3818  2e4d6666260e002a         extr r83, r83, r83, 14
+0x3820  7e395c6a662a             xor r78, r78, r83
+0x3826  0e4d6466652a0000         iadd r83, r82.sx, r75.sx
+0x382e  2e4d66662619002a         extr r83, r83, r83, 25
+0x3836  7e154a6a662a             xor r69, r69, r83
+0x383c  0e4d4a46662a0000         iadd r83, r69.sx, r82.sx
+0x3844  2e4d66662617002a         extr r83, r83, r83, 23
+0x384c  7e21506a662a             xor r72, r72, r83
+0x3852  0e4d50a6642a0000         iadd r83, r72.sx, r69.sx
+0x385a  2e4d66662613002a         extr r83, r83, r83, 19
+0x3862  7e2d566a662a             xor r75, r75, r83
+0x3868  0e4d5606652a0000         iadd r83, r75.sx, r72.sx
+0x3870  2e4d6666260e002a         extr r83, r83, r83, 14
+0x3878  7e49646a662a             xor r82, r82, r83
+0x387e  0e154ac664020000         iadd r5, r5.sx, r70.sx
+0x3886  0e25522665020000         iadd r9, r9.sx, r73.sx
+0x388e  0e355a8665020000         iadd r13, r13.sx, r76.sx
+0x3896  0e4562e665020000         iadd r17, r17.sx, r79.sx
+0x389e  0e556a6664020000         iadd r21, r21.sx, r67.sx
+0x38a6  0e65724665020000         iadd r25, r25.sx, r74.sx
+0x38ae  0e757aa665020000         iadd r29, r29.sx, r77.sx
+0x38b6  0e05420666160000         iadd r33, r33.sx, r80.sx
+0x38be  0e154a8664160000         iadd r37, r37.sx, r68.sx
+0x38c6  0e2552e664160000         iadd r41, r41.sx, r71.sx
+0x38ce  0e355ac665160000         iadd r45, r45.sx, r78.sx
+0x38d6  0e45622666160000         iadd r49, r49.sx, r81.sx
+0x38de  0e556aa664160000         iadd r53, r53.sx, r69.sx
+0x38e6  0e65720665160000         iadd r57, r57.sx, r72.sx
+0x38ee  0e757a6665160000         iadd r61, r61.sx, r75.sx
+0x38f6  0e054246662a0000         iadd r65, r65.sx, r82.sx
+0x38fe  0e09441600280000         iadd r66, r66.sx, 1
+0x3906  00c026e4ffff             jmp_exec_any pc-7130
+0x390c  520e00000000             pop_exec r0l, 1
+0x3912  45194c0e00c01200         device_store 0, i32, x, r3, u6_u7, r2, unsigned, 0
+0x391a  45298c4e00c01200         device_store 1, i32, x, r5, u6_u7, r4, unsigned, 0
+0x3922  4539cc0e00c01200         device_store 0, i32, x, r7, u6_u7, r6, unsigned, 0
+0x392a  45490c0e01c01200         device_store 0, i32, x, r9, u6_u7, r8, unsigned, 0
+0x3932  45594c0e01c01200         device_store 0, i32, x, r11, u6_u7, r10, unsigned, 0
+0x393a  45698c0e01c01200         device_store 0, i32, x, r13, u6_u7, r12, unsigned, 0
+0x3942  4579cc0e01c01200         device_store 0, i32, x, r15, u6_u7, r14, unsigned, 0
+0x394a  45890c0e02c01200         device_store 0, i32, x, r17, u6_u7, r16, unsigned, 0
+0x3952  45994c0e02c01200         device_store 0, i32, x, r19, u6_u7, r18, unsigned, 0
+0x395a  3800                     wait 0
+0x395c  45a98c0e02c01200         device_store 0, i32, x, r21, u6_u7, r20, unsigned, 0
+0x3964  45b9cc0e02c01200         device_store 0, i32, x, r23, u6_u7, r22, unsigned, 0
+0x396c  45c90c0e03c01200         device_store 0, i32, x, r25, u6_u7, r24, unsigned, 0
+0x3974  45d94c0e03c01200         device_store 0, i32, x, r27, u6_u7, r26, unsigned, 0
+0x397c  45e98c0e03c01200         device_store 0, i32, x, r29, u6_u7, r28, unsigned, 0
+0x3984  45f9cc0e03c01200         device_store 0, i32, x, r31, u6_u7, r30, unsigned, 0
+0x398c  45090c0e04c11200         device_store 0, i32, x, r33, u6_u7, r32, unsigned, 0
+0x3994  45194c0e04c11200         device_store 0, i32, x, r35, u6_u7, r34, unsigned, 0
+0x399c  3800                     wait 0
+0x399e  45298c0e04c11200         device_store 0, i32, x, r37, u6_u7, r36, unsigned, 0
+0x39a6  4539cc0e04c11200         device_store 0, i32, x, r39, u6_u7, r38, unsigned, 0
+0x39ae  45490c0e05c11200         device_store 0, i32, x, r41, u6_u7, r40, unsigned, 0
+0x39b6  45594c0e05c11200         device_store 0, i32, x, r43, u6_u7, r42, unsigned, 0
+0x39be  45698c0e05c11200         device_store 0, i32, x, r45, u6_u7, r44, unsigned, 0
+0x39c6  4579cc0e05c11200         device_store 0, i32, x, r47, u6_u7, r46, unsigned, 0
+0x39ce  45890c0e06c11200         device_store 0, i32, x, r49, u6_u7, r48, unsigned, 0
+0x39d6  45994c0e06c11200         device_store 0, i32, x, r51, u6_u7, r50, unsigned, 0
+0x39de  3800                     wait 0
+0x39e0  45a98c0e06c11200         device_store 0, i32, x, r53, u6_u7, r52, unsigned, 0
+0x39e8  45b9cc0e06c11200         device_store 0, i32, x, r55, u6_u7, r54, unsigned, 0
+0x39f0  45c90c0e07c11200         device_store 0, i32, x, r57, u6_u7, r56, unsigned, 0
+0x39f8  45d94c0e07c11200         device_store 0, i32, x, r59, u6_u7, r58, unsigned, 0
+0x3a00  45e98c0e07c11200         device_store 0, i32, x, r61, u6_u7, r60, unsigned, 0
+0x3a08  45f9cc0e07c11200         device_store 0, i32, x, r63, u6_u7, r62, unsigned, 0
+0x3a10  45090c0e08c21200         device_store 0, i32, x, r65, u6_u7, r64, unsigned, 0
+0x3a18  3800                     wait 0
+0x3a1a  3801                     wait 1
+0x3a1c  520e00000000             pop_exec r0l, 1
+0x3a22  8800                     stop

@@ -1,0 +1,34 @@
+#version 450
+// Non-maximum suppression for object detection ("fast NMS"): boxes arrive sorted by score; box i is dropped when
+// any higher-scoring box overlaps it with IoU > 0.5. Each workgroup streams the earlier boxes through a 256-box
+// shared-memory tile. Integer box corners, so IoU > 0.5 is the exact test 2 * intersection > union.
+layout(local_size_x = 256) in;
+layout(std430, binding = 0) readonly buffer B { ivec4 boxes[]; };   // x0, y0, x1, y1
+layout(std430, binding = 1) writeonly buffer K { uint keep[]; };
+layout(std430, binding = 2) buffer C { uint kept; };
+layout(push_constant) uniform P { uint n; } p;
+shared ivec4 tile[256];
+
+int area(ivec4 b) { return (b.z - b.x) * (b.w - b.y); }
+
+void main() {
+    uint i = gl_GlobalInvocationID.x, l = gl_LocalInvocationID.x;
+    ivec4 me = i < p.n ? boxes[i] : ivec4(0);
+    bool suppressed = false;
+    uint last = min(gl_WorkGroupID.x * 256u + 255u, p.n - 1u);      // boxes before the group's last one
+    for (uint base = 0u; base <= last; base += 256u) {
+        barrier();
+        if (base + l < p.n) tile[l] = boxes[base + l];
+        barrier();
+        for (uint k = 0u; k < 256u && base + k < i; k++) {
+            ivec4 o = tile[k];
+            int iw = max(min(me.z, o.z) - max(me.x, o.x), 0), ih = max(min(me.w, o.w) - max(me.y, o.y), 0);
+            int inter = iw * ih;
+            if (2 * inter > area(me) + area(o) - inter) suppressed = true;
+        }
+    }
+    if (i < p.n) {
+        keep[i] = suppressed ? 0u : 1u;
+        if (!suppressed) atomicAdd(kept, 1u);
+    }
+}

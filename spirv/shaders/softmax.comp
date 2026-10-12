@@ -1,0 +1,32 @@
+#version 450
+// Row-wise softmax, one workgroup per row of `cols` floats (cols <= 1024): shared-memory max and sum reductions,
+// exp, normalisation.
+layout(local_size_x = 256) in;
+layout(std430, binding = 0) readonly buffer I { float inp[]; };
+layout(std430, binding = 1) writeonly buffer O { float outp[]; };
+layout(push_constant) uniform P { uint cols; } p;
+shared float red[256];
+
+void main() {
+    uint t = gl_LocalInvocationID.x, row = gl_WorkGroupID.x * p.cols;
+    float m = -3.4e38;
+    for (uint c = t; c < p.cols; c += 256u) m = max(m, inp[row + c]);
+    red[t] = m;
+    barrier();
+    for (uint s = 128u; s > 0u; s >>= 1) {
+        if (t < s) red[t] = max(red[t], red[t + s]);
+        barrier();
+    }
+    float mx = red[0];
+    barrier();
+    float sum = 0.0;
+    for (uint c = t; c < p.cols; c += 256u) sum += exp(inp[row + c] - mx);
+    red[t] = sum;
+    barrier();
+    for (uint s = 128u; s > 0u; s >>= 1) {
+        if (t < s) red[t] += red[t + s];
+        barrier();
+    }
+    float inv = 1.0 / red[0];
+    for (uint c = t; c < p.cols; c += 256u) outp[row + c] = exp(inp[row + c] - mx) * inv;
+}

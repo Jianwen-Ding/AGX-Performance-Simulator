@@ -1,0 +1,43 @@
+0x0080  72051004                 get_sr r1, sr80 (thread_position_in_grid.x)
+0x0084  0e05428658000000         iadd r1, r1.sx, u4.sx
+0x008c  62000000                 mov_imm r0l, 0
+0x0090  522842a21800             if_icmp r0l, ult, r1, u5, 1
+0x0096  20c004010000             jmp_exec_none pc+260
+0x009c  620900000000             mov_imm r2, 0, 0b0
+0x00a2  620d00000000             mov_imm r3, 0, 0b0
+0x00a8  621101000000             mov_imm r4, 1, 0b0
+0x00ae  420800000000             push_exec r0l, 1
+0x00b4  522c44421900             while_icmp r0l, ult, r2, u10, 1
+0x00ba  1e15424659440600         imadd r5, r1.sx, u10.sx, r2.sx
+0x00c2  0529ac0e00c01200         device_load 0, i32, x, r5, u6_u7, r5, unsigned
+0x00ca  3800                     wait 0
+0x00cc  7e194af28303             and r6, r5, 255
+0x00d2  0e1148c664000000         iadd r4, r4.sx, r6.sx
+0x00da  0e0d468664000000         iadd r3, r3.sx, r4.sx
+0x00e2  2e9900a024080800         bfeil r6, 0, r5, 8, mask 0xFF
+0x00ea  0e1148c664000000         iadd r4, r4.sx, r6.sx
+0x00f2  0e0d468664000000         iadd r3, r3.sx, r4.sx
+0x00fa  7e024b088000             mov r0h, r5h
+0x0100  7e1941f08303             and r6, r0h, 255
+0x0106  0e1148c664000000         iadd r4, r4.sx, r6.sx
+0x010e  0e0d468664000000         iadd r3, r3.sx, r4.sx
+0x0116  2e9500a024180000         bfeil r5, 0, r5, 24
+0x011e  0e1148a664000000         iadd r4, r4.sx, r5.sx
+0x0126  0e0d468664000000         iadd r3, r3.sx, r4.sx
+0x012e  0e09441600000000         iadd r2, r2.sx, 1
+0x0136  00c07effffff             jmp_exec_any pc-130
+0x013c  520e00000000             pop_exec r0l, 1
+0x0142  1e1b466219000000         imadd r6_r7, r3, u11, 0
+0x014a  2e8900e0240f0000         bfeil r2, 0, r7, 15
+0x0152  1e09448659000000         imadd r2, r2.sx, u12.sx, 0
+0x015a  0e09464e64000000         isub r2, r3.sx, r2.sx
+0x0162  1e1b486219000000         imadd r6_r7, r4, u11, 0
+0x016a  2e8d00e0240f0000         bfeil r3, 0, r7, 15
+0x0172  1e0d468659000000         imadd r3, r3.sx, u12.sx, 0
+0x017a  0e0d486e64000000         isub r3, r4.sx, r3.sx
+0x0182  2e09004024100000         bfi r2, 0, r2, 16
+0x018a  7e09446ae400             or r2, r2, r3
+0x0190  4511200e10c01200         device_store 0, i32, x, r2, u8_u9, r1, unsigned, 0
+0x0198  3800                     wait 0
+0x019a  520e00000000             pop_exec r0l, 1
+0x01a0  8800                     stop

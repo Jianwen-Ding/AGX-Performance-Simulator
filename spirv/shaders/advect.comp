@@ -1,0 +1,29 @@
+#version 450
+// Semi-Lagrangian advection of a dye field by a swirling velocity field (the transport step of stable fluids):
+// every cell traces back along the velocity by dt and bilinearly samples the previous field, clamped at the
+// borders; fields ping-pong between the two halves of one buffer over many dispatches. fp32, checked against
+// float64; the final dye is an image.
+#extension GL_EXT_shader_8bit_storage : require
+#extension GL_EXT_shader_explicit_arithmetic_types_int8 : require
+layout(local_size_x = 16, local_size_y = 16) in;
+layout(std430, binding = 0) buffer F { float dye[]; };                 // 2 * n * n
+layout(std430, binding = 1) readonly buffer V { vec2 vel[]; };
+layout(std430, binding = 2) writeonly buffer I { uint8_t img[]; };
+layout(push_constant) uniform P { uint n; uint parity; float dt; } p;
+
+float at(uint base, int x, int y) {
+    int m = int(p.n) - 1;
+    return dye[base + uint(clamp(y, 0, m)) * p.n + uint(clamp(x, 0, m))];
+}
+
+void main() {
+    uvec2 g = gl_GlobalInvocationID.xy;
+    if (g.x >= p.n || g.y >= p.n) return;
+    uint src = p.parity * p.n * p.n, dst = (1u - p.parity) * p.n * p.n, i = g.y * p.n + g.x;
+    vec2 q = vec2(g) - p.dt * vel[i];
+    vec2 f = floor(q), w = q - f;
+    int x = int(f.x), y = int(f.y);
+    float v = mix(mix(at(src, x, y), at(src, x + 1, y), w.x), mix(at(src, x, y + 1), at(src, x + 1, y + 1), w.x), w.y);
+    dye[dst + i] = v;
+    img[i] = uint8_t(clamp(v, 0.0, 1.0) * 255.0 + 0.5);
+}

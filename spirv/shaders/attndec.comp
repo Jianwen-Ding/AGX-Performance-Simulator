@@ -1,0 +1,42 @@
+#version 450
+// Single-query attention decode (one LLM token against its KV cache), one workgroup per head: K and V cached as
+// fp16 in 16-bit storage buffers, head dimension 128. Scores s_p = q . k_p / sqrt(128) for every position into
+// shared memory; workgroup max and sum for a stable softmax; then invocation d computes
+// out_d = sum_p softmax_p v_p[d] (neighbouring invocations read neighbouring halves of each V row).
+#extension GL_EXT_shader_16bit_storage : require
+layout(local_size_x = 128) in;
+layout(std430, binding = 0) readonly buffer Q { float q[]; };          // heads x 128
+layout(std430, binding = 1) readonly buffer K { float16_t kc[]; };     // heads x seq x 128
+layout(std430, binding = 2) readonly buffer V { float16_t vc[]; };
+layout(std430, binding = 3) writeonly buffer O { float outp[]; };
+layout(push_constant) uniform P { uint seq; } p;
+shared float qs[128];
+shared float sc[4096];
+shared float red[128];
+
+void main() {
+    uint h = gl_WorkGroupID.x, l = gl_LocalInvocationID.x;
+    qs[l] = q[128u * h + l] * 0.08838834764831845;                    // 1 / sqrt(128)
+    barrier();
+    float mx = -3.0e38;
+    for (uint t = l; t < p.seq; t += 128u) {
+        uint kb = (h * p.seq + t) * 128u;
+        float s = 0.0;
+        for (uint d = 0u; d < 128u; d++) s += qs[d] * float(kc[kb + d]);
+        sc[t] = s; mx = max(mx, s);
+    }
+    red[l] = mx;
+    barrier();
+    for (uint w = 64u; w > 0u; w >>= 1) { if (l < w) red[l] = max(red[l], red[l + w]); barrier(); }
+    float m = red[0];
+    barrier();
+    float sum = 0.0;
+    for (uint t = l; t < p.seq; t += 128u) { float e = exp(sc[t] - m); sc[t] = e; sum += e; }
+    red[l] = sum;
+    barrier();
+    for (uint w = 64u; w > 0u; w >>= 1) { if (l < w) red[l] += red[l + w]; barrier(); }
+    float inv = 1.0 / red[0];
+    float acc = 0.0;
+    for (uint t = 0u; t < p.seq; t++) acc += sc[t] * float(vc[(h * p.seq + t) * 128u + l]);
+    outp[128u * h + l] = acc * inv;
+}

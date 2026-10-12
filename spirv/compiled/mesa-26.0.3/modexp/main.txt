@@ -1,0 +1,1866 @@
+0x0080  b500010522800000         stack_store i8, 1, 2, 0, 32, 0
+0x0088  f2111004                 get_sr r4.cache, sr80 (thread_position_in_grid.x)
+0x008c  0e11c88658000000         iadd r4, r4.discard.sx, u4.sx
+0x0094  62000000                 mov_imm r0l, 0
+0x0098  522848a21800             if_icmp r0l, ult, r4, u5, 1
+0x009e  20c03c3c0000             jmp_exec_none pc+15420
+0x00a4  0e150180e4000000         iadd r5, 1, r4.sx, lsl 1
+0x00ac  0529ac0e00c41200         device_load 0, i32, x, r5, u6_u7, r5, unsigned, lsl 1
+0x00b4  05318c4e00c81200         device_load 1, i32, x, r6, u6_u7, r4, unsigned, lsl 2
+0x00bc  3800                     wait 0
+0x00be  3801                     wait 1
+0x00c0  52084a020000             if_icmp r0l, ueq, r5, 0, 1
+0x00c6  20c0fc030000             jmp_exec_none pc+1020
+0x00cc  be1d8a0e0000             ffs r7.cache, r5.cache
+0x00d2  ae2100a0281f0000         bfi r8.cache, 0, r5.cache, 31
+0x00da  8e25000869000000         isub r9.cache, 0, r8.cache.sx
+0x00e2  922500e0280021a5         icmpsel slt, r9.cache, 0, r7.cache, 0, r9
+0x00ea  9221500200520010         icmpsel ueq, r8.cache, r8, 0, r9, 0
+0x00f2  ae2500a0281e0000         bfi r9.cache, 0, r5.cache, 30
+0x00fa  8e29902e69000000         isub r10.cache, r8.cache.sx, r9.cache.sx
+0x0102  922901e0289040a5         icmpsel slt, r10.cache, 1, r7.cache, r8.cache, r10
+0x010a  9221502225504025         icmpsel ult, r8.cache, r8, r9, r8, r10
+0x0112  ae2500a0281d0000         bfi r9.cache, 0, r5.cache, 29
+0x011a  8e29902e69000000         isub r10.cache, r8.cache.sx, r9.cache.sx
+0x0122  922902e0289040a5         icmpsel slt, r10.cache, 2, r7.cache, r8.cache, r10
+0x012a  9221502225504025         icmpsel ult, r8.cache, r8, r9, r8, r10
+0x0132  ae2500a0281c0000         bfi r9.cache, 0, r5.cache, 28
+0x013a  8e29902e69000000         isub r10.cache, r8.cache.sx, r9.cache.sx
+0x0142  922903e0289040a5         icmpsel slt, r10.cache, 3, r7.cache, r8.cache, r10
+0x014a  9221502225504025         icmpsel ult, r8.cache, r8, r9, r8, r10
+0x0152  ae2500a0281b0000         bfi r9.cache, 0, r5.cache, 27
+0x015a  8e29902e69000000         isub r10.cache, r8.cache.sx, r9.cache.sx
+0x0162  922904e0289040a5         icmpsel slt, r10.cache, 4, r7.cache, r8.cache, r10
+0x016a  9221502225504025         icmpsel ult, r8.cache, r8, r9, r8, r10
+0x0172  ae2500a0281a0000         bfi r9.cache, 0, r5.cache, 26
+0x017a  8e29902e69000000         isub r10.cache, r8.cache.sx, r9.cache.sx
+0x0182  922905e0289040a5         icmpsel slt, r10.cache, 5, r7.cache, r8.cache, r10
+0x018a  9221502225504025         icmpsel ult, r8.cache, r8, r9, r8, r10
+0x0192  ae2500a028190000         bfi r9.cache, 0, r5.cache, 25
+0x019a  8e29902e69000000         isub r10.cache, r8.cache.sx, r9.cache.sx
+0x01a2  922906e0289040a5         icmpsel slt, r10.cache, 6, r7.cache, r8.cache, r10
+0x01aa  9221502225504025         icmpsel ult, r8.cache, r8, r9, r8, r10
+0x01b2  ae2500a028180000         bfi r9.cache, 0, r5.cache, 24
+0x01ba  8e29902e69000000         isub r10.cache, r8.cache.sx, r9.cache.sx
+0x01c2  922907e0289040a5         icmpsel slt, r10.cache, 7, r7.cache, r8.cache, r10
+0x01ca  9221502225504025         icmpsel ult, r8.cache, r8, r9, r8, r10
+0x01d2  ae2500a028170000         bfi r9.cache, 0, r5.cache, 23
+0x01da  8e29902e69000000         isub r10.cache, r8.cache.sx, r9.cache.sx
+0x01e2  922908e0289040a5         icmpsel slt, r10.cache, 8, r7.cache, r8.cache, r10
+0x01ea  9221502225504025         icmpsel ult, r8.cache, r8, r9, r8, r10
+0x01f2  ae2500a028160000         bfi r9.cache, 0, r5.cache, 22
+0x01fa  8e29902e69000000         isub r10.cache, r8.cache.sx, r9.cache.sx
+0x0202  922909e0289040a5         icmpsel slt, r10.cache, 9, r7.cache, r8.cache, r10
+0x020a  9221502225504025         icmpsel ult, r8.cache, r8, r9, r8, r10
+0x0212  ae2500a028150000         bfi r9.cache, 0, r5.cache, 21
+0x021a  8e29902e69000000         isub r10.cache, r8.cache.sx, r9.cache.sx
+0x0222  92290ae0289040a5         icmpsel slt, r10.cache, 10, r7.cache, r8.cache, r10
+0x022a  9221502225504025         icmpsel ult, r8.cache, r8, r9, r8, r10
+0x0232  ae2500a028140000         bfi r9.cache, 0, r5.cache, 20
+0x023a  8e29902e69000000         isub r10.cache, r8.cache.sx, r9.cache.sx
+0x0242  92290be0289040a5         icmpsel slt, r10.cache, 11, r7.cache, r8.cache, r10
+0x024a  9221502225504025         icmpsel ult, r8.cache, r8, r9, r8, r10
+0x0252  ae2500a028130000         bfi r9.cache, 0, r5.cache, 19
+0x025a  8e29902e69000000         isub r10.cache, r8.cache.sx, r9.cache.sx
+0x0262  92290ce0289040a5         icmpsel slt, r10.cache, 12, r7.cache, r8.cache, r10
+0x026a  9221502225504025         icmpsel ult, r8.cache, r8, r9, r8, r10
+0x0272  ae2500a028120000         bfi r9.cache, 0, r5.cache, 18
+0x027a  8e29902e69000000         isub r10.cache, r8.cache.sx, r9.cache.sx
+0x0282  92290de0289040a5         icmpsel slt, r10.cache, 13, r7.cache, r8.cache, r10
+0x028a  9221502225504025         icmpsel ult, r8.cache, r8, r9, r8, r10
+0x0292  ae2500a028110000         bfi r9.cache, 0, r5.cache, 17
+0x029a  8e29902e69000000         isub r10.cache, r8.cache.sx, r9.cache.sx
+0x02a2  92290ee0289040a5         icmpsel slt, r10.cache, 14, r7.cache, r8.cache, r10
+0x02aa  9221502225504025         icmpsel ult, r8.cache, r8, r9, r8, r10
+0x02b2  ae2500a028100000         bfi r9.cache, 0, r5.cache, 16
+0x02ba  8e29902e69000000         isub r10.cache, r8.cache.sx, r9.cache.sx
+0x02c2  92290fe0289040a5         icmpsel slt, r10.cache, 15, r7.cache, r8.cache, r10
+0x02ca  9221502225504025         icmpsel ult, r8.cache, r8, r9, r8, r10
+0x02d2  ae2500a0280f0000         bfi r9.cache, 0, r5.cache, 15
+0x02da  8e29902e69000000         isub r10.cache, r8.cache.sx, r9.cache.sx
+0x02e2  922910e0289040a5         icmpsel slt, r10.cache, 16, r7.cache, r8.cache, r10
+0x02ea  9221502225504025         icmpsel ult, r8.cache, r8, r9, r8, r10
+0x02f2  ae2500a0280e0000         bfi r9.cache, 0, r5.cache, 14
+0x02fa  8e29902e69000000         isub r10.cache, r8.cache.sx, r9.cache.sx
+0x0302  922911e0289040a5         icmpsel slt, r10.cache, 17, r7.cache, r8.cache, r10
+0x030a  9221502225504025         icmpsel ult, r8.cache, r8, r9, r8, r10
+0x0312  ae2500a0280d0000         bfi r9.cache, 0, r5.cache, 13
+0x031a  8e29902e69000000         isub r10.cache, r8.cache.sx, r9.cache.sx
+0x0322  922912e0289040a5         icmpsel slt, r10.cache, 18, r7.cache, r8.cache, r10
+0x032a  9221502225504025         icmpsel ult, r8.cache, r8, r9, r8, r10
+0x0332  ae2500a0280c0000         bfi r9.cache, 0, r5.cache, 12
+0x033a  8e29902e69000000         isub r10.cache, r8.cache.sx, r9.cache.sx
+0x0342  922913e0289040a5         icmpsel slt, r10.cache, 19, r7.cache, r8.cache, r10
+0x034a  9221502225504025         icmpsel ult, r8.cache, r8, r9, r8, r10
+0x0352  ae2500a0280b0000         bfi r9.cache, 0, r5.cache, 11
+0x035a  8e29902e69000000         isub r10.cache, r8.cache.sx, r9.cache.sx
+0x0362  922914e0289040a5         icmpsel slt, r10.cache, 20, r7.cache, r8.cache, r10
+0x036a  9221502225504025         icmpsel ult, r8.cache, r8, r9, r8, r10
+0x0372  ae2500a0280a0000         bfi r9.cache, 0, r5.cache, 10
+0x037a  8e29902e69000000         isub r10.cache, r8.cache.sx, r9.cache.sx
+0x0382  922915e0289040a5         icmpsel slt, r10.cache, 21, r7.cache, r8.cache, r10
+0x038a  9221502225504025         icmpsel ult, r8.cache, r8, r9, r8, r10
+0x0392  ae2500a028090000         bfi r9.cache, 0, r5.cache, 9
+0x039a  8e29902e69000000         isub r10.cache, r8.cache.sx, r9.cache.sx
+0x03a2  922916e0289040a5         icmpsel slt, r10.cache, 22, r7.cache, r8.cache, r10
+0x03aa  9221502225504025         icmpsel ult, r8.cache, r8, r9, r8, r10
+0x03b2  ae2500a028080000         bfi r9.cache, 0, r5.cache, 8
+0x03ba  8e29902e69000000         isub r10.cache, r8.cache.sx, r9.cache.sx
+0x03c2  922917e0289040a5         icmpsel slt, r10.cache, 23, r7.cache, r8.cache, r10
+0x03ca  9221502225504025         icmpsel ult, r8.cache, r8, r9, r8, r10
+0x03d2  ae2500a028070000         bfi r9.cache, 0, r5.cache, 7
+0x03da  8e29902e69000000         isub r10.cache, r8.cache.sx, r9.cache.sx
+0x03e2  922918e0289040a5         icmpsel slt, r10.cache, 24, r7.cache, r8.cache, r10
+0x03ea  9221502225504025         icmpsel ult, r8.cache, r8, r9, r8, r10
+0x03f2  ae2500a028060000         bfi r9.cache, 0, r5.cache, 6
+0x03fa  8e29902e69000000         isub r10.cache, r8.cache.sx, r9.cache.sx
+0x0402  922919e0289040a5         icmpsel slt, r10.cache, 25, r7.cache, r8.cache, r10
+0x040a  9221502225504025         icmpsel ult, r8.cache, r8, r9, r8, r10
+0x0412  ae2500a028050000         bfi r9.cache, 0, r5.cache, 5
+0x041a  8e29902e69000000         isub r10.cache, r8.cache.sx, r9.cache.sx
+0x0422  92291ae0289040a5         icmpsel slt, r10.cache, 26, r7.cache, r8.cache, r10
+0x042a  9221502225504025         icmpsel ult, r8.cache, r8, r9, r8, r10
+0x0432  8e2500a068002000         iadd r9.cache, 0, r5.cache.sx, lsl 4
+0x043a  8e29902e69000000         isub r10.cache, r8.cache.sx, r9.cache.sx
+0x0442  92291be0289040a5         icmpsel slt, r10.cache, 27, r7.cache, r8.cache, r10
+0x044a  9221502225504025         icmpsel ult, r8.cache, r8, r9, r8, r10
+0x0452  8e2500a0e8001000         iadd r9.cache, 0, r5.cache.sx, lsl 3
+0x045a  8e29902e69000000         isub r10.cache, r8.cache.sx, r9.cache.sx
+0x0462  92291ce0289040a5         icmpsel slt, r10.cache, 28, r7.cache, r8.cache, r10
+0x046a  9221502225504025         icmpsel ult, r8.cache, r8, r9, r8, r10
+0x0472  8e2500a068001000         iadd r9.cache, 0, r5.cache.sx, lsl 2
+0x047a  8e29902e69000000         isub r10.cache, r8.cache.sx, r9.cache.sx
+0x0482  92291de0289040a5         icmpsel slt, r10.cache, 29, r7.cache, r8.cache, r10
+0x048a  9221502225504025         icmpsel ult, r8.cache, r8, r9, r8, r10
+0x0492  8e2500a0e8000000         iadd r9.cache, 0, r5.cache.sx, lsl 1
+0x049a  8e29902e69000000         isub r10.cache, r8.cache.sx, r9.cache.sx
+0x04a2  921d1ee0249040a5         icmpsel slt, r7.cache, 30, r7, r8.cache, r10
+0x04aa  921d50222550e024         icmpsel ult, r7.cache, r8, r9, r8, r7
+0x04b2  8e218eae68000000         isub r8.cache, r7.cache.sx, r5.cache.sx
+0x04ba  121d4ea2244e0025         icmpsel ult, r7, r7, r5, r7, r8
+0x04c2  420a00000000             else_fcmp r0l, eq, 0.0, 0.0, 1
+0x04c8  621d00000000             mov_imm r7, 0, 0b0
+0x04ce  520e00000000             pop_exec r0l, 1
+0x04d4  fe218c0a8000             mov r8.cache, r6.cache
+0x04da  fe258e0a8000             mov r9.cache, r7.cache
+0x04e0  aea900a028010000         bfeil r10.cache, 0, r5.cache, 1
+0x04e8  8e2d004869000000         isub r11.cache, 0, r10.cache.sx
+0x04f0  ae3100a0281f0000         bfi r12.cache, 0, r5.cache, 31
+0x04f8  9235008029010130         icmpsel ult, r13.cache, 0, r12.cache, 1, 0
+0x0500  8e3d56ae65000000         isub r15.cache, r11.sx, r13.sx
+0x0508  8e39008869000000         isub r14.cache, 0, r12.cache.sx
+0x0510  8e2350c335000000         iadd r8_r9.cache, r8_r9, r14_r15
+0x0518  922c8c8225010130         icmpsel ult, r11l.cache, r6.cache, r12, 1, 0
+0x0520  922c8e4229560010         icmpsel ueq, r11l.cache, r7.cache, r10.cache, r11l, 0
+0x0528  922c8e4225016125         icmpsel ult, r11l.cache, r7.cache, r10, 1, r11l
+0x0530  924596000052e004         icmpsel ueq, r17.cache, r11l.cache, 0, r9, r7
+0x0538  924156000050c004         icmpsel ueq, r16.cache, r11l, 0, r8, r6
+0x0540  fe19a00a8000             mov r6.cache, r16.cache
+0x0546  fe1da20a8000             mov r7.cache, r17.cache
+0x054c  aea100a028020000         bfeil r8.cache, 0, r5.cache, 2
+0x0554  8e25000869000000         isub r9.cache, 0, r8.cache.sx
+0x055c  ae2d00a0281e0000         bfi r11.cache, 0, r5.cache, 30
+0x0564  9235006029010130         icmpsel ult, r13.cache, 0, r11.cache, 1, 0
+0x056c  8e4d52ae65000000         isub r19.cache, r9.sx, r13.sx
+0x0574  8e49006869000000         isub r18.cache, 0, r11.cache.sx
+0x057c  8e1b4c4336000000         iadd r6_r7.cache, r6_r7, r18_r19
+0x0584  9224a06225010130         icmpsel ult, r9l.cache, r16.cache, r11, 1, 0
+0x058c  9224a20229520010         icmpsel ueq, r9l.cache, r17.cache, r8.cache, r9l, 0
+0x0594  9224a20225012125         icmpsel ult, r9l.cache, r17.cache, r8, 1, r9l
+0x059c  92559200004e2006         icmpsel ueq, r21.cache, r9l.cache, 0, r7, r17
+0x05a4  92515200004c0006         icmpsel ueq, r20.cache, r9l, 0, r6, r16
+0x05ac  fe19a80a8000             mov r6.cache, r20.cache
+0x05b2  fe1daa0a8000             mov r7.cache, r21.cache
+0x05b8  aea500a028030000         bfeil r9.cache, 0, r5.cache, 3
+0x05c0  8e35002869000000         isub r13.cache, 0, r9.cache.sx
+0x05c8  ae4100a0281d0000         bfi r16.cache, 0, r5.cache, 29
+0x05d0  924500002a010130         icmpsel ult, r17.cache, 0, r16.cache, 1, 0
+0x05d8  8e5d5a2e66000000         isub r23.cache, r13.sx, r17.sx
+0x05e0  8e5900086a000000         isub r22.cache, 0, r16.cache.sx
+0x05e8  8e1b4cc336000000         iadd r6_r7.cache, r6_r7, r22_r23
+0x05f0  9234a80226010130         icmpsel ult, r13l.cache, r20.cache, r16, 1, 0
+0x05f8  9234aa22295a0010         icmpsel ueq, r13l.cache, r21.cache, r9.cache, r13l, 0
+0x0600  9234aa222501a125         icmpsel ult, r13l.cache, r21.cache, r9, 1, r13l
+0x0608  92659a00004ea006         icmpsel ueq, r25.cache, r13l.cache, 0, r7, r21
+0x0610  92615a00004c8006         icmpsel ueq, r24.cache, r13l, 0, r6, r20
+0x0618  fe19b00a8000             mov r6.cache, r24.cache
+0x061e  fe1db20a8000             mov r7.cache, r25.cache
+0x0624  aeb500a028040000         bfeil r13.cache, 0, r5.cache, 4
+0x062c  8e4500a869000000         isub r17.cache, 0, r13.cache.sx
+0x0634  ae5100a0281c0000         bfi r20.cache, 0, r5.cache, 28
+0x063c  925500802a010130         icmpsel ult, r21.cache, 0, r20.cache, 1, 0
+0x0644  8e6d62ae66000000         isub r27.cache, r17.sx, r21.sx
+0x064c  8e6900886a000000         isub r26.cache, 0, r20.cache.sx
+0x0654  8e1b4c4337000000         iadd r6_r7.cache, r6_r7, r26_r27
+0x065c  9244b08226010130         icmpsel ult, r17l.cache, r24.cache, r20, 1, 0
+0x0664  9244b2a229620010         icmpsel ueq, r17l.cache, r25.cache, r13.cache, r17l, 0
+0x066c  9244b2a225012126         icmpsel ult, r17l.cache, r25.cache, r13, 1, r17l
+0x0674  9275a200004e2007         icmpsel ueq, r29.cache, r17l.cache, 0, r7, r25
+0x067c  92716200004c0007         icmpsel ueq, r28.cache, r17l, 0, r6, r24
+0x0684  fe19b80a8000             mov r6.cache, r28.cache
+0x068a  fe1dba0a8000             mov r7.cache, r29.cache
+0x0690  aec500a028050000         bfeil r17.cache, 0, r5.cache, 5
+0x0698  8e5500286a000000         isub r21.cache, 0, r17.cache.sx
+0x06a0  ae6100a0281b0000         bfi r24.cache, 0, r5.cache, 27
+0x06a8  926500002b010130         icmpsel ult, r25.cache, 0, r24.cache, 1, 0
+0x06b0  8e7d6a2e67000000         isub r31.cache, r21.sx, r25.sx
+0x06b8  8e7900086b000000         isub r30.cache, 0, r24.cache.sx
+0x06c0  8e1b4cc337000000         iadd r6_r7.cache, r6_r7, r30_r31
+0x06c8  9254b80227010130         icmpsel ult, r21l.cache, r28.cache, r24, 1, 0
+0x06d0  9254ba222a6a0010         icmpsel ueq, r21l.cache, r29.cache, r17.cache, r21l, 0
+0x06d8  9254ba222601a126         icmpsel ult, r21l.cache, r29.cache, r17, 1, r21l
+0x06e0  9285aa00004ea0070010     icmpsel ueq, r33.cache, r21l.cache, 0, r7, r29
+0x06ea  92816a00004c80070010     icmpsel ueq, r32.cache, r21l, 0, r6, r28
+0x06f4  fe19800a8004             mov r6.cache, r32.cache
+0x06fa  fe1d820a8004             mov r7.cache, r33.cache
+0x0700  aed500a028060000         bfeil r21.cache, 0, r5.cache, 6
+0x0708  8e6500a86a000000         isub r25.cache, 0, r21.cache.sx
+0x0710  ae7100a0281a0000         bfi r28.cache, 0, r5.cache, 26
+0x0718  927500802b010130         icmpsel ult, r29.cache, 0, r28.cache, 1, 0
+0x0720  8e0d72ae67100000         isub r35.cache, r25.sx, r29.sx
+0x0728  8e0900886b100000         isub r34.cache, 0, r28.cache.sx
+0x0730  8e1b4c4334010000         iadd r6_r7.cache, r6_r7, r34_r35
+0x0738  92e48082270101300004     icmpsel ult, r25l.cache, r32.cache, r28, 1, 0
+0x0742  92e482a22a7200100004     icmpsel ueq, r25l.cache, r33.cache, r21.cache, r25l, 0
+0x074c  92e482a2260121270004     icmpsel ult, r25l.cache, r33.cache, r21, 1, r25l
+0x0756  9295b200004e20041010     icmpsel ueq, r37.cache, r25l.cache, 0, r7, r33
+0x0760  92917200004c00041010     icmpsel ueq, r36.cache, r25l, 0, r6, r32
+0x076a  fe19880a8004             mov r6.cache, r36.cache
+0x0770  fe1d8a0a8004             mov r7.cache, r37.cache
+0x0776  aee500a028070000         bfeil r25.cache, 0, r5.cache, 7
+0x077e  8e7500286b000000         isub r29.cache, 0, r25.cache.sx
+0x0786  ae0100a028190010         bfi r32.cache, 0, r5.cache, 25
+0x078e  92850000280101300011     icmpsel ult, r33.cache, 0, r32.cache, 1, 0
+0x0798  8e1d7a2e64110000         isub r39.cache, r29.sx, r33.sx
+0x07a0  8e19000868110000         isub r38.cache, 0, r32.cache.sx
+0x07a8  8e1b4cc334010000         iadd r6_r7.cache, r6_r7, r38_r39
+0x07b0  92f48802240101300005     icmpsel ult, r29l.cache, r36.cache, r32, 1, 0
+0x07ba  92f48a222b7a00100004     icmpsel ueq, r29l.cache, r37.cache, r25.cache, r29l, 0
+0x07c4  92f48a222701a1270004     icmpsel ult, r29l.cache, r37.cache, r25, 1, r29l
+0x07ce  92a5ba00004ea0041010     icmpsel ueq, r41.cache, r29l.cache, 0, r7, r37
+0x07d8  92a17a00004c80041010     icmpsel ueq, r40.cache, r29l, 0, r6, r36
+0x07e2  fe19900a8004             mov r6.cache, r40.cache
+0x07e8  fe1d920a8004             mov r7.cache, r41.cache
+0x07ee  aef500a028080000         bfeil r29.cache, 0, r5.cache, 8
+0x07f6  8e0500a86b100000         isub r33.cache, 0, r29.cache.sx
+0x07fe  ae1100a028180010         bfi r36.cache, 0, r5.cache, 24
+0x0806  92950080280101300011     icmpsel ult, r37.cache, 0, r36.cache, 1, 0
+0x0810  8e2d42ae64150000         isub r43.cache, r33.sx, r37.sx
+0x0818  8e29008868110000         isub r42.cache, 0, r36.cache.sx
+0x0820  8e1b4c4335010000         iadd r6_r7.cache, r6_r7, r42_r43
+0x0828  92849082240101300015     icmpsel ult, r33l.cache, r40.cache, r36, 1, 0
+0x0832  928492a22b4200104014     icmpsel ueq, r33l.cache, r41.cache, r29.cache, r33l, 0
+0x083c  928492a2270121241014     icmpsel ult, r33l.cache, r41.cache, r29, 1, r33l
+0x0846  92b58200004e20051014     icmpsel ueq, r45.cache, r33l.cache, 0, r7, r41
+0x0850  92b14200004c00051014     icmpsel ueq, r44.cache, r33l, 0, r6, r40
+0x085a  fe19980a8004             mov r6.cache, r44.cache
+0x0860  fe1d9a0a8004             mov r7.cache, r45.cache
+0x0866  ae8500a028090010         bfeil r33.cache, 0, r5.cache, 9
+0x086e  8e15002868110000         isub r37.cache, 0, r33.cache.sx
+0x0876  ae2100a028170010         bfi r40.cache, 0, r5.cache, 23
+0x087e  92a50000290101300011     icmpsel ult, r41.cache, 0, r40.cache, 1, 0
+0x0888  8e3d4a2e65150000         isub r47.cache, r37.sx, r41.sx
+0x0890  8e39000869110000         isub r46.cache, 0, r40.cache.sx
+0x0898  8e1b4cc335010000         iadd r6_r7.cache, r6_r7, r46_r47
+0x08a0  92949802250101300015     icmpsel ult, r37l.cache, r44.cache, r40, 1, 0
+0x08aa  92949a22284a00104015     icmpsel ueq, r37l.cache, r45.cache, r33.cache, r37l, 0
+0x08b4  92949a222401a1241015     icmpsel ult, r37l.cache, r45.cache, r33, 1, r37l
+0x08be  92c58a00004ea0051014     icmpsel ueq, r49.cache, r37l.cache, 0, r7, r45
+0x08c8  92c14a00004c80051014     icmpsel ueq, r48.cache, r37l, 0, r6, r44
+0x08d2  fe19a00a8004             mov r6.cache, r48.cache
+0x08d8  fe1da20a8004             mov r7.cache, r49.cache
+0x08de  ae9500a0280a0010         bfeil r37.cache, 0, r5.cache, 10
+0x08e6  8e2500a868110000         isub r41.cache, 0, r37.cache.sx
+0x08ee  ae3100a028160010         bfi r44.cache, 0, r5.cache, 22
+0x08f6  92b50080290101300011     icmpsel ult, r45.cache, 0, r44.cache, 1, 0
+0x0900  8e4d52ae65150000         isub r51.cache, r41.sx, r45.sx
+0x0908  8e49008869110000         isub r50.cache, 0, r44.cache.sx
+0x0910  8e1b4c4336010000         iadd r6_r7.cache, r6_r7, r50_r51
+0x0918  92a4a082250101300015     icmpsel ult, r41l.cache, r48.cache, r44, 1, 0
+0x0922  92a4a2a2285200104015     icmpsel ueq, r41l.cache, r49.cache, r37.cache, r41l, 0
+0x092c  92a4a2a2240121251015     icmpsel ult, r41l.cache, r49.cache, r37, 1, r41l
+0x0936  92d59200004e20061014     icmpsel ueq, r53.cache, r41l.cache, 0, r7, r49
+0x0940  92d15200004c00061014     icmpsel ueq, r52.cache, r41l, 0, r6, r48
+0x094a  fe19a80a8004             mov r6.cache, r52.cache
+0x0950  fe1daa0a8004             mov r7.cache, r53.cache
+0x0956  aea500a0280b0010         bfeil r41.cache, 0, r5.cache, 11
+0x095e  8e35002869110000         isub r45.cache, 0, r41.cache.sx
+0x0966  ae4100a028150010         bfi r48.cache, 0, r5.cache, 21
+0x096e  92c500002a0101300011     icmpsel ult, r49.cache, 0, r48.cache, 1, 0
+0x0978  8e5d5a2e66150000         isub r55.cache, r45.sx, r49.sx
+0x0980  8e5900086a110000         isub r54.cache, 0, r48.cache.sx
+0x0988  8e1b4cc336010000         iadd r6_r7.cache, r6_r7, r54_r55
+0x0990  92b4a802260101300015     icmpsel ult, r45l.cache, r52.cache, r48, 1, 0
+0x099a  92b4aa22295a00104015     icmpsel ueq, r45l.cache, r53.cache, r41.cache, r45l, 0
+0x09a4  92b4aa222501a1251015     icmpsel ult, r45l.cache, r53.cache, r41, 1, r45l
+0x09ae  92e59a00004ea0061014     icmpsel ueq, r57.cache, r45l.cache, 0, r7, r53
+0x09b8  92e15a00004c80061014     icmpsel ueq, r56.cache, r45l, 0, r6, r52
+0x09c2  fe19b00a8004             mov r6.cache, r56.cache
+0x09c8  fe1db20a8004             mov r7.cache, r57.cache
+0x09ce  aeb500a0280c0010         bfeil r45.cache, 0, r5.cache, 12
+0x09d6  8e4500a869110000         isub r49.cache, 0, r45.cache.sx
+0x09de  ae5100a028140010         bfi r52.cache, 0, r5.cache, 20
+0x09e6  92d500802a0101300011     icmpsel ult, r53.cache, 0, r52.cache, 1, 0
+0x09f0  8e6d62ae66150000         isub r59.cache, r49.sx, r53.sx
+0x09f8  8e6900886a110000         isub r58.cache, 0, r52.cache.sx
+0x0a00  8e1b4c4337010000         iadd r6_r7.cache, r6_r7, r58_r59
+0x0a08  92c4b082260101300015     icmpsel ult, r49l.cache, r56.cache, r52, 1, 0
+0x0a12  92c4b2a2296200104015     icmpsel ueq, r49l.cache, r57.cache, r45.cache, r49l, 0
+0x0a1c  92c4b2a2250121261015     icmpsel ult, r49l.cache, r57.cache, r45, 1, r49l
+0x0a26  92f5a200004e20071014     icmpsel ueq, r61.cache, r49l.cache, 0, r7, r57
+0x0a30  92f16200004c00071014     icmpsel ueq, r60.cache, r49l, 0, r6, r56
+0x0a3a  fe19b80a8004             mov r6.cache, r60.cache
+0x0a40  fe1dba0a8004             mov r7.cache, r61.cache
+0x0a46  aec500a0280d0010         bfeil r49.cache, 0, r5.cache, 13
+0x0a4e  8e5500286a110000         isub r53.cache, 0, r49.cache.sx
+0x0a56  ae6100a028130010         bfi r56.cache, 0, r5.cache, 19
+0x0a5e  92e500002b0101300011     icmpsel ult, r57.cache, 0, r56.cache, 1, 0
+0x0a68  8e7d6a2e67150000         isub r63.cache, r53.sx, r57.sx
+0x0a70  8e7900086b110000         isub r62.cache, 0, r56.cache.sx
+0x0a78  8e1b4cc337010000         iadd r6_r7.cache, r6_r7, r62_r63
+0x0a80  92d4b802270101300015     icmpsel ult, r53l.cache, r60.cache, r56, 1, 0
+0x0a8a  92d4ba222a6a00104015     icmpsel ueq, r53l.cache, r61.cache, r49.cache, r53l, 0
+0x0a94  92d4ba222601a1261015     icmpsel ult, r53l.cache, r61.cache, r49, 1, r53l
+0x0a9e  9285aa00004ea0071024     icmpsel ueq, r65.cache, r53l.cache, 0, r7, r61
+0x0aa8  92816a00004c80071024     icmpsel ueq, r64.cache, r53l, 0, r6, r60
+0x0ab2  fe19800a8008             mov r6.cache, r64.cache
+0x0ab8  fe1d820a8008             mov r7.cache, r65.cache
+0x0abe  aed500a0280e0010         bfeil r53.cache, 0, r5.cache, 14
+0x0ac6  8e6500a86a110000         isub r57.cache, 0, r53.cache.sx
+0x0ace  ae7100a028120010         bfi r60.cache, 0, r5.cache, 18
+0x0ad6  92f500802b0101300011     icmpsel ult, r61.cache, 0, r60.cache, 1, 0
+0x0ae0  8e0d72ae67250000         isub r67.cache, r57.sx, r61.sx
+0x0ae8  8e0900886b210000         isub r66.cache, 0, r60.cache.sx
+0x0af0  8e1b4c4334020000         iadd r6_r7.cache, r6_r7, r66_r67
+0x0af8  92e48082270101300019     icmpsel ult, r57l.cache, r64.cache, r60, 1, 0
+0x0b02  92e482a22a7200104019     icmpsel ueq, r57l.cache, r65.cache, r53.cache, r57l, 0
+0x0b0c  92e482a2260121271019     icmpsel ult, r57l.cache, r65.cache, r53, 1, r57l
+0x0b16  9295b200004e20042024     icmpsel ueq, r69.cache, r57l.cache, 0, r7, r65
+0x0b20  92917200004c00042024     icmpsel ueq, r68.cache, r57l, 0, r6, r64
+0x0b2a  fe19880a8008             mov r6.cache, r68.cache
+0x0b30  fe1d8a0a8008             mov r7.cache, r69.cache
+0x0b36  aee500a0280f0010         bfeil r57.cache, 0, r5.cache, 15
+0x0b3e  8e7500286b110000         isub r61.cache, 0, r57.cache.sx
+0x0b46  ae0100a028110020         bfi r64.cache, 0, r5.cache, 17
+0x0b4e  92850000280101300022     icmpsel ult, r65.cache, 0, r64.cache, 1, 0
+0x0b58  8e1d7a2e64260000         isub r71.cache, r61.sx, r65.sx
+0x0b60  8e19000868220000         isub r70.cache, 0, r64.cache.sx
+0x0b68  8e1b4cc334020000         iadd r6_r7.cache, r6_r7, r70_r71
+0x0b70  92f4880224010130001a     icmpsel ult, r61l.cache, r68.cache, r64, 1, 0
+0x0b7a  92f48a222b7a00104019     icmpsel ueq, r61l.cache, r69.cache, r57.cache, r61l, 0
+0x0b84  92f48a222701a1271019     icmpsel ult, r61l.cache, r69.cache, r57, 1, r61l
+0x0b8e  92a5ba00004ea0042024     icmpsel ueq, r73.cache, r61l.cache, 0, r7, r69
+0x0b98  92a17a00004c80042024     icmpsel ueq, r72.cache, r61l, 0, r6, r68
+0x0ba2  fe19900a8008             mov r6.cache, r72.cache
+0x0ba8  fe1d920a8008             mov r7.cache, r73.cache
+0x0bae  fe748b088010             mov r61l.cache, r5h.cache
+0x0bb4  8e0500a80b210000         isub r65.cache, 0, r61l.cache
+0x0bbc  ae1100a028100020         bfi r68.cache, 0, r5.cache, 16
+0x0bc4  92950080280101300022     icmpsel ult, r69.cache, 0, r68.cache, 1, 0
+0x0bce  8e2d42ae642a0000         isub r75.cache, r65.sx, r69.sx
+0x0bd6  8e29008868220000         isub r74.cache, 0, r68.cache.sx
+0x0bde  8e1b4c4335020000         iadd r6_r7.cache, r6_r7, r74_r75
+0x0be6  92f6908224010130001a     icmpsel ult, r61h.cache, r72.cache, r68, 1, 0
+0x0bf0  92f692a20b7b00104019     icmpsel ueq, r61h.cache, r73.cache, r61l.cache, r61h, 0
+0x0bfa  92f692a20701b1271019     icmpsel ult, r61h.cache, r73.cache, r61l, 1, r61h
+0x0c04  92b5bb00004e20052024     icmpsel ueq, r77.cache, r61h.cache, 0, r7, r73
+0x0c0e  92b17b00004c00052024     icmpsel ueq, r76.cache, r61h, 0, r6, r72
+0x0c18  fe19980a8008             mov r6.cache, r76.cache
+0x0c1e  fe1d9a0a8008             mov r7.cache, r77.cache
+0x0c24  ae8500a028110020         bfeil r65.cache, 0, r5.cache, 17
+0x0c2c  8e15002868220000         isub r69.cache, 0, r65.cache.sx
+0x0c34  ae2100a0280f0020         bfi r72.cache, 0, r5.cache, 15
+0x0c3c  92a50000290101300022     icmpsel ult, r73.cache, 0, r72.cache, 1, 0
+0x0c46  8e3d4a2e652a0000         isub r79.cache, r69.sx, r73.sx
+0x0c4e  8e39000869220000         isub r78.cache, 0, r72.cache.sx
+0x0c56  8e1b4cc335020000         iadd r6_r7.cache, r6_r7, r78_r79
+0x0c5e  92f6980225010130001a     icmpsel ult, r61h.cache, r76.cache, r72, 1, 0
+0x0c68  92f69a22287b0010401a     icmpsel ueq, r61h.cache, r77.cache, r65.cache, r61h, 0
+0x0c72  92f69a222401b127101a     icmpsel ult, r61h.cache, r77.cache, r65, 1, r61h
+0x0c7c  92c5bb00004ea0052024     icmpsel ueq, r81.cache, r61h.cache, 0, r7, r77
+0x0c86  92c17b00004c80052024     icmpsel ueq, r80.cache, r61h, 0, r6, r76
+0x0c90  fe19a00a8008             mov r6.cache, r80.cache
+0x0c96  fe1da20a8008             mov r7.cache, r81.cache
+0x0c9c  ae9500a028120020         bfeil r69.cache, 0, r5.cache, 18
+0x0ca4  8e2500a868220000         isub r73.cache, 0, r69.cache.sx
+0x0cac  ae3100a0280e0020         bfi r76.cache, 0, r5.cache, 14
+0x0cb4  92b50080290101300022     icmpsel ult, r77.cache, 0, r76.cache, 1, 0
+0x0cbe  8e4d52ae652a0000         isub r83.cache, r73.sx, r77.sx
+0x0cc6  8e49008869220000         isub r82.cache, 0, r76.cache.sx
+0x0cce  8e1b4c4336020000         iadd r6_r7.cache, r6_r7, r82_r83
+0x0cd6  92f6a08225010130001a     icmpsel ult, r61h.cache, r80.cache, r76, 1, 0
+0x0ce0  92f6a2a2287b0010401a     icmpsel ueq, r61h.cache, r81.cache, r69.cache, r61h, 0
+0x0cea  92f6a2a22401b127101a     icmpsel ult, r61h.cache, r81.cache, r69, 1, r61h
+0x0cf4  92d5bb00004e20062024     icmpsel ueq, r85.cache, r61h.cache, 0, r7, r81
+0x0cfe  92d17b00004c00062024     icmpsel ueq, r84.cache, r61h, 0, r6, r80
+0x0d08  fe19a80a8008             mov r6.cache, r84.cache
+0x0d0e  fe1daa0a8008             mov r7.cache, r85.cache
+0x0d14  aea500a028130020         bfeil r73.cache, 0, r5.cache, 19
+0x0d1c  8e35002869220000         isub r77.cache, 0, r73.cache.sx
+0x0d24  ae4100a0280d0020         bfi r80.cache, 0, r5.cache, 13
+0x0d2c  92c500002a0101300022     icmpsel ult, r81.cache, 0, r80.cache, 1, 0
+0x0d36  8e5d5a2e662a0000         isub r87.cache, r77.sx, r81.sx
+0x0d3e  8e5900086a220000         isub r86.cache, 0, r80.cache.sx
+0x0d46  8e1b4cc336020000         iadd r6_r7.cache, r6_r7, r86_r87
+0x0d4e  92f6a80226010130001a     icmpsel ult, r61h.cache, r84.cache, r80, 1, 0
+0x0d58  92f6aa22297b0010401a     icmpsel ueq, r61h.cache, r85.cache, r73.cache, r61h, 0
+0x0d62  92f6aa222501b127101a     icmpsel ult, r61h.cache, r85.cache, r73, 1, r61h
+0x0d6c  92e5bb00004ea0062024     icmpsel ueq, r89.cache, r61h.cache, 0, r7, r85
+0x0d76  92e17b00004c80062024     icmpsel ueq, r88.cache, r61h, 0, r6, r84
+0x0d80  fe19b00a8008             mov r6.cache, r88.cache
+0x0d86  fe1db20a8008             mov r7.cache, r89.cache
+0x0d8c  aeb500a028140020         bfeil r77.cache, 0, r5.cache, 20
+0x0d94  8e4500a869220000         isub r81.cache, 0, r77.cache.sx
+0x0d9c  ae5100a0280c0020         bfi r84.cache, 0, r5.cache, 12
+0x0da4  92d500802a0101300022     icmpsel ult, r85.cache, 0, r84.cache, 1, 0
+0x0dae  8e6d62ae662a0000         isub r91.cache, r81.sx, r85.sx
+0x0db6  8e6900886a220000         isub r90.cache, 0, r84.cache.sx
+0x0dbe  8e1b4c4337020000         iadd r6_r7.cache, r6_r7, r90_r91
+0x0dc6  92f6b08226010130001a     icmpsel ult, r61h.cache, r88.cache, r84, 1, 0
+0x0dd0  92f6b2a2297b0010401a     icmpsel ueq, r61h.cache, r89.cache, r77.cache, r61h, 0
+0x0dda  92f6b2a22501b127101a     icmpsel ult, r61h.cache, r89.cache, r77, 1, r61h
+0x0de4  92f5bb00004e20072024     icmpsel ueq, r93.cache, r61h.cache, 0, r7, r89
+0x0dee  92f17b00004c00072024     icmpsel ueq, r92.cache, r61h, 0, r6, r88
+0x0df8  fe19b80a8008             mov r6.cache, r92.cache
+0x0dfe  fe1dba0a8008             mov r7.cache, r93.cache
+0x0e04  aec500a028150020         bfeil r81.cache, 0, r5.cache, 21
+0x0e0c  8e5500286a220000         isub r85.cache, 0, r81.cache.sx
+0x0e14  ae6100a0280b0020         bfi r88.cache, 0, r5.cache, 11
+0x0e1c  92e500002b0101300022     icmpsel ult, r89.cache, 0, r88.cache, 1, 0
+0x0e26  8e7d6a2e672a0000         isub r95.cache, r85.sx, r89.sx
+0x0e2e  8e7900086b220000         isub r94.cache, 0, r88.cache.sx
+0x0e36  8e1b4cc337020000         iadd r6_r7.cache, r6_r7, r94_r95
+0x0e3e  92f6b80227010130001a     icmpsel ult, r61h.cache, r92.cache, r88, 1, 0
+0x0e48  92f6ba222a7b0010401a     icmpsel ueq, r61h.cache, r93.cache, r81.cache, r61h, 0
+0x0e52  92f6ba222601b127101a     icmpsel ult, r61h.cache, r93.cache, r81, 1, r61h
+0x0e5c  9285bb00004ea0072034     icmpsel ueq, r97.cache, r61h.cache, 0, r7, r93
+0x0e66  92817b00004c80072034     icmpsel ueq, r96.cache, r61h, 0, r6, r92
+0x0e70  fe19800a800c             mov r6.cache, r96.cache
+0x0e76  fe1d820a800c             mov r7.cache, r97.cache
+0x0e7c  aed500a028160020         bfeil r85.cache, 0, r5.cache, 22
+0x0e84  8e6500a86a220000         isub r89.cache, 0, r85.cache.sx
+0x0e8c  ae7100a0280a0020         bfi r92.cache, 0, r5.cache, 10
+0x0e94  92f500802b0101300022     icmpsel ult, r93.cache, 0, r92.cache, 1, 0
+0x0e9e  8e0d72ae673a0000         isub r99.cache, r89.sx, r93.sx
+0x0ea6  8e0900886b320000         isub r98.cache, 0, r92.cache.sx
+0x0eae  8e1b4c4334030000         iadd r6_r7.cache, r6_r7, r98_r99
+0x0eb6  92f6808227010130001e     icmpsel ult, r61h.cache, r96.cache, r92, 1, 0
+0x0ec0  92f682a22a7b0010401e     icmpsel ueq, r61h.cache, r97.cache, r85.cache, r61h, 0
+0x0eca  92f682a22601b127101e     icmpsel ult, r61h.cache, r97.cache, r85, 1, r61h
+0x0ed4  9295bb00004e20043034     icmpsel ueq, r101.cache, r61h.cache, 0, r7, r97
+0x0ede  92917b00004c00043034     icmpsel ueq, r100.cache, r61h, 0, r6, r96
+0x0ee8  fe19880a800c             mov r6.cache, r100.cache
+0x0eee  fe1d8a0a800c             mov r7.cache, r101.cache
+0x0ef4  aee500a028170020         bfeil r89.cache, 0, r5.cache, 23
+0x0efc  8e7500286b220000         isub r93.cache, 0, r89.cache.sx
+0x0f04  ae0100a028090030         bfi r96.cache, 0, r5.cache, 9
+0x0f0c  92850000280101300033     icmpsel ult, r97.cache, 0, r96.cache, 1, 0
+0x0f16  8e1d7a2e643b0000         isub r103.cache, r93.sx, r97.sx
+0x0f1e  8e19000868330000         isub r102.cache, 0, r96.cache.sx
+0x0f26  8e1b4cc334030000         iadd r6_r7.cache, r6_r7, r102_r103
+0x0f2e  92f6880224010130001f     icmpsel ult, r61h.cache, r100.cache, r96, 1, 0
+0x0f38  92f68a222b7b0010401e     icmpsel ueq, r61h.cache, r101.cache, r89.cache, r61h, 0
+0x0f42  92f68a222701b127101e     icmpsel ult, r61h.cache, r101.cache, r89, 1, r61h
+0x0f4c  92a5bb00004ea0043034     icmpsel ueq, r105.cache, r61h.cache, 0, r7, r101
+0x0f56  92a17b00004c80043034     icmpsel ueq, r104.cache, r61h, 0, r6, r100
+0x0f60  fe19900a800c             mov r6.cache, r104.cache
+0x0f66  fe1d920a800c             mov r7.cache, r105.cache
+0x0f6c  aef500a028180020         bfeil r93.cache, 0, r5.cache, 24
+0x0f74  8e0500a86b320000         isub r97.cache, 0, r93.cache.sx
+0x0f7c  ae1100a028080030         bfi r100.cache, 0, r5.cache, 8
+0x0f84  92950080280101300033     icmpsel ult, r101.cache, 0, r100.cache, 1, 0
+0x0f8e  8e2d42ae643f0000         isub r107.cache, r97.sx, r101.sx
+0x0f96  8e29008868330000         isub r106.cache, 0, r100.cache.sx
+0x0f9e  8e1b4c4335030000         iadd r6_r7.cache, r6_r7, r106_r107
+0x0fa6  92f6908224010130001f     icmpsel ult, r61h.cache, r104.cache, r100, 1, 0
+0x0fb0  92f692a22b7b0010401e     icmpsel ueq, r61h.cache, r105.cache, r93.cache, r61h, 0
+0x0fba  92f692a22701b127101e     icmpsel ult, r61h.cache, r105.cache, r93, 1, r61h
+0x0fc4  92b5bb00004e20053034     icmpsel ueq, r109.cache, r61h.cache, 0, r7, r105
+0x0fce  92b17b00004c00053034     icmpsel ueq, r108.cache, r61h, 0, r6, r104
+0x0fd8  fe19980a800c             mov r6.cache, r108.cache
+0x0fde  fe1d9a0a800c             mov r7.cache, r109.cache
+0x0fe4  ae8500a028190030         bfeil r97.cache, 0, r5.cache, 25
+0x0fec  8e15002868330000         isub r101.cache, 0, r97.cache.sx
+0x0ff4  ae2100a028070030         bfi r104.cache, 0, r5.cache, 7
+0x0ffc  92a50000290101300033     icmpsel ult, r105.cache, 0, r104.cache, 1, 0
+0x1006  8e3d4a2e653f0000         isub r111.cache, r101.sx, r105.sx
+0x100e  8e39000869330000         isub r110.cache, 0, r104.cache.sx
+0x1016  8e1b4cc335030000         iadd r6_r7.cache, r6_r7, r110_r111
+0x101e  92f6980225010130001f     icmpsel ult, r61h.cache, r108.cache, r104, 1, 0
+0x1028  92f69a22287b0010401f     icmpsel ueq, r61h.cache, r109.cache, r97.cache, r61h, 0
+0x1032  92f69a222401b127101f     icmpsel ult, r61h.cache, r109.cache, r97, 1, r61h
+0x103c  92c5bb00004ea0053034     icmpsel ueq, r113.cache, r61h.cache, 0, r7, r109
+0x1046  92c17b00004c80053034     icmpsel ueq, r112.cache, r61h, 0, r6, r108
+0x1050  fe19a00a800c             mov r6.cache, r112.cache
+0x1056  fe1da20a800c             mov r7.cache, r113.cache
+0x105c  ae9500a0281a0030         bfeil r101.cache, 0, r5.cache, 26
+0x1064  8e2500a868330000         isub r105.cache, 0, r101.cache.sx
+0x106c  ae3100a028060030         bfi r108.cache, 0, r5.cache, 6
+0x1074  92b50080290101300033     icmpsel ult, r109.cache, 0, r108.cache, 1, 0
+0x107e  8e4d52ae653f0000         isub r115.cache, r105.sx, r109.sx
+0x1086  8e49008869330000         isub r114.cache, 0, r108.cache.sx
+0x108e  8e1b4c4336030000         iadd r6_r7.cache, r6_r7, r114_r115
+0x1096  92f6a08225010130001f     icmpsel ult, r61h.cache, r112.cache, r108, 1, 0
+0x10a0  92f6a2a2287b0010401f     icmpsel ueq, r61h.cache, r113.cache, r101.cache, r61h, 0
+0x10aa  92f6a2a22401b127101f     icmpsel ult, r61h.cache, r113.cache, r101, 1, r61h
+0x10b4  92d5bb00004e20063034     icmpsel ueq, r117.cache, r61h.cache, 0, r7, r113
+0x10be  92d17b00004c00063034     icmpsel ueq, r116.cache, r61h, 0, r6, r112
+0x10c8  fe19a80a800c             mov r6.cache, r116.cache
+0x10ce  fe1daa0a800c             mov r7.cache, r117.cache
+0x10d4  aea500a0281b0030         bfeil r105.cache, 0, r5.cache, 27
+0x10dc  8e35002869330000         isub r109.cache, 0, r105.cache.sx
+0x10e4  ae4100a028050030         bfi r112.cache, 0, r5.cache, 5
+0x10ec  92c500002a0101300033     icmpsel ult, r113.cache, 0, r112.cache, 1, 0
+0x10f6  8e5d5a2e663f0000         isub r119.cache, r109.sx, r113.sx
+0x10fe  8e5900086a330000         isub r118.cache, 0, r112.cache.sx
+0x1106  8e1b4cc336030000         iadd r6_r7.cache, r6_r7, r118_r119
+0x110e  92f6a80226010130001f     icmpsel ult, r61h.cache, r116.cache, r112, 1, 0
+0x1118  92f6aa22297b0010401f     icmpsel ueq, r61h.cache, r117.cache, r105.cache, r61h, 0
+0x1122  92f6aa222501b127101f     icmpsel ult, r61h.cache, r117.cache, r105, 1, r61h
+0x112c  92e5bb00004ea0063034     icmpsel ueq, r121.cache, r61h.cache, 0, r7, r117
+0x1136  92e17b00004c80063034     icmpsel ueq, r120.cache, r61h, 0, r6, r116
+0x1140  fe19b00a800c             mov r6.cache, r120.cache
+0x1146  fe1db20a800c             mov r7.cache, r121.cache
+0x114c  aeb500a0281c0030         bfeil r109.cache, 0, r5.cache, 28
+0x1154  8e4500a869330000         isub r113.cache, 0, r109.cache.sx
+0x115c  8e5100a068302000         iadd r116.cache, 0, r5.cache.sx, lsl 4
+0x1164  92d500802a0101300033     icmpsel ult, r117.cache, 0, r116.cache, 1, 0
+0x116e  8e6d62ae663f0000         isub r123.cache, r113.sx, r117.sx
+0x1176  8e6900886a330000         isub r122.cache, 0, r116.cache.sx
+0x117e  8e1b4c4337030000         iadd r6_r7.cache, r6_r7, r122_r123
+0x1186  92f6b08226010130001f     icmpsel ult, r61h.cache, r120.cache, r116, 1, 0
+0x1190  92f6b2a2297b0010401f     icmpsel ueq, r61h.cache, r121.cache, r109.cache, r61h, 0
+0x119a  92f6b2a22501b127101f     icmpsel ult, r61h.cache, r121.cache, r109, 1, r61h
+0x11a4  92f5bb00004e20073034     icmpsel ueq, r125.cache, r61h.cache, 0, r7, r121
+0x11ae  92f17b00004c00073034     icmpsel ueq, r124.cache, r61h, 0, r6, r120
+0x11b8  fe19b80a800c             mov r6.cache, r124.cache
+0x11be  fe1dba0a800c             mov r7.cache, r125.cache
+0x11c4  aec500a0281d0030         bfeil r113.cache, 0, r5.cache, 29
+0x11cc  8e5500286a330000         isub r117.cache, 0, r113.cache.sx
+0x11d4  8e6100a0e8301000         iadd r120.cache, 0, r5.cache.sx, lsl 3
+0x11dc  92e500002b0101300033     icmpsel ult, r121.cache, 0, r120.cache, 1, 0
+0x11e6  8e7d6a2e673f0000         isub r127.cache, r117.sx, r121.sx
+0x11ee  8e7900086b330000         isub r126.cache, 0, r120.cache.sx
+0x11f6  8e1b4cc337030000         iadd r6_r7.cache, r6_r7, r126_r127
+0x11fe  92f6b80227010130001f     icmpsel ult, r61h.cache, r124.cache, r120, 1, 0
+0x1208  92f6ba222a7b0010401f     icmpsel ueq, r61h.cache, r125.cache, r113.cache, r61h, 0
+0x1212  92f6ba222601b127101f     icmpsel ult, r61h.cache, r125.cache, r113, 1, r61h
+0x121c  929dbb00004ea0073004     icmpsel ueq, r7.cache, r61h.cache, 0, r7, r125
+0x1226  92997b00004c80073004     icmpsel ueq, r6.cache, r61h, 0, r6, r124
+0x1230  fe718c0a8030             mov r124.cache, r6.cache
+0x1236  fe758e0a8030             mov r125.cache, r7.cache
+0x123c  aed500a0281e0030         bfeil r117.cache, 0, r5.cache, 30
+0x1244  8e6500a86a330000         isub r121.cache, 0, r117.cache.sx
+0x124c  b58a000500c31200         stack_store i32, 1, 0, x, 4, r113, 0, 0
+0x1254  8e4500a068301000         iadd r113.cache, 0, r5.cache.sx, lsl 2
+0x125c  b5f2804500c33200         stack_store i32, 1, 0, xy, 4, r126_r127, 8, 1
+0x1264  92f900202a0101300033     icmpsel ult, r126.cache, 0, r113.cache, 1, 0
+0x126e  8e7d72ce673f0000         isub r127.cache, r121.sx, r126.sx
+0x1276  8e7900286a330000         isub r126.cache, 0, r113.cache.sx
+0x127e  b56a400500c31200         stack_store i32, 1, 0, x, 4, r109, 4, 0
+0x1286  8e7378c3373f0000         iadd r124_r125.cache, r124_r125, r126_r127
+0x128e  92f68c22260101300013     icmpsel ult, r61h.cache, r6.cache, r113, 1, 0
+0x1298  92f68ea22a7b00104013     icmpsel ueq, r61h.cache, r7.cache, r117.cache, r61h, 0
+0x12a2  92f68ea22601b1271013     icmpsel ult, r61h.cache, r7.cache, r117, 1, r61h
+0x12ac  929dbb00007ae004c004     icmpsel ueq, r7.cache, r61h.cache, 0, r125, r7
+0x12b6  92997b000078c004c004     icmpsel ueq, r6.cache, r61h, 0, r124, r6
+0x12c0  fe718c0a8030             mov r124.cache, r6.cache
+0x12c6  fe758e0a8030             mov r125.cache, r7.cache
+0x12cc  aeb500a0281f0030         bfeil r109.cache, 0, r5.cache, 31
+0x12d4  8e6500a869330000         isub r121.cache, 0, r109.cache.sx
+0x12dc  b5aa000501c31200         stack_store i32, 1, 0, x, 4, r117, 16, 0
+0x12e4  8e5500a0e8300000         iadd r117.cache, 0, r5.cache.sx, lsl 1
+0x12ec  b5f2800501c33200         stack_store i32, 1, 0, xy, 4, r126_r127, 24, 0
+0x12f4  92f900a02a0101300033     icmpsel ult, r126.cache, 0, r117.cache, 1, 0
+0x12fe  8e7d72ce673f0000         isub r127.cache, r121.sx, r126.sx
+0x1306  8e7900a86a330000         isub r126.cache, 0, r117.cache.sx
+0x130e  b5d2000502c33200         stack_store i32, 1, 0, xy, 4, r122_r123, 32, 0
+0x1316  8e6b78c3373f0000         iadd r122_r123.cache, r124_r125, r126_r127
+0x131e  92f68ca2260101300013     icmpsel ult, r61h.cache, r6.cache, r117, 1, 0
+0x1328  92f68ea2297b00104013     icmpsel ueq, r61h.cache, r7.cache, r109.cache, r61h, 0
+0x1332  92f68ea22501b1271013     icmpsel ult, r61h.cache, r7.cache, r109, 1, r61h
+0x133c  92f5bb000076e004c034     icmpsel ueq, r125.cache, r61h.cache, 0, r123, r7
+0x1346  92f17b000074c004c034     icmpsel ueq, r124.cache, r61h, 0, r122, r6
+0x1350  fe19b80a800c             mov r6.cache, r124.cache
+0x1356  fe1dba0a800c             mov r7.cache, r125.cache
+0x135c  92e500a0280101300030     icmpsel ult, r121.cache, 0, r5.cache, 1, 0
+0x1366  8e6d002867330000         isub r123.cache, 0, r121.sx
+0x136e  8e6900a868300000         isub r122.cache, 0, r5.cache.sx
+0x1376  b56a400501c31200         stack_store i32, 1, 0, x, 4, r109, 20, 0
+0x137e  8e1b4c4337030000         iadd r6_r7.cache, r6_r7, r122_r123
+0x1386  92f6b8a224010130001c     icmpsel ult, r61h.cache, r124.cache, r5, 1, 0
+0x1390  92f6ba02007b0010401c     icmpsel ueq, r61h.cache, r125.cache, 0, r61h, 0
+0x139a  129dbb00004ea0073004     icmpsel ueq, r7, r61h.cache, 0, r7, r125
+0x13a4  12997b00004c80073004     icmpsel ueq, r6, r61h, 0, r6, r124
+0x13ae  0e35018064301000         iadd r109, 1, r4.sx, lsl 2
+0x13b6  0569ac0e0dc31200         device_load 0, i32, x, r109, u6_u7, r109, unsigned
+0x13be  3800                     wait 0
+0x13c0  3801                     wait 1
+0x13c2  52084a020000             if_icmp r0l, ueq, r5, 0, 1
+0x13c8  20c0d4030000             jmp_exec_none pc+980
+0x13ce  be658a0e0030             ffs r121.cache, r5.cache
+0x13d4  8e71008869300000         isub r124.cache, 0, r12.cache.sx
+0x13dc  92f100202b0081a73033     icmpsel slt, r124.cache, 0, r121.cache, 0, r124
+0x13e6  92f1980200780010c030     icmpsel ueq, r124.cache, r12.cache, 0, r124, 0
+0x13f0  8e75b86e693c0000         isub r125.cache, r124.cache.sx, r11.cache.sx
+0x13f8  b522800502c01200         stack_store i32, 1, 0, x, 4, r4, 40, 0
+0x1400  929101202bb8a0a7f003     icmpsel slt, r4.cache, 1, r121.cache, r124.cache, r125
+0x140a  9291786225788024c00c     icmpsel ult, r4.cache, r124, r11, r124, r4
+0x1414  8e71880e6a300000         isub r124.cache, r4.cache.sx, r16.cache.sx
+0x141c  92f102202b8880a73033     icmpsel slt, r124.cache, 2, r121.cache, r4.cache, r124
+0x1426  92914802264880273000     icmpsel ult, r4.cache, r4, r16, r4, r124
+0x1430  8e71888e6a300000         isub r124.cache, r4.cache.sx, r20.cache.sx
+0x1438  92f103202b8880a73033     icmpsel slt, r124.cache, 3, r121.cache, r4.cache, r124
+0x1442  92914882264880273000     icmpsel ult, r4.cache, r4, r20, r4, r124
+0x144c  8e71880e6b300000         isub r124.cache, r4.cache.sx, r24.cache.sx
+0x1454  92f104202b8880a73033     icmpsel slt, r124.cache, 4, r121.cache, r4.cache, r124
+0x145e  92914802274880273000     icmpsel ult, r4.cache, r4, r24, r4, r124
+0x1468  8e71888e6b300000         isub r124.cache, r4.cache.sx, r28.cache.sx
+0x1470  92f105202b8880a73033     icmpsel slt, r124.cache, 5, r121.cache, r4.cache, r124
+0x147a  92914882274880273000     icmpsel ult, r4.cache, r4, r28, r4, r124
+0x1484  8e71880e68310000         isub r124.cache, r4.cache.sx, r32.cache.sx
+0x148c  92f106202b8880a73033     icmpsel slt, r124.cache, 6, r121.cache, r4.cache, r124
+0x1496  92914802244880273001     icmpsel ult, r4.cache, r4, r32, r4, r124
+0x14a0  8e71888e68310000         isub r124.cache, r4.cache.sx, r36.cache.sx
+0x14a8  92f107202b8880a73033     icmpsel slt, r124.cache, 7, r121.cache, r4.cache, r124
+0x14b2  92914882244880273001     icmpsel ult, r4.cache, r4, r36, r4, r124
+0x14bc  8e71880e69310000         isub r124.cache, r4.cache.sx, r40.cache.sx
+0x14c4  92f108202b8880a73033     icmpsel slt, r124.cache, 8, r121.cache, r4.cache, r124
+0x14ce  92914802254880273001     icmpsel ult, r4.cache, r4, r40, r4, r124
+0x14d8  8e71888e69310000         isub r124.cache, r4.cache.sx, r44.cache.sx
+0x14e0  92f109202b8880a73033     icmpsel slt, r124.cache, 9, r121.cache, r4.cache, r124
+0x14ea  92914882254880273001     icmpsel ult, r4.cache, r4, r44, r4, r124
+0x14f4  8e71880e6a310000         isub r124.cache, r4.cache.sx, r48.cache.sx
+0x14fc  92f10a202b8880a73033     icmpsel slt, r124.cache, 10, r121.cache, r4.cache, r124
+0x1506  92914802264880273001     icmpsel ult, r4.cache, r4, r48, r4, r124
+0x1510  8e71888e6a310000         isub r124.cache, r4.cache.sx, r52.cache.sx
+0x1518  92f10b202b8880a73033     icmpsel slt, r124.cache, 11, r121.cache, r4.cache, r124
+0x1522  92914882264880273001     icmpsel ult, r4.cache, r4, r52, r4, r124
+0x152c  8e71880e6b310000         isub r124.cache, r4.cache.sx, r56.cache.sx
+0x1534  92f10c202b8880a73033     icmpsel slt, r124.cache, 12, r121.cache, r4.cache, r124
+0x153e  92914802274880273001     icmpsel ult, r4.cache, r4, r56, r4, r124
+0x1548  8e71888e6b310000         isub r124.cache, r4.cache.sx, r60.cache.sx
+0x1550  92f10d202b8880a73033     icmpsel slt, r124.cache, 13, r121.cache, r4.cache, r124
+0x155a  92914882274880273001     icmpsel ult, r4.cache, r4, r60, r4, r124
+0x1564  8e71880e68320000         isub r124.cache, r4.cache.sx, r64.cache.sx
+0x156c  92f10e202b8880a73033     icmpsel slt, r124.cache, 14, r121.cache, r4.cache, r124
+0x1576  92914802244880273002     icmpsel ult, r4.cache, r4, r64, r4, r124
+0x1580  8e71888e68320000         isub r124.cache, r4.cache.sx, r68.cache.sx
+0x1588  92f10f202b8880a73033     icmpsel slt, r124.cache, 15, r121.cache, r4.cache, r124
+0x1592  92914882244880273002     icmpsel ult, r4.cache, r4, r68, r4, r124
+0x159c  8e71880e69320000         isub r124.cache, r4.cache.sx, r72.cache.sx
+0x15a4  92f110202b8880a73033     icmpsel slt, r124.cache, 16, r121.cache, r4.cache, r124
+0x15ae  92914802254880273002     icmpsel ult, r4.cache, r4, r72, r4, r124
+0x15b8  8e71888e69320000         isub r124.cache, r4.cache.sx, r76.cache.sx
+0x15c0  92f111202b8880a73033     icmpsel slt, r124.cache, 17, r121.cache, r4.cache, r124
+0x15ca  92914882254880273002     icmpsel ult, r4.cache, r4, r76, r4, r124
+0x15d4  8e71880e6a320000         isub r124.cache, r4.cache.sx, r80.cache.sx
+0x15dc  92f112202b8880a73033     icmpsel slt, r124.cache, 18, r121.cache, r4.cache, r124
+0x15e6  92914802264880273002     icmpsel ult, r4.cache, r4, r80, r4, r124
+0x15f0  8e71888e6a320000         isub r124.cache, r4.cache.sx, r84.cache.sx
+0x15f8  92f113202b8880a73033     icmpsel slt, r124.cache, 19, r121.cache, r4.cache, r124
+0x1602  92914882264880273002     icmpsel ult, r4.cache, r4, r84, r4, r124
+0x160c  8e71880e6b320000         isub r124.cache, r4.cache.sx, r88.cache.sx
+0x1614  92f114202b8880a73033     icmpsel slt, r124.cache, 20, r121.cache, r4.cache, r124
+0x161e  92914802274880273002     icmpsel ult, r4.cache, r4, r88, r4, r124
+0x1628  8e71888e6b320000         isub r124.cache, r4.cache.sx, r92.cache.sx
+0x1630  92f115202b8880a73033     icmpsel slt, r124.cache, 21, r121.cache, r4.cache, r124
+0x163a  92914882274880273002     icmpsel ult, r4.cache, r4, r92, r4, r124
+0x1644  8e71880e68330000         isub r124.cache, r4.cache.sx, r96.cache.sx
+0x164c  92f116202b8880a73033     icmpsel slt, r124.cache, 22, r121.cache, r4.cache, r124
+0x1656  92914802244880273003     icmpsel ult, r4.cache, r4, r96, r4, r124
+0x1660  8e71888e68330000         isub r124.cache, r4.cache.sx, r100.cache.sx
+0x1668  92f117202b8880a73033     icmpsel slt, r124.cache, 23, r121.cache, r4.cache, r124
+0x1672  92914882244880273003     icmpsel ult, r4.cache, r4, r100, r4, r124
+0x167c  8e71880e69330000         isub r124.cache, r4.cache.sx, r104.cache.sx
+0x1684  92f118202b8880a73033     icmpsel slt, r124.cache, 24, r121.cache, r4.cache, r124
+0x168e  92914802254880273003     icmpsel ult, r4.cache, r4, r104, r4, r124
+0x1698  8e71888e69330000         isub r124.cache, r4.cache.sx, r108.cache.sx
+0x16a0  92f119202b8880a73033     icmpsel slt, r124.cache, 25, r121.cache, r4.cache, r124
+0x16aa  92914882254880273003     icmpsel ult, r4.cache, r4, r108, r4, r124
+0x16b4  8e71880e6a330000         isub r124.cache, r4.cache.sx, r112.cache.sx
+0x16bc  92f11a202b8880a73033     icmpsel slt, r124.cache, 26, r121.cache, r4.cache, r124
+0x16c6  92914802264880273003     icmpsel ult, r4.cache, r4, r112, r4, r124
+0x16d0  8e71888e6a330000         isub r124.cache, r4.cache.sx, r116.cache.sx
+0x16d8  92f11b202b8880a73033     icmpsel slt, r124.cache, 27, r121.cache, r4.cache, r124
+0x16e2  92914882264880273003     icmpsel ult, r4.cache, r4, r116, r4, r124
+0x16ec  8e71880e6b330000         isub r124.cache, r4.cache.sx, r120.cache.sx
+0x16f4  92f11c202b8880a73033     icmpsel slt, r124.cache, 28, r121.cache, r4.cache, r124
+0x16fe  92914802274880273003     icmpsel ult, r4.cache, r4, r120, r4, r124
+0x1708  8e71882e6a330000         isub r124.cache, r4.cache.sx, r113.cache.sx
+0x1710  92f11d202b8880a73033     icmpsel slt, r124.cache, 29, r121.cache, r4.cache, r124
+0x171a  92914822264880273003     icmpsel ult, r4.cache, r4, r113, r4, r124
+0x1724  8e7188ae6a330000         isub r124.cache, r4.cache.sx, r117.cache.sx
+0x172c  92e51e20278880a73033     icmpsel slt, r121.cache, 30, r121, r4.cache, r124
+0x1736  929148a2264820273003     icmpsel ult, r4.cache, r4, r117, r4, r121
+0x1740  8e6588ae68300000         isub r121.cache, r4.cache.sx, r5.cache.sx
+0x1748  929148a2244820273000     icmpsel ult, r4.cache, r4, r5, r4, r121
+0x1752  7e715c0a8030             mov r124, r14
+0x1758  7e755e0a8030             mov r125, r15
+0x175e  7e39580a8000             mov r14, r12
+0x1764  7e31540a8000             mov r12, r10
+0x176a  7e29500a8000             mov r10, r8
+0x1770  7e217c0a800c             mov r8, r126
+0x1776  fe2552ea6b03             xor r9.cache, r9, r127.cache
+0x177c  fe7d92ea6733             xor r127.cache, r9.cache, r127
+0x1782  7e2552ea6b03             xor r9, r9, r127.cache
+0x1788  fe1148ea6b03             xor r4.cache, r4, r127.cache
+0x178e  fe7d88ea6733             xor r127.cache, r4.cache, r127
+0x1794  7e1148ea6703             xor r4, r4, r127
+0x179a  3800                     wait 0
+0x179c  420a00000000             else_fcmp r0l, eq, 0.0, 0.0, 1
+0x17a2  b522800502c01200         stack_store i32, 1, 0, x, 4, r4, 40, 0
+0x17aa  7e11520a8000             mov r4, r9
+0x17b0  7e715c0a8030             mov r124, r14
+0x17b6  7e755e0a8030             mov r125, r15
+0x17bc  7e257e0a800c             mov r9, r127
+0x17c2  7e39580a8000             mov r14, r12
+0x17c8  62fd000000000030         mov_imm r127, 0, 0b0
+0x17d0  7e31540a8000             mov r12, r10
+0x17d6  7e29500a8000             mov r10, r8
+0x17dc  7e217c0a800c             mov r8, r126
+0x17e2  3800                     wait 0
+0x17e4  520e00000000             pop_exec r0l, 1
+0x17ea  fe655c0a8030             mov r121.cache, r14
+0x17f0  fe3994098000             mov r14.cache, u10
+0x17f6  fe3dbe0a800c             mov r15.cache, r127.cache
+0x17fc  b56ac00502c31200         stack_store i32, 1, 0, x, 4, r109, 44, 0
+0x1804  8e3b5c833b030000         iadd r14_r15.cache, r14_r15, r124_r125.cache
+0x180c  92f601202b0101300013     icmpsel ult, r61h.cache, 1, r121.cache, 1, 0
+0x1816  92f6be82297b0010401c     icmpsel ueq, r61h.cache, r127.cache, r12.cache, r61h, 0
+0x1820  92f6be822501b127101c     icmpsel ult, r61h.cache, r127.cache, r12, 1, r61h
+0x182a  92fdbb00005ee0073034     icmpsel ueq, r127.cache, r61h.cache, 0, r15, r127
+0x1834  92f97b00005c10100034     icmpsel ueq, r126.cache, r61h, 0, r14, 1
+0x183e  fe39bc0a800c             mov r14.cache, r126.cache
+0x1844  fe3dbe0a800c             mov r15.cache, r127.cache
+0x184a  b562004503c01200         stack_store i32, 1, 0, x, 4, r12, 48, 1
+0x1852  8e3b5c4336000000         iadd r14_r15.cache, r14_r15, r18_r19
+0x185a  92b0bc6225010130000c     icmpsel ult, r12l.cache, r126.cache, r11, 1, 0
+0x1864  92b0be4229580010000c     icmpsel ueq, r12l.cache, r127.cache, r10.cache, r12l, 0
+0x186e  92b0be4229018125000c     icmpsel ult, r12l.cache, r127.cache, r10.cache, 1, r12l
+0x1878  92bd9800005ee0073000     icmpsel ueq, r15.cache, r12l.cache, 0, r15, r127
+0x1882  92b95800005cc0073000     icmpsel ueq, r14.cache, r12l, 0, r14, r126
+0x188c  fe799c0a8030             mov r126.cache, r14.cache
+0x1892  fe7d9e0a8030             mov r127.cache, r15.cache
+0x1898  8e7b7cc3363c0000         iadd r126_r127.cache, r126_r127, r22_r23
+0x18a0  92309c0226010130         icmpsel ult, r12l.cache, r14.cache, r16, 1, 0
+0x18a8  92309e8228580010         icmpsel ueq, r12l.cache, r15.cache, r4.cache, r12l, 0
+0x18b0  92309e8228018125         icmpsel ult, r12l.cache, r15.cache, r4.cache, 1, r12l
+0x18b8  92bd9800007ee005c000     icmpsel ueq, r15.cache, r12l.cache, 0, r127, r15
+0x18c2  92b95800007cc005c000     icmpsel ueq, r14.cache, r12l, 0, r126, r14
+0x18cc  fe799c0a8030             mov r126.cache, r14.cache
+0x18d2  fe7d9e0a8030             mov r127.cache, r15.cache
+0x18d8  8e7b7c43373c0000         iadd r126_r127.cache, r126_r127, r26_r27
+0x18e0  92309c8226010130         icmpsel ult, r12l.cache, r14.cache, r20, 1, 0
+0x18e8  92309ea229580010         icmpsel ueq, r12l.cache, r15.cache, r13.cache, r12l, 0
+0x18f0  92309ea225018125         icmpsel ult, r12l.cache, r15.cache, r13, 1, r12l
+0x18f8  92bd9800007ee005c000     icmpsel ueq, r15.cache, r12l.cache, 0, r127, r15
+0x1902  92b95800007cc005c000     icmpsel ueq, r14.cache, r12l, 0, r126, r14
+0x190c  fe799c0a8030             mov r126.cache, r14.cache
+0x1912  fe7d9e0a8030             mov r127.cache, r15.cache
+0x1918  8e7b7cc3373c0000         iadd r126_r127.cache, r126_r127, r30_r31
+0x1920  92309c0227010130         icmpsel ult, r12l.cache, r14.cache, r24, 1, 0
+0x1928  92309e222a580010         icmpsel ueq, r12l.cache, r15.cache, r17.cache, r12l, 0
+0x1930  92309e2226018125         icmpsel ult, r12l.cache, r15.cache, r17, 1, r12l
+0x1938  92bd9800007ee005c000     icmpsel ueq, r15.cache, r12l.cache, 0, r127, r15
+0x1942  92b95800007cc005c000     icmpsel ueq, r14.cache, r12l, 0, r126, r14
+0x194c  fe799c0a8030             mov r126.cache, r14.cache
+0x1952  fe7d9e0a8030             mov r127.cache, r15.cache
+0x1958  8e7b7c43343d0000         iadd r126_r127.cache, r126_r127, r34_r35
+0x1960  92309c8227010130         icmpsel ult, r12l.cache, r14.cache, r28, 1, 0
+0x1968  92309ea22a580010         icmpsel ueq, r12l.cache, r15.cache, r21.cache, r12l, 0
+0x1970  92309ea226018125         icmpsel ult, r12l.cache, r15.cache, r21, 1, r12l
+0x1978  92bd9800007ee005c000     icmpsel ueq, r15.cache, r12l.cache, 0, r127, r15
+0x1982  92b95800007cc005c000     icmpsel ueq, r14.cache, r12l, 0, r126, r14
+0x198c  fe799c0a8030             mov r126.cache, r14.cache
+0x1992  fe7d9e0a8030             mov r127.cache, r15.cache
+0x1998  8e7b7cc3343d0000         iadd r126_r127.cache, r126_r127, r38_r39
+0x19a0  92b09c02240101300001     icmpsel ult, r12l.cache, r14.cache, r32, 1, 0
+0x19aa  92309e222b580010         icmpsel ueq, r12l.cache, r15.cache, r25.cache, r12l, 0
+0x19b2  92309e2227018125         icmpsel ult, r12l.cache, r15.cache, r25, 1, r12l
+0x19ba  92bd9800007ee005c000     icmpsel ueq, r15.cache, r12l.cache, 0, r127, r15
+0x19c4  92b95800007cc005c000     icmpsel ueq, r14.cache, r12l, 0, r126, r14
+0x19ce  fe799c0a8030             mov r126.cache, r14.cache
+0x19d4  fe7d9e0a8030             mov r127.cache, r15.cache
+0x19da  8e7b7c43353d0000         iadd r126_r127.cache, r126_r127, r42_r43
+0x19e2  92b09c82240101300001     icmpsel ult, r12l.cache, r14.cache, r36, 1, 0
+0x19ec  92309ea22b580010         icmpsel ueq, r12l.cache, r15.cache, r29.cache, r12l, 0
+0x19f4  92309ea227018125         icmpsel ult, r12l.cache, r15.cache, r29, 1, r12l
+0x19fc  92bd9800007ee005c000     icmpsel ueq, r15.cache, r12l.cache, 0, r127, r15
+0x1a06  92b95800007cc005c000     icmpsel ueq, r14.cache, r12l, 0, r126, r14
+0x1a10  fe799c0a8030             mov r126.cache, r14.cache
+0x1a16  fe7d9e0a8030             mov r127.cache, r15.cache
+0x1a1c  8e7b7cc3353d0000         iadd r126_r127.cache, r126_r127, r46_r47
+0x1a24  92b09c02250101300001     icmpsel ult, r12l.cache, r14.cache, r40, 1, 0
+0x1a2e  92b09e22285800100001     icmpsel ueq, r12l.cache, r15.cache, r33.cache, r12l, 0
+0x1a38  92b09e22240181250001     icmpsel ult, r12l.cache, r15.cache, r33, 1, r12l
+0x1a42  92bd9800007ee005c000     icmpsel ueq, r15.cache, r12l.cache, 0, r127, r15
+0x1a4c  92b95800007cc005c000     icmpsel ueq, r14.cache, r12l, 0, r126, r14
+0x1a56  fe799c0a8030             mov r126.cache, r14.cache
+0x1a5c  fe7d9e0a8030             mov r127.cache, r15.cache
+0x1a62  8e7b7c43363d0000         iadd r126_r127.cache, r126_r127, r50_r51
+0x1a6a  92b09c82250101300001     icmpsel ult, r12l.cache, r14.cache, r44, 1, 0
+0x1a74  92b09ea2285800100001     icmpsel ueq, r12l.cache, r15.cache, r37.cache, r12l, 0
+0x1a7e  92b09ea2240181250001     icmpsel ult, r12l.cache, r15.cache, r37, 1, r12l
+0x1a88  92bd9800007ee005c000     icmpsel ueq, r15.cache, r12l.cache, 0, r127, r15
+0x1a92  92b95800007cc005c000     icmpsel ueq, r14.cache, r12l, 0, r126, r14
+0x1a9c  fe799c0a8030             mov r126.cache, r14.cache
+0x1aa2  fe7d9e0a8030             mov r127.cache, r15.cache
+0x1aa8  8e7b7cc3363d0000         iadd r126_r127.cache, r126_r127, r54_r55
+0x1ab0  92b09c02260101300001     icmpsel ult, r12l.cache, r14.cache, r48, 1, 0
+0x1aba  92b09e22295800100001     icmpsel ueq, r12l.cache, r15.cache, r41.cache, r12l, 0
+0x1ac4  92b09e22250181250001     icmpsel ult, r12l.cache, r15.cache, r41, 1, r12l
+0x1ace  92bd9800007ee005c000     icmpsel ueq, r15.cache, r12l.cache, 0, r127, r15
+0x1ad8  92b95800007cc005c000     icmpsel ueq, r14.cache, r12l, 0, r126, r14
+0x1ae2  fe799c0a8030             mov r126.cache, r14.cache
+0x1ae8  fe7d9e0a8030             mov r127.cache, r15.cache
+0x1aee  8e7b7c43373d0000         iadd r126_r127.cache, r126_r127, r58_r59
+0x1af6  92b09c82260101300001     icmpsel ult, r12l.cache, r14.cache, r52, 1, 0
+0x1b00  92b09ea2295800100001     icmpsel ueq, r12l.cache, r15.cache, r45.cache, r12l, 0
+0x1b0a  92b09ea2250181250001     icmpsel ult, r12l.cache, r15.cache, r45, 1, r12l
+0x1b14  92bd9800007ee005c000     icmpsel ueq, r15.cache, r12l.cache, 0, r127, r15
+0x1b1e  92b95800007cc005c000     icmpsel ueq, r14.cache, r12l, 0, r126, r14
+0x1b28  fe799c0a8030             mov r126.cache, r14.cache
+0x1b2e  fe7d9e0a8030             mov r127.cache, r15.cache
+0x1b34  8e7b7cc3373d0000         iadd r126_r127.cache, r126_r127, r62_r63
+0x1b3c  92b09c02270101300001     icmpsel ult, r12l.cache, r14.cache, r56, 1, 0
+0x1b46  92b09e222a5800100001     icmpsel ueq, r12l.cache, r15.cache, r49.cache, r12l, 0
+0x1b50  92b09e22260181250001     icmpsel ult, r12l.cache, r15.cache, r49, 1, r12l
+0x1b5a  92bd9800007ee005c000     icmpsel ueq, r15.cache, r12l.cache, 0, r127, r15
+0x1b64  92b95800007cc005c000     icmpsel ueq, r14.cache, r12l, 0, r126, r14
+0x1b6e  fe799c0a8030             mov r126.cache, r14.cache
+0x1b74  fe7d9e0a8030             mov r127.cache, r15.cache
+0x1b7a  8e7b7c43343e0000         iadd r126_r127.cache, r126_r127, r66_r67
+0x1b82  92b09c82270101300001     icmpsel ult, r12l.cache, r14.cache, r60, 1, 0
+0x1b8c  92b09ea22a5800100001     icmpsel ueq, r12l.cache, r15.cache, r53.cache, r12l, 0
+0x1b96  92b09ea2260181250001     icmpsel ult, r12l.cache, r15.cache, r53, 1, r12l
+0x1ba0  92bd9800007ee005c000     icmpsel ueq, r15.cache, r12l.cache, 0, r127, r15
+0x1baa  92b95800007cc005c000     icmpsel ueq, r14.cache, r12l, 0, r126, r14
+0x1bb4  fe799c0a8030             mov r126.cache, r14.cache
+0x1bba  fe7d9e0a8030             mov r127.cache, r15.cache
+0x1bc0  8e7b7cc3343e0000         iadd r126_r127.cache, r126_r127, r70_r71
+0x1bc8  92b09c02240101300002     icmpsel ult, r12l.cache, r14.cache, r64, 1, 0
+0x1bd2  92b09e222b5800100001     icmpsel ueq, r12l.cache, r15.cache, r57.cache, r12l, 0
+0x1bdc  92b09e22270181250001     icmpsel ult, r12l.cache, r15.cache, r57, 1, r12l
+0x1be6  92bd9800007ee005c000     icmpsel ueq, r15.cache, r12l.cache, 0, r127, r15
+0x1bf0  92b95800007cc005c000     icmpsel ueq, r14.cache, r12l, 0, r126, r14
+0x1bfa  fe799c0a8030             mov r126.cache, r14.cache
+0x1c00  fe7d9e0a8030             mov r127.cache, r15.cache
+0x1c06  8e7b7c43353e0000         iadd r126_r127.cache, r126_r127, r74_r75
+0x1c0e  92b09c82240101300002     icmpsel ult, r12l.cache, r14.cache, r68, 1, 0
+0x1c18  92b09ea20b5800100001     icmpsel ueq, r12l.cache, r15.cache, r61l.cache, r12l, 0
+0x1c22  92b09ea2070181250001     icmpsel ult, r12l.cache, r15.cache, r61l, 1, r12l
+0x1c2c  92bd9800007ee005c000     icmpsel ueq, r15.cache, r12l.cache, 0, r127, r15
+0x1c36  92b95800007cc005c000     icmpsel ueq, r14.cache, r12l, 0, r126, r14
+0x1c40  fe799c0a8030             mov r126.cache, r14.cache
+0x1c46  fe7d9e0a8030             mov r127.cache, r15.cache
+0x1c4c  8e7b7cc3353e0000         iadd r126_r127.cache, r126_r127, r78_r79
+0x1c54  92b09c02250101300002     icmpsel ult, r12l.cache, r14.cache, r72, 1, 0
+0x1c5e  92b09e22285800100002     icmpsel ueq, r12l.cache, r15.cache, r65.cache, r12l, 0
+0x1c68  92b09e22240181250002     icmpsel ult, r12l.cache, r15.cache, r65, 1, r12l
+0x1c72  92bd9800007ee005c000     icmpsel ueq, r15.cache, r12l.cache, 0, r127, r15
+0x1c7c  92b95800007cc005c000     icmpsel ueq, r14.cache, r12l, 0, r126, r14
+0x1c86  fe799c0a8030             mov r126.cache, r14.cache
+0x1c8c  fe7d9e0a8030             mov r127.cache, r15.cache
+0x1c92  8e7b7c43363e0000         iadd r126_r127.cache, r126_r127, r82_r83
+0x1c9a  92b09c82250101300002     icmpsel ult, r12l.cache, r14.cache, r76, 1, 0
+0x1ca4  92b09ea2285800100002     icmpsel ueq, r12l.cache, r15.cache, r69.cache, r12l, 0
+0x1cae  92b09ea2240181250002     icmpsel ult, r12l.cache, r15.cache, r69, 1, r12l
+0x1cb8  92bd9800007ee005c000     icmpsel ueq, r15.cache, r12l.cache, 0, r127, r15
+0x1cc2  92b95800007cc005c000     icmpsel ueq, r14.cache, r12l, 0, r126, r14
+0x1ccc  fe799c0a8030             mov r126.cache, r14.cache
+0x1cd2  fe7d9e0a8030             mov r127.cache, r15.cache
+0x1cd8  8e7b7cc3363e0000         iadd r126_r127.cache, r126_r127, r86_r87
+0x1ce0  92b09c02260101300002     icmpsel ult, r12l.cache, r14.cache, r80, 1, 0
+0x1cea  92b09e22295800100002     icmpsel ueq, r12l.cache, r15.cache, r73.cache, r12l, 0
+0x1cf4  92b09e22250181250002     icmpsel ult, r12l.cache, r15.cache, r73, 1, r12l
+0x1cfe  92bd9800007ee005c000     icmpsel ueq, r15.cache, r12l.cache, 0, r127, r15
+0x1d08  92b95800007cc005c000     icmpsel ueq, r14.cache, r12l, 0, r126, r14
+0x1d12  fe799c0a8030             mov r126.cache, r14.cache
+0x1d18  fe7d9e0a8030             mov r127.cache, r15.cache
+0x1d1e  8e7b7c43373e0000         iadd r126_r127.cache, r126_r127, r90_r91
+0x1d26  92b09c82260101300002     icmpsel ult, r12l.cache, r14.cache, r84, 1, 0
+0x1d30  92b09ea2295800100002     icmpsel ueq, r12l.cache, r15.cache, r77.cache, r12l, 0
+0x1d3a  92b09ea2250181250002     icmpsel ult, r12l.cache, r15.cache, r77, 1, r12l
+0x1d44  92bd9800007ee005c000     icmpsel ueq, r15.cache, r12l.cache, 0, r127, r15
+0x1d4e  92b95800007cc005c000     icmpsel ueq, r14.cache, r12l, 0, r126, r14
+0x1d58  fe799c0a8030             mov r126.cache, r14.cache
+0x1d5e  fe7d9e0a8030             mov r127.cache, r15.cache
+0x1d64  8e7b7cc3373e0000         iadd r126_r127.cache, r126_r127, r94_r95
+0x1d6c  92b09c02270101300002     icmpsel ult, r12l.cache, r14.cache, r88, 1, 0
+0x1d76  92b09e222a5800100002     icmpsel ueq, r12l.cache, r15.cache, r81.cache, r12l, 0
+0x1d80  92b09e22260181250002     icmpsel ult, r12l.cache, r15.cache, r81, 1, r12l
+0x1d8a  92bd9800007ee005c000     icmpsel ueq, r15.cache, r12l.cache, 0, r127, r15
+0x1d94  92b95800007cc005c000     icmpsel ueq, r14.cache, r12l, 0, r126, r14
+0x1d9e  fe799c0a8030             mov r126.cache, r14.cache
+0x1da4  fe7d9e0a8030             mov r127.cache, r15.cache
+0x1daa  8e7b7c43343f0000         iadd r126_r127.cache, r126_r127, r98_r99
+0x1db2  92b09c82270101300002     icmpsel ult, r12l.cache, r14.cache, r92, 1, 0
+0x1dbc  92b09ea22a5800100002     icmpsel ueq, r12l.cache, r15.cache, r85.cache, r12l, 0
+0x1dc6  92b09ea2260181250002     icmpsel ult, r12l.cache, r15.cache, r85, 1, r12l
+0x1dd0  92bd9800007ee005c000     icmpsel ueq, r15.cache, r12l.cache, 0, r127, r15
+0x1dda  92b95800007cc005c000     icmpsel ueq, r14.cache, r12l, 0, r126, r14
+0x1de4  fe799c0a8030             mov r126.cache, r14.cache
+0x1dea  fe7d9e0a8030             mov r127.cache, r15.cache
+0x1df0  8e7b7cc3343f0000         iadd r126_r127.cache, r126_r127, r102_r103
+0x1df8  92b09c02240101300003     icmpsel ult, r12l.cache, r14.cache, r96, 1, 0
+0x1e02  92b09e222b5800100002     icmpsel ueq, r12l.cache, r15.cache, r89.cache, r12l, 0
+0x1e0c  92b09e22270181250002     icmpsel ult, r12l.cache, r15.cache, r89, 1, r12l
+0x1e16  92bd9800007ee005c000     icmpsel ueq, r15.cache, r12l.cache, 0, r127, r15
+0x1e20  92b95800007cc005c000     icmpsel ueq, r14.cache, r12l, 0, r126, r14
+0x1e2a  fe799c0a8030             mov r126.cache, r14.cache
+0x1e30  fe7d9e0a8030             mov r127.cache, r15.cache
+0x1e36  8e7b7c43353f0000         iadd r126_r127.cache, r126_r127, r106_r107
+0x1e3e  92b09c82240101300003     icmpsel ult, r12l.cache, r14.cache, r100, 1, 0
+0x1e48  92b09ea22b5800100002     icmpsel ueq, r12l.cache, r15.cache, r93.cache, r12l, 0
+0x1e52  92b09ea2270181250002     icmpsel ult, r12l.cache, r15.cache, r93, 1, r12l
+0x1e5c  92bd9800007ee005c000     icmpsel ueq, r15.cache, r12l.cache, 0, r127, r15
+0x1e66  92b95800007cc005c000     icmpsel ueq, r14.cache, r12l, 0, r126, r14
+0x1e70  fe799c0a8030             mov r126.cache, r14.cache
+0x1e76  fe7d9e0a8030             mov r127.cache, r15.cache
+0x1e7c  8e7b7cc3353f0000         iadd r126_r127.cache, r126_r127, r110_r111
+0x1e84  92b09c02250101300003     icmpsel ult, r12l.cache, r14.cache, r104, 1, 0
+0x1e8e  92b09e22285800100003     icmpsel ueq, r12l.cache, r15.cache, r97.cache, r12l, 0
+0x1e98  92b09e22240181250003     icmpsel ult, r12l.cache, r15.cache, r97, 1, r12l
+0x1ea2  92bd9800007ee005c000     icmpsel ueq, r15.cache, r12l.cache, 0, r127, r15
+0x1eac  92b95800007cc005c000     icmpsel ueq, r14.cache, r12l, 0, r126, r14
+0x1eb6  fe799c0a8030             mov r126.cache, r14.cache
+0x1ebc  fe7d9e0a8030             mov r127.cache, r15.cache
+0x1ec2  8e7b7c43363f0000         iadd r126_r127.cache, r126_r127, r114_r115
+0x1eca  92b09c82250101300003     icmpsel ult, r12l.cache, r14.cache, r108, 1, 0
+0x1ed4  92b09ea2285800100003     icmpsel ueq, r12l.cache, r15.cache, r101.cache, r12l, 0
+0x1ede  92b09ea2240181250003     icmpsel ult, r12l.cache, r15.cache, r101, 1, r12l
+0x1ee8  92bd9800007ee005c000     icmpsel ueq, r15.cache, r12l.cache, 0, r127, r15
+0x1ef2  92b95800007cc005c000     icmpsel ueq, r14.cache, r12l, 0, r126, r14
+0x1efc  fe799c0a8030             mov r126.cache, r14.cache
+0x1f02  fe7d9e0a8030             mov r127.cache, r15.cache
+0x1f08  8e7b7cc3363f0000         iadd r126_r127.cache, r126_r127, r118_r119
+0x1f10  92b09c02260101300003     icmpsel ult, r12l.cache, r14.cache, r112, 1, 0
+0x1f1a  92b09e22295800100003     icmpsel ueq, r12l.cache, r15.cache, r105.cache, r12l, 0
+0x1f24  92b09e22250181250003     icmpsel ult, r12l.cache, r15.cache, r105, 1, r12l
+0x1f2e  92bd9800007ee005c000     icmpsel ueq, r15.cache, r12l.cache, 0, r127, r15
+0x1f38  92b95800007cc005c000     icmpsel ueq, r14.cache, r12l, 0, r126, r14
+0x1f42  fe799c0a8030             mov r126.cache, r14.cache
+0x1f48  fe7d9e0a8030             mov r127.cache, r15.cache
+0x1f4e  b5b2800503c33200         stack_store i32, 1, 0, xy, 4, r118_r119, 56, 0
+0x1f56  35b2000502c33200         stack_load r118_r119, i32, 1, 0, xy, 4, 32, 0
+0x1f5e  3800                     wait 0
+0x1f60  8e5b7cc3363f0000         iadd r118_r119.cache, r126_r127, r118_r119
+0x1f68  92b09c82260101300003     icmpsel ult, r12l.cache, r14.cache, r116, 1, 0
+0x1f72  356a400500c31200         stack_load r109, i32, 1, 0, x, 4, 4, 0
+0x1f7a  3800                     wait 0
+0x1f7c  92b09ea2295800100003     icmpsel ueq, r12l.cache, r15.cache, r109.cache, r12l, 0
+0x1f86  92b09ea2250181250003     icmpsel ult, r12l.cache, r15.cache, r109, 1, r12l
+0x1f90  92fd9800006ee005c030     icmpsel ueq, r127.cache, r12l.cache, 0, r119, r15
+0x1f9a  92f95800006cc005c030     icmpsel ueq, r126.cache, r12l, 0, r118, r14
+0x1fa4  fe39bc0a800c             mov r14.cache, r126.cache
+0x1faa  fe3dbe0a800c             mov r15.cache, r127.cache
+0x1fb0  35b2800500c33200         stack_load r118_r119, i32, 1, 0, xy, 4, 8, 0
+0x1fb8  3800                     wait 0
+0x1fba  8e3b5cc336030000         iadd r14_r15.cache, r14_r15, r118_r119
+0x1fc2  92b0bc0227010130000f     icmpsel ult, r12l.cache, r126.cache, r120, 1, 0
+0x1fcc  356a000500c31200         stack_load r109, i32, 1, 0, x, 4, 0, 0
+0x1fd4  3800                     wait 0
+0x1fd6  92b0bea229580010000f     icmpsel ueq, r12l.cache, r127.cache, r109.cache, r12l, 0
+0x1fe0  92b0bea225018125000f     icmpsel ult, r12l.cache, r127.cache, r109, 1, r12l
+0x1fea  92dd9800005ee0073030     icmpsel ueq, r119.cache, r12l.cache, 0, r15, r127
+0x1ff4  92d95800005cc0073030     icmpsel ueq, r118.cache, r12l, 0, r14, r126
+0x1ffe  fe39ac0a800c             mov r14.cache, r118.cache
+0x2004  fe3dae0a800c             mov r15.cache, r119.cache
+0x200a  35f2800501c33200         stack_load r126_r127, i32, 1, 0, xy, 4, 24, 0
+0x2012  3800                     wait 0
+0x2014  8e3b5cc337030000         iadd r14_r15.cache, r14_r15, r126_r127
+0x201c  92b0ac2226010130000f     icmpsel ult, r12l.cache, r118.cache, r113, 1, 0
+0x2026  356a000501c31200         stack_load r109, i32, 1, 0, x, 4, 16, 0
+0x202e  3800                     wait 0
+0x2030  92b0aea229580010000f     icmpsel ueq, r12l.cache, r119.cache, r109.cache, r12l, 0
+0x203a  92b0aea225018125000f     icmpsel ult, r12l.cache, r119.cache, r109, 1, r12l
+0x2044  92fd9800005ee0063030     icmpsel ueq, r127.cache, r12l.cache, 0, r15, r119
+0x204e  92f95800005cc0063030     icmpsel ueq, r126.cache, r12l, 0, r14, r118
+0x2058  fe39bc0a800c             mov r14.cache, r126.cache
+0x205e  fe3dbe0a800c             mov r15.cache, r127.cache
+0x2064  8e3b5c0335000000         iadd r14_r15.cache, r14_r15, r8_r9
+0x206c  92b0bca226010130000f     icmpsel ult, r12l.cache, r126.cache, r117, 1, 0
+0x2076  356a400501c31200         stack_load r109, i32, 1, 0, x, 4, 20, 0
+0x207e  3800                     wait 0
+0x2080  92b0bea229580010000f     icmpsel ueq, r12l.cache, r127.cache, r109.cache, r12l, 0
+0x208a  92b0bea225018125000f     icmpsel ult, r12l.cache, r127.cache, r109, 1, r12l
+0x2094  92dd9800005ee0073030     icmpsel ueq, r119.cache, r12l.cache, 0, r15, r127
+0x209e  92d95800005cc0073030     icmpsel ueq, r118.cache, r12l, 0, r14, r126
+0x20a8  fe39ac0a800c             mov r14.cache, r118.cache
+0x20ae  fe3dae0a800c             mov r15.cache, r119.cache
+0x20b4  8e3b5c4337030000         iadd r14_r15.cache, r14_r15, r122_r123
+0x20bc  92b0aca228010130000c     icmpsel ult, r12l.cache, r118.cache, r5.cache, 1, 0
+0x20c6  92b0ae0200580010000c     icmpsel ueq, r12l.cache, r119.cache, 0, r12l, 0
+0x20d0  92fd9800005ee0063030     icmpsel ueq, r127.cache, r12l.cache, 0, r15, r119
+0x20da  92f95800005cc0063030     icmpsel ueq, r126.cache, r12l, 0, r14, r118
+0x20e4  b542000504c03200         stack_store i32, 1, 0, xy, 4, r8_r9, 64, 0
+0x20ec  b5d2800504c33200         stack_store i32, 1, 0, xy, 4, r122_r123, 72, 0
+0x20f4  3542800502c01200         stack_load r8, i32, 1, 0, x, 4, 40, 0
+0x20fc  354a000503c01200         stack_load r9, i32, 1, 0, x, 4, 48, 0
+0x2104  3572800503c03200         stack_load r14_r15, i32, 1, 0, xy, 4, 56, 0
+0x210c  35b2000502c33200         stack_load r118_r119, i32, 1, 0, xy, 4, 32, 0
+0x2114  3562400500c01200         stack_load r12, i32, 1, 0, x, 4, 4, 0
+0x211c  356ac00502c31200         stack_load r109, i32, 1, 0, x, 4, 44, 0
+0x2124  7e697c0a803c             mov r122, r126
+0x212a  7e6d7e0a803c             mov r123, r127
+0x2130  3800                     wait 0
+0x2132  fe25528a6800             xor r9.cache, r9, r4.cache
+0x2138  fe11928a6400             xor r4.cache, r9.cache, r4
+0x213e  7e25528a6800             xor r9, r9, r4.cache
+0x2144  fe11484a6900             xor r4.cache, r4, r10.cache
+0x214a  fe29884a6500             xor r10.cache, r4.cache, r10
+0x2150  7e11484a6900             xor r4, r4, r10.cache
+0x2156  fe154a4a6900             xor r5.cache, r5, r10.cache
+0x215c  fe298a4a6500             xor r10.cache, r5.cache, r10
+0x2162  7e154a4a6900             xor r5, r5, r10.cache
+0x2168  fe194c8a6b03             xor r6.cache, r6, r124.cache
+0x216e  fe718c8a6733             xor r124.cache, r6.cache, r124
+0x2174  7e194c8a6703             xor r6, r6, r124
+0x217a  fe1d4eaa6b03             xor r7.cache, r7, r125.cache
+0x2180  fe758eaa6733             xor r125.cache, r7.cache, r125
+0x2186  7e1d4eaa6703             xor r7, r7, r125
+0x218c  fe29542a6b03             xor r10.cache, r10, r121.cache
+0x2192  fe65942a6733             xor r121.cache, r10.cache, r121
+0x2198  7e29542a6b03             xor r10, r10, r121.cache
+0x219e  fe355a2a6b3f             xor r109.cache, r109, r121.cache
+0x21a4  fe659a2a673f             xor r121.cache, r109.cache, r121
+0x21aa  7e355a2a673f             xor r109, r109, r121
+0x21b0  3801                     wait 1
+0x21b2  420800000000             push_exec r0l, 1
+0x21b8  520d7202000c             while_icmp r0l, nueq, r121, 0, 1
+0x21be  20c00c1b0000             jmp_exec_none pc+6924
+0x21c4  b5ca400500c31200         stack_store i32, 1, 0, x, 4, r121, 4, 0
+0x21cc  fe21740a800c             mov r8.cache, r122
+0x21d2  fe65760a803c             mov r121.cache, r123
+0x21d8  fe69780a803c             mov r122.cache, r124
+0x21de  fe79ba0a803c             mov r126.cache, r125.cache
+0x21e4  7e7d7a0a803c             mov r127, r125
+0x21ea  1e7390422b000033         imadd r124_r125, r8.cache, r122.cache, 0
+0x21f2  b5fac04502c31200         stack_store i32, 1, 0, x, 4, r127, 44, 1
+0x21fa  fe7d7a0a803c             mov r127.cache, r125
+0x2200  b5da000503c31200         stack_store i32, 1, 0, x, 4, r123, 48, 0
+0x2208  9e657246677ec63f         imadd r121.cache, r121.sx, r122.sx, r127.sx
+0x2210  1e6550c66772c633         imadd r121, r8.sx, r126.sx, r121.sx
+0x2218  3800                     wait 0
+0x221a  3801                     wait 1
+0x221c  522972a2250f             if_icmp r0l, ugte, r121, r109, 1
+0x2222  20c0a6030000             jmp_exec_none pc+934
+0x2228  8e6db24e693c0000         isub r123.cache, r121.cache.sx, r10.cache.sx
+0x2230  be759a0e003c             ffs r125.cache, r109.cache
+0x2236  92ed00a02bb260a7f033     icmpsel slt, r123.cache, 0, r125.cache, r121.cache, r123
+0x2240  92e5724229726027f03c     icmpsel ult, r121.cache, r121, r10.cache, r121, r123
+0x224a  8e6db26e693c0000         isub r123.cache, r121.cache.sx, r11.cache.sx
+0x2252  92ed01a02bb260a7f033     icmpsel slt, r123.cache, 1, r125.cache, r121.cache, r123
+0x225c  92e5726225726027f03c     icmpsel ult, r121.cache, r121, r11, r121, r123
+0x2266  8e6db20e6a3c0000         isub r123.cache, r121.cache.sx, r16.cache.sx
+0x226e  92ed02a02bb260a7f033     icmpsel slt, r123.cache, 2, r125.cache, r121.cache, r123
+0x2278  92e5720226726027f03c     icmpsel ult, r121.cache, r121, r16, r121, r123
+0x2282  8e6db28e6a3c0000         isub r123.cache, r121.cache.sx, r20.cache.sx
+0x228a  92ed03a02bb260a7f033     icmpsel slt, r123.cache, 3, r125.cache, r121.cache, r123
+0x2294  92e5728226726027f03c     icmpsel ult, r121.cache, r121, r20, r121, r123
+0x229e  8e6db20e6b3c0000         isub r123.cache, r121.cache.sx, r24.cache.sx
+0x22a6  92ed04a02bb260a7f033     icmpsel slt, r123.cache, 4, r125.cache, r121.cache, r123
+0x22b0  92e5720227726027f03c     icmpsel ult, r121.cache, r121, r24, r121, r123
+0x22ba  8e6db28e6b3c0000         isub r123.cache, r121.cache.sx, r28.cache.sx
+0x22c2  92ed05a02bb260a7f033     icmpsel slt, r123.cache, 5, r125.cache, r121.cache, r123
+0x22cc  92e5728227726027f03c     icmpsel ult, r121.cache, r121, r28, r121, r123
+0x22d6  8e6db20e683d0000         isub r123.cache, r121.cache.sx, r32.cache.sx
+0x22de  92ed06a02bb260a7f033     icmpsel slt, r123.cache, 6, r125.cache, r121.cache, r123
+0x22e8  92e5720224726027f03d     icmpsel ult, r121.cache, r121, r32, r121, r123
+0x22f2  8e6db28e683d0000         isub r123.cache, r121.cache.sx, r36.cache.sx
+0x22fa  92ed07a02bb260a7f033     icmpsel slt, r123.cache, 7, r125.cache, r121.cache, r123
+0x2304  92e5728224726027f03d     icmpsel ult, r121.cache, r121, r36, r121, r123
+0x230e  8e6db20e693d0000         isub r123.cache, r121.cache.sx, r40.cache.sx
+0x2316  92ed08a02bb260a7f033     icmpsel slt, r123.cache, 8, r125.cache, r121.cache, r123
+0x2320  92e5720225726027f03d     icmpsel ult, r121.cache, r121, r40, r121, r123
+0x232a  8e6db28e693d0000         isub r123.cache, r121.cache.sx, r44.cache.sx
+0x2332  92ed09a02bb260a7f033     icmpsel slt, r123.cache, 9, r125.cache, r121.cache, r123
+0x233c  92e5728225726027f03d     icmpsel ult, r121.cache, r121, r44, r121, r123
+0x2346  8e6db20e6a3d0000         isub r123.cache, r121.cache.sx, r48.cache.sx
+0x234e  92ed0aa02bb260a7f033     icmpsel slt, r123.cache, 10, r125.cache, r121.cache, r123
+0x2358  92e5720226726027f03d     icmpsel ult, r121.cache, r121, r48, r121, r123
+0x2362  8e6db28e6a3d0000         isub r123.cache, r121.cache.sx, r52.cache.sx
+0x236a  92ed0ba02bb260a7f033     icmpsel slt, r123.cache, 11, r125.cache, r121.cache, r123
+0x2374  92e5728226726027f03d     icmpsel ult, r121.cache, r121, r52, r121, r123
+0x237e  8e6db20e6b3d0000         isub r123.cache, r121.cache.sx, r56.cache.sx
+0x2386  92ed0ca02bb260a7f033     icmpsel slt, r123.cache, 12, r125.cache, r121.cache, r123
+0x2390  92e5720227726027f03d     icmpsel ult, r121.cache, r121, r56, r121, r123
+0x239a  8e6db28e6b3d0000         isub r123.cache, r121.cache.sx, r60.cache.sx
+0x23a2  92ed0da02bb260a7f033     icmpsel slt, r123.cache, 13, r125.cache, r121.cache, r123
+0x23ac  92e5728227726027f03d     icmpsel ult, r121.cache, r121, r60, r121, r123
+0x23b6  8e6db20e683e0000         isub r123.cache, r121.cache.sx, r64.cache.sx
+0x23be  92ed0ea02bb260a7f033     icmpsel slt, r123.cache, 14, r125.cache, r121.cache, r123
+0x23c8  92e5720224726027f03e     icmpsel ult, r121.cache, r121, r64, r121, r123
+0x23d2  8e6db28e683e0000         isub r123.cache, r121.cache.sx, r68.cache.sx
+0x23da  92ed0fa02bb260a7f033     icmpsel slt, r123.cache, 15, r125.cache, r121.cache, r123
+0x23e4  92e5728224726027f03e     icmpsel ult, r121.cache, r121, r68, r121, r123
+0x23ee  8e6db20e693e0000         isub r123.cache, r121.cache.sx, r72.cache.sx
+0x23f6  92ed10a02bb260a7f033     icmpsel slt, r123.cache, 16, r125.cache, r121.cache, r123
+0x2400  92e5720225726027f03e     icmpsel ult, r121.cache, r121, r72, r121, r123
+0x240a  8e6db28e693e0000         isub r123.cache, r121.cache.sx, r76.cache.sx
+0x2412  92ed11a02bb260a7f033     icmpsel slt, r123.cache, 17, r125.cache, r121.cache, r123
+0x241c  92e5728225726027f03e     icmpsel ult, r121.cache, r121, r76, r121, r123
+0x2426  8e6db20e6a3e0000         isub r123.cache, r121.cache.sx, r80.cache.sx
+0x242e  92ed12a02bb260a7f033     icmpsel slt, r123.cache, 18, r125.cache, r121.cache, r123
+0x2438  92e5720226726027f03e     icmpsel ult, r121.cache, r121, r80, r121, r123
+0x2442  8e6db28e6a3e0000         isub r123.cache, r121.cache.sx, r84.cache.sx
+0x244a  92ed13a02bb260a7f033     icmpsel slt, r123.cache, 19, r125.cache, r121.cache, r123
+0x2454  92e5728226726027f03e     icmpsel ult, r121.cache, r121, r84, r121, r123
+0x245e  8e6db20e6b3e0000         isub r123.cache, r121.cache.sx, r88.cache.sx
+0x2466  92ed14a02bb260a7f033     icmpsel slt, r123.cache, 20, r125.cache, r121.cache, r123
+0x2470  92e5720227726027f03e     icmpsel ult, r121.cache, r121, r88, r121, r123
+0x247a  8e6db28e6b3e0000         isub r123.cache, r121.cache.sx, r92.cache.sx
+0x2482  92ed15a02bb260a7f033     icmpsel slt, r123.cache, 21, r125.cache, r121.cache, r123
+0x248c  92e5728227726027f03e     icmpsel ult, r121.cache, r121, r92, r121, r123
+0x2496  8e6db20e683f0000         isub r123.cache, r121.cache.sx, r96.cache.sx
+0x249e  92ed16a02bb260a7f033     icmpsel slt, r123.cache, 22, r125.cache, r121.cache, r123
+0x24a8  92e5720224726027f03f     icmpsel ult, r121.cache, r121, r96, r121, r123
+0x24b2  8e6db28e683f0000         isub r123.cache, r121.cache.sx, r100.cache.sx
+0x24ba  92ed17a02bb260a7f033     icmpsel slt, r123.cache, 23, r125.cache, r121.cache, r123
+0x24c4  92e5728224726027f03f     icmpsel ult, r121.cache, r121, r100, r121, r123
+0x24ce  8e6db20e693f0000         isub r123.cache, r121.cache.sx, r104.cache.sx
+0x24d6  92ed18a02bb260a7f033     icmpsel slt, r123.cache, 24, r125.cache, r121.cache, r123
+0x24e0  92e5720225726027f03f     icmpsel ult, r121.cache, r121, r104, r121, r123
+0x24ea  8e6db28e693f0000         isub r123.cache, r121.cache.sx, r108.cache.sx
+0x24f2  92ed19a02bb260a7f033     icmpsel slt, r123.cache, 25, r125.cache, r121.cache, r123
+0x24fc  92e5728225726027f03f     icmpsel ult, r121.cache, r121, r108, r121, r123
+0x2506  8e6db20e6a3f0000         isub r123.cache, r121.cache.sx, r112.cache.sx
+0x250e  92ed1aa02bb260a7f033     icmpsel slt, r123.cache, 26, r125.cache, r121.cache, r123
+0x2518  92e5720226726027f03f     icmpsel ult, r121.cache, r121, r112, r121, r123
+0x2522  8e6db28e6a3f0000         isub r123.cache, r121.cache.sx, r116.cache.sx
+0x252a  92ed1ba02bb260a7f033     icmpsel slt, r123.cache, 27, r125.cache, r121.cache, r123
+0x2534  92e5728226726027f03f     icmpsel ult, r121.cache, r121, r116, r121, r123
+0x253e  8e6db20e6b3f0000         isub r123.cache, r121.cache.sx, r120.cache.sx
+0x2546  92ed1ca02bb260a7f033     icmpsel slt, r123.cache, 28, r125.cache, r121.cache, r123
+0x2550  92e5720227726027f03f     icmpsel ult, r121.cache, r121, r120, r121, r123
+0x255a  8e6db22e6a3f0000         isub r123.cache, r121.cache.sx, r113.cache.sx
+0x2562  92ed1da02bb260a7f033     icmpsel slt, r123.cache, 29, r125.cache, r121.cache, r123
+0x256c  92e5722226726027f03f     icmpsel ult, r121.cache, r121, r113, r121, r123
+0x2576  8e6db2ae6a3f0000         isub r123.cache, r121.cache.sx, r117.cache.sx
+0x257e  92ed1ea027b260a7f033     icmpsel slt, r123.cache, 30, r125, r121.cache, r123
+0x2588  92e572a226726027f03f     icmpsel ult, r121.cache, r121, r117, r121, r123
+0x2592  8e6db2ae693f0000         isub r123.cache, r121.cache.sx, r109.cache.sx
+0x259a  12e572a229726027f03f     icmpsel ult, r121, r121, r109.cache, r121, r123
+0x25a4  7e754e0a8030             mov r125, r7
+0x25aa  7e79780a803c             mov r126, r124
+0x25b0  7e1d540a8000             mov r7, r10
+0x25b6  7e714c0a8030             mov r124, r6
+0x25bc  7e194a0a8000             mov r6, r5
+0x25c2  7e155a0a800c             mov r5, r109
+0x25c8  420a00000000             else_fcmp r0l, eq, 0.0, 0.0, 1
+0x25ce  7e754e0a8030             mov r125, r7
+0x25d4  7e79780a803c             mov r126, r124
+0x25da  7e1d540a8000             mov r7, r10
+0x25e0  7e714c0a8030             mov r124, r6
+0x25e6  7e194a0a8000             mov r6, r5
+0x25ec  7e155a0a800c             mov r5, r109
+0x25f2  520e00000000             pop_exec r0l, 1
+0x25f8  fe35560a8030             mov r109.cache, r11
+0x25fe  fe29bc0a800c             mov r10.cache, r126.cache
+0x2604  fe2db20a800c             mov r11.cache, r121.cache
+0x260a  8e2b548337030000         iadd r10_r11.cache, r10_r11, r124_r125
+0x2612  92f6bce224010130001c     icmpsel ult, r61h.cache, r126.cache, r7, 1, 0
+0x261c  92f6b2c2287b0010401c     icmpsel ueq, r61h.cache, r121.cache, r6.cache, r61h, 0
+0x2626  92f6b2c22401b127101c     icmpsel ult, r61h.cache, r121.cache, r6, 1, r61h
+0x2630  92adbb00005620073004     icmpsel ueq, r11.cache, r61h.cache, 0, r11, r121
+0x263a  92a97b000054c0073004     icmpsel ueq, r10.cache, r61h, 0, r10, r126
+0x2644  fe79940a8030             mov r126.cache, r10.cache
+0x264a  fe7d960a8030             mov r127.cache, r11.cache
+0x2650  8e7b7c43363c0000         iadd r126_r127.cache, r126_r127, r18_r19
+0x2658  92f694a2250101300013     icmpsel ult, r61h.cache, r10.cache, r109, 1, 0
+0x2662  92f69682287b00104010     icmpsel ueq, r61h.cache, r11.cache, r4.cache, r61h, 0
+0x266c  92f696822401b1271010     icmpsel ult, r61h.cache, r11.cache, r4, 1, r61h
+0x2676  92adbb00007e6005c004     icmpsel ueq, r11.cache, r61h.cache, 0, r127, r11
+0x2680  92a97b00007c4005c004     icmpsel ueq, r10.cache, r61h, 0, r126, r10
+0x268a  fe79940a8030             mov r126.cache, r10.cache
+0x2690  fe7d960a8030             mov r127.cache, r11.cache
+0x2696  8e7b7cc3363c0000         iadd r126_r127.cache, r126_r127, r22_r23
+0x269e  92f69402260101300010     icmpsel ult, r61h.cache, r10.cache, r16, 1, 0
+0x26a8  92f69622297b00104010     icmpsel ueq, r61h.cache, r11.cache, r9.cache, r61h, 0
+0x26b2  92f696222901b1271010     icmpsel ult, r61h.cache, r11.cache, r9.cache, 1, r61h
+0x26bc  92adbb00007e6005c004     icmpsel ueq, r11.cache, r61h.cache, 0, r127, r11
+0x26c6  92a97b00007c4005c004     icmpsel ueq, r10.cache, r61h, 0, r126, r10
+0x26d0  fe79940a8030             mov r126.cache, r10.cache
+0x26d6  fe7d960a8030             mov r127.cache, r11.cache
+0x26dc  8e7b7c43373c0000         iadd r126_r127.cache, r126_r127, r26_r27
+0x26e4  92f69482260101300010     icmpsel ult, r61h.cache, r10.cache, r20, 1, 0
+0x26ee  92f696a2297b00104010     icmpsel ueq, r61h.cache, r11.cache, r13.cache, r61h, 0
+0x26f8  92f696a22501b1271010     icmpsel ult, r61h.cache, r11.cache, r13, 1, r61h
+0x2702  92adbb00007e6005c004     icmpsel ueq, r11.cache, r61h.cache, 0, r127, r11
+0x270c  92a97b00007c4005c004     icmpsel ueq, r10.cache, r61h, 0, r126, r10
+0x2716  fe79940a8030             mov r126.cache, r10.cache
+0x271c  fe7d960a8030             mov r127.cache, r11.cache
+0x2722  8e7b7cc3373c0000         iadd r126_r127.cache, r126_r127, r30_r31
+0x272a  92f69402270101300010     icmpsel ult, r61h.cache, r10.cache, r24, 1, 0
+0x2734  92f696222a7b00104010     icmpsel ueq, r61h.cache, r11.cache, r17.cache, r61h, 0
+0x273e  92f696222601b1271010     icmpsel ult, r61h.cache, r11.cache, r17, 1, r61h
+0x2748  92adbb00007e6005c004     icmpsel ueq, r11.cache, r61h.cache, 0, r127, r11
+0x2752  92a97b00007c4005c004     icmpsel ueq, r10.cache, r61h, 0, r126, r10
+0x275c  fe79940a8030             mov r126.cache, r10.cache
+0x2762  fe7d960a8030             mov r127.cache, r11.cache
+0x2768  8e7b7c43343d0000         iadd r126_r127.cache, r126_r127, r34_r35
+0x2770  92f69482270101300010     icmpsel ult, r61h.cache, r10.cache, r28, 1, 0
+0x277a  92f696a22a7b00104010     icmpsel ueq, r61h.cache, r11.cache, r21.cache, r61h, 0
+0x2784  92f696a22601b1271010     icmpsel ult, r61h.cache, r11.cache, r21, 1, r61h
+0x278e  92adbb00007e6005c004     icmpsel ueq, r11.cache, r61h.cache, 0, r127, r11
+0x2798  92a97b00007c4005c004     icmpsel ueq, r10.cache, r61h, 0, r126, r10
+0x27a2  fe79940a8030             mov r126.cache, r10.cache
+0x27a8  fe7d960a8030             mov r127.cache, r11.cache
+0x27ae  8e7b7cc3343d0000         iadd r126_r127.cache, r126_r127, r38_r39
+0x27b6  92f69402240101300011     icmpsel ult, r61h.cache, r10.cache, r32, 1, 0
+0x27c0  92f696222b7b00104010     icmpsel ueq, r61h.cache, r11.cache, r25.cache, r61h, 0
+0x27ca  92f696222701b1271010     icmpsel ult, r61h.cache, r11.cache, r25, 1, r61h
+0x27d4  92adbb00007e6005c004     icmpsel ueq, r11.cache, r61h.cache, 0, r127, r11
+0x27de  92a97b00007c4005c004     icmpsel ueq, r10.cache, r61h, 0, r126, r10
+0x27e8  fe79940a8030             mov r126.cache, r10.cache
+0x27ee  fe7d960a8030             mov r127.cache, r11.cache
+0x27f4  8e7b7c43353d0000         iadd r126_r127.cache, r126_r127, r42_r43
+0x27fc  92f69482240101300011     icmpsel ult, r61h.cache, r10.cache, r36, 1, 0
+0x2806  92f696a22b7b00104010     icmpsel ueq, r61h.cache, r11.cache, r29.cache, r61h, 0
+0x2810  92f696a22701b1271010     icmpsel ult, r61h.cache, r11.cache, r29, 1, r61h
+0x281a  92adbb00007e6005c004     icmpsel ueq, r11.cache, r61h.cache, 0, r127, r11
+0x2824  92a97b00007c4005c004     icmpsel ueq, r10.cache, r61h, 0, r126, r10
+0x282e  fe79940a8030             mov r126.cache, r10.cache
+0x2834  fe7d960a8030             mov r127.cache, r11.cache
+0x283a  8e7b7cc3353d0000         iadd r126_r127.cache, r126_r127, r46_r47
+0x2842  92f69402250101300011     icmpsel ult, r61h.cache, r10.cache, r40, 1, 0
+0x284c  92f69622287b00104011     icmpsel ueq, r61h.cache, r11.cache, r33.cache, r61h, 0
+0x2856  92f696222401b1271011     icmpsel ult, r61h.cache, r11.cache, r33, 1, r61h
+0x2860  92adbb00007e6005c004     icmpsel ueq, r11.cache, r61h.cache, 0, r127, r11
+0x286a  92a97b00007c4005c004     icmpsel ueq, r10.cache, r61h, 0, r126, r10
+0x2874  fe79940a8030             mov r126.cache, r10.cache
+0x287a  fe7d960a8030             mov r127.cache, r11.cache
+0x2880  8e7b7c43363d0000         iadd r126_r127.cache, r126_r127, r50_r51
+0x2888  92f69482250101300011     icmpsel ult, r61h.cache, r10.cache, r44, 1, 0
+0x2892  92f696a2287b00104011     icmpsel ueq, r61h.cache, r11.cache, r37.cache, r61h, 0
+0x289c  92f696a22401b1271011     icmpsel ult, r61h.cache, r11.cache, r37, 1, r61h
+0x28a6  92adbb00007e6005c004     icmpsel ueq, r11.cache, r61h.cache, 0, r127, r11
+0x28b0  92a97b00007c4005c004     icmpsel ueq, r10.cache, r61h, 0, r126, r10
+0x28ba  fe79940a8030             mov r126.cache, r10.cache
+0x28c0  fe7d960a8030             mov r127.cache, r11.cache
+0x28c6  8e7b7cc3363d0000         iadd r126_r127.cache, r126_r127, r54_r55
+0x28ce  92f69402260101300011     icmpsel ult, r61h.cache, r10.cache, r48, 1, 0
+0x28d8  92f69622297b00104011     icmpsel ueq, r61h.cache, r11.cache, r41.cache, r61h, 0
+0x28e2  92f696222501b1271011     icmpsel ult, r61h.cache, r11.cache, r41, 1, r61h
+0x28ec  92adbb00007e6005c004     icmpsel ueq, r11.cache, r61h.cache, 0, r127, r11
+0x28f6  92a97b00007c4005c004     icmpsel ueq, r10.cache, r61h, 0, r126, r10
+0x2900  fe79940a8030             mov r126.cache, r10.cache
+0x2906  fe7d960a8030             mov r127.cache, r11.cache
+0x290c  8e7b7c43373d0000         iadd r126_r127.cache, r126_r127, r58_r59
+0x2914  92f69482260101300011     icmpsel ult, r61h.cache, r10.cache, r52, 1, 0
+0x291e  92f696a2297b00104011     icmpsel ueq, r61h.cache, r11.cache, r45.cache, r61h, 0
+0x2928  92f696a22501b1271011     icmpsel ult, r61h.cache, r11.cache, r45, 1, r61h
+0x2932  92adbb00007e6005c004     icmpsel ueq, r11.cache, r61h.cache, 0, r127, r11
+0x293c  92a97b00007c4005c004     icmpsel ueq, r10.cache, r61h, 0, r126, r10
+0x2946  fe79940a8030             mov r126.cache, r10.cache
+0x294c  fe7d960a8030             mov r127.cache, r11.cache
+0x2952  8e7b7cc3373d0000         iadd r126_r127.cache, r126_r127, r62_r63
+0x295a  92f69402270101300011     icmpsel ult, r61h.cache, r10.cache, r56, 1, 0
+0x2964  92f696222a7b00104011     icmpsel ueq, r61h.cache, r11.cache, r49.cache, r61h, 0
+0x296e  92f696222601b1271011     icmpsel ult, r61h.cache, r11.cache, r49, 1, r61h
+0x2978  92adbb00007e6005c004     icmpsel ueq, r11.cache, r61h.cache, 0, r127, r11
+0x2982  92a97b00007c4005c004     icmpsel ueq, r10.cache, r61h, 0, r126, r10
+0x298c  fe79940a8030             mov r126.cache, r10.cache
+0x2992  fe7d960a8030             mov r127.cache, r11.cache
+0x2998  8e7b7c43343e0000         iadd r126_r127.cache, r126_r127, r66_r67
+0x29a0  92f69482270101300011     icmpsel ult, r61h.cache, r10.cache, r60, 1, 0
+0x29aa  92f696a22a7b00104011     icmpsel ueq, r61h.cache, r11.cache, r53.cache, r61h, 0
+0x29b4  92f696a22601b1271011     icmpsel ult, r61h.cache, r11.cache, r53, 1, r61h
+0x29be  92adbb00007e6005c004     icmpsel ueq, r11.cache, r61h.cache, 0, r127, r11
+0x29c8  92a97b00007c4005c004     icmpsel ueq, r10.cache, r61h, 0, r126, r10
+0x29d2  fe79940a8030             mov r126.cache, r10.cache
+0x29d8  fe7d960a8030             mov r127.cache, r11.cache
+0x29de  8e7b7cc3343e0000         iadd r126_r127.cache, r126_r127, r70_r71
+0x29e6  92f69402240101300012     icmpsel ult, r61h.cache, r10.cache, r64, 1, 0
+0x29f0  92f696222b7b00104011     icmpsel ueq, r61h.cache, r11.cache, r57.cache, r61h, 0
+0x29fa  92f696222701b1271011     icmpsel ult, r61h.cache, r11.cache, r57, 1, r61h
+0x2a04  92adbb00007e6005c004     icmpsel ueq, r11.cache, r61h.cache, 0, r127, r11
+0x2a0e  92a97b00007c4005c004     icmpsel ueq, r10.cache, r61h, 0, r126, r10
+0x2a18  fe79940a8030             mov r126.cache, r10.cache
+0x2a1e  fe7d960a8030             mov r127.cache, r11.cache
+0x2a24  8e7b7c43353e0000         iadd r126_r127.cache, r126_r127, r74_r75
+0x2a2c  92f69482240101300012     icmpsel ult, r61h.cache, r10.cache, r68, 1, 0
+0x2a36  92f696a20b7b00104011     icmpsel ueq, r61h.cache, r11.cache, r61l.cache, r61h, 0
+0x2a40  92f696a20701b1271011     icmpsel ult, r61h.cache, r11.cache, r61l, 1, r61h
+0x2a4a  92adbb00007e6005c004     icmpsel ueq, r11.cache, r61h.cache, 0, r127, r11
+0x2a54  92a97b00007c4005c004     icmpsel ueq, r10.cache, r61h, 0, r126, r10
+0x2a5e  fe79940a8030             mov r126.cache, r10.cache
+0x2a64  fe7d960a8030             mov r127.cache, r11.cache
+0x2a6a  8e7b7cc3353e0000         iadd r126_r127.cache, r126_r127, r78_r79
+0x2a72  92f69402250101300012     icmpsel ult, r61h.cache, r10.cache, r72, 1, 0
+0x2a7c  92f69622287b00104012     icmpsel ueq, r61h.cache, r11.cache, r65.cache, r61h, 0
+0x2a86  92f696222401b1271012     icmpsel ult, r61h.cache, r11.cache, r65, 1, r61h
+0x2a90  92adbb00007e6005c004     icmpsel ueq, r11.cache, r61h.cache, 0, r127, r11
+0x2a9a  92a97b00007c4005c004     icmpsel ueq, r10.cache, r61h, 0, r126, r10
+0x2aa4  fe79940a8030             mov r126.cache, r10.cache
+0x2aaa  fe7d960a8030             mov r127.cache, r11.cache
+0x2ab0  8e7b7c43363e0000         iadd r126_r127.cache, r126_r127, r82_r83
+0x2ab8  92f69482250101300012     icmpsel ult, r61h.cache, r10.cache, r76, 1, 0
+0x2ac2  92f696a2287b00104012     icmpsel ueq, r61h.cache, r11.cache, r69.cache, r61h, 0
+0x2acc  92f696a22401b1271012     icmpsel ult, r61h.cache, r11.cache, r69, 1, r61h
+0x2ad6  92adbb00007e6005c004     icmpsel ueq, r11.cache, r61h.cache, 0, r127, r11
+0x2ae0  92a97b00007c4005c004     icmpsel ueq, r10.cache, r61h, 0, r126, r10
+0x2aea  fe79940a8030             mov r126.cache, r10.cache
+0x2af0  fe7d960a8030             mov r127.cache, r11.cache
+0x2af6  8e7b7cc3363e0000         iadd r126_r127.cache, r126_r127, r86_r87
+0x2afe  92f69402260101300012     icmpsel ult, r61h.cache, r10.cache, r80, 1, 0
+0x2b08  92f69622297b00104012     icmpsel ueq, r61h.cache, r11.cache, r73.cache, r61h, 0
+0x2b12  92f696222501b1271012     icmpsel ult, r61h.cache, r11.cache, r73, 1, r61h
+0x2b1c  92adbb00007e6005c004     icmpsel ueq, r11.cache, r61h.cache, 0, r127, r11
+0x2b26  92a97b00007c4005c004     icmpsel ueq, r10.cache, r61h, 0, r126, r10
+0x2b30  fe79940a8030             mov r126.cache, r10.cache
+0x2b36  fe7d960a8030             mov r127.cache, r11.cache
+0x2b3c  8e7b7c43373e0000         iadd r126_r127.cache, r126_r127, r90_r91
+0x2b44  92f69482260101300012     icmpsel ult, r61h.cache, r10.cache, r84, 1, 0
+0x2b4e  92f696a2297b00104012     icmpsel ueq, r61h.cache, r11.cache, r77.cache, r61h, 0
+0x2b58  92f696a22501b1271012     icmpsel ult, r61h.cache, r11.cache, r77, 1, r61h
+0x2b62  92adbb00007e6005c004     icmpsel ueq, r11.cache, r61h.cache, 0, r127, r11
+0x2b6c  92a97b00007c4005c004     icmpsel ueq, r10.cache, r61h, 0, r126, r10
+0x2b76  fe79940a8030             mov r126.cache, r10.cache
+0x2b7c  fe7d960a8030             mov r127.cache, r11.cache
+0x2b82  8e7b7cc3373e0000         iadd r126_r127.cache, r126_r127, r94_r95
+0x2b8a  92f69402270101300012     icmpsel ult, r61h.cache, r10.cache, r88, 1, 0
+0x2b94  92f696222a7b00104012     icmpsel ueq, r61h.cache, r11.cache, r81.cache, r61h, 0
+0x2b9e  92f696222601b1271012     icmpsel ult, r61h.cache, r11.cache, r81, 1, r61h
+0x2ba8  92adbb00007e6005c004     icmpsel ueq, r11.cache, r61h.cache, 0, r127, r11
+0x2bb2  92a97b00007c4005c004     icmpsel ueq, r10.cache, r61h, 0, r126, r10
+0x2bbc  fe79940a8030             mov r126.cache, r10.cache
+0x2bc2  fe7d960a8030             mov r127.cache, r11.cache
+0x2bc8  8e7b7c43343f0000         iadd r126_r127.cache, r126_r127, r98_r99
+0x2bd0  92f69482270101300012     icmpsel ult, r61h.cache, r10.cache, r92, 1, 0
+0x2bda  92f696a22a7b00104012     icmpsel ueq, r61h.cache, r11.cache, r85.cache, r61h, 0
+0x2be4  92f696a22601b1271012     icmpsel ult, r61h.cache, r11.cache, r85, 1, r61h
+0x2bee  92adbb00007e6005c004     icmpsel ueq, r11.cache, r61h.cache, 0, r127, r11
+0x2bf8  92a97b00007c4005c004     icmpsel ueq, r10.cache, r61h, 0, r126, r10
+0x2c02  fe79940a8030             mov r126.cache, r10.cache
+0x2c08  fe7d960a8030             mov r127.cache, r11.cache
+0x2c0e  8e7b7cc3343f0000         iadd r126_r127.cache, r126_r127, r102_r103
+0x2c16  92f69402240101300013     icmpsel ult, r61h.cache, r10.cache, r96, 1, 0
+0x2c20  92f696222b7b00104012     icmpsel ueq, r61h.cache, r11.cache, r89.cache, r61h, 0
+0x2c2a  92f696222701b1271012     icmpsel ult, r61h.cache, r11.cache, r89, 1, r61h
+0x2c34  92adbb00007e6005c004     icmpsel ueq, r11.cache, r61h.cache, 0, r127, r11
+0x2c3e  92a97b00007c4005c004     icmpsel ueq, r10.cache, r61h, 0, r126, r10
+0x2c48  fe79940a8030             mov r126.cache, r10.cache
+0x2c4e  fe7d960a8030             mov r127.cache, r11.cache
+0x2c54  8e7b7c43353f0000         iadd r126_r127.cache, r126_r127, r106_r107
+0x2c5c  92f69482240101300013     icmpsel ult, r61h.cache, r10.cache, r100, 1, 0
+0x2c66  92f696a22b7b00104012     icmpsel ueq, r61h.cache, r11.cache, r93.cache, r61h, 0
+0x2c70  92f696a22701b1271012     icmpsel ult, r61h.cache, r11.cache, r93, 1, r61h
+0x2c7a  92adbb00007e6005c004     icmpsel ueq, r11.cache, r61h.cache, 0, r127, r11
+0x2c84  92a97b00007c4005c004     icmpsel ueq, r10.cache, r61h, 0, r126, r10
+0x2c8e  fe79940a8030             mov r126.cache, r10.cache
+0x2c94  fe7d960a8030             mov r127.cache, r11.cache
+0x2c9a  8e7b7cc3353f0000         iadd r126_r127.cache, r126_r127, r110_r111
+0x2ca2  92f69402250101300013     icmpsel ult, r61h.cache, r10.cache, r104, 1, 0
+0x2cac  92f69622287b00104013     icmpsel ueq, r61h.cache, r11.cache, r97.cache, r61h, 0
+0x2cb6  92f696222401b1271013     icmpsel ult, r61h.cache, r11.cache, r97, 1, r61h
+0x2cc0  92adbb00007e6005c004     icmpsel ueq, r11.cache, r61h.cache, 0, r127, r11
+0x2cca  92a97b00007c4005c004     icmpsel ueq, r10.cache, r61h, 0, r126, r10
+0x2cd4  fe79940a8030             mov r126.cache, r10.cache
+0x2cda  fe7d960a8030             mov r127.cache, r11.cache
+0x2ce0  8e7b7c43363f0000         iadd r126_r127.cache, r126_r127, r114_r115
+0x2ce8  92f69482250101300013     icmpsel ult, r61h.cache, r10.cache, r108, 1, 0
+0x2cf2  92f696a2287b00104013     icmpsel ueq, r61h.cache, r11.cache, r101.cache, r61h, 0
+0x2cfc  92f696a22401b1271013     icmpsel ult, r61h.cache, r11.cache, r101, 1, r61h
+0x2d06  92adbb00007e6005c004     icmpsel ueq, r11.cache, r61h.cache, 0, r127, r11
+0x2d10  92a97b00007c4005c004     icmpsel ueq, r10.cache, r61h, 0, r126, r10
+0x2d1a  fe79940a8030             mov r126.cache, r10.cache
+0x2d20  fe7d960a8030             mov r127.cache, r11.cache
+0x2d26  8e7b7cc3353c0000         iadd r126_r127.cache, r126_r127, r14_r15
+0x2d2e  92f69402260101300013     icmpsel ult, r61h.cache, r10.cache, r112, 1, 0
+0x2d38  92f69622297b00104013     icmpsel ueq, r61h.cache, r11.cache, r105.cache, r61h, 0
+0x2d42  92f696222501b1271013     icmpsel ult, r61h.cache, r11.cache, r105, 1, r61h
+0x2d4c  92adbb00007e6005c004     icmpsel ueq, r11.cache, r61h.cache, 0, r127, r11
+0x2d56  92a97b00007c4005c004     icmpsel ueq, r10.cache, r61h, 0, r126, r10
+0x2d60  fe79940a8030             mov r126.cache, r10.cache
+0x2d66  fe7d960a8030             mov r127.cache, r11.cache
+0x2d6c  8e5b7cc3363f0000         iadd r118_r119.cache, r126_r127, r118_r119
+0x2d74  92f69482260101300013     icmpsel ult, r61h.cache, r10.cache, r116, 1, 0
+0x2d7e  92f69682297b00104010     icmpsel ueq, r61h.cache, r11.cache, r12.cache, r61h, 0
+0x2d88  92f696822501b1271010     icmpsel ult, r61h.cache, r11.cache, r12, 1, r61h
+0x2d92  92fdbb00006e6005c034     icmpsel ueq, r127.cache, r61h.cache, 0, r119, r11
+0x2d9c  92f97b00006c4005c034     icmpsel ueq, r126.cache, r61h, 0, r118, r10
+0x2da6  fe29bc0a800c             mov r10.cache, r126.cache
+0x2dac  fe2dbe0a800c             mov r11.cache, r127.cache
+0x2db2  35b2800500c33200         stack_load r118_r119, i32, 1, 0, xy, 4, 8, 0
+0x2dba  3800                     wait 0
+0x2dbc  8e2b54c336030000         iadd r10_r11.cache, r10_r11, r118_r119
+0x2dc4  92f6bc0227010130001f     icmpsel ult, r61h.cache, r126.cache, r120, 1, 0
+0x2dce  35b2000500c31200         stack_load r118, i32, 1, 0, x, 4, 0, 0
+0x2dd6  3800                     wait 0
+0x2dd8  92f6bec22a7b0010401f     icmpsel ueq, r61h.cache, r127.cache, r118.cache, r61h, 0
+0x2de2  92f6bec22601b127101f     icmpsel ult, r61h.cache, r127.cache, r118, 1, r61h
+0x2dec  92ddbb000056e0073034     icmpsel ueq, r119.cache, r61h.cache, 0, r11, r127
+0x2df6  92d97b000054c0073034     icmpsel ueq, r118.cache, r61h, 0, r10, r126
+0x2e00  fe29ac0a800c             mov r10.cache, r118.cache
+0x2e06  fe2dae0a800c             mov r11.cache, r119.cache
+0x2e0c  35f2800501c33200         stack_load r126_r127, i32, 1, 0, xy, 4, 24, 0
+0x2e14  3800                     wait 0
+0x2e16  8e2b54c337030000         iadd r10_r11.cache, r10_r11, r126_r127
+0x2e1e  92f6ac2226010130001f     icmpsel ult, r61h.cache, r118.cache, r113, 1, 0
+0x2e28  35ca000501c31200         stack_load r121, i32, 1, 0, x, 4, 16, 0
+0x2e30  3800                     wait 0
+0x2e32  92f6ae222b7b0010401f     icmpsel ueq, r61h.cache, r119.cache, r121.cache, r61h, 0
+0x2e3c  92f6ae222701b127101f     icmpsel ult, r61h.cache, r119.cache, r121, 1, r61h
+0x2e46  92fdbb000056e0063034     icmpsel ueq, r127.cache, r61h.cache, 0, r11, r119
+0x2e50  92f97b000054c0063034     icmpsel ueq, r126.cache, r61h, 0, r10, r118
+0x2e5a  fe29bc0a800c             mov r10.cache, r126.cache
+0x2e60  fe2dbe0a800c             mov r11.cache, r127.cache
+0x2e66  35b2000504c33200         stack_load r118_r119, i32, 1, 0, xy, 4, 64, 0
+0x2e6e  3800                     wait 0
+0x2e70  8e2b54c336030000         iadd r10_r11.cache, r10_r11, r118_r119
+0x2e78  92f6bca226010130001f     icmpsel ult, r61h.cache, r126.cache, r117, 1, 0
+0x2e82  35b2400501c31200         stack_load r118, i32, 1, 0, x, 4, 20, 0
+0x2e8a  3800                     wait 0
+0x2e8c  92f6bec22a7b0010401f     icmpsel ueq, r61h.cache, r127.cache, r118.cache, r61h, 0
+0x2e96  92f6bec22601b127101f     icmpsel ult, r61h.cache, r127.cache, r118, 1, r61h
+0x2ea0  92ddbb000056e0073034     icmpsel ueq, r119.cache, r61h.cache, 0, r11, r127
+0x2eaa  92d97b000054c0073034     icmpsel ueq, r118.cache, r61h, 0, r10, r126
+0x2eb4  fe29ac0a800c             mov r10.cache, r118.cache
+0x2eba  fe2dae0a800c             mov r11.cache, r119.cache
+0x2ec0  35f2800504c33200         stack_load r126_r127, i32, 1, 0, xy, 4, 72, 0
+0x2ec8  3800                     wait 0
+0x2eca  8e2b54c337030000         iadd r10_r11.cache, r10_r11, r126_r127
+0x2ed2  92f6aca224010130001c     icmpsel ult, r61h.cache, r118.cache, r5, 1, 0
+0x2edc  92f6ae02007b0010401c     icmpsel ueq, r61h.cache, r119.cache, 0, r61h, 0
+0x2ee6  92adbb000056e0063004     icmpsel ueq, r11.cache, r61h.cache, 0, r11, r119
+0x2ef0  92a97b000054c0063004     icmpsel ueq, r10.cache, r61h, 0, r10, r118
+0x2efa  35b2400500c31200         stack_load r118, i32, 1, 0, x, 4, 4, 0
+0x2f02  3800                     wait 0
+0x2f04  fe5d6c12803c             and r119.cache, r118, 1
+0x2f0a  35ca000503c31200         stack_load r121, i32, 1, 0, x, 4, 48, 0
+0x2f12  3800                     wait 0
+0x2f14  12adae0200726005c00c     icmpsel ueq, r11, r119.cache, 0, r121, r11
+0x2f1e  12a96e0200504005000c     icmpsel ueq, r10, r119, 0, r8, r10
+0x2f28  7e5d520a8030             mov r119, r9
+0x2f2e  1e23b4422b00000f         imadd r8_r9, r122.cache, r122.cache, 0
+0x2f36  fe65520a8030             mov r121.cache, r9
+0x2f3c  8e697446673f0000         iadd r122.cache, r122.sx, r122.sx
+0x2f44  b552000503c03200         stack_store i32, 1, 0, xy, 4, r10_r11, 48, 0
+0x2f4c  3552c04502c01200         stack_load r10, i32, 1, 0, x, 4, 44, 1
+0x2f54  3801                     wait 1
+0x2f56  1e2954466772c603         imadd r10, r10.sx, r122.sx, r121.sx
+0x2f5e  3800                     wait 0
+0x2f60  522954a22400             if_icmp r0l, ugte, r10, r5, 1
+0x2f66  20c07a030000             jmp_exec_none pc+890
+0x2f6c  8e2594ee68000000         isub r9.cache, r10.cache.sx, r7.cache.sx
+0x2f74  be2d8a0e0000             ffs r11.cache, r5.cache
+0x2f7a  92250060299420a5         icmpsel slt, r9.cache, 0, r11.cache, r10.cache, r9
+0x2f82  922554e228542025         icmpsel ult, r9.cache, r10, r7.cache, r10, r9
+0x2f8a  8e2992ae69030000         isub r10.cache, r9.cache.sx, r109.cache.sx
+0x2f92  92290160299240a5         icmpsel slt, r10.cache, 1, r11.cache, r9.cache, r10
+0x2f9a  92a552a2295240250003     icmpsel ult, r9.cache, r9, r109.cache, r9, r10
+0x2fa4  8e29920e6a000000         isub r10.cache, r9.cache.sx, r16.cache.sx
+0x2fac  92290260299240a5         icmpsel slt, r10.cache, 2, r11.cache, r9.cache, r10
+0x2fb4  9225520226524025         icmpsel ult, r9.cache, r9, r16, r9, r10
+0x2fbc  8e29928e6a000000         isub r10.cache, r9.cache.sx, r20.cache.sx
+0x2fc4  92290360299240a5         icmpsel slt, r10.cache, 3, r11.cache, r9.cache, r10
+0x2fcc  9225528226524025         icmpsel ult, r9.cache, r9, r20, r9, r10
+0x2fd4  8e29920e6b000000         isub r10.cache, r9.cache.sx, r24.cache.sx
+0x2fdc  92290460299240a5         icmpsel slt, r10.cache, 4, r11.cache, r9.cache, r10
+0x2fe4  9225520227524025         icmpsel ult, r9.cache, r9, r24, r9, r10
+0x2fec  8e29928e6b000000         isub r10.cache, r9.cache.sx, r28.cache.sx
+0x2ff4  92290560299240a5         icmpsel slt, r10.cache, 5, r11.cache, r9.cache, r10
+0x2ffc  9225528227524025         icmpsel ult, r9.cache, r9, r28, r9, r10
+0x3004  8e29920e68010000         isub r10.cache, r9.cache.sx, r32.cache.sx
+0x300c  92290660299240a5         icmpsel slt, r10.cache, 6, r11.cache, r9.cache, r10
+0x3014  92a55202245240250001     icmpsel ult, r9.cache, r9, r32, r9, r10
+0x301e  8e29928e68010000         isub r10.cache, r9.cache.sx, r36.cache.sx
+0x3026  92290760299240a5         icmpsel slt, r10.cache, 7, r11.cache, r9.cache, r10
+0x302e  92a55282245240250001     icmpsel ult, r9.cache, r9, r36, r9, r10
+0x3038  8e29920e69010000         isub r10.cache, r9.cache.sx, r40.cache.sx
+0x3040  92290860299240a5         icmpsel slt, r10.cache, 8, r11.cache, r9.cache, r10
+0x3048  92a55202255240250001     icmpsel ult, r9.cache, r9, r40, r9, r10
+0x3052  8e29928e69010000         isub r10.cache, r9.cache.sx, r44.cache.sx
+0x305a  92290960299240a5         icmpsel slt, r10.cache, 9, r11.cache, r9.cache, r10
+0x3062  92a55282255240250001     icmpsel ult, r9.cache, r9, r44, r9, r10
+0x306c  8e29920e6a010000         isub r10.cache, r9.cache.sx, r48.cache.sx
+0x3074  92290a60299240a5         icmpsel slt, r10.cache, 10, r11.cache, r9.cache, r10
+0x307c  92a55202265240250001     icmpsel ult, r9.cache, r9, r48, r9, r10
+0x3086  8e29928e6a010000         isub r10.cache, r9.cache.sx, r52.cache.sx
+0x308e  92290b60299240a5         icmpsel slt, r10.cache, 11, r11.cache, r9.cache, r10
+0x3096  92a55282265240250001     icmpsel ult, r9.cache, r9, r52, r9, r10
+0x30a0  8e29920e6b010000         isub r10.cache, r9.cache.sx, r56.cache.sx
+0x30a8  92290c60299240a5         icmpsel slt, r10.cache, 12, r11.cache, r9.cache, r10
+0x30b0  92a55202275240250001     icmpsel ult, r9.cache, r9, r56, r9, r10
+0x30ba  8e29928e6b010000         isub r10.cache, r9.cache.sx, r60.cache.sx
+0x30c2  92290d60299240a5         icmpsel slt, r10.cache, 13, r11.cache, r9.cache, r10
+0x30ca  92a55282275240250001     icmpsel ult, r9.cache, r9, r60, r9, r10
+0x30d4  8e29920e68020000         isub r10.cache, r9.cache.sx, r64.cache.sx
+0x30dc  92290e60299240a5         icmpsel slt, r10.cache, 14, r11.cache, r9.cache, r10
+0x30e4  92a55202245240250002     icmpsel ult, r9.cache, r9, r64, r9, r10
+0x30ee  8e29928e68020000         isub r10.cache, r9.cache.sx, r68.cache.sx
+0x30f6  92290f60299240a5         icmpsel slt, r10.cache, 15, r11.cache, r9.cache, r10
+0x30fe  92a55282245240250002     icmpsel ult, r9.cache, r9, r68, r9, r10
+0x3108  8e29920e69020000         isub r10.cache, r9.cache.sx, r72.cache.sx
+0x3110  92291060299240a5         icmpsel slt, r10.cache, 16, r11.cache, r9.cache, r10
+0x3118  92a55202255240250002     icmpsel ult, r9.cache, r9, r72, r9, r10
+0x3122  8e29928e69020000         isub r10.cache, r9.cache.sx, r76.cache.sx
+0x312a  92291160299240a5         icmpsel slt, r10.cache, 17, r11.cache, r9.cache, r10
+0x3132  92a55282255240250002     icmpsel ult, r9.cache, r9, r76, r9, r10
+0x313c  8e29920e6a020000         isub r10.cache, r9.cache.sx, r80.cache.sx
+0x3144  92291260299240a5         icmpsel slt, r10.cache, 18, r11.cache, r9.cache, r10
+0x314c  92a55202265240250002     icmpsel ult, r9.cache, r9, r80, r9, r10
+0x3156  8e29928e6a020000         isub r10.cache, r9.cache.sx, r84.cache.sx
+0x315e  92291360299240a5         icmpsel slt, r10.cache, 19, r11.cache, r9.cache, r10
+0x3166  92a55282265240250002     icmpsel ult, r9.cache, r9, r84, r9, r10
+0x3170  8e29920e6b020000         isub r10.cache, r9.cache.sx, r88.cache.sx
+0x3178  92291460299240a5         icmpsel slt, r10.cache, 20, r11.cache, r9.cache, r10
+0x3180  92a55202275240250002     icmpsel ult, r9.cache, r9, r88, r9, r10
+0x318a  8e29928e6b020000         isub r10.cache, r9.cache.sx, r92.cache.sx
+0x3192  92291560299240a5         icmpsel slt, r10.cache, 21, r11.cache, r9.cache, r10
+0x319a  92a55282275240250002     icmpsel ult, r9.cache, r9, r92, r9, r10
+0x31a4  8e29920e68030000         isub r10.cache, r9.cache.sx, r96.cache.sx
+0x31ac  92291660299240a5         icmpsel slt, r10.cache, 22, r11.cache, r9.cache, r10
+0x31b4  92a55202245240250003     icmpsel ult, r9.cache, r9, r96, r9, r10
+0x31be  8e29928e68030000         isub r10.cache, r9.cache.sx, r100.cache.sx
+0x31c6  92291760299240a5         icmpsel slt, r10.cache, 23, r11.cache, r9.cache, r10
+0x31ce  92a55282245240250003     icmpsel ult, r9.cache, r9, r100, r9, r10
+0x31d8  8e29920e69030000         isub r10.cache, r9.cache.sx, r104.cache.sx
+0x31e0  92291860299240a5         icmpsel slt, r10.cache, 24, r11.cache, r9.cache, r10
+0x31e8  92a55202255240250003     icmpsel ult, r9.cache, r9, r104, r9, r10
+0x31f2  8e29928e69030000         isub r10.cache, r9.cache.sx, r108.cache.sx
+0x31fa  92291960299240a5         icmpsel slt, r10.cache, 25, r11.cache, r9.cache, r10
+0x3202  92a55282255240250003     icmpsel ult, r9.cache, r9, r108, r9, r10
+0x320c  8e29920e6a030000         isub r10.cache, r9.cache.sx, r112.cache.sx
+0x3214  92291a60299240a5         icmpsel slt, r10.cache, 26, r11.cache, r9.cache, r10
+0x321c  92a55202265240250003     icmpsel ult, r9.cache, r9, r112, r9, r10
+0x3226  8e29928e6a030000         isub r10.cache, r9.cache.sx, r116.cache.sx
+0x322e  92291b60299240a5         icmpsel slt, r10.cache, 27, r11.cache, r9.cache, r10
+0x3236  92a55282265240250003     icmpsel ult, r9.cache, r9, r116, r9, r10
+0x3240  8e29920e6b030000         isub r10.cache, r9.cache.sx, r120.cache.sx
+0x3248  92291c60299240a5         icmpsel slt, r10.cache, 28, r11.cache, r9.cache, r10
+0x3250  92a55202275240250003     icmpsel ult, r9.cache, r9, r120, r9, r10
+0x325a  8e29922e6a030000         isub r10.cache, r9.cache.sx, r113.cache.sx
+0x3262  92291d60299240a5         icmpsel slt, r10.cache, 29, r11.cache, r9.cache, r10
+0x326a  92a55222265240250003     icmpsel ult, r9.cache, r9, r113, r9, r10
+0x3274  8e2992ae6a030000         isub r10.cache, r9.cache.sx, r117.cache.sx
+0x327c  92291e60259240a5         icmpsel slt, r10.cache, 30, r11, r9.cache, r10
+0x3284  92a552a2265240250003     icmpsel ult, r9.cache, r9, r117, r9, r10
+0x328e  8e2992ae68000000         isub r10.cache, r9.cache.sx, r5.cache.sx
+0x3296  922952a224524025         icmpsel ult, r10.cache, r9, r5, r9, r10
+0x329e  7e256e0a800c             mov r9, r119
+0x32a4  7e2d5a0a800c             mov r11, r109
+0x32aa  7e69780a803c             mov r122, r124
+0x32b0  7e6d7a0a803c             mov r123, r125
+0x32b6  7e71500a8030             mov r124, r8
+0x32bc  7e75540a8030             mov r125, r10
+0x32c2  7e21480a8000             mov r8, r4
+0x32c8  7e114c0a8000             mov r4, r6
+0x32ce  7e294e0a8000             mov r10, r7
+0x32d4  7e197c0a800c             mov r6, r126
+0x32da  7e1d7e0a800c             mov r7, r127
+0x32e0  420a00000000             else_fcmp r0l, eq, 0.0, 0.0, 1
+0x32e6  7e256e0a800c             mov r9, r119
+0x32ec  7e2d5a0a800c             mov r11, r109
+0x32f2  7e69780a803c             mov r122, r124
+0x32f8  7e6d7a0a803c             mov r123, r125
+0x32fe  7e71500a8030             mov r124, r8
+0x3304  7e75540a8030             mov r125, r10
+0x330a  7e21480a8000             mov r8, r4
+0x3310  7e114c0a8000             mov r4, r6
+0x3316  7e294e0a8000             mov r10, r7
+0x331c  7e197c0a800c             mov r6, r126
+0x3322  7e1d7e0a800c             mov r7, r127
+0x3328  520e00000000             pop_exec r0l, 1
+0x332e  fe79b80a803c             mov r126.cache, r124.cache
+0x3334  fe7dba0a803c             mov r127.cache, r125.cache
+0x333a  8e7b7c433b3f0000         iadd r126_r127.cache, r126_r127, r122_r123.cache
+0x3342  92f6b84225010130001c     icmpsel ult, r61h.cache, r124.cache, r10, 1, 0
+0x334c  92f6ba82287b0010401c     icmpsel ueq, r61h.cache, r125.cache, r4.cache, r61h, 0
+0x3356  92f6ba822801b127101c     icmpsel ult, r61h.cache, r125.cache, r4.cache, 1, r61h
+0x3360  92b5bb00007ea007f034     icmpsel ueq, r109.cache, r61h.cache, 0, r127, r125
+0x336a  92f17b00007c8007f034     icmpsel ueq, r124.cache, r61h, 0, r126, r124
+0x3374  fe79b80a803c             mov r126.cache, r124.cache
+0x337a  fe7d9a0a803c             mov r127.cache, r109.cache
+0x3380  8e7b7c43363c0000         iadd r126_r127.cache, r126_r127, r18_r19
+0x3388  92f6b86225010130001c     icmpsel ult, r61h.cache, r124.cache, r11, 1, 0
+0x3392  92f69a02297b0010401c     icmpsel ueq, r61h.cache, r109.cache, r8.cache, r61h, 0
+0x339c  92f69a022901b127101c     icmpsel ult, r61h.cache, r109.cache, r8.cache, 1, r61h
+0x33a6  92b5bb00007ea005f034     icmpsel ueq, r109.cache, r61h.cache, 0, r127, r109
+0x33b0  92f17b00007c8007f034     icmpsel ueq, r124.cache, r61h, 0, r126, r124
+0x33ba  fe79b80a803c             mov r126.cache, r124.cache
+0x33c0  fe7d9a0a803c             mov r127.cache, r109.cache
+0x33c6  8e7b7cc3363c0000         iadd r126_r127.cache, r126_r127, r22_r23
+0x33ce  92f6b80226010130001c     icmpsel ult, r61h.cache, r124.cache, r16, 1, 0
+0x33d8  92f69a22297b0010401c     icmpsel ueq, r61h.cache, r109.cache, r9.cache, r61h, 0
+0x33e2  92f69a222501b127101c     icmpsel ult, r61h.cache, r109.cache, r9, 1, r61h
+0x33ec  92b5bb00007ea005f034     icmpsel ueq, r109.cache, r61h.cache, 0, r127, r109
+0x33f6  92f17b00007c8007f034     icmpsel ueq, r124.cache, r61h, 0, r126, r124
+0x3400  fe79b80a803c             mov r126.cache, r124.cache
+0x3406  fe7d9a0a803c             mov r127.cache, r109.cache
+0x340c  8e7b7c43373c0000         iadd r126_r127.cache, r126_r127, r26_r27
+0x3414  92f6b88226010130001c     icmpsel ult, r61h.cache, r124.cache, r20, 1, 0
+0x341e  92f69aa2297b0010401c     icmpsel ueq, r61h.cache, r109.cache, r13.cache, r61h, 0
+0x3428  92f69aa22501b127101c     icmpsel ult, r61h.cache, r109.cache, r13, 1, r61h
+0x3432  92b5bb00007ea005f034     icmpsel ueq, r109.cache, r61h.cache, 0, r127, r109
+0x343c  92f17b00007c8007f034     icmpsel ueq, r124.cache, r61h, 0, r126, r124
+0x3446  fe79b80a803c             mov r126.cache, r124.cache
+0x344c  fe7d9a0a803c             mov r127.cache, r109.cache
+0x3452  8e7b7cc3373c0000         iadd r126_r127.cache, r126_r127, r30_r31
+0x345a  92f6b80227010130001c     icmpsel ult, r61h.cache, r124.cache, r24, 1, 0
+0x3464  92f69a222a7b0010401c     icmpsel ueq, r61h.cache, r109.cache, r17.cache, r61h, 0
+0x346e  92f69a222601b127101c     icmpsel ult, r61h.cache, r109.cache, r17, 1, r61h
+0x3478  92b5bb00007ea005f034     icmpsel ueq, r109.cache, r61h.cache, 0, r127, r109
+0x3482  92f17b00007c8007f034     icmpsel ueq, r124.cache, r61h, 0, r126, r124
+0x348c  fe79b80a803c             mov r126.cache, r124.cache
+0x3492  fe7d9a0a803c             mov r127.cache, r109.cache
+0x3498  8e7b7c43343d0000         iadd r126_r127.cache, r126_r127, r34_r35
+0x34a0  92f6b88227010130001c     icmpsel ult, r61h.cache, r124.cache, r28, 1, 0
+0x34aa  92f69aa22a7b0010401c     icmpsel ueq, r61h.cache, r109.cache, r21.cache, r61h, 0
+0x34b4  92f69aa22601b127101c     icmpsel ult, r61h.cache, r109.cache, r21, 1, r61h
+0x34be  92b5bb00007ea005f034     icmpsel ueq, r109.cache, r61h.cache, 0, r127, r109
+0x34c8  92f17b00007c8007f034     icmpsel ueq, r124.cache, r61h, 0, r126, r124
+0x34d2  fe79b80a803c             mov r126.cache, r124.cache
+0x34d8  fe7d9a0a803c             mov r127.cache, r109.cache
+0x34de  8e7b7cc3343d0000         iadd r126_r127.cache, r126_r127, r38_r39
+0x34e6  92f6b80224010130001d     icmpsel ult, r61h.cache, r124.cache, r32, 1, 0
+0x34f0  92f69a222b7b0010401c     icmpsel ueq, r61h.cache, r109.cache, r25.cache, r61h, 0
+0x34fa  92f69a222701b127101c     icmpsel ult, r61h.cache, r109.cache, r25, 1, r61h
+0x3504  92b5bb00007ea005f034     icmpsel ueq, r109.cache, r61h.cache, 0, r127, r109
+0x350e  92f17b00007c8007f034     icmpsel ueq, r124.cache, r61h, 0, r126, r124
+0x3518  fe79b80a803c             mov r126.cache, r124.cache
+0x351e  fe7d9a0a803c             mov r127.cache, r109.cache
+0x3524  8e7b7c43353d0000         iadd r126_r127.cache, r126_r127, r42_r43
+0x352c  92f6b88224010130001d     icmpsel ult, r61h.cache, r124.cache, r36, 1, 0
+0x3536  92f69aa22b7b0010401c     icmpsel ueq, r61h.cache, r109.cache, r29.cache, r61h, 0
+0x3540  92f69aa22701b127101c     icmpsel ult, r61h.cache, r109.cache, r29, 1, r61h
+0x354a  92b5bb00007ea005f034     icmpsel ueq, r109.cache, r61h.cache, 0, r127, r109
+0x3554  92f17b00007c8007f034     icmpsel ueq, r124.cache, r61h, 0, r126, r124
+0x355e  fe79b80a803c             mov r126.cache, r124.cache
+0x3564  fe7d9a0a803c             mov r127.cache, r109.cache
+0x356a  8e7b7cc3353d0000         iadd r126_r127.cache, r126_r127, r46_r47
+0x3572  92f6b80225010130001d     icmpsel ult, r61h.cache, r124.cache, r40, 1, 0
+0x357c  92f69a22287b0010401d     icmpsel ueq, r61h.cache, r109.cache, r33.cache, r61h, 0
+0x3586  92f69a222401b127101d     icmpsel ult, r61h.cache, r109.cache, r33, 1, r61h
+0x3590  92b5bb00007ea005f034     icmpsel ueq, r109.cache, r61h.cache, 0, r127, r109
+0x359a  92f17b00007c8007f034     icmpsel ueq, r124.cache, r61h, 0, r126, r124
+0x35a4  fe79b80a803c             mov r126.cache, r124.cache
+0x35aa  fe7d9a0a803c             mov r127.cache, r109.cache
+0x35b0  8e7b7c43363d0000         iadd r126_r127.cache, r126_r127, r50_r51
+0x35b8  92f6b88225010130001d     icmpsel ult, r61h.cache, r124.cache, r44, 1, 0
+0x35c2  92f69aa2287b0010401d     icmpsel ueq, r61h.cache, r109.cache, r37.cache, r61h, 0
+0x35cc  92f69aa22401b127101d     icmpsel ult, r61h.cache, r109.cache, r37, 1, r61h
+0x35d6  92b5bb00007ea005f034     icmpsel ueq, r109.cache, r61h.cache, 0, r127, r109
+0x35e0  92f17b00007c8007f034     icmpsel ueq, r124.cache, r61h, 0, r126, r124
+0x35ea  fe79b80a803c             mov r126.cache, r124.cache
+0x35f0  fe7d9a0a803c             mov r127.cache, r109.cache
+0x35f6  8e7b7cc3363d0000         iadd r126_r127.cache, r126_r127, r54_r55
+0x35fe  92f6b80226010130001d     icmpsel ult, r61h.cache, r124.cache, r48, 1, 0
+0x3608  92f69a22297b0010401d     icmpsel ueq, r61h.cache, r109.cache, r41.cache, r61h, 0
+0x3612  92f69a222501b127101d     icmpsel ult, r61h.cache, r109.cache, r41, 1, r61h
+0x361c  92b5bb00007ea005f034     icmpsel ueq, r109.cache, r61h.cache, 0, r127, r109
+0x3626  92f17b00007c8007f034     icmpsel ueq, r124.cache, r61h, 0, r126, r124
+0x3630  fe79b80a803c             mov r126.cache, r124.cache
+0x3636  fe7d9a0a803c             mov r127.cache, r109.cache
+0x363c  8e7b7c43373d0000         iadd r126_r127.cache, r126_r127, r58_r59
+0x3644  92f6b88226010130001d     icmpsel ult, r61h.cache, r124.cache, r52, 1, 0
+0x364e  92f69aa2297b0010401d     icmpsel ueq, r61h.cache, r109.cache, r45.cache, r61h, 0
+0x3658  92f69aa22501b127101d     icmpsel ult, r61h.cache, r109.cache, r45, 1, r61h
+0x3662  92b5bb00007ea005f034     icmpsel ueq, r109.cache, r61h.cache, 0, r127, r109
+0x366c  92f17b00007c8007f034     icmpsel ueq, r124.cache, r61h, 0, r126, r124
+0x3676  fe79b80a803c             mov r126.cache, r124.cache
+0x367c  fe7d9a0a803c             mov r127.cache, r109.cache
+0x3682  8e7b7cc3373d0000         iadd r126_r127.cache, r126_r127, r62_r63
+0x368a  92f6b80227010130001d     icmpsel ult, r61h.cache, r124.cache, r56, 1, 0
+0x3694  92f69a222a7b0010401d     icmpsel ueq, r61h.cache, r109.cache, r49.cache, r61h, 0
+0x369e  92f69a222601b127101d     icmpsel ult, r61h.cache, r109.cache, r49, 1, r61h
+0x36a8  92b5bb00007ea005f034     icmpsel ueq, r109.cache, r61h.cache, 0, r127, r109
+0x36b2  92f17b00007c8007f034     icmpsel ueq, r124.cache, r61h, 0, r126, r124
+0x36bc  fe79b80a803c             mov r126.cache, r124.cache
+0x36c2  fe7d9a0a803c             mov r127.cache, r109.cache
+0x36c8  8e7b7c43343e0000         iadd r126_r127.cache, r126_r127, r66_r67
+0x36d0  92f6b88227010130001d     icmpsel ult, r61h.cache, r124.cache, r60, 1, 0
+0x36da  92f69aa22a7b0010401d     icmpsel ueq, r61h.cache, r109.cache, r53.cache, r61h, 0
+0x36e4  92f69aa22601b127101d     icmpsel ult, r61h.cache, r109.cache, r53, 1, r61h
+0x36ee  92b5bb00007ea005f034     icmpsel ueq, r109.cache, r61h.cache, 0, r127, r109
+0x36f8  92f17b00007c8007f034     icmpsel ueq, r124.cache, r61h, 0, r126, r124
+0x3702  fe79b80a803c             mov r126.cache, r124.cache
+0x3708  fe7d9a0a803c             mov r127.cache, r109.cache
+0x370e  8e7b7cc3343e0000         iadd r126_r127.cache, r126_r127, r70_r71
+0x3716  92f6b80224010130001e     icmpsel ult, r61h.cache, r124.cache, r64, 1, 0
+0x3720  92f69a222b7b0010401d     icmpsel ueq, r61h.cache, r109.cache, r57.cache, r61h, 0
+0x372a  92f69a222701b127101d     icmpsel ult, r61h.cache, r109.cache, r57, 1, r61h
+0x3734  92b5bb00007ea005f034     icmpsel ueq, r109.cache, r61h.cache, 0, r127, r109
+0x373e  92f17b00007c8007f034     icmpsel ueq, r124.cache, r61h, 0, r126, r124
+0x3748  fe79b80a803c             mov r126.cache, r124.cache
+0x374e  fe7d9a0a803c             mov r127.cache, r109.cache
+0x3754  8e7b7c43353e0000         iadd r126_r127.cache, r126_r127, r74_r75
+0x375c  92f6b88224010130001e     icmpsel ult, r61h.cache, r124.cache, r68, 1, 0
+0x3766  92f69aa20b7b0010401d     icmpsel ueq, r61h.cache, r109.cache, r61l.cache, r61h, 0
+0x3770  92f69aa20701b127101d     icmpsel ult, r61h.cache, r109.cache, r61l, 1, r61h
+0x377a  92b5bb00007ea005f034     icmpsel ueq, r109.cache, r61h.cache, 0, r127, r109
+0x3784  92f17b00007c8007f034     icmpsel ueq, r124.cache, r61h, 0, r126, r124
+0x378e  fe79b80a803c             mov r126.cache, r124.cache
+0x3794  fe7d9a0a803c             mov r127.cache, r109.cache
+0x379a  8e7b7cc3353e0000         iadd r126_r127.cache, r126_r127, r78_r79
+0x37a2  92f6b80225010130001e     icmpsel ult, r61h.cache, r124.cache, r72, 1, 0
+0x37ac  92f69a22287b0010401e     icmpsel ueq, r61h.cache, r109.cache, r65.cache, r61h, 0
+0x37b6  92f69a222401b127101e     icmpsel ult, r61h.cache, r109.cache, r65, 1, r61h
+0x37c0  92b5bb00007ea005f034     icmpsel ueq, r109.cache, r61h.cache, 0, r127, r109
+0x37ca  92f17b00007c8007f034     icmpsel ueq, r124.cache, r61h, 0, r126, r124
+0x37d4  fe79b80a803c             mov r126.cache, r124.cache
+0x37da  fe7d9a0a803c             mov r127.cache, r109.cache
+0x37e0  8e7b7c43363e0000         iadd r126_r127.cache, r126_r127, r82_r83
+0x37e8  92f6b88225010130001e     icmpsel ult, r61h.cache, r124.cache, r76, 1, 0
+0x37f2  92f69aa2287b0010401e     icmpsel ueq, r61h.cache, r109.cache, r69.cache, r61h, 0
+0x37fc  92f69aa22401b127101e     icmpsel ult, r61h.cache, r109.cache, r69, 1, r61h
+0x3806  92b5bb00007ea005f034     icmpsel ueq, r109.cache, r61h.cache, 0, r127, r109
+0x3810  92f17b00007c8007f034     icmpsel ueq, r124.cache, r61h, 0, r126, r124
+0x381a  fe79b80a803c             mov r126.cache, r124.cache
+0x3820  fe7d9a0a803c             mov r127.cache, r109.cache
+0x3826  8e7b7cc3363e0000         iadd r126_r127.cache, r126_r127, r86_r87
+0x382e  92f6b80226010130001e     icmpsel ult, r61h.cache, r124.cache, r80, 1, 0
+0x3838  92f69a22297b0010401e     icmpsel ueq, r61h.cache, r109.cache, r73.cache, r61h, 0
+0x3842  92f69a222501b127101e     icmpsel ult, r61h.cache, r109.cache, r73, 1, r61h
+0x384c  92b5bb00007ea005f034     icmpsel ueq, r109.cache, r61h.cache, 0, r127, r109
+0x3856  92f17b00007c8007f034     icmpsel ueq, r124.cache, r61h, 0, r126, r124
+0x3860  fe79b80a803c             mov r126.cache, r124.cache
+0x3866  fe7d9a0a803c             mov r127.cache, r109.cache
+0x386c  8e7b7c43373e0000         iadd r126_r127.cache, r126_r127, r90_r91
+0x3874  92f6b88226010130001e     icmpsel ult, r61h.cache, r124.cache, r84, 1, 0
+0x387e  92f69aa2297b0010401e     icmpsel ueq, r61h.cache, r109.cache, r77.cache, r61h, 0
+0x3888  92f69aa22501b127101e     icmpsel ult, r61h.cache, r109.cache, r77, 1, r61h
+0x3892  92b5bb00007ea005f034     icmpsel ueq, r109.cache, r61h.cache, 0, r127, r109
+0x389c  92f17b00007c8007f034     icmpsel ueq, r124.cache, r61h, 0, r126, r124
+0x38a6  fe79b80a803c             mov r126.cache, r124.cache
+0x38ac  fe7d9a0a803c             mov r127.cache, r109.cache
+0x38b2  8e7b7cc3373e0000         iadd r126_r127.cache, r126_r127, r94_r95
+0x38ba  92f6b80227010130001e     icmpsel ult, r61h.cache, r124.cache, r88, 1, 0
+0x38c4  92f69a222a7b0010401e     icmpsel ueq, r61h.cache, r109.cache, r81.cache, r61h, 0
+0x38ce  92f69a222601b127101e     icmpsel ult, r61h.cache, r109.cache, r81, 1, r61h
+0x38d8  92b5bb00007ea005f034     icmpsel ueq, r109.cache, r61h.cache, 0, r127, r109
+0x38e2  92f17b00007c8007f034     icmpsel ueq, r124.cache, r61h, 0, r126, r124
+0x38ec  fe79b80a803c             mov r126.cache, r124.cache
+0x38f2  fe7d9a0a803c             mov r127.cache, r109.cache
+0x38f8  8e7b7c43343f0000         iadd r126_r127.cache, r126_r127, r98_r99
+0x3900  92f6b88227010130001e     icmpsel ult, r61h.cache, r124.cache, r92, 1, 0
+0x390a  92f69aa22a7b0010401e     icmpsel ueq, r61h.cache, r109.cache, r85.cache, r61h, 0
+0x3914  92f69aa22601b127101e     icmpsel ult, r61h.cache, r109.cache, r85, 1, r61h
+0x391e  92b5bb00007ea005f034     icmpsel ueq, r109.cache, r61h.cache, 0, r127, r109
+0x3928  92f17b00007c8007f034     icmpsel ueq, r124.cache, r61h, 0, r126, r124
+0x3932  fe79b80a803c             mov r126.cache, r124.cache
+0x3938  fe7d9a0a803c             mov r127.cache, r109.cache
+0x393e  8e7b7cc3343f0000         iadd r126_r127.cache, r126_r127, r102_r103
+0x3946  92f6b80224010130001f     icmpsel ult, r61h.cache, r124.cache, r96, 1, 0
+0x3950  92f69a222b7b0010401e     icmpsel ueq, r61h.cache, r109.cache, r89.cache, r61h, 0
+0x395a  92f69a222701b127101e     icmpsel ult, r61h.cache, r109.cache, r89, 1, r61h
+0x3964  92b5bb00007ea005f034     icmpsel ueq, r109.cache, r61h.cache, 0, r127, r109
+0x396e  92f17b00007c8007f034     icmpsel ueq, r124.cache, r61h, 0, r126, r124
+0x3978  fe79b80a803c             mov r126.cache, r124.cache
+0x397e  fe7d9a0a803c             mov r127.cache, r109.cache
+0x3984  8e7b7c43353f0000         iadd r126_r127.cache, r126_r127, r106_r107
+0x398c  92f6b88224010130001f     icmpsel ult, r61h.cache, r124.cache, r100, 1, 0
+0x3996  92f69aa22b7b0010401e     icmpsel ueq, r61h.cache, r109.cache, r93.cache, r61h, 0
+0x39a0  92f69aa22701b127101e     icmpsel ult, r61h.cache, r109.cache, r93, 1, r61h
+0x39aa  92b5bb00007ea005f034     icmpsel ueq, r109.cache, r61h.cache, 0, r127, r109
+0x39b4  92f17b00007c8007f034     icmpsel ueq, r124.cache, r61h, 0, r126, r124
+0x39be  fe79b80a803c             mov r126.cache, r124.cache
+0x39c4  fe7d9a0a803c             mov r127.cache, r109.cache
+0x39ca  8e7b7cc3353f0000         iadd r126_r127.cache, r126_r127, r110_r111
+0x39d2  92f6b80229010130001f     icmpsel ult, r61h.cache, r124.cache, r104.cache, 1, 0
+0x39dc  92f69a22287b0010401f     icmpsel ueq, r61h.cache, r109.cache, r97.cache, r61h, 0
+0x39e6  92f69a222401b127101f     icmpsel ult, r61h.cache, r109.cache, r97, 1, r61h
+0x39f0  92b5bb00007ea005f034     icmpsel ueq, r109.cache, r61h.cache, 0, r127, r109
+0x39fa  92f17b00007c8007f034     icmpsel ueq, r124.cache, r61h, 0, r126, r124
+0x3a04  fe79b80a803c             mov r126.cache, r124.cache
+0x3a0a  fe7d9a0a803c             mov r127.cache, r109.cache
+0x3a10  8e7b7c43363f0000         iadd r126_r127.cache, r126_r127, r114_r115
+0x3a18  92f6b88225010130001f     icmpsel ult, r61h.cache, r124.cache, r108, 1, 0
+0x3a22  92f69aa2287b0010401f     icmpsel ueq, r61h.cache, r109.cache, r101.cache, r61h, 0
+0x3a2c  92f69aa22401b127101f     icmpsel ult, r61h.cache, r109.cache, r101, 1, r61h
+0x3a36  92b5bb00007ea005f034     icmpsel ueq, r109.cache, r61h.cache, 0, r127, r109
+0x3a40  92f17b00007c8007f034     icmpsel ueq, r124.cache, r61h, 0, r126, r124
+0x3a4a  fe79b80a803c             mov r126.cache, r124.cache
+0x3a50  fe7d9a0a803c             mov r127.cache, r109.cache
+0x3a56  8e7b7cc3353c0000         iadd r126_r127.cache, r126_r127, r14_r15
+0x3a5e  92f6b80226010130001f     icmpsel ult, r61h.cache, r124.cache, r112, 1, 0
+0x3a68  92f69a22297b0010401f     icmpsel ueq, r61h.cache, r109.cache, r105.cache, r61h, 0
+0x3a72  92f69a222501b127101f     icmpsel ult, r61h.cache, r109.cache, r105, 1, r61h
+0x3a7c  92b5bb00007ea005f034     icmpsel ueq, r109.cache, r61h.cache, 0, r127, r109
+0x3a86  92f17b00007c8007f034     icmpsel ueq, r124.cache, r61h, 0, r126, r124
+0x3a90  fe79b80a803c             mov r126.cache, r124.cache
+0x3a96  fe7d9a0a803c             mov r127.cache, r109.cache
+0x3a9c  b54a400500c31200         stack_store i32, 1, 0, x, 4, r105, 4, 0
+0x3aa4  fe5d500a803c             mov r119.cache, r104
+0x3aaa  3542004502c33200         stack_load r104_r105, i32, 1, 0, xy, 4, 32, 1
+0x3ab2  3801                     wait 1
+0x3ab4  8e237c03353f0000         iadd r104_r105.cache, r126_r127, r104_r105
+0x3abc  92f6b88226010130001f     icmpsel ult, r61h.cache, r124.cache, r116, 1, 0
+0x3ac6  92f69a82297b0010401c     icmpsel ueq, r61h.cache, r109.cache, r12.cache, r61h, 0
+0x3ad0  92f69a822501b127101c     icmpsel ult, r61h.cache, r109.cache, r12, 1, r61h
+0x3ada  92fdbb000052a005f034     icmpsel ueq, r127.cache, r61h.cache, 0, r105, r109
+0x3ae4  92f97b0000508007f034     icmpsel ueq, r126.cache, r61h, 0, r104, r124
+0x3aee  fe21bc0a803c             mov r104.cache, r126.cache
+0x3af4  fe25be0a803c             mov r105.cache, r127.cache
+0x3afa  35e2804500c33200         stack_load r124_r125, i32, 1, 0, xy, 4, 8, 1
+0x3b02  3801                     wait 1
+0x3b04  8e235083373f0000         iadd r104_r105.cache, r104_r105, r124_r125
+0x3b0c  92f6bc0227010130001f     icmpsel ult, r61h.cache, r126.cache, r120, 1, 0
+0x3b16  356a004500c31200         stack_load r109, i32, 1, 0, x, 4, 0, 1
+0x3b1e  3801                     wait 1
+0x3b20  92f6bea2297b0010401f     icmpsel ueq, r61h.cache, r127.cache, r109.cache, r61h, 0
+0x3b2a  92f6bea22501b127101f     icmpsel ult, r61h.cache, r127.cache, r109, 1, r61h
+0x3b34  92f5bb000052e007f034     icmpsel ueq, r125.cache, r61h.cache, 0, r105, r127
+0x3b3e  92f17b000050c007f034     icmpsel ueq, r124.cache, r61h, 0, r104, r126
+0x3b48  fe21b80a803c             mov r104.cache, r124.cache
+0x3b4e  fe25ba0a803c             mov r105.cache, r125.cache
+0x3b54  35f2804501c33200         stack_load r126_r127, i32, 1, 0, xy, 4, 24, 1
+0x3b5c  3801                     wait 1
+0x3b5e  8e2350c3373f0000         iadd r104_r105.cache, r104_r105, r126_r127
+0x3b66  92f6b82226010130001f     icmpsel ult, r61h.cache, r124.cache, r113, 1, 0
+0x3b70  356a004501c31200         stack_load r109, i32, 1, 0, x, 4, 16, 1
+0x3b78  3801                     wait 1
+0x3b7a  92f6baa2297b0010401f     icmpsel ueq, r61h.cache, r125.cache, r109.cache, r61h, 0
+0x3b84  92f6baa22501b127101f     icmpsel ult, r61h.cache, r125.cache, r109, 1, r61h
+0x3b8e  92fdbb000052a007f034     icmpsel ueq, r127.cache, r61h.cache, 0, r105, r125
+0x3b98  92f97b0000508007f034     icmpsel ueq, r126.cache, r61h, 0, r104, r124
+0x3ba2  fe21bc0a803c             mov r104.cache, r126.cache
+0x3ba8  fe25be0a803c             mov r105.cache, r127.cache
+0x3bae  35e2004504c33200         stack_load r124_r125, i32, 1, 0, xy, 4, 64, 1
+0x3bb6  3801                     wait 1
+0x3bb8  8e235083373f0000         iadd r104_r105.cache, r104_r105, r124_r125
+0x3bc0  92f6bca226010130001f     icmpsel ult, r61h.cache, r126.cache, r117, 1, 0
+0x3bca  356a404501c31200         stack_load r109, i32, 1, 0, x, 4, 20, 1
+0x3bd2  3801                     wait 1
+0x3bd4  92f6bea2297b0010401f     icmpsel ueq, r61h.cache, r127.cache, r109.cache, r61h, 0
+0x3bde  92f6bea22501b127101f     icmpsel ult, r61h.cache, r127.cache, r109, 1, r61h
+0x3be8  92f5bb000052e007f034     icmpsel ueq, r125.cache, r61h.cache, 0, r105, r127
+0x3bf2  92f17b000050c007f034     icmpsel ueq, r124.cache, r61h, 0, r104, r126
+0x3bfc  fe21b80a803c             mov r104.cache, r124.cache
+0x3c02  fe25ba0a803c             mov r105.cache, r125.cache
+0x3c08  8e1b50c3340c0000         iadd r6_r7.cache, r104_r105, r6_r7
+0x3c10  92f6b8a228010130001c     icmpsel ult, r61h.cache, r124.cache, r5.cache, 1, 0
+0x3c1a  92f6ba02007b0010401c     icmpsel ueq, r61h.cache, r125.cache, 0, r61h, 0
+0x3c24  92a5bb00004ea0073034     icmpsel ueq, r105.cache, r61h.cache, 0, r7, r125
+0x3c2e  92a17b00004c80073034     icmpsel ueq, r104.cache, r61h, 0, r6, r124
+0x3c38  fe19500a800c             mov r6.cache, r104
+0x3c3e  fe1d520a800c             mov r7.cache, r105
+0x3c44  aeb500c026010033         bfeil r109.cache, 0, r118, 1
+0x3c4c  3542804502c31200         stack_load r104, i32, 1, 0, x, 4, 40, 1
+0x3c54  354a400500c31200         stack_load r105, i32, 1, 0, x, 4, 4, 0
+0x3c5c  35e2000502c33200         stack_load r124_r125, i32, 1, 0, xy, 4, 32, 0
+0x3c64  35f2000503c33200         stack_load r126_r127, i32, 1, 0, xy, 4, 48, 0
+0x3c6c  3800                     wait 0
+0x3c6e  7e59780a803c             mov r118, r124
+0x3c74  7e655a0a803c             mov r121, r109
+0x3c7a  7e714c0a8030             mov r124, r6
+0x3c80  7e19740a800c             mov r6, r122
+0x3c86  7e354a0a8030             mov r109, r5
+0x3c8c  7e697c0a803c             mov r122, r126
+0x3c92  7e15480a8000             mov r5, r4
+0x3c98  7e11500a8000             mov r4, r8
+0x3c9e  3801                     wait 1
+0x3ca0  7e21500a800c             mov r8, r104
+0x3ca6  7e216e0a803c             mov r104, r119
+0x3cac  7e5d7a0a803c             mov r119, r125
+0x3cb2  7e754e0a8030             mov r125, r7
+0x3cb8  7e1d760a800c             mov r7, r123
+0x3cbe  7e6d7e0a803c             mov r123, r127
+0x3cc4  00c0f4e4ffff             jmp_exec_any pc-6924
+0x3cca  520e00000000             pop_exec r0l, 1
+0x3cd0  45d1000e11c31200         device_store 0, i32, x, r122, u8_u9, r8, unsigned, 0
+0x3cd8  3800                     wait 0
+0x3cda  520e00000000             pop_exec r0l, 1
+0x3ce0  8800                     stop

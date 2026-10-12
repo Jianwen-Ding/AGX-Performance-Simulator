@@ -1,0 +1,28 @@
+#version 450
+// Transcendental built-ins, each on an input range where Vulkan bounds its precision: sin, cos (on [-pi, pi]), asin,
+// acos (on [-1, 1]), atan, atan2, exp, exp2, log, log2, sqrt, inversesqrt. The compiler lowers each to AGX's
+// sin_pt / exp2 / log2 / rcp / rsqrt instructions plus range reduction.
+layout(local_size_x = 64) in;
+layout(std430, binding = 0) readonly buffer I { vec4 inp[]; };   // x in [-pi, pi], u in [-1, 1], e in [-60, 60], l > 0
+layout(std430, binding = 1) writeonly buffer O { float o[]; };   // 12 per thread
+layout(push_constant) uniform P { uint n; } p;
+
+void main() {
+    uint i = gl_GlobalInvocationID.x;
+    if (i >= p.n) return;
+    vec4 v = inp[i];
+    float x = v.x, u = v.y, e = v.z, l = v.w;
+    uint b = 12u * i;
+    o[b + 0u] = sin(x);
+    o[b + 1u] = cos(x);
+    o[b + 2u] = asin(u);
+    o[b + 3u] = acos(u);
+    o[b + 4u] = atan(e);
+    o[b + 5u] = atan(u, x);
+    o[b + 6u] = exp(e * 0.25);
+    o[b + 7u] = exp2(e);
+    o[b + 8u] = log(l);
+    o[b + 9u] = log2(l);
+    o[b + 10u] = sqrt(l);
+    o[b + 11u] = inversesqrt(l);
+}

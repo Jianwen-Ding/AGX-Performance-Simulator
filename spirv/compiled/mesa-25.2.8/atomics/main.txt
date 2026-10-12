@@ -1,0 +1,104 @@
+0x0080  62020000                 mov_imm r0h, 0
+0x0084  62000000                 mov_imm r0l, 0
+0x0088  72053000                 get_sr r1, sr48 (thread_position_in_threadgroup.x)
+0x008c  620900000000             mov_imm r2, 0, 0b0
+0x0092  720d1004                 get_sr r3, sr80 (thread_position_in_grid.x)
+0x0096  520842020000             if_icmp r0l, ueq, r1, 0, 1
+0x009c  2989800214000000         threadgroup_store i32, x, r2, 0, 0
+0x00a4  29895c0214000000         threadgroup_store i32, x, r2, u14l, 0
+0x00ac  520e00000000             pop_exec r0l, 1
+0x00b2  6800                     threadgroup_barrier
+0x00b4  0e05468658000000         iadd r1, r3.sx, u4.sx
+0x00bc  0e090020e4000000         iadd r2, 0, r1.sx, lsl 1
+0x00c4  05194c0e00c01200         device_load 0, i32, x, r3, u6_u7, r2, unsigned
+0x00cc  0e09014064000000         iadd r2, 1, r2.sx
+0x00d4  05214c4e00c01200         device_load 1, i32, x, r4, u6_u7, r2, unsigned
+0x00dc  0e090020e4001000         iadd r2, 0, r1.sx, lsl 3
+0x00e4  3800                     wait 0
+0x00e6  1528408c10d00600         atomic add, 0, r5, u8_u9, r2, signed, r3, 1, 0, 1, 4, 2
+0x00ee  1e190b2064000000         imadd r6, 11, r1.sx, 0
+0x00f6  3800                     wait 0
+0x00f8  4529c40e10c01200         device_store 0, i32, x, r5, u10_u11, r6, unsigned, 0
+0x0100  0e15014064000000         iadd r5, 1, r2.sx
+0x0108  1529a08c10d00600         atomic umin, 0, r5, u8_u9, r5, signed, r3, 1, 0, 1, 4, 2
+0x0110  0e1d4c1600000000         iadd r7, r6.sx, 1
+0x0118  3800                     wait 0
+0x011a  4529e40e10c01200         device_store 0, i32, x, r5, u10_u11, r7, unsigned, 0
+0x0122  0e15024064000000         iadd r5, 2, r2.sx
+0x012a  9529a08c10d00600         atomic umax, 0, r5, u8_u9, r5, signed, r3, 1, 0, 1, 4, 2
+0x0132  0e1d4c2600000000         iadd r7, r6.sx, 2
+0x013a  3800                     wait 0
+0x013c  4529e40e10c01200         device_store 0, i32, x, r5, u10_u11, r7, unsigned, 0
+0x0144  0e15034064000000         iadd r5, 3, r2.sx
+0x014c  152aa08c10d00600         atomic and, 0, r5, u8_u9, r5, signed, r3, 1, 0, 1, 4, 2
+0x0154  0e1d4c3600000000         iadd r7, r6.sx, 3
+0x015c  3800                     wait 0
+0x015e  4529e40e10c01200         device_store 0, i32, x, r5, u10_u11, r7, unsigned, 0
+0x0166  0e15044064000000         iadd r5, 4, r2.sx
+0x016e  552aa08c10d00600         atomic or, 0, r5, u8_u9, r5, signed, r3, 1, 0, 1, 4, 2
+0x0176  0e1d4c4600000000         iadd r7, r6.sx, 4
+0x017e  3800                     wait 0
+0x0180  4529e40e10c01200         device_store 0, i32, x, r5, u10_u11, r7, unsigned, 0
+0x0188  0e15054064000000         iadd r5, 5, r2.sx
+0x0190  952aa08c10d00600         atomic xor, 0, r5, u8_u9, r5, signed, r3, 1, 0, 1, 4, 2
+0x0198  0e1d4c5600000000         iadd r7, r6.sx, 5
+0x01a0  3800                     wait 0
+0x01a2  4529e40e10c01200         device_store 0, i32, x, r5, u10_u11, r7, unsigned, 0
+0x01aa  0e15064064000000         iadd r5, 6, r2.sx
+0x01b2  9528a08c10d00600         atomic xchg, 0, r5, u8_u9, r5, signed, r3, 1, 0, 1, 4, 2
+0x01ba  0e1d4c6600000000         iadd r7, r6.sx, 6
+0x01c2  3800                     wait 0
+0x01c4  4529e40e10c01200         device_store 0, i32, x, r5, u10_u11, r7, unsigned, 0
+0x01cc  0e09074064000000         iadd r2, 7, r2.sx
+0x01d4  7e21460a8000             mov r8, r3
+0x01da  3801                     wait 1
+0x01dc  7e25480a8000             mov r9, r4
+0x01e2  d51040cc10d01000         atomic cmpxchg, 1, r2, u8_u9, r2, signed, r8_r9, 1, 0, 1, 4, 2
+0x01ea  0e114c7600000000         iadd r4, r6.sx, 7
+0x01f2  3801                     wait 1
+0x01f4  4511840e10c01200         device_store 0, i32, x, r2, u10_u11, r4, unsigned, 0
+0x01fc  7e0846088000             mov r2l, r3l
+0x0202  7e1144088000             mov r4, r2l
+0x0208  7e0542728000             and r1, r1, 7
+0x020e  151028cc10d00800         atomic add, 1, r2, u12_u13, r1, signed, r4, 1, 0, 1, 4, 2
+0x0216  0e114c8600000000         iadd r4, r6.sx, 8
+0x021e  3801                     wait 1
+0x0220  4511840e10c01200         device_store 0, i32, x, r2, u10_u11, r4, unsigned, 0
+0x0228  0e05082064000000         iadd r1, 8, r1.sx
+0x0230  950128cc10500600         atomic umax, 1, None, u12_u13, r1, signed, r3, 1, 0, 1, 4, 2
+0x0238  72053b00                 get_sr r1, sr59
+0x023c  72083a00                 get_sr r2l, sr58 (active_thread_index_in_simdgroup)
+0x0240  3800                     wait 0
+0x0242  3801                     wait 1
+0x0244  520844000000             if_icmp r0l, ueq, r2l, 0, 1
+0x024a  19858000548000000200     threadgroup_atomic add, r1, 0, 0, r1, 0, 2, 128, 0
+0x0254  420a00000000             else_fcmp r0l, eq, 0.0, 0.0, 1
+0x025a  620500000000             mov_imm r1, 0, 0b0
+0x0260  520e00000000             pop_exec r0l, 1
+0x0266  72083a00                 get_sr r2l, sr58 (active_thread_index_in_simdgroup)
+0x026a  3211440000000100         icmp_ballot r4, ueq, r2l, 0
+0x0272  3e09480e0000             ffs r2, r4
+0x0278  7e02440a8000             mov r0h, r2
+0x027e  6f0542160400             simd_shuffle r1, r1, r0h
+0x0284  3209010000800100         icmp_ballot r2, nueq, 1, 0
+0x028c  72113400                 get_sr r4, sr52 (thread_index_in_simdgroup)
+0x0290  7e1148f28100             and r4, r4, 31
+0x0296  2e1100e019480200         bfi r4, 0, u15, r4
+0x029e  7e09448a2400             bitop 0100, r2, r2, r4
+0x02a4  3e09440a0000             popcount r2, r2
+0x02aa  0e05424664000000         iadd r1, r1.sx, r2.sx
+0x02b2  0e094c9600000000         iadd r2, r6.sx, 9
+0x02ba  4509440e10c01200         device_store 0, i32, x, r1, u10_u11, r2, unsigned, 0
+0x02c2  6f854622c081             simd_max.u r1, r3
+0x02c8  72083a00                 get_sr r2l, sr58 (active_thread_index_in_simdgroup)
+0x02cc  620a0400                 mov_imm r2h, 4
+0x02d0  3800                     wait 0
+0x02d2  62020000                 mov_imm r0h, 0
+0x02d6  520844000000             if_icmp r0l, ueq, r2l, 0, 1
+0x02dc  19800506148000000200     threadgroup_atomic umax, None, r2h, 0, r1, 0, 2, 128, 0
+0x02e6  520e00000000             pop_exec r0l, 1
+0x02ec  6800                     threadgroup_barrier
+0x02ee  69855c0214000000         threadgroup_load i32, x, r1, u14l, 0
+0x02f6  0e094ca600000000         iadd r2, r6.sx, 10
+0x02fe  4509440e10c01200         device_store 0, i32, x, r1, u10_u11, r2, unsigned, 0
+0x0306  8800                     stop

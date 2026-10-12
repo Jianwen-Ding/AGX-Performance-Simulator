@@ -1,0 +1,40 @@
+#version 450
+// Bit-manipulation kernel: bitfieldExtract (unsigned and signed), bitfieldInsert, findLSB, findMSB (unsigned and
+// signed), bitCount, bitfieldReverse, variable rotates, umulExtended / imulExtended and uaddCarry. Offsets and widths
+// are kept in the defined range (offset + bits <= 32, shifts < 32).
+layout(local_size_x = 64) in;
+layout(std430, binding = 0) readonly buffer I { uvec4 inp[]; };     // x, y, offset/bits word, z
+layout(std430, binding = 1) writeonly buffer O { uint o[]; };
+layout(push_constant) uniform P { uint n; } p;
+
+void main() {
+    uint i = gl_GlobalInvocationID.x;
+    if (i >= p.n) return;
+    uvec4 v = inp[i];
+    uint x = v.x, y = v.y, z = v.w;
+    int off = int(v.z & 31u);
+    int bits = int((v.z >> 8) % uint(33 - off));
+    uint r = (v.z >> 16) & 31u;
+    uint base = 16u * i;
+    o[base + 0u] = bitfieldExtract(x, off, bits);
+    o[base + 1u] = uint(bitfieldExtract(int(x), off, bits));
+    o[base + 2u] = bitfieldInsert(x, y, off, bits);
+    o[base + 3u] = uint(findLSB(x));
+    o[base + 4u] = uint(findMSB(x));
+    o[base + 5u] = uint(findMSB(int(y)));
+    o[base + 6u] = uint(bitCount(x));
+    o[base + 7u] = bitfieldReverse(y);
+    o[base + 8u] = (x << r) | (x >> ((32u - r) & 31u));
+    o[base + 9u] = (z >> r) | (z << ((32u - r) & 31u));
+    uint hi, lo;
+    umulExtended(x, y, hi, lo);
+    o[base + 10u] = hi;
+    o[base + 11u] = lo;
+    int ihi, ilo;
+    imulExtended(int(x), int(z), ihi, ilo);
+    o[base + 12u] = uint(ihi);
+    o[base + 13u] = uint(ilo);
+    uint carry;
+    o[base + 14u] = uaddCarry(x, z, carry);
+    o[base + 15u] = carry;
+}

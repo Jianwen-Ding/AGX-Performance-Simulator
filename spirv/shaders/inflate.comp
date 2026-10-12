@@ -1,0 +1,127 @@
+#version 450
+// DEFLATE decompression (RFC 1951: zlib, gzip, PNG and ZIP inside), one raw stream per invocation, in the manner
+// of Mark Adler's puff: stored, fixed-Huffman and dynamic-Huffman blocks, canonical codes decoded a bit at a time
+// from per-length counts, LZ77 copies from the output already written. The Huffman tables live in per-invocation
+// arrays indexed by data (registers cannot hold them), the copies read back device memory just written, and every
+// step depends on the bits before it. inflateshm.comp keeps the per-length counts in shared memory instead.
+#extension GL_EXT_shader_8bit_storage : require
+layout(local_size_x = 64) in;
+layout(std430, binding = 0) readonly buffer IX { uvec2 idx[]; };      // per stream: (offset, compressed bytes)
+layout(std430, binding = 1) readonly buffer SR { uint8_t src[]; };
+layout(std430, binding = 2) buffer OU { uint8_t dst[]; };             // per stream: p.maxout bytes
+layout(std430, binding = 3) writeonly buffer LN { uint olen[]; };     // per stream: bytes out, or an error code
+layout(push_constant) uniform P { uint nstream; uint maxout; } p;
+
+const uint LBASE[29] = uint[](3u,4u,5u,6u,7u,8u,9u,10u,11u,13u,15u,17u,19u,23u,27u,31u,35u,43u,51u,59u,67u,83u,99u,115u,131u,163u,195u,227u,258u);
+const uint LEXT[29] = uint[](0u,0u,0u,0u,0u,0u,0u,0u,1u,1u,1u,1u,2u,2u,2u,2u,3u,3u,3u,3u,4u,4u,4u,4u,5u,5u,5u,5u,0u);
+const uint DBASE[30] = uint[](1u,2u,3u,4u,5u,7u,9u,13u,17u,25u,33u,49u,65u,97u,129u,193u,257u,385u,513u,769u,1025u,1537u,2049u,3073u,4097u,6145u,8193u,12289u,16385u,24577u);
+const uint DEXT[30] = uint[](0u,0u,0u,0u,1u,1u,2u,2u,3u,3u,4u,4u,5u,5u,6u,6u,7u,7u,8u,8u,9u,9u,10u,10u,11u,11u,12u,12u,13u,13u);
+const uint ORDER[19] = uint[](16u,17u,18u,0u,8u,7u,9u,6u,10u,5u,11u,4u,12u,3u,13u,2u,14u,1u,15u);
+
+uint pos, bitbuf, bitcnt;
+uint cnt[32];          // codes per length: [0, 16) literal / length (or code-length codes), [16, 32) distance
+uint sym[320];         // symbols in canonical order: [0, 288) literal / length, [288, 318) distance
+uint lens[320];
+
+uint bits(uint need) {
+    while (bitcnt < need) { bitbuf |= uint(src[pos++]) << bitcnt; bitcnt += 8u; }
+    uint v = bitbuf & ((1u << need) - 1u);
+    bitbuf >>= need; bitcnt -= need;
+    return v;
+}
+
+// canonical code from lens[from .. from + n) into table t (0: literal / length, 1: distance); false if over-subscribed
+bool construct(uint t, uint from, uint n) {
+    uint cb = 16u * t, sb = 288u * t;
+    for (uint l = 0u; l < 16u; l++) cnt[cb + l] = 0u;
+    for (uint s = 0u; s < n; s++) cnt[cb + lens[from + s]]++;
+    int left = 1;
+    for (uint l = 1u; l < 16u; l++) { left <<= 1; left -= int(cnt[cb + l]); if (left < 0) return false; }
+    uint offs[16];
+    offs[1] = 0u;
+    for (uint l = 1u; l < 15u; l++) offs[l + 1u] = offs[l] + cnt[cb + l];
+    for (uint s = 0u; s < n; s++)
+        if (lens[from + s] != 0u) sym[sb + offs[lens[from + s]]++] = s;
+    return true;
+}
+
+int decode(uint t) {
+    uint cb = 16u * t, sb = 288u * t;
+    int code = 0, first = 0, index = 0;
+    for (uint l = 1u; l < 16u; l++) {
+        code |= int(bits(1u));
+        int count = int(cnt[cb + l]);
+        if (code - count < first) return int(sym[sb + uint(index + code - first)]);
+        index += count; first += count;
+        first <<= 1; code <<= 1;
+    }
+    return -1;
+}
+
+void main() {
+    uint s = gl_GlobalInvocationID.x;
+    if (s >= p.nstream) return;
+    pos = idx[s].x; bitbuf = 0u; bitcnt = 0u;
+    uint ob = s * p.maxout, o = 0u, err = 0u;
+    bool last = false;
+    while (!last && err == 0u) {
+        last = bits(1u) == 1u;
+        uint type = bits(2u);
+        if (type == 0u) {                                              // stored
+            bitbuf = 0u; bitcnt = 0u;
+            uint len = uint(src[pos]) | uint(src[pos + 1u]) << 8;
+            pos += 4u;
+            if (o + len > p.maxout) { err = 2u; break; }
+            for (uint i = 0u; i < len; i++) dst[ob + o + i] = src[pos + i];
+            pos += len; o += len;
+            continue;
+        }
+        if (type == 1u) {                                              // fixed
+            for (uint i = 0u; i < 288u; i++) lens[i] = i < 144u ? 8u : i < 256u ? 9u : i < 280u ? 7u : 8u;
+            construct(0u, 0u, 288u);
+            for (uint i = 0u; i < 30u; i++) lens[i] = 5u;
+            construct(1u, 0u, 30u);
+        } else if (type == 2u) {                                       // dynamic
+            uint nlen = bits(5u) + 257u, ndist = bits(5u) + 1u, ncode = bits(4u) + 4u;
+            for (uint i = 0u; i < 19u; i++) lens[ORDER[i]] = i < ncode ? bits(3u) : 0u;
+            if (!construct(0u, 0u, 19u)) { err = 3u; break; }
+            uint k = 0u;
+            uint codes[320];                                           // the code lengths being read
+            while (k < nlen + ndist) {
+                int c = decode(0u);
+                if (c < 0) { err = 4u; break; }
+                if (c < 16) { codes[k++] = uint(c); continue; }
+                uint v = 0u, rep;
+                if (c == 16) { if (k == 0u) { err = 5u; break; } v = codes[k - 1u]; rep = 3u + bits(2u); }
+                else if (c == 17) rep = 3u + bits(3u);
+                else rep = 11u + bits(7u);
+                if (k + rep > nlen + ndist) { err = 6u; break; }
+                for (uint i = 0u; i < rep; i++) codes[k++] = v;
+            }
+            if (err != 0u) break;
+            for (uint i = 0u; i < nlen + ndist; i++) lens[i] = codes[i];
+            construct(0u, 0u, nlen);
+            construct(1u, nlen, ndist);
+        } else { err = 7u; break; }
+        while (true) {                                                 // the block's symbols
+            int c = decode(0u);
+            if (c < 0) { err = 8u; break; }
+            if (c < 256) {
+                if (o >= p.maxout) { err = 2u; break; }
+                dst[ob + o++] = uint8_t(c);
+            } else if (c == 256) {
+                break;
+            } else {
+                uint li = uint(c) - 257u;
+                if (li >= 29u) { err = 9u; break; }
+                uint len = LBASE[li] + bits(LEXT[li]);
+                int dc = decode(1u);
+                if (dc < 0 || dc >= 30) { err = 10u; break; }
+                uint dist = DBASE[dc] + bits(DEXT[dc]);
+                if (dist > o || o + len > p.maxout) { err = 11u; break; }
+                for (uint i = 0u; i < len; i++) { dst[ob + o] = dst[ob + o - dist]; o++; }
+            }
+        }
+    }
+    olen[s] = err == 0u ? o : 0x80000000u | err;
+}

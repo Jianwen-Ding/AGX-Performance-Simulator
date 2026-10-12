@@ -1,0 +1,35 @@
+#version 450
+// Approximate string matching with Wu-Manber bitap (agrep; seed search in read mappers): every text position where
+// the pattern (m <= 32) ends with at most K = 2 edits (substitution, insertion, deletion). Bit i of R[d] says
+// pattern[0..i] matches a suffix of the text read so far with <= d edits:
+//   R'[0] = ((R[0] << 1) | 1) & B[c]
+//   R'[d] = (((R[d] << 1) | 1) & B[c]) | ((R[d-1] << 1) | 1) | R[d-1] | ((R'[d-1] << 1) | 1)
+// Each invocation reports the match ends of one 1024-position chunk (one bit each), after a warm-up on the
+// m + K characters before it, which every match ending in the chunk starts after.
+layout(local_size_x = 64) in;
+layout(std430, binding = 0) readonly buffer T { uint text[]; };      // one base (0-3) per byte
+layout(std430, binding = 1) readonly buffer B { uint bmask[4]; };    // bit i set where pattern[i] == base
+layout(std430, binding = 2) writeonly buffer O { uint hits[]; };     // 32 words per chunk
+layout(push_constant) uniform P { uint n; uint m; } p;
+
+uint base_at(uint i) { return (text[i >> 2] >> ((i & 3u) * 8u)) & 3u; }
+
+void main() {
+    uint c = gl_GlobalInvocationID.x, lo = 1024u * c;
+    if (lo >= p.n) return;
+    uint top = 1u << (p.m - 1u);
+    uint r0 = 0u, r1 = 1u, r2 = 3u;                                   // (1 << d) - 1: d leading deletions
+    uint start = lo >= p.m + 2u ? lo - p.m - 2u : 0u;
+    uint word = 0u;
+    for (uint i = start; i < lo + 1024u && i < p.n; i++) {
+        uint b = bmask[base_at(i)];
+        uint n0 = ((r0 << 1) | 1u) & b;
+        uint n1 = (((r1 << 1) | 1u) & b) | ((r0 << 1) | 1u) | r0 | ((n0 << 1) | 1u);
+        uint n2 = (((r2 << 1) | 1u) & b) | ((r1 << 1) | 1u) | r1 | ((n1 << 1) | 1u);
+        r0 = n0; r1 = n1; r2 = n2;
+        if (i >= lo) {
+            if ((r2 & top) != 0u) word |= 1u << ((i - lo) & 31u);
+            if (((i - lo) & 31u) == 31u) { hits[32u * c + ((i - lo) >> 5)] = word; word = 0u; }
+        }
+    }
+}

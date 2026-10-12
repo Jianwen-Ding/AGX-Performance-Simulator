@@ -1,0 +1,141 @@
+#version 450
+// blake2s with every G call written out (constant indices, generated from SIGMA): message words and state stay in
+// registers. Same work and results as blake2s, whose loops index the arrays dynamically and put them in scratch;
+// the pair measures the scratch penalty. One message per invocation, 0-255 bytes.
+layout(local_size_x = 64) in;
+layout(std430, binding = 0) readonly buffer M { uint msg[]; };
+layout(std430, binding = 1) readonly buffer L { uint len[]; };
+layout(std430, binding = 2) writeonly buffer H { uint hout[]; };
+layout(push_constant) uniform P { uint n; } p;
+
+uint rotr(uint x, uint b) { return (x >> b) | (x << (32u - b)); }
+#define G(a, b, c, d, x, y) \
+    a = a + b + x; d = rotr(d ^ a, 16u); c = c + d; b = rotr(b ^ c, 12u); \
+    a = a + b + y; d = rotr(d ^ a, 8u);  c = c + d; b = rotr(b ^ c, 7u);
+
+void main() {
+    uint i = gl_GlobalInvocationID.x;
+    if (i >= p.n) return;
+    uint h0 = 0x6A09E667u ^ 0x01010020u, h1 = 0xBB67AE85u, h2 = 0x3C6EF372u, h3 = 0xA54FF53Au;
+    uint h4 = 0x510E527Fu, h5 = 0x9B05688Cu, h6 = 0x1F83D9ABu, h7 = 0x5BE0CD19u;
+    uint n = len[i], nblocks = max(1u, (n + 63u) / 64u);
+    for (uint b = 0u; b < nblocks; b++) {
+        uint o = 64u * i + 16u * b;
+        uint m0 = msg[o + 0u];
+        uint m1 = msg[o + 1u];
+        uint m2 = msg[o + 2u];
+        uint m3 = msg[o + 3u];
+        uint m4 = msg[o + 4u];
+        uint m5 = msg[o + 5u];
+        uint m6 = msg[o + 6u];
+        uint m7 = msg[o + 7u];
+        uint m8 = msg[o + 8u];
+        uint m9 = msg[o + 9u];
+        uint m10 = msg[o + 10u];
+        uint m11 = msg[o + 11u];
+        uint m12 = msg[o + 12u];
+        uint m13 = msg[o + 13u];
+        uint m14 = msg[o + 14u];
+        uint m15 = msg[o + 15u];
+        bool last = b + 1u == nblocks;
+        uint t = last ? n : 64u * (b + 1u);
+        uint v0 = h0, v1 = h1, v2 = h2, v3 = h3, v4 = h4, v5 = h5, v6 = h6, v7 = h7;
+        uint v8 = 0x6A09E667u, v9 = 0xBB67AE85u, v10 = 0x3C6EF372u, v11 = 0xA54FF53Au;
+        uint v12 = 0x510E527Fu ^ t, v13 = 0x9B05688Cu, v14 = 0x1F83D9ABu ^ (last ? 0xffffffffu : 0u), v15 = 0x5BE0CD19u;
+        // round 0
+        G(v0, v4, v8, v12, m0, m1);
+        G(v1, v5, v9, v13, m2, m3);
+        G(v2, v6, v10, v14, m4, m5);
+        G(v3, v7, v11, v15, m6, m7);
+        G(v0, v5, v10, v15, m8, m9);
+        G(v1, v6, v11, v12, m10, m11);
+        G(v2, v7, v8, v13, m12, m13);
+        G(v3, v4, v9, v14, m14, m15);
+        // round 1
+        G(v0, v4, v8, v12, m14, m10);
+        G(v1, v5, v9, v13, m4, m8);
+        G(v2, v6, v10, v14, m9, m15);
+        G(v3, v7, v11, v15, m13, m6);
+        G(v0, v5, v10, v15, m1, m12);
+        G(v1, v6, v11, v12, m0, m2);
+        G(v2, v7, v8, v13, m11, m7);
+        G(v3, v4, v9, v14, m5, m3);
+        // round 2
+        G(v0, v4, v8, v12, m11, m8);
+        G(v1, v5, v9, v13, m12, m0);
+        G(v2, v6, v10, v14, m5, m2);
+        G(v3, v7, v11, v15, m15, m13);
+        G(v0, v5, v10, v15, m10, m14);
+        G(v1, v6, v11, v12, m3, m6);
+        G(v2, v7, v8, v13, m7, m1);
+        G(v3, v4, v9, v14, m9, m4);
+        // round 3
+        G(v0, v4, v8, v12, m7, m9);
+        G(v1, v5, v9, v13, m3, m1);
+        G(v2, v6, v10, v14, m13, m12);
+        G(v3, v7, v11, v15, m11, m14);
+        G(v0, v5, v10, v15, m2, m6);
+        G(v1, v6, v11, v12, m5, m10);
+        G(v2, v7, v8, v13, m4, m0);
+        G(v3, v4, v9, v14, m15, m8);
+        // round 4
+        G(v0, v4, v8, v12, m9, m0);
+        G(v1, v5, v9, v13, m5, m7);
+        G(v2, v6, v10, v14, m2, m4);
+        G(v3, v7, v11, v15, m10, m15);
+        G(v0, v5, v10, v15, m14, m1);
+        G(v1, v6, v11, v12, m11, m12);
+        G(v2, v7, v8, v13, m6, m8);
+        G(v3, v4, v9, v14, m3, m13);
+        // round 5
+        G(v0, v4, v8, v12, m2, m12);
+        G(v1, v5, v9, v13, m6, m10);
+        G(v2, v6, v10, v14, m0, m11);
+        G(v3, v7, v11, v15, m8, m3);
+        G(v0, v5, v10, v15, m4, m13);
+        G(v1, v6, v11, v12, m7, m5);
+        G(v2, v7, v8, v13, m15, m14);
+        G(v3, v4, v9, v14, m1, m9);
+        // round 6
+        G(v0, v4, v8, v12, m12, m5);
+        G(v1, v5, v9, v13, m1, m15);
+        G(v2, v6, v10, v14, m14, m13);
+        G(v3, v7, v11, v15, m4, m10);
+        G(v0, v5, v10, v15, m0, m7);
+        G(v1, v6, v11, v12, m6, m3);
+        G(v2, v7, v8, v13, m9, m2);
+        G(v3, v4, v9, v14, m8, m11);
+        // round 7
+        G(v0, v4, v8, v12, m13, m11);
+        G(v1, v5, v9, v13, m7, m14);
+        G(v2, v6, v10, v14, m12, m1);
+        G(v3, v7, v11, v15, m3, m9);
+        G(v0, v5, v10, v15, m5, m0);
+        G(v1, v6, v11, v12, m15, m4);
+        G(v2, v7, v8, v13, m8, m6);
+        G(v3, v4, v9, v14, m2, m10);
+        // round 8
+        G(v0, v4, v8, v12, m6, m15);
+        G(v1, v5, v9, v13, m14, m9);
+        G(v2, v6, v10, v14, m11, m3);
+        G(v3, v7, v11, v15, m0, m8);
+        G(v0, v5, v10, v15, m12, m2);
+        G(v1, v6, v11, v12, m13, m7);
+        G(v2, v7, v8, v13, m1, m4);
+        G(v3, v4, v9, v14, m10, m5);
+        // round 9
+        G(v0, v4, v8, v12, m10, m2);
+        G(v1, v5, v9, v13, m8, m4);
+        G(v2, v6, v10, v14, m7, m6);
+        G(v3, v7, v11, v15, m1, m5);
+        G(v0, v5, v10, v15, m15, m11);
+        G(v1, v6, v11, v12, m9, m14);
+        G(v2, v7, v8, v13, m3, m12);
+        G(v3, v4, v9, v14, m13, m0);
+        h0 ^= v0 ^ v8; h1 ^= v1 ^ v9; h2 ^= v2 ^ v10; h3 ^= v3 ^ v11;
+        h4 ^= v4 ^ v12; h5 ^= v5 ^ v13; h6 ^= v6 ^ v14; h7 ^= v7 ^ v15;
+    }
+    uint d = 8u * i;
+    hout[d] = h0; hout[d + 1u] = h1; hout[d + 2u] = h2; hout[d + 3u] = h3;
+    hout[d + 4u] = h4; hout[d + 5u] = h5; hout[d + 6u] = h6; hout[d + 7u] = h7;
+}

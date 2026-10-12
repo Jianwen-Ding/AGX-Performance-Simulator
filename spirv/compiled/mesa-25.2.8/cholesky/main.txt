@@ -1,0 +1,517 @@
+0x0080  72053100                 get_sr r1, sr49 (thread_position_in_threadgroup.y)
+0x0084  72093000                 get_sr r2, sr48 (thread_position_in_threadgroup.x)
+0x0088  1e0d424600000001         imadd r3, r1.sx, 68, 0
+0x0090  0e11464664001000         iadd r4, r3.sx, r2.sx, lsl 2
+0x0098  72150000                 get_sr r5, sr0 (threadgroup_position_in_grid.x)
+0x009c  0e154a8658000000         iadd r5, r5.sx, u4.sx
+0x00a4  2e1500a024080000         bfi r5, 0, r5, 8
+0x00ac  0e154a2664002000         iadd r5, r5.sx, r1.sx, lsl 4
+0x00b4  0e154a4664000000         iadd r5, r5.sx, r2.sx
+0x00bc  0531a00e10c01200         device_load 0, i32, x, r6, u8_u9, r5, unsigned
+0x00c4  3800                     wait 0
+0x00c6  2999080214000000         threadgroup_store i32, x, r6, r4l, 0
+0x00ce  62000000                 mov_imm r0l, 0
+0x00d2  1219424224424044         icmpsel ugt, r6, r1, r2, r1, r2
+0x00da  6800                     threadgroup_barrier
+0x00dc  52084c020000             if_icmp r0l, ueq, r6, 0, 1
+0x00e2  6999800214000000         threadgroup_load i32, x, r6, 0, 0
+0x00ea  0a1d4c12                 rsqrt_special r7, r6
+0x00ee  1a994ce22400             fmul32 r6, r6, r7
+0x00f4  2999800214000000         threadgroup_store i32, x, r6, 0, 0
+0x00fc  520e00000000             pop_exec r0l, 1
+0x0102  6800                     threadgroup_barrier
+0x0104  1202420200001110         icmpsel ueq, r0h, r1, 0, 0, 1
+0x010c  1202440200410010         icmpsel ueq, r0h, r2, 0, r0h, 0
+0x0114  520941000000             if_icmp r0l, nueq, r0h, 0, 1
+0x011a  6999800214000000         threadgroup_load i32, x, r6, 0, 0
+0x0122  7e0246088000             mov r0h, r3l
+0x0128  699d010214000000         threadgroup_load i32, x, r7, r0h, 0
+0x0130  0a194c82                 rcp r6, r6
+0x0134  1a994ec22400             fmul32 r6, r7, r6
+0x013a  2999010214000000         threadgroup_store i32, x, r6, r0h, 0
+0x0142  520e00000000             pop_exec r0l, 1
+0x0148  1202424224001130         icmpsel ult, r0h, r1, r2, 0, 1
+0x0150  1212440200001104         icmpsel ueq, r4h, r2, 0, 0, r0h
+0x0158  6800                     threadgroup_barrier
+0x015a  520949000000             if_icmp r0l, nueq, r4h, 0, 1
+0x0160  7e1246088000             mov r4h, r3l
+0x0166  6999090214000000         threadgroup_load i32, x, r6, r4h, 0
+0x016e  1e1d444600000001         imadd r7, r2.sx, 68, 0
+0x0176  699d0e0214000000         threadgroup_load i32, x, r7, r7l, 0
+0x017e  69a1080214000000         threadgroup_load i32, x, r8, r4l, 0
+0x0186  3a994cea24500200         fmadd32 r6, r6.neg, r7, r8
+0x018e  2999080214000000         threadgroup_store i32, x, r6, r4l, 0
+0x0196  520e00000000             pop_exec r0l, 1
+0x019c  6800                     threadgroup_barrier
+0x019e  1212441200010110         icmpsel ueq, r4h, r2, 1, 1, 0
+0x01a6  1212421200490010         icmpsel ueq, r4h, r1, 1, r4h, 0
+0x01ae  520949000000             if_icmp r0l, nueq, r4h, 0, 1
+0x01b4  69995b0214000000         threadgroup_load i32, x, r6, u13h, 0
+0x01bc  0a1d4c12                 rsqrt_special r7, r6
+0x01c0  1a994ce22400             fmul32 r6, r6, r7
+0x01c6  29995b0214000000         threadgroup_store i32, x, r6, u13h, 0
+0x01ce  520e00000000             pop_exec r0l, 1
+0x01d4  6800                     threadgroup_barrier
+0x01d6  1212012024010130         icmpsel ult, r4h, 1, r1, 1, 0
+0x01de  1212441200490010         icmpsel ueq, r4h, r2, 1, r4h, 0
+0x01e6  520949000000             if_icmp r0l, nueq, r4h, 0, 1
+0x01ec  69995b0214000000         threadgroup_load i32, x, r6, u13h, 0
+0x01f4  0e1d046064000000         iadd r7, 4, r3.sx
+0x01fc  69a10e0214000000         threadgroup_load i32, x, r8, r7l, 0
+0x0204  0a194c82                 rcp r6, r6
+0x0208  1a9950c22400             fmul32 r6, r8, r6
+0x020e  29990e0214000000         threadgroup_store i32, x, r6, r7l, 0
+0x0216  520e00000000             pop_exec r0l, 1
+0x021c  1212014024410030         icmpsel ult, r4h, 1, r2, r0h, 0
+0x0224  6800                     threadgroup_barrier
+0x0226  520949000000             if_icmp r0l, nueq, r4h, 0, 1
+0x022c  0e19046064000000         iadd r6, 4, r3.sx
+0x0234  69990c0214000000         threadgroup_load i32, x, r6, r6l, 0
+0x023c  1e1d444600040001         imadd r7, r2.sx, 68, 4
+0x0244  699d0e0214000000         threadgroup_load i32, x, r7, r7l, 0
+0x024c  69a1080214000000         threadgroup_load i32, x, r8, r4l, 0
+0x0254  3a994cea24500200         fmadd32 r6, r6.neg, r7, r8
+0x025c  2999080214000000         threadgroup_store i32, x, r6, r4l, 0
+0x0264  520e00000000             pop_exec r0l, 1
+0x026a  6800                     threadgroup_barrier
+0x026c  1212442200010110         icmpsel ueq, r4h, r2, 2, 1, 0
+0x0274  1212422200490010         icmpsel ueq, r4h, r1, 2, r4h, 0
+0x027c  520949000000             if_icmp r0l, nueq, r4h, 0, 1
+0x0282  69995d0214000000         threadgroup_load i32, x, r6, u14h, 0
+0x028a  0a1d4c12                 rsqrt_special r7, r6
+0x028e  1a994ce22400             fmul32 r6, r6, r7
+0x0294  29995d0214000000         threadgroup_store i32, x, r6, u14h, 0
+0x029c  520e00000000             pop_exec r0l, 1
+0x02a2  6800                     threadgroup_barrier
+0x02a4  1212022024010130         icmpsel ult, r4h, 2, r1, 1, 0
+0x02ac  1212442200490010         icmpsel ueq, r4h, r2, 2, r4h, 0
+0x02b4  520949000000             if_icmp r0l, nueq, r4h, 0, 1
+0x02ba  69995d0214000000         threadgroup_load i32, x, r6, u14h, 0
+0x02c2  0e1d086064000000         iadd r7, 8, r3.sx
+0x02ca  69a10e0214000000         threadgroup_load i32, x, r8, r7l, 0
+0x02d2  0a194c82                 rcp r6, r6
+0x02d6  1a9950c22400             fmul32 r6, r8, r6
+0x02dc  29990e0214000000         threadgroup_store i32, x, r6, r7l, 0
+0x02e4  520e00000000             pop_exec r0l, 1
+0x02ea  1212024024410030         icmpsel ult, r4h, 2, r2, r0h, 0
+0x02f2  6800                     threadgroup_barrier
+0x02f4  520949000000             if_icmp r0l, nueq, r4h, 0, 1
+0x02fa  0e19086064000000         iadd r6, 8, r3.sx
+0x0302  69990c0214000000         threadgroup_load i32, x, r6, r6l, 0
+0x030a  1e1d444600080001         imadd r7, r2.sx, 68, 8
+0x0312  699d0e0214000000         threadgroup_load i32, x, r7, r7l, 0
+0x031a  69a1080214000000         threadgroup_load i32, x, r8, r4l, 0
+0x0322  3a994cea24500200         fmadd32 r6, r6.neg, r7, r8
+0x032a  2999080214000000         threadgroup_store i32, x, r6, r4l, 0
+0x0332  520e00000000             pop_exec r0l, 1
+0x0338  6800                     threadgroup_barrier
+0x033a  1212443200010110         icmpsel ueq, r4h, r2, 3, 1, 0
+0x0342  1212423200490010         icmpsel ueq, r4h, r1, 3, r4h, 0
+0x034a  520949000000             if_icmp r0l, nueq, r4h, 0, 1
+0x0350  6999640214000000         threadgroup_load i32, x, r6, u18l, 0
+0x0358  0a1d4c12                 rsqrt_special r7, r6
+0x035c  1a994ce22400             fmul32 r6, r6, r7
+0x0362  2999640214000000         threadgroup_store i32, x, r6, u18l, 0
+0x036a  520e00000000             pop_exec r0l, 1
+0x0370  6800                     threadgroup_barrier
+0x0372  1212032024010130         icmpsel ult, r4h, 3, r1, 1, 0
+0x037a  1212443200490010         icmpsel ueq, r4h, r2, 3, r4h, 0
+0x0382  520949000000             if_icmp r0l, nueq, r4h, 0, 1
+0x0388  6999640214000000         threadgroup_load i32, x, r6, u18l, 0
+0x0390  0e1d0c6064000000         iadd r7, 12, r3.sx
+0x0398  69a10e0214000000         threadgroup_load i32, x, r8, r7l, 0
+0x03a0  0a194c82                 rcp r6, r6
+0x03a4  1a9950c22400             fmul32 r6, r8, r6
+0x03aa  29990e0214000000         threadgroup_store i32, x, r6, r7l, 0
+0x03b2  520e00000000             pop_exec r0l, 1
+0x03b8  1212034024410030         icmpsel ult, r4h, 3, r2, r0h, 0
+0x03c0  6800                     threadgroup_barrier
+0x03c2  520949000000             if_icmp r0l, nueq, r4h, 0, 1
+0x03c8  0e190c6064000000         iadd r6, 12, r3.sx
+0x03d0  69990c0214000000         threadgroup_load i32, x, r6, r6l, 0
+0x03d8  1e1d4446000c0001         imadd r7, r2.sx, 68, 12
+0x03e0  699d0e0214000000         threadgroup_load i32, x, r7, r7l, 0
+0x03e8  69a1080214000000         threadgroup_load i32, x, r8, r4l, 0
+0x03f0  3a994cea24500200         fmadd32 r6, r6.neg, r7, r8
+0x03f8  2999080214000000         threadgroup_store i32, x, r6, r4l, 0
+0x0400  520e00000000             pop_exec r0l, 1
+0x0406  6800                     threadgroup_barrier
+0x0408  1212444200010110         icmpsel ueq, r4h, r2, 4, 1, 0
+0x0410  1212424200490010         icmpsel ueq, r4h, r1, 4, r4h, 0
+0x0418  520949000000             if_icmp r0l, nueq, r4h, 0, 1
+0x041e  6999610214000000         threadgroup_load i32, x, r6, u16h, 0
+0x0426  0a1d4c12                 rsqrt_special r7, r6
+0x042a  1a994ce22400             fmul32 r6, r6, r7
+0x0430  2999610214000000         threadgroup_store i32, x, r6, u16h, 0
+0x0438  520e00000000             pop_exec r0l, 1
+0x043e  6800                     threadgroup_barrier
+0x0440  1212042024010130         icmpsel ult, r4h, 4, r1, 1, 0
+0x0448  1212444200490010         icmpsel ueq, r4h, r2, 4, r4h, 0
+0x0450  520949000000             if_icmp r0l, nueq, r4h, 0, 1
+0x0456  6999610214000000         threadgroup_load i32, x, r6, u16h, 0
+0x045e  0e1d106064000000         iadd r7, 16, r3.sx
+0x0466  69a10e0214000000         threadgroup_load i32, x, r8, r7l, 0
+0x046e  0a194c82                 rcp r6, r6
+0x0472  1a9950c22400             fmul32 r6, r8, r6
+0x0478  29990e0214000000         threadgroup_store i32, x, r6, r7l, 0
+0x0480  520e00000000             pop_exec r0l, 1
+0x0486  1212044024410030         icmpsel ult, r4h, 4, r2, r0h, 0
+0x048e  6800                     threadgroup_barrier
+0x0490  520949000000             if_icmp r0l, nueq, r4h, 0, 1
+0x0496  0e19106064000000         iadd r6, 16, r3.sx
+0x049e  69990c0214000000         threadgroup_load i32, x, r6, r6l, 0
+0x04a6  1e1d444600100001         imadd r7, r2.sx, 68, 16
+0x04ae  699d0e0214000000         threadgroup_load i32, x, r7, r7l, 0
+0x04b6  69a1080214000000         threadgroup_load i32, x, r8, r4l, 0
+0x04be  3a994cea24500200         fmadd32 r6, r6.neg, r7, r8
+0x04c6  2999080214000000         threadgroup_store i32, x, r6, r4l, 0
+0x04ce  520e00000000             pop_exec r0l, 1
+0x04d4  6800                     threadgroup_barrier
+0x04d6  1212445200010110         icmpsel ueq, r4h, r2, 5, 1, 0
+0x04de  1212425200490010         icmpsel ueq, r4h, r1, 5, r4h, 0
+0x04e6  520949000000             if_icmp r0l, nueq, r4h, 0, 1
+0x04ec  6999580214000000         threadgroup_load i32, x, r6, u12l, 0
+0x04f4  0a1d4c12                 rsqrt_special r7, r6
+0x04f8  1a994ce22400             fmul32 r6, r6, r7
+0x04fe  2999580214000000         threadgroup_store i32, x, r6, u12l, 0
+0x0506  520e00000000             pop_exec r0l, 1
+0x050c  6800                     threadgroup_barrier
+0x050e  1212052024010130         icmpsel ult, r4h, 5, r1, 1, 0
+0x0516  1212445200490010         icmpsel ueq, r4h, r2, 5, r4h, 0
+0x051e  520949000000             if_icmp r0l, nueq, r4h, 0, 1
+0x0524  6999580214000000         threadgroup_load i32, x, r6, u12l, 0
+0x052c  0e1d146064000000         iadd r7, 20, r3.sx
+0x0534  69a10e0214000000         threadgroup_load i32, x, r8, r7l, 0
+0x053c  0a194c82                 rcp r6, r6
+0x0540  1a9950c22400             fmul32 r6, r8, r6
+0x0546  29990e0214000000         threadgroup_store i32, x, r6, r7l, 0
+0x054e  520e00000000             pop_exec r0l, 1
+0x0554  1212054024410030         icmpsel ult, r4h, 5, r2, r0h, 0
+0x055c  6800                     threadgroup_barrier
+0x055e  520949000000             if_icmp r0l, nueq, r4h, 0, 1
+0x0564  0e19146064000000         iadd r6, 20, r3.sx
+0x056c  69990c0214000000         threadgroup_load i32, x, r6, r6l, 0
+0x0574  1e1d444600140001         imadd r7, r2.sx, 68, 20
+0x057c  699d0e0214000000         threadgroup_load i32, x, r7, r7l, 0
+0x0584  69a1080214000000         threadgroup_load i32, x, r8, r4l, 0
+0x058c  3a994cea24500200         fmadd32 r6, r6.neg, r7, r8
+0x0594  2999080214000000         threadgroup_store i32, x, r6, r4l, 0
+0x059c  520e00000000             pop_exec r0l, 1
+0x05a2  6800                     threadgroup_barrier
+0x05a4  1212446200010110         icmpsel ueq, r4h, r2, 6, 1, 0
+0x05ac  1212426200490010         icmpsel ueq, r4h, r1, 6, r4h, 0
+0x05b4  520949000000             if_icmp r0l, nueq, r4h, 0, 1
+0x05ba  6999620214000000         threadgroup_load i32, x, r6, u17l, 0
+0x05c2  0a1d4c12                 rsqrt_special r7, r6
+0x05c6  1a994ce22400             fmul32 r6, r6, r7
+0x05cc  2999620214000000         threadgroup_store i32, x, r6, u17l, 0
+0x05d4  520e00000000             pop_exec r0l, 1
+0x05da  6800                     threadgroup_barrier
+0x05dc  1212062024010130         icmpsel ult, r4h, 6, r1, 1, 0
+0x05e4  1212446200490010         icmpsel ueq, r4h, r2, 6, r4h, 0
+0x05ec  520949000000             if_icmp r0l, nueq, r4h, 0, 1
+0x05f2  6999620214000000         threadgroup_load i32, x, r6, u17l, 0
+0x05fa  0e1d186064000000         iadd r7, 24, r3.sx
+0x0602  69a10e0214000000         threadgroup_load i32, x, r8, r7l, 0
+0x060a  0a194c82                 rcp r6, r6
+0x060e  1a9950c22400             fmul32 r6, r8, r6
+0x0614  29990e0214000000         threadgroup_store i32, x, r6, r7l, 0
+0x061c  520e00000000             pop_exec r0l, 1
+0x0622  1212064024410030         icmpsel ult, r4h, 6, r2, r0h, 0
+0x062a  6800                     threadgroup_barrier
+0x062c  520949000000             if_icmp r0l, nueq, r4h, 0, 1
+0x0632  0e19186064000000         iadd r6, 24, r3.sx
+0x063a  69990c0214000000         threadgroup_load i32, x, r6, r6l, 0
+0x0642  1e1d444600180001         imadd r7, r2.sx, 68, 24
+0x064a  699d0e0214000000         threadgroup_load i32, x, r7, r7l, 0
+0x0652  69a1080214000000         threadgroup_load i32, x, r8, r4l, 0
+0x065a  3a994cea24500200         fmadd32 r6, r6.neg, r7, r8
+0x0662  2999080214000000         threadgroup_store i32, x, r6, r4l, 0
+0x066a  520e00000000             pop_exec r0l, 1
+0x0670  6800                     threadgroup_barrier
+0x0672  1212447200010110         icmpsel ueq, r4h, r2, 7, 1, 0
+0x067a  1212427200490010         icmpsel ueq, r4h, r1, 7, r4h, 0
+0x0682  520949000000             if_icmp r0l, nueq, r4h, 0, 1
+0x0688  69995f0214000000         threadgroup_load i32, x, r6, u15h, 0
+0x0690  0a1d4c12                 rsqrt_special r7, r6
+0x0694  1a994ce22400             fmul32 r6, r6, r7
+0x069a  29995f0214000000         threadgroup_store i32, x, r6, u15h, 0
+0x06a2  520e00000000             pop_exec r0l, 1
+0x06a8  6800                     threadgroup_barrier
+0x06aa  1212072024010130         icmpsel ult, r4h, 7, r1, 1, 0
+0x06b2  1212447200490010         icmpsel ueq, r4h, r2, 7, r4h, 0
+0x06ba  520949000000             if_icmp r0l, nueq, r4h, 0, 1
+0x06c0  69995f0214000000         threadgroup_load i32, x, r6, u15h, 0
+0x06c8  0e1d1c6064000000         iadd r7, 28, r3.sx
+0x06d0  69a10e0214000000         threadgroup_load i32, x, r8, r7l, 0
+0x06d8  0a194c82                 rcp r6, r6
+0x06dc  1a9950c22400             fmul32 r6, r8, r6
+0x06e2  29990e0214000000         threadgroup_store i32, x, r6, r7l, 0
+0x06ea  520e00000000             pop_exec r0l, 1
+0x06f0  1212074024410030         icmpsel ult, r4h, 7, r2, r0h, 0
+0x06f8  6800                     threadgroup_barrier
+0x06fa  520949000000             if_icmp r0l, nueq, r4h, 0, 1
+0x0700  0e191c6064000000         iadd r6, 28, r3.sx
+0x0708  69990c0214000000         threadgroup_load i32, x, r6, r6l, 0
+0x0710  1e1d4446001c0001         imadd r7, r2.sx, 68, 28
+0x0718  699d0e0214000000         threadgroup_load i32, x, r7, r7l, 0
+0x0720  69a1080214000000         threadgroup_load i32, x, r8, r4l, 0
+0x0728  3a994cea24500200         fmadd32 r6, r6.neg, r7, r8
+0x0730  2999080214000000         threadgroup_store i32, x, r6, r4l, 0
+0x0738  520e00000000             pop_exec r0l, 1
+0x073e  6800                     threadgroup_barrier
+0x0740  1212448200010110         icmpsel ueq, r4h, r2, 8, 1, 0
+0x0748  1212428200490010         icmpsel ueq, r4h, r1, 8, r4h, 0
+0x0750  520949000000             if_icmp r0l, nueq, r4h, 0, 1
+0x0756  6999590214000000         threadgroup_load i32, x, r6, u12h, 0
+0x075e  0a1d4c12                 rsqrt_special r7, r6
+0x0762  1a994ce22400             fmul32 r6, r6, r7
+0x0768  2999590214000000         threadgroup_store i32, x, r6, u12h, 0
+0x0770  520e00000000             pop_exec r0l, 1
+0x0776  6800                     threadgroup_barrier
+0x0778  1212082024010130         icmpsel ult, r4h, 8, r1, 1, 0
+0x0780  1212448200490010         icmpsel ueq, r4h, r2, 8, r4h, 0
+0x0788  520949000000             if_icmp r0l, nueq, r4h, 0, 1
+0x078e  6999590214000000         threadgroup_load i32, x, r6, u12h, 0
+0x0796  0e1d206064000000         iadd r7, 32, r3.sx
+0x079e  69a10e0214000000         threadgroup_load i32, x, r8, r7l, 0
+0x07a6  0a194c82                 rcp r6, r6
+0x07aa  1a9950c22400             fmul32 r6, r8, r6
+0x07b0  29990e0214000000         threadgroup_store i32, x, r6, r7l, 0
+0x07b8  520e00000000             pop_exec r0l, 1
+0x07be  1212084024410030         icmpsel ult, r4h, 8, r2, r0h, 0
+0x07c6  6800                     threadgroup_barrier
+0x07c8  520949000000             if_icmp r0l, nueq, r4h, 0, 1
+0x07ce  0e19206064000000         iadd r6, 32, r3.sx
+0x07d6  69990c0214000000         threadgroup_load i32, x, r6, r6l, 0
+0x07de  1e1d444600200001         imadd r7, r2.sx, 68, 32
+0x07e6  699d0e0214000000         threadgroup_load i32, x, r7, r7l, 0
+0x07ee  69a1080214000000         threadgroup_load i32, x, r8, r4l, 0
+0x07f6  3a994cea24500200         fmadd32 r6, r6.neg, r7, r8
+0x07fe  2999080214000000         threadgroup_store i32, x, r6, r4l, 0
+0x0806  520e00000000             pop_exec r0l, 1
+0x080c  6800                     threadgroup_barrier
+0x080e  1212449200010110         icmpsel ueq, r4h, r2, 9, 1, 0
+0x0816  1212429200490010         icmpsel ueq, r4h, r1, 9, r4h, 0
+0x081e  520949000000             if_icmp r0l, nueq, r4h, 0, 1
+0x0824  6999650214000000         threadgroup_load i32, x, r6, u18h, 0
+0x082c  0a1d4c12                 rsqrt_special r7, r6
+0x0830  1a994ce22400             fmul32 r6, r6, r7
+0x0836  2999650214000000         threadgroup_store i32, x, r6, u18h, 0
+0x083e  520e00000000             pop_exec r0l, 1
+0x0844  6800                     threadgroup_barrier
+0x0846  1212092024010130         icmpsel ult, r4h, 9, r1, 1, 0
+0x084e  1212449200490010         icmpsel ueq, r4h, r2, 9, r4h, 0
+0x0856  520949000000             if_icmp r0l, nueq, r4h, 0, 1
+0x085c  6999650214000000         threadgroup_load i32, x, r6, u18h, 0
+0x0864  0e1d246064000000         iadd r7, 36, r3.sx
+0x086c  69a10e0214000000         threadgroup_load i32, x, r8, r7l, 0
+0x0874  0a194c82                 rcp r6, r6
+0x0878  1a9950c22400             fmul32 r6, r8, r6
+0x087e  29990e0214000000         threadgroup_store i32, x, r6, r7l, 0
+0x0886  520e00000000             pop_exec r0l, 1
+0x088c  1212094024410030         icmpsel ult, r4h, 9, r2, r0h, 0
+0x0894  6800                     threadgroup_barrier
+0x0896  520949000000             if_icmp r0l, nueq, r4h, 0, 1
+0x089c  0e19246064000000         iadd r6, 36, r3.sx
+0x08a4  69990c0214000000         threadgroup_load i32, x, r6, r6l, 0
+0x08ac  1e1d444600240001         imadd r7, r2.sx, 68, 36
+0x08b4  699d0e0214000000         threadgroup_load i32, x, r7, r7l, 0
+0x08bc  69a1080214000000         threadgroup_load i32, x, r8, r4l, 0
+0x08c4  3a994cea24500200         fmadd32 r6, r6.neg, r7, r8
+0x08cc  2999080214000000         threadgroup_store i32, x, r6, r4l, 0
+0x08d4  520e00000000             pop_exec r0l, 1
+0x08da  6800                     threadgroup_barrier
+0x08dc  121244a200010110         icmpsel ueq, r4h, r2, 10, 1, 0
+0x08e4  121242a200490010         icmpsel ueq, r4h, r1, 10, r4h, 0
+0x08ec  520949000000             if_icmp r0l, nueq, r4h, 0, 1
+0x08f2  69995e0214000000         threadgroup_load i32, x, r6, u15l, 0
+0x08fa  0a1d4c12                 rsqrt_special r7, r6
+0x08fe  1a994ce22400             fmul32 r6, r6, r7
+0x0904  29995e0214000000         threadgroup_store i32, x, r6, u15l, 0
+0x090c  520e00000000             pop_exec r0l, 1
+0x0912  6800                     threadgroup_barrier
+0x0914  12120a2024010130         icmpsel ult, r4h, 10, r1, 1, 0
+0x091c  121244a200490010         icmpsel ueq, r4h, r2, 10, r4h, 0
+0x0924  520949000000             if_icmp r0l, nueq, r4h, 0, 1
+0x092a  69995e0214000000         threadgroup_load i32, x, r6, u15l, 0
+0x0932  0e1d286064000000         iadd r7, 40, r3.sx
+0x093a  69a10e0214000000         threadgroup_load i32, x, r8, r7l, 0
+0x0942  0a194c82                 rcp r6, r6
+0x0946  1a9950c22400             fmul32 r6, r8, r6
+0x094c  29990e0214000000         threadgroup_store i32, x, r6, r7l, 0
+0x0954  520e00000000             pop_exec r0l, 1
+0x095a  12120a4024410030         icmpsel ult, r4h, 10, r2, r0h, 0
+0x0962  6800                     threadgroup_barrier
+0x0964  520949000000             if_icmp r0l, nueq, r4h, 0, 1
+0x096a  0e19286064000000         iadd r6, 40, r3.sx
+0x0972  69990c0214000000         threadgroup_load i32, x, r6, r6l, 0
+0x097a  1e1d444600280001         imadd r7, r2.sx, 68, 40
+0x0982  699d0e0214000000         threadgroup_load i32, x, r7, r7l, 0
+0x098a  69a1080214000000         threadgroup_load i32, x, r8, r4l, 0
+0x0992  3a994cea24500200         fmadd32 r6, r6.neg, r7, r8
+0x099a  2999080214000000         threadgroup_store i32, x, r6, r4l, 0
+0x09a2  520e00000000             pop_exec r0l, 1
+0x09a8  6800                     threadgroup_barrier
+0x09aa  121244b200010110         icmpsel ueq, r4h, r2, 11, 1, 0
+0x09b2  121242b200490010         icmpsel ueq, r4h, r1, 11, r4h, 0
+0x09ba  520949000000             if_icmp r0l, nueq, r4h, 0, 1
+0x09c0  6999630214000000         threadgroup_load i32, x, r6, u17h, 0
+0x09c8  0a1d4c12                 rsqrt_special r7, r6
+0x09cc  1a994ce22400             fmul32 r6, r6, r7
+0x09d2  2999630214000000         threadgroup_store i32, x, r6, u17h, 0
+0x09da  520e00000000             pop_exec r0l, 1
+0x09e0  6800                     threadgroup_barrier
+0x09e2  12120b2024010130         icmpsel ult, r4h, 11, r1, 1, 0
+0x09ea  121244b200490010         icmpsel ueq, r4h, r2, 11, r4h, 0
+0x09f2  520949000000             if_icmp r0l, nueq, r4h, 0, 1
+0x09f8  6999630214000000         threadgroup_load i32, x, r6, u17h, 0
+0x0a00  0e1d2c6064000000         iadd r7, 44, r3.sx
+0x0a08  69a10e0214000000         threadgroup_load i32, x, r8, r7l, 0
+0x0a10  0a194c82                 rcp r6, r6
+0x0a14  1a9950c22400             fmul32 r6, r8, r6
+0x0a1a  29990e0214000000         threadgroup_store i32, x, r6, r7l, 0
+0x0a22  520e00000000             pop_exec r0l, 1
+0x0a28  12120b4024410030         icmpsel ult, r4h, 11, r2, r0h, 0
+0x0a30  6800                     threadgroup_barrier
+0x0a32  520949000000             if_icmp r0l, nueq, r4h, 0, 1
+0x0a38  0e192c6064000000         iadd r6, 44, r3.sx
+0x0a40  69990c0214000000         threadgroup_load i32, x, r6, r6l, 0
+0x0a48  1e1d4446002c0001         imadd r7, r2.sx, 68, 44
+0x0a50  699d0e0214000000         threadgroup_load i32, x, r7, r7l, 0
+0x0a58  69a1080214000000         threadgroup_load i32, x, r8, r4l, 0
+0x0a60  3a994cea24500200         fmadd32 r6, r6.neg, r7, r8
+0x0a68  2999080214000000         threadgroup_store i32, x, r6, r4l, 0
+0x0a70  520e00000000             pop_exec r0l, 1
+0x0a76  6800                     threadgroup_barrier
+0x0a78  121244c200010110         icmpsel ueq, r4h, r2, 12, 1, 0
+0x0a80  121242c200490010         icmpsel ueq, r4h, r1, 12, r4h, 0
+0x0a88  520949000000             if_icmp r0l, nueq, r4h, 0, 1
+0x0a8e  69995c0214000000         threadgroup_load i32, x, r6, u14l, 0
+0x0a96  0a1d4c12                 rsqrt_special r7, r6
+0x0a9a  1a994ce22400             fmul32 r6, r6, r7
+0x0aa0  29995c0214000000         threadgroup_store i32, x, r6, u14l, 0
+0x0aa8  520e00000000             pop_exec r0l, 1
+0x0aae  6800                     threadgroup_barrier
+0x0ab0  12120c2024010130         icmpsel ult, r4h, 12, r1, 1, 0
+0x0ab8  121244c200490010         icmpsel ueq, r4h, r2, 12, r4h, 0
+0x0ac0  520949000000             if_icmp r0l, nueq, r4h, 0, 1
+0x0ac6  69995c0214000000         threadgroup_load i32, x, r6, u14l, 0
+0x0ace  0e1d306064000000         iadd r7, 48, r3.sx
+0x0ad6  69a10e0214000000         threadgroup_load i32, x, r8, r7l, 0
+0x0ade  0a194c82                 rcp r6, r6
+0x0ae2  1a9950c22400             fmul32 r6, r8, r6
+0x0ae8  29990e0214000000         threadgroup_store i32, x, r6, r7l, 0
+0x0af0  520e00000000             pop_exec r0l, 1
+0x0af6  12120c4024410030         icmpsel ult, r4h, 12, r2, r0h, 0
+0x0afe  6800                     threadgroup_barrier
+0x0b00  520949000000             if_icmp r0l, nueq, r4h, 0, 1
+0x0b06  0e19306064000000         iadd r6, 48, r3.sx
+0x0b0e  69990c0214000000         threadgroup_load i32, x, r6, r6l, 0
+0x0b16  1e1d444600300001         imadd r7, r2.sx, 68, 48
+0x0b1e  699d0e0214000000         threadgroup_load i32, x, r7, r7l, 0
+0x0b26  69a1080214000000         threadgroup_load i32, x, r8, r4l, 0
+0x0b2e  3a994cea24500200         fmadd32 r6, r6.neg, r7, r8
+0x0b36  2999080214000000         threadgroup_store i32, x, r6, r4l, 0
+0x0b3e  520e00000000             pop_exec r0l, 1
+0x0b44  6800                     threadgroup_barrier
+0x0b46  121244d200010110         icmpsel ueq, r4h, r2, 13, 1, 0
+0x0b4e  121242d200490010         icmpsel ueq, r4h, r1, 13, r4h, 0
+0x0b56  520949000000             if_icmp r0l, nueq, r4h, 0, 1
+0x0b5c  6999600214000000         threadgroup_load i32, x, r6, u16l, 0
+0x0b64  0a1d4c12                 rsqrt_special r7, r6
+0x0b68  1a994ce22400             fmul32 r6, r6, r7
+0x0b6e  2999600214000000         threadgroup_store i32, x, r6, u16l, 0
+0x0b76  520e00000000             pop_exec r0l, 1
+0x0b7c  6800                     threadgroup_barrier
+0x0b7e  12120d2024010130         icmpsel ult, r4h, 13, r1, 1, 0
+0x0b86  121244d200490010         icmpsel ueq, r4h, r2, 13, r4h, 0
+0x0b8e  520949000000             if_icmp r0l, nueq, r4h, 0, 1
+0x0b94  6999600214000000         threadgroup_load i32, x, r6, u16l, 0
+0x0b9c  0e1d346064000000         iadd r7, 52, r3.sx
+0x0ba4  69a10e0214000000         threadgroup_load i32, x, r8, r7l, 0
+0x0bac  0a194c82                 rcp r6, r6
+0x0bb0  1a9950c22400             fmul32 r6, r8, r6
+0x0bb6  29990e0214000000         threadgroup_store i32, x, r6, r7l, 0
+0x0bbe  520e00000000             pop_exec r0l, 1
+0x0bc4  12120d4024410030         icmpsel ult, r4h, 13, r2, r0h, 0
+0x0bcc  6800                     threadgroup_barrier
+0x0bce  520949000000             if_icmp r0l, nueq, r4h, 0, 1
+0x0bd4  0e19346064000000         iadd r6, 52, r3.sx
+0x0bdc  69990c0214000000         threadgroup_load i32, x, r6, r6l, 0
+0x0be4  1e1d444600340001         imadd r7, r2.sx, 68, 52
+0x0bec  699d0e0214000000         threadgroup_load i32, x, r7, r7l, 0
+0x0bf4  69a1080214000000         threadgroup_load i32, x, r8, r4l, 0
+0x0bfc  3a994cea24500200         fmadd32 r6, r6.neg, r7, r8
+0x0c04  2999080214000000         threadgroup_store i32, x, r6, r4l, 0
+0x0c0c  520e00000000             pop_exec r0l, 1
+0x0c12  6800                     threadgroup_barrier
+0x0c14  121244e200010110         icmpsel ueq, r4h, r2, 14, 1, 0
+0x0c1c  121242e200490010         icmpsel ueq, r4h, r1, 14, r4h, 0
+0x0c24  520949000000             if_icmp r0l, nueq, r4h, 0, 1
+0x0c2a  69995a0214000000         threadgroup_load i32, x, r6, u13l, 0
+0x0c32  0a1d4c12                 rsqrt_special r7, r6
+0x0c36  1a994ce22400             fmul32 r6, r6, r7
+0x0c3c  29995a0214000000         threadgroup_store i32, x, r6, u13l, 0
+0x0c44  520e00000000             pop_exec r0l, 1
+0x0c4a  6800                     threadgroup_barrier
+0x0c4c  12120e2024010130         icmpsel ult, r4h, 14, r1, 1, 0
+0x0c54  121244e200490010         icmpsel ueq, r4h, r2, 14, r4h, 0
+0x0c5c  520949000000             if_icmp r0l, nueq, r4h, 0, 1
+0x0c62  69995a0214000000         threadgroup_load i32, x, r6, u13l, 0
+0x0c6a  0e1d386064000000         iadd r7, 56, r3.sx
+0x0c72  69a10e0214000000         threadgroup_load i32, x, r8, r7l, 0
+0x0c7a  0a194c82                 rcp r6, r6
+0x0c7e  1a9950c22400             fmul32 r6, r8, r6
+0x0c84  29990e0214000000         threadgroup_store i32, x, r6, r7l, 0
+0x0c8c  520e00000000             pop_exec r0l, 1
+0x0c92  12120e4024410030         icmpsel ult, r4h, 14, r2, r0h, 0
+0x0c9a  6800                     threadgroup_barrier
+0x0c9c  520949000000             if_icmp r0l, nueq, r4h, 0, 1
+0x0ca2  0e19386064000000         iadd r6, 56, r3.sx
+0x0caa  69990c0214000000         threadgroup_load i32, x, r6, r6l, 0
+0x0cb2  1e1d444600380001         imadd r7, r2.sx, 68, 56
+0x0cba  699d0e0214000000         threadgroup_load i32, x, r7, r7l, 0
+0x0cc2  69a1080214000000         threadgroup_load i32, x, r8, r4l, 0
+0x0cca  3a994cea24500200         fmadd32 r6, r6.neg, r7, r8
+0x0cd2  2999080214000000         threadgroup_store i32, x, r6, r4l, 0
+0x0cda  520e00000000             pop_exec r0l, 1
+0x0ce0  6800                     threadgroup_barrier
+0x0ce2  121244f200010110         icmpsel ueq, r4h, r2, 15, 1, 0
+0x0cea  121242f200490010         icmpsel ueq, r4h, r1, 15, r4h, 0
+0x0cf2  520949000000             if_icmp r0l, nueq, r4h, 0, 1
+0x0cf8  6999660214000000         threadgroup_load i32, x, r6, u19l, 0
+0x0d00  0a1d4c12                 rsqrt_special r7, r6
+0x0d04  1a994ce22400             fmul32 r6, r6, r7
+0x0d0a  2999660214000000         threadgroup_store i32, x, r6, u19l, 0
+0x0d12  520e00000000             pop_exec r0l, 1
+0x0d18  6800                     threadgroup_barrier
+0x0d1a  12120f2024010130         icmpsel ult, r4h, 15, r1, 1, 0
+0x0d22  121244f200490010         icmpsel ueq, r4h, r2, 15, r4h, 0
+0x0d2a  520949000000             if_icmp r0l, nueq, r4h, 0, 1
+0x0d30  6999660214000000         threadgroup_load i32, x, r6, u19l, 0
+0x0d38  0e1d3c6064000000         iadd r7, 60, r3.sx
+0x0d40  69a10e0214000000         threadgroup_load i32, x, r8, r7l, 0
+0x0d48  0a194c82                 rcp r6, r6
+0x0d4c  1a9950c22400             fmul32 r6, r8, r6
+0x0d52  29990e0214000000         threadgroup_store i32, x, r6, r7l, 0
+0x0d5a  520e00000000             pop_exec r0l, 1
+0x0d60  6800                     threadgroup_barrier
+0x0d62  12020f4024410030         icmpsel ult, r0h, 15, r2, r0h, 0
+0x0d6a  520941000000             if_icmp r0l, nueq, r0h, 0, 1
+0x0d70  0e0d3c6064000000         iadd r3, 60, r3.sx
+0x0d78  6999060214000000         threadgroup_load i32, x, r6, r3l, 0
+0x0d80  1e0d4446003c0001         imadd r3, r2.sx, 68, 60
+0x0d88  699d060214000000         threadgroup_load i32, x, r7, r3l, 0
+0x0d90  698d080214000000         threadgroup_load i32, x, r3, r4l, 0
+0x0d98  3a8d4cea24460200         fmadd32 r3, r6.neg, r7, r3
+0x0da0  298d080214000000         threadgroup_store i32, x, r3, r4l, 0
+0x0da8  520e00000000             pop_exec r0l, 1
+0x0dae  6800                     threadgroup_barrier
+0x0db0  522942422400             if_icmp r0l, ugte, r1, r2, 1
+0x0db6  6985080214000000         threadgroup_load i32, x, r1, r4l, 0
+0x0dbe  420a00000000             else_fcmp r0l, eq, 0.0, 0.0, 1
+0x0dc4  620500000000             mov_imm r1, 0, 0b0
+0x0dca  520e00000000             pop_exec r0l, 1
+0x0dd0  4509a40e10c01200         device_store 0, i32, x, r1, u10_u11, r5, unsigned, 0
+0x0dd8  8800                     stop

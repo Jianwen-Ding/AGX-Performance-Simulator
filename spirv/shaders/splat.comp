@@ -1,0 +1,21 @@
+#version 450
+// Bilinear point splatting with fp32 atomicAdd (density maps, particle-to-grid transfer, gradient scatter): every
+// point adds its weight to the four surrounding cells of a 2-D grid. Needs shaderBufferFloat32AtomicAdd; the
+// addition order varies, so the sums are checked within a summation error bound.
+#extension GL_EXT_shader_atomic_float : require
+layout(local_size_x = 256) in;
+layout(std430, binding = 0) readonly buffer Pt { vec4 pts[]; };         // x, y (grid units), weight, unused
+layout(std430, binding = 1) buffer G { float grid[]; };
+layout(push_constant) uniform P { uint n; uint size; } p;
+
+void main() {
+    uint i = gl_GlobalInvocationID.x;
+    if (i >= p.n) return;
+    vec4 q = pts[i];
+    vec2 f = floor(q.xy), w = q.xy - f;
+    uint x = uint(f.x), y = uint(f.y);
+    atomicAdd(grid[y * p.size + x], q.z * (1.0 - w.x) * (1.0 - w.y));
+    atomicAdd(grid[y * p.size + x + 1u], q.z * w.x * (1.0 - w.y));
+    atomicAdd(grid[(y + 1u) * p.size + x], q.z * (1.0 - w.x) * w.y);
+    atomicAdd(grid[(y + 1u) * p.size + x + 1u], q.z * w.x * w.y);
+}

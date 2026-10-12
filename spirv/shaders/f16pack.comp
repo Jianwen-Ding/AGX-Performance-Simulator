@@ -1,0 +1,17 @@
+#version 450
+// fp32 -> fp16 conversion for half-precision storage (ML weights, vertex attributes), two dispatches: pass 0
+// rounds pairs of floats to binary16 with packHalf2x16 (nearest even; overflow to infinity; results below the fp16
+// normal range become fp16 subnormals); pass 1 widens the stored halves back with unpackHalf2x16. The passes are
+// separate dispatches because compilers fold unpack(pack(v)) within one shader. Bit-exact against IEEE conversion.
+layout(local_size_x = 256) in;
+layout(std430, binding = 0) readonly buffer I { vec2 vals[]; };
+layout(std430, binding = 1) buffer H { uint halves[]; };
+layout(std430, binding = 2) writeonly buffer B { vec2 back[]; };
+layout(push_constant) uniform P { uint n; uint pass_; } p;
+
+void main() {
+    uint i = gl_GlobalInvocationID.x;
+    if (i >= p.n) return;
+    if (p.pass_ == 0u) halves[i] = packHalf2x16(vals[i]);
+    else back[i] = unpackHalf2x16(halves[i]);
+}

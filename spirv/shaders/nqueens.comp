@@ -1,0 +1,41 @@
+#version 450
+// N-queens solution counting (constraint search): each thread fixes the queens of the first three rows from its
+// index, then counts the completions by bitmask depth-first search with an explicit stack in private memory.
+// Trip counts vary wildly between threads (divergence). Integer-exact.
+layout(local_size_x = 64) in;
+layout(std430, binding = 0) writeonly buffer C { uint counts[]; };
+layout(std430, binding = 1) buffer T { uint total; };
+layout(push_constant) uniform P { uint n; } p;
+
+void main() {
+    uint t = gl_GlobalInvocationID.x, n = p.n;
+    if (t >= n * n * n) return;
+    uint full = (1u << n) - 1u, c = 0u, a = 0u, b = 0u;
+    bool ok = true;
+    for (uint r = 0u; r < 3u; r++) {                      // prefix: column of the queen in rows 0, 1, 2
+        uint bit = 1u << ((r == 0u ? t : r == 1u ? t / n : t / (n * n)) % n);
+        ok = ok && ((c | a | b) & bit) == 0u;
+        c |= bit; a = ((a | bit) << 1) & full; b = (b | bit) >> 1;
+    }
+    uint count = 0u;
+    if (ok) {
+        uint sc[16], sa[16], sb[16], sv[16];
+        int sp = 0;
+        uint avail = full & ~(c | a | b);
+        while (true) {
+            if (avail == 0u) {
+                if (sp == 0) break;
+                sp--; c = sc[sp]; a = sa[sp]; b = sb[sp]; avail = sv[sp];
+                continue;
+            }
+            uint bit = avail & (~avail + 1u);
+            avail ^= bit;
+            if (uint(sp) + 4u == n) { count++; continue; }   // this queen fills the last row
+            sc[sp] = c; sa[sp] = a; sb[sp] = b; sv[sp] = avail; sp++;
+            c |= bit; a = ((a | bit) << 1) & full; b = (b | bit) >> 1;
+            avail = full & ~(c | a | b);
+        }
+    }
+    counts[t] = count;
+    if (count != 0u) atomicAdd(total, count);
+}

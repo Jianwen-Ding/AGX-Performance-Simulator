@@ -1,0 +1,36 @@
+#version 450
+// Two-layer perceptron inference, one workgroup per input vector: hidden = relu(W1 x + b1) (256 units),
+// logits = W2 hidden + b2 (16 classes), softmax; shared memory for the input, the hidden layer and the reductions.
+layout(local_size_x = 256) in;
+layout(std430, binding = 0) readonly buffer X { float x[]; };      // batch x 128
+layout(std430, binding = 1) readonly buffer W1 { float w1[]; };    // 256 x 128 (row-major)
+layout(std430, binding = 2) readonly buffer B1 { float b1[]; };
+layout(std430, binding = 3) readonly buffer W2 { float w2[]; };    // 16 x 256
+layout(std430, binding = 4) readonly buffer B2 { float b2[]; };
+layout(std430, binding = 5) writeonly buffer O { float prob[]; };  // batch x 16
+shared float xs[128];
+shared float hs[256];
+shared float lg[16];
+
+void main() {
+    uint t = gl_LocalInvocationID.x, n = gl_WorkGroupID.x;
+    if (t < 128u) xs[t] = x[n * 128u + t];
+    barrier();
+    float acc = b1[t];
+    for (uint k = 0u; k < 128u; k++) acc = fma(w1[t * 128u + k], xs[k], acc);
+    hs[t] = max(acc, 0.0);
+    barrier();
+    if (t < 16u) {
+        float a = b2[t];
+        for (uint k = 0u; k < 256u; k++) a = fma(w2[t * 256u + k], hs[k], a);
+        lg[t] = a;
+    }
+    barrier();
+    if (t < 16u) {
+        float m = lg[0];
+        for (uint k = 1u; k < 16u; k++) m = max(m, lg[k]);
+        float s = 0.0;
+        for (uint k = 0u; k < 16u; k++) s += exp(lg[k] - m);
+        prob[n * 16u + t] = exp(lg[t] - m) / s;
+    }
+}

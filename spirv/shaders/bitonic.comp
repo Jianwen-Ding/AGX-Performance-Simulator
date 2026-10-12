@@ -1,0 +1,50 @@
+#version 450
+// Bitonic sort of n = 2^m (key, value) pairs, ascending by key (keys unique in the test data).
+// mode 0: sort each 1024-element block in shared memory (k = 2 .. 1024)
+// mode 1: one global compare-exchange step (k, j) with j >= 1024
+// mode 2: finish merge step k for all j < 1024 in shared memory
+layout(local_size_x = 512) in;
+layout(std430, binding = 0) buffer K { uint keys[]; };
+layout(std430, binding = 1) buffer V { uint vals[]; };
+layout(push_constant) uniform P { uint mode; uint k; uint j; } p;
+shared uint sk[1024];
+shared uint sv[1024];
+
+void cmpx(uint a, uint b, bool up) {
+    uint ka = sk[a], kb = sk[b];
+    if ((ka > kb) == up) {
+        sk[a] = kb; sk[b] = ka;
+        uint va = sv[a]; sv[a] = sv[b]; sv[b] = va;
+    }
+}
+
+void main() {
+    uint t = gl_LocalInvocationID.x;
+    if (p.mode == 1u) {
+        uint i = gl_GlobalInvocationID.x;                      // n/2 threads, one pair each
+        uint a = 2u * i - (i & (p.j - 1u));
+        uint b = a + p.j;
+        bool up = (a & p.k) == 0u;
+        uint ka = keys[a], kb = keys[b];
+        if ((ka > kb) == up) {
+            keys[a] = kb; keys[b] = ka;
+            uint va = vals[a]; vals[a] = vals[b]; vals[b] = va;
+        }
+        return;
+    }
+    uint base = gl_WorkGroupID.x * 1024u;
+    sk[t] = keys[base + t]; sk[t + 512u] = keys[base + t + 512u];
+    sv[t] = vals[base + t]; sv[t + 512u] = vals[base + t + 512u];
+    barrier();
+    uint k_lo = p.mode == 0u ? 2u : p.k;
+    uint k_hi = p.mode == 0u ? 1024u : p.k;
+    for (uint k = k_lo; k <= k_hi; k <<= 1) {
+        for (uint j = min(k >> 1, 512u); j > 0u; j >>= 1) {
+            uint a = 2u * t - (t & (j - 1u));
+            cmpx(a, a + j, ((base + a) & k) == 0u);
+            barrier();
+        }
+    }
+    keys[base + t] = sk[t]; keys[base + t + 512u] = sk[t + 512u];
+    vals[base + t] = sv[t]; vals[base + t + 512u] = sv[t + 512u];
+}

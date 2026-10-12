@@ -1,0 +1,57 @@
+#version 450
+// attndec split along the sequence as flash-decoding does: pass 0 runs one workgroup per (head, 256-position chunk)
+// and writes the chunk's max m_c, its sum of exponentials l_c and its unnormalised weighted V sum acc_c; pass 1 merges
+// a head's chunks: M = max m_c, out = sum_c e^(m_c - M) acc_c / sum_c e^(m_c - M) l_c. Same inputs and outputs as
+// attndec, with heads x chunks workgroups instead of heads.
+#extension GL_EXT_shader_16bit_storage : require
+layout(local_size_x = 128) in;
+layout(std430, binding = 0) readonly buffer Q { float q[]; };
+layout(std430, binding = 1) readonly buffer K { float16_t kc[]; };
+layout(std430, binding = 2) readonly buffer V { float16_t vc[]; };
+layout(std430, binding = 3) writeonly buffer O { float outp[]; };
+layout(std430, binding = 4) buffer PM { vec2 ml[]; };                // per (head, chunk): m, l
+layout(std430, binding = 5) buffer PA { float pacc[]; };             // per (head, chunk): 128 partial sums
+layout(push_constant) uniform P { uint pass; uint seq; } p;
+shared float qs[128];
+shared float sc[256];
+shared float red[128];
+
+void main() {
+    uint l = gl_LocalInvocationID.x, nch = p.seq / 256u;
+    if (p.pass == 1u) {
+        uint h = gl_WorkGroupID.x;
+        float M = -3.0e38;
+        for (uint c = 0u; c < nch; c++) M = max(M, ml[h * nch + c].x);
+        float num = 0.0, den = 0.0;
+        for (uint c = 0u; c < nch; c++) {
+            float f = exp(ml[h * nch + c].x - M);
+            num += f * pacc[(h * nch + c) * 128u + l]; den += f * ml[h * nch + c].y;
+        }
+        outp[128u * h + l] = num / den;
+        return;
+    }
+    uint h = gl_WorkGroupID.x / nch, c = gl_WorkGroupID.x % nch, t0 = 256u * c;
+    qs[l] = q[128u * h + l] * 0.08838834764831845;
+    barrier();
+    float mx = -3.0e38;
+    for (uint t = l; t < 256u; t += 128u) {
+        uint kb = (h * p.seq + t0 + t) * 128u;
+        float s = 0.0;
+        for (uint d = 0u; d < 128u; d++) s += qs[d] * float(kc[kb + d]);
+        sc[t] = s; mx = max(mx, s);
+    }
+    red[l] = mx;
+    barrier();
+    for (uint w = 64u; w > 0u; w >>= 1) { if (l < w) red[l] = max(red[l], red[l + w]); barrier(); }
+    float m = red[0];
+    barrier();
+    float sum = 0.0;
+    for (uint t = l; t < 256u; t += 128u) { float e = exp(sc[t] - m); sc[t] = e; sum += e; }
+    red[l] = sum;
+    barrier();
+    for (uint w = 64u; w > 0u; w >>= 1) { if (l < w) red[l] += red[l + w]; barrier(); }
+    float acc = 0.0;
+    for (uint t = 0u; t < 256u; t++) acc += sc[t] * float(vc[(h * p.seq + t0 + t) * 128u + l]);
+    pacc[(h * nch + c) * 128u + l] = acc;
+    if (l == 0u) ml[h * nch + c] = vec2(m, red[0]);
+}

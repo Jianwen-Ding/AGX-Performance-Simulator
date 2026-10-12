@@ -1,0 +1,13 @@
+#version 450
+// Descriptor-array indexing with a dynamically uniform index: workgroup g reads table g mod 8 of an array of 8
+// storage buffers (the core shaderStorageBufferArrayDynamicIndexing feature), each lane at its own entry.
+// Integer-exact.
+layout(local_size_x = 256) in;
+layout(std430, binding = 0) readonly buffer T { uint v[]; } tabs[8];
+layout(std430, binding = 1) readonly buffer I { uint idx[]; };
+layout(std430, binding = 2) writeonly buffer O { uint outv[]; };
+
+void main() {
+    uint i = gl_GlobalInvocationID.x, t = gl_WorkGroupID.x % 8u;
+    outv[i] = tabs[t].v[idx[i] % uint(tabs[t].v.length())];
+}

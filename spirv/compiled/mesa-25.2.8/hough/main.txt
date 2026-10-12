@@ -1,0 +1,28 @@
+0x0080  72051004                 get_sr r1, sr80 (thread_position_in_grid.x)
+0x0084  0e05428658000000         iadd r1, r1.sx, u4.sx
+0x008c  62000000                 mov_imm r0l, 0
+0x0090  522842a21800             if_icmp r0l, ult, r1, u5, 1
+0x0096  20c08a000000             jmp_exec_none pc+138
+0x009c  05112c0e00c43200         device_load 0, i32, xy, r2_r3, u6_u7, r1, unsigned, lsl 1
+0x00a4  620500000000             mov_imm r1, 0, 0b0
+0x00aa  3800                     wait 0
+0x00ac  420800000000             push_exec r0l, 1
+0x00b2  522c42420302             while_icmp r0l, ult, r1, 180, 1
+0x00b8  0521200e10c41200         device_load 0, i32, x, r4, u8_u9, r1, unsigned, lsl 1
+0x00c0  3800                     wait 0
+0x00c2  1e114486649c0500         imadd r4, r2.sx, r4.sx, u14.sx
+0x00ca  0e150120e4000000         iadd r5, 1, r1.sx, lsl 1
+0x00d2  0529a00e10c01200         device_load 0, i32, x, r5, u8_u9, r5, unsigned
+0x00da  3800                     wait 0
+0x00dc  1e1146a664480600         imadd r4, r3.sx, r5.sx, r4.sx
+0x00e4  2e9148e600000000         asr r4, r4, 14
+0x00ec  0e11486659000000         iadd r4, r4.sx, u11.sx
+0x00f4  1e11424659480600         imadd r4, r1.sx, u10.sx, r4.sx
+0x00fc  621501000000             mov_imm r5, 1, 0b0
+0x0102  1500888c10500a00         atomic add, 0, None, u12_u13, r4, signed, r5, 1, 0, 1, 4, 2
+0x010a  0e05421600000000         iadd r1, r1.sx, 1
+0x0112  3800                     wait 0
+0x0114  00c09effffff             jmp_exec_any pc-98
+0x011a  520e00000000             pop_exec r0l, 1
+0x0120  520e00000000             pop_exec r0l, 1
+0x0126  8800                     stop

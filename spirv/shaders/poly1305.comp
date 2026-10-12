@@ -1,0 +1,67 @@
+#version 450
+// Poly1305 one-time authenticator (RFC 8439: TLS 1.3 ChaCha20-Poly1305, WireGuard, SSH), one message per invocation,
+// in the 32-bit "donna" form: the accumulator and r in five 26-bit limbs, each block's h * r mod 2^130 - 5 as 25
+// 32 x 32 -> 64-bit products, carries, and a final full reduction and addition of s mod 2^128. Messages have random
+// lengths, so the final partial block (padded with 0x01 then zeros, no 2^128 bit) and the loop counts differ by lane.
+#extension GL_EXT_shader_explicit_arithmetic_types_int64 : require
+layout(local_size_x = 64) in;
+layout(std430, binding = 0) readonly buffer M { uint msg[]; };      // 256 words (1 KiB) per message slot
+layout(std430, binding = 1) readonly buffer L { uint len[]; };
+layout(std430, binding = 2) readonly buffer K { uint key[]; };      // 8 words per message: r then s
+layout(std430, binding = 3) writeonly buffer T { uvec4 tag[]; };
+layout(push_constant) uniform P { uint n; } p;
+const uint M26 = 0x3ffffffu;
+
+void main() {
+    uint i = gl_GlobalInvocationID.x;
+    if (i >= p.n) return;
+    uint k0 = key[8u * i], k1 = key[8u * i + 1u], k2 = key[8u * i + 2u], k3 = key[8u * i + 3u];
+    uint r0 = k0 & 0x3ffffffu, r1 = ((k0 >> 26) | (k1 << 6)) & 0x3ffff03u, r2 = ((k1 >> 20) | (k2 << 12)) & 0x3ffc0ffu;
+    uint r3 = ((k2 >> 14) | (k3 << 18)) & 0x3f03fffu, r4 = (k3 >> 8) & 0x00fffffu;
+    uint s1 = r1 * 5u, s2 = r2 * 5u, s3 = r3 * 5u, s4 = r4 * 5u;
+    uint h0 = 0u, h1 = 0u, h2 = 0u, h3 = 0u, h4 = 0u;
+    uint n = len[i], base = 256u * i;
+    for (uint off = 0u; off < n; off += 16u) {
+        uint t[4];
+        uint rem = min(n - off, 16u), hibit = rem == 16u ? (1u << 24) : 0u;
+        for (uint w = 0u; w < 4u; w++) {
+            uint v = msg[base + (off >> 2) + w];
+            uint lo = 4u * w;                                         // bytes lo .. lo + 3 of the block
+            if (rem < lo + 4u) {                                      // keep bytes < rem, then the 0x01 pad byte
+                uint keep = rem > lo ? rem - lo : 0u;
+                v = keep == 0u ? 0u : v & (0xffffffffu >> (32u - 8u * keep));
+                if (rem >= lo && rem < lo + 4u) v |= 1u << (8u * (rem - lo));
+            }
+            t[w] = v;
+        }
+        h0 += t[0] & M26; h1 += ((t[0] >> 26) | (t[1] << 6)) & M26; h2 += ((t[1] >> 20) | (t[2] << 12)) & M26;
+        h3 += ((t[2] >> 14) | (t[3] << 18)) & M26; h4 += (t[3] >> 8) | hibit;
+        uint64_t d0 = uint64_t(h0) * r0 + uint64_t(h1) * s4 + uint64_t(h2) * s3 + uint64_t(h3) * s2 + uint64_t(h4) * s1;
+        uint64_t d1 = uint64_t(h0) * r1 + uint64_t(h1) * r0 + uint64_t(h2) * s4 + uint64_t(h3) * s3 + uint64_t(h4) * s2;
+        uint64_t d2 = uint64_t(h0) * r2 + uint64_t(h1) * r1 + uint64_t(h2) * r0 + uint64_t(h3) * s4 + uint64_t(h4) * s3;
+        uint64_t d3 = uint64_t(h0) * r3 + uint64_t(h1) * r2 + uint64_t(h2) * r1 + uint64_t(h3) * r0 + uint64_t(h4) * s4;
+        uint64_t d4 = uint64_t(h0) * r4 + uint64_t(h1) * r3 + uint64_t(h2) * r2 + uint64_t(h3) * r1 + uint64_t(h4) * r0;
+        uint c = uint(d0 >> 26); h0 = uint(d0) & M26;
+        d1 += c; c = uint(d1 >> 26); h1 = uint(d1) & M26;
+        d2 += c; c = uint(d2 >> 26); h2 = uint(d2) & M26;
+        d3 += c; c = uint(d3 >> 26); h3 = uint(d3) & M26;
+        d4 += c; c = uint(d4 >> 26); h4 = uint(d4) & M26;
+        h0 += c * 5u; c = h0 >> 26; h0 &= M26; h1 += c;
+    }
+    uint c = h1 >> 26; h1 &= M26; h2 += c; c = h2 >> 26; h2 &= M26; h3 += c; c = h3 >> 26; h3 &= M26;
+    h4 += c; c = h4 >> 26; h4 &= M26; h0 += c * 5u; c = h0 >> 26; h0 &= M26; h1 += c;
+    uint g0 = h0 + 5u; c = g0 >> 26; g0 &= M26;                       // h - p = h + 5 - 2^130
+    uint g1 = h1 + c; c = g1 >> 26; g1 &= M26;
+    uint g2 = h2 + c; c = g2 >> 26; g2 &= M26;
+    uint g3 = h3 + c; c = g3 >> 26; g3 &= M26;
+    uint g4 = h4 + c - (1u << 26);
+    uint sel = (g4 >> 31) - 1u;                                       // all ones when h >= p
+    h0 = (h0 & ~sel) | (g0 & sel); h1 = (h1 & ~sel) | (g1 & sel); h2 = (h2 & ~sel) | (g2 & sel);
+    h3 = (h3 & ~sel) | (g3 & sel); h4 = (h4 & ~sel) | (g4 & sel);
+    uint w0 = h0 | (h1 << 26), w1 = (h1 >> 6) | (h2 << 20), w2 = (h2 >> 12) | (h3 << 14), w3 = (h3 >> 18) | (h4 << 8);
+    uint64_t f = uint64_t(w0) + key[8u * i + 4u]; w0 = uint(f);
+    f = uint64_t(w1) + key[8u * i + 5u] + (f >> 32); w1 = uint(f);
+    f = uint64_t(w2) + key[8u * i + 6u] + (f >> 32); w2 = uint(f);
+    f = uint64_t(w3) + key[8u * i + 7u] + (f >> 32); w3 = uint(f);
+    tag[i] = uvec4(w0, w1, w2, w3);
+}

@@ -1,0 +1,419 @@
+0x0100  72051004                 get_sr r1, sr80 (thread_position_in_grid.x)
+0x0104  72091104                 get_sr r2, sr81 (thread_position_in_grid.y)
+0x0108  0e0944a658000000         iadd r2, r2.sx, u5.sx
+0x0110  120244e218001130         icmpsel ult, r0h, r2, u7, 0, 1
+0x0118  0e05428658000000         iadd r1, r1.sx, u4.sx
+0x0120  120c42c218001130         icmpsel ult, r3l, r1, u6, 0, 1
+0x0128  7e0e46184000             xor r3h, r3l, 1
+0x012e  1202470000461004         icmpsel ueq, r0h, r3h, 0, r3l, r0h
+0x0136  62000000                 mov_imm r0l, 0
+0x013a  520841000000             if_icmp r0l, ueq, r0h, 0, 1
+0x0140  20c03c0b0000             jmp_exec_none pc+2876
+0x0146  3e8d0a442400             convert u32_to_f, r3, r2, rte
+0x014c  2a8d46020200             fadd32 r3, r3, 0.5
+0x0152  1a8d46020001             fmul32 r3, r3, 2.0
+0x0158  3a8d462219308000         fmadd32 r3, r3, u9, -1.0
+0x0160  3a91466224024000         fmadd32 r4, r3, r3, 2.25
+0x0168  3e950a242400             convert u32_to_f, r5, r1, rte
+0x016e  2a954a020200             fadd32 r5, r5, 0.5
+0x0174  1a954a020001             fmul32 r5, r5, 2.0
+0x017a  3a954a0219308000         fmadd32 r5, r5, u8, -1.0
+0x0182  1a954a421900             fmul32 r5, r5, u10
+0x0188  3a914aa224480200         fmadd32 r4, r5, r5, r4
+0x0190  0a114892                 rsqrt r4, r4
+0x0194  1a954a822400             fmul32 r5, r5, r4
+0x019a  1a8d46822400             fmul32 r3, r3, r4
+0x01a0  1a9138802400             fmul32 r4, 1.5, r4
+0x01a6  62020000                 mov_imm r0h, 0
+0x01aa  621900000000             mov_imm r6, 0, 0b0
+0x01b0  621d00000000             mov_imm r7, 0, 0b0
+0x01b6  622100000000             mov_imm r8, 0, 0b0
+0x01bc  622500000000             mov_imm r9, 0, 0b0
+0x01c2  622900000000             mov_imm r10, 0, 0b0
+0x01c8  622d00000000             mov_imm r11, 0, 0b0
+0x01ce  623100000000             mov_imm r12, 0, 0b0
+0x01d4  623500000000             mov_imm r13, 0, 0b0
+0x01da  7e399e098000             mov r14, u15
+0x01e0  420800000000             push_exec r0l, 1
+0x01e6  0e3d4c1600000000         iadd r15, r6.sx, 1
+0x01ee  12194100004ce005         icmpsel ueq, r6, r0h, 0, r6, r15
+0x01f6  52ac4c320000             while_icmp r0l, slt, r6, 3, 1
+0x01fc  12bd4c22009c21ba5000     icmpsel slt, r15, r6, 2, u46, u49
+0x0206  12bd4c120096e1a54000     icmpsel slt, r15, r6, 1, u43, r15
+0x0210  12c14c22008aa1ba4000     icmpsel slt, r16, r6, 2, u37, u21
+0x021a  12414c1200b801a6         icmpsel slt, r16, r6, 1, u28, r16
+0x0222  2ac530e0a508             fadd32 r17, -1.0, r15.neg
+0x0228  1ac962222600             fmul32 r18, r17, r17
+0x022e  2acd3000a600             fadd32 r19, 1.0, r16.neg
+0x0234  3ac9666226640200         fmadd32 r18, r19, r19, r18
+0x023c  1acd46622600             fmul32 r19, r3, r19
+0x0242  3ac5628224660a00         fmadd32 r17, r17, r4, r19.neg
+0x024a  12cd4c22009a41ba4000     icmpsel slt, r19, r6, 2, u45, u18
+0x0254  12cd4c12009e61a64000     icmpsel slt, r19, r6, 1, u47, r19
+0x025e  3ac9666226640200         fmadd32 r18, r19, r19, r18
+0x0266  3ac9600a26640200         fmadd32 r18, r16.neg, r16, r18
+0x026e  3ac566aa24620200         fmadd32 r17, r19.neg, r5, r17
+0x0276  3ac9622226640a00         fmadd32 r18, r17, r17, r18.neg
+0x027e  0a516412                 rsqrt_special r20, r18
+0x0282  1ad164822600             fmul32 r20, r18, r20
+0x0288  2ac5628aa600             fadd32 r17, r17.neg, r20.neg
+0x028e  3ad1482226308000         fmadd32 r20, r4, r17, -1.0
+0x0296  2abd68e2a500             fadd32 r15, r20, r15.neg
+0x029c  020262c225010130         fcmpsel lt, r0h, r17, r14, 1, 0
+0x02a4  02029c2126410030         fcmpsel lt, r0h, u14, r17, r0h, 0
+0x02ac  0202640200001124         fcmpsel lt, r0h, r18, 0.0, 0, r0h
+0x02b4  3a49462a2630             fmadd32 r18, r3.neg, r17, 1.0
+0x02ba  2ac96402a600             fadd32 r18, r18, r16.neg
+0x02c0  0a416082                 rcp r16, r16
+0x02c4  3acd4a2226660a00         fmadd32 r19, r5, r17, r19.neg
+0x02cc  1abd5e022600             fmul32 r15, r15, r16
+0x02d2  1ac964022600             fmul32 r18, r18, r16
+0x02d8  1ac166022600             fmul32 r16, r19, r16
+0x02de  12394100005c2006         icmpsel ueq, r14, r0h, 0, r14, r17
+0x02e6  12354100005ae005         icmpsel ueq, r13, r0h, 0, r13, r15
+0x02ee  1231410000584006         icmpsel ueq, r12, r0h, 0, r12, r18
+0x02f6  122d410000560006         icmpsel ueq, r11, r0h, 0, r11, r16
+0x02fe  12bd4c2200a621b91000     icmpsel slt, r15, r6, 2, u19, u41
+0x0308  123d4c1200a4e1a5         icmpsel slt, r15, r6, 1, u18, r15
+0x0310  122941000054e005         icmpsel ueq, r10, r0h, 0, r10, r15
+0x0318  123d4c2200b0a1ba         icmpsel slt, r15, r6, 2, u24, u21
+0x0320  123d4c1200a4e1a5         icmpsel slt, r15, r6, 1, u18, r15
+0x0328  122541000052e005         icmpsel ueq, r9, r0h, 0, r9, r15
+0x0330  123d4c2200a461ba         icmpsel slt, r15, r6, 2, u18, u19
+0x0338  12bd4c120094e1a54000     icmpsel slt, r15, r6, 1, u42, r15
+0x0342  122141000050e005         icmpsel ueq, r8, r0h, 0, r8, r15
+0x034a  12bd4c2200bc011a1000     icmpsel ueq, r15, r6, 2, u30, u48
+0x0354  121d4100004ee005         icmpsel ueq, r7, r0h, 0, r7, r15
+0x035c  62020100                 mov_imm r0h, 1
+0x0360  00c086feffff             jmp_exec_any pc-378
+0x0366  520e00000000             pop_exec r0l, 1
+0x036c  0a19468a                 rcp r6, r3.neg
+0x0370  3abd4c8a24308000         fmadd32 r15, r6.neg, r4, -1.0
+0x0378  0a3d5e02                 floor r15, r15
+0x037c  1ac14ca22400             fmul32 r16, r6, r5
+0x0382  0a41600a                 floor r16, r16.neg
+0x0386  3ebd09e02500             convert f_to_s32, r15, r15, rtz
+0x038c  3ec109002600             convert f_to_s32, r16, r16, rtz
+0x0392  0e3d60e665000000         iadd r15, r16.sx, r15.sx
+0x039a  02024cca25010130         fcmpsel lt, r0h, r6.neg, r14, 1, 0
+0x03a2  02024cc21a410030         fcmpsel lt, r0h, r6, u22, r0h, 0
+0x03aa  0240006024010130         fcmpsel lt, r16l, 0.0, r3, 1, 0
+0x03b2  1202410000000106         icmpsel ueq, r0h, r0h, 0, 0, r16l
+0x03ba  7e3d5e128000             and r15, r15, 1
+0x03c0  123d5e0200b0611a         icmpsel ueq, r15, r15, 0, u24, u19
+0x03c8  02bd4c420390e1254003     fcmpsel lt, r15, r6, -20.0, u40, r15
+0x03d2  2a994c0a0002             fadd32 r6, r6.neg, -0.0
+0x03d8  12194100005cc004         icmpsel ueq, r6, r0h, 0, r14, r6
+0x03e0  122941000054e005         icmpsel ueq, r10, r0h, 0, r10, r15
+0x03e8  122541000052e005         icmpsel ueq, r9, r0h, 0, r9, r15
+0x03f0  122141000050e005         icmpsel ueq, r8, r0h, 0, r8, r15
+0x03f8  12354100005a0010         icmpsel ueq, r13, r0h, 0, r13, 0
+0x0400  123141000058801b         icmpsel ueq, r12, r0h, 0, r12, u28
+0x0408  122d410000560010         icmpsel ueq, r11, r0h, 0, r11, 0
+0x0410  121d4100004e401a         icmpsel ueq, r7, r0h, 0, r7, u18
+0x0418  02994ce2194ce0381000     fcmpsel lt, r6, r6, u15, r6, u39
+0x0422  422900c02400             if_fcmp r0l, nlt, 0.0, r6, 1
+0x0428  3aa146aa1abc0100         fmadd32 r8, r3.neg, u21, u30
+0x0430  1aa520002500             fmul32 r9, 0.5, r8
+0x0436  1aa98a012504             fmul32 r10, u37, r8
+0x043c  623900000000             mov_imm r14, 0, 0b0
+0x0442  624100000000             mov_imm r16, 0, 0b0
+0x0448  420a00000000             else_fcmp r0l, eq, 0.0, 0.0, 1
+0x044e  20c0f6010000             jmp_exec_none pc+502
+0x0454  3a3946ca2430             fmadd32 r14, r3.neg, r6, 1.0
+0x045a  3abd58c2195c0200         fmadd32 r15, r12, u14, r14
+0x0462  3ac148c224308000         fmadd32 r16, r4, r6, -1.0
+0x046a  3ac55ac219600200         fmadd32 r17, r13, u14, r16
+0x0472  3ac94ac224804100         fmadd32 r18, r5, r6, u32
+0x047a  3ac956c219640200         fmadd32 r18, r11, u14, r18
+0x0482  2acd5e020302             fadd32 r19, r15, -1.0
+0x0488  1ad166021a00             fmul32 r20, r19, u16
+0x048e  3ad164221a680200         fmadd32 r20, r18, u17, r20
+0x0496  3acd666226308000         fmadd32 r19, r19, r19, -1.0
+0x049e  2ad562420103             fadd32 r21, r17, -5.0
+0x04a4  3acd6aa226660200         fmadd32 r19, r21, r21, r19
+0x04ac  3ac9644226660200         fmadd32 r18, r18, r18, r19
+0x04b4  3ac9688226640a00         fmadd32 r18, r20, r20, r18.neg
+0x04bc  0a4d6412                 rsqrt_special r19, r18
+0x04c0  1acd64622600             fmul32 r19, r18, r19
+0x04c6  2acd686aa600             fadd32 r19, r20.neg, r19.neg
+0x04cc  020266e219010130         fcmpsel lt, r0h, r19, u15, 1, 0
+0x04d4  02029c6126410030         fcmpsel lt, r0h, u14, r19, r0h, 0
+0x04dc  124d4100009e6106         icmpsel ueq, r19, r0h, 0, u15, r19
+0x04e4  02496402009e6126         fcmpsel lt, r18, r18, 0.0, u15, r19
+0x04ec  3acd4ac224ba0100         fmadd32 r19, r5, r6, u29
+0x04f4  3acd56c219660200         fmadd32 r19, r11, u14, r19
+0x04fc  2ad15ee21b00             fadd32 r20, r15, u31
+0x0502  1ad568021a00             fmul32 r21, r20, u16
+0x0508  3ad566221a6a0200         fmadd32 r21, r19, u17, r21
+0x0510  3ad1688226864100         fmadd32 r20, r20, r20, u35
+0x0518  2ad962621b00             fadd32 r22, r17, u27
+0x051e  3ad16cc226680200         fmadd32 r20, r22, r22, r20
+0x0526  3acd666226680200         fmadd32 r19, r19, r19, r20
+0x052e  3acd6aa226660a00         fmadd32 r19, r21, r21, r19.neg
+0x0536  0a516612                 rsqrt_special r20, r19
+0x053a  1ad166822600             fmul32 r20, r19, r20
+0x0540  2ad16a8aa600             fadd32 r20, r21.neg, r20.neg
+0x0546  0202684226010130         fcmpsel lt, r0h, r20, r18, 1, 0
+0x054e  02029c8126410030         fcmpsel lt, r0h, u14, r20, r0h, 0
+0x0556  1251410000648006         icmpsel ueq, r20, r0h, 0, r18, r20
+0x055e  0249660200648026         fcmpsel lt, r18, r19, 0.0, r18, r20
+0x0566  3acd4ac224824100         fmadd32 r19, r5, r6, u33
+0x056e  3acd56c219660200         fmadd32 r19, r11, u14, r19
+0x0576  2abd5e221b00             fadd32 r15, r15, u25
+0x057c  1ad15e021a00             fmul32 r20, r15, u16
+0x0582  3ad166221a680200         fmadd32 r20, r19, u17, r20
+0x058a  3abd5ee225844100         fmadd32 r15, r15, r15, u34
+0x0592  2ac562821801             fadd32 r17, r17, u36
+0x0598  3abd6222265e0200         fmadd32 r15, r17, r17, r15
+0x05a0  3abd6662265e0200         fmadd32 r15, r19, r19, r15
+0x05a8  3abd6882265e0a00         fmadd32 r15, r20, r20, r15.neg
+0x05b0  0a455e12                 rsqrt_special r17, r15
+0x05b4  1ac55e222600             fmul32 r17, r15, r17
+0x05ba  2ac5682aa600             fadd32 r17, r20.neg, r17.neg
+0x05c0  0202624226010130         fcmpsel lt, r0h, r17, r18, 1, 0
+0x05c8  02029c2126410030         fcmpsel lt, r0h, u14, r17, r0h, 0
+0x05d0  1245410000642006         icmpsel ueq, r17, r0h, 0, r18, r17
+0x05d8  023d5e0200642026         fcmpsel lt, r15, r15, 0.0, r18, r17
+0x05e0  1ac558021a00             fmul32 r17, r12, u16
+0x05e6  3ac556221a620200         fmadd32 r17, r11, u17, r17
+0x05ee  02456202006200f0         fcmpsel gtn, r17, r17, 0.0, r17, 0
+0x05f6  3ac562c218ae0101         fmadd32 r17, r17, u38, u23
+0x05fe  024900e025ae2126         fcmpsel lt, r18, 0.0, r15, u23, r17
+0x0606  023d5ee219642026         fcmpsel lt, r15, r15, u15, r18, r17
+0x060e  1aa150e22500             fmul32 r8, r8, r15
+0x0614  1aa552e22500             fmul32 r9, r9, r15
+0x061a  1aa954e22500             fmul32 r10, r10, r15
+0x0620  7e25520a6500             xor r9, r9, r8
+0x0626  7e21520a6500             xor r8, r9, r8
+0x062c  7e25520a6500             xor r9, r9, r8
+0x0632  7e29540a6500             xor r10, r10, r8
+0x0638  7e21540a6500             xor r8, r10, r8
+0x063e  7e29540a6500             xor r10, r10, r8
+0x0644  520e00000000             pop_exec r0l, 1
+0x064a  020200e024010130         fcmpsel lt, r0h, 0.0, r7, 1, 0
+0x0652  020200c024410030         fcmpsel lt, r0h, 0.0, r6, r0h, 0
+0x065a  520941000000             if_icmp r0l, nueq, r0h, 0, 1
+0x0660  20c088050000             jmp_exec_none pc+1416
+0x0666  1abd46822500             fmul32 r15, r3, r12
+0x066c  3abd48a2255e0a00         fmadd32 r15, r4, r13, r15.neg
+0x0674  3abd4a62255e0200         fmadd32 r15, r5, r11, r15
+0x067c  1abd5e020001             fmul32 r15, r15, 2.0
+0x0682  3ac556ea254a0200         fmadd32 r17, r11.neg, r15, r5
+0x068a  3a8d58ea25460a00         fmadd32 r3, r12.neg, r15, r3.neg
+0x0692  3a915aea25480200         fmadd32 r4, r13.neg, r15, r4
+0x069a  1aad56c21900             fmul32 r11, r11, u14
+0x06a0  3a954ac224560200         fmadd32 r5, r5, r6, r11
+0x06a8  3a9958c2195c0200         fmadd32 r6, r12, u14, r14
+0x06b0  3aad5ac219600200         fmadd32 r11, r13, u14, r16
+0x06b8  2ab156420103             fadd32 r12, r11, -5.0
+0x06be  1ab558822400             fmul32 r13, r12, r4
+0x06c4  2ab94c020302             fadd32 r14, r6, -1.0
+0x06ca  3ab55c62245a0200         fmadd32 r13, r14, r3, r13
+0x06d2  2abd4a021801             fadd32 r15, r5, u32
+0x06d8  3ab55e22265a0200         fmadd32 r13, r15, r17, r13
+0x06e0  3ac15cc225308000         fmadd32 r16, r14, r14, -1.0
+0x06e8  3ac1588225600200         fmadd32 r16, r12, r12, r16
+0x06f0  3ac15ee225600200         fmadd32 r16, r15, r15, r16
+0x06f8  3ac15aa225600a00         fmadd32 r16, r13, r13, r16.neg
+0x0700  0a496012                 rsqrt_special r18, r16
+0x0704  1ac960422600             fmul32 r18, r16, r18
+0x070a  2ab55a4aa600             fadd32 r13, r13.neg, r18.neg
+0x0710  02025ae219010130         fcmpsel lt, r0h, r13, u15, 1, 0
+0x0718  02029ca125410030         fcmpsel lt, r0h, u14, r13, r0h, 0
+0x0720  3abd62a2255e0200         fmadd32 r15, r17, r13, r15
+0x0728  3ab946a2255c0200         fmadd32 r14, r3, r13, r14
+0x0730  3ab148a225580200         fmadd32 r12, r4, r13, r12
+0x0738  0202600200001124         fcmpsel lt, r0h, r16, 0.0, 0, r0h
+0x0740  123d41000000e105         icmpsel ueq, r15, r0h, 0, 0, r15
+0x0748  123941000000c105         icmpsel ueq, r14, r0h, 0, 0, r14
+0x0750  1231410000008105         icmpsel ueq, r12, r0h, 0, 0, r12
+0x0758  12354100009ea105         icmpsel ueq, r13, r0h, 0, u15, r13
+0x0760  2ac156621b00             fadd32 r16, r11, u27
+0x0766  1ac960822400             fmul32 r18, r16, r4
+0x076c  2acd4ce21b00             fadd32 r19, r6, u31
+0x0772  3ac9666224640200         fmadd32 r18, r19, r3, r18
+0x077a  2ad14aa21b00             fadd32 r20, r5, u29
+0x0780  3ac9682226640200         fmadd32 r18, r20, r17, r18
+0x0788  3ad5666226864100         fmadd32 r21, r19, r19, u35
+0x0790  3ad56002266a0200         fmadd32 r21, r16, r16, r21
+0x0798  3ad56882266a0200         fmadd32 r21, r20, r20, r21
+0x07a0  3ad56442266a0a00         fmadd32 r21, r18, r18, r21.neg
+0x07a8  0a596a12                 rsqrt_special r22, r21
+0x07ac  1ad96ac22600             fmul32 r22, r21, r22
+0x07b2  2ac964caa600             fadd32 r18, r18.neg, r22.neg
+0x07b8  025864a225010130         fcmpsel lt, r22l, r18, r13, 1, 0
+0x07c0  02589c41266c0030         fcmpsel lt, r22l, u14, r18, r22l, 0
+0x07c8  3ad1624226680200         fmadd32 r20, r17, r18, r20
+0x07d0  3acd464226660200         fmadd32 r19, r3, r18, r19
+0x07d8  3ac1484226600200         fmadd32 r16, r4, r18, r16
+0x07e0  02546a020000c126         fcmpsel lt, r21l, r21, 0.0, 0, r22l
+0x07e8  12d94100000041191000     icmpsel ueq, r22, r0h, 0, 0, u42
+0x07f2  12596a00006c401a         icmpsel ueq, r22, r21l, 0, r22, u18
+0x07fa  125d41000000411a         icmpsel ueq, r23, r0h, 0, 0, u18
+0x0802  12616a00006e001b         icmpsel ueq, r24, r21l, 0, r23, u24
+0x080a  125d6a00006e601a         icmpsel ueq, r23, r21l, 0, r23, u19
+0x0812  1ad168421b00             fmul32 r20, r20, u26
+0x0818  123d6a00005e8006         icmpsel ueq, r15, r21l, 0, r15, r20
+0x0820  1acd66421b00             fmul32 r19, r19, u26
+0x0826  12396a00005c6006         icmpsel ueq, r14, r21l, 0, r14, r19
+0x082e  1ac160421b00             fmul32 r16, r16, u26
+0x0834  12316a0000580006         icmpsel ueq, r12, r21l, 0, r12, r16
+0x083c  12356a00005a4006         icmpsel ueq, r13, r21l, 0, r13, r18
+0x0844  2ac156821801             fadd32 r16, r11, u36
+0x084a  1ac960822400             fmul32 r18, r16, r4
+0x0850  2acd4c221b00             fadd32 r19, r6, u25
+0x0856  3ac9666224640200         fmadd32 r18, r19, r3, r18
+0x085e  2ad14a221801             fadd32 r20, r5, u33
+0x0864  3ac9682226640200         fmadd32 r18, r20, r17, r18
+0x086c  3ad5666226844100         fmadd32 r21, r19, r19, u34
+0x0874  3ad56002266a0200         fmadd32 r21, r16, r16, r21
+0x087c  3ad56882266a0200         fmadd32 r21, r20, r20, r21
+0x0884  3ad56442266a0a00         fmadd32 r21, r18, r18, r21.neg
+0x088c  0a656a12                 rsqrt_special r25, r21
+0x0890  1ae56a222700             fmul32 r25, r21, r25
+0x0896  2ac9642aa700             fadd32 r18, r18.neg, r25.neg
+0x089c  020264a225010130         fcmpsel lt, r0h, r18, r13, 1, 0
+0x08a4  02029c4126410030         fcmpsel lt, r0h, u14, r18, r0h, 0
+0x08ac  3ad1624226680200         fmadd32 r20, r17, r18, r20
+0x08b4  3acd464226660200         fmadd32 r19, r3, r18, r19
+0x08bc  3ac1484226600200         fmadd32 r16, r4, r18, r16
+0x08c4  02026a0200001124         fcmpsel lt, r0h, r21, 0.0, 0, r0h
+0x08cc  12554100006c601a         icmpsel ueq, r21, r0h, 0, r22, u19
+0x08d4  125941000070a01a         icmpsel ueq, r22, r0h, 0, r24, u21
+0x08dc  12dd4100006e20191000     icmpsel ueq, r23, r0h, 0, r23, u41
+0x08e6  1ad168420001             fmul32 r20, r20, 2.5
+0x08ec  123d4100005e8006         icmpsel ueq, r15, r0h, 0, r15, r20
+0x08f4  1acd66420001             fmul32 r19, r19, 2.5
+0x08fa  12394100005c6006         icmpsel ueq, r14, r0h, 0, r14, r19
+0x0902  1ac160420001             fmul32 r16, r16, 2.5
+0x0908  1231410000580006         icmpsel ueq, r12, r0h, 0, r12, r16
+0x0910  12354100005a4006         icmpsel ueq, r13, r0h, 0, r13, r18
+0x0918  0a414682                 rcp r16, r3
+0x091c  1ac14c022600             fmul32 r16, r6, r16
+0x0922  2ac9600a0002             fadd32 r18, r16.neg, -0.0
+0x0928  020260aa25010130         fcmpsel lt, r0h, r16.neg, r13, 1, 0
+0x0930  020260c21a410030         fcmpsel lt, r0h, r16, u22, r0h, 0
+0x0938  024c460200010130         fcmpsel lt, r19l, r3, 0.0, 1, 0
+0x0940  1202410000006106         icmpsel ueq, r0h, r0h, 0, 0, r19l
+0x0948  3acd602a264a0200         fmadd32 r19, r16.neg, r17, r5
+0x0950  3ad1608a24560200         fmadd32 r20, r16.neg, r4, r11
+0x0958  0a516802                 floor r20, r20
+0x095c  3ed109802600             convert f_to_s32, r20, r20, rtz
+0x0962  0a4d6602                 floor r19, r19
+0x0966  3ecd09602600             convert f_to_s32, r19, r19, rtz
+0x096c  0e4d668666000000         iadd r19, r19.sx, r20.sx
+0x0974  7e4d66128000             and r19, r19, 1
+0x097a  124d660200b0611a         icmpsel ueq, r19, r19, 0, u24, u19
+0x0982  02c16042039061264003     fcmpsel lt, r16, r16, -20.0, u40, r19
+0x098c  124d4100006a0006         icmpsel ueq, r19, r0h, 0, r21, r16
+0x0994  12514100006c0006         icmpsel ueq, r20, r0h, 0, r22, r16
+0x099c  12414100006e0006         icmpsel ueq, r16, r0h, 0, r23, r16
+0x09a4  123d4100005e0010         icmpsel ueq, r15, r0h, 0, r15, 0
+0x09ac  12394100005c801b         icmpsel ueq, r14, r0h, 0, r14, u28
+0x09b4  12354100005a4006         icmpsel ueq, r13, r0h, 0, r13, r18
+0x09bc  02b55ae2195ae0381000     fcmpsel lt, r13, r13, u15, r13, u39
+0x09c6  422900a02500             if_fcmp r0l, nlt, 0.0, r13, 1
+0x09cc  3a8daa6124bc0100         fmadd32 r3, u21, r3, u30
+0x09d4  1a918a612404             fmul32 r4, u37, r3
+0x09da  1a9520602400             fmul32 r5, 0.5, r3
+0x09e0  420a00000000             else_fcmp r0l, eq, 0.0, 0.0, 1
+0x09e6  20c0d2010000             jmp_exec_none pc+466
+0x09ec  3a9562a2254a0200         fmadd32 r5, r17, r13, r5
+0x09f4  3a8d46a2254c0200         fmadd32 r3, r3, r13, r6
+0x09fc  3a9148a225560200         fmadd32 r4, r4, r13, r11
+0x0a04  1a9958c21900             fmul32 r6, r12, u14
+0x0a0a  12194100004c0010         icmpsel ueq, r6, r0h, 0, r6, 0
+0x0a12  3a955ec2194a0200         fmadd32 r5, r15, u14, r5
+0x0a1a  3a8d5cc219460200         fmadd32 r3, r14, u14, r3
+0x0a22  2a9148c22400             fadd32 r4, r4, r6
+0x0a28  2a9946020302             fadd32 r6, r3, -1.0
+0x0a2e  1aad4c021a00             fmul32 r11, r6, u16
+0x0a34  2ab14a021801             fadd32 r12, r5, u32
+0x0a3a  3aad58221a560200         fmadd32 r11, r12, u17, r11
+0x0a42  3a994cc224308000         fmadd32 r6, r6, r6, -1.0
+0x0a4a  2ab548420103             fadd32 r13, r4, -5.0
+0x0a50  3a995aa2254c0200         fmadd32 r6, r13, r13, r6
+0x0a58  3a995882254c0200         fmadd32 r6, r12, r12, r6
+0x0a60  3a995662254c0a00         fmadd32 r6, r11, r11, r6.neg
+0x0a68  0a314c12                 rsqrt_special r12, r6
+0x0a6c  1ab14c822500             fmul32 r12, r6, r12
+0x0a72  2aad568aa500             fadd32 r11, r11.neg, r12.neg
+0x0a78  020256e219010130         fcmpsel lt, r0h, r11, u15, 1, 0
+0x0a80  02029c6125410030         fcmpsel lt, r0h, u14, r11, r0h, 0
+0x0a88  122d4100009e6105         icmpsel ueq, r11, r0h, 0, u15, r11
+0x0a90  02194c02009e6125         fcmpsel lt, r6, r6, 0.0, u15, r11
+0x0a98  2aad46e21b00             fadd32 r11, r3, u31
+0x0a9e  1ab156021a00             fmul32 r12, r11, u16
+0x0aa4  2ab54aa21b00             fadd32 r13, r5, u29
+0x0aaa  3ab15a221a580200         fmadd32 r12, r13, u17, r12
+0x0ab2  3aad566225864100         fmadd32 r11, r11, r11, u35
+0x0aba  2ac548621b00             fadd32 r17, r4, u27
+0x0ac0  3aad622226560200         fmadd32 r11, r17, r17, r11
+0x0ac8  3aad5aa225560200         fmadd32 r11, r13, r13, r11
+0x0ad0  3aad588225560a00         fmadd32 r11, r12, r12, r11.neg
+0x0ad8  0a355612                 rsqrt_special r13, r11
+0x0adc  1ab556a22500             fmul32 r13, r11, r13
+0x0ae2  2ab158aaa500             fadd32 r12, r12.neg, r13.neg
+0x0ae8  020258c224010130         fcmpsel lt, r0h, r12, r6, 1, 0
+0x0af0  02029c8125410030         fcmpsel lt, r0h, u14, r12, r0h, 0
+0x0af8  12314100004c8005         icmpsel ueq, r12, r0h, 0, r6, r12
+0x0b00  02195602004c8025         fcmpsel lt, r6, r11, 0.0, r6, r12
+0x0b08  2a8d46221b00             fadd32 r3, r3, u25
+0x0b0e  1aad46021a00             fmul32 r11, r3, u16
+0x0b14  2a954a221801             fadd32 r5, r5, u33
+0x0b1a  3aad4a221a560200         fmadd32 r11, r5, u17, r11
+0x0b22  3a8d466224844100         fmadd32 r3, r3, r3, u34
+0x0b2a  2a9148821801             fadd32 r4, r4, u36
+0x0b30  3a8d488224460200         fmadd32 r3, r4, r4, r3
+0x0b38  3a8d4aa224460200         fmadd32 r3, r5, r5, r3
+0x0b40  3a8d566225460a00         fmadd32 r3, r11, r11, r3.neg
+0x0b48  0a114612                 rsqrt_special r4, r3
+0x0b4c  1a9146822400             fmul32 r4, r3, r4
+0x0b52  2a91568aa400             fadd32 r4, r11.neg, r4.neg
+0x0b58  020248c224010130         fcmpsel lt, r0h, r4, r6, 1, 0
+0x0b60  02029c8124410030         fcmpsel lt, r0h, u14, r4, r0h, 0
+0x0b68  12114100004c8004         icmpsel ueq, r4, r0h, 0, r6, r4
+0x0b70  020d4602004c8024         fcmpsel lt, r3, r3, 0.0, r6, r4
+0x0b78  1a915c021a00             fmul32 r4, r14, u16
+0x0b7e  3a915e221a480200         fmadd32 r4, r15, u17, r4
+0x0b86  02114802004800f0         fcmpsel gtn, r4, r4, 0.0, r4, 0
+0x0b8e  3a9148c218ae0101         fmadd32 r4, r4, u38, u23
+0x0b96  0215006024ae8124         fcmpsel lt, r5, 0.0, r3, u23, r4
+0x0b9e  020d46e2194a8024         fcmpsel lt, r3, r3, u15, r5, r4
+0x0ba6  1a9566622400             fmul32 r5, r19, r3
+0x0bac  1a9168622400             fmul32 r4, r20, r3
+0x0bb2  1a8d60622400             fmul32 r3, r16, r3
+0x0bb8  520e00000000             pop_exec r0l, 1
+0x0bbe  2a954a22a500             fadd32 r5, r5, r9.neg
+0x0bc4  3aa54ea224520200         fmadd32 r9, r7, r5, r9
+0x0bcc  2a914842a500             fadd32 r4, r4, r10.neg
+0x0bd2  3aa94e8224540200         fmadd32 r10, r7, r4, r10
+0x0bda  2a8d4602a500             fadd32 r3, r3, r8.neg
+0x0be0  3aa14e6224500200         fmadd32 r8, r7, r3, r8
+0x0be8  520e00000000             pop_exec r0l, 1
+0x0bee  1e0544c658420600         imadd r1, r2.sx, u6.sx, r1.sx
+0x0bf6  6a8952020002             fadd32.sat r2, r9, -0.0
+0x0bfc  1a8944821200             fmul32 r2, r2, u20l
+0x0c02  0a8944020300             rint r2, r2
+0x0c08  3e8908402400             convert f_to_u32, r2, r2, rtz
+0x0c0e  7e0944f28303             and r2, r2, 255
+0x0c14  6a8d54020002             fadd32.sat r3, r10, -0.0
+0x0c1a  1a8d46821200             fmul32 r3, r3, u20l
+0x0c20  0a8d46020300             rint r3, r3
+0x0c26  3e8d08602400             convert f_to_u32, r3, r3, rtz
+0x0c2c  7e0d46f28303             and r3, r3, 255
+0x0c32  2e0d006024080000         bfi r3, 0, r3, 8
+0x0c3a  7e09464ae400             or r2, r3, r2
+0x0c40  6a8d50020002             fadd32.sat r3, r8, -0.0
+0x0c46  1a8d46821200             fmul32 r3, r3, u20l
+0x0c4c  0a8d46020300             rint r3, r3
+0x0c52  3e8d08602400             convert f_to_u32, r3, r3, rtz
+0x0c58  7e0d46f28303             and r3, r3, 255
+0x0c5e  2e0d006024100000         bfi r3, 0, r3, 16
+0x0c66  7e0d9869e404             or r3, u44, r3
+0x0c6c  7e09464ae400             or r2, r3, r2
+0x0c72  4511280e10c01200         device_store 0, i32, x, r2, u12_u13, r1, unsigned, 0
+0x0c7a  3800                     wait 0
+0x0c7c  520e00000000             pop_exec r0l, 1
+0x0c82  8800                     stop

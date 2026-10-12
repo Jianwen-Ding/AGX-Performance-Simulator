@@ -2,9 +2,11 @@ PYTHON ?= python3
 SCRATCH_ROOT ?= /scratch/apple-m2-playground
 DEVICE ?= /dev/dri/renderD128
 PROBE_INCLUDE ?= /save/workspace/AGX_Probe/mesa/include
+MESA_VERSION ?= 26.0.3
+MESA_SHIM_DIR ?= $(CURDIR)/../mesa-src
 export CC PROBE_INCLUDE
 
-.PHONY: help check rust test verify-cost-model verify-memory-model bench verify-bench cost-calibrate cost-validate
+.PHONY: help check rust test verify-cost-model verify-memory-model bench verify-bench cost-calibrate cost-validate suite-check record-suite record-transcendentals coverage-validate coverage-record coverage-check coverage-status spirv-build spirv-run spirv-lavapipe spirv-sim spirv-compile spirv-predict verify-traces spirv-verify asahi-verify
 
 help:
 	@echo 'make rust               Build the model (rust/target/release: agx_cost, agx_predict, verify_cost_model, agx_bench)'
@@ -13,6 +15,20 @@ help:
 	@echo 'make verify-scaling     Offline: 1-32 groups per core incl. idle-slot rows (scale_check)'
 	@echo 'make suite-check        Offline: functional simulator against the hardware-recorded test suite (testsuite/)'
 	@echo 'make record-suite       Hardware: re-record the test suite (~15 min)'
+	@echo 'make record-transcendentals Hardware: exact fp32 rcp/rsqrt tables and log2/exp2/sin samples (testsuite/transcendental)'
+	@echo 'make coverage-validate  Offline: build, assemble and gate every coverage case (scripts/coverage_catalog.py)'
+	@echo 'make coverage-record    Hardware: record the safe coverage cases (resumable; tasks/agx-coverage.md)'
+	@echo 'make coverage-check     Offline: simulator and cost model against coverage/expected and coverage/timing'
+	@echo 'make coverage-status    Recorded / pending / faulted coverage cases per area'
+	@echo 'make spirv-build        Compile spirv/shaders (glslangValidator, spirv-val) and the vk_run runner'
+	@echo 'make spirv-run          Hardware (Vulkan): all SPIR-V workloads, both sizes, checked and timed (tasks/spirv-*.md)'
+	@echo 'make spirv-lavapipe     Offline: all SPIR-V workloads on Mesa lavapipe (CPU Vulkan) against their references'
+	@echo 'make spirv-sim          Offline: functional simulator on the shim-compiled workloads vs numpy references (a sanity check, not hardware verification)'
+	@echo 'make spirv-verify       Offline: simulator vs the GPU recordings in spirv/expected (PENDING until recorded on the M2)'
+	@echo 'make asahi-verify       Hardware (Asahi, M2): record every SPIR-V workload on the GPU, then verify the simulator against it'
+	@echo 'make spirv-compile      Offline: build Mesa $$(MESA_VERSION) with a no-op drm-shim and compile the workloads with it'
+	@echo 'make spirv-predict      Offline: predicted time of every workload (large) from the driver-compiled code'
+	@echo 'make verify-traces      Offline: functional-simulator paths vs the cost model emulation on the test suite'
 	@echo 'make verify-dispatch    Offline: whole-dispatch model against 25 stored dispatches'
 	@echo 'make test               Offline: Rust unit and equivalence tests'
 	@echo 'make check              Offline: Python syntax check of the hardware scripts'
@@ -42,6 +58,9 @@ suite-check: rust
 record-suite:
 	$(PYTHON) -B scripts/record_suite.py
 
+record-transcendentals:
+	$(PYTHON) -B scripts/record_transcendentals.py
+
 verify-dispatch: rust
 	rust/target/release/dispatch_check -v
 
@@ -59,3 +78,44 @@ cost-calibrate:
 
 cost-validate: rust
 	$(PYTHON) -B scripts/cost_hw.py validate
+
+coverage-validate: rust
+	$(PYTHON) -B scripts/coverage.py validate
+
+coverage-record: rust
+	$(PYTHON) -B scripts/coverage.py record
+
+coverage-check: rust
+	$(PYTHON) -B scripts/coverage.py check --timing
+
+coverage-status:
+	$(PYTHON) -B scripts/coverage.py status
+
+spirv-build:
+	$(PYTHON) -B scripts/spirv_task.py build
+
+spirv-run: rust spirv-build
+	$(PYTHON) -B scripts/spirv_task.py run all --size small --repeat 5
+	$(PYTHON) -B scripts/spirv_task.py run all --size large --repeat 20
+
+spirv-lavapipe: spirv-build
+	VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/lvp_icd.json $(PYTHON) -B scripts/spirv_task.py run all --size small --repeat 2 --out build/spirv-lavapipe
+
+spirv-sim: rust
+	@set -e; for d in spirv/compiled/mesa-*; do echo "== $$d"; $(PYTHON) -B scripts/spirv_task.py simall $$d --work build/spirv-sim/$$(basename $$d); done
+
+spirv-compile: rust spirv-build
+	scripts/build_mesa_shim.sh $(MESA_VERSION) $(MESA_SHIM_DIR)
+	$(PYTHON) -B scripts/spirv_task.py compile all --mesa $(MESA_SHIM_DIR)/mesa-$(MESA_VERSION) --out spirv/compiled/mesa-$(MESA_VERSION)
+
+spirv-predict: rust
+	$(PYTHON) -B scripts/spirv_task.py predictall spirv/compiled/mesa-$(MESA_VERSION) --size large --work build/spirv-predict
+
+verify-traces: rust
+	rust/target/release/suite_check --traces
+
+spirv-verify: rust
+	$(PYTHON) -B scripts/spirv_task.py verify
+
+asahi-verify:
+	scripts/asahi_verify.sh

@@ -1,0 +1,20 @@
+#version 450
+// The portable form of point splatting on GPUs without float atomics: bilinear weights converted to 16.16 fixed
+// point (round to nearest) and accumulated with 32-bit integer atomicAdd. Integer-exact under any order; the same
+// points as `splat`, so the two grids can be compared.
+layout(local_size_x = 256) in;
+layout(std430, binding = 0) readonly buffer Pt { vec4 pts[]; };
+layout(std430, binding = 1) buffer G { uint grid[]; };
+layout(push_constant) uniform P { uint n; uint size; } p;
+
+void main() {
+    uint i = gl_GlobalInvocationID.x;
+    if (i >= p.n) return;
+    vec4 q = pts[i];
+    vec2 f = floor(q.xy), w = q.xy - f;
+    uint x = uint(f.x), y = uint(f.y);
+    atomicAdd(grid[y * p.size + x], uint(q.z * (1.0 - w.x) * (1.0 - w.y) * 65536.0 + 0.5));
+    atomicAdd(grid[y * p.size + x + 1u], uint(q.z * w.x * (1.0 - w.y) * 65536.0 + 0.5));
+    atomicAdd(grid[(y + 1u) * p.size + x], uint(q.z * (1.0 - w.x) * w.y * 65536.0 + 0.5));
+    atomicAdd(grid[(y + 1u) * p.size + x + 1u], uint(q.z * w.x * w.y * 65536.0 + 0.5));
+}

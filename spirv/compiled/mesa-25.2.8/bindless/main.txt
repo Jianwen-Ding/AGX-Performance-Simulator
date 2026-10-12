@@ -1,0 +1,20 @@
+0x0080  72051004                 get_sr r1, sr80 (thread_position_in_grid.x)
+0x0084  0e05428658000000         iadd r1, r1.sx, u4.sx
+0x008c  62000000                 mov_imm r0l, 0
+0x0090  522842a21800             if_icmp r0l, ult, r1, u5, 1
+0x0096  20c050000000             jmp_exec_none pc+80
+0x009c  7e098c098000             mov r2, u6
+0x00a2  7e0d8e098000             mov r3, u7
+0x00a8  0521200e10c43200         device_load 0, i32, xy, r4_r5, u8_u9, r1, unsigned, lsl 1
+0x00b0  3800                     wait 0
+0x00b2  0e19008064002000         iadd r6, 0, r4.sx, lsl 4
+0x00ba  7e1d98098000             mov r7, u12
+0x00c0  0e0b44c334000000         iadd r2_r3, r2_r3, r6_r7
+0x00c8  0541040500c0f200         device_load 0, i32, xyzw, r8_r9_r10_r11, r2_r3, 0, signed
+0x00d0  3800                     wait 0
+0x00d2  0511a04610c01200         device_load 1, i32, x, r2, r8_r9, r5, unsigned
+0x00da  3801                     wait 1
+0x00dc  4511240e10c01200         device_store 0, i32, x, r2, u10_u11, r1, unsigned, 0
+0x00e4  3800                     wait 0
+0x00e6  520e00000000             pop_exec r0l, 1
+0x00ec  8800                     stop

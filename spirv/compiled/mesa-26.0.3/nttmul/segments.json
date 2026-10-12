@@ -1,0 +1,22 @@
+{
+ "blob": "spirv/compiled/mesa-26.0.3/nttmul/shader.bin",
+ "code_start": 2244,
+ "code_size": 5236,
+ "layout": "agx_shader_info",
+ "programs": [
+  {
+   "label": "main",
+   "file": "main.bin",
+   "offset": 128,
+   "bytes": 4878,
+   "instructions": 644
+  },
+  {
+   "label": "preamble",
+   "file": "preamble.bin",
+   "offset": 5120,
+   "bytes": 100,
+   "instructions": 17
+  }
+ ]
+}

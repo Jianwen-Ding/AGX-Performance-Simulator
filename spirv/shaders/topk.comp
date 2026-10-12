@@ -1,0 +1,48 @@
+#version 450
+// k-th smallest element (radix select, as in top-k for inference and nearest-neighbour search): one workgroup per
+// 1024-element array of 32-bit keys, k from a per-array table. Four MSB-first passes over 8-bit digits: a shared
+// histogram of the candidates' digit (shared atomicAdd), an inclusive scan of the 256 counts with
+// subgroupInclusiveAdd plus a shared carry per subgroup, and the bin holding rank k narrows the prefix. The answer is
+// the key whose 32 bits were fixed by the four passes.
+#extension GL_KHR_shader_subgroup_arithmetic : require
+#extension GL_KHR_shader_subgroup_basic : require
+layout(local_size_x = 256) in;
+layout(std430, binding = 0) readonly buffer K { uint keys[]; };
+layout(std430, binding = 1) readonly buffer R { uint kth[]; };
+layout(std430, binding = 2) writeonly buffer O { uint outv[]; };
+shared uint hist[256], incl[256], sub_tot[64];
+shared uint s_prefix, s_rank;
+
+void main() {
+    uint l = gl_LocalInvocationID.x, a = gl_WorkGroupID.x;
+    if (l == 0u) { s_prefix = 0u; s_rank = kth[a]; }
+    for (int pass = 3; pass >= 0; pass--) {
+        hist[l] = 0u;
+        barrier();
+        uint shift = uint(pass) * 8u, hi_shift = shift + 8u;
+        uint prefix = s_prefix;
+        for (uint i = l; i < 1024u; i += 256u) {
+            uint x = keys[1024u * a + i];
+            // candidates share the digits fixed so far (none in the first pass)
+            bool cand = hi_shift >= 32u || (x >> hi_shift) == (prefix >> hi_shift);
+            if (cand) atomicAdd(hist[(x >> shift) & 255u], 1u);
+        }
+        barrier();
+        uint c = hist[l];
+        uint sc = subgroupInclusiveAdd(c);
+        if (gl_SubgroupInvocationID == gl_SubgroupSize - 1u) sub_tot[gl_SubgroupID] = sc;
+        barrier();
+        uint carry = 0u;
+        for (uint s = 0u; s < gl_SubgroupID; s++) carry += sub_tot[s];
+        incl[l] = sc + carry;
+        barrier();
+        uint before = incl[l] - c, r = s_rank;
+        barrier();
+        if (c != 0u && before <= r && r < incl[l]) {               // exactly one digit holds rank r
+            s_prefix = prefix | (l << shift);
+            s_rank = r - before;
+        }
+        barrier();
+    }
+    if (l == 0u) outv[a] = s_prefix;
+}

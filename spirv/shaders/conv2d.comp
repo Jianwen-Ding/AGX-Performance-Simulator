@@ -1,0 +1,26 @@
+#version 450
+// 5x5 convolution of a W x H fp32 image (clamp-to-edge), 16x16 output tile per workgroup with a 2-pixel halo in
+// shared memory; weights in a buffer (25 floats, row-major).
+layout(local_size_x = 16, local_size_y = 16) in;
+layout(std430, binding = 0) readonly buffer I { float img[]; };
+layout(std430, binding = 1) readonly buffer W { float wgt[]; };
+layout(std430, binding = 2) writeonly buffer O { float outp[]; };
+layout(push_constant) uniform P { int width; int height; } p;
+shared float tile[20][20];
+
+void main() {
+    ivec2 l = ivec2(gl_LocalInvocationID.xy);
+    ivec2 o = ivec2(gl_WorkGroupID.xy) * 16;
+    for (int k = l.y * 16 + l.x; k < 400; k += 256) {
+        ivec2 t = ivec2(k % 20, k / 20);
+        ivec2 s = clamp(o + t - 2, ivec2(0), ivec2(p.width - 1, p.height - 1));
+        tile[t.y][t.x] = img[s.y * p.width + s.x];
+    }
+    barrier();
+    float acc = 0.0;
+    for (int dy = 0; dy < 5; dy++)
+        for (int dx = 0; dx < 5; dx++)
+            acc = fma(wgt[dy * 5 + dx], tile[l.y + dy][l.x + dx], acc);
+    ivec2 g = o + l;
+    if (g.x < p.width && g.y < p.height) outp[g.y * p.width + g.x] = acc;
+}

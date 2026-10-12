@@ -1,0 +1,26 @@
+#version 450
+// Bloom filter, two dispatches: pass 0 inserts keys (k = 6 bit positions from double hashing, set with atomicOr),
+// pass 1 queries keys (half inserted, half not) and writes 1 when all six bits are set. Integer-exact: the bit
+// array does not depend on the order of the ORs.
+layout(local_size_x = 256) in;
+layout(std430, binding = 0) readonly buffer K { uint keys[]; };
+layout(std430, binding = 1) buffer B { uint bits[]; };
+layout(std430, binding = 2) readonly buffer Q { uint queries[]; };
+layout(std430, binding = 3) writeonly buffer R { uint hits[]; };
+layout(push_constant) uniform P { uint n; uint mbits; uint pass_; } p;
+
+uint fmix(uint h) { h ^= h >> 16; h *= 0x85ebca6bu; h ^= h >> 13; h *= 0xc2b2ae35u; h ^= h >> 16; return h; }
+
+void main() {
+    uint i = gl_GlobalInvocationID.x;
+    if (i >= p.n) return;
+    uint key = p.pass_ == 0u ? keys[i] : queries[i];
+    uint h1 = fmix(key), h2 = fmix(key ^ 0x9e3779b9u) | 1u;
+    bool all_set = true;
+    for (uint j = 0u; j < 6u; j++) {
+        uint b = (h1 + j * h2) % p.mbits;
+        if (p.pass_ == 0u) atomicOr(bits[b >> 5], 1u << (b & 31u));
+        else all_set = all_set && (bits[b >> 5] & (1u << (b & 31u))) != 0u;
+    }
+    if (p.pass_ == 1u) hits[i] = all_set ? 1u : 0u;
+}

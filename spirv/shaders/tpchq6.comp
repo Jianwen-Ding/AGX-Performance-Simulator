@@ -1,0 +1,42 @@
+#version 450
+// TPC-H query 6 over columnar data, as GPU databases run it: a scan of four narrow lineitem columns with a
+// selective predicate and a 64-bit fixed-point sum.
+//   SELECT sum(l_extendedprice * l_discount) FROM lineitem
+//   WHERE l_shipdate >= '1994-01-01' AND l_shipdate < '1995-01-01'
+//     AND l_discount BETWEEN 0.05 AND 0.07 AND l_quantity < 24
+// Columns: shipdate as uint16 days since 1992-01-01 (1994-01-01 = 731, 1995-01-01 = 1096), discount and quantity
+// as uint8 (hundredths, units), extendedprice as uint32 cents: 8 bytes a row. Each invocation takes 16 rows, 256
+// apart (coalesced), a workgroup 4096; a shared-memory tree gives one (sum, count) per workgroup.
+#extension GL_EXT_shader_8bit_storage : require
+#extension GL_EXT_shader_16bit_storage : require
+#extension GL_EXT_shader_explicit_arithmetic_types_int64 : require
+layout(local_size_x = 256) in;
+layout(std430, binding = 0) readonly buffer SD { uint16_t shipdate[]; };
+layout(std430, binding = 1) readonly buffer DI { uint8_t discount[]; };
+layout(std430, binding = 2) readonly buffer QT { uint8_t quantity[]; };
+layout(std430, binding = 3) readonly buffer PR { uint price[]; };
+layout(std430, binding = 4) writeonly buffer OU { uint64_t part[]; };   // per workgroup: sum, count
+layout(push_constant) uniform P { uint n; } p;
+shared uint64_t ss[256];
+shared uint sc[256];
+
+void main() {
+    uint l = gl_LocalInvocationID.x, base = gl_WorkGroupID.x * 4096u + l;
+    uint64_t sum = 0ul;
+    uint cnt = 0u;
+    for (uint k = 0u; k < 16u; k++) {
+        uint r = base + 256u * k;
+        if (r >= p.n) break;
+        uint d = uint(shipdate[r]), di = uint(discount[r]), q = uint(quantity[r]);
+        bool hit = d >= 731u && d < 1096u && di >= 5u && di <= 7u && q < 24u;
+        sum += hit ? uint64_t(price[r] * di) : 0ul;                     // < 2^32: price < 10^8 / 10
+        cnt += hit ? 1u : 0u;
+    }
+    ss[l] = sum; sc[l] = cnt;
+    barrier();
+    for (uint s = 128u; s > 0u; s >>= 1) {
+        if (l < s) { ss[l] += ss[l + s]; sc[l] += sc[l + s]; }
+        barrier();
+    }
+    if (l == 0u) { part[2u * gl_WorkGroupID.x] = ss[0]; part[2u * gl_WorkGroupID.x + 1u] = uint64_t(sc[0]); }
+}

@@ -1,0 +1,44 @@
+0x0000  72051004                 get_sr r1, sr80 (thread_position_in_grid.x)
+0x0004  0e05428658000000         iadd r1, r1.sx, u4.sx
+0x000c  62000000                 mov_imm r0l, 0
+0x0010  522842a21800             if_icmp r0l, ult, r1, u5, 1
+0x0016  20c0f2000000             jmp_exec_none pc+242
+0x001c  05112c0e00c41200         device_load 0, i32, x, r2, u6_u7, r1, unsigned, lsl 1
+0x0024  0e0d0120e4000000         iadd r3, 1, r1.sx, lsl 1
+0x002c  05196c4e00c01200         device_load 1, i32, x, r3, u6_u7, r3, unsigned
+0x0034  3800                     wait 0
+0x0036  3801                     wait 1
+0x0038  1211446224446024         icmpsel ult, r4, r2, r3, r2, r3
+0x0040  520848020000             if_icmp r0l, ueq, r4, 0, 1
+0x0046  7e09446ae400             or r2, r2, r3
+0x004c  4511200e10c01200         device_store 0, i32, x, r2, u8_u9, r1, unsigned, 0
+0x0054  3800                     wait 0
+0x0056  420a00000000             else_fcmp r0l, eq, 0.0, 0.0, 1
+0x005c  7e11446ae400             or r4, r2, r3
+0x0062  0e15008864000000         isub r5, 0, r4.sx
+0x006a  7e1148a2a400             and r4, r4, r5
+0x0070  0e15004864000000         isub r5, 0, r2.sx
+0x0078  7e1544a2a400             and r5, r2, r5
+0x007e  3e154a0e0000             ffs r5, r5
+0x0084  7e154af28100             and r5, r5, 31
+0x008a  2e890040244a0200         bfeil r2, 0, r2, r5
+0x0092  420800000000             push_exec r0l, 1
+0x0098  520d46020000             while_icmp r0l, nueq, r3, 0, 1
+0x009e  0e15006864000000         isub r5, 0, r3.sx
+0x00a6  7e1546a2a400             and r5, r3, r5
+0x00ac  3e154a0e0000             ffs r5, r5
+0x00b2  7e154af28100             and r5, r5, 31
+0x00b8  2e8d0060244a0200         bfeil r3, 0, r3, r5
+0x00c0  1215464224464044         icmpsel ugt, r5, r3, r2, r3, r2
+0x00c8  1209446224446024         icmpsel ult, r2, r2, r3, r2, r3
+0x00d0  0e0d4a4e64000000         isub r3, r5.sx, r2.sx
+0x00d8  00c0c0ffffff             jmp_exec_any pc-64
+0x00de  520e00000000             pop_exec r0l, 1
+0x00e4  3e0d480e0000             ffs r3, r4
+0x00ea  7e0d46f28100             and r3, r3, 31
+0x00f0  2e09004024460200         bfi r2, 0, r2, r3
+0x00f8  4511240e10c01200         device_store 0, i32, x, r2, u10_u11, r1, unsigned, 0
+0x0100  3800                     wait 0
+0x0102  520e00000000             pop_exec r0l, 1
+0x0108  520e00000000             pop_exec r0l, 1
+0x010e  8800                     stop

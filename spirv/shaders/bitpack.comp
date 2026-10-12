@@ -1,0 +1,16 @@
+#version 450
+// Bit packing of 7-bit values into a dense little-endian bit stream (columnar storage / compression codecs):
+// value i occupies bits 7i .. 7i + 6; a value straddling a word boundary is split over two atomicOr writes.
+// Integer-exact under any write order.
+layout(local_size_x = 256) in;
+layout(std430, binding = 0) readonly buffer V { uint vals[]; };
+layout(std430, binding = 1) buffer O { uint words[]; };
+layout(push_constant) uniform P { uint n; } p;
+
+void main() {
+    uint i = gl_GlobalInvocationID.x;
+    if (i >= p.n) return;
+    uint v = vals[i] & 127u, bit = 7u * i, w = bit >> 5, s = bit & 31u;
+    atomicOr(words[w], v << s);
+    if (s > 25u) atomicOr(words[w + 1u], v >> (32u - s));
+}

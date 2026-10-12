@@ -1,0 +1,22 @@
+{
+ "blob": "spirv/compiled/mesa-26.0.3/swalignpad/shader.bin",
+ "code_start": 2244,
+ "code_size": 1304,
+ "layout": "agx_shader_info",
+ "programs": [
+  {
+   "label": "main",
+   "file": "main.bin",
+   "offset": 128,
+   "bytes": 998,
+   "instructions": 140
+  },
+  {
+   "label": "preamble",
+   "file": "preamble.bin",
+   "offset": 1152,
+   "bytes": 136,
+   "instructions": 23
+  }
+ ]
+}

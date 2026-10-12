@@ -1,0 +1,35 @@
+#version 450
+// Histogram equalisation of an 8-bit image, three dispatches:
+// mode 0: 256-bin histogram (threadgroup atomics, then device atomics)
+// mode 1: one workgroup: CDF and the lookup table lut[v] = ((cdf[v] - cdf_min) * 255 + (n - cdf_min) / 2) / (n - cdf_min)
+// mode 2: remap every pixel through the table. Integer-exact.
+#extension GL_EXT_shader_8bit_storage : require
+#extension GL_EXT_shader_explicit_arithmetic_types_int8 : require
+layout(local_size_x = 256) in;
+layout(std430, binding = 0) readonly buffer I { uint8_t src[]; };
+layout(std430, binding = 1) buffer H { uint hist[256]; uint lut[256]; };
+layout(std430, binding = 2) writeonly buffer O { uint8_t dst[]; };
+layout(push_constant) uniform P { uint mode; uint n; } p;
+shared uint sh[256];
+
+void main() {
+    uint t = gl_LocalInvocationID.x, i = gl_GlobalInvocationID.x;
+    if (p.mode == 0u) {
+        sh[t] = 0u;
+        barrier();
+        for (uint k = i; k < p.n; k += gl_NumWorkGroups.x * 256u) atomicAdd(sh[uint(src[k])], 1u);
+        barrier();
+        if (sh[t] != 0u) atomicAdd(hist[t], sh[t]);
+    } else if (p.mode == 1u) {
+        sh[t] = hist[t];
+        barrier();
+        if (t == 0u) { uint a = 0u; for (uint v = 0u; v < 256u; v++) { a += sh[v]; sh[v] = a; } }
+        barrier();
+        uint cmin = 0u;
+        for (uint v = 0u; v < 256u; v++) if (sh[v] != 0u) { cmin = sh[v]; break; }
+        uint den = p.n - cmin;
+        lut[t] = den == 0u ? t : ((sh[t] - min(sh[t], cmin)) * 255u + den / 2u) / den;
+    } else {
+        for (uint k = i; k < p.n; k += gl_NumWorkGroups.x * 256u) dst[k] = uint8_t(lut[uint(src[k])]);
+    }
+}

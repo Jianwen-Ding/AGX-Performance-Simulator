@@ -1,0 +1,40 @@
+0x0380  0509700d01c81200         device_load 0, i32, x, r1, u0_u1, 23, signed, lsl 2
+0x0388  3800                     wait 0
+0x038a  1202421200010110         icmpsel ueq, r0h, r1, 1, 1, 0
+0x0392  c504803d00801000         uniform_store 2, i16, x, 0, r0h, 8
+0x039a  0521100d00c87200         device_load 0, i32, xyz, r4_r5_r6, u0_u1, 1, signed, lsl 2
+0x03a2  3800                     wait 0
+0x03a4  2e09008024090000         bfi r2, 0, r4, 9
+0x03ac  c510a03d00803000         uniform_store 2, i16, xy, 0, r2l_r2h, 10
+0x03b4  0511d00d05c03200         device_load 0, i32, xy, r2_r3, u0_u1, 93, signed
+0x03bc  3800                     wait 0
+0x03be  c510c03d00803000         uniform_store 2, i16, xy, 0, r2l_r2h, 12
+0x03c6  c518e03d00803000         uniform_store 2, i16, xy, 0, r3l_r3h, 14
+0x03ce  0e09461e00000000         isub r2, r3.sx, 1
+0x03d6  c510003d01803000         uniform_store 2, i16, xy, 0, r2l_r2h, 16
+0x03de  0511700d02c83200         device_load 0, i32, xy, r2_r3, u0_u1, 39, signed, lsl 2
+0x03e6  3800                     wait 0
+0x03e8  0541044500c0f200         device_load 1, i32, xyzw, r8_r9_r10_r11, r2_r3, 0, signed
+0x03f0  3801                     wait 1
+0x03f2  c540403d0180f000         uniform_store 2, i16, xyzw, 0, r8l_r8h_r9l_r9h, 20
+0x03fa  0561140500c8f200         device_load 0, i32, xyzw, r12_r13_r14_r15, r2_r3, 1, signed, lsl 2
+0x0402  3800                     wait 0
+0x0404  c560803d0180f000         uniform_store 2, i16, xyzw, 0, r12l_r12h_r13l_r13h, 24
+0x040c  c520c03d0180f000         uniform_store 2, i16, xyzw, 0, r4l_r4h_r5l_r5h, 28
+0x0414  c530003d02803000         uniform_store 2, i16, xy, 0, r6l_r6h, 32
+0x041c  c540403d0280f000         uniform_store 2, i16, xyzw, 0, r8l_r8h_r9l_r9h, 36
+0x0424  c560803d0280f000         uniform_store 2, i16, xyzw, 0, r12l_r12h_r13l_r13h, 40
+0x042c  1202420200010110         icmpsel ueq, r0h, r1, 0, 1, 0
+0x0434  c504c03d02801000         uniform_store 2, i16, x, 0, r0h, 44
+0x043c  62000000                 mov_imm r0l, 0
+0x0440  520842020000             if_icmp r0l, ueq, r1, 0, 1
+0x0446  620502000000             mov_imm r1, 2, 0b0
+0x044c  620900040000             mov_imm r2, 1024, 0b0
+0x0452  420a00000000             else_fcmp r0l, eq, 0.0, 0.0, 1
+0x0458  0509d00d05c01200         device_load 0, i32, x, r1, u0_u1, 93, signed
+0x0460  3800                     wait 0
+0x0462  7e09420a8000             mov r2, r1
+0x0468  520e00000000             pop_exec r0l, 1
+0x046e  c510003d03803000         uniform_store 2, i16, xy, 0, r2l_r2h, 48
+0x0476  c508e03d02803000         uniform_store 2, i16, xy, 0, r1l_r1h, 46
+0x047e  8800                     stop

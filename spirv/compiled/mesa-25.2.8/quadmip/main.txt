@@ -1,0 +1,45 @@
+0x0080  62020000                 mov_imm r0h, 0
+0x0084  72050000                 get_sr r1, sr0 (threadgroup_position_in_grid.x)
+0x0088  0e05428658000000         iadd r1, r1.sx, u4.sx
+0x0090  72093500                 get_sr r2, sr53 (simdgroup_index_in_threadgroup)
+0x0094  0e054426e4001000         iadd r1, r2.sx, r1.sx, lsl 3
+0x009c  72093400                 get_sr r2, sr52 (thread_index_in_simdgroup)
+0x00a0  1e05420602440600         imadd r1, r1.sx, 32, r2.sx
+0x00a8  2e85002024020000         bfeil r1, 0, r1, 2
+0x00b0  1e13422219000000         imadd r4_r5, r1, u9, 0
+0x00b8  1e0d4a0659000000         imadd r3, r5.sx, u8.sx, 0
+0x00c0  0e0d426e64000000         isub r3, r1.sx, r3.sx
+0x00c8  0e114a1600000000         iadd r4, r5.sx, 1
+0x00d0  12114602194a8024         icmpsel ult, r4, r3, u8, r5, r4
+0x00d8  0e15464659000000         iadd r5, r3.sx, u10.sx
+0x00e0  120d46021946a024         icmpsel ult, r3, r3, u8, r3, r5
+0x00e8  0e15481600000000         iadd r5, r4.sx, 1
+0x00f0  121146021948a024         icmpsel ult, r4, r3, u8, r4, r5
+0x00f8  0e15464659000000         iadd r5, r3.sx, u10.sx
+0x0100  120d46021946a024         icmpsel ult, r3, r3, u8, r3, r5
+0x0108  7e150140a400             and r5, 1, r2
+0x010e  0e0d4a66e4000000         iadd r3, r5.sx, r3.sx, lsl 1
+0x0116  7e0944328000             and r2, r2, 3
+0x011c  2e95004024010000         bfeil r5, 0, r2, 1
+0x0124  0e114a86e4000000         iadd r4, r5.sx, r4.sx, lsl 1
+0x012c  1e1148e658460600         imadd r4, r4.sx, u7.sx, r3.sx
+0x0134  0519880e10c01200         device_load 0, i32, x, r3, u12_u13, r4, unsigned
+0x013c  3800                     wait 0
+0x013e  6f1546124000             quad_shuffle_xor r5, r3, 1
+0x0144  0e1546a664000000         iadd r5, r3.sx, r5.sx
+0x014c  62000000                 mov_imm r0l, 0
+0x0150  6f194a224000             quad_shuffle_xor r6, r5, 2
+0x0156  520844020000             if_icmp r0l, ueq, r2, 0, 1
+0x015c  0e094a2600000000         iadd r2, r5.sx, 2
+0x0164  0e0944c664000000         iadd r2, r2.sx, r6.sx
+0x016c  2e89004024020000         bfeil r2, 0, r2, 2
+0x0174  45112c0e10c01200         device_store 0, i32, x, r2, u14_u15, r1, unsigned, 0
+0x017c  3800                     wait 0
+0x017e  520e00000000             pop_exec r0l, 1
+0x0184  72051004                 get_sr r1, sr80 (thread_position_in_grid.x)
+0x0188  6f1546324000             quad_shuffle_xor r5, r3, 3
+0x018e  6f1946220000             quad_shuffle r6, r3, 2
+0x0194  0e0542065a000000         iadd r1, r1.sx, u16.sx
+0x019c  7e1da8098000             mov r7, u20
+0x01a2  4521240e20c8f200         device_store 0, i32, xyzw, r4_r5_r6_r7, u18_u19, r1, unsigned, lsl 2, 0
+0x01aa  8800                     stop

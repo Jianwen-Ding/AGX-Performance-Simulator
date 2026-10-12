@@ -1,0 +1,19 @@
+#version 450
+// Per-bucket argmax with 64-bit atomics (top-1 selection in ML inference, best-candidate search): each score is
+// packed with its index into one key whose unsigned order is the score order ((order-preserving float bits) << 32
+// | index), and atomicMax on a uint64 per bucket keeps the best (largest index on ties). Exact under any order.
+#extension GL_ARB_gpu_shader_int64 : require
+#extension GL_EXT_shader_atomic_int64 : require
+layout(local_size_x = 256) in;
+layout(std430, binding = 0) readonly buffer S { float scores[]; };
+layout(std430, binding = 1) readonly buffer K { uint bucket[]; };
+layout(std430, binding = 2) buffer B { uint64_t best[]; };
+layout(push_constant) uniform P { uint n; } p;
+
+void main() {
+    uint i = gl_GlobalInvocationID.x;
+    if (i >= p.n) return;
+    uint f = floatBitsToUint(scores[i]);
+    uint key = (f & 0x80000000u) != 0u ? ~f : f | 0x80000000u;    // monotonic map of float order to uint order
+    atomicMax(best[bucket[i]], (uint64_t(key) << 32) | uint64_t(i));
+}

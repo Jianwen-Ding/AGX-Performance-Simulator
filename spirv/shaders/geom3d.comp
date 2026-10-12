@@ -1,0 +1,18 @@
+#version 450
+// 3-D dispatch geometry: 4 x 4 x 2 workgroups over a grid that is not a multiple of them; every thread inside the
+// requested extent writes its built-in ids (global, local, local index, workgroup id, number of workgroups).
+layout(local_size_x = 4, local_size_y = 4, local_size_z = 2) in;
+layout(std430, binding = 0) writeonly buffer O { uint o[]; };
+layout(push_constant) uniform P { uint ex; uint ey; uint ez; } p;
+
+void main() {
+    uvec3 g = gl_GlobalInvocationID;
+    if (g.x >= p.ex || g.y >= p.ey || g.z >= p.ez) return;
+    uint base = 12u * ((g.z * p.ey + g.y) * p.ex + g.x);
+    o[base + 0u] = g.x; o[base + 1u] = g.y; o[base + 2u] = g.z;
+    o[base + 3u] = gl_LocalInvocationID.x; o[base + 4u] = gl_LocalInvocationID.y; o[base + 5u] = gl_LocalInvocationID.z;
+    o[base + 6u] = gl_LocalInvocationIndex;
+    o[base + 7u] = gl_WorkGroupID.x; o[base + 8u] = gl_WorkGroupID.y; o[base + 9u] = gl_WorkGroupID.z;
+    o[base + 10u] = gl_NumWorkGroups.x * 10000u + gl_NumWorkGroups.y * 100u + gl_NumWorkGroups.z;
+    o[base + 11u] = gl_WorkGroupSize.x * gl_WorkGroupSize.y * gl_WorkGroupSize.z;
+}

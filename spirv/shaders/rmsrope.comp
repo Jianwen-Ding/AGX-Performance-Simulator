@@ -1,0 +1,37 @@
+#version 450
+// The per-token step before attention in a Llama-style LLM: RMSNorm of a 4096-element hidden vector (32 heads x 128),
+// scaled by learned weights, then rotary position embedding: in every head, pair (2i, 2i + 1) is rotated by
+// pos * theta_i, theta_i = 10000^(-2i / 128), with cos / sin computed in the shader (as llama.cpp's Vulkan backend
+// does). Angles reach thousands of radians, where Vulkan does not specify sin / cos precision. One workgroup per token.
+#extension GL_KHR_shader_subgroup_arithmetic : require
+layout(local_size_x = 256) in;
+layout(std430, binding = 0) readonly buffer X { float x[]; };        // tokens x 4096
+layout(std430, binding = 1) readonly buffer G { float gamma[4096]; };
+layout(std430, binding = 2) readonly buffer PO { uint pos[]; };
+layout(std430, binding = 3) writeonly buffer Y { float y[]; };
+shared float part[64];
+shared float s_inv;
+
+void main() {
+    uint tok = gl_WorkGroupID.x, l = gl_LocalInvocationID.x, base = 4096u * tok;
+    float ss = 0.0;
+    for (uint k = l; k < 4096u; k += 256u) { float v = x[base + k]; ss += v * v; }
+    ss = subgroupAdd(ss);
+    if (subgroupElect()) part[gl_SubgroupID] = ss;
+    barrier();
+    if (l == 0u) {
+        float t = 0.0;
+        for (uint k = 0u; k < gl_NumSubgroups; k++) t += part[k];
+        s_inv = inversesqrt(t / 4096.0 + 1e-6);
+    }
+    barrier();
+    float inv = s_inv, p = float(pos[tok]);
+    for (uint pr = l; pr < 2048u; pr += 256u) {                       // pair pr: elements 2 pr, 2 pr + 1
+        uint i = pr % 64u;                                            // index within the head
+        float theta = p * pow(10000.0, -float(2u * i) / 128.0);
+        float c = cos(theta), s = sin(theta);
+        float a = x[base + 2u * pr] * inv * gamma[2u * pr], b = x[base + 2u * pr + 1u] * inv * gamma[2u * pr + 1u];
+        y[base + 2u * pr] = a * c - b * s;
+        y[base + 2u * pr + 1u] = a * s + b * c;
+    }
+}

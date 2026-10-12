@@ -1,0 +1,22 @@
+{
+ "blob": "spirv/compiled/mesa-26.0.3/coalesce/shader.bin",
+ "code_start": 2244,
+ "code_size": 908,
+ "layout": "agx_shader_info",
+ "programs": [
+  {
+   "label": "main",
+   "file": "main.bin",
+   "offset": 128,
+   "bytes": 534,
+   "instructions": 84
+  },
+  {
+   "label": "preamble",
+   "file": "preamble.bin",
+   "offset": 768,
+   "bytes": 124,
+   "instructions": 20
+  }
+ ]
+}

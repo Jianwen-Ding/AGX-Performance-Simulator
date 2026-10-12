@@ -73,6 +73,41 @@ impl Src {
             Loc::Bad(e) => return Err(e),
         })
     }
+    /// `get` for every lane at once, the operand's location decoded once (registers are read for inactive lanes
+    /// too, which has no effect). Only a uniform, immediate or invalid operand can fail, and the same way in every
+    /// lane, so this fails exactly when `get` at the first active lane would.
+    #[inline(always)]
+    fn fetch(&self, st: &CoreState, out: &mut [i128; SIMD_WIDTH]) -> R<()> {
+        match self.loc {
+            Loc::R16(n) => {
+                for (t, o) in out.iter_mut().enumerate() {
+                    *o = r16(st, n, t);
+                }
+            }
+            Loc::R32(n) => {
+                for (t, o) in out.iter_mut().enumerate() {
+                    *o = r16(st, 2 * n, t) | (r16(st, 2 * n + 1, t) << 16);
+                }
+            }
+            Loc::R64(_) => {
+                for (t, o) in out.iter_mut().enumerate() {
+                    *o = self.raw(st, t)?;
+                }
+            }
+            // uniforms, immediates and invalid operands: the same in every lane
+            _ => {
+                let v = self.raw(st, 0)?;
+                out.fill(v);
+            }
+        }
+        if self.sx {
+            let s = self.size.ok_or("bit size")?;
+            for o in out.iter_mut() {
+                *o = sign_extend(*o, s);
+            }
+        }
+        Ok(())
+    }
     /// `evaluate_thread` (sign-extending `.sx` registers of MulSrc/AddSrc).
     #[inline(always)]
     fn get(&self, st: &CoreState, t: usize) -> R<i128> {
@@ -426,6 +461,41 @@ impl Compiled {
         Ok(())
     }
 
+    /// `lanes` for a body that starts by reading `a` and `b` (in that order): the operands are fetched for all
+    /// lanes first. A lane reads and writes only its own registers, so this is the same as reading them per lane.
+    #[inline(always)]
+    fn lanes2(st: &mut CoreState, a: &Src, b: &Src, mut body: impl FnMut(&mut CoreState, usize, i128, i128) -> R<()>) -> R<()> {
+        if !st.exec.iter().any(|&x| x) {
+            return Ok(());
+        }
+        let (mut av, mut bv) = ([0i128; SIMD_WIDTH], [0i128; SIMD_WIDTH]);
+        a.fetch(st, &mut av)?;
+        b.fetch(st, &mut bv)?;
+        for t in 0..SIMD_WIDTH {
+            if st.exec[t] {
+                body(st, t, av[t], bv[t])?;
+            }
+        }
+        Ok(())
+    }
+    /// `lanes2` with a third operand `c`, read after `a` and `b`
+    #[inline(always)]
+    fn lanes3(st: &mut CoreState, a: &Src, b: &Src, c: &Src, mut body: impl FnMut(&mut CoreState, usize, i128, i128, i128) -> R<()>) -> R<()> {
+        if !st.exec.iter().any(|&x| x) {
+            return Ok(());
+        }
+        let (mut av, mut bv, mut cv) = ([0i128; SIMD_WIDTH], [0i128; SIMD_WIDTH], [0i128; SIMD_WIDTH]);
+        a.fetch(st, &mut av)?;
+        b.fetch(st, &mut bv)?;
+        c.fetch(st, &mut cv)?;
+        for t in 0..SIMD_WIDTH {
+            if st.exec[t] {
+                body(st, t, av[t], bv[t], cv[t])?;
+            }
+        }
+        Ok(())
+    }
+
     pub fn exec(&self, st: &mut CoreState) -> Result<(), String> {
         self.run(st).map_err(str::to_string)
     }
@@ -441,9 +511,7 @@ impl Compiled {
             K::GetSr { d, ok } => Self::lanes(st, |st, t| {
                 if *ok { d.set(st, t, t as i128) } else { Err("AssertionError: get_sr TODO".into()) }
             }),
-            K::IAdd { a, b, d, shift, sat, neg, signed, dsize } => Self::lanes(st, |st, t| {
-                let av = a.get(st, t)?;
-                let mut bv = b.get(st, t)?;
+            K::IAdd { a, b, d, shift, sat, neg, signed, dsize } => Self::lanes2(st, a, b, |st, t, av, mut bv| {
                 let sat = sat.ok_or("get_bit_size")?;
                 if *neg {
                     bv = -bv;
@@ -455,10 +523,7 @@ impl Compiled {
                 }
                 d.set(st, t, r)
             }),
-            K::IMAdd { a, b, c, d, shift, sat, neg, signed, dsize, ab_ok } => Self::lanes(st, |st, t| {
-                let av = a.get(st, t)?;
-                let bv = b.get(st, t)?;
-                let mut cv = c.get(st, t)?;
+            K::IMAdd { a, b, c, d, shift, sat, neg, signed, dsize, ab_ok } => Self::lanes3(st, a, b, c, |st, t, av, bv, mut cv| {
                 if !ab_ok {
                     return Err("get_bit_size".into());
                 }
@@ -473,15 +538,13 @@ impl Compiled {
                 }
                 d.set(st, t, r)
             }),
-            K::Bitfield { op, a, b, c, d, m } => Self::lanes(st, |st, t| {
-                let av = a.get(st, t)? as u128;
-                let bv = b.get(st, t)? as u128;
-                let cv = c.get(st, t)?;
+            K::Bitfield { op, a, b, c, d, m } => Self::lanes3(st, a, b, c, |st, t, av, bv, cv| {
+                let (av, bv) = (av as u128, bv as u128);
                 let s = (cv & 0x7F) as u32;
                 let mask: u128 = if *m != 0 { (1u128 << m) - 1 } else { 0xFFFFFFFF };
                 let r = match op {
                     Bf::Bfi => (av & !shl(mask, s)) | shl(bv & mask, s),
-                    Bf::Bfeil => (av & !mask) | (shr(bv, s) & mask),
+                    Bf::Bfeil => (av & !mask) | (shr(bv, super::exec::bfeil_shift(s, *m as u32)) & mask),
                     Bf::Extr => shr((bv << 32) | av, s) & mask,
                     Bf::Shlhi => {
                         let sm = shl(mask, s.saturating_sub(32));
@@ -495,36 +558,23 @@ impl Compiled {
                 };
                 d.set(st, t, r as i128)
             }),
-            K::Asr { high, a, b, d } => Self::lanes(st, |st, t| {
-                let av = a.get(st, t)?;
-                let bv = b.get(st, t)?;
+            K::Asr { high, a, b, d } => Self::lanes2(st, a, b, |st, t, av, bv| {
                 let x = sign_extend(av, a.size()?);
                 let x = if *high { x << 32 } else { x };
                 d.set(st, t, x >> ((bv & 0x7F) as u32).min(127))
             }),
-            K::Bitop { a, b, d, tt } => Self::lanes(st, |st, t| {
-                let av = a.get(st, t)?;
-                let bv = b.get(st, t)?;
-                let r = if *tt == [0, 0, 1, 1] || *tt == [1, 1, 0, 0] {
-                    av
-                } else {
-                    let mut r = 0i128;
-                    if tt[0] != 0 {
-                        r |= !av & !bv;
-                    }
-                    if tt[1] != 0 {
-                        r |= av & !bv;
-                    }
-                    if tt[2] != 0 {
-                        r |= !av & bv;
-                    }
-                    if tt[3] != 0 {
-                        r |= av & bv;
-                    }
-                    r
-                };
-                d.set(st, t, r)
-            }),
+            K::Bitop { a, b, d, tt } => {
+                // the truth table as all-ones / all-zero masks: the same r as or-ing the selected terms. In 64 bits:
+                // every destination keeps at most the low 64, and bitwise operations do not carry between bits.
+                let k = |i: usize| if tt[i] != 0 { u64::MAX } else { 0 };
+                let (k0, k1, k2, k3) = (k(0), k(1), k(2), k(3));
+                let pass = *tt == [0, 0, 1, 1] || *tt == [1, 1, 0, 0];
+                Self::lanes2(st, a, b, |st, t, av, bv| {
+                    let (x, y) = (av as u64, bv as u64);
+                    let r = if pass { av } else { ((!x & !y & k0) | (x & !y & k1) | (!x & y & k2) | (x & y & k3)) as i128 };
+                    d.set(st, t, r)
+                })
+            }
             K::Bitrev { a, d } => Self::lanes(st, |st, t| {
                 let av = a.get(st, t)?;
                 d.set(st, t, ((av as u32).reverse_bits()) as i128)
@@ -553,7 +603,7 @@ impl Compiled {
                 let v = match memo {
                     Some((mx, my, mz, mv)) if (mx, my, mz) == (x, y, z) => mv,
                     _ => {
-                        let mut r = fma::bfma64(x, y, z, &fma::ROUND_TO_ODD);
+                        let mut r = fma::fma_rto_narrow(x, y, z);
                         if matches!(op, Fl::FMAdd32 | Fl::FAdd32 | Fl::FMul32) {
                             r = fma::f32_to_f64(fma::f64_to_f32(r, true), false);
                         }

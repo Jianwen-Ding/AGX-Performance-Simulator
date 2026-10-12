@@ -1,0 +1,19 @@
+#version 450
+// Shader parameters from a small uniform buffer (the usual way to pass per-pass constants): a colour-correction
+// pass reads gains, offsets, a 3 x 3 integer mixing matrix and clamp limits from a UBO, uniform across all
+// invocations, so the compiler can hoist them into the preamble. Integer-exact.
+layout(local_size_x = 256) in;
+layout(std140, binding = 0) uniform U { ivec4 gain; ivec4 offs; ivec4 mix0; ivec4 mix1; ivec4 mix2; ivec4 lim; } u;
+layout(std430, binding = 1) readonly buffer I { uint rgba[]; };
+layout(std430, binding = 2) writeonly buffer O { uint outp[]; };
+layout(push_constant) uniform P { uint n; } p;
+
+void main() {
+    uint i = gl_GlobalInvocationID.x;
+    if (i >= p.n) return;
+    uint c = rgba[i];
+    ivec3 v = ivec3(int(c & 255u), int((c >> 8) & 255u), int((c >> 16) & 255u));
+    ivec3 m = ivec3(dot(u.mix0.xyz, v), dot(u.mix1.xyz, v), dot(u.mix2.xyz, v));
+    ivec3 o = clamp(((m * u.gain.xyz) >> 8) + u.offs.xyz, ivec3(u.lim.x), ivec3(u.lim.y));
+    outp[i] = uint(o.r) | uint(o.g) << 8 | uint(o.b) << 16 | (c & 0xff000000u);
+}

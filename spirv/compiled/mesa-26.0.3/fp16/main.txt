@@ -1,0 +1,21 @@
+0x0000  f2051004                 get_sr r1.cache, sr80 (thread_position_in_grid.x)
+0x0004  0e05c28658000000         iadd r1, r1.discard.sx, u4.sx
+0x000c  62000000                 mov_imm r0l, 0
+0x0010  522842a21800             if_icmp r0l, ult, r1, u5, 1
+0x0016  85042c0e00c01000         device_load 0, i16, x, r0h, u6_u7, r1, unsigned
+0x001e  8510204e10c01000         device_load 1, i16, x, r2l, u8_u9, r1, unsigned
+0x0026  3800                     wait 0
+0x0028  3801                     wait 1
+0x002a  360a14110884             fmadd16 r2h, u10l, r0h.cache, r2l.cache
+0x0030  8e054226e4000000         iadd r1.cache, r1.sx, r1.sx, lsl 1
+0x0038  c514280e10c01000         device_store 0, i16, x, r2h, u12_u13, r1, unsigned, 0
+0x0040  3688814004440400         fmadd16 r2l, r0h.cache, r2l, r2l.neg
+0x0048  0e0d821600000000         iadd r3, r1.cache.sx, 1
+0x0050  c510684e10c01000         device_store 1, i16, x, r2l, u12_u13, r3, unsigned, 0
+0x0058  3a0241800310             fmadd32 r0h, r0h, 1.5, 0.25
+0x005e  0e05422600000000         iadd r1, r1.sx, 2
+0x0066  c504280e10c01000         device_store 0, i16, x, r0h, u12_u13, r1, unsigned, 0
+0x006e  3800                     wait 0
+0x0070  3801                     wait 1
+0x0072  520e00000000             pop_exec r0l, 1
+0x0078  8800                     stop

@@ -1,0 +1,28 @@
+#version 450
+// Subgroup shuffles: subgroupShuffle (rotate by 1 and by a data-dependent amount), subgroupShuffleXor butterfly sum,
+// subgroupShuffleUp / Down with edge lanes keeping their value, subgroupBroadcast of lane 1. The subgroup size is
+// written out so the reference can follow it (32 on AGX).
+#extension GL_KHR_shader_subgroup_shuffle : require
+#extension GL_KHR_shader_subgroup_shuffle_relative : require
+#extension GL_KHR_shader_subgroup_ballot : require
+layout(local_size_x = 128) in;
+layout(std430, binding = 0) readonly buffer I { uint inp[]; };
+layout(std430, binding = 1) writeonly buffer O { uint o[]; };
+layout(std430, binding = 2) writeonly buffer S { uint sgsize; };
+layout(push_constant) uniform P { uint n; } p;
+
+void main() {
+    uint lane = gl_SubgroupInvocationID, size = gl_SubgroupSize;
+    uint i = gl_WorkGroupID.x * 128u + gl_SubgroupID * size + lane;   // element by (subgroup, lane)
+    uint v = inp[i];
+    uint rot1 = subgroupShuffle(v, (lane + 1u) % size);
+    uint rotk = subgroupShuffle(v, (lane + (inp[i] & 7u)) % size);
+    uint bf = v;
+    for (uint m = 1u; m < size; m <<= 1) bf += subgroupShuffleXor(bf, m);
+    uint up = subgroupShuffleUp(v, 1u), down = subgroupShuffleDown(v, 2u);
+    up = lane >= 1u ? up : v;
+    down = lane + 2u < size ? down : v;
+    uint b1 = subgroupBroadcast(v, 1u);
+    o[6u * i] = rot1; o[6u * i + 1u] = rotk; o[6u * i + 2u] = bf; o[6u * i + 3u] = up; o[6u * i + 4u] = down; o[6u * i + 5u] = b1;
+    if (i == 0u) sgsize = size;
+}

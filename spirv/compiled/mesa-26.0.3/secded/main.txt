@@ -1,0 +1,631 @@
+0x0000  f2051004                 get_sr r1.cache, sr80 (thread_position_in_grid.x)
+0x0004  0e05c28658000000         iadd r1, r1.discard.sx, u4.sx
+0x000c  62000000                 mov_imm r0l, 0
+0x0010  522842a21800             if_icmp r0l, ult, r1, u5, 1
+0x0016  20c00e110000             jmp_exec_none pc+4366
+0x001c  52090c010000             if_icmp r0l, nueq, u6l, 0, 1
+0x0022  20c00c060000             jmp_exec_none pc+1548
+0x0028  0511200e10c01200         device_load 0, i32, x, r2, u8_u9, r1, unsigned
+0x0030  3800                     wait 0
+0x0032  fe0d84f28000             and r3.cache, r2.cache, 15
+0x0038  ae91006068030000         bfeil r4.cache, 0, r3.cache, 3, mask 0x1
+0x0040  fe150140a800             and r5.cache, 1, r2.cache
+0x0046  fe198a8a6800             xor r6.cache, r5.cache, r4.cache
+0x004c  ae9d006068010000         bfeil r7.cache, 0, r3.cache, 1, mask 0x1
+0x0054  fe218eca6800             xor r8.cache, r7.cache, r6.cache
+0x005a  ae8d006064020000         bfeil r3.cache, 0, r3, 2, mask 0x1
+0x0062  fe1986ca6400             xor r6.cache, r3.cache, r6
+0x0068  fe258e8a6800             xor r9.cache, r7.cache, r4.cache
+0x006e  fe25862a6500             xor r9.cache, r3.cache, r9
+0x0074  8e1900c0e4000000         iadd r6.cache, 0, r6.sx, lsl 1
+0x007c  fe1950cae400             or r6.cache, r8, r6
+0x0082  8e1500a064001000         iadd r5.cache, 0, r5.sx, lsl 2
+0x008a  fe154caae400             or r5.cache, r6, r5
+0x0090  8e190020e5001000         iadd r6.cache, 0, r9.sx, lsl 3
+0x0098  fe154acae400             or r5.cache, r5, r6
+0x009e  8e1900e064002000         iadd r6.cache, 0, r7.sx, lsl 4
+0x00a6  fe154acae400             or r5.cache, r5, r6
+0x00ac  ae0d006024050000         bfi r3.cache, 0, r3, 5
+0x00b4  fe0d4a6ae400             or r3.cache, r5, r3
+0x00ba  ae11008024060000         bfi r4.cache, 0, r4, 6
+0x00c2  fe0d486ae400             or r3.cache, r4, r3
+0x00c8  be11860a0000             popcount r4.cache, r3.cache
+0x00ce  fe1148128000             and r4.cache, r4, 1
+0x00d4  ae11008024070000         bfi r4.cache, 0, r4, 7
+0x00dc  fe0d468ae400             or r3.cache, r3, r4
+0x00e2  ae91004028040400         bfeil r4.cache, 0, r2.cache, 4, mask 0xF
+0x00ea  ae95008068030000         bfeil r5.cache, 0, r4.cache, 3, mask 0x1
+0x00f2  ae99004068040000         bfeil r6.cache, 0, r2.cache, 4, mask 0x1
+0x00fa  fe1d8caa6800             xor r7.cache, r6.cache, r5.cache
+0x0100  aea1008068010000         bfeil r8.cache, 0, r4.cache, 1, mask 0x1
+0x0108  fe2590ea6800             xor r9.cache, r8.cache, r7.cache
+0x010e  ae91008064020000         bfeil r4.cache, 0, r4, 2, mask 0x1
+0x0116  fe1d88ea6400             xor r7.cache, r4.cache, r7
+0x011c  fe2990aa6800             xor r10.cache, r8.cache, r5.cache
+0x0122  fe29884a6500             xor r10.cache, r4.cache, r10
+0x0128  8e1d00e0e4000000         iadd r7.cache, 0, r7.sx, lsl 1
+0x0130  fe1d52eae400             or r7.cache, r9, r7
+0x0136  8e1900c064001000         iadd r6.cache, 0, r6.sx, lsl 2
+0x013e  fe194ecae400             or r6.cache, r7, r6
+0x0144  8e1d0040e5001000         iadd r7.cache, 0, r10.sx, lsl 3
+0x014c  fe194ceae400             or r6.cache, r6, r7
+0x0152  8e1d000065002000         iadd r7.cache, 0, r8.sx, lsl 4
+0x015a  fe194ceae400             or r6.cache, r6, r7
+0x0160  ae11008024050000         bfi r4.cache, 0, r4, 5
+0x0168  fe114c8ae400             or r4.cache, r6, r4
+0x016e  ae1500a024060000         bfi r5.cache, 0, r5, 6
+0x0176  fe114a8ae400             or r4.cache, r5, r4
+0x017c  be15880a0000             popcount r5.cache, r4.cache
+0x0182  fe154a128000             and r5.cache, r5, 1
+0x0188  ae1500a024070000         bfi r5.cache, 0, r5, 7
+0x0190  fe1148aae400             or r4.cache, r4, r5
+0x0196  ae11008024080000         bfi r4.cache, 0, r4, 8
+0x019e  fe0d468ae400             or r3.cache, r3, r4
+0x01a4  ae91004028080400         bfeil r4.cache, 0, r2.cache, 8, mask 0xF
+0x01ac  ae95008068030000         bfeil r5.cache, 0, r4.cache, 3, mask 0x1
+0x01b4  ae99004068080000         bfeil r6.cache, 0, r2.cache, 8, mask 0x1
+0x01bc  fe1d8caa6800             xor r7.cache, r6.cache, r5.cache
+0x01c2  aea1008068010000         bfeil r8.cache, 0, r4.cache, 1, mask 0x1
+0x01ca  fe2590ea6800             xor r9.cache, r8.cache, r7.cache
+0x01d0  ae91008064020000         bfeil r4.cache, 0, r4, 2, mask 0x1
+0x01d8  fe1d88ea6400             xor r7.cache, r4.cache, r7
+0x01de  fe2990aa6800             xor r10.cache, r8.cache, r5.cache
+0x01e4  fe29884a6500             xor r10.cache, r4.cache, r10
+0x01ea  8e1d00e0e4000000         iadd r7.cache, 0, r7.sx, lsl 1
+0x01f2  fe1d52eae400             or r7.cache, r9, r7
+0x01f8  8e1900c064001000         iadd r6.cache, 0, r6.sx, lsl 2
+0x0200  fe194ecae400             or r6.cache, r7, r6
+0x0206  8e1d0040e5001000         iadd r7.cache, 0, r10.sx, lsl 3
+0x020e  fe194ceae400             or r6.cache, r6, r7
+0x0214  8e1d000065002000         iadd r7.cache, 0, r8.sx, lsl 4
+0x021c  fe194ceae400             or r6.cache, r6, r7
+0x0222  ae11008024050000         bfi r4.cache, 0, r4, 5
+0x022a  fe114c8ae400             or r4.cache, r6, r4
+0x0230  ae1500a024060000         bfi r5.cache, 0, r5, 6
+0x0238  fe114a8ae400             or r4.cache, r5, r4
+0x023e  be15880a0000             popcount r5.cache, r4.cache
+0x0244  fe154a128000             and r5.cache, r5, 1
+0x024a  ae1500a024070000         bfi r5.cache, 0, r5, 7
+0x0252  fe1148aae400             or r4.cache, r4, r5
+0x0258  ae11008024100000         bfi r4.cache, 0, r4, 16
+0x0260  fe0d468ae400             or r3.cache, r3, r4
+0x0266  ae910040280c0400         bfeil r4.cache, 0, r2.cache, 12, mask 0xF
+0x026e  ae95008068030000         bfeil r5.cache, 0, r4.cache, 3, mask 0x1
+0x0276  ae990040680c0000         bfeil r6.cache, 0, r2.cache, 12, mask 0x1
+0x027e  fe1d8caa6800             xor r7.cache, r6.cache, r5.cache
+0x0284  aea1008068010000         bfeil r8.cache, 0, r4.cache, 1, mask 0x1
+0x028c  fe2590ea6800             xor r9.cache, r8.cache, r7.cache
+0x0292  ae91008064020000         bfeil r4.cache, 0, r4, 2, mask 0x1
+0x029a  fe1d88ea6400             xor r7.cache, r4.cache, r7
+0x02a0  fe2990aa6800             xor r10.cache, r8.cache, r5.cache
+0x02a6  fe29884a6500             xor r10.cache, r4.cache, r10
+0x02ac  8e1d00e0e4000000         iadd r7.cache, 0, r7.sx, lsl 1
+0x02b4  fe1d52eae400             or r7.cache, r9, r7
+0x02ba  8e1900c064001000         iadd r6.cache, 0, r6.sx, lsl 2
+0x02c2  fe194ecae400             or r6.cache, r7, r6
+0x02c8  8e1d0040e5001000         iadd r7.cache, 0, r10.sx, lsl 3
+0x02d0  fe194ceae400             or r6.cache, r6, r7
+0x02d6  8e1d000065002000         iadd r7.cache, 0, r8.sx, lsl 4
+0x02de  fe194ceae400             or r6.cache, r6, r7
+0x02e4  ae11008024050000         bfi r4.cache, 0, r4, 5
+0x02ec  fe114c8ae400             or r4.cache, r6, r4
+0x02f2  ae1500a024060000         bfi r5.cache, 0, r5, 6
+0x02fa  fe114a8ae400             or r4.cache, r5, r4
+0x0300  be15880a0000             popcount r5.cache, r4.cache
+0x0306  fe154a128000             and r5.cache, r5, 1
+0x030c  ae1500a024070000         bfi r5.cache, 0, r5, 7
+0x0314  fe1148aae400             or r4.cache, r4, r5
+0x031a  ae11008024180000         bfi r4.cache, 0, r4, 24
+0x0322  7e11486ae400             or r4, r4, r3
+0x0328  fe0285088000             mov r0h.cache, r2h.cache
+0x032e  fe0d81f08000             and r3.cache, r0h.cache, 15
+0x0334  ae95006068030000         bfeil r5.cache, 0, r3.cache, 3, mask 0x1
+0x033c  fe1901108400             and r6.cache, 1, r0h
+0x0342  fe1d8caa6800             xor r7.cache, r6.cache, r5.cache
+0x0348  aea1006068010000         bfeil r8.cache, 0, r3.cache, 1, mask 0x1
+0x0350  fe2590ea6800             xor r9.cache, r8.cache, r7.cache
+0x0356  ae8d006064020000         bfeil r3.cache, 0, r3, 2, mask 0x1
+0x035e  fe1d86ea6400             xor r7.cache, r3.cache, r7
+0x0364  fe2990aa6800             xor r10.cache, r8.cache, r5.cache
+0x036a  fe29864a6500             xor r10.cache, r3.cache, r10
+0x0370  8e1d00e0e4000000         iadd r7.cache, 0, r7.sx, lsl 1
+0x0378  fe1d52eae400             or r7.cache, r9, r7
+0x037e  8e1900c064001000         iadd r6.cache, 0, r6.sx, lsl 2
+0x0386  fe194ecae400             or r6.cache, r7, r6
+0x038c  8e1d0040e5001000         iadd r7.cache, 0, r10.sx, lsl 3
+0x0394  fe194ceae400             or r6.cache, r6, r7
+0x039a  8e1d000065002000         iadd r7.cache, 0, r8.sx, lsl 4
+0x03a2  fe194ceae400             or r6.cache, r6, r7
+0x03a8  ae0d006024050000         bfi r3.cache, 0, r3, 5
+0x03b0  fe0d4c6ae400             or r3.cache, r6, r3
+0x03b6  ae1500a024060000         bfi r5.cache, 0, r5, 6
+0x03be  fe0d4a6ae400             or r3.cache, r5, r3
+0x03c4  be15860a0000             popcount r5.cache, r3.cache
+0x03ca  fe154a128000             and r5.cache, r5, 1
+0x03d0  ae1500a024070000         bfi r5.cache, 0, r5, 7
+0x03d8  fe0d46aae400             or r3.cache, r3, r5
+0x03de  ae95004028140400         bfeil r5.cache, 0, r2.cache, 20, mask 0xF
+0x03e6  ae9900a068030000         bfeil r6.cache, 0, r5.cache, 3, mask 0x1
+0x03ee  ae9d004068140000         bfeil r7.cache, 0, r2.cache, 20, mask 0x1
+0x03f6  fe218eca6800             xor r8.cache, r7.cache, r6.cache
+0x03fc  aea500a068010000         bfeil r9.cache, 0, r5.cache, 1, mask 0x1
+0x0404  fe29920a6900             xor r10.cache, r9.cache, r8.cache
+0x040a  ae9500a064020000         bfeil r5.cache, 0, r5, 2, mask 0x1
+0x0412  fe218a0a6500             xor r8.cache, r5.cache, r8
+0x0418  fe2d92ca6800             xor r11.cache, r9.cache, r6.cache
+0x041e  fe2d8a6a6500             xor r11.cache, r5.cache, r11
+0x0424  8e210000e5000000         iadd r8.cache, 0, r8.sx, lsl 1
+0x042c  fe21540ae500             or r8.cache, r10, r8
+0x0432  8e1d00e064001000         iadd r7.cache, 0, r7.sx, lsl 2
+0x043a  fe1d50eae400             or r7.cache, r8, r7
+0x0440  8e210060e5001000         iadd r8.cache, 0, r11.sx, lsl 3
+0x0448  fe1d4e0ae500             or r7.cache, r7, r8
+0x044e  8e21002065002000         iadd r8.cache, 0, r9.sx, lsl 4
+0x0456  fe1d4e0ae500             or r7.cache, r7, r8
+0x045c  ae1500a024050000         bfi r5.cache, 0, r5, 5
+0x0464  fe154eaae400             or r5.cache, r7, r5
+0x046a  ae1900c024060000         bfi r6.cache, 0, r6, 6
+0x0472  fe154caae400             or r5.cache, r6, r5
+0x0478  be198a0a0000             popcount r6.cache, r5.cache
+0x047e  fe194c128000             and r6.cache, r6, 1
+0x0484  ae1900c024070000         bfi r6.cache, 0, r6, 7
+0x048c  fe154acae400             or r5.cache, r5, r6
+0x0492  ae1500a024080000         bfi r5.cache, 0, r5, 8
+0x049a  fe0d46aae400             or r3.cache, r3, r5
+0x04a0  ae95004028180400         bfeil r5.cache, 0, r2.cache, 24, mask 0xF
+0x04a8  ae9900a068030000         bfeil r6.cache, 0, r5.cache, 3, mask 0x1
+0x04b0  ae9d004068180000         bfeil r7.cache, 0, r2.cache, 24, mask 0x1
+0x04b8  fe218eca6800             xor r8.cache, r7.cache, r6.cache
+0x04be  aea500a068010000         bfeil r9.cache, 0, r5.cache, 1, mask 0x1
+0x04c6  fe29920a6900             xor r10.cache, r9.cache, r8.cache
+0x04cc  ae9500a064020000         bfeil r5.cache, 0, r5, 2, mask 0x1
+0x04d4  fe218a0a6500             xor r8.cache, r5.cache, r8
+0x04da  fe2d92ca6800             xor r11.cache, r9.cache, r6.cache
+0x04e0  fe2d8a6a6500             xor r11.cache, r5.cache, r11
+0x04e6  8e210000e5000000         iadd r8.cache, 0, r8.sx, lsl 1
+0x04ee  fe21540ae500             or r8.cache, r10, r8
+0x04f4  8e1d00e064001000         iadd r7.cache, 0, r7.sx, lsl 2
+0x04fc  fe1d50eae400             or r7.cache, r8, r7
+0x0502  8e210060e5001000         iadd r8.cache, 0, r11.sx, lsl 3
+0x050a  fe1d4e0ae500             or r7.cache, r7, r8
+0x0510  8e21002065002000         iadd r8.cache, 0, r9.sx, lsl 4
+0x0518  fe1d4e0ae500             or r7.cache, r7, r8
+0x051e  ae1500a024050000         bfi r5.cache, 0, r5, 5
+0x0526  fe154eaae400             or r5.cache, r7, r5
+0x052c  ae1900c024060000         bfi r6.cache, 0, r6, 6
+0x0534  fe154caae400             or r5.cache, r6, r5
+0x053a  be198a0a0000             popcount r6.cache, r5.cache
+0x0540  fe194c128000             and r6.cache, r6, 1
+0x0546  ae1900c024070000         bfi r6.cache, 0, r6, 7
+0x054e  fe154acae400             or r5.cache, r5, r6
+0x0554  ae1500a024100000         bfi r5.cache, 0, r5, 16
+0x055c  fe0d46aae400             or r3.cache, r3, r5
+0x0562  ae950040281c0400         bfeil r5.cache, 0, r2.cache, 28, mask 0xF
+0x056a  ae9900a068030000         bfeil r6.cache, 0, r5.cache, 3, mask 0x1
+0x0572  ae890040641c0000         bfeil r2.cache, 0, r2, 28, mask 0x1
+0x057a  fe1d84ca6800             xor r7.cache, r2.cache, r6.cache
+0x0580  aea100a068010000         bfeil r8.cache, 0, r5.cache, 1, mask 0x1
+0x0588  fe2590ea6800             xor r9.cache, r8.cache, r7.cache
+0x058e  ae9500a064020000         bfeil r5.cache, 0, r5, 2, mask 0x1
+0x0596  fe1d8aea6400             xor r7.cache, r5.cache, r7
+0x059c  fe2990ca6800             xor r10.cache, r8.cache, r6.cache
+0x05a2  fe298a4a6500             xor r10.cache, r5.cache, r10
+0x05a8  8e1d00e0e4000000         iadd r7.cache, 0, r7.sx, lsl 1
+0x05b0  fe1d52eae400             or r7.cache, r9, r7
+0x05b6  8e09004064001000         iadd r2.cache, 0, r2.sx, lsl 2
+0x05be  fe094e4ae400             or r2.cache, r7, r2
+0x05c4  8e1d0040e5001000         iadd r7.cache, 0, r10.sx, lsl 3
+0x05cc  fe0944eae400             or r2.cache, r2, r7
+0x05d2  8e1d000065002000         iadd r7.cache, 0, r8.sx, lsl 4
+0x05da  fe0944eae400             or r2.cache, r2, r7
+0x05e0  ae1500a024050000         bfi r5.cache, 0, r5, 5
+0x05e8  fe0944aae400             or r2.cache, r2, r5
+0x05ee  ae1500c024060000         bfi r5.cache, 0, r6, 6
+0x05f6  fe094a4ae400             or r2.cache, r5, r2
+0x05fc  be15840a0000             popcount r5.cache, r2.cache
+0x0602  fe154a128000             and r5.cache, r5, 1
+0x0608  ae1500a024070000         bfi r5.cache, 0, r5, 7
+0x0610  fe0944aae400             or r2.cache, r2, r5
+0x0616  ae09004024180000         bfi r2.cache, 0, r2, 24
+0x061e  7e15446ae400             or r5, r2, r3
+0x0624  4521240e10c43200         device_store 0, i32, xy, r4_r5, u10_u11, r1, unsigned, lsl 1, 0
+0x062c  3800                     wait 0
+0x062e  420a00000000             else_fcmp r0l, eq, 0.0, 0.0, 1
+0x0634  20c0ea0a0000             jmp_exec_none pc+2794
+0x063a  0511280e10c43200         device_load 0, i32, xy, r2_r3, u12_u13, r1, unsigned, lsl 1
+0x0642  05212c4e10c43200         device_load 1, i32, xy, r4_r5, u14_u15, r1, unsigned, lsl 1
+0x064a  3800                     wait 0
+0x064c  3801                     wait 1
+0x064e  fe09448a6400             xor r2.cache, r2, r4
+0x0654  fe0d46aa6400             xor r3.cache, r3, r5
+0x065a  fe1184f28303             and r4.cache, r2.cache, 255
+0x0660  ae95008068060000         bfeil r5.cache, 0, r4.cache, 6, mask 0x1
+0x0668  ae99008068020000         bfeil r6.cache, 0, r4.cache, 2, mask 0x1
+0x0670  fe194caa6800             xor r6.cache, r6, r5.cache
+0x0676  fe1d0140a800             and r7.cache, 1, r2.cache
+0x067c  aea1008068040000         bfeil r8.cache, 0, r4.cache, 4, mask 0x1
+0x0684  fe1d4e0a6900             xor r7.cache, r7, r8.cache
+0x068a  fe1d8cea6400             xor r7.cache, r6.cache, r7
+0x0690  aea5008068010000         bfeil r9.cache, 0, r4.cache, 1, mask 0x1
+0x0698  fe194c2a6500             xor r6.cache, r6, r9
+0x069e  aea5008068050000         bfeil r9.cache, 0, r4.cache, 5, mask 0x1
+0x06a6  fe1992ca6400             xor r6.cache, r9.cache, r6
+0x06ac  8e1900c0e4000000         iadd r6.cache, 0, r6.sx, lsl 1
+0x06b4  fe194ecae400             or r6.cache, r7, r6
+0x06ba  fe1550aa6400             xor r5.cache, r8, r5
+0x06c0  fe154a2a6500             xor r5.cache, r5, r9
+0x06c6  ae9d008068030000         bfeil r7.cache, 0, r4.cache, 3, mask 0x1
+0x06ce  fe154eaa6400             xor r5.cache, r7, r5
+0x06d4  8e1500a064001000         iadd r5.cache, 0, r5.sx, lsl 2
+0x06dc  fe154acae400             or r5.cache, r5, r6
+0x06e2  be19880a0000             popcount r6.cache, r4.cache
+0x06e8  fe194c128000             and r6.cache, r6, 1
+0x06ee  921d8ac2288ac028         icmpsel ult, r7.cache, r5.cache, r6.cache, r5.cache, r6.cache
+0x06f6  8e218a1e00000000         isub r8.cache, r5.cache.sx, 1
+0x06fe  fe2150f28100             and r8.cache, r8, 31
+0x0704  ae21001000500200         bfi r8.cache, 0, 1, r8
+0x070c  fe21880a6500             xor r8.cache, r4.cache, r8
+0x0712  92024c0200001110         icmpsel ueq, r0h.cache, r6, 0, 0, 1
+0x071a  92028a0200410010         icmpsel ueq, r0h.cache, r5.cache, 0, r0h, 0
+0x0722  92118e0200480005         icmpsel ueq, r4.cache, r7.cache, 0, r4, r8
+0x072a  92024e0200411010         icmpsel ueq, r0h.cache, r7, 0, r0h, 1
+0x0732  ae99008068040000         bfeil r6.cache, 0, r4.cache, 4, mask 0x1
+0x073a  8e1900c0e4000000         iadd r6.cache, 0, r6.sx, lsl 1
+0x0742  ae9d008068020000         bfeil r7.cache, 0, r4.cache, 2, mask 0x1
+0x074a  fe194ecae400             or r6.cache, r7, r6
+0x0750  ae9d008068050000         bfeil r7.cache, 0, r4.cache, 5, mask 0x1
+0x0758  8e1d00e064001000         iadd r7.cache, 0, r7.sx, lsl 2
+0x0760  fe194ceae400             or r6.cache, r6, r7
+0x0766  ae91008064060000         bfeil r4.cache, 0, r4, 6, mask 0x1
+0x076e  8e110080e4001000         iadd r4.cache, 0, r4.sx, lsl 3
+0x0776  fe114c8ae400             or r4.cache, r6, r4
+0x077c  ae99004028080800         bfeil r6.cache, 0, r2.cache, 8, mask 0xFF
+0x0784  ae9d00c068060000         bfeil r7.cache, 0, r6.cache, 6, mask 0x1
+0x078c  aea100c068020000         bfeil r8.cache, 0, r6.cache, 2, mask 0x1
+0x0794  fe2150ea6800             xor r8.cache, r8, r7.cache
+0x079a  aea5004068080000         bfeil r9.cache, 0, r2.cache, 8, mask 0x1
+0x07a2  aea900c068040000         bfeil r10.cache, 0, r6.cache, 4, mask 0x1
+0x07aa  fe25524a6900             xor r9.cache, r9, r10.cache
+0x07b0  fe25902a6500             xor r9.cache, r8.cache, r9
+0x07b6  aead00c068010000         bfeil r11.cache, 0, r6.cache, 1, mask 0x1
+0x07be  fe21506a6500             xor r8.cache, r8, r11
+0x07c4  aead00c068050000         bfeil r11.cache, 0, r6.cache, 5, mask 0x1
+0x07cc  fe21960a6500             xor r8.cache, r11.cache, r8
+0x07d2  8e210000e5000000         iadd r8.cache, 0, r8.sx, lsl 1
+0x07da  fe21520ae500             or r8.cache, r9, r8
+0x07e0  fe1d54ea6400             xor r7.cache, r10, r7
+0x07e6  fe1d4e6a6500             xor r7.cache, r7, r11
+0x07ec  aea500c068030000         bfeil r9.cache, 0, r6.cache, 3, mask 0x1
+0x07f4  fe1d52ea6400             xor r7.cache, r9, r7
+0x07fa  8e1d00e064001000         iadd r7.cache, 0, r7.sx, lsl 2
+0x0802  fe1d4e0ae500             or r7.cache, r7, r8
+0x0808  be218c0a0000             popcount r8.cache, r6.cache
+0x080e  fe2150128000             and r8.cache, r8, 1
+0x0814  92258e02298e0029         icmpsel ult, r9.cache, r7.cache, r8.cache, r7.cache, r8.cache
+0x081c  8e298e1e00000000         isub r10.cache, r7.cache.sx, 1
+0x0824  fe2954f28100             and r10.cache, r10, 31
+0x082a  ae29001000540200         bfi r10.cache, 0, 1, r10
+0x0832  fe298c4a6500             xor r10.cache, r6.cache, r10
+0x0838  9220500200001110         icmpsel ueq, r8l.cache, r8, 0, 0, 1
+0x0840  92208e0200500010         icmpsel ueq, r8l.cache, r7.cache, 0, r8l, 0
+0x0848  92199202004c4005         icmpsel ueq, r6.cache, r9.cache, 0, r6, r10
+0x0850  9220520200501010         icmpsel ueq, r8l.cache, r9, 0, r8l, 1
+0x0858  92154a0200001110         icmpsel ueq, r5.cache, r5, 0, 0, 1
+0x0860  92158100004a0010         icmpsel ueq, r5.cache, r0h.cache, 0, r5, 0
+0x0868  fe258a2ac000             or r9.cache, r5.cache, 2
+0x086e  921d4e02008a2005         icmpsel ueq, r7.cache, r7, 0, r5.cache, r9
+0x0876  92159000004ea004         icmpsel ueq, r5.cache, r8l.cache, 0, r7, r5
+0x087e  921d410000001110         icmpsel ueq, r7.cache, r0h, 0, 0, 1
+0x0886  fe258e2ac000             or r9.cache, r7.cache, 2
+0x088c  921d5000004e2005         icmpsel ueq, r7.cache, r8l, 0, r7, r9
+0x0894  aea100c068040000         bfeil r8.cache, 0, r6.cache, 4, mask 0x1
+0x089c  8e210000e5000000         iadd r8.cache, 0, r8.sx, lsl 1
+0x08a4  aea500c068020000         bfeil r9.cache, 0, r6.cache, 2, mask 0x1
+0x08ac  fe21520ae500             or r8.cache, r9, r8
+0x08b2  aea500c068050000         bfeil r9.cache, 0, r6.cache, 5, mask 0x1
+0x08ba  8e25002065001000         iadd r9.cache, 0, r9.sx, lsl 2
+0x08c2  fe21502ae500             or r8.cache, r8, r9
+0x08c8  ae9900c064060000         bfeil r6.cache, 0, r6, 6, mask 0x1
+0x08d0  8e1900c0e4001000         iadd r6.cache, 0, r6.sx, lsl 3
+0x08d8  fe194c0ae500             or r6.cache, r6, r8
+0x08de  8e1900c064002000         iadd r6.cache, 0, r6.sx, lsl 4
+0x08e6  fe1148cae400             or r4.cache, r4, r6
+0x08ec  fe0285088000             mov r0h.cache, r2h.cache
+0x08f2  fe1981f08303             and r6.cache, r0h.cache, 255
+0x08f8  aea100c068060000         bfeil r8.cache, 0, r6.cache, 6, mask 0x1
+0x0900  aea500c068020000         bfeil r9.cache, 0, r6.cache, 2, mask 0x1
+0x0908  fe25520a6900             xor r9.cache, r9, r8.cache
+0x090e  fe2901108400             and r10.cache, 1, r0h
+0x0914  aead00c068040000         bfeil r11.cache, 0, r6.cache, 4, mask 0x1
+0x091c  fe29546a6900             xor r10.cache, r10, r11.cache
+0x0922  fe29924a6500             xor r10.cache, r9.cache, r10
+0x0928  aeb100c068010000         bfeil r12.cache, 0, r6.cache, 1, mask 0x1
+0x0930  fe25528a6500             xor r9.cache, r9, r12
+0x0936  aeb100c068050000         bfeil r12.cache, 0, r6.cache, 5, mask 0x1
+0x093e  fe25982a6500             xor r9.cache, r12.cache, r9
+0x0944  8e250020e5000000         iadd r9.cache, 0, r9.sx, lsl 1
+0x094c  fe25542ae500             or r9.cache, r10, r9
+0x0952  fe21560a6500             xor r8.cache, r11, r8
+0x0958  fe21508a6500             xor r8.cache, r8, r12
+0x095e  aea900c068030000         bfeil r10.cache, 0, r6.cache, 3, mask 0x1
+0x0966  fe21540a6500             xor r8.cache, r10, r8
+0x096c  8e21000065001000         iadd r8.cache, 0, r8.sx, lsl 2
+0x0974  fe21502ae500             or r8.cache, r8, r9
+0x097a  be258c0a0000             popcount r9.cache, r6.cache
+0x0980  fe2552128000             and r9.cache, r9, 1
+0x0986  9229902229902029         icmpsel ult, r10.cache, r8.cache, r9.cache, r8.cache, r9.cache
+0x098e  8e2d901e00000000         isub r11.cache, r8.cache.sx, 1
+0x0996  fe2d56f28100             and r11.cache, r11, 31
+0x099c  ae2d001000560200         bfi r11.cache, 0, 1, r11
+0x09a4  fe2d8c6a6500             xor r11.cache, r6.cache, r11
+0x09aa  9202520200001110         icmpsel ueq, r0h.cache, r9, 0, 0, 1
+0x09b2  9202900200410010         icmpsel ueq, r0h.cache, r8.cache, 0, r0h, 0
+0x09ba  92199402004c6005         icmpsel ueq, r6.cache, r10.cache, 0, r6, r11
+0x09c2  9202540200411010         icmpsel ueq, r0h.cache, r10, 0, r0h, 1
+0x09ca  fe258a4ac000             or r9.cache, r5.cache, 4
+0x09d0  92215002008a2005         icmpsel ueq, r8.cache, r8, 0, r5.cache, r9
+0x09d8  921581000050a004         icmpsel ueq, r5.cache, r0h.cache, 0, r8, r5
+0x09e0  fe218e4ac000             or r8.cache, r7.cache, 4
+0x09e6  921d4100004e0005         icmpsel ueq, r7.cache, r0h, 0, r7, r8
+0x09ee  aea100c068040000         bfeil r8.cache, 0, r6.cache, 4, mask 0x1
+0x09f6  8e210000e5000000         iadd r8.cache, 0, r8.sx, lsl 1
+0x09fe  aea500c068020000         bfeil r9.cache, 0, r6.cache, 2, mask 0x1
+0x0a06  fe21520ae500             or r8.cache, r9, r8
+0x0a0c  aea500c068050000         bfeil r9.cache, 0, r6.cache, 5, mask 0x1
+0x0a14  8e25002065001000         iadd r9.cache, 0, r9.sx, lsl 2
+0x0a1c  fe21502ae500             or r8.cache, r8, r9
+0x0a22  ae9900c064060000         bfeil r6.cache, 0, r6, 6, mask 0x1
+0x0a2a  8e1900c0e4001000         iadd r6.cache, 0, r6.sx, lsl 3
+0x0a32  fe194c0ae500             or r6.cache, r6, r8
+0x0a38  ae1900c024080000         bfi r6.cache, 0, r6, 8
+0x0a40  fe1148cae400             or r4.cache, r4, r6
+0x0a46  ae990040681e0000         bfeil r6.cache, 0, r2.cache, 30, mask 0x1
+0x0a4e  aea10040681a0000         bfeil r8.cache, 0, r2.cache, 26, mask 0x1
+0x0a56  fe2150ca6800             xor r8.cache, r8, r6.cache
+0x0a5c  aea5004068180000         bfeil r9.cache, 0, r2.cache, 24, mask 0x1
+0x0a64  aea90040681c0000         bfeil r10.cache, 0, r2.cache, 28, mask 0x1
+0x0a6c  fe25524a6900             xor r9.cache, r9, r10.cache
+0x0a72  fe25902a6500             xor r9.cache, r8.cache, r9
+0x0a78  aead004068190000         bfeil r11.cache, 0, r2.cache, 25, mask 0x1
+0x0a80  fe21506a6500             xor r8.cache, r8, r11
+0x0a86  aead0040681d0000         bfeil r11.cache, 0, r2.cache, 29, mask 0x1
+0x0a8e  fe21960a6500             xor r8.cache, r11.cache, r8
+0x0a94  8e210000e5000000         iadd r8.cache, 0, r8.sx, lsl 1
+0x0a9c  fe21520ae500             or r8.cache, r9, r8
+0x0aa2  fe1954ca6400             xor r6.cache, r10, r6
+0x0aa8  fe194c6a6500             xor r6.cache, r6, r11
+0x0aae  aea50040681b0000         bfeil r9.cache, 0, r2.cache, 27, mask 0x1
+0x0ab6  fe1952ca6400             xor r6.cache, r9, r6
+0x0abc  8e1900c064001000         iadd r6.cache, 0, r6.sx, lsl 2
+0x0ac4  fe194c0ae500             or r6.cache, r6, r8
+0x0aca  ae89004024180000         bfeil r2.cache, 0, r2, 24
+0x0ad2  be21840a0000             popcount r8.cache, r2.cache
+0x0ad8  fe2150128000             and r8.cache, r8, 1
+0x0ade  92258c02298c0029         icmpsel ult, r9.cache, r6.cache, r8.cache, r6.cache, r8.cache
+0x0ae6  8e298c1e00000000         isub r10.cache, r6.cache.sx, 1
+0x0aee  fe2954f28100             and r10.cache, r10, 31
+0x0af4  ae29001000540200         bfi r10.cache, 0, 1, r10
+0x0afc  fe29844a6500             xor r10.cache, r2.cache, r10
+0x0b02  9202500200001110         icmpsel ueq, r0h.cache, r8, 0, 0, 1
+0x0b0a  92028c0200410010         icmpsel ueq, r0h.cache, r6.cache, 0, r0h, 0
+0x0b12  9209920200444005         icmpsel ueq, r2.cache, r9.cache, 0, r2, r10
+0x0b1a  9202520200411010         icmpsel ueq, r0h.cache, r9, 0, r0h, 1
+0x0b22  fe218a8ac000             or r8.cache, r5.cache, 8
+0x0b28  92194c02008a0005         icmpsel ueq, r6.cache, r6, 0, r5.cache, r8
+0x0b30  92158100004ca004         icmpsel ueq, r5.cache, r0h.cache, 0, r6, r5
+0x0b38  fe198e8ac000             or r6.cache, r7.cache, 8
+0x0b3e  92194100004ec004         icmpsel ueq, r6.cache, r0h, 0, r7, r6
+0x0b46  ae9d004068040000         bfeil r7.cache, 0, r2.cache, 4, mask 0x1
+0x0b4e  8e1d00e0e4000000         iadd r7.cache, 0, r7.sx, lsl 1
+0x0b56  aea1004068020000         bfeil r8.cache, 0, r2.cache, 2, mask 0x1
+0x0b5e  fe1d50eae400             or r7.cache, r8, r7
+0x0b64  aea1004068050000         bfeil r8.cache, 0, r2.cache, 5, mask 0x1
+0x0b6c  8e21000065001000         iadd r8.cache, 0, r8.sx, lsl 2
+0x0b74  fe1d4e0ae500             or r7.cache, r7, r8
+0x0b7a  ae89004064060000         bfeil r2.cache, 0, r2, 6, mask 0x1
+0x0b82  8e090040e4001000         iadd r2.cache, 0, r2.sx, lsl 3
+0x0b8a  fe0944eae400             or r2.cache, r2, r7
+0x0b90  ae090040240c0000         bfi r2.cache, 0, r2, 12
+0x0b98  fe09484ae400             or r2.cache, r4, r2
+0x0b9e  fe1186f28303             and r4.cache, r3.cache, 255
+0x0ba4  ae9d008068060000         bfeil r7.cache, 0, r4.cache, 6, mask 0x1
+0x0bac  aea1008068020000         bfeil r8.cache, 0, r4.cache, 2, mask 0x1
+0x0bb4  fe2150ea6800             xor r8.cache, r8, r7.cache
+0x0bba  fe250160a800             and r9.cache, 1, r3.cache
+0x0bc0  aea9008068040000         bfeil r10.cache, 0, r4.cache, 4, mask 0x1
+0x0bc8  fe25524a6900             xor r9.cache, r9, r10.cache
+0x0bce  fe25902a6500             xor r9.cache, r8.cache, r9
+0x0bd4  aead008068010000         bfeil r11.cache, 0, r4.cache, 1, mask 0x1
+0x0bdc  fe21506a6500             xor r8.cache, r8, r11
+0x0be2  aead008068050000         bfeil r11.cache, 0, r4.cache, 5, mask 0x1
+0x0bea  fe21960a6500             xor r8.cache, r11.cache, r8
+0x0bf0  8e210000e5000000         iadd r8.cache, 0, r8.sx, lsl 1
+0x0bf8  fe21520ae500             or r8.cache, r9, r8
+0x0bfe  fe1d54ea6400             xor r7.cache, r10, r7
+0x0c04  fe1d4e6a6500             xor r7.cache, r7, r11
+0x0c0a  aea5008068030000         bfeil r9.cache, 0, r4.cache, 3, mask 0x1
+0x0c12  fe1d52ea6400             xor r7.cache, r9, r7
+0x0c18  8e1d00e064001000         iadd r7.cache, 0, r7.sx, lsl 2
+0x0c20  fe1d4e0ae500             or r7.cache, r7, r8
+0x0c26  be21880a0000             popcount r8.cache, r4.cache
+0x0c2c  fe2150128000             and r8.cache, r8, 1
+0x0c32  92258e02298e0029         icmpsel ult, r9.cache, r7.cache, r8.cache, r7.cache, r8.cache
+0x0c3a  8e298e1e00000000         isub r10.cache, r7.cache.sx, 1
+0x0c42  fe2954f28100             and r10.cache, r10, 31
+0x0c48  ae29001000540200         bfi r10.cache, 0, 1, r10
+0x0c50  fe29884a6500             xor r10.cache, r4.cache, r10
+0x0c56  9202500200001110         icmpsel ueq, r0h.cache, r8, 0, 0, 1
+0x0c5e  92028e0200410010         icmpsel ueq, r0h.cache, r7.cache, 0, r0h, 0
+0x0c66  9211920200484005         icmpsel ueq, r4.cache, r9.cache, 0, r4, r10
+0x0c6e  9202520200411010         icmpsel ueq, r0h.cache, r9, 0, r0h, 1
+0x0c76  fe218a0ac100             or r8.cache, r5.cache, 16
+0x0c7c  921d4e02008a0005         icmpsel ueq, r7.cache, r7, 0, r5.cache, r8
+0x0c84  92158100004ea004         icmpsel ueq, r5.cache, r0h.cache, 0, r7, r5
+0x0c8c  fe1d8c0ac100             or r7.cache, r6.cache, 16
+0x0c92  92194100004ce004         icmpsel ueq, r6.cache, r0h, 0, r6, r7
+0x0c9a  ae9d008068040000         bfeil r7.cache, 0, r4.cache, 4, mask 0x1
+0x0ca2  8e1d00e0e4000000         iadd r7.cache, 0, r7.sx, lsl 1
+0x0caa  aea1008068020000         bfeil r8.cache, 0, r4.cache, 2, mask 0x1
+0x0cb2  fe1d50eae400             or r7.cache, r8, r7
+0x0cb8  aea1008068050000         bfeil r8.cache, 0, r4.cache, 5, mask 0x1
+0x0cc0  8e21000065001000         iadd r8.cache, 0, r8.sx, lsl 2
+0x0cc8  fe1d4e0ae500             or r7.cache, r7, r8
+0x0cce  ae91008064060000         bfeil r4.cache, 0, r4, 6, mask 0x1
+0x0cd6  8e110080e4001000         iadd r4.cache, 0, r4.sx, lsl 3
+0x0cde  fe1148eae400             or r4.cache, r4, r7
+0x0ce4  ae11008024100000         bfi r4.cache, 0, r4, 16
+0x0cec  fe09448ae400             or r2.cache, r2, r4
+0x0cf2  ae91006028080800         bfeil r4.cache, 0, r3.cache, 8, mask 0xFF
+0x0cfa  ae9d008068060000         bfeil r7.cache, 0, r4.cache, 6, mask 0x1
+0x0d02  aea1008068020000         bfeil r8.cache, 0, r4.cache, 2, mask 0x1
+0x0d0a  fe2150ea6800             xor r8.cache, r8, r7.cache
+0x0d10  aea5006068080000         bfeil r9.cache, 0, r3.cache, 8, mask 0x1
+0x0d18  aea9008068040000         bfeil r10.cache, 0, r4.cache, 4, mask 0x1
+0x0d20  fe25524a6900             xor r9.cache, r9, r10.cache
+0x0d26  fe25902a6500             xor r9.cache, r8.cache, r9
+0x0d2c  aead008068010000         bfeil r11.cache, 0, r4.cache, 1, mask 0x1
+0x0d34  fe21506a6500             xor r8.cache, r8, r11
+0x0d3a  aead008068050000         bfeil r11.cache, 0, r4.cache, 5, mask 0x1
+0x0d42  fe21960a6500             xor r8.cache, r11.cache, r8
+0x0d48  8e210000e5000000         iadd r8.cache, 0, r8.sx, lsl 1
+0x0d50  fe21520ae500             or r8.cache, r9, r8
+0x0d56  fe1d54ea6400             xor r7.cache, r10, r7
+0x0d5c  fe1d4e6a6500             xor r7.cache, r7, r11
+0x0d62  aea5008068030000         bfeil r9.cache, 0, r4.cache, 3, mask 0x1
+0x0d6a  fe1d52ea6400             xor r7.cache, r9, r7
+0x0d70  8e1d00e064001000         iadd r7.cache, 0, r7.sx, lsl 2
+0x0d78  fe1d4e0ae500             or r7.cache, r7, r8
+0x0d7e  be21880a0000             popcount r8.cache, r4.cache
+0x0d84  fe2150128000             and r8.cache, r8, 1
+0x0d8a  92258e02298e0029         icmpsel ult, r9.cache, r7.cache, r8.cache, r7.cache, r8.cache
+0x0d92  8e298e1e00000000         isub r10.cache, r7.cache.sx, 1
+0x0d9a  fe2954f28100             and r10.cache, r10, 31
+0x0da0  ae29001000540200         bfi r10.cache, 0, 1, r10
+0x0da8  fe29884a6500             xor r10.cache, r4.cache, r10
+0x0dae  9202500200001110         icmpsel ueq, r0h.cache, r8, 0, 0, 1
+0x0db6  92028e0200410010         icmpsel ueq, r0h.cache, r7.cache, 0, r0h, 0
+0x0dbe  9211920200484005         icmpsel ueq, r4.cache, r9.cache, 0, r4, r10
+0x0dc6  9202520200411010         icmpsel ueq, r0h.cache, r9, 0, r0h, 1
+0x0dce  fe218a0ac200             or r8.cache, r5.cache, 32
+0x0dd4  921d4e02008a0005         icmpsel ueq, r7.cache, r7, 0, r5.cache, r8
+0x0ddc  92158100004ea004         icmpsel ueq, r5.cache, r0h.cache, 0, r7, r5
+0x0de4  fe1d8c0ac200             or r7.cache, r6.cache, 32
+0x0dea  92194100004ce004         icmpsel ueq, r6.cache, r0h, 0, r6, r7
+0x0df2  ae9d008068040000         bfeil r7.cache, 0, r4.cache, 4, mask 0x1
+0x0dfa  8e1d00e0e4000000         iadd r7.cache, 0, r7.sx, lsl 1
+0x0e02  aea1008068020000         bfeil r8.cache, 0, r4.cache, 2, mask 0x1
+0x0e0a  fe1d50eae400             or r7.cache, r8, r7
+0x0e10  aea1008068050000         bfeil r8.cache, 0, r4.cache, 5, mask 0x1
+0x0e18  8e21000065001000         iadd r8.cache, 0, r8.sx, lsl 2
+0x0e20  fe1d4e0ae500             or r7.cache, r7, r8
+0x0e26  ae91008064060000         bfeil r4.cache, 0, r4, 6, mask 0x1
+0x0e2e  8e110080e4001000         iadd r4.cache, 0, r4.sx, lsl 3
+0x0e36  fe1148eae400             or r4.cache, r4, r7
+0x0e3c  ae11008024140000         bfi r4.cache, 0, r4, 20
+0x0e44  fe09448ae400             or r2.cache, r2, r4
+0x0e4a  fe0287088000             mov r0h.cache, r3h.cache
+0x0e50  fe1181f08303             and r4.cache, r0h.cache, 255
+0x0e56  ae9d008068060000         bfeil r7.cache, 0, r4.cache, 6, mask 0x1
+0x0e5e  aea1008068020000         bfeil r8.cache, 0, r4.cache, 2, mask 0x1
+0x0e66  fe2150ea6800             xor r8.cache, r8, r7.cache
+0x0e6c  fe2501108400             and r9.cache, 1, r0h
+0x0e72  aea9008068040000         bfeil r10.cache, 0, r4.cache, 4, mask 0x1
+0x0e7a  fe25524a6900             xor r9.cache, r9, r10.cache
+0x0e80  fe25902a6500             xor r9.cache, r8.cache, r9
+0x0e86  aead008068010000         bfeil r11.cache, 0, r4.cache, 1, mask 0x1
+0x0e8e  fe21506a6500             xor r8.cache, r8, r11
+0x0e94  aead008068050000         bfeil r11.cache, 0, r4.cache, 5, mask 0x1
+0x0e9c  fe21960a6500             xor r8.cache, r11.cache, r8
+0x0ea2  8e210000e5000000         iadd r8.cache, 0, r8.sx, lsl 1
+0x0eaa  fe21520ae500             or r8.cache, r9, r8
+0x0eb0  fe1d54ea6400             xor r7.cache, r10, r7
+0x0eb6  fe1d4e6a6500             xor r7.cache, r7, r11
+0x0ebc  aea5008068030000         bfeil r9.cache, 0, r4.cache, 3, mask 0x1
+0x0ec4  fe1d52ea6400             xor r7.cache, r9, r7
+0x0eca  8e1d00e064001000         iadd r7.cache, 0, r7.sx, lsl 2
+0x0ed2  fe1d4e0ae500             or r7.cache, r7, r8
+0x0ed8  be21880a0000             popcount r8.cache, r4.cache
+0x0ede  fe2150128000             and r8.cache, r8, 1
+0x0ee4  92258e02298e0029         icmpsel ult, r9.cache, r7.cache, r8.cache, r7.cache, r8.cache
+0x0eec  8e298e1e00000000         isub r10.cache, r7.cache.sx, 1
+0x0ef4  fe2954f28100             and r10.cache, r10, 31
+0x0efa  ae29001000540200         bfi r10.cache, 0, 1, r10
+0x0f02  fe29884a6500             xor r10.cache, r4.cache, r10
+0x0f08  9202500200001110         icmpsel ueq, r0h.cache, r8, 0, 0, 1
+0x0f10  92028e0200410010         icmpsel ueq, r0h.cache, r7.cache, 0, r0h, 0
+0x0f18  9211920200484005         icmpsel ueq, r4.cache, r9.cache, 0, r4, r10
+0x0f20  9202520200411010         icmpsel ueq, r0h.cache, r9, 0, r0h, 1
+0x0f28  fe218a0ac001             or r8.cache, r5.cache, 64
+0x0f2e  921d4e02008a0005         icmpsel ueq, r7.cache, r7, 0, r5.cache, r8
+0x0f36  92158100004ea004         icmpsel ueq, r5.cache, r0h.cache, 0, r7, r5
+0x0f3e  fe1d8c0ac001             or r7.cache, r6.cache, 64
+0x0f44  92194100004ce004         icmpsel ueq, r6.cache, r0h, 0, r6, r7
+0x0f4c  ae9d008068040000         bfeil r7.cache, 0, r4.cache, 4, mask 0x1
+0x0f54  8e1d00e0e4000000         iadd r7.cache, 0, r7.sx, lsl 1
+0x0f5c  aea1008068020000         bfeil r8.cache, 0, r4.cache, 2, mask 0x1
+0x0f64  fe1d50eae400             or r7.cache, r8, r7
+0x0f6a  aea1008068050000         bfeil r8.cache, 0, r4.cache, 5, mask 0x1
+0x0f72  8e21000065001000         iadd r8.cache, 0, r8.sx, lsl 2
+0x0f7a  fe1d4e0ae500             or r7.cache, r7, r8
+0x0f80  ae91008064060000         bfeil r4.cache, 0, r4, 6, mask 0x1
+0x0f88  8e110080e4001000         iadd r4.cache, 0, r4.sx, lsl 3
+0x0f90  fe1148eae400             or r4.cache, r4, r7
+0x0f96  ae11008024180000         bfi r4.cache, 0, r4, 24
+0x0f9e  fe09448ae400             or r2.cache, r2, r4
+0x0fa4  ae910060681e0000         bfeil r4.cache, 0, r3.cache, 30, mask 0x1
+0x0fac  ae9d0060681a0000         bfeil r7.cache, 0, r3.cache, 26, mask 0x1
+0x0fb4  fe1d4e8a6800             xor r7.cache, r7, r4.cache
+0x0fba  aea1006068180000         bfeil r8.cache, 0, r3.cache, 24, mask 0x1
+0x0fc2  aea50060681c0000         bfeil r9.cache, 0, r3.cache, 28, mask 0x1
+0x0fca  fe21502a6900             xor r8.cache, r8, r9.cache
+0x0fd0  fe218e0a6500             xor r8.cache, r7.cache, r8
+0x0fd6  aea9006068190000         bfeil r10.cache, 0, r3.cache, 25, mask 0x1
+0x0fde  fe1d4e4a6500             xor r7.cache, r7, r10
+0x0fe4  aea90060681d0000         bfeil r10.cache, 0, r3.cache, 29, mask 0x1
+0x0fec  fe1d94ea6400             xor r7.cache, r10.cache, r7
+0x0ff2  8e1d00e0e4000000         iadd r7.cache, 0, r7.sx, lsl 1
+0x0ffa  fe1d50eae400             or r7.cache, r8, r7
+0x1000  fe11528a6400             xor r4.cache, r9, r4
+0x1006  fe11484a6500             xor r4.cache, r4, r10
+0x100c  aea10060681b0000         bfeil r8.cache, 0, r3.cache, 27, mask 0x1
+0x1014  fe11508a6400             xor r4.cache, r8, r4
+0x101a  8e11008064001000         iadd r4.cache, 0, r4.sx, lsl 2
+0x1022  fe1148eae400             or r4.cache, r4, r7
+0x1028  ae8d006024180000         bfeil r3.cache, 0, r3, 24
+0x1030  be1d860a0000             popcount r7.cache, r3.cache
+0x1036  fe1d4e128000             and r7.cache, r7, 1
+0x103c  922188e22888e028         icmpsel ult, r8.cache, r4.cache, r7.cache, r4.cache, r7.cache
+0x1044  8e25881e00000000         isub r9.cache, r4.cache.sx, 1
+0x104c  fe2552f28100             and r9.cache, r9, 31
+0x1052  ae25001000520200         bfi r9.cache, 0, 1, r9
+0x105a  fe25862a6500             xor r9.cache, r3.cache, r9
+0x1060  92024e0200001110         icmpsel ueq, r0h.cache, r7, 0, 0, 1
+0x1068  9202880200410010         icmpsel ueq, r0h.cache, r4.cache, 0, r0h, 0
+0x1070  920d900200462005         icmpsel ueq, r3.cache, r8.cache, 0, r3, r9
+0x1078  9202500200411010         icmpsel ueq, r0h.cache, r8, 0, r0h, 1
+0x1080  fe1d8a0ac002             or r7.cache, r5.cache, 128
+0x1086  92114802008ae004         icmpsel ueq, r4.cache, r4, 0, r5.cache, r7
+0x108e  921181000048a004         icmpsel ueq, r4.cache, r0h.cache, 0, r4, r5
+0x1096  fe158c0ac002             or r5.cache, r6.cache, 128
+0x109c  92154100004ca004         icmpsel ueq, r5.cache, r0h, 0, r6, r5
+0x10a4  ae99006068040000         bfeil r6.cache, 0, r3.cache, 4, mask 0x1
+0x10ac  8e1900c0e4000000         iadd r6.cache, 0, r6.sx, lsl 1
+0x10b4  ae9d006068020000         bfeil r7.cache, 0, r3.cache, 2, mask 0x1
+0x10bc  fe194ecae400             or r6.cache, r7, r6
+0x10c2  ae9d006068050000         bfeil r7.cache, 0, r3.cache, 5, mask 0x1
+0x10ca  8e1d00e064001000         iadd r7.cache, 0, r7.sx, lsl 2
+0x10d2  fe194ceae400             or r6.cache, r6, r7
+0x10d8  ae8d006064060000         bfeil r3.cache, 0, r3, 6, mask 0x1
+0x10e0  8e0d0060e4001000         iadd r3.cache, 0, r3.sx, lsl 3
+0x10e8  fe0d46cae400             or r3.cache, r3, r6
+0x10ee  ae0d0060241c0000         bfi r3.cache, 0, r3, 28
+0x10f6  7e09446ae400             or r2, r2, r3
+0x10fc  4511200e20c01200         device_store 0, i32, x, r2, u16_u17, r1, unsigned, 0
+0x1104  ae09008024080000         bfi r2.cache, 0, r4, 8
+0x110c  7e094a4ae400             or r2, r5, r2
+0x1112  4511244e20c01200         device_store 1, i32, x, r2, u18_u19, r1, unsigned, 0
+0x111a  3800                     wait 0
+0x111c  3801                     wait 1
+0x111e  520e00000000             pop_exec r0l, 1
+0x1124  520e00000000             pop_exec r0l, 1
+0x112a  8800                     stop

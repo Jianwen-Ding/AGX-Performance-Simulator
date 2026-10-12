@@ -1,0 +1,1149 @@
+0x0180  72051004                 get_sr r1, sr80 (thread_position_in_grid.x)
+0x0184  0e05428658000000         iadd r1, r1.sx, u4.sx
+0x018c  62000000                 mov_imm r0l, 0
+0x0190  522842a21800             if_icmp r0l, ult, r1, u5, 1
+0x0196  20c066290000             jmp_exec_none pc+10598
+0x019c  0e09002064002000         iadd r2, 0, r1.sx, lsl 4
+0x01a4  05194c0e00c01200         device_load 0, i32, x, r3, u6_u7, r2, unsigned
+0x01ac  0e11014064000000         iadd r4, 1, r2.sx
+0x01b4  05218c4e00c01200         device_load 1, i32, x, r4, u6_u7, r4, unsigned
+0x01bc  0e15024064000000         iadd r5, 2, r2.sx
+0x01c4  0529ac0e00c01200         device_load 0, i32, x, r5, u6_u7, r5, unsigned
+0x01cc  0e19034064000000         iadd r6, 3, r2.sx
+0x01d4  0531cc0e00c01200         device_load 0, i32, x, r6, u6_u7, r6, unsigned
+0x01dc  0e1d044064000000         iadd r7, 4, r2.sx
+0x01e4  0539ec0e00c01200         device_load 0, i32, x, r7, u6_u7, r7, unsigned
+0x01ec  0e21054064000000         iadd r8, 5, r2.sx
+0x01f4  05410c0e01c01200         device_load 0, i32, x, r8, u6_u7, r8, unsigned
+0x01fc  0e25064064000000         iadd r9, 6, r2.sx
+0x0204  05492c0e01c01200         device_load 0, i32, x, r9, u6_u7, r9, unsigned
+0x020c  0e29074064000000         iadd r10, 7, r2.sx
+0x0214  05514c0e01c01200         device_load 0, i32, x, r10, u6_u7, r10, unsigned
+0x021c  0e2d084064000000         iadd r11, 8, r2.sx
+0x0224  05596c0e01c01200         device_load 0, i32, x, r11, u6_u7, r11, unsigned
+0x022c  0e31094064000000         iadd r12, 9, r2.sx
+0x0234  3800                     wait 0
+0x0236  05618c0e01c01200         device_load 0, i32, x, r12, u6_u7, r12, unsigned
+0x023e  0e350a4064000000         iadd r13, 10, r2.sx
+0x0246  0569ac0e01c01200         device_load 0, i32, x, r13, u6_u7, r13, unsigned
+0x024e  0e390b4064000000         iadd r14, 11, r2.sx
+0x0256  0571cc0e01c01200         device_load 0, i32, x, r14, u6_u7, r14, unsigned
+0x025e  0e3d0c4064000000         iadd r15, 12, r2.sx
+0x0266  0579ec0e01c01200         device_load 0, i32, x, r15, u6_u7, r15, unsigned
+0x026e  0e410d4064000000         iadd r16, 13, r2.sx
+0x0276  05810c0e02c01200         device_load 0, i32, x, r16, u6_u7, r16, unsigned
+0x027e  0e450e4064000000         iadd r17, 14, r2.sx
+0x0286  05892c0e02c01200         device_load 0, i32, x, r17, u6_u7, r17, unsigned
+0x028e  0e090f4064000000         iadd r2, 15, r2.sx
+0x0296  05114c0e00c01200         device_load 0, i32, x, r2, u6_u7, r2, unsigned
+0x029e  624900000000             mov_imm r18, 0, 0b0
+0x02a4  624d00000000             mov_imm r19, 0, 0b0
+0x02aa  625100000000             mov_imm r20, 0, 0b0
+0x02b0  625500000000             mov_imm r21, 0, 0b0
+0x02b6  625900000000             mov_imm r22, 0, 0b0
+0x02bc  625d00000000             mov_imm r23, 0, 0b0
+0x02c2  626100000000             mov_imm r24, 0, 0b0
+0x02c8  626500000000             mov_imm r25, 0, 0b0
+0x02ce  626900000000             mov_imm r26, 0, 0b0
+0x02d4  626d00000000             mov_imm r27, 0, 0b0
+0x02da  627100000000             mov_imm r28, 0, 0b0
+0x02e0  627500000000             mov_imm r29, 0, 0b0
+0x02e6  627900000000             mov_imm r30, 0, 0b0
+0x02ec  627d00000000             mov_imm r31, 0, 0b0
+0x02f2  6281000000000010         mov_imm r32, 0, 0b0
+0x02fa  6285000000000010         mov_imm r33, 0, 0b0
+0x0302  6289000000000010         mov_imm r34, 0, 0b0
+0x030a  628d000000000010         mov_imm r35, 0, 0b0
+0x0312  6291000000000010         mov_imm r36, 0, 0b0
+0x031a  6295000000000010         mov_imm r37, 0, 0b0
+0x0322  6299000000000010         mov_imm r38, 0, 0b0
+0x032a  629d000000000010         mov_imm r39, 0, 0b0
+0x0332  62a1000000000010         mov_imm r40, 0, 0b0
+0x033a  62a5000000000010         mov_imm r41, 0, 0b0
+0x0342  62a9000000000010         mov_imm r42, 0, 0b0
+0x034a  62ad000000000010         mov_imm r43, 0, 0b0
+0x0352  62b1000000000010         mov_imm r44, 0, 0b0
+0x035a  62b5000000000010         mov_imm r45, 0, 0b0
+0x0362  62b9000000000010         mov_imm r46, 0, 0b0
+0x036a  62bd000000000010         mov_imm r47, 0, 0b0
+0x0372  62c1000000000010         mov_imm r48, 0, 0b0
+0x037a  62c5000000000010         mov_imm r49, 0, 0b0
+0x0382  3800                     wait 0
+0x0384  7e49440a8010             mov r50, r2
+0x038a  7e4d620a8010             mov r51, r17
+0x0390  7e51600a8010             mov r52, r16
+0x0396  7e555e0a8010             mov r53, r15
+0x039c  7e595c0a8010             mov r54, r14
+0x03a2  7e5d5a0a8010             mov r55, r13
+0x03a8  7e61580a8010             mov r56, r12
+0x03ae  7e65560a8010             mov r57, r11
+0x03b4  7e69540a8010             mov r58, r10
+0x03ba  7e6d520a8010             mov r59, r9
+0x03c0  7e71500a8010             mov r60, r8
+0x03c6  7e754e0a8010             mov r61, r7
+0x03cc  7e794c0a8010             mov r62, r6
+0x03d2  7e7d4a0a8010             mov r63, r5
+0x03d8  3801                     wait 1
+0x03da  7e01480a8020             mov r64, r4
+0x03e0  7e05460a8020             mov r65, r3
+0x03e6  6289100000000020         mov_imm r66, 16, 0b0
+0x03ee  620900000000             mov_imm r2, 0, 0b0
+0x03f4  620d00000000             mov_imm r3, 0, 0b0
+0x03fa  621100000000             mov_imm r4, 0, 0b0
+0x0400  621500000000             mov_imm r5, 0, 0b0
+0x0406  621900000000             mov_imm r6, 0, 0b0
+0x040c  621d00000000             mov_imm r7, 0, 0b0
+0x0412  622100000000             mov_imm r8, 0, 0b0
+0x0418  622500000000             mov_imm r9, 0, 0b0
+0x041e  622900000000             mov_imm r10, 0, 0b0
+0x0424  622d00000000             mov_imm r11, 0, 0b0
+0x042a  623100000000             mov_imm r12, 0, 0b0
+0x0430  623500000000             mov_imm r13, 0, 0b0
+0x0436  623900000000             mov_imm r14, 0, 0b0
+0x043c  623d00000000             mov_imm r15, 0, 0b0
+0x0442  624100000000             mov_imm r16, 0, 0b0
+0x0448  624500000000             mov_imm r17, 0, 0b0
+0x044e  420800000000             push_exec r0l, 1
+0x0454  522c44020009             while_icmp r0l, ult, r66, 64, 1
+0x045a  20c0561f0000             jmp_exec_none pc+8022
+0x0460  0e0d44fe00280000         isub r67, r66.sx, 15
+0x0468  52a846020208             if_icmp r0l, slt, r67, 32, 1
+0x046e  12914612004200a4a028     icmpsel slt, r68, r67, 1, r65, r64
+0x0478  12954632007ec0a75028     icmpsel slt, r69, r67, 3, r63, r62
+0x0482  129146220048a0a4a028     icmpsel slt, r68, r67, 2, r68, r69
+0x048c  12954652007a80a75028     icmpsel slt, r69, r67, 5, r61, r60
+0x0496  12994672007640a75028     icmpsel slt, r70, r67, 7, r59, r58
+0x04a0  12954662004ac0a4a028     icmpsel slt, r69, r67, 6, r69, r70
+0x04aa  129146420048a0a4a028     icmpsel slt, r68, r67, 4, r68, r69
+0x04b4  12954692007200a75028     icmpsel slt, r69, r67, 9, r57, r56
+0x04be  129946b2006ec0a65028     icmpsel slt, r70, r67, 11, r55, r54
+0x04c8  129546a2004ac0a4a028     icmpsel slt, r69, r67, 10, r69, r70
+0x04d2  129946d2006a80a65028     icmpsel slt, r70, r67, 13, r53, r52
+0x04dc  129d46f2006640a65028     icmpsel slt, r71, r67, 15, r51, r50
+0x04e6  129946e2004ce0a4a028     icmpsel slt, r70, r67, 14, r70, r71
+0x04f0  129546c2004ac0a4a028     icmpsel slt, r69, r67, 12, r69, r70
+0x04fa  129146820048a0a4a028     icmpsel slt, r68, r67, 8, r68, r69
+0x0504  12954612016200a65028     icmpsel slt, r69, r67, 17, r49, r48
+0x050e  12994632015ec0a55028     icmpsel slt, r70, r67, 19, r47, r46
+0x0518  12954622014ac0a4a028     icmpsel slt, r69, r67, 18, r69, r70
+0x0522  12994652015a80a55028     icmpsel slt, r70, r67, 21, r45, r44
+0x052c  129d4672015640a55028     icmpsel slt, r71, r67, 23, r43, r42
+0x0536  12994662014ce0a4a028     icmpsel slt, r70, r67, 22, r70, r71
+0x0540  12954642014ac0a4a028     icmpsel slt, r69, r67, 20, r69, r70
+0x054a  12994692015200a55028     icmpsel slt, r70, r67, 25, r41, r40
+0x0554  129d46b2014ec0a45028     icmpsel slt, r71, r67, 27, r39, r38
+0x055e  129946a2014ce0a4a028     icmpsel slt, r70, r67, 26, r70, r71
+0x0568  129d46d2014a80a45028     icmpsel slt, r71, r67, 29, r37, r36
+0x0572  12a146f2014640a45028     icmpsel slt, r72, r67, 31, r35, r34
+0x057c  129d46e2014e00a5a028     icmpsel slt, r71, r67, 30, r71, r72
+0x0586  129946c2014ce0a4a028     icmpsel slt, r70, r67, 28, r70, r71
+0x0590  12954682014ac0a4a028     icmpsel slt, r69, r67, 24, r69, r70
+0x059a  129146020148a0a4a028     icmpsel slt, r68, r67, 16, r68, r69
+0x05a4  420a00000000             else_fcmp r0l, eq, 0.0, 0.0, 1
+0x05aa  12914612024200a45028     icmpsel slt, r68, r67, 33, r33, r32
+0x05b4  12954632027ec0a70028     icmpsel slt, r69, r67, 35, r31, r30
+0x05be  129146220248a0a4a028     icmpsel slt, r68, r67, 34, r68, r69
+0x05c8  12954652027a80a70028     icmpsel slt, r69, r67, 37, r29, r28
+0x05d2  12994672027640a70028     icmpsel slt, r70, r67, 39, r27, r26
+0x05dc  12954662024ac0a4a028     icmpsel slt, r69, r67, 38, r69, r70
+0x05e6  129146420248a0a4a028     icmpsel slt, r68, r67, 36, r68, r69
+0x05f0  12954692027200a70028     icmpsel slt, r69, r67, 41, r25, r24
+0x05fa  129946b2026ec0a60028     icmpsel slt, r70, r67, 43, r23, r22
+0x0604  129546a2024ac0a4a028     icmpsel slt, r69, r67, 42, r69, r70
+0x060e  129946d2026a80a60028     icmpsel slt, r70, r67, 45, r21, r20
+0x0618  129d46f2026640a60028     icmpsel slt, r71, r67, 47, r19, r18
+0x0622  129946e2024ce0a4a028     icmpsel slt, r70, r67, 46, r70, r71
+0x062c  129546c2024ac0a4a028     icmpsel slt, r69, r67, 44, r69, r70
+0x0636  129146820248a0a4a028     icmpsel slt, r68, r67, 40, r68, r69
+0x0640  12954612036200a60028     icmpsel slt, r69, r67, 49, r17, r16
+0x064a  12994632035ec0a50028     icmpsel slt, r70, r67, 51, r15, r14
+0x0654  12954622034ac0a4a028     icmpsel slt, r69, r67, 50, r69, r70
+0x065e  12994652035a80a50028     icmpsel slt, r70, r67, 53, r13, r12
+0x0668  129d4672035640a50028     icmpsel slt, r71, r67, 55, r11, r10
+0x0672  12994662034ce0a4a028     icmpsel slt, r70, r67, 54, r70, r71
+0x067c  12954642034ac0a4a028     icmpsel slt, r69, r67, 52, r69, r70
+0x0686  12994692035200a50028     icmpsel slt, r70, r67, 57, r9, r8
+0x0690  129d46b2034ec0a40028     icmpsel slt, r71, r67, 59, r7, r6
+0x069a  129946a2034ce0a4a028     icmpsel slt, r70, r67, 58, r70, r71
+0x06a4  129d46d2034a80a40028     icmpsel slt, r71, r67, 61, r5, r4
+0x06ae  12a146f2034640a40028     icmpsel slt, r72, r67, 63, r3, r2
+0x06b8  129d46e2034e00a5a028     icmpsel slt, r71, r67, 62, r71, r72
+0x06c2  129946c2034ce0a4a028     icmpsel slt, r70, r67, 60, r70, r71
+0x06cc  12954682034ac0a4a028     icmpsel slt, r69, r67, 56, r69, r70
+0x06d6  129146020348a0a4a028     icmpsel slt, r68, r67, 48, r68, r69
+0x06e0  520e00000000             pop_exec r0l, 1
+0x06e6  52a846020208             if_icmp r0l, slt, r67, 32, 1
+0x06ec  12954612004200a4a028     icmpsel slt, r69, r67, 1, r65, r64
+0x06f6  12994632007ec0a75028     icmpsel slt, r70, r67, 3, r63, r62
+0x0700  12954622004ac0a4a028     icmpsel slt, r69, r67, 2, r69, r70
+0x070a  12994652007a80a75028     icmpsel slt, r70, r67, 5, r61, r60
+0x0714  129d4672007640a75028     icmpsel slt, r71, r67, 7, r59, r58
+0x071e  12994662004ce0a4a028     icmpsel slt, r70, r67, 6, r70, r71
+0x0728  12954642004ac0a4a028     icmpsel slt, r69, r67, 4, r69, r70
+0x0732  12994692007200a75028     icmpsel slt, r70, r67, 9, r57, r56
+0x073c  129d46b2006ec0a65028     icmpsel slt, r71, r67, 11, r55, r54
+0x0746  129946a2004ce0a4a028     icmpsel slt, r70, r67, 10, r70, r71
+0x0750  129d46d2006a80a65028     icmpsel slt, r71, r67, 13, r53, r52
+0x075a  12a146f2006640a65028     icmpsel slt, r72, r67, 15, r51, r50
+0x0764  129d46e2004e00a5a028     icmpsel slt, r71, r67, 14, r71, r72
+0x076e  129946c2004ce0a4a028     icmpsel slt, r70, r67, 12, r70, r71
+0x0778  12954682004ac0a4a028     icmpsel slt, r69, r67, 8, r69, r70
+0x0782  12994612016200a65028     icmpsel slt, r70, r67, 17, r49, r48
+0x078c  129d4632015ec0a55028     icmpsel slt, r71, r67, 19, r47, r46
+0x0796  12994622014ce0a4a028     icmpsel slt, r70, r67, 18, r70, r71
+0x07a0  129d4652015a80a55028     icmpsel slt, r71, r67, 21, r45, r44
+0x07aa  12a14672015640a55028     icmpsel slt, r72, r67, 23, r43, r42
+0x07b4  129d4662014e00a5a028     icmpsel slt, r71, r67, 22, r71, r72
+0x07be  12994642014ce0a4a028     icmpsel slt, r70, r67, 20, r70, r71
+0x07c8  129d4692015200a55028     icmpsel slt, r71, r67, 25, r41, r40
+0x07d2  12a146b2014ec0a45028     icmpsel slt, r72, r67, 27, r39, r38
+0x07dc  129d46a2014e00a5a028     icmpsel slt, r71, r67, 26, r71, r72
+0x07e6  12a146d2014a80a45028     icmpsel slt, r72, r67, 29, r37, r36
+0x07f0  12a546f2014640a45028     icmpsel slt, r73, r67, 31, r35, r34
+0x07fa  12a146e2015020a5a028     icmpsel slt, r72, r67, 30, r72, r73
+0x0804  129d46c2014e00a5a028     icmpsel slt, r71, r67, 28, r71, r72
+0x080e  12994682014ce0a4a028     icmpsel slt, r70, r67, 24, r70, r71
+0x0818  12954602014ac0a4a028     icmpsel slt, r69, r67, 16, r69, r70
+0x0822  420a00000000             else_fcmp r0l, eq, 0.0, 0.0, 1
+0x0828  12954612024200a45028     icmpsel slt, r69, r67, 33, r33, r32
+0x0832  12994632027ec0a70028     icmpsel slt, r70, r67, 35, r31, r30
+0x083c  12954622024ac0a4a028     icmpsel slt, r69, r67, 34, r69, r70
+0x0846  12994652027a80a70028     icmpsel slt, r70, r67, 37, r29, r28
+0x0850  129d4672027640a70028     icmpsel slt, r71, r67, 39, r27, r26
+0x085a  12994662024ce0a4a028     icmpsel slt, r70, r67, 38, r70, r71
+0x0864  12954642024ac0a4a028     icmpsel slt, r69, r67, 36, r69, r70
+0x086e  12994692027200a70028     icmpsel slt, r70, r67, 41, r25, r24
+0x0878  129d46b2026ec0a60028     icmpsel slt, r71, r67, 43, r23, r22
+0x0882  129946a2024ce0a4a028     icmpsel slt, r70, r67, 42, r70, r71
+0x088c  129d46d2026a80a60028     icmpsel slt, r71, r67, 45, r21, r20
+0x0896  12a146f2026640a60028     icmpsel slt, r72, r67, 47, r19, r18
+0x08a0  129d46e2024e00a5a028     icmpsel slt, r71, r67, 46, r71, r72
+0x08aa  129946c2024ce0a4a028     icmpsel slt, r70, r67, 44, r70, r71
+0x08b4  12954682024ac0a4a028     icmpsel slt, r69, r67, 40, r69, r70
+0x08be  12994612036200a60028     icmpsel slt, r70, r67, 49, r17, r16
+0x08c8  129d4632035ec0a50028     icmpsel slt, r71, r67, 51, r15, r14
+0x08d2  12994622034ce0a4a028     icmpsel slt, r70, r67, 50, r70, r71
+0x08dc  129d4652035a80a50028     icmpsel slt, r71, r67, 53, r13, r12
+0x08e6  12a14672035640a50028     icmpsel slt, r72, r67, 55, r11, r10
+0x08f0  129d4662034e00a5a028     icmpsel slt, r71, r67, 54, r71, r72
+0x08fa  12994642034ce0a4a028     icmpsel slt, r70, r67, 52, r70, r71
+0x0904  129d4692035200a50028     icmpsel slt, r71, r67, 57, r9, r8
+0x090e  12a146b2034ec0a40028     icmpsel slt, r72, r67, 59, r7, r6
+0x0918  129d46a2034e00a5a028     icmpsel slt, r71, r67, 58, r71, r72
+0x0922  12a146d2034a80a40028     icmpsel slt, r72, r67, 61, r5, r4
+0x092c  12a546f2034640a40028     icmpsel slt, r73, r67, 63, r3, r2
+0x0936  12a146e2035020a5a028     icmpsel slt, r72, r67, 62, r72, r73
+0x0940  129d46c2034e00a5a028     icmpsel slt, r71, r67, 60, r71, r72
+0x094a  12994682034ce0a4a028     icmpsel slt, r70, r67, 56, r70, r71
+0x0954  12954602034ac0a4a028     icmpsel slt, r69, r67, 48, r69, r70
+0x095e  520e00000000             pop_exec r0l, 1
+0x0964  2e154aa62412002a         extr r69, r69, r69, 18
+0x096c  2e1148862407002a         extr r68, r68, r68, 7
+0x0974  7e1148aa642a             xor r68, r68, r69
+0x097a  52a846020208             if_icmp r0l, slt, r67, 32, 1
+0x0980  12954612004200a4a028     icmpsel slt, r69, r67, 1, r65, r64
+0x098a  12994632007ec0a75028     icmpsel slt, r70, r67, 3, r63, r62
+0x0994  12954622004ac0a4a028     icmpsel slt, r69, r67, 2, r69, r70
+0x099e  12994652007a80a75028     icmpsel slt, r70, r67, 5, r61, r60
+0x09a8  129d4672007640a75028     icmpsel slt, r71, r67, 7, r59, r58
+0x09b2  12994662004ce0a4a028     icmpsel slt, r70, r67, 6, r70, r71
+0x09bc  12954642004ac0a4a028     icmpsel slt, r69, r67, 4, r69, r70
+0x09c6  12994692007200a75028     icmpsel slt, r70, r67, 9, r57, r56
+0x09d0  129d46b2006ec0a65028     icmpsel slt, r71, r67, 11, r55, r54
+0x09da  129946a2004ce0a4a028     icmpsel slt, r70, r67, 10, r70, r71
+0x09e4  129d46d2006a80a65028     icmpsel slt, r71, r67, 13, r53, r52
+0x09ee  12a146f2006640a65028     icmpsel slt, r72, r67, 15, r51, r50
+0x09f8  129d46e2004e00a5a028     icmpsel slt, r71, r67, 14, r71, r72
+0x0a02  129946c2004ce0a4a028     icmpsel slt, r70, r67, 12, r70, r71
+0x0a0c  12954682004ac0a4a028     icmpsel slt, r69, r67, 8, r69, r70
+0x0a16  12994612016200a65028     icmpsel slt, r70, r67, 17, r49, r48
+0x0a20  129d4632015ec0a55028     icmpsel slt, r71, r67, 19, r47, r46
+0x0a2a  12994622014ce0a4a028     icmpsel slt, r70, r67, 18, r70, r71
+0x0a34  129d4652015a80a55028     icmpsel slt, r71, r67, 21, r45, r44
+0x0a3e  12a14672015640a55028     icmpsel slt, r72, r67, 23, r43, r42
+0x0a48  129d4662014e00a5a028     icmpsel slt, r71, r67, 22, r71, r72
+0x0a52  12994642014ce0a4a028     icmpsel slt, r70, r67, 20, r70, r71
+0x0a5c  129d4692015200a55028     icmpsel slt, r71, r67, 25, r41, r40
+0x0a66  12a146b2014ec0a45028     icmpsel slt, r72, r67, 27, r39, r38
+0x0a70  129d46a2014e00a5a028     icmpsel slt, r71, r67, 26, r71, r72
+0x0a7a  12a146d2014a80a45028     icmpsel slt, r72, r67, 29, r37, r36
+0x0a84  12a546f2014640a45028     icmpsel slt, r73, r67, 31, r35, r34
+0x0a8e  12a146e2015020a5a028     icmpsel slt, r72, r67, 30, r72, r73
+0x0a98  129d46c2014e00a5a028     icmpsel slt, r71, r67, 28, r71, r72
+0x0aa2  12994682014ce0a4a028     icmpsel slt, r70, r67, 24, r70, r71
+0x0aac  128d4602014ac0a4a028     icmpsel slt, r67, r67, 16, r69, r70
+0x0ab6  420a00000000             else_fcmp r0l, eq, 0.0, 0.0, 1
+0x0abc  12954612024200a45028     icmpsel slt, r69, r67, 33, r33, r32
+0x0ac6  12994632027ec0a70028     icmpsel slt, r70, r67, 35, r31, r30
+0x0ad0  12954622024ac0a4a028     icmpsel slt, r69, r67, 34, r69, r70
+0x0ada  12994652027a80a70028     icmpsel slt, r70, r67, 37, r29, r28
+0x0ae4  129d4672027640a70028     icmpsel slt, r71, r67, 39, r27, r26
+0x0aee  12994662024ce0a4a028     icmpsel slt, r70, r67, 38, r70, r71
+0x0af8  12954642024ac0a4a028     icmpsel slt, r69, r67, 36, r69, r70
+0x0b02  12994692027200a70028     icmpsel slt, r70, r67, 41, r25, r24
+0x0b0c  129d46b2026ec0a60028     icmpsel slt, r71, r67, 43, r23, r22
+0x0b16  129946a2024ce0a4a028     icmpsel slt, r70, r67, 42, r70, r71
+0x0b20  129d46d2026a80a60028     icmpsel slt, r71, r67, 45, r21, r20
+0x0b2a  12a146f2026640a60028     icmpsel slt, r72, r67, 47, r19, r18
+0x0b34  129d46e2024e00a5a028     icmpsel slt, r71, r67, 46, r71, r72
+0x0b3e  129946c2024ce0a4a028     icmpsel slt, r70, r67, 44, r70, r71
+0x0b48  12954682024ac0a4a028     icmpsel slt, r69, r67, 40, r69, r70
+0x0b52  12994612036200a60028     icmpsel slt, r70, r67, 49, r17, r16
+0x0b5c  129d4632035ec0a50028     icmpsel slt, r71, r67, 51, r15, r14
+0x0b66  12994622034ce0a4a028     icmpsel slt, r70, r67, 50, r70, r71
+0x0b70  129d4652035a80a50028     icmpsel slt, r71, r67, 53, r13, r12
+0x0b7a  12a14672035640a50028     icmpsel slt, r72, r67, 55, r11, r10
+0x0b84  129d4662034e00a5a028     icmpsel slt, r71, r67, 54, r71, r72
+0x0b8e  12994642034ce0a4a028     icmpsel slt, r70, r67, 52, r70, r71
+0x0b98  129d4692035200a50028     icmpsel slt, r71, r67, 57, r9, r8
+0x0ba2  12a146b2034ec0a40028     icmpsel slt, r72, r67, 59, r7, r6
+0x0bac  129d46a2034e00a5a028     icmpsel slt, r71, r67, 58, r71, r72
+0x0bb6  12a146d2034a80a40028     icmpsel slt, r72, r67, 61, r5, r4
+0x0bc0  12a546f2034640a40028     icmpsel slt, r73, r67, 63, r3, r2
+0x0bca  12a146e2035020a5a028     icmpsel slt, r72, r67, 62, r72, r73
+0x0bd4  129d46c2034e00a5a028     icmpsel slt, r71, r67, 60, r71, r72
+0x0bde  12994682034ce0a4a028     icmpsel slt, r70, r67, 56, r70, r71
+0x0be8  128d4602034ac0a4a028     icmpsel slt, r67, r67, 48, r69, r70
+0x0bf2  520e00000000             pop_exec r0l, 1
+0x0bf8  2e8d006024030022         bfeil r67, 0, r67, 3
+0x0c00  7e0d486a642a             xor r67, r68, r67
+0x0c06  0e11442e00280000         isub r68, r66.sx, 2
+0x0c0e  52a848020208             if_icmp r0l, slt, r68, 32, 1
+0x0c14  12954812004200a4a028     icmpsel slt, r69, r68, 1, r65, r64
+0x0c1e  12994832007ec0a75028     icmpsel slt, r70, r68, 3, r63, r62
+0x0c28  12954822004ac0a4a028     icmpsel slt, r69, r68, 2, r69, r70
+0x0c32  12994852007a80a75028     icmpsel slt, r70, r68, 5, r61, r60
+0x0c3c  129d4872007640a75028     icmpsel slt, r71, r68, 7, r59, r58
+0x0c46  12994862004ce0a4a028     icmpsel slt, r70, r68, 6, r70, r71
+0x0c50  12954842004ac0a4a028     icmpsel slt, r69, r68, 4, r69, r70
+0x0c5a  12994892007200a75028     icmpsel slt, r70, r68, 9, r57, r56
+0x0c64  129d48b2006ec0a65028     icmpsel slt, r71, r68, 11, r55, r54
+0x0c6e  129948a2004ce0a4a028     icmpsel slt, r70, r68, 10, r70, r71
+0x0c78  129d48d2006a80a65028     icmpsel slt, r71, r68, 13, r53, r52
+0x0c82  12a148f2006640a65028     icmpsel slt, r72, r68, 15, r51, r50
+0x0c8c  129d48e2004e00a5a028     icmpsel slt, r71, r68, 14, r71, r72
+0x0c96  129948c2004ce0a4a028     icmpsel slt, r70, r68, 12, r70, r71
+0x0ca0  12954882004ac0a4a028     icmpsel slt, r69, r68, 8, r69, r70
+0x0caa  12994812016200a65028     icmpsel slt, r70, r68, 17, r49, r48
+0x0cb4  129d4832015ec0a55028     icmpsel slt, r71, r68, 19, r47, r46
+0x0cbe  12994822014ce0a4a028     icmpsel slt, r70, r68, 18, r70, r71
+0x0cc8  129d4852015a80a55028     icmpsel slt, r71, r68, 21, r45, r44
+0x0cd2  12a14872015640a55028     icmpsel slt, r72, r68, 23, r43, r42
+0x0cdc  129d4862014e00a5a028     icmpsel slt, r71, r68, 22, r71, r72
+0x0ce6  12994842014ce0a4a028     icmpsel slt, r70, r68, 20, r70, r71
+0x0cf0  129d4892015200a55028     icmpsel slt, r71, r68, 25, r41, r40
+0x0cfa  12a148b2014ec0a45028     icmpsel slt, r72, r68, 27, r39, r38
+0x0d04  129d48a2014e00a5a028     icmpsel slt, r71, r68, 26, r71, r72
+0x0d0e  12a148d2014a80a45028     icmpsel slt, r72, r68, 29, r37, r36
+0x0d18  12a548f2014640a45028     icmpsel slt, r73, r68, 31, r35, r34
+0x0d22  12a148e2015020a5a028     icmpsel slt, r72, r68, 30, r72, r73
+0x0d2c  129d48c2014e00a5a028     icmpsel slt, r71, r68, 28, r71, r72
+0x0d36  12994882014ce0a4a028     icmpsel slt, r70, r68, 24, r70, r71
+0x0d40  12954802014ac0a4a028     icmpsel slt, r69, r68, 16, r69, r70
+0x0d4a  420a00000000             else_fcmp r0l, eq, 0.0, 0.0, 1
+0x0d50  12954812024200a45028     icmpsel slt, r69, r68, 33, r33, r32
+0x0d5a  12994832027ec0a70028     icmpsel slt, r70, r68, 35, r31, r30
+0x0d64  12954822024ac0a4a028     icmpsel slt, r69, r68, 34, r69, r70
+0x0d6e  12994852027a80a70028     icmpsel slt, r70, r68, 37, r29, r28
+0x0d78  129d4872027640a70028     icmpsel slt, r71, r68, 39, r27, r26
+0x0d82  12994862024ce0a4a028     icmpsel slt, r70, r68, 38, r70, r71
+0x0d8c  12954842024ac0a4a028     icmpsel slt, r69, r68, 36, r69, r70
+0x0d96  12994892027200a70028     icmpsel slt, r70, r68, 41, r25, r24
+0x0da0  129d48b2026ec0a60028     icmpsel slt, r71, r68, 43, r23, r22
+0x0daa  129948a2024ce0a4a028     icmpsel slt, r70, r68, 42, r70, r71
+0x0db4  129d48d2026a80a60028     icmpsel slt, r71, r68, 45, r21, r20
+0x0dbe  12a148f2026640a60028     icmpsel slt, r72, r68, 47, r19, r18
+0x0dc8  129d48e2024e00a5a028     icmpsel slt, r71, r68, 46, r71, r72
+0x0dd2  129948c2024ce0a4a028     icmpsel slt, r70, r68, 44, r70, r71
+0x0ddc  12954882024ac0a4a028     icmpsel slt, r69, r68, 40, r69, r70
+0x0de6  12994812036200a60028     icmpsel slt, r70, r68, 49, r17, r16
+0x0df0  129d4832035ec0a50028     icmpsel slt, r71, r68, 51, r15, r14
+0x0dfa  12994822034ce0a4a028     icmpsel slt, r70, r68, 50, r70, r71
+0x0e04  129d4852035a80a50028     icmpsel slt, r71, r68, 53, r13, r12
+0x0e0e  12a14872035640a50028     icmpsel slt, r72, r68, 55, r11, r10
+0x0e18  129d4862034e00a5a028     icmpsel slt, r71, r68, 54, r71, r72
+0x0e22  12994842034ce0a4a028     icmpsel slt, r70, r68, 52, r70, r71
+0x0e2c  129d4892035200a50028     icmpsel slt, r71, r68, 57, r9, r8
+0x0e36  12a148b2034ec0a40028     icmpsel slt, r72, r68, 59, r7, r6
+0x0e40  129d48a2034e00a5a028     icmpsel slt, r71, r68, 58, r71, r72
+0x0e4a  12a148d2034a80a40028     icmpsel slt, r72, r68, 61, r5, r4
+0x0e54  12a548f2034640a40028     icmpsel slt, r73, r68, 63, r3, r2
+0x0e5e  12a148e2035020a5a028     icmpsel slt, r72, r68, 62, r72, r73
+0x0e68  129d48c2034e00a5a028     icmpsel slt, r71, r68, 60, r71, r72
+0x0e72  12994882034ce0a4a028     icmpsel slt, r70, r68, 56, r70, r71
+0x0e7c  12954802034ac0a4a028     icmpsel slt, r69, r68, 48, r69, r70
+0x0e86  520e00000000             pop_exec r0l, 1
+0x0e8c  52a848020208             if_icmp r0l, slt, r68, 32, 1
+0x0e92  12994812004200a4a028     icmpsel slt, r70, r68, 1, r65, r64
+0x0e9c  129d4832007ec0a75028     icmpsel slt, r71, r68, 3, r63, r62
+0x0ea6  12994822004ce0a4a028     icmpsel slt, r70, r68, 2, r70, r71
+0x0eb0  129d4852007a80a75028     icmpsel slt, r71, r68, 5, r61, r60
+0x0eba  12a14872007640a75028     icmpsel slt, r72, r68, 7, r59, r58
+0x0ec4  129d4862004e00a5a028     icmpsel slt, r71, r68, 6, r71, r72
+0x0ece  12994842004ce0a4a028     icmpsel slt, r70, r68, 4, r70, r71
+0x0ed8  129d4892007200a75028     icmpsel slt, r71, r68, 9, r57, r56
+0x0ee2  12a148b2006ec0a65028     icmpsel slt, r72, r68, 11, r55, r54
+0x0eec  129d48a2004e00a5a028     icmpsel slt, r71, r68, 10, r71, r72
+0x0ef6  12a148d2006a80a65028     icmpsel slt, r72, r68, 13, r53, r52
+0x0f00  12a548f2006640a65028     icmpsel slt, r73, r68, 15, r51, r50
+0x0f0a  12a148e2005020a5a028     icmpsel slt, r72, r68, 14, r72, r73
+0x0f14  129d48c2004e00a5a028     icmpsel slt, r71, r68, 12, r71, r72
+0x0f1e  12994882004ce0a4a028     icmpsel slt, r70, r68, 8, r70, r71
+0x0f28  129d4812016200a65028     icmpsel slt, r71, r68, 17, r49, r48
+0x0f32  12a14832015ec0a55028     icmpsel slt, r72, r68, 19, r47, r46
+0x0f3c  129d4822014e00a5a028     icmpsel slt, r71, r68, 18, r71, r72
+0x0f46  12a14852015a80a55028     icmpsel slt, r72, r68, 21, r45, r44
+0x0f50  12a54872015640a55028     icmpsel slt, r73, r68, 23, r43, r42
+0x0f5a  12a14862015020a5a028     icmpsel slt, r72, r68, 22, r72, r73
+0x0f64  129d4842014e00a5a028     icmpsel slt, r71, r68, 20, r71, r72
+0x0f6e  12a14892015200a55028     icmpsel slt, r72, r68, 25, r41, r40
+0x0f78  12a548b2014ec0a45028     icmpsel slt, r73, r68, 27, r39, r38
+0x0f82  12a148a2015020a5a028     icmpsel slt, r72, r68, 26, r72, r73
+0x0f8c  12a548d2014a80a45028     icmpsel slt, r73, r68, 29, r37, r36
+0x0f96  12a948f2014640a45028     icmpsel slt, r74, r68, 31, r35, r34
+0x0fa0  12a548e2015240a5a028     icmpsel slt, r73, r68, 30, r73, r74
+0x0faa  12a148c2015020a5a028     icmpsel slt, r72, r68, 28, r72, r73
+0x0fb4  129d4882014e00a5a028     icmpsel slt, r71, r68, 24, r71, r72
+0x0fbe  12994802014ce0a4a028     icmpsel slt, r70, r68, 16, r70, r71
+0x0fc8  420a00000000             else_fcmp r0l, eq, 0.0, 0.0, 1
+0x0fce  12994812024200a45028     icmpsel slt, r70, r68, 33, r33, r32
+0x0fd8  129d4832027ec0a70028     icmpsel slt, r71, r68, 35, r31, r30
+0x0fe2  12994822024ce0a4a028     icmpsel slt, r70, r68, 34, r70, r71
+0x0fec  129d4852027a80a70028     icmpsel slt, r71, r68, 37, r29, r28
+0x0ff6  12a14872027640a70028     icmpsel slt, r72, r68, 39, r27, r26
+0x1000  129d4862024e00a5a028     icmpsel slt, r71, r68, 38, r71, r72
+0x100a  12994842024ce0a4a028     icmpsel slt, r70, r68, 36, r70, r71
+0x1014  129d4892027200a70028     icmpsel slt, r71, r68, 41, r25, r24
+0x101e  12a148b2026ec0a60028     icmpsel slt, r72, r68, 43, r23, r22
+0x1028  129d48a2024e00a5a028     icmpsel slt, r71, r68, 42, r71, r72
+0x1032  12a148d2026a80a60028     icmpsel slt, r72, r68, 45, r21, r20
+0x103c  12a548f2026640a60028     icmpsel slt, r73, r68, 47, r19, r18
+0x1046  12a148e2025020a5a028     icmpsel slt, r72, r68, 46, r72, r73
+0x1050  129d48c2024e00a5a028     icmpsel slt, r71, r68, 44, r71, r72
+0x105a  12994882024ce0a4a028     icmpsel slt, r70, r68, 40, r70, r71
+0x1064  129d4812036200a60028     icmpsel slt, r71, r68, 49, r17, r16
+0x106e  12a14832035ec0a50028     icmpsel slt, r72, r68, 51, r15, r14
+0x1078  129d4822034e00a5a028     icmpsel slt, r71, r68, 50, r71, r72
+0x1082  12a14852035a80a50028     icmpsel slt, r72, r68, 53, r13, r12
+0x108c  12a54872035640a50028     icmpsel slt, r73, r68, 55, r11, r10
+0x1096  12a14862035020a5a028     icmpsel slt, r72, r68, 54, r72, r73
+0x10a0  129d4842034e00a5a028     icmpsel slt, r71, r68, 52, r71, r72
+0x10aa  12a14892035200a50028     icmpsel slt, r72, r68, 57, r9, r8
+0x10b4  12a548b2034ec0a40028     icmpsel slt, r73, r68, 59, r7, r6
+0x10be  12a148a2035020a5a028     icmpsel slt, r72, r68, 58, r72, r73
+0x10c8  12a548d2034a80a40028     icmpsel slt, r73, r68, 61, r5, r4
+0x10d2  12a948f2034640a40028     icmpsel slt, r74, r68, 63, r3, r2
+0x10dc  12a548e2035240a5a028     icmpsel slt, r73, r68, 62, r73, r74
+0x10e6  12a148c2035020a5a028     icmpsel slt, r72, r68, 60, r72, r73
+0x10f0  129d4882034e00a5a028     icmpsel slt, r71, r68, 56, r71, r72
+0x10fa  12994802034ce0a4a028     icmpsel slt, r70, r68, 48, r70, r71
+0x1104  520e00000000             pop_exec r0l, 1
+0x110a  2e194cc62413002a         extr r70, r70, r70, 19
+0x1112  2e154aa62411002a         extr r69, r69, r69, 17
+0x111a  7e154aca642a             xor r69, r69, r70
+0x1120  52a848020208             if_icmp r0l, slt, r68, 32, 1
+0x1126  12994812004200a4a028     icmpsel slt, r70, r68, 1, r65, r64
+0x1130  129d4832007ec0a75028     icmpsel slt, r71, r68, 3, r63, r62
+0x113a  12994822004ce0a4a028     icmpsel slt, r70, r68, 2, r70, r71
+0x1144  129d4852007a80a75028     icmpsel slt, r71, r68, 5, r61, r60
+0x114e  12a14872007640a75028     icmpsel slt, r72, r68, 7, r59, r58
+0x1158  129d4862004e00a5a028     icmpsel slt, r71, r68, 6, r71, r72
+0x1162  12994842004ce0a4a028     icmpsel slt, r70, r68, 4, r70, r71
+0x116c  129d4892007200a75028     icmpsel slt, r71, r68, 9, r57, r56
+0x1176  12a148b2006ec0a65028     icmpsel slt, r72, r68, 11, r55, r54
+0x1180  129d48a2004e00a5a028     icmpsel slt, r71, r68, 10, r71, r72
+0x118a  12a148d2006a80a65028     icmpsel slt, r72, r68, 13, r53, r52
+0x1194  12a548f2006640a65028     icmpsel slt, r73, r68, 15, r51, r50
+0x119e  12a148e2005020a5a028     icmpsel slt, r72, r68, 14, r72, r73
+0x11a8  129d48c2004e00a5a028     icmpsel slt, r71, r68, 12, r71, r72
+0x11b2  12994882004ce0a4a028     icmpsel slt, r70, r68, 8, r70, r71
+0x11bc  129d4812016200a65028     icmpsel slt, r71, r68, 17, r49, r48
+0x11c6  12a14832015ec0a55028     icmpsel slt, r72, r68, 19, r47, r46
+0x11d0  129d4822014e00a5a028     icmpsel slt, r71, r68, 18, r71, r72
+0x11da  12a14852015a80a55028     icmpsel slt, r72, r68, 21, r45, r44
+0x11e4  12a54872015640a55028     icmpsel slt, r73, r68, 23, r43, r42
+0x11ee  12a14862015020a5a028     icmpsel slt, r72, r68, 22, r72, r73
+0x11f8  129d4842014e00a5a028     icmpsel slt, r71, r68, 20, r71, r72
+0x1202  12a14892015200a55028     icmpsel slt, r72, r68, 25, r41, r40
+0x120c  12a548b2014ec0a45028     icmpsel slt, r73, r68, 27, r39, r38
+0x1216  12a148a2015020a5a028     icmpsel slt, r72, r68, 26, r72, r73
+0x1220  12a548d2014a80a45028     icmpsel slt, r73, r68, 29, r37, r36
+0x122a  12a948f2014640a45028     icmpsel slt, r74, r68, 31, r35, r34
+0x1234  12a548e2015240a5a028     icmpsel slt, r73, r68, 30, r73, r74
+0x123e  12a148c2015020a5a028     icmpsel slt, r72, r68, 28, r72, r73
+0x1248  129d4882014e00a5a028     icmpsel slt, r71, r68, 24, r71, r72
+0x1252  12914802014ce0a4a028     icmpsel slt, r68, r68, 16, r70, r71
+0x125c  420a00000000             else_fcmp r0l, eq, 0.0, 0.0, 1
+0x1262  12994812024200a45028     icmpsel slt, r70, r68, 33, r33, r32
+0x126c  129d4832027ec0a70028     icmpsel slt, r71, r68, 35, r31, r30
+0x1276  12994822024ce0a4a028     icmpsel slt, r70, r68, 34, r70, r71
+0x1280  129d4852027a80a70028     icmpsel slt, r71, r68, 37, r29, r28
+0x128a  12a14872027640a70028     icmpsel slt, r72, r68, 39, r27, r26
+0x1294  129d4862024e00a5a028     icmpsel slt, r71, r68, 38, r71, r72
+0x129e  12994842024ce0a4a028     icmpsel slt, r70, r68, 36, r70, r71
+0x12a8  129d4892027200a70028     icmpsel slt, r71, r68, 41, r25, r24
+0x12b2  12a148b2026ec0a60028     icmpsel slt, r72, r68, 43, r23, r22
+0x12bc  129d48a2024e00a5a028     icmpsel slt, r71, r68, 42, r71, r72
+0x12c6  12a148d2026a80a60028     icmpsel slt, r72, r68, 45, r21, r20
+0x12d0  12a548f2026640a60028     icmpsel slt, r73, r68, 47, r19, r18
+0x12da  12a148e2025020a5a028     icmpsel slt, r72, r68, 46, r72, r73
+0x12e4  129d48c2024e00a5a028     icmpsel slt, r71, r68, 44, r71, r72
+0x12ee  12994882024ce0a4a028     icmpsel slt, r70, r68, 40, r70, r71
+0x12f8  129d4812036200a60028     icmpsel slt, r71, r68, 49, r17, r16
+0x1302  12a14832035ec0a50028     icmpsel slt, r72, r68, 51, r15, r14
+0x130c  129d4822034e00a5a028     icmpsel slt, r71, r68, 50, r71, r72
+0x1316  12a14852035a80a50028     icmpsel slt, r72, r68, 53, r13, r12
+0x1320  12a54872035640a50028     icmpsel slt, r73, r68, 55, r11, r10
+0x132a  12a14862035020a5a028     icmpsel slt, r72, r68, 54, r72, r73
+0x1334  129d4842034e00a5a028     icmpsel slt, r71, r68, 52, r71, r72
+0x133e  12a14892035200a50028     icmpsel slt, r72, r68, 57, r9, r8
+0x1348  12a548b2034ec0a40028     icmpsel slt, r73, r68, 59, r7, r6
+0x1352  12a148a2035020a5a028     icmpsel slt, r72, r68, 58, r72, r73
+0x135c  12a548d2034a80a40028     icmpsel slt, r73, r68, 61, r5, r4
+0x1366  12a948f2034640a40028     icmpsel slt, r74, r68, 63, r3, r2
+0x1370  12a548e2035240a5a028     icmpsel slt, r73, r68, 62, r73, r74
+0x137a  12a148c2035020a5a028     icmpsel slt, r72, r68, 60, r72, r73
+0x1384  129d4882034e00a5a028     icmpsel slt, r71, r68, 56, r71, r72
+0x138e  12914802034ce0a4a028     icmpsel slt, r68, r68, 48, r70, r71
+0x1398  520e00000000             pop_exec r0l, 1
+0x139e  2e910080240a0022         bfeil r68, 0, r68, 10
+0x13a6  7e114a8a642a             xor r68, r69, r68
+0x13ac  0e15440e01280000         isub r69, r66.sx, 16
+0x13b4  52a84a020208             if_icmp r0l, slt, r69, 32, 1
+0x13ba  12994a12004200a4a028     icmpsel slt, r70, r69, 1, r65, r64
+0x13c4  129d4a32007ec0a75028     icmpsel slt, r71, r69, 3, r63, r62
+0x13ce  12994a22004ce0a4a028     icmpsel slt, r70, r69, 2, r70, r71
+0x13d8  129d4a52007a80a75028     icmpsel slt, r71, r69, 5, r61, r60
+0x13e2  12a14a72007640a75028     icmpsel slt, r72, r69, 7, r59, r58
+0x13ec  129d4a62004e00a5a028     icmpsel slt, r71, r69, 6, r71, r72
+0x13f6  12994a42004ce0a4a028     icmpsel slt, r70, r69, 4, r70, r71
+0x1400  129d4a92007200a75028     icmpsel slt, r71, r69, 9, r57, r56
+0x140a  12a14ab2006ec0a65028     icmpsel slt, r72, r69, 11, r55, r54
+0x1414  129d4aa2004e00a5a028     icmpsel slt, r71, r69, 10, r71, r72
+0x141e  12a14ad2006a80a65028     icmpsel slt, r72, r69, 13, r53, r52
+0x1428  12a54af2006640a65028     icmpsel slt, r73, r69, 15, r51, r50
+0x1432  12a14ae2005020a5a028     icmpsel slt, r72, r69, 14, r72, r73
+0x143c  129d4ac2004e00a5a028     icmpsel slt, r71, r69, 12, r71, r72
+0x1446  12994a82004ce0a4a028     icmpsel slt, r70, r69, 8, r70, r71
+0x1450  129d4a12016200a65028     icmpsel slt, r71, r69, 17, r49, r48
+0x145a  12a14a32015ec0a55028     icmpsel slt, r72, r69, 19, r47, r46
+0x1464  129d4a22014e00a5a028     icmpsel slt, r71, r69, 18, r71, r72
+0x146e  12a14a52015a80a55028     icmpsel slt, r72, r69, 21, r45, r44
+0x1478  12a54a72015640a55028     icmpsel slt, r73, r69, 23, r43, r42
+0x1482  12a14a62015020a5a028     icmpsel slt, r72, r69, 22, r72, r73
+0x148c  129d4a42014e00a5a028     icmpsel slt, r71, r69, 20, r71, r72
+0x1496  12a14a92015200a55028     icmpsel slt, r72, r69, 25, r41, r40
+0x14a0  12a54ab2014ec0a45028     icmpsel slt, r73, r69, 27, r39, r38
+0x14aa  12a14aa2015020a5a028     icmpsel slt, r72, r69, 26, r72, r73
+0x14b4  12a54ad2014a80a45028     icmpsel slt, r73, r69, 29, r37, r36
+0x14be  12a94af2014640a45028     icmpsel slt, r74, r69, 31, r35, r34
+0x14c8  12a54ae2015240a5a028     icmpsel slt, r73, r69, 30, r73, r74
+0x14d2  12a14ac2015020a5a028     icmpsel slt, r72, r69, 28, r72, r73
+0x14dc  129d4a82014e00a5a028     icmpsel slt, r71, r69, 24, r71, r72
+0x14e6  12954a02014ce0a4a028     icmpsel slt, r69, r69, 16, r70, r71
+0x14f0  420a00000000             else_fcmp r0l, eq, 0.0, 0.0, 1
+0x14f6  12994a12024200a45028     icmpsel slt, r70, r69, 33, r33, r32
+0x1500  129d4a32027ec0a70028     icmpsel slt, r71, r69, 35, r31, r30
+0x150a  12994a22024ce0a4a028     icmpsel slt, r70, r69, 34, r70, r71
+0x1514  129d4a52027a80a70028     icmpsel slt, r71, r69, 37, r29, r28
+0x151e  12a14a72027640a70028     icmpsel slt, r72, r69, 39, r27, r26
+0x1528  129d4a62024e00a5a028     icmpsel slt, r71, r69, 38, r71, r72
+0x1532  12994a42024ce0a4a028     icmpsel slt, r70, r69, 36, r70, r71
+0x153c  129d4a92027200a70028     icmpsel slt, r71, r69, 41, r25, r24
+0x1546  12a14ab2026ec0a60028     icmpsel slt, r72, r69, 43, r23, r22
+0x1550  129d4aa2024e00a5a028     icmpsel slt, r71, r69, 42, r71, r72
+0x155a  12a14ad2026a80a60028     icmpsel slt, r72, r69, 45, r21, r20
+0x1564  12a54af2026640a60028     icmpsel slt, r73, r69, 47, r19, r18
+0x156e  12a14ae2025020a5a028     icmpsel slt, r72, r69, 46, r72, r73
+0x1578  129d4ac2024e00a5a028     icmpsel slt, r71, r69, 44, r71, r72
+0x1582  12994a82024ce0a4a028     icmpsel slt, r70, r69, 40, r70, r71
+0x158c  129d4a12036200a60028     icmpsel slt, r71, r69, 49, r17, r16
+0x1596  12a14a32035ec0a50028     icmpsel slt, r72, r69, 51, r15, r14
+0x15a0  129d4a22034e00a5a028     icmpsel slt, r71, r69, 50, r71, r72
+0x15aa  12a14a52035a80a50028     icmpsel slt, r72, r69, 53, r13, r12
+0x15b4  12a54a72035640a50028     icmpsel slt, r73, r69, 55, r11, r10
+0x15be  12a14a62035020a5a028     icmpsel slt, r72, r69, 54, r72, r73
+0x15c8  129d4a42034e00a5a028     icmpsel slt, r71, r69, 52, r71, r72
+0x15d2  12a14a92035200a50028     icmpsel slt, r72, r69, 57, r9, r8
+0x15dc  12a54ab2034ec0a40028     icmpsel slt, r73, r69, 59, r7, r6
+0x15e6  12a14aa2035020a5a028     icmpsel slt, r72, r69, 58, r72, r73
+0x15f0  12a54ad2034a80a40028     icmpsel slt, r73, r69, 61, r5, r4
+0x15fa  12a94af2034640a40028     icmpsel slt, r74, r69, 63, r3, r2
+0x1604  12a54ae2035240a5a028     icmpsel slt, r73, r69, 62, r73, r74
+0x160e  12a14ac2035020a5a028     icmpsel slt, r72, r69, 60, r72, r73
+0x1618  129d4a82034e00a5a028     icmpsel slt, r71, r69, 56, r71, r72
+0x1622  12954a02034ce0a4a028     icmpsel slt, r69, r69, 48, r70, r71
+0x162c  520e00000000             pop_exec r0l, 1
+0x1632  0e0d4a66642a0000         iadd r67, r69.sx, r67.sx
+0x163a  0e15447e00280000         isub r69, r66.sx, 7
+0x1642  52a84a020208             if_icmp r0l, slt, r69, 32, 1
+0x1648  12994a12004200a4a028     icmpsel slt, r70, r69, 1, r65, r64
+0x1652  129d4a32007ec0a75028     icmpsel slt, r71, r69, 3, r63, r62
+0x165c  12994a22004ce0a4a028     icmpsel slt, r70, r69, 2, r70, r71
+0x1666  129d4a52007a80a75028     icmpsel slt, r71, r69, 5, r61, r60
+0x1670  12a14a72007640a75028     icmpsel slt, r72, r69, 7, r59, r58
+0x167a  129d4a62004e00a5a028     icmpsel slt, r71, r69, 6, r71, r72
+0x1684  12994a42004ce0a4a028     icmpsel slt, r70, r69, 4, r70, r71
+0x168e  129d4a92007200a75028     icmpsel slt, r71, r69, 9, r57, r56
+0x1698  12a14ab2006ec0a65028     icmpsel slt, r72, r69, 11, r55, r54
+0x16a2  129d4aa2004e00a5a028     icmpsel slt, r71, r69, 10, r71, r72
+0x16ac  12a14ad2006a80a65028     icmpsel slt, r72, r69, 13, r53, r52
+0x16b6  12a54af2006640a65028     icmpsel slt, r73, r69, 15, r51, r50
+0x16c0  12a14ae2005020a5a028     icmpsel slt, r72, r69, 14, r72, r73
+0x16ca  129d4ac2004e00a5a028     icmpsel slt, r71, r69, 12, r71, r72
+0x16d4  12994a82004ce0a4a028     icmpsel slt, r70, r69, 8, r70, r71
+0x16de  129d4a12016200a65028     icmpsel slt, r71, r69, 17, r49, r48
+0x16e8  12a14a32015ec0a55028     icmpsel slt, r72, r69, 19, r47, r46
+0x16f2  129d4a22014e00a5a028     icmpsel slt, r71, r69, 18, r71, r72
+0x16fc  12a14a52015a80a55028     icmpsel slt, r72, r69, 21, r45, r44
+0x1706  12a54a72015640a55028     icmpsel slt, r73, r69, 23, r43, r42
+0x1710  12a14a62015020a5a028     icmpsel slt, r72, r69, 22, r72, r73
+0x171a  129d4a42014e00a5a028     icmpsel slt, r71, r69, 20, r71, r72
+0x1724  12a14a92015200a55028     icmpsel slt, r72, r69, 25, r41, r40
+0x172e  12a54ab2014ec0a45028     icmpsel slt, r73, r69, 27, r39, r38
+0x1738  12a14aa2015020a5a028     icmpsel slt, r72, r69, 26, r72, r73
+0x1742  12a54ad2014a80a45028     icmpsel slt, r73, r69, 29, r37, r36
+0x174c  12a94af2014640a45028     icmpsel slt, r74, r69, 31, r35, r34
+0x1756  12a54ae2015240a5a028     icmpsel slt, r73, r69, 30, r73, r74
+0x1760  12a14ac2015020a5a028     icmpsel slt, r72, r69, 28, r72, r73
+0x176a  129d4a82014e00a5a028     icmpsel slt, r71, r69, 24, r71, r72
+0x1774  12954a02014ce0a4a028     icmpsel slt, r69, r69, 16, r70, r71
+0x177e  420a00000000             else_fcmp r0l, eq, 0.0, 0.0, 1
+0x1784  12994a12024200a45028     icmpsel slt, r70, r69, 33, r33, r32
+0x178e  129d4a32027ec0a70028     icmpsel slt, r71, r69, 35, r31, r30
+0x1798  12994a22024ce0a4a028     icmpsel slt, r70, r69, 34, r70, r71
+0x17a2  129d4a52027a80a70028     icmpsel slt, r71, r69, 37, r29, r28
+0x17ac  12a14a72027640a70028     icmpsel slt, r72, r69, 39, r27, r26
+0x17b6  129d4a62024e00a5a028     icmpsel slt, r71, r69, 38, r71, r72
+0x17c0  12994a42024ce0a4a028     icmpsel slt, r70, r69, 36, r70, r71
+0x17ca  129d4a92027200a70028     icmpsel slt, r71, r69, 41, r25, r24
+0x17d4  12a14ab2026ec0a60028     icmpsel slt, r72, r69, 43, r23, r22
+0x17de  129d4aa2024e00a5a028     icmpsel slt, r71, r69, 42, r71, r72
+0x17e8  12a14ad2026a80a60028     icmpsel slt, r72, r69, 45, r21, r20
+0x17f2  12a54af2026640a60028     icmpsel slt, r73, r69, 47, r19, r18
+0x17fc  12a14ae2025020a5a028     icmpsel slt, r72, r69, 46, r72, r73
+0x1806  129d4ac2024e00a5a028     icmpsel slt, r71, r69, 44, r71, r72
+0x1810  12994a82024ce0a4a028     icmpsel slt, r70, r69, 40, r70, r71
+0x181a  129d4a12036200a60028     icmpsel slt, r71, r69, 49, r17, r16
+0x1824  12a14a32035ec0a50028     icmpsel slt, r72, r69, 51, r15, r14
+0x182e  129d4a22034e00a5a028     icmpsel slt, r71, r69, 50, r71, r72
+0x1838  12a14a52035a80a50028     icmpsel slt, r72, r69, 53, r13, r12
+0x1842  12a54a72035640a50028     icmpsel slt, r73, r69, 55, r11, r10
+0x184c  12a14a62035020a5a028     icmpsel slt, r72, r69, 54, r72, r73
+0x1856  129d4a42034e00a5a028     icmpsel slt, r71, r69, 52, r71, r72
+0x1860  12a14a92035200a50028     icmpsel slt, r72, r69, 57, r9, r8
+0x186a  12a54ab2034ec0a40028     icmpsel slt, r73, r69, 59, r7, r6
+0x1874  12a14aa2035020a5a028     icmpsel slt, r72, r69, 58, r72, r73
+0x187e  12a54ad2034a80a40028     icmpsel slt, r73, r69, 61, r5, r4
+0x1888  12a94af2034640a40028     icmpsel slt, r74, r69, 63, r3, r2
+0x1892  12a54ae2035240a5a028     icmpsel slt, r73, r69, 62, r73, r74
+0x189c  12a14ac2035020a5a028     icmpsel slt, r72, r69, 60, r72, r73
+0x18a6  129d4a82034e00a5a028     icmpsel slt, r71, r69, 56, r71, r72
+0x18b0  12954a02034ce0a4a028     icmpsel slt, r69, r69, 48, r70, r71
+0x18ba  520e00000000             pop_exec r0l, 1
+0x18c0  0e0d46a6642a0000         iadd r67, r67.sx, r69.sx
+0x18c8  0e0d4686642a0000         iadd r67, r67.sx, r68.sx
+0x18d0  52a844020208             if_icmp r0l, slt, r66, 32, 1
+0x18d6  20c060050000             jmp_exec_none pc+1376
+0x18dc  52a844020108             if_icmp r0l, slt, r66, 16, 1
+0x18e2  20c0a4020000             jmp_exec_none pc+676
+0x18e8  12824412000101b00008     icmpsel slt, r0h, r66, 1, 1, 0
+0x18f2  12824422004100b00008     icmpsel slt, r0h, r66, 2, r0h, 0
+0x18fc  12904442000101b00028     icmpsel slt, r68l, r66, 4, 1, 0
+0x1906  12904482004800b08028     icmpsel slt, r68l, r66, 8, r68l, 0
+0x1910  1295410000426004a020     icmpsel ueq, r69, r0h, 0, r65, r67
+0x191a  128548000042a004a028     icmpsel ueq, r65, r68l, 0, r65, r69
+0x1924  12824422000101b00008     icmpsel slt, r0h, r66, 2, 1, 0
+0x192e  12824412000011a40008     icmpsel slt, r0h, r66, 1, 0, r0h
+0x1938  1295410000406004a020     icmpsel ueq, r69, r0h, 0, r64, r67
+0x1942  128148000040a004a028     icmpsel ueq, r64, r68l, 0, r64, r69
+0x194c  12824432000101b00008     icmpsel slt, r0h, r66, 3, 1, 0
+0x1956  12924422000011a40028     icmpsel slt, r68h, r66, 2, 0, r0h
+0x1960  12954900007e60046028     icmpsel ueq, r69, r68h, 0, r63, r67
+0x196a  12fd4800007ea0046018     icmpsel ueq, r63, r68l, 0, r63, r69
+0x1974  12824422000111a40008     icmpsel slt, r0h, r66, 2, 1, r0h
+0x197e  12914800007c60046028     icmpsel ueq, r68, r68l, 0, r62, r67
+0x1988  12f941000048c0079010     icmpsel ueq, r62, r0h, 0, r68, r62
+0x1992  12824452000101b00008     icmpsel slt, r0h, r66, 5, 1, 0
+0x199c  12824462004100b00008     icmpsel slt, r0h, r66, 6, r0h, 0
+0x19a6  12904482000101b00028     icmpsel slt, r68l, r66, 8, 1, 0
+0x19b0  12904442000081a42028     icmpsel slt, r68l, r66, 4, 0, r68l
+0x19ba  12954100007a60046020     icmpsel ueq, r69, r0h, 0, r61, r67
+0x19c4  12f54800007aa0046018     icmpsel ueq, r61, r68l, 0, r61, r69
+0x19ce  12824462000101b00008     icmpsel slt, r0h, r66, 6, 1, 0
+0x19d8  12824452000011a40008     icmpsel slt, r0h, r66, 5, 0, r0h
+0x19e2  12954100007860046020     icmpsel ueq, r69, r0h, 0, r60, r67
+0x19ec  12f148000078a0046018     icmpsel ueq, r60, r68l, 0, r60, r69
+0x19f6  12824472000101b00008     icmpsel slt, r0h, r66, 7, 1, 0
+0x1a00  12924462000011a40028     icmpsel slt, r68h, r66, 6, 0, r0h
+0x1a0a  12954900007660046028     icmpsel ueq, r69, r68h, 0, r59, r67
+0x1a14  12ed48000076a0046018     icmpsel ueq, r59, r68l, 0, r59, r69
+0x1a1e  12824462000111a40008     icmpsel slt, r0h, r66, 6, 1, r0h
+0x1a28  12914800007460046028     icmpsel ueq, r68, r68l, 0, r58, r67
+0x1a32  12e94100004840079010     icmpsel ueq, r58, r0h, 0, r68, r58
+0x1a3c  12824492000101b00008     icmpsel slt, r0h, r66, 9, 1, 0
+0x1a46  128244a2004100b00008     icmpsel slt, r0h, r66, 10, r0h, 0
+0x1a50  129044c2000101b00028     icmpsel slt, r68l, r66, 12, 1, 0
+0x1a5a  12954100007260046020     icmpsel ueq, r69, r0h, 0, r57, r67
+0x1a64  12824482000081a42008     icmpsel slt, r0h, r66, 8, 0, r68l
+0x1a6e  12e541000072a0046010     icmpsel ueq, r57, r0h, 0, r57, r69
+0x1a78  129244a2000101b00028     icmpsel slt, r68h, r66, 10, 1, 0
+0x1a82  12924492000091a42028     icmpsel slt, r68h, r66, 9, 0, r68h
+0x1a8c  12954900007060046028     icmpsel ueq, r69, r68h, 0, r56, r67
+0x1a96  12e141000070a0046010     icmpsel ueq, r56, r0h, 0, r56, r69
+0x1aa0  129244b2000101b00028     icmpsel slt, r68h, r66, 11, 1, 0
+0x1aaa  129444a2000091a42028     icmpsel slt, r69l, r66, 10, 0, r68h
+0x1ab4  12954a00006e60046028     icmpsel ueq, r69, r69l, 0, r55, r67
+0x1abe  12dd4100006ea0046010     icmpsel ueq, r55, r0h, 0, r55, r69
+0x1ac8  129244a2000191a42028     icmpsel slt, r68h, r66, 10, 1, r68h
+0x1ad2  12954100006c60046020     icmpsel ueq, r69, r0h, 0, r54, r67
+0x1adc  12d94900004ac0069018     icmpsel ueq, r54, r68h, 0, r69, r54
+0x1ae6  128244d2000101b00008     icmpsel slt, r0h, r66, 13, 1, 0
+0x1af0  128244e2004100b00008     icmpsel slt, r0h, r66, 14, r0h, 0
+0x1afa  12904482000181a42028     icmpsel slt, r68l, r66, 8, 1, r68l
+0x1b04  12954100006a60046020     icmpsel ueq, r69, r0h, 0, r53, r67
+0x1b0e  12d54800004aa0069018     icmpsel ueq, r53, r68l, 0, r69, r53
+0x1b18  128244e2000101b00008     icmpsel slt, r0h, r66, 14, 1, 0
+0x1b22  128244d2000011a40008     icmpsel slt, r0h, r66, 13, 0, r0h
+0x1b2c  12954100006860046020     icmpsel ueq, r69, r0h, 0, r52, r67
+0x1b36  12d14800004a80069018     icmpsel ueq, r52, r68l, 0, r69, r52
+0x1b40  128244f2000101b00008     icmpsel slt, r0h, r66, 15, 1, 0
+0x1b4a  129244e2000011a40028     icmpsel slt, r68h, r66, 14, 0, r0h
+0x1b54  12954900006660046028     icmpsel ueq, r69, r68h, 0, r51, r67
+0x1b5e  12cd4800004a60069018     icmpsel ueq, r51, r68l, 0, r69, r51
+0x1b68  128244e2000111a40008     icmpsel slt, r0h, r66, 14, 1, r0h
+0x1b72  128d4100004640069020     icmpsel ueq, r67, r0h, 0, r67, r50
+0x1b7c  12c94800004640069018     icmpsel ueq, r50, r68l, 0, r67, r50
+0x1b86  420a00000000             else_fcmp r0l, eq, 0.0, 0.0, 1
+0x1b8c  20c0a4020000             jmp_exec_none pc+676
+0x1b92  12824412010101b00008     icmpsel slt, r0h, r66, 17, 1, 0
+0x1b9c  12824422014100b00008     icmpsel slt, r0h, r66, 18, r0h, 0
+0x1ba6  12904442010101b00028     icmpsel slt, r68l, r66, 20, 1, 0
+0x1bb0  12904482014800b08028     icmpsel slt, r68l, r66, 24, r68l, 0
+0x1bba  12954100006260046020     icmpsel ueq, r69, r0h, 0, r49, r67
+0x1bc4  12c548000062a0046018     icmpsel ueq, r49, r68l, 0, r49, r69
+0x1bce  12824422010101b00008     icmpsel slt, r0h, r66, 18, 1, 0
+0x1bd8  12824412010011a40008     icmpsel slt, r0h, r66, 17, 0, r0h
+0x1be2  12954100006060046020     icmpsel ueq, r69, r0h, 0, r48, r67
+0x1bec  12c148000060a0046018     icmpsel ueq, r48, r68l, 0, r48, r69
+0x1bf6  12824432010101b00008     icmpsel slt, r0h, r66, 19, 1, 0
+0x1c00  12924422010011a40028     icmpsel slt, r68h, r66, 18, 0, r0h
+0x1c0a  12954900005e60046028     icmpsel ueq, r69, r68h, 0, r47, r67
+0x1c14  12bd4800005ea0046018     icmpsel ueq, r47, r68l, 0, r47, r69
+0x1c1e  12824422010111a40008     icmpsel slt, r0h, r66, 18, 1, r0h
+0x1c28  12914800005c60046028     icmpsel ueq, r68, r68l, 0, r46, r67
+0x1c32  12b941000048c0059010     icmpsel ueq, r46, r0h, 0, r68, r46
+0x1c3c  12824452010101b00008     icmpsel slt, r0h, r66, 21, 1, 0
+0x1c46  12824462014100b00008     icmpsel slt, r0h, r66, 22, r0h, 0
+0x1c50  12904482010101b00028     icmpsel slt, r68l, r66, 24, 1, 0
+0x1c5a  12904442010081a42028     icmpsel slt, r68l, r66, 20, 0, r68l
+0x1c64  12954100005a60046020     icmpsel ueq, r69, r0h, 0, r45, r67
+0x1c6e  12b54800005aa0046018     icmpsel ueq, r45, r68l, 0, r45, r69
+0x1c78  12824462010101b00008     icmpsel slt, r0h, r66, 22, 1, 0
+0x1c82  12824452010011a40008     icmpsel slt, r0h, r66, 21, 0, r0h
+0x1c8c  12954100005860046020     icmpsel ueq, r69, r0h, 0, r44, r67
+0x1c96  12b148000058a0046018     icmpsel ueq, r44, r68l, 0, r44, r69
+0x1ca0  12824472010101b00008     icmpsel slt, r0h, r66, 23, 1, 0
+0x1caa  12924462010011a40028     icmpsel slt, r68h, r66, 22, 0, r0h
+0x1cb4  12954900005660046028     icmpsel ueq, r69, r68h, 0, r43, r67
+0x1cbe  12ad48000056a0046018     icmpsel ueq, r43, r68l, 0, r43, r69
+0x1cc8  12824462010111a40008     icmpsel slt, r0h, r66, 22, 1, r0h
+0x1cd2  12914800005460046028     icmpsel ueq, r68, r68l, 0, r42, r67
+0x1cdc  12a94100004840059010     icmpsel ueq, r42, r0h, 0, r68, r42
+0x1ce6  12824492010101b00008     icmpsel slt, r0h, r66, 25, 1, 0
+0x1cf0  128244a2014100b00008     icmpsel slt, r0h, r66, 26, r0h, 0
+0x1cfa  129044c2010101b00028     icmpsel slt, r68l, r66, 28, 1, 0
+0x1d04  12954100005260046020     icmpsel ueq, r69, r0h, 0, r41, r67
+0x1d0e  12824482010081a42008     icmpsel slt, r0h, r66, 24, 0, r68l
+0x1d18  12a541000052a0046010     icmpsel ueq, r41, r0h, 0, r41, r69
+0x1d22  129244a2010101b00028     icmpsel slt, r68h, r66, 26, 1, 0
+0x1d2c  12924492010091a42028     icmpsel slt, r68h, r66, 25, 0, r68h
+0x1d36  12954900005060046028     icmpsel ueq, r69, r68h, 0, r40, r67
+0x1d40  12a141000050a0046010     icmpsel ueq, r40, r0h, 0, r40, r69
+0x1d4a  129244b2010101b00028     icmpsel slt, r68h, r66, 27, 1, 0
+0x1d54  129444a2010091a42028     icmpsel slt, r69l, r66, 26, 0, r68h
+0x1d5e  12954a00004e60046028     icmpsel ueq, r69, r69l, 0, r39, r67
+0x1d68  129d4100004ea0046010     icmpsel ueq, r39, r0h, 0, r39, r69
+0x1d72  129244a2010191a42028     icmpsel slt, r68h, r66, 26, 1, r68h
+0x1d7c  12954100004c60046020     icmpsel ueq, r69, r0h, 0, r38, r67
+0x1d86  12994900004ac0049018     icmpsel ueq, r38, r68h, 0, r69, r38
+0x1d90  128244d2010101b00008     icmpsel slt, r0h, r66, 29, 1, 0
+0x1d9a  128244e2014100b00008     icmpsel slt, r0h, r66, 30, r0h, 0
+0x1da4  12904482010181a42028     icmpsel slt, r68l, r66, 24, 1, r68l
+0x1dae  12954100004a60046020     icmpsel ueq, r69, r0h, 0, r37, r67
+0x1db8  12954800004aa0049018     icmpsel ueq, r37, r68l, 0, r69, r37
+0x1dc2  128244e2010101b00008     icmpsel slt, r0h, r66, 30, 1, 0
+0x1dcc  128244d2010011a40008     icmpsel slt, r0h, r66, 29, 0, r0h
+0x1dd6  12954100004860046020     icmpsel ueq, r69, r0h, 0, r36, r67
+0x1de0  12914800004a80049018     icmpsel ueq, r36, r68l, 0, r69, r36
+0x1dea  128244f2010101b00008     icmpsel slt, r0h, r66, 31, 1, 0
+0x1df4  129244e2010011a40028     icmpsel slt, r68h, r66, 30, 0, r0h
+0x1dfe  12954900004660046028     icmpsel ueq, r69, r68h, 0, r35, r67
+0x1e08  128d4800004a60049018     icmpsel ueq, r35, r68l, 0, r69, r35
+0x1e12  128244e2010111a40008     icmpsel slt, r0h, r66, 30, 1, r0h
+0x1e1c  128d4100004640049020     icmpsel ueq, r67, r0h, 0, r67, r34
+0x1e26  12894800004640049018     icmpsel ueq, r34, r68l, 0, r67, r34
+0x1e30  520e00000000             pop_exec r0l, 1
+0x1e36  420a00000000             else_fcmp r0l, eq, 0.0, 0.0, 1
+0x1e3c  20c060050000             jmp_exec_none pc+1376
+0x1e42  52a844020308             if_icmp r0l, slt, r66, 48, 1
+0x1e48  20c0a4020000             jmp_exec_none pc+676
+0x1e4e  12824412020101b00008     icmpsel slt, r0h, r66, 33, 1, 0
+0x1e58  12824422024100b00008     icmpsel slt, r0h, r66, 34, r0h, 0
+0x1e62  12904442020101b00028     icmpsel slt, r68l, r66, 36, 1, 0
+0x1e6c  12904482024800b08028     icmpsel slt, r68l, r66, 40, r68l, 0
+0x1e76  12954100004260046020     icmpsel ueq, r69, r0h, 0, r33, r67
+0x1e80  128548000042a0046018     icmpsel ueq, r33, r68l, 0, r33, r69
+0x1e8a  12824422020101b00008     icmpsel slt, r0h, r66, 34, 1, 0
+0x1e94  12824412020011a40008     icmpsel slt, r0h, r66, 33, 0, r0h
+0x1e9e  12954100004060046020     icmpsel ueq, r69, r0h, 0, r32, r67
+0x1ea8  128148000040a0046018     icmpsel ueq, r32, r68l, 0, r32, r69
+0x1eb2  12824432020101b00008     icmpsel slt, r0h, r66, 35, 1, 0
+0x1ebc  12924422020011a40028     icmpsel slt, r68h, r66, 34, 0, r0h
+0x1ec6  12954900007e60042028     icmpsel ueq, r69, r68h, 0, r31, r67
+0x1ed0  12fd4800007ea0042008     icmpsel ueq, r31, r68l, 0, r31, r69
+0x1eda  12824422020111a40008     icmpsel slt, r0h, r66, 34, 1, r0h
+0x1ee4  12914800007c60042028     icmpsel ueq, r68, r68l, 0, r30, r67
+0x1eee  12f941000048c0078000     icmpsel ueq, r30, r0h, 0, r68, r30
+0x1ef8  12824452020101b00008     icmpsel slt, r0h, r66, 37, 1, 0
+0x1f02  12824462024100b00008     icmpsel slt, r0h, r66, 38, r0h, 0
+0x1f0c  12904482020101b00028     icmpsel slt, r68l, r66, 40, 1, 0
+0x1f16  12904442020081a42028     icmpsel slt, r68l, r66, 36, 0, r68l
+0x1f20  12954100007a60042020     icmpsel ueq, r69, r0h, 0, r29, r67
+0x1f2a  12f54800007aa0042008     icmpsel ueq, r29, r68l, 0, r29, r69
+0x1f34  12824462020101b00008     icmpsel slt, r0h, r66, 38, 1, 0
+0x1f3e  12824452020011a40008     icmpsel slt, r0h, r66, 37, 0, r0h
+0x1f48  12954100007860042020     icmpsel ueq, r69, r0h, 0, r28, r67
+0x1f52  12f148000078a0042008     icmpsel ueq, r28, r68l, 0, r28, r69
+0x1f5c  12824472020101b00008     icmpsel slt, r0h, r66, 39, 1, 0
+0x1f66  12924462020011a40028     icmpsel slt, r68h, r66, 38, 0, r0h
+0x1f70  12954900007660042028     icmpsel ueq, r69, r68h, 0, r27, r67
+0x1f7a  12ed48000076a0042008     icmpsel ueq, r27, r68l, 0, r27, r69
+0x1f84  12824462020111a40008     icmpsel slt, r0h, r66, 38, 1, r0h
+0x1f8e  12914800007460042028     icmpsel ueq, r68, r68l, 0, r26, r67
+0x1f98  12e94100004840078000     icmpsel ueq, r26, r0h, 0, r68, r26
+0x1fa2  12824492020101b00008     icmpsel slt, r0h, r66, 41, 1, 0
+0x1fac  128244a2024100b00008     icmpsel slt, r0h, r66, 42, r0h, 0
+0x1fb6  129044c2020101b00028     icmpsel slt, r68l, r66, 44, 1, 0
+0x1fc0  12954100007260042020     icmpsel ueq, r69, r0h, 0, r25, r67
+0x1fca  12824482020081a42008     icmpsel slt, r0h, r66, 40, 0, r68l
+0x1fd4  12e541000072a0042000     icmpsel ueq, r25, r0h, 0, r25, r69
+0x1fde  129244a2020101b00028     icmpsel slt, r68h, r66, 42, 1, 0
+0x1fe8  12924492020091a42028     icmpsel slt, r68h, r66, 41, 0, r68h
+0x1ff2  12954900007060042028     icmpsel ueq, r69, r68h, 0, r24, r67
+0x1ffc  12e141000070a0042000     icmpsel ueq, r24, r0h, 0, r24, r69
+0x2006  129244b2020101b00028     icmpsel slt, r68h, r66, 43, 1, 0
+0x2010  129444a2020091a42028     icmpsel slt, r69l, r66, 42, 0, r68h
+0x201a  12954a00006e60042028     icmpsel ueq, r69, r69l, 0, r23, r67
+0x2024  12dd4100006ea0042000     icmpsel ueq, r23, r0h, 0, r23, r69
+0x202e  129244a2020191a42028     icmpsel slt, r68h, r66, 42, 1, r68h
+0x2038  12954100006c60042020     icmpsel ueq, r69, r0h, 0, r22, r67
+0x2042  12d94900004ac0068008     icmpsel ueq, r22, r68h, 0, r69, r22
+0x204c  128244d2020101b00008     icmpsel slt, r0h, r66, 45, 1, 0
+0x2056  128244e2024100b00008     icmpsel slt, r0h, r66, 46, r0h, 0
+0x2060  12904482020181a42028     icmpsel slt, r68l, r66, 40, 1, r68l
+0x206a  12954100006a60042020     icmpsel ueq, r69, r0h, 0, r21, r67
+0x2074  12d54800004aa0068008     icmpsel ueq, r21, r68l, 0, r69, r21
+0x207e  128244e2020101b00008     icmpsel slt, r0h, r66, 46, 1, 0
+0x2088  128244d2020011a40008     icmpsel slt, r0h, r66, 45, 0, r0h
+0x2092  12954100006860042020     icmpsel ueq, r69, r0h, 0, r20, r67
+0x209c  12d14800004a80068008     icmpsel ueq, r20, r68l, 0, r69, r20
+0x20a6  128244f2020101b00008     icmpsel slt, r0h, r66, 47, 1, 0
+0x20b0  129244e2020011a40028     icmpsel slt, r68h, r66, 46, 0, r0h
+0x20ba  12954900006660042028     icmpsel ueq, r69, r68h, 0, r19, r67
+0x20c4  12cd4800004a60068008     icmpsel ueq, r19, r68l, 0, r69, r19
+0x20ce  128244e2020111a40008     icmpsel slt, r0h, r66, 46, 1, r0h
+0x20d8  128d4100004640068020     icmpsel ueq, r67, r0h, 0, r67, r18
+0x20e2  12c94800004640068008     icmpsel ueq, r18, r68l, 0, r67, r18
+0x20ec  420a00000000             else_fcmp r0l, eq, 0.0, 0.0, 1
+0x20f2  20c0a4020000             jmp_exec_none pc+676
+0x20f8  12824412030101b00008     icmpsel slt, r0h, r66, 49, 1, 0
+0x2102  12824422034100b00008     icmpsel slt, r0h, r66, 50, r0h, 0
+0x210c  12904442030101b00028     icmpsel slt, r68l, r66, 52, 1, 0
+0x2116  12904482034800b08028     icmpsel slt, r68l, r66, 56, r68l, 0
+0x2120  12954100006260042020     icmpsel ueq, r69, r0h, 0, r17, r67
+0x212a  12c548000062a0042008     icmpsel ueq, r17, r68l, 0, r17, r69
+0x2134  12824422030101b00008     icmpsel slt, r0h, r66, 50, 1, 0
+0x213e  12824412030011a40008     icmpsel slt, r0h, r66, 49, 0, r0h
+0x2148  12954100006060042020     icmpsel ueq, r69, r0h, 0, r16, r67
+0x2152  12c148000060a0042008     icmpsel ueq, r16, r68l, 0, r16, r69
+0x215c  12824432030101b00008     icmpsel slt, r0h, r66, 51, 1, 0
+0x2166  12924422030011a40028     icmpsel slt, r68h, r66, 50, 0, r0h
+0x2170  12954900005e60042028     icmpsel ueq, r69, r68h, 0, r15, r67
+0x217a  12bd4800005ea0042008     icmpsel ueq, r15, r68l, 0, r15, r69
+0x2184  12824422030111a40008     icmpsel slt, r0h, r66, 50, 1, r0h
+0x218e  12914800005c60042028     icmpsel ueq, r68, r68l, 0, r14, r67
+0x2198  12b941000048c0058000     icmpsel ueq, r14, r0h, 0, r68, r14
+0x21a2  12824452030101b00008     icmpsel slt, r0h, r66, 53, 1, 0
+0x21ac  12824462034100b00008     icmpsel slt, r0h, r66, 54, r0h, 0
+0x21b6  12904482030101b00028     icmpsel slt, r68l, r66, 56, 1, 0
+0x21c0  12904442030081a42028     icmpsel slt, r68l, r66, 52, 0, r68l
+0x21ca  12954100005a60042020     icmpsel ueq, r69, r0h, 0, r13, r67
+0x21d4  12b54800005aa0042008     icmpsel ueq, r13, r68l, 0, r13, r69
+0x21de  12824462030101b00008     icmpsel slt, r0h, r66, 54, 1, 0
+0x21e8  12824452030011a40008     icmpsel slt, r0h, r66, 53, 0, r0h
+0x21f2  12954100005860042020     icmpsel ueq, r69, r0h, 0, r12, r67
+0x21fc  12b148000058a0042008     icmpsel ueq, r12, r68l, 0, r12, r69
+0x2206  12824472030101b00008     icmpsel slt, r0h, r66, 55, 1, 0
+0x2210  12924462030011a40028     icmpsel slt, r68h, r66, 54, 0, r0h
+0x221a  12954900005660042028     icmpsel ueq, r69, r68h, 0, r11, r67
+0x2224  12ad48000056a0042008     icmpsel ueq, r11, r68l, 0, r11, r69
+0x222e  12824462030111a40008     icmpsel slt, r0h, r66, 54, 1, r0h
+0x2238  12914800005460042028     icmpsel ueq, r68, r68l, 0, r10, r67
+0x2242  12a94100004840058000     icmpsel ueq, r10, r0h, 0, r68, r10
+0x224c  12824492030101b00008     icmpsel slt, r0h, r66, 57, 1, 0
+0x2256  128244a2034100b00008     icmpsel slt, r0h, r66, 58, r0h, 0
+0x2260  129044c2030101b00028     icmpsel slt, r68l, r66, 60, 1, 0
+0x226a  12954100005260042020     icmpsel ueq, r69, r0h, 0, r9, r67
+0x2274  12824482030081a42008     icmpsel slt, r0h, r66, 56, 0, r68l
+0x227e  12a541000052a0042000     icmpsel ueq, r9, r0h, 0, r9, r69
+0x2288  129244a2030101b00028     icmpsel slt, r68h, r66, 58, 1, 0
+0x2292  12924492030091a42028     icmpsel slt, r68h, r66, 57, 0, r68h
+0x229c  12954900005060042028     icmpsel ueq, r69, r68h, 0, r8, r67
+0x22a6  12a141000050a0042000     icmpsel ueq, r8, r0h, 0, r8, r69
+0x22b0  129244b2030101b00028     icmpsel slt, r68h, r66, 59, 1, 0
+0x22ba  129444a2030091a42028     icmpsel slt, r69l, r66, 58, 0, r68h
+0x22c4  12954a00004e60042028     icmpsel ueq, r69, r69l, 0, r7, r67
+0x22ce  129d4100004ea0042000     icmpsel ueq, r7, r0h, 0, r7, r69
+0x22d8  129244a2030191a42028     icmpsel slt, r68h, r66, 58, 1, r68h
+0x22e2  12954100004c60042020     icmpsel ueq, r69, r0h, 0, r6, r67
+0x22ec  12994900004ac0048008     icmpsel ueq, r6, r68h, 0, r69, r6
+0x22f6  128244d2030101b00008     icmpsel slt, r0h, r66, 61, 1, 0
+0x2300  128244e2034100b00008     icmpsel slt, r0h, r66, 62, r0h, 0
+0x230a  12904482030181a42028     icmpsel slt, r68l, r66, 56, 1, r68l
+0x2314  12954100004a60042020     icmpsel ueq, r69, r0h, 0, r5, r67
+0x231e  12954800004aa0048008     icmpsel ueq, r5, r68l, 0, r69, r5
+0x2328  128244e2030101b00008     icmpsel slt, r0h, r66, 62, 1, 0
+0x2332  128244d2030011a40008     icmpsel slt, r0h, r66, 61, 0, r0h
+0x233c  12954100004860042020     icmpsel ueq, r69, r0h, 0, r4, r67
+0x2346  12914800004a80048008     icmpsel ueq, r4, r68l, 0, r69, r4
+0x2350  128244f2030101b00008     icmpsel slt, r0h, r66, 63, 1, 0
+0x235a  129244e2030011a40028     icmpsel slt, r68h, r66, 62, 0, r0h
+0x2364  12954900004660042028     icmpsel ueq, r69, r68h, 0, r3, r67
+0x236e  128d4800004a60048008     icmpsel ueq, r3, r68l, 0, r69, r3
+0x2378  128244e2030111a40008     icmpsel slt, r0h, r66, 62, 1, r0h
+0x2382  128d4100004640048020     icmpsel ueq, r67, r0h, 0, r67, r2
+0x238c  12894800004640048008     icmpsel ueq, r2, r68l, 0, r67, r2
+0x2396  520e00000000             pop_exec r0l, 1
+0x239c  520e00000000             pop_exec r0l, 1
+0x23a2  0e09441600280000         iadd r66, r66.sx, 1
+0x23aa  00c0aae0ffff             jmp_exec_any pc-8022
+0x23b0  520e00000000             pop_exec r0l, 1
+0x23b6  6289000000000020         mov_imm r66, 0, 0b0
+0x23be  7e0d96098020             mov r67, u11
+0x23c4  7e1194098020             mov r68, u10
+0x23ca  7e1598098020             mov r69, u12
+0x23d0  7e199e098020             mov r70, u15
+0x23d6  7e1d9c098020             mov r71, u14
+0x23dc  7e21a2098020             mov r72, u17
+0x23e2  7e25a0098020             mov r73, u16
+0x23e8  7e299a098020             mov r74, u13
+0x23ee  420800000000             push_exec r0l, 1
+0x23f4  522c44020009             while_icmp r0l, ult, r66, 64, 1
+0x23fa  2e2d4cc6240b002a         extr r75, r70, r70, 11
+0x2402  2e314cc62406002a         extr r76, r70, r70, 6
+0x240a  7e2d586a652a             xor r75, r76, r75
+0x2410  2e314cc62419002a         extr r76, r70, r70, 25
+0x2418  7e2d568a652a             xor r75, r75, r76
+0x241e  7e314ca2a42a             and r76, r70, r69
+0x2424  7e354c82642a             bitop 0010, r77, r70, r68
+0x242a  7e3158aa652a             xor r76, r76, r77
+0x2430  0e0d4666652a0000         iadd r67, r67.sx, r75.sx
+0x2438  0e0d4686652a0000         iadd r67, r67.sx, r76.sx
+0x2440  52a844020208             if_icmp r0l, slt, r66, 32, 1
+0x2446  12ad44120090a1bb4028     icmpsel slt, r75, r66, 1, u40, u29
+0x2450  12b14432009821b95028     icmpsel slt, r76, r66, 3, u44, u41
+0x245a  12ad4422005680a5a028     icmpsel slt, r75, r66, 2, r75, r76
+0x2464  12b1445200aac1bb0028     icmpsel slt, r76, r66, 5, u21, u30
+0x246e  12b54472009021bb9028     icmpsel slt, r77, r66, 7, u72, u57
+0x2478  12b144620058a0a5a028     icmpsel slt, r76, r66, 6, r76, r77
+0x2482  12ad4442005680a5a028     icmpsel slt, r75, r66, 4, r75, r76
+0x248c  12b1449200be81ba5028     icmpsel slt, r76, r66, 9, u63, u52
+0x2496  12b544b200a2a1ba9028     icmpsel slt, r77, r66, 11, u81, u53
+0x24a0  12b144a20058a0a5a028     icmpsel slt, r76, r66, 10, r76, r77
+0x24aa  12b544d2008241b95028     icmpsel slt, r77, r66, 13, u33, u42
+0x24b4  12b944f2008c21ba9028     icmpsel slt, r78, r66, 15, u70, u49
+0x24be  12b544e2005ac0a5a028     icmpsel slt, r77, r66, 14, r77, r78
+0x24c8  12b144c20058a0a5a028     icmpsel slt, r76, r66, 12, r76, r77
+0x24d2  12ad4482005680a5a028     icmpsel slt, r75, r66, 8, r75, r76
+0x24dc  12b1441201a621b96028     icmpsel slt, r76, r66, 17, u51, u73
+0x24e6  12b5443201b061b95028     icmpsel slt, r77, r66, 19, u56, u43
+0x24f0  12b144220158a0a5a028     icmpsel slt, r76, r66, 18, r76, r77
+0x24fa  12b5445201a6c1b81028     icmpsel slt, r77, r66, 21, u19, u38
+0x2504  12b94472019ae1b96028     icmpsel slt, r78, r66, 23, u45, u79
+0x250e  12b54462015ac0a5a028     icmpsel slt, r77, r66, 22, r77, r78
+0x2518  12b144420158a0a5a028     icmpsel slt, r76, r66, 20, r76, r77
+0x2522  12b54492018441b86028     icmpsel slt, r77, r66, 25, u34, u66
+0x252c  12b944b201b8a1b86028     icmpsel slt, r78, r66, 27, u60, u69
+0x2536  12b544a2015ac0a5a028     icmpsel slt, r77, r66, 26, r77, r78
+0x2540  12b944d2019a61b9a028     icmpsel slt, r78, r66, 29, u77, u75
+0x254a  12bd44f2018a61b85028     icmpsel slt, r79, r66, 31, u37, u35
+0x2554  12b944e2015ce0a5a028     icmpsel slt, r78, r66, 30, r78, r79
+0x255e  12b544c2015ac0a5a028     icmpsel slt, r77, r66, 28, r77, r78
+0x2568  12b144820158a0a5a028     icmpsel slt, r76, r66, 24, r76, r77
+0x2572  12ad4402015680a5a028     icmpsel slt, r75, r66, 16, r75, r76
+0x257c  420a00000000             else_fcmp r0l, eq, 0.0, 0.0, 1
+0x2582  12ad4412029481ba8028     icmpsel slt, r75, r66, 33, u74, u20
+0x258c  12b1443202bee1ba1028     icmpsel slt, r76, r66, 35, u31, u55
+0x2596  12ad4422025680a5a028     icmpsel slt, r75, r66, 34, r75, r76
+0x25a0  12b1445202b4e1b81028     icmpsel slt, r76, r66, 37, u26, u39
+0x25aa  12b5447202b2c1bb1028     icmpsel slt, r77, r66, 39, u25, u62
+0x25b4  12b144620258a0a5a028     icmpsel slt, r76, r66, 38, r76, r77
+0x25be  12ad4442025680a5a028     icmpsel slt, r75, r66, 36, r75, r76
+0x25c8  12b14492028601baa028     icmpsel slt, r76, r66, 41, u67, u80
+0x25d2  12b544b202ae01ba1028     icmpsel slt, r77, r66, 43, u23, u48
+0x25dc  12b144a20258a0a5a028     icmpsel slt, r76, r66, 42, r76, r77
+0x25e6  12b544d202b041bb1028     icmpsel slt, r77, r66, 45, u24, u58
+0x25f0  12b944f2028801b86028     icmpsel slt, r78, r66, 47, u36, u64
+0x25fa  12b544e2025ac0a5a028     icmpsel slt, r77, r66, 46, r77, r78
+0x2604  12b144c20258a0a5a028     icmpsel slt, r76, r66, 44, r76, r77
+0x260e  12ad4482025680a5a028     icmpsel slt, r75, r66, 40, r75, r76
+0x2618  12b1441203a461bb4028     icmpsel slt, r76, r66, 49, u50, u27
+0x2622  12b5443203bac1ba5028     icmpsel slt, r77, r66, 51, u61, u54
+0x262c  12b144220358a0a5a028     icmpsel slt, r76, r66, 50, r76, r77
+0x2636  12b5445203b8e1b82028     icmpsel slt, r77, r66, 53, u28, u71
+0x2640  12b94472038821b8a028     icmpsel slt, r78, r66, 55, u68, u65
+0x264a  12b54462035ac0a5a028     icmpsel slt, r77, r66, 54, r77, r78
+0x2654  12b144420358a0a5a028     icmpsel slt, r76, r66, 52, r76, r77
+0x265e  12b54492039cc1b96028     icmpsel slt, r77, r66, 57, u46, u78
+0x2668  12b944b20398e1b99028     icmpsel slt, r78, r66, 59, u76, u47
+0x2672  12b544a2035ac0a5a028     icmpsel slt, r77, r66, 58, r77, r78
+0x267c  12b944d203b641ba4028     icmpsel slt, r78, r66, 61, u59, u18
+0x2686  12bd44f20380c1ba4028     icmpsel slt, r79, r66, 63, u32, u22
+0x2690  12b944e2035ce0a5a028     icmpsel slt, r78, r66, 62, r78, r79
+0x269a  12b544c2035ac0a5a028     icmpsel slt, r77, r66, 60, r77, r78
+0x26a4  12b144820358a0a5a028     icmpsel slt, r76, r66, 56, r76, r77
+0x26ae  12ad4402035680a5a028     icmpsel slt, r75, r66, 48, r75, r76
+0x26b8  520e00000000             pop_exec r0l, 1
+0x26be  0e0d4666652a0000         iadd r67, r67.sx, r75.sx
+0x26c6  52a844020208             if_icmp r0l, slt, r66, 32, 1
+0x26cc  12ad4412004200a4a028     icmpsel slt, r75, r66, 1, r65, r64
+0x26d6  12b14432007ec0a75028     icmpsel slt, r76, r66, 3, r63, r62
+0x26e0  12ad4422005680a5a028     icmpsel slt, r75, r66, 2, r75, r76
+0x26ea  12b14452007a80a75028     icmpsel slt, r76, r66, 5, r61, r60
+0x26f4  12b54472007640a75028     icmpsel slt, r77, r66, 7, r59, r58
+0x26fe  12b144620058a0a5a028     icmpsel slt, r76, r66, 6, r76, r77
+0x2708  12ad4442005680a5a028     icmpsel slt, r75, r66, 4, r75, r76
+0x2712  12b14492007200a75028     icmpsel slt, r76, r66, 9, r57, r56
+0x271c  12b544b2006ec0a65028     icmpsel slt, r77, r66, 11, r55, r54
+0x2726  12b144a20058a0a5a028     icmpsel slt, r76, r66, 10, r76, r77
+0x2730  12b544d2006a80a65028     icmpsel slt, r77, r66, 13, r53, r52
+0x273a  12b944f2006640a65028     icmpsel slt, r78, r66, 15, r51, r50
+0x2744  12b544e2005ac0a5a028     icmpsel slt, r77, r66, 14, r77, r78
+0x274e  12b144c20058a0a5a028     icmpsel slt, r76, r66, 12, r76, r77
+0x2758  12ad4482005680a5a028     icmpsel slt, r75, r66, 8, r75, r76
+0x2762  12b14412016200a65028     icmpsel slt, r76, r66, 17, r49, r48
+0x276c  12b54432015ec0a55028     icmpsel slt, r77, r66, 19, r47, r46
+0x2776  12b144220158a0a5a028     icmpsel slt, r76, r66, 18, r76, r77
+0x2780  12b54452015a80a55028     icmpsel slt, r77, r66, 21, r45, r44
+0x278a  12b94472015640a55028     icmpsel slt, r78, r66, 23, r43, r42
+0x2794  12b54462015ac0a5a028     icmpsel slt, r77, r66, 22, r77, r78
+0x279e  12b144420158a0a5a028     icmpsel slt, r76, r66, 20, r76, r77
+0x27a8  12b54492015200a55028     icmpsel slt, r77, r66, 25, r41, r40
+0x27b2  12b944b2014ec0a45028     icmpsel slt, r78, r66, 27, r39, r38
+0x27bc  12b544a2015ac0a5a028     icmpsel slt, r77, r66, 26, r77, r78
+0x27c6  12b944d2014a80a45028     icmpsel slt, r78, r66, 29, r37, r36
+0x27d0  12bd44f2014640a45028     icmpsel slt, r79, r66, 31, r35, r34
+0x27da  12b944e2015ce0a5a028     icmpsel slt, r78, r66, 30, r78, r79
+0x27e4  12b544c2015ac0a5a028     icmpsel slt, r77, r66, 28, r77, r78
+0x27ee  12b144820158a0a5a028     icmpsel slt, r76, r66, 24, r76, r77
+0x27f8  12ad4402015680a5a028     icmpsel slt, r75, r66, 16, r75, r76
+0x2802  420a00000000             else_fcmp r0l, eq, 0.0, 0.0, 1
+0x2808  12ad4412024200a45028     icmpsel slt, r75, r66, 33, r33, r32
+0x2812  12b14432027ec0a70028     icmpsel slt, r76, r66, 35, r31, r30
+0x281c  12ad4422025680a5a028     icmpsel slt, r75, r66, 34, r75, r76
+0x2826  12b14452027a80a70028     icmpsel slt, r76, r66, 37, r29, r28
+0x2830  12b54472027640a70028     icmpsel slt, r77, r66, 39, r27, r26
+0x283a  12b144620258a0a5a028     icmpsel slt, r76, r66, 38, r76, r77
+0x2844  12ad4442025680a5a028     icmpsel slt, r75, r66, 36, r75, r76
+0x284e  12b14492027200a70028     icmpsel slt, r76, r66, 41, r25, r24
+0x2858  12b544b2026ec0a60028     icmpsel slt, r77, r66, 43, r23, r22
+0x2862  12b144a20258a0a5a028     icmpsel slt, r76, r66, 42, r76, r77
+0x286c  12b544d2026a80a60028     icmpsel slt, r77, r66, 45, r21, r20
+0x2876  12b944f2026640a60028     icmpsel slt, r78, r66, 47, r19, r18
+0x2880  12b544e2025ac0a5a028     icmpsel slt, r77, r66, 46, r77, r78
+0x288a  12b144c20258a0a5a028     icmpsel slt, r76, r66, 44, r76, r77
+0x2894  12ad4482025680a5a028     icmpsel slt, r75, r66, 40, r75, r76
+0x289e  12b14412036200a60028     icmpsel slt, r76, r66, 49, r17, r16
+0x28a8  12b54432035ec0a50028     icmpsel slt, r77, r66, 51, r15, r14
+0x28b2  12b144220358a0a5a028     icmpsel slt, r76, r66, 50, r76, r77
+0x28bc  12b54452035a80a50028     icmpsel slt, r77, r66, 53, r13, r12
+0x28c6  12b94472035640a50028     icmpsel slt, r78, r66, 55, r11, r10
+0x28d0  12b54462035ac0a5a028     icmpsel slt, r77, r66, 54, r77, r78
+0x28da  12b144420358a0a5a028     icmpsel slt, r76, r66, 52, r76, r77
+0x28e4  12b54492035200a50028     icmpsel slt, r77, r66, 57, r9, r8
+0x28ee  12b944b2034ec0a40028     icmpsel slt, r78, r66, 59, r7, r6
+0x28f8  12b544a2035ac0a5a028     icmpsel slt, r77, r66, 58, r77, r78
+0x2902  12b944d2034a80a40028     icmpsel slt, r78, r66, 61, r5, r4
+0x290c  12bd44f2034640a40028     icmpsel slt, r79, r66, 63, r3, r2
+0x2916  12b944e2035ce0a5a028     icmpsel slt, r78, r66, 62, r78, r79
+0x2920  12b544c2035ac0a5a028     icmpsel slt, r77, r66, 60, r77, r78
+0x292a  12b144820358a0a5a028     icmpsel slt, r76, r66, 56, r76, r77
+0x2934  12ad4402035680a5a028     icmpsel slt, r75, r66, 48, r75, r76
+0x293e  520e00000000             pop_exec r0l, 1
+0x2944  0e0d4666652a0000         iadd r67, r67.sx, r75.sx
+0x294c  2e2d5446250d002a         extr r75, r74, r74, 13
+0x2954  2e3154462502002a         extr r76, r74, r74, 2
+0x295c  7e2d586a652a             xor r75, r76, r75
+0x2962  2e3154462516002a         extr r76, r74, r74, 22
+0x296a  7e2d568a652a             xor r75, r75, r76
+0x2970  7e315422a52a             and r76, r74, r73
+0x2976  7e355402a52a             and r77, r74, r72
+0x297c  7e3158aa652a             xor r76, r76, r77
+0x2982  7e355202a52a             and r77, r73, r72
+0x2988  7e3158aa652a             xor r76, r76, r77
+0x298e  0e2d5686652a0000         iadd r75, r75.sx, r76.sx
+0x2996  0e1d4e66642a0000         iadd r71, r71.sx, r67.sx
+0x299e  0e0d4666652a0000         iadd r67, r67.sx, r75.sx
+0x29a6  0e09441600280000         iadd r66, r66.sx, 1
+0x29ae  7e0d468a642a             xor r67, r67, r68
+0x29b4  7e11468a642a             xor r68, r67, r68
+0x29ba  7e0d468a642a             xor r67, r67, r68
+0x29c0  7e1148aa642a             xor r68, r68, r69
+0x29c6  7e1548aa642a             xor r69, r68, r69
+0x29cc  7e1148aa642a             xor r68, r68, r69
+0x29d2  7e154aca642a             xor r69, r69, r70
+0x29d8  7e194aca642a             xor r70, r69, r70
+0x29de  7e154aca642a             xor r69, r69, r70
+0x29e4  7e194cea642a             xor r70, r70, r71
+0x29ea  7e1d4cea642a             xor r71, r70, r71
+0x29f0  7e194cea642a             xor r70, r70, r71
+0x29f6  7e1d4e0a652a             xor r71, r71, r72
+0x29fc  7e214e0a652a             xor r72, r71, r72
+0x2a02  7e1d4e0a652a             xor r71, r71, r72
+0x2a08  7e21502a652a             xor r72, r72, r73
+0x2a0e  7e25502a652a             xor r73, r72, r73
+0x2a14  7e21502a652a             xor r72, r72, r73
+0x2a1a  7e25524a652a             xor r73, r73, r74
+0x2a20  7e29524a652a             xor r74, r73, r74
+0x2a26  7e25524a652a             xor r73, r73, r74
+0x2a2c  00c0c8f9ffff             jmp_exec_any pc-1592
+0x2a32  520e00000000             pop_exec r0l, 1
+0x2a38  0e099a4565020000         iadd r2, u13.sx, r74.sx
+0x2a40  0e050020e4001000         iadd r1, 0, r1.sx, lsl 3
+0x2a48  4511200e10c01200         device_store 0, i32, x, r2, u8_u9, r1, unsigned, 0
+0x2a50  0e09a02565020000         iadd r2, u16.sx, r73.sx
+0x2a58  0e0d012064000000         iadd r3, 1, r1.sx
+0x2a60  4511604e10c01200         device_store 1, i32, x, r2, u8_u9, r3, unsigned, 0
+0x2a68  0e09a20565020000         iadd r2, u17.sx, r72.sx
+0x2a70  0e0d022064000000         iadd r3, 2, r1.sx
+0x2a78  4511600e10c01200         device_store 0, i32, x, r2, u8_u9, r3, unsigned, 0
+0x2a80  0e099ce564020000         iadd r2, u14.sx, r71.sx
+0x2a88  0e0d032064000000         iadd r3, 3, r1.sx
+0x2a90  4511600e10c01200         device_store 0, i32, x, r2, u8_u9, r3, unsigned, 0
+0x2a98  0e099ec564020000         iadd r2, u15.sx, r70.sx
+0x2aa0  0e0d042064000000         iadd r3, 4, r1.sx
+0x2aa8  4511600e10c01200         device_store 0, i32, x, r2, u8_u9, r3, unsigned, 0
+0x2ab0  0e0998a564020000         iadd r2, u12.sx, r69.sx
+0x2ab8  0e0d052064000000         iadd r3, 5, r1.sx
+0x2ac0  4511600e10c01200         device_store 0, i32, x, r2, u8_u9, r3, unsigned, 0
+0x2ac8  0e09948564020000         iadd r2, u10.sx, r68.sx
+0x2ad0  0e0d062064000000         iadd r3, 6, r1.sx
+0x2ad8  4511600e10c01200         device_store 0, i32, x, r2, u8_u9, r3, unsigned, 0
+0x2ae0  0e09966564020000         iadd r2, u11.sx, r67.sx
+0x2ae8  0e05072064000000         iadd r1, 7, r1.sx
+0x2af0  4511200e10c01200         device_store 0, i32, x, r2, u8_u9, r1, unsigned, 0
+0x2af8  3800                     wait 0
+0x2afa  3801                     wait 1
+0x2afc  520e00000000             pop_exec r0l, 1
+0x2b02  8800                     stop

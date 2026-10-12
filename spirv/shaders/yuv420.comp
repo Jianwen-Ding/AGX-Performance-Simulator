@@ -1,0 +1,30 @@
+#version 450
+// RGBA8 -> NV12 colour conversion (BT.601 limited range, integer coefficients as in libyuv / the video
+// encoders' input stage): one thread per 2 x 2 block writes 4 luma bytes and one interleaved Cb Cr pair from the
+// block's rounded average colour. Integer-exact.
+#extension GL_EXT_shader_8bit_storage : require
+#extension GL_EXT_shader_explicit_arithmetic_types_int8 : require
+layout(local_size_x = 16, local_size_y = 16) in;
+layout(std430, binding = 0) readonly buffer I { uint rgba[]; };
+layout(std430, binding = 1) writeonly buffer O { uint8_t yuv[]; };  // Y plane (w x h), then CbCr (w x h / 2)
+layout(push_constant) uniform P { int width; int height; } p;
+
+void main() {
+    ivec2 b = ivec2(gl_GlobalInvocationID.xy);
+    if (2 * b.x >= p.width || 2 * b.y >= p.height) return;
+    ivec3 sum = ivec3(0);
+    for (int dy = 0; dy < 2; dy++)
+        for (int dx = 0; dx < 2; dx++) {
+            int x = 2 * b.x + dx, y = 2 * b.y + dy;
+            uint c = rgba[y * p.width + x];
+            ivec3 v = ivec3(int(c & 255u), int((c >> 8) & 255u), int((c >> 16) & 255u));
+            yuv[y * p.width + x] = uint8_t(((66 * v.r + 129 * v.g + 25 * v.b + 128) >> 8) + 16);
+            sum += v;
+        }
+    ivec3 a = (sum + 2) >> 2;
+    int cb = ((-38 * a.r - 74 * a.g + 112 * a.b + 128) >> 8) + 128;
+    int cr = ((112 * a.r - 94 * a.g - 18 * a.b + 128) >> 8) + 128;
+    int uv = p.width * p.height + b.y * p.width + 2 * b.x;
+    yuv[uv] = uint8_t(cb);
+    yuv[uv + 1] = uint8_t(cr);
+}

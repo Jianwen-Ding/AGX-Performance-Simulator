@@ -1,0 +1,19 @@
+#version 450
+// Adler-32 checksums (zlib / PNG) of 4096-byte blocks, one thread per block reading whole words: both sums
+// accumulate without overflow over a block (zlib's NMAX argument) and are reduced mod 65521 once at the end.
+// Integer-exact; checked against zlib.adler32.
+layout(local_size_x = 64) in;
+layout(std430, binding = 0) readonly buffer D { uint data[]; };
+layout(std430, binding = 1) writeonly buffer A { uint sums[]; };
+layout(push_constant) uniform P { uint blocks; } p;
+
+void main() {
+    uint blk = gl_GlobalInvocationID.x;
+    if (blk >= p.blocks) return;
+    uint a = 1u, b = 0u;
+    for (uint w = 0u; w < 1024u; w++) {
+        uint v = data[blk * 1024u + w];
+        for (uint k = 0u; k < 32u; k += 8u) { a += (v >> k) & 255u; b += a; }
+    }
+    sums[blk] = ((b % 65521u) << 16) | (a % 65521u);
+}

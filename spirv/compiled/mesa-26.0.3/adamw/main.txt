@@ -1,0 +1,34 @@
+0x0000  f2051004                 get_sr r1.cache, sr80 (thread_position_in_grid.x)
+0x0004  0e05c28658000000         iadd r1, r1.discard.sx, u4.sx
+0x000c  62000000                 mov_imm r0l, 0
+0x0010  522842a21800             if_icmp r0l, ult, r1, u5, 1
+0x0016  20c0a2000000             jmp_exec_none pc+162
+0x001c  05112c0e00c01200         device_load 0, i32, x, r2, u6_u7, r1, unsigned
+0x0024  3800                     wait 0
+0x0026  9a8d84422800             fmul32 r3.cache, r2.cache, r2.cache
+0x002c  9a8d46421a00             fmul32 r3.cache, r3, u18
+0x0032  0521280e10c01200         device_load 0, i32, x, r4, u12_u13, r1, unsigned
+0x003a  0529204e20c01200         device_load 1, i32, x, r5, u16_u17, r1, unsigned
+0x0042  3801                     wait 1
+0x0044  ba8d94a124460200         fmadd32 r3.cache, u10, r5, r3
+0x004c  9a899c412400             fmul32 r2.cache, u14, r2
+0x0052  3800                     wait 0
+0x0054  ba89928124440200         fmadd32 r2.cache, u9, r4, r2
+0x005c  9a9146e21a00             fmul32 r4.cache, r3, u23
+0x0062  8a158812                 rsqrt_special r5.cache, r4.cache
+0x0066  9a9148a22400             fmul32 r4.cache, r4, r5
+0x006c  4511280e10c01200         device_store 0, i32, x, r2, u12_u13, r1, unsigned, 0
+0x0074  4519204e20c01200         device_store 1, i32, x, r3, u16_u17, r1, unsigned, 0
+0x007c  aa8d48621900             fadd32 r3.cache, r4, u11
+0x0082  9a8944c21a00             fmul32 r2.cache, r2, u22
+0x0088  8a0d4682                 rcp r3.cache, r3
+0x008c  0521200e30c01200         device_load 0, i32, x, r4, u24_u25, r1, unsigned
+0x0094  3800                     wait 0
+0x0096  9a95a6812800             fmul32 r5.cache, u19, r4.cache
+0x009c  ba894642244a0200         fmadd32 r2.cache, r3, r2, r5
+0x00a4  3a89904924480200         fmadd32 r2, u8.neg, r2, r4
+0x00ac  4511200e30c01200         device_store 0, i32, x, r2, u24_u25, r1, unsigned, 0
+0x00b4  3800                     wait 0
+0x00b6  3801                     wait 1
+0x00b8  520e00000000             pop_exec r0l, 1
+0x00be  8800                     stop

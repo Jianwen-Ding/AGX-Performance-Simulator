@@ -46,9 +46,32 @@ checked, and control cases are emulated first.
 ## Status and use
 
 `make suite-check` (≈1 s) prints per-category pass counts and the instructions the functional simulator cannot yet
-run (`-v` lists every failure with its first differing word; `--only CATEGORY`, `--case NAME`). Baseline when the
-suite was recorded: 330 / 721 (the applegpu-derived emulator lacks convert, the funop functions, quad and SIMD
-reductions / prefix ops, quad shuffles and ballots, intl, some float compare codes and u8norm loads).
+run (`-v` lists every failure with its first differing word; `--only CATEGORY`, `--case NAME`).
+
+Current: **691 / 721**. Every category passes completely except `alu` (245 / 253) and `random` (128 / 150), and
+every remaining failure is an fp32 transcendental (`rcp`, `rsqrt`, `rsqrt_special`, `log2`, `exp2`, `sin_pt_2`
+on 32-bit operands; the 22 failing random programs all contain one). The hardware computes those with a ~26-bit
+approximation: 10-15% of lanes differ by 1-3 ulp from the correctly rounded value the simulator uses, and the
+suite's samples cannot pin the approximation down. `make record-transcendentals` (hardware, `scripts/
+record_transcendentals.py`) sweeps every mantissa: for rcp / rsqrt / rsqrt_special it writes exact tables to
+`transcendental/`, which the simulator applies automatically (validated here with tables built from the suite's own
+lanes: those alu cases then pass); for log2 / exp2 / sin_pt_2 it records dense samples for fitting their algorithm.
+
+Semantics fitted from this suite (beyond the applegpu emulator), all exact on every recorded lane:
+
+| Instructions | Behaviour |
+| --- | --- |
+| floor, ceil, trunc, rint | fp32 (denormal in = 0, tiny out flushed) or fp16; canonical NaN; sign of zero kept |
+| intl | interleave the low 16 bits of A (even result bits) and B (odd bits) |
+| convert | applegpu's `round` field is the direction (0 float→int, 1 int→float); mode = size<<2 \| rte<<1 \| signed. Float→int saturates, NaN → 0, zero-extended from the type width; int→float rounds to the destination precision (fp16 for 16-bit destinations) |
+| simd_/quad_ reductions | pairwise tree; float add/mul flush denormal inputs; min/max return raw operand bits (denormals compare as zero, left operand on ties, NaN loses, of two NaNs the left; inactive lanes take part as canonical NaN) |
+| prefix ops (exclusive) | quad: lane-order chain; SIMD: per-quad chain for lanes 0-2 and tree for the quad total, then Kogge-Stone over quads |
+| quad_shuffle family | per-lane index; out-of-quad keeps the own value; rotate_up wraps |
+| u8norm loads | v / 255 rounded to the destination precision |
+| sin_pt_1 | folds onto [-1, 1]: x, 2-\|x\|, \|x\|-4 with the sign of x; zero → +0; \|x\| > 4 → NaN |
+| sin_pt_2 | sin(πy/2)/y; 0 → RN(π/2); \|y\| > 1 → NaN |
+| fp16 transcendentals | correctly rounded; fp16 denormal inputs are real values |
+| special values | rcp(±0) = ±inf; rsqrt(±0) = ±inf, rsqrt(negative or -inf) = NaN; rsqrt_special(±0, +inf) = 1; log2(0) = -inf; exp2(0) = 1, exp2(-inf) = 0 |
 
 Timing is tested separately against stored hardware measurements: `make verify-cost-model`, `verify-scaling`,
 `verify-memory-model`, `verify-dispatch` (each prints median errors and fails past a limit).

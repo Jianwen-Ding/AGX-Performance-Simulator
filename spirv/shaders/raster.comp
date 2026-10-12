@@ -1,0 +1,26 @@
+#version 450
+// Software triangle rasterizer (compute rasterization as in Nanite-style renderers): one thread per small
+// triangle walks its bounding box, tests pixel centres against the three integer edge functions, and resolves
+// visibility with a 32-bit atomicMin of (depth << 20 | triangle id) per pixel. Integer-exact under any order.
+layout(local_size_x = 64) in;
+layout(std430, binding = 0) readonly buffer T { ivec4 tris[]; };      // (x0, y0, x1, y1), (x2, y2, depth, 0)
+layout(std430, binding = 1) buffer F { uint fb[]; };
+layout(push_constant) uniform P { uint n; uint width; uint height; } p;
+
+int edge(ivec2 a, ivec2 b, ivec2 c) { return (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x); }
+
+void main() {
+    uint t = gl_GlobalInvocationID.x;
+    if (t >= p.n) return;
+    ivec4 u = tris[2u * t], v = tris[2u * t + 1u];
+    ivec2 a = u.xy, b = u.zw, c = v.xy;
+    if (edge(a, b, c) < 0) { ivec2 s = b; b = c; c = s; }                // counter-clockwise
+    ivec2 lo = max(min(min(a, b), c), ivec2(0)), hi = min(max(max(a, b), c), ivec2(int(p.width) - 1, int(p.height) - 1));
+    uint key = (uint(v.z) << 20) | t;
+    for (int y = lo.y; y <= hi.y; y++)
+        for (int x = lo.x; x <= hi.x; x++) {
+            ivec2 q = ivec2(x, y);
+            if (edge(a, b, q) >= 0 && edge(b, c, q) >= 0 && edge(c, a, q) >= 0)
+                atomicMin(fb[uint(y) * p.width + uint(x)], key);
+        }
+}

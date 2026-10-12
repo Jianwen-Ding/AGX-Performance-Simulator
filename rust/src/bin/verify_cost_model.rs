@@ -54,6 +54,15 @@ fn rep(b: &[u8], n: usize) -> Vec<u8> {
     b.repeat(n)
 }
 
+/// V is shared read-only across threads when `export` is None (the only RefCell); par_map checks that.
+struct Shared<'a>(&'a V);
+unsafe impl Sync for Shared<'_> {}
+impl<'a> Shared<'a> {
+    fn get(&self) -> &'a V {
+        self.0
+    }
+}
+
 impl V {
     fn check(&mut self, ok: bool, msg: String) {
         if !ok {
@@ -74,6 +83,17 @@ impl V {
             }
         }
         c
+    }
+    /// `f` over `items` on all cores, results in item order (sequential with --export, whose writer is not shared).
+    fn par_map<T: Sync, R: Send>(&self, items: &[T], f: impl Fn(&V, &T) -> R + Sync) -> Vec<R> {
+        self.par_map_by(items, |_| 0, f)
+    }
+    fn par_map_by<T: Sync, R: Send>(&self, items: &[T], cost: impl Fn(&T) -> u64, f: impl Fn(&V, &T) -> R + Sync) -> Vec<R> {
+        if self.export.is_some() {
+            return items.iter().map(|x| f(self, x)).collect();
+        }
+        let me = Shared(self);
+        agx_sim::par::map_by(items, cost, |x| f(me.get(), x))
     }
     /// cost_hw.predict: reference units per unit of (phase_b - phase_a).
     fn predict(&self, pa: &[u8], pb: &[u8], units: f64, groups: usize) -> f64 {
@@ -408,9 +428,9 @@ fn main() {
         let rk = load(fname);
         for (gm, groups, lim) in [("one", 1usize, if fname.contains("b.json") { 0.07 } else { 0.08 }), ("gpu", 4, 0.12)] {
             let mut errs = vec![];
-            for x in rk.as_array().unwrap() {
-                let (_, body) = mem_kernel(x["seed"].as_u64().unwrap(), 24);
-                let pr = v.pred_loop(&body, MEM_CONSTS, groups);
+            let xs = rk.as_array().unwrap();
+            let prs = v.par_map(xs, |v, x| v.pred_loop(&mem_kernel(x["seed"].as_u64().unwrap(), 24).1, MEM_CONSTS, groups));
+            for (x, pr) in xs.iter().zip(prs) {
                 let m = x[gm]["measured"].as_f64().unwrap();
                 errs.push((pr - m) / m);
             }
@@ -430,10 +450,12 @@ fn main() {
         let rk = load(fname);
         for (gm, groups, lim, blim) in [("one", 1usize, lim1, blim1), ("gpu", 4, lim4, blim4)] {
             let (mut errs, mut berrs) = (vec![], vec![]);
-            for x in rk.as_array().unwrap() {
+            let xs = rk.as_array().unwrap();
+            let prs = v.par_map(xs, |v, x| {
                 let len = x["ops"].as_array().unwrap().len();
-                let (_, body) = kernels::kernel(x["seed"].as_u64().unwrap(), len);
-                let pr = v.pred_loop(&body, DEFAULT_CONSTS, groups);
+                v.pred_loop(&kernels::kernel(x["seed"].as_u64().unwrap(), len).1, DEFAULT_CONSTS, groups)
+            });
+            for (x, pr) in xs.iter().zip(prs) {
                 let m = x[gm]["measured"].as_f64().unwrap();
                 errs.push((pr - m) / m);
                 berrs.push(((pr - empty_pred) - (m - empty_meas)) / (m - empty_meas));
@@ -453,14 +475,19 @@ fn main() {
         let t_ = 10u32;
         let mut errs = vec![];
         let mut by_g: std::collections::BTreeMap<u64, Vec<f64>> = Default::default();
-        for r in d["rows"].as_array().unwrap() {
-            let Some(meas) = r.get("core_cycles_per_step").and_then(|x| x.as_f64()) else { continue };
+        let rows: Vec<(&str, u32, u64, f64)> = d["rows"].as_array().unwrap().iter().filter_map(|r| {
+            let meas = r.get("core_cycles_per_step").and_then(|x| x.as_f64())?;
             if r.get("idle").and_then(|x| x.as_array()).map(|a| !a.is_empty()).unwrap_or(false) {
-                continue;
+                return None;
             }
-            let (op, ch, g) = (r["op"].as_str().unwrap(), r["chains"].as_u64().unwrap() as u32, r["groups"].as_u64().unwrap());
+            Some((r["op"].as_str().unwrap(), r["chains"].as_u64().unwrap() as u32, r["groups"].as_u64().unwrap(), meas))
+        }).collect();
+        // rows are independent: simulate them on every core (in order, so the output is unchanged)
+        let preds = v.par_map_by(&rows, |r| r.2 * r.1 as u64, |v, &(op, ch, g, _)| {
             let c: Vec<f64> = steps.iter().map(|&s| v.sim(&kernels::bench_loop(op, ch, s, t_), g as usize)).collect();
-            let pred = to_ref(c[1] - c[0]) / (t_ * (steps[1] - steps[0])) as f64;
+            to_ref(c[1] - c[0]) / (t_ * (steps[1] - steps[0])) as f64
+        });
+        for (&(_, _, g, meas), pred) in rows.iter().zip(preds) {
             errs.push((pred - meas) / meas);
             by_g.entry(g).or_default().push(((pred - meas) / meas).abs());
         }

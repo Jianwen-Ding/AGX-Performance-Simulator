@@ -1,0 +1,26 @@
+#version 450
+// Workgroup-wide bitonic sort of 8192 keys at the device limits: 1024 invocations and all 32 KiB of shared memory
+// (uint keys[8192]), each invocation handling 8 keys per compare-exchange stage with a barrier between stages.
+// The large-tile building block of GPU sorts and top-k. Integer-exact.
+layout(local_size_x = 1024) in;
+layout(std430, binding = 0) readonly buffer I { uint inp[]; };
+layout(std430, binding = 1) writeonly buffer O { uint outp[]; };
+shared uint keys[8192];
+
+void main() {
+    uint t = gl_LocalInvocationID.x, base = gl_WorkGroupID.x * 8192u;
+    for (uint k = 0u; k < 8u; k++) keys[t + 1024u * k] = inp[base + t + 1024u * k];
+    barrier();
+    for (uint size = 2u; size <= 8192u; size <<= 1)
+        for (uint stride = size >> 1; stride > 0u; stride >>= 1) {
+            for (uint k = 0u; k < 4u; k++) {                  // 4096 compare-exchange pairs per stage
+                uint pair = t + 1024u * k;
+                uint i = 2u * stride * (pair / stride) + pair % stride, j = i + stride;
+                bool up = (i & size) == 0u;
+                uint a = keys[i], b = keys[j];
+                if ((a > b) == up) { keys[i] = b; keys[j] = a; }
+            }
+            barrier();
+        }
+    for (uint k = 0u; k < 8u; k++) outp[base + t + 1024u * k] = keys[t + 1024u * k];
+}

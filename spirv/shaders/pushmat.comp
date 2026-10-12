@@ -1,0 +1,13 @@
+#version 450
+// Vertex transform chain from a full 256-byte push-constant block (model, view, projection and a correction
+// matrix: four mat4), the fastest way to pass per-draw constants. Integer-valued matrices and positions keep every
+// product exact in fp32, so the result is bit-exact.
+layout(local_size_x = 64) in;
+layout(std430, binding = 0) readonly buffer V { vec4 pos[]; };
+layout(std430, binding = 1) writeonly buffer O { vec4 outp[]; };
+layout(push_constant) uniform P { mat4 m0; mat4 m1; mat4 m2; mat4 m3; } p;
+
+void main() {
+    uint i = gl_GlobalInvocationID.x;
+    outp[i] = p.m3 * (p.m2 * (p.m1 * (p.m0 * pos[i])));
+}

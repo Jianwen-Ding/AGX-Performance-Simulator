@@ -1,0 +1,13 @@
+0x0000  f2051004                 get_sr r1.cache, sr80 (thread_position_in_grid.x)
+0x0004  0e05c28658000000         iadd r1, r1.discard.sx, u4.sx
+0x000c  62000000                 mov_imm r0l, 0
+0x0010  522842a21800             if_icmp r0l, ult, r1, u5, 1
+0x0016  20c024000000             jmp_exec_none pc+36
+0x001c  05112c0e00c43200         device_load 0, i32, xy, r2_r3, u6_u7, r1, unsigned, lsl 1
+0x0024  3800                     wait 0
+0x0026  7111040000620180         texture_load 0, 0b1100, 0b1, none, x, 0b00, r4, None, ts0, ss0, tex_2d, r2_r3, auto_lod, 0
+0x002e  3801                     wait 1
+0x0030  4521200e10c01200         device_store 0, i32, x, r4, u8_u9, r1, unsigned, 0
+0x0038  3800                     wait 0
+0x003a  520e00000000             pop_exec r0l, 1
+0x0040  8800                     stop

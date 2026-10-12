@@ -1,0 +1,49 @@
+#version 450
+// Stereo depth by census matching (the matching cost of SGM-style stereo in robotics / automotive vision), in two
+// passes: pass 0 computes the 5x5 census transform of both images (24 bits: neighbour < centre, clamped borders);
+// pass 1 gives each pixel of the left image the disparity d in [0, 64) minimising the Hamming distance between
+// its census and that of the right image at x - d, summed over a 5x5 window (ties to the smaller d; columns
+// left of the image clamp). Exact integer work: bitCount, small window sums, an argmin.
+layout(local_size_x = 16, local_size_y = 16) in;
+layout(std430, binding = 0) readonly buffer L { uint left[]; };
+layout(std430, binding = 1) readonly buffer R { uint right[]; };
+layout(std430, binding = 2) buffer CL { uint cen_l[]; };
+layout(std430, binding = 3) buffer CR { uint cen_r[]; };
+layout(std430, binding = 4) writeonly buffer D { uint disp[]; };
+layout(push_constant) uniform P { uint pass; uint w; uint h; } p;
+
+uint census(uint x, uint y, bool r) {
+    uint c = r ? right[y * p.w + x] : left[y * p.w + x], bits = 0u;
+    for (int dy = -2; dy <= 2; dy++)
+        for (int dx = -2; dx <= 2; dx++) {
+            if (dx == 0 && dy == 0) continue;
+            uint xx = uint(clamp(int(x) + dx, 0, int(p.w) - 1)), yy = uint(clamp(int(y) + dy, 0, int(p.h) - 1));
+            uint v = r ? right[yy * p.w + xx] : left[yy * p.w + xx];
+            bits = (bits << 1) | (v < c ? 1u : 0u);
+        }
+    return bits;
+}
+
+void main() {
+    uint x = gl_GlobalInvocationID.x, y = gl_GlobalInvocationID.y;
+    if (x >= p.w || y >= p.h) return;
+    if (p.pass == 0u) {
+        cen_l[y * p.w + x] = census(x, y, false);
+        cen_r[y * p.w + x] = census(x, y, true);
+        return;
+    }
+    uint best = 0xffffffffu, bd = 0u;
+    for (uint d = 0u; d < 64u; d++) {
+        uint cost = 0u;
+        for (int dy = -2; dy <= 2; dy++) {
+            uint yy = uint(clamp(int(y) + dy, 0, int(p.h) - 1));
+            for (int dx = -2; dx <= 2; dx++) {
+                int xl = clamp(int(x) + dx, 0, int(p.w) - 1);
+                int xr = max(xl - int(d), 0);
+                cost += uint(bitCount(cen_l[yy * p.w + uint(xl)] ^ cen_r[yy * p.w + uint(xr)]));
+            }
+        }
+        if (cost < best) { best = cost; bd = d; }
+    }
+    disp[y * p.w + x] = bd;
+}

@@ -1,0 +1,28 @@
+#version 450
+// Tiled matrix transpose through shared memory (32 x 33 padded tile, 16 x 16 threads, 4 rows per thread), with
+// edge tiles for sizes that are not multiples of 32.
+layout(local_size_x = 16, local_size_y = 16) in;
+layout(std430, binding = 0) readonly buffer I { uint inp[]; };
+layout(std430, binding = 1) writeonly buffer O { uint outp[]; };
+layout(push_constant) uniform P { uint width; uint height; } p;
+shared uint tile[32][33];
+
+void main() {
+    uvec2 l = gl_LocalInvocationID.xy;
+    uvec2 g0 = gl_WorkGroupID.xy * 32u;
+    for (uint k = 0u; k < 2u; k++) {
+        for (uint j = 0u; j < 2u; j++) {
+            uint tx = l.x + 16u * k, ty = l.y + 16u * j;
+            uint gx = g0.x + tx, gy = g0.y + ty;
+            if (gx < p.width && gy < p.height) tile[ty][tx] = inp[gy * p.width + gx];
+        }
+    }
+    barrier();
+    for (uint k = 0u; k < 2u; k++) {
+        for (uint j = 0u; j < 2u; j++) {
+            uint tx = l.x + 16u * k, ty = l.y + 16u * j;
+            uint ox = g0.y + tx, oy = g0.x + ty;                 // output is height x width transposed
+            if (ox < p.height && oy < p.width) outp[oy * p.height + ox] = tile[tx][ty];
+        }
+    }
+}

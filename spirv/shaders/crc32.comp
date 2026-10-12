@@ -1,0 +1,24 @@
+#version 450
+// CRC-32 (IEEE, reflected 0xEDB88320) of one 64-byte message per thread, through a 256-entry table that the
+// workgroup builds in shared memory (bitwise, 8 steps per entry): data-dependent threadgroup loads.
+layout(local_size_x = 256) in;
+layout(std430, binding = 0) readonly buffer M { uint msg[]; };    // 16 words per message, little-endian bytes
+layout(std430, binding = 1) writeonly buffer C { uint crc[]; };
+layout(push_constant) uniform P { uint n; } p;
+shared uint table[256];
+
+void main() {
+    uint t = gl_LocalInvocationID.x;
+    uint c = t;
+    for (uint k = 0u; k < 8u; k++) c = (c & 1u) != 0u ? 0xEDB88320u ^ (c >> 1) : c >> 1;
+    table[t] = c;
+    barrier();
+    uint i = gl_GlobalInvocationID.x;
+    if (i >= p.n) return;
+    uint r = 0xFFFFFFFFu;
+    for (uint w = 0u; w < 16u; w++) {
+        uint word = msg[16u * i + w];
+        for (uint b = 0u; b < 4u; b++) r = table[(r ^ (word >> (8u * b))) & 255u] ^ (r >> 8);
+    }
+    crc[i] = ~r;
+}

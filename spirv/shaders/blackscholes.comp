@@ -1,0 +1,29 @@
+#version 450
+// Black-Scholes European option pricing, the classic finance kernel (as in the CUDA samples): for each option
+// (spot S, strike K, years T, rate r, volatility v), the call and put prices
+//   d1 = (log(S / K) + (r + v^2 / 2) T) / (v sqrt(T)),  d2 = d1 - v sqrt(T)
+//   call = S N(d1) - K exp(-r T) N(d2),  put = K exp(-r T) N(-d2) - S N(-d1)
+// with the cumulative normal N from the Abramowitz-Stegun polynomial (7.5e-8 absolute error). Per option: a log, a
+// sqrt, three exps and two divisions, in fp32 - the transcendental units whose exact tables are question 4.
+layout(local_size_x = 256) in;
+layout(std430, binding = 0) readonly buffer IN { float opt[]; };    // per option: S, K, T, r, v
+layout(std430, binding = 1) writeonly buffer OU { vec2 price[]; };  // (call, put)
+layout(push_constant) uniform P { uint n; } p;
+
+float cnd(float d) {
+    const float A1 = 0.31938153, A2 = -0.356563782, A3 = 1.781477937, A4 = -1.821255978, A5 = 1.330274429;
+    float k = 1.0 / (1.0 + 0.2316419 * abs(d));
+    float c = 0.3989422804 * exp(-0.5 * d * d) * (k * (A1 + k * (A2 + k * (A3 + k * (A4 + k * A5)))));
+    return d > 0.0 ? 1.0 - c : c;
+}
+
+void main() {
+    uint i = gl_GlobalInvocationID.x;
+    if (i >= p.n) return;
+    float S = opt[5u * i], K = opt[5u * i + 1u], T = opt[5u * i + 2u], r = opt[5u * i + 3u], v = opt[5u * i + 4u];
+    float sq = sqrt(T), vs = v * sq;
+    float d1 = (log(S / K) + (r + 0.5 * v * v) * T) / vs, d2 = d1 - vs;
+    float df = K * exp(-r * T);
+    float n1 = cnd(d1), n2 = cnd(d2);
+    price[i] = vec2(S * n1 - df * n2, df * (1.0 - n2) - S * (1.0 - n1));
+}

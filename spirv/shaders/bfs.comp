@@ -1,0 +1,22 @@
+#version 450
+// Level-synchronous breadth-first search over a CSR graph: dispatch k expands every vertex at distance k and lowers
+// its unvisited neighbours to k + 1 with atomicMin, so the result is deterministic whatever the order. A frontier
+// counter per level records how many vertices each level discovered (also deterministic).
+layout(local_size_x = 128) in;
+layout(std430, binding = 0) readonly buffer R { uint rowptr[]; };
+layout(std430, binding = 1) readonly buffer C { uint col[]; };
+layout(std430, binding = 2) buffer D { uint dist[]; };
+layout(std430, binding = 3) buffer F { uint found[]; };          // per level: vertices first reached at that level
+layout(push_constant) uniform P { uint n; uint level; } p;
+
+void main() {
+    uint v = gl_GlobalInvocationID.x;
+    if (v >= p.n || dist[v] != p.level) return;
+    for (uint k = rowptr[v]; k < rowptr[v + 1u]; k++) {
+        uint u = col[k];
+        if (dist[u] > p.level + 1u) {
+            uint old = atomicMin(dist[u], p.level + 1u);
+            if (old > p.level + 1u) atomicAdd(found[p.level + 1u], 1u);
+        }
+    }
+}

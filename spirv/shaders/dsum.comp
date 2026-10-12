@@ -1,0 +1,18 @@
+#version 450
+// Double-precision dot products (scientific / financial accumulation): each workgroup forms a 256-wide fp64
+// tree reduction of x[i] * y[i] in shared memory and writes its partial sum. Needs shaderFloat64; the order is
+// fixed, so the result is bit-exact against the same tree in float64.
+#extension GL_ARB_gpu_shader_fp64 : require
+layout(local_size_x = 256) in;
+layout(std430, binding = 0) readonly buffer X { double x[]; };
+layout(std430, binding = 1) readonly buffer Y { double y[]; };
+layout(std430, binding = 2) writeonly buffer O { double part[]; };
+shared double s[256];
+
+void main() {
+    uint t = gl_LocalInvocationID.x, i = gl_GlobalInvocationID.x;
+    s[t] = x[i] * y[i];
+    barrier();
+    for (uint k = 128u; k > 0u; k >>= 1) { if (t < k) s[t] += s[t + k]; barrier(); }
+    if (t == 0u) part[gl_WorkGroupID.x] = s[0];
+}

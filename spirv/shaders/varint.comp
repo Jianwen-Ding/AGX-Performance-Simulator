@@ -1,0 +1,50 @@
+#version 450
+// Protobuf-style serialisation: signed 32-bit values zigzag-encoded ((v << 1) ^ (v >> 31)) then written as LEB128
+// varints (7 bits per byte, high bit = more), 1-5 bytes each, packed back to back. Output positions depend on every
+// earlier value's length, so in three passes:
+// pass 0: bytes per workgroup -> counts[wg]
+// pass 1: one workgroup turns the counts into exclusive offsets (serially; up to 16384 workgroups)
+// pass 2: each invocation's position = workgroup offset + exclusive prefix of the sizes before it in the workgroup
+//         (shared-memory Hillis-Steele scan), bytes written through an 8-bit storage buffer.
+#extension GL_EXT_shader_8bit_storage : require
+#extension GL_EXT_shader_explicit_arithmetic_types_int8 : require
+layout(local_size_x = 256) in;
+layout(std430, binding = 0) readonly buffer V { int vals[]; };
+layout(std430, binding = 1) buffer C { uint counts[]; };
+layout(std430, binding = 2) writeonly buffer O { uint8_t outb[]; };
+layout(std430, binding = 3) writeonly buffer T { uint total; };
+layout(push_constant) uniform P { uint pass; uint ngroups; } p;
+shared uint sz[256];
+
+uint zigzag(int v) { return uint((v << 1) ^ (v >> 31)); }
+uint vlen(uint z) { return z < 0x80u ? 1u : z < 0x4000u ? 2u : z < 0x200000u ? 3u : z < 0x10000000u ? 4u : 5u; }
+
+void main() {
+    uint l = gl_LocalInvocationID.x, i = gl_GlobalInvocationID.x;
+    if (p.pass == 1u) {
+        if (l == 0u) {
+            uint acc = 0u;
+            for (uint g = 0u; g < p.ngroups; g++) { uint c = counts[g]; counts[g] = acc; acc += c; }
+            total = acc;
+        }
+        return;
+    }
+    uint z = zigzag(vals[i]), n = vlen(z);
+    sz[l] = n;
+    barrier();
+    for (uint d = 1u; d < 256u; d <<= 1) {                          // inclusive scan of the sizes
+        uint x = l >= d ? sz[l - d] : 0u;
+        barrier();
+        sz[l] += x;
+        barrier();
+    }
+    if (p.pass == 0u) {
+        if (l == 255u) counts[gl_WorkGroupID.x] = sz[255];
+        return;
+    }
+    uint pos = counts[gl_WorkGroupID.x] + sz[l] - n;
+    for (uint k = 0u; k < n; k++) {
+        outb[pos + k] = uint8_t((z & 0x7fu) | (k + 1u < n ? 0x80u : 0u));
+        z >>= 7;
+    }
+}

@@ -1,0 +1,59 @@
+0x0000  72051004                 get_sr r1, sr80 (thread_position_in_grid.x)
+0x0004  72091104                 get_sr r2, sr81 (thread_position_in_grid.y)
+0x0008  720d1204                 get_sr r3, sr82 (thread_position_in_grid.z)
+0x000c  0e09440659000000         iadd r2, r2.sx, u8.sx
+0x0014  1202446219001130         icmpsel ult, r0h, r2, u11, 0, 1
+0x001c  0e0542e658000000         iadd r1, r1.sx, u7.sx
+0x0024  1210424219001130         icmpsel ult, r4l, r1, u10, 0, 1
+0x002c  7e1248184000             xor r4h, r4l, 1
+0x0032  1202490000481004         icmpsel ueq, r0h, r4h, 0, r4l, r0h
+0x003a  0e0d462659000000         iadd r3, r3.sx, u9.sx
+0x0042  1210468219001130         icmpsel ult, r4l, r3, u12, 0, 1
+0x004a  7e1241184000             xor r4h, r0h, 1
+0x0050  1202490000418004         icmpsel ueq, r0h, r4h, 0, r0h, r4l
+0x0058  62000000                 mov_imm r0l, 0
+0x005c  520841000000             if_icmp r0l, ueq, r0h, 0, 1
+0x0062  20c01c010000             jmp_exec_none pc+284
+0x0068  1e1146a659440600         imadd r4, r3.sx, u13.sx, r2.sx
+0x0070  1e11484659420600         imadd r4, r4.sx, u10.sx, r1.sx
+0x0078  1e110c8064000000         imadd r4, 12, r4.sx, 0
+0x0080  45098c0e10c01200         device_store 0, i32, x, r1, u14_u15, r4, unsigned, 0
+0x0088  0e05481600000000         iadd r1, r4.sx, 1
+0x0090  45112c4e10c01200         device_store 1, i32, x, r2, u14_u15, r1, unsigned, 0
+0x0098  0e05482600000000         iadd r1, r4.sx, 2
+0x00a0  45192c0e10c01200         device_store 0, i32, x, r3, u14_u15, r1, unsigned, 0
+0x00a8  0e05483600000000         iadd r1, r4.sx, 3
+0x00b0  72093000                 get_sr r2, sr48 (thread_position_in_threadgroup.x)
+0x00b4  45112c0e10c01200         device_store 0, i32, x, r2, u14_u15, r1, unsigned, 0
+0x00bc  0e05484600000000         iadd r1, r4.sx, 4
+0x00c4  72093100                 get_sr r2, sr49 (thread_position_in_threadgroup.y)
+0x00c8  45112c0e10c01200         device_store 0, i32, x, r2, u14_u15, r1, unsigned, 0
+0x00d0  0e05485600000000         iadd r1, r4.sx, 5
+0x00d8  72093200                 get_sr r2, sr50 (thread_position_in_threadgroup.z)
+0x00dc  45112c0e10c01200         device_store 0, i32, x, r2, u14_u15, r1, unsigned, 0
+0x00e4  0e05486600000000         iadd r1, r4.sx, 6
+0x00ec  72093300                 get_sr r2, sr51 (thread_index_in_threadgroup)
+0x00f0  45112c0e10c01200         device_store 0, i32, x, r2, u14_u15, r1, unsigned, 0
+0x00f8  72050000                 get_sr r1, sr0 (threadgroup_position_in_grid.x)
+0x00fc  0e05428658000000         iadd r1, r1.sx, u4.sx
+0x0104  0e09487600000000         iadd r2, r4.sx, 7
+0x010c  45094c0e10c01200         device_store 0, i32, x, r1, u14_u15, r2, unsigned, 0
+0x0114  72050100                 get_sr r1, sr1 (threadgroup_position_in_grid.y)
+0x0118  0e0542a658000000         iadd r1, r1.sx, u5.sx
+0x0120  0e09488600000000         iadd r2, r4.sx, 8
+0x0128  45094c0e10c01200         device_store 0, i32, x, r1, u14_u15, r2, unsigned, 0
+0x0130  72050200                 get_sr r1, sr2 (threadgroup_position_in_grid.z)
+0x0134  0e0542c658000000         iadd r1, r1.sx, u6.sx
+0x013c  0e09489600000000         iadd r2, r4.sx, 9
+0x0144  3800                     wait 0
+0x0146  45094c0e10c01200         device_store 0, i32, x, r1, u14_u15, r2, unsigned, 0
+0x014e  0e0548a600000000         iadd r1, r4.sx, 10
+0x0156  7e09a0098000             mov r2, u16
+0x015c  45112c0e10c01200         device_store 0, i32, x, r2, u14_u15, r1, unsigned, 0
+0x0164  0e0548b600000000         iadd r1, r4.sx, 11
+0x016c  7e0920088000             mov r2, 32
+0x0172  45112c0e10c01200         device_store 0, i32, x, r2, u14_u15, r1, unsigned, 0
+0x017a  3800                     wait 0
+0x017c  3801                     wait 1
+0x017e  520e00000000             pop_exec r0l, 1
+0x0184  8800                     stop

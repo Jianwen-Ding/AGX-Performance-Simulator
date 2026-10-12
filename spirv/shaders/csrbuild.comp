@@ -1,0 +1,68 @@
+#version 450
+// Graph construction: an unsorted edge list (here Graph500's Kronecker generator) into CSR adjacency, the first
+// step of every GPU graph framework. Five passes (push constant `mode`):
+//   0: deg[src]++ per edge (device atomics, heavily contended on the power-law hubs)
+//   1: exclusive scan of deg in blocks of 1024 (256 invocations x 4, in shared memory) into rowptr, block totals
+//      into bsum
+//   2: exclusive scan of bsum in one workgroup (at most 1024 blocks)
+//   3: rowptr += its block's offset; cursor = rowptr; rowptr[n] = the edge count
+//   4: each edge takes a slot with atomicAdd(cursor[src], 1) and writes its destination there
+// Within a row the order of neighbours depends on the atomics' order; the check compares each row as a set.
+layout(local_size_x = 256) in;
+layout(std430, binding = 0) readonly buffer E { uvec2 edge[]; };    // (src, dst)
+layout(std430, binding = 1) buffer DG { uint deg[]; };
+layout(std430, binding = 2) buffer RP { uint rowptr[]; };           // n + 1
+layout(std430, binding = 3) buffer BS { uint bsum[]; };
+layout(std430, binding = 4) buffer CU { uint cursor[]; };
+layout(std430, binding = 5) writeonly buffer CI { uint col[]; };
+layout(push_constant) uniform P { uint mode; uint n; uint m; } p;
+shared uint sc[256];
+
+// exclusive scan across the workgroup of x (4 consecutive values per invocation); returns the workgroup total
+uint scan4(uint l, inout uint x[4]) {
+    uint t = x[0] + x[1] + x[2] + x[3];
+    sc[l] = t;
+    barrier();
+    for (uint s = 1u; s < 256u; s <<= 1) {                              // inclusive Hillis-Steele scan of the sums
+        uint v = sc[l] + (l >= s ? sc[l - s] : 0u);
+        barrier();
+        sc[l] = v;
+        barrier();
+    }
+    uint total = sc[255], run = sc[l] - t;
+    barrier();
+    for (int k = 0; k < 4; k++) { uint v = x[k]; x[k] = run; run += v; }
+    return total;
+}
+
+void main() {
+    uint g = gl_GlobalInvocationID.x, l = gl_LocalInvocationID.x;
+    if (p.mode == 0u) {
+        if (g < p.m) atomicAdd(deg[edge[g].x], 1u);
+    } else if (p.mode == 1u) {
+        uint base = gl_WorkGroupID.x * 1024u + 4u * l;
+        uint x[4];
+        for (int k = 0; k < 4; k++) x[k] = base + uint(k) < p.n ? deg[base + uint(k)] : 0u;
+        uint total = scan4(l, x);
+        for (int k = 0; k < 4; k++) if (base + uint(k) < p.n) rowptr[base + uint(k)] = x[k];
+        if (l == 0u) bsum[gl_WorkGroupID.x] = total;
+    } else if (p.mode == 2u) {
+        uint nb = (p.n + 1023u) / 1024u;
+        uint x[4];
+        for (int k = 0; k < 4; k++) x[k] = 4u * l + uint(k) < nb ? bsum[4u * l + uint(k)] : 0u;
+        scan4(l, x);
+        for (int k = 0; k < 4; k++) if (4u * l + uint(k) < nb) bsum[4u * l + uint(k)] = x[k];
+    } else if (p.mode == 3u) {
+        if (g < p.n) {
+            uint r = rowptr[g] + bsum[g / 1024u];
+            rowptr[g] = r;
+            cursor[g] = r;
+        }
+        if (g == 0u) rowptr[p.n] = p.m;
+    } else {
+        if (g < p.m) {
+            uvec2 e = edge[g];
+            col[atomicAdd(cursor[e.x], 1u)] = e.y;
+        }
+    }
+}

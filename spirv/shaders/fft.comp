@@ -1,0 +1,30 @@
+#version 450
+// Radix-2 complex FFT, 1024 points per workgroup (one transform each), in shared memory: bit-reversed load, ten
+// butterfly stages with sin / cos twiddles, 256 threads x 2 butterflies per stage.
+layout(local_size_x = 256) in;
+layout(std430, binding = 0) readonly buffer I { vec2 inp[]; };
+layout(std430, binding = 1) writeonly buffer O { vec2 outp[]; };
+shared vec2 s[1024];
+
+void main() {
+    uint t = gl_LocalInvocationID.x, base = gl_WorkGroupID.x * 1024u;
+    for (uint e = 0u; e < 4u; e++) {
+        uint i = t + 256u * e;
+        s[bitfieldReverse(i) >> 22] = inp[base + i];
+    }
+    barrier();
+    for (uint half_ = 1u; half_ < 1024u; half_ <<= 1) {
+        for (uint e = 0u; e < 2u; e++) {
+            uint b = t + 256u * e;                          // butterfly index 0..511
+            uint j = b & (half_ - 1u), grp = b / half_;
+            uint i0 = grp * 2u * half_ + j, i1 = i0 + half_;
+            float ang = -3.14159265358979 * float(j) / float(half_);
+            vec2 w = vec2(cos(ang), sin(ang));
+            vec2 a = s[i0], c = s[i1];
+            vec2 m = vec2(c.x * w.x - c.y * w.y, c.x * w.y + c.y * w.x);
+            s[i0] = a + m; s[i1] = a - m;
+        }
+        barrier();
+    }
+    for (uint e = 0u; e < 4u; e++) { uint i = t + 256u * e; outp[base + i] = s[i]; }
+}

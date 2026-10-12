@@ -1,0 +1,32 @@
+#version 450
+// UTF-8 decoding with validation (text processing): every byte position classifies its byte; a lead byte checks
+// its continuation bytes and decodes the code point, rejecting truncated, overlong, surrogate and out-of-range
+// sequences with U+FFFD; continuation bytes write 0xffffffff. Lead positions are counted with atomicAdd.
+// Integer-exact.
+#extension GL_EXT_shader_8bit_storage : require
+#extension GL_EXT_shader_explicit_arithmetic_types_int8 : require
+layout(local_size_x = 256) in;
+layout(std430, binding = 0) readonly buffer T { uint8_t text[]; };
+layout(std430, binding = 1) writeonly buffer O { uint cp[]; };
+layout(std430, binding = 2) buffer C { uint chars; uint invalid; };
+layout(push_constant) uniform P { uint n; } p;
+
+void main() {
+    uint i = gl_GlobalInvocationID.x;
+    if (i >= p.n) return;
+    uint b = uint(text[i]);
+    if ((b & 0xc0u) == 0x80u) { cp[i] = 0xffffffffu; return; }
+    uint len = b < 0x80u ? 1u : (b & 0xe0u) == 0xc0u ? 2u : (b & 0xf0u) == 0xe0u ? 3u : (b & 0xf8u) == 0xf0u ? 4u : 0u;
+    uint v = len == 1u ? b : len == 2u ? (b & 0x1fu) : len == 3u ? (b & 0x0fu) : (b & 0x07u);
+    bool ok = len != 0u && i + len <= p.n;
+    for (uint k = 1u; k < 4u && ok && k < len; k++) {
+        uint c = uint(text[i + k]);
+        ok = (c & 0xc0u) == 0x80u;
+        v = (v << 6) | (c & 0x3fu);
+    }
+    uint lo = len == 2u ? 0x80u : len == 3u ? 0x800u : len == 4u ? 0x10000u : 0u;
+    ok = ok && v >= lo && v <= 0x10ffffu && !(v >= 0xd800u && v <= 0xdfffu);
+    cp[i] = ok ? v : 0xfffdu;
+    atomicAdd(chars, 1u);
+    if (!ok) atomicAdd(invalid, 1u);
+}

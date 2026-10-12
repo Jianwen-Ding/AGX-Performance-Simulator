@@ -1,0 +1,46 @@
+#version 450
+// Minimum spanning tree by Boruvka's algorithm (clustering, network design, segmentation), as rounds of five
+// dispatches over a connected graph with distinct edge weights (so the MST is unique):
+// pass 0: best[c] = none for every vertex
+// pass 1: each edge between two components does atomicMin of its weight on both components' best
+// pass 2: the edge whose weight won records itself as the component's best edge
+// pass 3: each component root with a best edge marks it in the MST and hooks onto the other component, except the
+//         smaller root of a mutual pair (both picked the same edge), which stays a root
+// pass 4: pointer jumping: every vertex points at its root
+// parent[] starts as the identity. 24 rounds cover 2^18 vertices (components at least halve each round).
+layout(local_size_x = 256) in;
+layout(std430, binding = 0) readonly buffer E { uvec4 edge[]; };      // u, v, weight, unused
+layout(std430, binding = 1) buffer PA { uint parent[]; };
+layout(std430, binding = 2) buffer BW { uint bestw[]; };
+layout(std430, binding = 3) buffer BE { uint beste[]; };
+layout(std430, binding = 4) buffer M { uint inmst[]; };
+layout(push_constant) uniform P { uint pass; uint nv; uint ne; } p;
+const uint NONE = 0xffffffffu;
+
+void main() {
+    uint i = gl_GlobalInvocationID.x;
+    if (p.pass == 0u) { if (i < p.nv) bestw[i] = NONE; return; }
+    if (p.pass == 1u || p.pass == 2u) {
+        if (i >= p.ne) return;
+        uvec4 e = edge[i];
+        uint ru = parent[e.x], rv = parent[e.y];
+        if (ru == rv) return;
+        if (p.pass == 1u) { atomicMin(bestw[ru], e.z); atomicMin(bestw[rv], e.z); }
+        else { if (bestw[ru] == e.z) beste[ru] = i; if (bestw[rv] == e.z) beste[rv] = i; }
+        return;
+    }
+    if (i >= p.nv) return;
+    if (p.pass == 3u) {
+        if (parent[i] != i || bestw[i] == NONE) return;
+        uint e = beste[i];
+        uvec4 ed = edge[e];
+        uint other = parent[ed.x] == i ? parent[ed.y] : parent[ed.x];
+        inmst[e] = 1u;
+        if (beste[other] == e && i < other) return;                 // mutual pair: the smaller root stays
+        parent[i] = other;
+        return;
+    }
+    uint r = parent[i];                                             // pass 4
+    while (parent[r] != r) r = parent[r];
+    parent[i] = r;
+}

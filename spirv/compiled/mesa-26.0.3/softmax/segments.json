@@ -1,0 +1,22 @@
+{
+ "blob": "spirv/compiled/mesa-26.0.3/softmax/shader.bin",
+ "code_start": 2244,
+ "code_size": 1522,
+ "layout": "agx_shader_info",
+ "programs": [
+  {
+   "label": "main",
+   "file": "main.bin",
+   "offset": 128,
+   "bytes": 1190,
+   "instructions": 187
+  },
+  {
+   "label": "preamble",
+   "file": "preamble.bin",
+   "offset": 1408,
+   "bytes": 98,
+   "instructions": 16
+  }
+ ]
+}

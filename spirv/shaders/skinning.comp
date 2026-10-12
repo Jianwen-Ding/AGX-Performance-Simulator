@@ -1,0 +1,23 @@
+#version 450
+// Linear blend skinning (character animation): each vertex is transformed by up to four of 64 bone matrices
+// (column-major mat4) and blended by its weights; bone indices are packed as 4 bytes. Positions and normals out.
+// fp32, checked against float64.
+layout(local_size_x = 64) in;
+layout(std430, binding = 0) readonly buffer V { vec4 pos[]; };
+layout(std430, binding = 1) readonly buffer N { vec4 nrm[]; };
+layout(std430, binding = 2) readonly buffer J { uint joints[]; };
+layout(std430, binding = 3) readonly buffer W { vec4 weights[]; };
+layout(std430, binding = 4) readonly buffer M { mat4 bones[]; };
+layout(std430, binding = 5) writeonly buffer OP { vec4 opos[]; };
+layout(std430, binding = 6) writeonly buffer ON { vec4 onrm[]; };
+layout(push_constant) uniform P { uint n; } p;
+
+void main() {
+    uint i = gl_GlobalInvocationID.x;
+    if (i >= p.n) return;
+    uint j = joints[i];
+    vec4 w = weights[i];
+    mat4 m = w.x * bones[j & 255u] + w.y * bones[(j >> 8) & 255u] + w.z * bones[(j >> 16) & 255u] + w.w * bones[j >> 24];
+    opos[i] = m * vec4(pos[i].xyz, 1.0);
+    onrm[i] = vec4(mat3(m) * nrm[i].xyz, 0.0);
+}

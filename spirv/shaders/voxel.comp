@@ -1,0 +1,22 @@
+#version 450
+// Point-cloud voxelization (lidar / 3-D scanning): each point is binned into a 64^3 grid; atomicAdd accumulates
+// the voxel's point count and 16.16 fixed-point coordinate sums (for centroids). Power-of-two scales keep every
+// conversion exact, so the counts and sums are integer-exact under any atomic order.
+layout(local_size_x = 256) in;
+layout(std430, binding = 0) readonly buffer Pt { vec4 pts[]; };
+layout(std430, binding = 1) buffer C { uint counts[]; };
+layout(std430, binding = 2) buffer S { uint sums[]; };      // 3 per voxel
+layout(push_constant) uniform P { uint n; } p;
+
+void main() {
+    uint i = gl_GlobalInvocationID.x;
+    if (i >= p.n) return;
+    vec3 q = pts[i].xyz;
+    uvec3 v = uvec3(q * 64.0);
+    uint id = (v.z * 64u + v.y) * 64u + v.x;
+    atomicAdd(counts[id], 1u);
+    uvec3 f = uvec3(q * 65536.0);
+    atomicAdd(sums[3u * id], f.x);
+    atomicAdd(sums[3u * id + 1u], f.y);
+    atomicAdd(sums[3u * id + 2u], f.z);
+}

@@ -1,0 +1,48 @@
+#version 450
+// LZ4 block decompression (the format of LZ4 frames, used for filesystem / database / asset compression): each
+// invocation decodes one independently compressed 4 KiB block. Sequences: a token (literal length in the high
+// nibble, match length - 4 in the low; 15 means more length bytes follow, each adding up to 255), the literals, a
+// 2-byte little-endian offset and the match copy, byte by byte so overlapping copies (offset < length) repeat
+// a pattern. The last sequence has literals only. Bytes are packed into the output words read-modify-write.
+// Decoding is "safe" as in LZ4_decompress_safe: input is never read past the block, and an offset of 0 or one
+// reaching before the start of the output stops the block (produced < 4096 then marks it as corrupt).
+// The byte read (comp[i >> 2] >> ((i & 3) * 8)) & 255 compiles to a bfeil with shift i * 8 and mask 0xFF: like
+// viterbi / shiftfuse, it decodes only if that form of bfeil takes its shift modulo 32 (see the notes).
+layout(local_size_x = 64) in;
+layout(std430, binding = 0) readonly buffer C { uint comp[]; };      // all compressed blocks, bytes packed LE
+layout(std430, binding = 1) readonly buffer S { uvec2 span[]; };     // (first byte, length) of each block
+layout(std430, binding = 2) buffer O { uint outp[]; };               // 1024 words per block
+layout(std430, binding = 3) writeonly buffer N { uint produced[]; }; // bytes written per block
+layout(push_constant) uniform P { uint nblocks; } p;
+
+uint rd(uint i) { return (comp[i >> 2] >> ((i & 3u) * 8u)) & 255u; }
+
+void main() {
+    uint b = gl_GlobalInvocationID.x;
+    if (b >= p.nblocks) return;
+    uint ip = span[b].x, end = span[b].x + span[b].y, base = 1024u * b, op = 0u;
+    while (ip < end && op < 4096u) {
+        uint token = rd(ip++);
+        uint lit = token >> 4;
+        if (lit == 15u) { uint x; do { x = rd(ip++); lit += x; } while (x == 255u && ip < end); }
+        for (uint k = 0u; k < lit && op < 4096u && ip < end; k++) {
+            uint w = base + (op >> 2), sh = (op & 3u) * 8u;
+            outp[w] = (outp[w] & ~(255u << sh)) | (rd(ip++) << sh);
+            op++;
+        }
+        if (ip >= end) break;                                       // last sequence: literals only
+        if (ip + 2u > end) break;
+        uint off = rd(ip) | (rd(ip + 1u) << 8); ip += 2u;
+        if (off == 0u || off > op) break;                           // corrupt: would read before the output
+        uint ml = (token & 15u) + 4u;
+        if ((token & 15u) == 15u) { uint x; do { x = rd(ip++); ml += x; } while (x == 255u && ip < end); }
+        for (uint k = 0u; k < ml && op < 4096u; k++) {
+            uint src = op - off;
+            uint v = (outp[base + (src >> 2)] >> ((src & 3u) * 8u)) & 255u;
+            uint w = base + (op >> 2), sh = (op & 3u) * 8u;
+            outp[w] = (outp[w] & ~(255u << sh)) | (v << sh);
+            op++;
+        }
+    }
+    produced[b] = op;
+}

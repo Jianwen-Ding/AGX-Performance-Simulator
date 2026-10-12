@@ -1,0 +1,19 @@
+#version 450
+// Half-precision elementwise kernel (fp16 storage and arithmetic): out0 = fma(a, x, y), out1 = x * y - y,
+// out2 = half(float(x) * 1.5 + 0.25) (fp32 math, rounded to fp16 on store).
+#extension GL_EXT_shader_explicit_arithmetic_types_float16 : require
+#extension GL_EXT_shader_16bit_storage : require
+layout(local_size_x = 256) in;
+layout(std430, binding = 0) readonly buffer X { float16_t x[]; };
+layout(std430, binding = 1) readonly buffer Y { float16_t y[]; };
+layout(std430, binding = 2) writeonly buffer O { float16_t o[]; };
+layout(push_constant) uniform P { uint n; float a; } p;
+
+void main() {
+    uint i = gl_GlobalInvocationID.x;
+    if (i >= p.n) return;
+    float16_t xv = x[i], yv = y[i], a = float16_t(p.a);
+    o[3u * i] = fma(a, xv, yv);
+    o[3u * i + 1u] = xv * yv - yv;
+    o[3u * i + 2u] = float16_t(float(xv) * 1.5 + 0.25);
+}

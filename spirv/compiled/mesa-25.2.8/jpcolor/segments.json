@@ -1,0 +1,22 @@
+{
+ "blob": "spirv/compiled/mesa-25.2.8/jpcolor/shader.bin",
+ "code_start": 2236,
+ "code_size": 834,
+ "layout": "agx_shader_info",
+ "programs": [
+  {
+   "label": "main",
+   "file": "main.bin",
+   "offset": 128,
+   "bytes": 420,
+   "instructions": 70
+  },
+  {
+   "label": "preamble",
+   "file": "preamble.bin",
+   "offset": 640,
+   "bytes": 178,
+   "instructions": 29
+  }
+ ]
+}

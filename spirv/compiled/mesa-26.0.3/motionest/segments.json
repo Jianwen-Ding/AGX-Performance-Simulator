@@ -1,0 +1,22 @@
+{
+ "blob": "spirv/compiled/mesa-26.0.3/motionest/shader.bin",
+ "code_start": 2244,
+ "code_size": 2456,
+ "layout": "agx_shader_info",
+ "programs": [
+  {
+   "label": "main",
+   "file": "main.bin",
+   "offset": 128,
+   "bytes": 1976,
+   "instructions": 297
+  },
+  {
+   "label": "preamble",
+   "file": "preamble.bin",
+   "offset": 2176,
+   "bytes": 264,
+   "instructions": 40
+  }
+ ]
+}

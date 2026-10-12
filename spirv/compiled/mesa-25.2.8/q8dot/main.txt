@@ -1,0 +1,234 @@
+0x0080  72050000                 get_sr r1, sr0 (threadgroup_position_in_grid.x)
+0x0084  72093000                 get_sr r2, sr48 (thread_position_in_threadgroup.x)
+0x0088  0e05428658000000         iadd r1, r1.sx, u4.sx
+0x0090  62000000                 mov_imm r0l, 0
+0x0094  7e0d440a8000             mov r3, r2
+0x009a  621100000000             mov_imm r4, 0, 0b0
+0x00a0  522c46e21800             while_icmp r0l, ult, r3, u7, 1
+0x00a6  20c01c060000             jmp_exec_none pc+1564
+0x00ac  1e1542e658460600         imadd r5, r1.sx, u7.sx, r3.sx
+0x00b4  0e1900a0e4001000         iadd r6, 0, r5.sx, lsl 3
+0x00bc  0539c00e10c01200         device_load 0, i32, x, r7, u8_u9, r6, unsigned
+0x00c4  0e210060e4001000         iadd r8, 0, r3.sx, lsl 3
+0x00cc  0549044e11c01200         device_load 1, i32, x, r9, u10_u11, r8, unsigned
+0x00d4  3801                     wait 1
+0x00d6  2ea9528601000000         asr r10, r9, 24
+0x00de  3800                     wait 0
+0x00e0  2ead4e8601000000         asr r11, r7, 24
+0x00e8  1e29564665000000         imadd r10, r11.sx, r10.sx, 0
+0x00f0  2e2d00e024080000         bfi r11, 0, r7, 8
+0x00f8  2ead568601000000         asr r11, r11, 24
+0x0100  2e31002025080000         bfi r12, 0, r9, 8
+0x0108  2eb1588601000000         asr r12, r12, 24
+0x0110  1e29568665540600         imadd r10, r11.sx, r12.sx, r10.sx
+0x0118  2e2d00e024100000         bfi r11, 0, r7, 16
+0x0120  2ead568601000000         asr r11, r11, 24
+0x0128  2e31002025100000         bfi r12, 0, r9, 16
+0x0130  2eb1588601000000         asr r12, r12, 24
+0x0138  1e29568665540600         imadd r10, r11.sx, r12.sx, r10.sx
+0x0140  2e1d00e024180000         bfi r7, 0, r7, 24
+0x0148  2e9d4e8601000000         asr r7, r7, 24
+0x0150  2e25002025180000         bfi r9, 0, r9, 24
+0x0158  2ea5528601000000         asr r9, r9, 24
+0x0160  1e1d4e2665540600         imadd r7, r7.sx, r9.sx, r10.sx
+0x0168  0e254c1600000000         iadd r9, r6.sx, 1
+0x0170  0549200e11c01200         device_load 0, i32, x, r9, u8_u9, r9, unsigned
+0x0178  0e29501600000000         iadd r10, r8.sx, 1
+0x0180  0551444e11c01200         device_load 1, i32, x, r10, u10_u11, r10, unsigned
+0x0188  3801                     wait 1
+0x018a  2ead548601000000         asr r11, r10, 24
+0x0192  3800                     wait 0
+0x0194  2eb1528601000000         asr r12, r9, 24
+0x019c  1e2d586665000000         imadd r11, r12.sx, r11.sx, 0
+0x01a4  2e31002025080000         bfi r12, 0, r9, 8
+0x01ac  2eb1588601000000         asr r12, r12, 24
+0x01b4  2e35004025080000         bfi r13, 0, r10, 8
+0x01bc  2eb55a8601000000         asr r13, r13, 24
+0x01c4  1e2d58a665560600         imadd r11, r12.sx, r13.sx, r11.sx
+0x01cc  2e31002025100000         bfi r12, 0, r9, 16
+0x01d4  2eb1588601000000         asr r12, r12, 24
+0x01dc  2e35004025100000         bfi r13, 0, r10, 16
+0x01e4  2eb55a8601000000         asr r13, r13, 24
+0x01ec  1e2d58a665560600         imadd r11, r12.sx, r13.sx, r11.sx
+0x01f4  2e25002025180000         bfi r9, 0, r9, 24
+0x01fc  2ea5528601000000         asr r9, r9, 24
+0x0204  2e29004025180000         bfi r10, 0, r10, 24
+0x020c  2ea9548601000000         asr r10, r10, 24
+0x0214  1e25524665560600         imadd r9, r9.sx, r10.sx, r11.sx
+0x021c  0e1d52e664000000         iadd r7, r9.sx, r7.sx
+0x0224  0e254c2600000000         iadd r9, r6.sx, 2
+0x022c  0549200e11c01200         device_load 0, i32, x, r9, u8_u9, r9, unsigned
+0x0234  0e29502600000000         iadd r10, r8.sx, 2
+0x023c  0551444e11c01200         device_load 1, i32, x, r10, u10_u11, r10, unsigned
+0x0244  3801                     wait 1
+0x0246  2ead548601000000         asr r11, r10, 24
+0x024e  3800                     wait 0
+0x0250  2eb1528601000000         asr r12, r9, 24
+0x0258  1e2d586665000000         imadd r11, r12.sx, r11.sx, 0
+0x0260  2e31002025080000         bfi r12, 0, r9, 8
+0x0268  2eb1588601000000         asr r12, r12, 24
+0x0270  2e35004025080000         bfi r13, 0, r10, 8
+0x0278  2eb55a8601000000         asr r13, r13, 24
+0x0280  1e2d58a665560600         imadd r11, r12.sx, r13.sx, r11.sx
+0x0288  2e31002025100000         bfi r12, 0, r9, 16
+0x0290  2eb1588601000000         asr r12, r12, 24
+0x0298  2e35004025100000         bfi r13, 0, r10, 16
+0x02a0  2eb55a8601000000         asr r13, r13, 24
+0x02a8  1e2d58a665560600         imadd r11, r12.sx, r13.sx, r11.sx
+0x02b0  2e25002025180000         bfi r9, 0, r9, 24
+0x02b8  2ea5528601000000         asr r9, r9, 24
+0x02c0  2e29004025180000         bfi r10, 0, r10, 24
+0x02c8  2ea9548601000000         asr r10, r10, 24
+0x02d0  1e25524665560600         imadd r9, r9.sx, r10.sx, r11.sx
+0x02d8  0e1d52e664000000         iadd r7, r9.sx, r7.sx
+0x02e0  0e254c3600000000         iadd r9, r6.sx, 3
+0x02e8  0549200e11c01200         device_load 0, i32, x, r9, u8_u9, r9, unsigned
+0x02f0  0e29503600000000         iadd r10, r8.sx, 3
+0x02f8  0551444e11c01200         device_load 1, i32, x, r10, u10_u11, r10, unsigned
+0x0300  3801                     wait 1
+0x0302  2ead548601000000         asr r11, r10, 24
+0x030a  3800                     wait 0
+0x030c  2eb1528601000000         asr r12, r9, 24
+0x0314  1e2d586665000000         imadd r11, r12.sx, r11.sx, 0
+0x031c  2e31002025080000         bfi r12, 0, r9, 8
+0x0324  2eb1588601000000         asr r12, r12, 24
+0x032c  2e35004025080000         bfi r13, 0, r10, 8
+0x0334  2eb55a8601000000         asr r13, r13, 24
+0x033c  1e2d58a665560600         imadd r11, r12.sx, r13.sx, r11.sx
+0x0344  2e31002025100000         bfi r12, 0, r9, 16
+0x034c  2eb1588601000000         asr r12, r12, 24
+0x0354  2e35004025100000         bfi r13, 0, r10, 16
+0x035c  2eb55a8601000000         asr r13, r13, 24
+0x0364  1e2d58a665560600         imadd r11, r12.sx, r13.sx, r11.sx
+0x036c  2e25002025180000         bfi r9, 0, r9, 24
+0x0374  2ea5528601000000         asr r9, r9, 24
+0x037c  2e29004025180000         bfi r10, 0, r10, 24
+0x0384  2ea9548601000000         asr r10, r10, 24
+0x038c  1e25524665560600         imadd r9, r9.sx, r10.sx, r11.sx
+0x0394  0e1d52e664000000         iadd r7, r9.sx, r7.sx
+0x039c  0e254c4600000000         iadd r9, r6.sx, 4
+0x03a4  0549200e11c01200         device_load 0, i32, x, r9, u8_u9, r9, unsigned
+0x03ac  0e29504600000000         iadd r10, r8.sx, 4
+0x03b4  0551444e11c01200         device_load 1, i32, x, r10, u10_u11, r10, unsigned
+0x03bc  3801                     wait 1
+0x03be  2ead548601000000         asr r11, r10, 24
+0x03c6  3800                     wait 0
+0x03c8  2eb1528601000000         asr r12, r9, 24
+0x03d0  1e2d586665000000         imadd r11, r12.sx, r11.sx, 0
+0x03d8  2e31002025080000         bfi r12, 0, r9, 8
+0x03e0  2eb1588601000000         asr r12, r12, 24
+0x03e8  2e35004025080000         bfi r13, 0, r10, 8
+0x03f0  2eb55a8601000000         asr r13, r13, 24
+0x03f8  1e2d58a665560600         imadd r11, r12.sx, r13.sx, r11.sx
+0x0400  2e31002025100000         bfi r12, 0, r9, 16
+0x0408  2eb1588601000000         asr r12, r12, 24
+0x0410  2e35004025100000         bfi r13, 0, r10, 16
+0x0418  2eb55a8601000000         asr r13, r13, 24
+0x0420  1e2d58a665560600         imadd r11, r12.sx, r13.sx, r11.sx
+0x0428  2e25002025180000         bfi r9, 0, r9, 24
+0x0430  2ea5528601000000         asr r9, r9, 24
+0x0438  2e29004025180000         bfi r10, 0, r10, 24
+0x0440  2ea9548601000000         asr r10, r10, 24
+0x0448  1e25524665560600         imadd r9, r9.sx, r10.sx, r11.sx
+0x0450  0e1d52e664000000         iadd r7, r9.sx, r7.sx
+0x0458  0e254c5600000000         iadd r9, r6.sx, 5
+0x0460  0549200e11c01200         device_load 0, i32, x, r9, u8_u9, r9, unsigned
+0x0468  0e29505600000000         iadd r10, r8.sx, 5
+0x0470  0551444e11c01200         device_load 1, i32, x, r10, u10_u11, r10, unsigned
+0x0478  3801                     wait 1
+0x047a  2ead548601000000         asr r11, r10, 24
+0x0482  3800                     wait 0
+0x0484  2eb1528601000000         asr r12, r9, 24
+0x048c  1e2d586665000000         imadd r11, r12.sx, r11.sx, 0
+0x0494  2e31002025080000         bfi r12, 0, r9, 8
+0x049c  2eb1588601000000         asr r12, r12, 24
+0x04a4  2e35004025080000         bfi r13, 0, r10, 8
+0x04ac  2eb55a8601000000         asr r13, r13, 24
+0x04b4  1e2d58a665560600         imadd r11, r12.sx, r13.sx, r11.sx
+0x04bc  2e31002025100000         bfi r12, 0, r9, 16
+0x04c4  2eb1588601000000         asr r12, r12, 24
+0x04cc  2e35004025100000         bfi r13, 0, r10, 16
+0x04d4  2eb55a8601000000         asr r13, r13, 24
+0x04dc  1e2d58a665560600         imadd r11, r12.sx, r13.sx, r11.sx
+0x04e4  2e25002025180000         bfi r9, 0, r9, 24
+0x04ec  2ea5528601000000         asr r9, r9, 24
+0x04f4  2e29004025180000         bfi r10, 0, r10, 24
+0x04fc  2ea9548601000000         asr r10, r10, 24
+0x0504  1e25524665560600         imadd r9, r9.sx, r10.sx, r11.sx
+0x050c  0e1d52e664000000         iadd r7, r9.sx, r7.sx
+0x0514  0e254c6600000000         iadd r9, r6.sx, 6
+0x051c  0549200e11c01200         device_load 0, i32, x, r9, u8_u9, r9, unsigned
+0x0524  0e29506600000000         iadd r10, r8.sx, 6
+0x052c  0551444e11c01200         device_load 1, i32, x, r10, u10_u11, r10, unsigned
+0x0534  3801                     wait 1
+0x0536  2ead548601000000         asr r11, r10, 24
+0x053e  3800                     wait 0
+0x0540  2eb1528601000000         asr r12, r9, 24
+0x0548  1e2d586665000000         imadd r11, r12.sx, r11.sx, 0
+0x0550  2e31002025080000         bfi r12, 0, r9, 8
+0x0558  2eb1588601000000         asr r12, r12, 24
+0x0560  2e35004025080000         bfi r13, 0, r10, 8
+0x0568  2eb55a8601000000         asr r13, r13, 24
+0x0570  1e2d58a665560600         imadd r11, r12.sx, r13.sx, r11.sx
+0x0578  2e31002025100000         bfi r12, 0, r9, 16
+0x0580  2eb1588601000000         asr r12, r12, 24
+0x0588  2e35004025100000         bfi r13, 0, r10, 16
+0x0590  2eb55a8601000000         asr r13, r13, 24
+0x0598  1e2d58a665560600         imadd r11, r12.sx, r13.sx, r11.sx
+0x05a0  2e25002025180000         bfi r9, 0, r9, 24
+0x05a8  2ea5528601000000         asr r9, r9, 24
+0x05b0  2e29004025180000         bfi r10, 0, r10, 24
+0x05b8  2ea9548601000000         asr r10, r10, 24
+0x05c0  1e25524665560600         imadd r9, r9.sx, r10.sx, r11.sx
+0x05c8  0e1d52e664000000         iadd r7, r9.sx, r7.sx
+0x05d0  0e194c7600000000         iadd r6, r6.sx, 7
+0x05d8  0531c00e10c01200         device_load 0, i32, x, r6, u8_u9, r6, unsigned
+0x05e0  0e21507600000000         iadd r8, r8.sx, 7
+0x05e8  0541044e11c01200         device_load 1, i32, x, r8, u10_u11, r8, unsigned
+0x05f0  3801                     wait 1
+0x05f2  2ea5508601000000         asr r9, r8, 24
+0x05fa  3800                     wait 0
+0x05fc  2ea94c8601000000         asr r10, r6, 24
+0x0604  1e25542665000000         imadd r9, r10.sx, r9.sx, 0
+0x060c  2e2900c024080000         bfi r10, 0, r6, 8
+0x0614  2ea9548601000000         asr r10, r10, 24
+0x061c  2e2d000025080000         bfi r11, 0, r8, 8
+0x0624  2ead568601000000         asr r11, r11, 24
+0x062c  1e25546665520600         imadd r9, r10.sx, r11.sx, r9.sx
+0x0634  2e2900c024100000         bfi r10, 0, r6, 16
+0x063c  2ea9548601000000         asr r10, r10, 24
+0x0644  2e2d000025100000         bfi r11, 0, r8, 16
+0x064c  2ead568601000000         asr r11, r11, 24
+0x0654  1e25546665520600         imadd r9, r10.sx, r11.sx, r9.sx
+0x065c  2e1900c024180000         bfi r6, 0, r6, 24
+0x0664  2e994c8601000000         asr r6, r6, 24
+0x066c  2e21000025180000         bfi r8, 0, r8, 24
+0x0674  2ea1508601000000         asr r8, r8, 24
+0x067c  1e194c0665520600         imadd r6, r6.sx, r8.sx, r9.sx
+0x0684  0e194ce664000000         iadd r6, r6.sx, r7.sx
+0x068c  0529a80e10c01200         device_load 0, i32, x, r5, u12_u13, r5, unsigned
+0x0694  05396c4e10c01200         device_load 1, i32, x, r7, u14_u15, r3, unsigned
+0x069c  3800                     wait 0
+0x069e  3801                     wait 1
+0x06a0  1a954ae22400             fmul32 r5, r5, r7
+0x06a6  3e990bc42400             convert s32_to_f, r6, r6, rte
+0x06ac  3a914ac224480200         fmadd32 r4, r5, r6, r4
+0x06b4  0e0d460600010000         iadd r3, r3.sx, 64
+0x06bc  00c0e4f9ffff             jmp_exec_any pc-1564
+0x06c2  520e00000000             pop_exec r0l, 1
+0x06c8  72023a00                 get_sr r0h, sr58 (active_thread_index_in_simdgroup)
+0x06cc  6f8d48320000             simd_fadd r3, r4
+0x06d2  520841000000             if_icmp r0l, ueq, r0h, 0, 1
+0x06d8  72113500                 get_sr r4, sr53 (simdgroup_index_in_threadgroup)
+0x06dc  0e11008064001000         iadd r4, 0, r4.sx, lsl 2
+0x06e4  298d080214000000         threadgroup_store i32, x, r3, r4l, 0
+0x06ec  520e00000000             pop_exec r0l, 1
+0x06f2  6800                     threadgroup_barrier
+0x06f4  520844020000             if_icmp r0l, ueq, r2, 0, 1
+0x06fa  6989800214000000         threadgroup_load i32, x, r2, 0, 0
+0x0702  698d640214000000         threadgroup_load i32, x, r3, u18l, 0
+0x070a  2a8944622400             fadd32 r2, r2, r3
+0x0710  4511200e20c01200         device_store 0, i32, x, r2, u16_u17, r1, unsigned, 0
+0x0718  3800                     wait 0
+0x071a  520e00000000             pop_exec r0l, 1
+0x0720  8800                     stop

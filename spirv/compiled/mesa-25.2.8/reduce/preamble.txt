@@ -1,0 +1,30 @@
+0x0300  0501d00d05c01200         device_load 0, i32, x, r0, u0_u1, 93, signed
+0x0308  3800                     wait 0
+0x030a  1200400200010110         icmpsel ueq, r0l, r0, 0, 1, 0
+0x0312  c500803d00801000         uniform_store 2, i16, x, 0, r0l, 8
+0x031a  0501100d00c87200         device_load 0, i32, xyz, r0_r1_r2, u0_u1, 1, signed, lsl 2
+0x0322  3800                     wait 0
+0x0324  2e0d000024080000         bfi r3, 0, r0, 8
+0x032c  c518a03d00803000         uniform_store 2, i16, xy, 0, r3l_r3h, 10
+0x0334  0521700d02c83200         device_load 0, i32, xy, r4_r5, u0_u1, 39, signed, lsl 2
+0x033c  3800                     wait 0
+0x033e  0541084500c0f200         device_load 1, i32, xyzw, r8_r9_r10_r11, r4_r5, 0, signed
+0x0346  3801                     wait 1
+0x0348  c540c03d0080f000         uniform_store 2, i16, xyzw, 0, r8l_r8h_r9l_r9h, 12
+0x0350  0541180500c8f200         device_load 0, i32, xyzw, r8_r9_r10_r11, r4_r5, 1, signed, lsl 2
+0x0358  3800                     wait 0
+0x035a  c540003d0180f000         uniform_store 2, i16, xyzw, 0, r8l_r8h_r9l_r9h, 16
+0x0362  0519700d01c81200         device_load 0, i32, x, r3, u0_u1, 23, signed, lsl 2
+0x036a  3800                     wait 0
+0x036c  c518403d01803000         uniform_store 2, i16, xy, 0, r3l_r3h, 20
+0x0374  0541280500c8f200         device_load 0, i32, xyzw, r8_r9_r10_r11, r4_r5, 2, signed, lsl 2
+0x037c  3800                     wait 0
+0x037e  c540803d0180f000         uniform_store 2, i16, xyzw, 0, r8l_r8h_r9l_r9h, 24
+0x0386  0561380500c8f200         device_load 0, i32, xyzw, r12_r13_r14_r15, r4_r5, 3, signed, lsl 2
+0x038e  3800                     wait 0
+0x0390  c560c03d0180f000         uniform_store 2, i16, xyzw, 0, r12l_r12h_r13l_r13h, 28
+0x0398  c500003d0280f000         uniform_store 2, i16, xyzw, 0, r0l_r0h_r1l_r1h, 32
+0x03a0  c510403d02803000         uniform_store 2, i16, xy, 0, r2l_r2h, 36
+0x03a8  c540803d0280f000         uniform_store 2, i16, xyzw, 0, r8l_r8h_r9l_r9h, 40
+0x03b0  c560c03d0280f000         uniform_store 2, i16, xyzw, 0, r12l_r12h_r13l_r13h, 44
+0x03b8  8800                     stop

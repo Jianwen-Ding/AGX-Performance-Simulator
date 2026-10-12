@@ -1,0 +1,20 @@
+#version 450
+// Porter-Duff "over" of a premultiplied RGBA8 layer onto an RGBA8 background (UI / video compositing):
+// out = src + dst * (255 - src.a) / 255 per channel with exact rounding of the division by 255
+// ((x + 128 + ((x + 128) >> 8)) >> 8). Integer-exact; the output is an image.
+layout(local_size_x = 16, local_size_y = 16) in;
+layout(std430, binding = 0) readonly buffer S { uint src[]; };
+layout(std430, binding = 1) readonly buffer D { uint dst[]; };
+layout(std430, binding = 2) writeonly buffer O { uint outp[]; };
+layout(push_constant) uniform P { uint width; uint height; } p;
+
+uint div255(uint x) { x += 128u; return (x + (x >> 8)) >> 8; }
+
+void main() {
+    uvec2 g = gl_GlobalInvocationID.xy;
+    if (g.x >= p.width || g.y >= p.height) return;
+    uint i = g.y * p.width + g.x;
+    uint s = src[i], d = dst[i], inv = 255u - (s >> 24), r = 0u;
+    for (uint c = 0u; c < 32u; c += 8u) r |= (((s >> c) & 255u) + div255(((d >> c) & 255u) * inv)) << c;
+    outp[i] = r;
+}

@@ -1,0 +1,19 @@
+#version 450
+// Dense matrix-vector product y = A x (A row-major M x N fp32), one workgroup per row: each thread accumulates a
+// strided part of the row, then a shared-memory tree adds the 256 partial sums. Memory-bound (BLAS-2).
+layout(local_size_x = 256) in;
+layout(std430, binding = 0) readonly buffer A { float a[]; };
+layout(std430, binding = 1) readonly buffer X { float x[]; };
+layout(std430, binding = 2) writeonly buffer Y { float y[]; };
+layout(push_constant) uniform P { uint n; } p;
+shared float part[256];
+
+void main() {
+    uint t = gl_LocalInvocationID.x, row = gl_WorkGroupID.x;
+    float acc = 0.0;
+    for (uint k = t; k < p.n; k += 256u) acc = fma(a[row * p.n + k], x[k], acc);
+    part[t] = acc;
+    barrier();
+    for (uint s = 128u; s > 0u; s >>= 1) { if (t < s) part[t] += part[t + s]; barrier(); }
+    if (t == 0u) y[row] = part[0];
+}

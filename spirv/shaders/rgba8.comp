@@ -1,0 +1,20 @@
+#version 450
+// 8-bit image kernel: RGBA8 pixels (packed words) -> unpackUnorm4x8, luma (Rec. 601 weights), a gamma-like curve,
+// packUnorm4x8 back, and the luma byte through 8-bit storage.
+#extension GL_EXT_shader_8bit_storage : require
+#extension GL_EXT_shader_explicit_arithmetic_types_int8 : require
+layout(local_size_x = 256) in;
+layout(std430, binding = 0) readonly buffer I { uint px[]; };
+layout(std430, binding = 1) writeonly buffer O { uint outp[]; };
+layout(std430, binding = 2) writeonly buffer L { uint8_t luma[]; };
+layout(push_constant) uniform P { uint n; } p;
+
+void main() {
+    uint i = gl_GlobalInvocationID.x;
+    if (i >= p.n) return;
+    vec4 c = unpackUnorm4x8(px[i]);
+    float y = dot(c.rgb, vec3(0.299, 0.587, 0.114));
+    vec3 g = c.rgb * c.rgb * (3.0 - 2.0 * c.rgb);          // smoothstep-shaped tone curve
+    outp[i] = packUnorm4x8(vec4(g, c.a));
+    luma[i] = uint8_t(min(uint(y * 255.0 + 0.5), 255u));
+}

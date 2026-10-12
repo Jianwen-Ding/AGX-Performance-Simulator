@@ -1,0 +1,31 @@
+#version 450
+// One leapfrog step of an all-pairs N-body system (softened gravity, G = 1): bodies stream through shared memory
+// in tiles of 256. pos = (x, y, z, mass). N multiple of 256.
+layout(local_size_x = 256) in;
+layout(std430, binding = 0) readonly buffer Pin { vec4 pos_in[]; };
+layout(std430, binding = 1) readonly buffer Vin { vec4 vel_in[]; };
+layout(std430, binding = 2) writeonly buffer Pout { vec4 pos_out[]; };
+layout(std430, binding = 3) writeonly buffer Vout { vec4 vel_out[]; };
+layout(push_constant) uniform P { uint n; float dt; float eps2; } p;
+shared vec4 tile[256];
+
+void main() {
+    uint i = gl_GlobalInvocationID.x;
+    vec4 me = pos_in[i];
+    vec3 acc = vec3(0.0);
+    for (uint t0 = 0u; t0 < p.n; t0 += 256u) {
+        tile[gl_LocalInvocationID.x] = pos_in[t0 + gl_LocalInvocationID.x];
+        barrier();
+        for (uint j = 0u; j < 256u; j++) {
+            vec4 o = tile[j];
+            vec3 d = o.xyz - me.xyz;
+            float r2 = dot(d, d) + p.eps2;
+            float inv = inversesqrt(r2);
+            acc += d * (o.w * inv * inv * inv);
+        }
+        barrier();
+    }
+    vec3 v = vel_in[i].xyz + acc * p.dt;
+    pos_out[i] = vec4(me.xyz + v * p.dt, me.w);
+    vel_out[i] = vec4(v, 0.0);
+}

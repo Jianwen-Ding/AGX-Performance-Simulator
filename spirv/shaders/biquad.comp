@@ -1,0 +1,30 @@
+#version 450
+// Fixed-point audio filter bank (the scheme of CMSIS-DSP's arm_biquad_cascade_df1_q15): each invocation runs one
+// channel of 16-bit samples through 4 cascaded biquad sections (direct form I) with Q14 coefficients, a 64-bit
+// accumulator, an arithmetic shift back by 14 and saturation to 16 bits. Samples are interleaved by channel
+// (x[t * channels + c]) so each step's loads and stores coalesce. Exact integer arithmetic.
+#extension GL_EXT_shader_explicit_arithmetic_types_int64 : require
+layout(local_size_x = 64) in;
+layout(std430, binding = 0) readonly buffer X { int xin[]; };
+layout(std430, binding = 1) readonly buffer C { int coef[20]; };      // per section: b0 b1 b2 a1 a2 (Q14)
+layout(std430, binding = 2) writeonly buffer Y { int yout[]; };
+layout(push_constant) uniform P { uint channels; uint samples; } p;
+
+void main() {
+    uint c = gl_GlobalInvocationID.x;
+    if (c >= p.channels) return;
+    int st[16];                                                     // per section: x1 x2 y1 y2
+    for (int k = 0; k < 16; k++) st[k] = 0;
+    for (uint t = 0u; t < p.samples; t++) {
+        int v = xin[t * p.channels + c];
+        for (int s = 0; s < 4; s++) {
+            int64_t acc = int64_t(coef[5 * s]) * v + int64_t(coef[5 * s + 1]) * st[4 * s] + int64_t(coef[5 * s + 2]) * st[4 * s + 1]
+                        - int64_t(coef[5 * s + 3]) * st[4 * s + 2] - int64_t(coef[5 * s + 4]) * st[4 * s + 3];
+            int y = int(clamp(acc >> 14, -32768l, 32767l));
+            st[4 * s + 1] = st[4 * s]; st[4 * s] = v;
+            st[4 * s + 3] = st[4 * s + 2]; st[4 * s + 2] = y;
+            v = y;
+        }
+        yout[t * p.channels + c] = v;
+    }
+}

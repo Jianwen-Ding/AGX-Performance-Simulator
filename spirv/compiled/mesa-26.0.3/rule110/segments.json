@@ -1,0 +1,22 @@
+{
+ "blob": "spirv/compiled/mesa-26.0.3/rule110/shader.bin",
+ "code_start": 2244,
+ "code_size": 634,
+ "layout": "agx_shader_info",
+ "programs": [
+  {
+   "label": "main",
+   "file": "main.bin",
+   "offset": 0,
+   "bytes": 274,
+   "instructions": 40
+  },
+  {
+   "label": "preamble",
+   "file": "preamble.bin",
+   "offset": 384,
+   "bytes": 234,
+   "instructions": 35
+  }
+ ]
+}

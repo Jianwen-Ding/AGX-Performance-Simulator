@@ -1,0 +1,25 @@
+#version 450
+// Segmented sieve of Eratosthenes: each workgroup owns 4096 consecutive integers as a 128-word bit array in shared
+// memory; its threads take the base primes (all primes up to sqrt(N)) in turn and set the bits of their multiples
+// with shared atomicOr, then the segment is written out and its primes counted. Bit k set = k is composite (0, 1
+// count as composite). Integer-exact; pi(2^26) = 3957809.
+layout(local_size_x = 128) in;
+layout(std430, binding = 0) readonly buffer B { uint base_primes[]; };
+layout(std430, binding = 1) writeonly buffer S { uint bits[]; };
+layout(std430, binding = 2) buffer C { uint prime_count; };
+layout(push_constant) uniform P { uint nbase; } p;
+shared uint seg[128];
+
+void main() {
+    uint t = gl_LocalInvocationID.x, lo = gl_WorkGroupID.x * 4096u;
+    seg[t] = (lo == 0u && t == 0u) ? 3u : 0u;                          // 0 and 1 are not prime
+    barrier();
+    for (uint k = t; k < p.nbase; k += 128u) {
+        uint q = base_primes[k];
+        uint first = max(q * q, (lo + q - 1u) / q * q);
+        for (uint m = first; m < lo + 4096u; m += q) atomicOr(seg[(m - lo) >> 5], 1u << ((m - lo) & 31u));
+    }
+    barrier();
+    bits[gl_WorkGroupID.x * 128u + t] = seg[t];
+    atomicAdd(prime_count, 32u - uint(bitCount(seg[t])));
+}

@@ -1,0 +1,70 @@
+0x0000  72011004                 get_sr r0, sr80 (thread_position_in_grid.x)
+0x0004  0e01408658000000         iadd r0, r0.sx, u4.sx
+0x000c  05210c0e80c8f200         device_load 0, i32, xyzw, r4_r5_r6_r7, u70_u71, r0, unsigned, lsl 2
+0x0014  3800                     wait 0
+0x0016  1a8582e12408             fmul32 r1, u65, r7
+0x001c  3a85bac124420204         fmadd32 r1, u61, r6, r1
+0x0024  1a8984e12408             fmul32 r2, u66, r7
+0x002a  3a89bcc124440204         fmadd32 r2, u62, r6, r2
+0x0032  1a8d86e12408             fmul32 r3, u67, r7
+0x0038  3a8dbec124460204         fmadd32 r3, u63, r6, r3
+0x0040  1a9d88e12408             fmul32 r7, u68, r7
+0x0046  3a9980c1244e0208         fmadd32 r6, u64, r6, r7
+0x004e  3a85b2a124420204         fmadd32 r1, u57, r5, r1
+0x0056  3a89b4a124440204         fmadd32 r2, u58, r5, r2
+0x005e  3a8db6a124460204         fmadd32 r3, u59, r5, r3
+0x0066  3a95b8a1244c0204         fmadd32 r5, u60, r5, r6
+0x006e  3a85aa8124420204         fmadd32 r1, u53, r4, r1
+0x0076  3a89ac8124440204         fmadd32 r2, u54, r4, r2
+0x007e  3a8dae8124460204         fmadd32 r3, u55, r4, r3
+0x0086  3a91b081244a0204         fmadd32 r4, u56, r4, r5
+0x008e  1a95a2812404             fmul32 r5, u49, r4
+0x0094  3a959a61244a0204         fmadd32 r5, u45, r3, r5
+0x009c  1a99a4812404             fmul32 r6, u50, r4
+0x00a2  3a999c61244c0204         fmadd32 r6, u46, r3, r6
+0x00aa  1a9da6812404             fmul32 r7, u51, r4
+0x00b0  3a9d9e61244e0204         fmadd32 r7, u47, r3, r7
+0x00b8  1a91a8812404             fmul32 r4, u52, r4
+0x00be  3a8da06124480204         fmadd32 r3, u48, r3, r4
+0x00c6  3a919241244a0204         fmadd32 r4, u41, r2, r5
+0x00ce  3a959441244c0204         fmadd32 r5, u42, r2, r6
+0x00d6  3a999641244e0204         fmadd32 r6, u43, r2, r7
+0x00de  3a89984124460204         fmadd32 r2, u44, r2, r3
+0x00e6  3a8d8a2124480204         fmadd32 r3, u37, r1, r4
+0x00ee  3a918c21244a0204         fmadd32 r4, u38, r1, r5
+0x00f6  3a958e21244c0204         fmadd32 r5, u39, r1, r6
+0x00fe  3a85902124440204         fmadd32 r1, u40, r1, r2
+0x0106  1a8982212404             fmul32 r2, u33, r1
+0x010c  3a89baa124440200         fmadd32 r2, u29, r5, r2
+0x0114  1a9984212404             fmul32 r6, u34, r1
+0x011a  3a99bca1244c0200         fmadd32 r6, u30, r5, r6
+0x0122  1a9d86212404             fmul32 r7, u35, r1
+0x0128  3a9dbea1244e0200         fmadd32 r7, u31, r5, r7
+0x0130  1a8588212404             fmul32 r1, u36, r1
+0x0136  3a8580a124420204         fmadd32 r1, u32, r5, r1
+0x013e  3a89b28124440200         fmadd32 r2, u25, r4, r2
+0x0146  3a95b481244c0200         fmadd32 r5, u26, r4, r6
+0x014e  3a99b681244e0200         fmadd32 r6, u27, r4, r7
+0x0156  3a85b88124420200         fmadd32 r1, u28, r4, r1
+0x015e  3a89aa6124440200         fmadd32 r2, u21, r3, r2
+0x0166  3a91ac61244a0200         fmadd32 r4, u22, r3, r5
+0x016e  3a95ae61244c0200         fmadd32 r5, u23, r3, r6
+0x0176  3a85b06124420200         fmadd32 r1, u24, r3, r1
+0x017e  1a8da2212400             fmul32 r3, u17, r1
+0x0184  3a8d9aa124460200         fmadd32 r3, u13, r5, r3
+0x018c  1a99a4212400             fmul32 r6, u18, r1
+0x0192  3a999ca1244c0200         fmadd32 r6, u14, r5, r6
+0x019a  1a9da6212400             fmul32 r7, u19, r1
+0x01a0  3a9d9ea1244e0200         fmadd32 r7, u15, r5, r7
+0x01a8  1a85a8212400             fmul32 r1, u20, r1
+0x01ae  3a85a0a124420200         fmadd32 r1, u16, r5, r1
+0x01b6  3a8d928124460200         fmadd32 r3, u9, r4, r3
+0x01be  3a959481244c0200         fmadd32 r5, u10, r4, r6
+0x01c6  3a999681244e0200         fmadd32 r6, u11, r4, r7
+0x01ce  3a85988124420200         fmadd32 r1, u12, r4, r1
+0x01d6  3aa18a4124460200         fmadd32 r8, u5, r2, r3
+0x01de  3aa58c41244a0200         fmadd32 r9, u6, r2, r5
+0x01e6  3aa98e41244c0200         fmadd32 r10, u7, r2, r6
+0x01ee  3aad904124420200         fmadd32 r11, u8, r2, r1
+0x01f6  4541000e90c8f200         device_store 0, i32, xyzw, r8_r9_r10_r11, u72_u73, r0, unsigned, lsl 2, 0
+0x01fe  8800                     stop

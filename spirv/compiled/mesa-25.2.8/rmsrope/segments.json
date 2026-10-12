@@ -1,0 +1,22 @@
+{
+ "blob": "spirv/compiled/mesa-25.2.8/rmsrope/shader.bin",
+ "code_start": 2236,
+ "code_size": 902,
+ "layout": "agx_shader_info",
+ "programs": [
+  {
+   "label": "main",
+   "file": "main.bin",
+   "offset": 128,
+   "bytes": 580,
+   "instructions": 97
+  },
+  {
+   "label": "preamble",
+   "file": "preamble.bin",
+   "offset": 768,
+   "bytes": 118,
+   "instructions": 20
+  }
+ ]
+}

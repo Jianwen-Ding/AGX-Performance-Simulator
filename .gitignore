@@ -4,3 +4,10 @@ __pycache__/
 /runs/
 
 /rust/target/
+/spirv/build/
+/spirv/out/
+/coverage/.scratch/
+spirv/compiled/**/predict-*/
+spirv/compiled/**/sim-*/
+spirv/expected/**/predict-*/
+spirv/expected/**/sim-*/

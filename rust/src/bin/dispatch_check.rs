@@ -15,7 +15,8 @@ fn main() {
     let mut p = Params::new().unwrap();
     cost::fit_branch(&mut p).unwrap();
     let mut errs = vec![];
-    for r in d["rows"].as_array().unwrap() {
+    let rows = d["rows"].as_array().unwrap();
+    let launch = |r: &serde_json::Value| -> (Vec<u8>, Launch) {
         let mut code = std::fs::read(dir.join(r["code"].as_str().unwrap())).unwrap();
         while code.last() == Some(&0) {
             code.pop();
@@ -29,9 +30,16 @@ fn main() {
             uniforms: vec![(4, 0), (5, g("grid")), (7, 1), (9, 2)],
             ..Default::default()
         };
-        let rep = dispatch::simulate(&code, &l, &p).unwrap();
+        (code, l)
+    };
+    // dispatches are independent: simulate them on every core, biggest grids first
+    let preds = agx_sim::par::map_by(rows, |r| r["grid"].as_u64().unwrap_or(0), |r| {
+        let (code, l) = launch(r);
+        dispatch::simulate(&code, &l, &p).unwrap().time_ns / 1000.0
+    });
+    for (r, pred) in rows.iter().zip(preds) {
+        let g = |k: &str| r[k].as_u64().unwrap() as u32;
         let meas = r["min_us"].as_f64().unwrap();
-        let pred = rep.time_ns / 1000.0;
         let e = (pred - meas) / meas;
         errs.push(e.abs());
         if verbose {

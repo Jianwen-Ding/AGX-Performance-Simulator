@@ -1,0 +1,14 @@
+#version 450
+// Floyd-Warshall all-pairs shortest paths: dispatch k relaxes every pair through vertex k,
+// d[i][j] = min(d[i][j], d[i][k] + d[k][j]), in place (row and column k do not change in step k). V dispatches over
+// a V x V matrix; integer-exact.
+layout(local_size_x = 16, local_size_y = 16) in;
+layout(std430, binding = 0) buffer D { uint d[]; };
+layout(push_constant) uniform P { uint v; uint k; } p;
+
+void main() {
+    uvec2 g = gl_GlobalInvocationID.xy;
+    if (g.x >= p.v || g.y >= p.v) return;
+    uint via = d[g.y * p.v + p.k] + d[p.k * p.v + g.x];
+    if (via < d[g.y * p.v + g.x]) d[g.y * p.v + g.x] = via;
+}

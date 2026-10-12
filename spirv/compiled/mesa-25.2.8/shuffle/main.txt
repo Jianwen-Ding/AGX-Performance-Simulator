@@ -1,0 +1,149 @@
+0x0000  72053400                 get_sr r1, sr52 (thread_index_in_simdgroup)
+0x0004  72090000                 get_sr r2, sr0 (threadgroup_position_in_grid.x)
+0x0008  720d3500                 get_sr r3, sr53 (simdgroup_index_in_threadgroup)
+0x000c  0e09448658000000         iadd r2, r2.sx, u4.sx
+0x0014  2e09004024070000         bfi r2, 0, r2, 7
+0x001c  1e09460602440600         imadd r2, r3.sx, 32, r2.sx
+0x0024  0e09442664000000         iadd r2, r2.sx, r1.sx
+0x002c  0519400e10c01200         device_load 0, i32, x, r3, u8_u9, r2, unsigned
+0x0034  0e11421600000000         iadd r4, r1.sx, 1
+0x003c  7e151c80a400             and r5, 28, r4
+0x0042  3800                     wait 0
+0x0044  6f1946a62400             simd_shuffle r6, r3, r5l
+0x004a  0e1d4a1600000000         iadd r7, r5.sx, 1
+0x0052  6f2146e62400             simd_shuffle r8, r3, r7l
+0x0058  7e1148f28100             and r4, r4, 31
+0x005e  121948e22450c004         icmpsel ueq, r6, r4, r7, r8, r6
+0x0066  0e1d4a2600000000         iadd r7, r5.sx, 2
+0x006e  6f2146e62400             simd_shuffle r8, r3, r7l
+0x0074  121948e22450c004         icmpsel ueq, r6, r4, r7, r8, r6
+0x007c  0e154a3600000000         iadd r5, r5.sx, 3
+0x0084  6f1d46a62400             simd_shuffle r7, r3, r5l
+0x008a  121148a2244ec004         icmpsel ueq, r4, r4, r5, r7, r6
+0x0092  7e1546728000             and r5, r3, 7
+0x0098  0e1542a664000000         iadd r5, r1.sx, r5.sx
+0x00a0  7e191ca0a400             and r6, 28, r5
+0x00a6  6f1d46c62400             simd_shuffle r7, r3, r6l
+0x00ac  0e214c1600000000         iadd r8, r6.sx, 1
+0x00b4  6f2546062500             simd_shuffle r9, r3, r8l
+0x00ba  7e154af28100             and r5, r5, 31
+0x00c0  121d4a022552e004         icmpsel ueq, r7, r5, r8, r9, r7
+0x00c8  0e214c2600000000         iadd r8, r6.sx, 2
+0x00d0  6f2546062500             simd_shuffle r9, r3, r8l
+0x00d6  121d4a022552e004         icmpsel ueq, r7, r5, r8, r9, r7
+0x00de  0e194c3600000000         iadd r6, r6.sx, 3
+0x00e6  6f2146c62400             simd_shuffle r8, r3, r6l
+0x00ec  12154ac22450e004         icmpsel ueq, r5, r5, r6, r8, r7
+0x00f4  7e19421a4000             xor r6, r1, 1
+0x00fa  7e1d4cc28100             and r7, r6, 28
+0x0100  6f2146e62400             simd_shuffle r8, r3, r7l
+0x0106  0e254e1600000000         iadd r9, r7.sx, 1
+0x010e  6f2946262500             simd_shuffle r10, r3, r9l
+0x0114  12214c2225540005         icmpsel ueq, r8, r6, r9, r10, r8
+0x011c  0e254e2600000000         iadd r9, r7.sx, 2
+0x0124  6f2946262500             simd_shuffle r10, r3, r9l
+0x012a  12214c2225540005         icmpsel ueq, r8, r6, r9, r10, r8
+0x0132  0e1d4e3600000000         iadd r7, r7.sx, 3
+0x013a  6f2546e62400             simd_shuffle r9, r3, r7l
+0x0140  12194ce224520005         icmpsel ueq, r6, r6, r7, r9, r8
+0x0148  0e1946c664000000         iadd r6, r3.sx, r6.sx
+0x0150  7e1d422a4000             xor r7, r1, 2
+0x0156  7e214ec28100             and r8, r7, 28
+0x015c  6f254c062500             simd_shuffle r9, r6, r8l
+0x0162  0e29501600000000         iadd r10, r8.sx, 1
+0x016a  6f2d4c462500             simd_shuffle r11, r6, r10l
+0x0170  12254e4225562005         icmpsel ueq, r9, r7, r10, r11, r9
+0x0178  0e29502600000000         iadd r10, r8.sx, 2
+0x0180  6f2d4c462500             simd_shuffle r11, r6, r10l
+0x0186  12254e4225562005         icmpsel ueq, r9, r7, r10, r11, r9
+0x018e  0e21503600000000         iadd r8, r8.sx, 3
+0x0196  6f294c062500             simd_shuffle r10, r6, r8l
+0x019c  121d4e0225542005         icmpsel ueq, r7, r7, r8, r10, r9
+0x01a4  0e194ce664000000         iadd r6, r6.sx, r7.sx
+0x01ac  7e1d424a4000             xor r7, r1, 4
+0x01b2  7e214ec28100             and r8, r7, 28
+0x01b8  6f254c062500             simd_shuffle r9, r6, r8l
+0x01be  0e29501600000000         iadd r10, r8.sx, 1
+0x01c6  6f2d4c462500             simd_shuffle r11, r6, r10l
+0x01cc  12254e4225562005         icmpsel ueq, r9, r7, r10, r11, r9
+0x01d4  0e29502600000000         iadd r10, r8.sx, 2
+0x01dc  6f2d4c462500             simd_shuffle r11, r6, r10l
+0x01e2  12254e4225562005         icmpsel ueq, r9, r7, r10, r11, r9
+0x01ea  0e21503600000000         iadd r8, r8.sx, 3
+0x01f2  6f294c062500             simd_shuffle r10, r6, r8l
+0x01f8  121d4e0225542005         icmpsel ueq, r7, r7, r8, r10, r9
+0x0200  0e194ce664000000         iadd r6, r6.sx, r7.sx
+0x0208  7e1d428a4000             xor r7, r1, 8
+0x020e  7e214ec28100             and r8, r7, 28
+0x0214  6f254c062500             simd_shuffle r9, r6, r8l
+0x021a  0e29501600000000         iadd r10, r8.sx, 1
+0x0222  6f2d4c462500             simd_shuffle r11, r6, r10l
+0x0228  12254e4225562005         icmpsel ueq, r9, r7, r10, r11, r9
+0x0230  0e29502600000000         iadd r10, r8.sx, 2
+0x0238  6f2d4c462500             simd_shuffle r11, r6, r10l
+0x023e  12254e4225562005         icmpsel ueq, r9, r7, r10, r11, r9
+0x0246  0e21503600000000         iadd r8, r8.sx, 3
+0x024e  6f294c062500             simd_shuffle r10, r6, r8l
+0x0254  121d4e0225542005         icmpsel ueq, r7, r7, r8, r10, r9
+0x025c  0e194ce664000000         iadd r6, r6.sx, r7.sx
+0x0264  7e1d420a4100             xor r7, r1, 16
+0x026a  7e214ec28100             and r8, r7, 28
+0x0270  6f254c062500             simd_shuffle r9, r6, r8l
+0x0276  0e29501600000000         iadd r10, r8.sx, 1
+0x027e  6f2d4c462500             simd_shuffle r11, r6, r10l
+0x0284  12254e4225562005         icmpsel ueq, r9, r7, r10, r11, r9
+0x028c  0e29502600000000         iadd r10, r8.sx, 2
+0x0294  6f2d4c462500             simd_shuffle r11, r6, r10l
+0x029a  12254e4225562005         icmpsel ueq, r9, r7, r10, r11, r9
+0x02a2  0e21503600000000         iadd r8, r8.sx, 3
+0x02aa  6f294c062500             simd_shuffle r10, r6, r8l
+0x02b0  121d4e0225542005         icmpsel ueq, r7, r7, r8, r10, r9
+0x02b8  0e194ce664000000         iadd r6, r6.sx, r7.sx
+0x02c0  0e1d421e00000000         isub r7, r1.sx, 1
+0x02c8  7e214ec28100             and r8, r7, 28
+0x02ce  6f2546062500             simd_shuffle r9, r3, r8l
+0x02d4  0e29501600000000         iadd r10, r8.sx, 1
+0x02dc  6f2d46462500             simd_shuffle r11, r3, r10l
+0x02e2  12254e4225562005         icmpsel ueq, r9, r7, r10, r11, r9
+0x02ea  0e29502600000000         iadd r10, r8.sx, 2
+0x02f2  6f2d46462500             simd_shuffle r11, r3, r10l
+0x02f8  12254e4225562005         icmpsel ueq, r9, r7, r10, r11, r9
+0x0300  0e21503600000000         iadd r8, r8.sx, 3
+0x0308  6f2946062500             simd_shuffle r10, r3, r8l
+0x030e  121d4e0225542005         icmpsel ueq, r7, r7, r8, r10, r9
+0x0316  0e21422600000000         iadd r8, r1.sx, 2
+0x031e  7e2550c28100             and r9, r8, 28
+0x0324  6f2946262500             simd_shuffle r10, r3, r9l
+0x032a  0e2d521600000000         iadd r11, r9.sx, 1
+0x0332  6f3146662500             simd_shuffle r12, r3, r11l
+0x0338  1229506225584005         icmpsel ueq, r10, r8, r11, r12, r10
+0x0340  0e2d522600000000         iadd r11, r9.sx, 2
+0x0348  6f3146662500             simd_shuffle r12, r3, r11l
+0x034e  1229506225584005         icmpsel ueq, r10, r8, r11, r12, r10
+0x0356  0e25523600000000         iadd r9, r9.sx, 3
+0x035e  6f2d46262500             simd_shuffle r11, r3, r9l
+0x0364  1225502225564005         icmpsel ueq, r9, r8, r9, r11, r10
+0x036c  120542020046e004         icmpsel ueq, r1, r1, 0, r3, r7
+0x0374  121d500202526024         icmpsel ult, r7, r8, 32, r9, r3
+0x037c  6f0d46160000             simd_shuffle r3, r3, 1
+0x0382  1e21064064000000         imadd r8, 6, r2.sx, 0
+0x038a  4521040e11c01200         device_store 0, i32, x, r4, u10_u11, r8, unsigned, 0
+0x0392  0e11501600000000         iadd r4, r8.sx, 1
+0x039a  4529844e10c01200         device_store 1, i32, x, r5, u10_u11, r4, unsigned, 0
+0x03a2  0e11502600000000         iadd r4, r8.sx, 2
+0x03aa  4531840e10c01200         device_store 0, i32, x, r6, u10_u11, r4, unsigned, 0
+0x03b2  0e11503600000000         iadd r4, r8.sx, 3
+0x03ba  4509840e10c01200         device_store 0, i32, x, r1, u10_u11, r4, unsigned, 0
+0x03c2  0e05504600000000         iadd r1, r8.sx, 4
+0x03ca  4539240e10c01200         device_store 0, i32, x, r7, u10_u11, r1, unsigned, 0
+0x03d2  0e05505600000000         iadd r1, r8.sx, 5
+0x03da  4519240e10c01200         device_store 0, i32, x, r3, u10_u11, r1, unsigned, 0
+0x03e2  62000000                 mov_imm r0l, 0
+0x03e6  3800                     wait 0
+0x03e8  3801                     wait 1
+0x03ea  520844020000             if_icmp r0l, ueq, r2, 0, 1
+0x03f0  7e0520088000             mov r1, 32
+0x03f6  4509080d10c01200         device_store 0, i32, x, r1, u12_u13, 0, signed, 0
+0x03fe  3800                     wait 0
+0x0400  520e00000000             pop_exec r0l, 1
+0x0406  8800                     stop

@@ -1,0 +1,34 @@
+#version 450
+// ChaCha20 encryption (RFC 8439, as in TLS and WireGuard): each thread computes one 64-byte keystream block from
+// the key, nonce and its block counter (20 rounds of 32-bit add / xor / rotate quarter-rounds on a 16-word state)
+// and XORs it into the plaintext. Integer-exact.
+layout(local_size_x = 64) in;
+layout(std430, binding = 0) readonly buffer K { uint key[8]; uint nonce[3]; uint counter0; };
+layout(std430, binding = 1) readonly buffer M { uint msg[]; };
+layout(std430, binding = 2) writeonly buffer C { uint ct[]; };
+layout(push_constant) uniform P { uint blocks; } p;
+
+uint rotl(uint x, int r) { return (x << r) | (x >> (32 - r)); }
+#define QR(a, b, c, d) a += b; d = rotl(d ^ a, 16); c += d; b = rotl(b ^ c, 12); a += b; d = rotl(d ^ a, 8); c += d; b = rotl(b ^ c, 7);
+
+void main() {
+    uint blk = gl_GlobalInvocationID.x;
+    if (blk >= p.blocks) return;
+    uint s[16] = uint[16](0x61707865u, 0x3320646eu, 0x79622d32u, 0x6b206574u, key[0], key[1], key[2], key[3],
+                          key[4], key[5], key[6], key[7], counter0 + blk, nonce[0], nonce[1], nonce[2]);
+    uint x0 = s[0], x1 = s[1], x2 = s[2], x3 = s[3], x4 = s[4], x5 = s[5], x6 = s[6], x7 = s[7];
+    uint x8 = s[8], x9 = s[9], x10 = s[10], x11 = s[11], x12 = s[12], x13 = s[13], x14 = s[14], x15 = s[15];
+    for (int r = 0; r < 10; r++) {
+        QR(x0, x4, x8, x12) QR(x1, x5, x9, x13) QR(x2, x6, x10, x14) QR(x3, x7, x11, x15)
+        QR(x0, x5, x10, x15) QR(x1, x6, x11, x12) QR(x2, x7, x8, x13) QR(x3, x4, x9, x14)
+    }
+    uint o = blk * 16u;
+    ct[o + 0u] = msg[o + 0u] ^ (x0 + s[0]);    ct[o + 1u] = msg[o + 1u] ^ (x1 + s[1]);
+    ct[o + 2u] = msg[o + 2u] ^ (x2 + s[2]);    ct[o + 3u] = msg[o + 3u] ^ (x3 + s[3]);
+    ct[o + 4u] = msg[o + 4u] ^ (x4 + s[4]);    ct[o + 5u] = msg[o + 5u] ^ (x5 + s[5]);
+    ct[o + 6u] = msg[o + 6u] ^ (x6 + s[6]);    ct[o + 7u] = msg[o + 7u] ^ (x7 + s[7]);
+    ct[o + 8u] = msg[o + 8u] ^ (x8 + s[8]);    ct[o + 9u] = msg[o + 9u] ^ (x9 + s[9]);
+    ct[o + 10u] = msg[o + 10u] ^ (x10 + s[10]); ct[o + 11u] = msg[o + 11u] ^ (x11 + s[11]);
+    ct[o + 12u] = msg[o + 12u] ^ (x12 + s[12]); ct[o + 13u] = msg[o + 13u] ^ (x13 + s[13]);
+    ct[o + 14u] = msg[o + 14u] ^ (x14 + s[14]); ct[o + 15u] = msg[o + 15u] ^ (x15 + s[15]);
+}

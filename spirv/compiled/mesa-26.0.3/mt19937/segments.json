@@ -1,0 +1,22 @@
+{
+ "blob": "spirv/compiled/mesa-26.0.3/mt19937/shader.bin",
+ "code_start": 2244,
+ "code_size": 1378,
+ "layout": "agx_shader_info",
+ "programs": [
+  {
+   "label": "main",
+   "file": "main.bin",
+   "offset": 128,
+   "bytes": 1084,
+   "instructions": 163
+  },
+  {
+   "label": "preamble",
+   "file": "preamble.bin",
+   "offset": 1280,
+   "bytes": 82,
+   "instructions": 14
+  }
+ ]
+}

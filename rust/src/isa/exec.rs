@@ -28,7 +28,7 @@ impl Memory {
 pub struct CoreState {
     pub reg16s: Vec<[u16; SIMD_WIDTH]>,
     pub exec: [bool; SIMD_WIDTH],
-    /// applegpu `Uniforms`: 256 16-bit values; `get_reg64` takes no thread argument.
+    /// 512 16-bit values (u0..u255 are 32-bit; applegpu keeps 256 halves, Mesa uses up to u255); `get_reg64` takes no thread argument.
     pub uniforms: Vec<u16>,
     pub device_memory: Option<Memory>,
 }
@@ -40,25 +40,39 @@ impl CoreState {
         CoreState {
             reg16s: vec![[0; SIMD_WIDTH]; num_registers * 2],
             exec: [true; SIMD_WIDTH],
-            uniforms: vec![0; 256],
+            uniforms: vec![0; 512],
             device_memory,
         }
     }
+    #[inline(always)]
     fn idx(&self, r: usize) -> R<usize> {
         if r < self.reg16s.len() { Ok(r) } else { Err("IndexError: register".into()) }
     }
+    #[inline(always)]
     pub fn get_reg16(&self, r: usize, t: usize) -> R<i128> {
         Ok(self.reg16s[self.idx(r)?][t] as i128)
     }
+    #[inline(always)]
     pub fn set_reg16(&mut self, r: usize, t: usize, v: i128) -> R<()> {
         let i = self.idx(r)?;
         self.reg16s[i][t] = (v & 0xFFFF) as u16;
         Ok(())
     }
+    #[inline(always)]
     pub fn get_reg32(&self, r: usize, t: usize) -> R<i128> {
+        if 2 * r + 1 < self.reg16s.len() {
+            // both halves in range: one check (the general path below reports the same errors otherwise)
+            return Ok(self.reg16s[2 * r][t] as i128 | (self.reg16s[2 * r + 1][t] as i128) << 16);
+        }
         Ok(self.get_reg16(2 * r, t)? | (self.get_reg16(2 * r + 1, t)? << 16))
     }
+    #[inline(always)]
     pub fn set_reg32(&mut self, r: usize, t: usize, v: i128) -> R<()> {
+        if 2 * r + 1 < self.reg16s.len() {
+            self.reg16s[2 * r][t] = (v & 0xFFFF) as u16;
+            self.reg16s[2 * r + 1][t] = ((v >> 16) & 0xFFFF) as u16;
+            return Ok(());
+        }
         // applegpu writes the low half first; an out-of-range high half raises after it
         self.set_reg16(2 * r, t, v & 0xFFFF)?;
         self.set_reg16(2 * r + 1, t, (v >> 16) & 0xFFFF)
@@ -226,6 +240,19 @@ impl Ctx<'_> {
 }
 
 #[inline]
+/// Shift amount of bfeil: 7 bits, as the recorded full-width form (`bfeil r14, r6, r7, r8`, no mask field) shows.
+/// For the form with an immediate mask (what Mesa emits for ubitfield_extract) there is no recording yet;
+/// AGX_BFEIL_MASKED_SHIFT32=1 makes it take the shift modulo 32 instead (the alternative to test on the M2:
+/// viterbi, shiftfuse and lz4dec decide between them).
+pub fn bfeil_shift(s: u32, m: u32) -> u32 {
+    static MOD32: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    if m != 0 && *MOD32.get_or_init(|| std::env::var("AGX_BFEIL_MASKED_SHIFT32").map_or(false, |v| v == "1")) {
+        s & 31
+    } else {
+        s
+    }
+}
+
 fn shl(x: u128, s: u32) -> u128 {
     if s >= 128 { 0 } else { x << s }
 }
@@ -302,7 +329,7 @@ fn exec_thread(c: &Ctx, ex: Ex, st: &mut CoreState, t: usize) -> R<()> {
             // big-int expressions evaluated modulo 2^128 (only the low 64 bits reach a register)
             let r = match ex {
                 Ex::Bfi => (a & !shl(mask, s)) | shl(b & mask, s),
-                Ex::Bfeil => (a & !mask) | (shr(b, s) & mask),
+                Ex::Bfeil => (a & !mask) | (shr(b, bfeil_shift(s, m)) & mask),
                 Ex::Extr => shr((b << 32) | a, s) & mask,
                 Ex::Shlhi => {
                     let sm = shl(mask, s.saturating_sub(32));
@@ -376,7 +403,7 @@ fn exec_thread(c: &Ctx, ex: Ex, st: &mut CoreState, t: usize) -> R<()> {
                 Ex::FAdd32 | Ex::FAdd16 => (a, fma::F64_ONE, b),
                 _ => (a, b, 0),
             };
-            let mut r = fma::bfma64(x, y, z, &fma::ROUND_TO_ODD);
+            let mut r = fma::fma_rto_narrow(x, y, z);
             if matches!(ex, Ex::FMAdd32 | Ex::FAdd32 | Ex::FMul32) {
                 r = fma::f32_to_f64(fma::f64_to_f32(r, true), false);
             }

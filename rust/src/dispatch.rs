@@ -14,7 +14,11 @@
 //!   (empty kernels over 4M-16M threads); it overlaps execution, so the core time is the larger of the two.
 //! * time = core time + `launch_ns` (fixed per-dispatch overhead, 5.6 us for a 32-thread empty dispatch).
 
-use crate::cost::{self, GroupCtx, MemModel, Params};
+use crate::cost::{self, GroupCtx, MemModel, Params, Trace};
+
+/// Dynamic paths of every SIMD group of one workgroup (by workgroup id), in place of the cost model's own emulation;
+/// `func::trace_workgroups` supplies them for code that reads real memory (driver preambles, root tables, data).
+pub type Tracer<'a> = dyn Fn([u32; 3]) -> Result<Vec<Trace>, String> + Sync + 'a;
 
 #[derive(Clone, Debug)]
 pub struct Launch {
@@ -101,6 +105,11 @@ pub fn occupancy(l: &Launch) -> (u32, u32) {
 }
 
 pub fn simulate(code: &[u8], l: &Launch, p: &Params) -> Result<Report, String> {
+    simulate_with(code, l, p, None)
+}
+
+/// `simulate` with the SIMD groups' paths from `tracer` (None: `cost::trace_group`).
+pub fn simulate_with(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer>) -> Result<Report, String> {
     let ins = cost::decode(code, p)?;
     let dims: Vec<u32> = (0..3).map(|i| l.grid[i].div_ceil(l.wg[i].max(1))).collect();
     let n = dims.iter().map(|&d| d as u64).product::<u64>();
@@ -131,22 +140,37 @@ pub fn simulate(code: &[u8], l: &Launch, p: &Params) -> Result<Report, String> {
         let count = (m - first).min(r as u64);
         let mut traces = vec![];
         let mut wg_of = vec![];
-        let mut slot = 0u32;
         let mut warn = vec![];
-        for i in 0..count {
-            let wg_index = ((first + i) * cores).min(n - 1); // representative workgroups spread over the grid
-            for g in 0..gpw {
-                let ctx = GroupCtx { wg_size: l.wg, wg_id: wg_coords(wg_index), group: g, core: 0, slot, uniforms: l.uniforms.clone() };
-                slot += 1;
-                let t = cost::trace_group(code, &ctx, l.max_steps)?;
-                for x in &t.warnings {
-                    if !warn.contains(x) {
-                        warn.push(x.clone());
+        // (workgroup, group, slot) of every SIMD group; their traces are independent (emulated in parallel)
+        let jobs: Vec<(u64, u32, u32)> = (0..count).flat_map(|i| (0..gpw).map(move |g| (i, g, i as u32 * gpw + g))).collect();
+        let wg_at = |i: u64| wg_coords(((first + i) * cores).min(n - 1)); // representative workgroups spread over the grid
+        let traced: Vec<Result<Trace, String>> = match tracer {
+            Some(tr) => {
+                let wgs: Vec<u64> = (0..count).collect();
+                let mut out = vec![];
+                for r in crate::par::map(&wgs, |&i| tr(wg_at(i))) {
+                    match r {
+                        Ok(ts) if ts.len() == gpw as usize => out.extend(ts.into_iter().map(Ok)),
+                        Ok(ts) => return Err(format!("tracer returned {} groups for a {}-group workgroup", ts.len(), gpw)),
+                        Err(e) => return Err(e),
                     }
                 }
-                traces.push(t);
-                wg_of.push(i as u32);
+                out
             }
+            None => crate::par::map(&jobs, |&(i, g, slot)| {
+                let ctx = GroupCtx { wg_size: l.wg, wg_id: wg_at(i), group: g, core: 0, slot, uniforms: l.uniforms.clone() };
+                cost::trace_group(code, &ctx, l.max_steps)
+            }),
+        };
+        for (&(i, _, _), t) in jobs.iter().zip(traced) {
+            let t = t?;
+            for x in &t.warnings {
+                if !warn.contains(x) {
+                    warn.push(x.clone());
+                }
+            }
+            traces.push(t);
+            wg_of.push(i as u32);
         }
         let seqs: Vec<&[usize]> = traces.iter().map(|t| t.pcs.as_slice()).collect();
         let mems: Vec<&[(u32, Vec<u64>)]> = traces.iter().map(|t| t.mem.as_slice()).collect();
@@ -165,15 +189,24 @@ pub fn simulate(code: &[u8], l: &Launch, p: &Params) -> Result<Report, String> {
         let mut sharing = 0.0;
         if l.mem && n > 1 {
             let others: Vec<u64> = [1u64, 2, cores / 2, cores - 1].iter().copied().filter(|&k| k < n && k > 0).collect();
-            let mut ovs = vec![];
-            for &k in &others {
-                let mut tr = vec![];
-                for g in 0..gpw {
-                    let ctx = GroupCtx { wg_size: l.wg, wg_id: wg_coords(k), group: g, core: 1, slot: g, uniforms: l.uniforms.clone() };
-                    tr.push(cost::trace_group(code, &ctx, l.max_steps)?);
+            // the other workgroups are traced and compared independently: concurrently, summed in the same order
+            let ovs: Vec<f64> = match tracer {
+                Some(t) => crate::par::map(&others, |&k| t(wg_coords(k)).map(|tr| cost::segment_overlap(&traces, &tr, &device_pcs)))
+                    .into_iter()
+                    .collect::<Result<Vec<_>, _>>()?,
+                None => {
+                    let mut ovs = vec![];
+                    for &k in &others {
+                        let gs: Vec<u32> = (0..gpw).collect();
+                        let tr = crate::par::map(&gs, |&g| {
+                            let ctx = GroupCtx { wg_size: l.wg, wg_id: wg_coords(k), group: g, core: 1, slot: g, uniforms: l.uniforms.clone() };
+                            cost::trace_group(code, &ctx, l.max_steps)
+                        }).into_iter().collect::<Result<Vec<_>, _>>()?;
+                        ovs.push(cost::segment_overlap(&traces, &tr, &device_pcs));
+                    }
+                    ovs
                 }
-                ovs.push(cost::segment_overlap(&traces, &tr, &device_pcs));
-            }
+            };
             if !ovs.is_empty() {
                 sharing = ovs.iter().sum::<f64>() / ovs.len() as f64;
             }
@@ -192,8 +225,10 @@ pub fn simulate(code: &[u8], l: &Launch, p: &Params) -> Result<Report, String> {
     todo.truncate(l.max_waves.max(1));
     let mut first_cycles = 0.0;
     let mut total = 0.0;
-    for &w in &todo {
-        let (count, c, warn) = sim_wave(w)?;
+    // the simulated waves are independent: run them concurrently (results combined in wave order)
+    let results = crate::par::map(&todo, |&w| sim_wave(w));
+    for (&w, res) in todo.iter().zip(results) {
+        let (count, c, warn) = res?;
         for x in warn {
             if !rep.warnings.contains(&x) {
                 rep.warnings.push(x);

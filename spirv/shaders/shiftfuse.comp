@@ -1,0 +1,27 @@
+#version 450
+// Bit-manipulation idioms with variable, explicitly masked shift amounts (all well defined in GLSL), one output
+// word each. The AGX backend fuses shift / and / or patterns into bfeil, bfi and extr. The full-width forms take
+// 7 bits of the shift; if the masked bfeil does too, a fusion that loses the & 31 (as in viterbi) shows up here
+// as mismatches in one column (see the applications notes for the open question).
+layout(local_size_x = 64) in;
+layout(std430, binding = 0) readonly buffer I { uvec4 inp[]; };    // x, y, s (any 32-bit value), unused
+layout(std430, binding = 1) writeonly buffer O { uint o[]; };      // 10 per element
+layout(push_constant) uniform P { uint n; } p;
+
+void main() {
+    uint i = gl_GlobalInvocationID.x;
+    if (i >= p.n) return;
+    uvec4 v = inp[i];
+    uint x = v.x, y = v.y, s = v.z, r = s & 31u, q = s & 15u;
+    uint b = 10u * i;
+    o[b + 0u] = (x >> r) & 1u;                                     // single-bit test (viterbi's pattern)
+    o[b + 1u] = (x >> r) & 0xFFu;                                  // byte extract
+    o[b + 2u] = (x >> (s & 63u & 31u)) & 0x7FFFu;                  // the mask written as two ands
+    o[b + 3u] = uint(bitfieldExtract(int(x), int(q), 8));          // signed field
+    o[b + 4u] = (x >> r) | ((y << 1u) << (31u - r));               // funnel shift right (extr)
+    o[b + 5u] = (x << r) | (x >> ((32u - r) & 31u));               // rotate left
+    o[b + 6u] = (x & ~(0xFFu << r)) | ((y & 0xFFu) << r);          // byte insert (bfi)
+    o[b + 7u] = (x << r) & 0xFFFFu;                                // shift left then mask
+    o[b + 8u] = uint(int(x) >> r) & 0x3FFu;                        // arithmetic shift then mask
+    o[b + 9u] = (x >> (y & 31u)) & ((1u << (s & 15u)) - 1u);       // variable width and offset
+}

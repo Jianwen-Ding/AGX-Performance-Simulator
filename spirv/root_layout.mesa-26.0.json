@@ -1,0 +1,23 @@
+{
+  "_comment": [
+    "hk_root_descriptor_table of Mesa 26.0.x (offsetof() on the built driver, 26.0.3). Word = 32-bit word index.",
+    "The driver preloads u0_u1 = the table's own address and u2_u3.. = sets[0..set_count) (agx_usc_uniform(0,",
+    "4 * (1 + set_count) halves, root_ptr); sets follow root_desc_addr for that). Storage-buffer descriptors are",
+    "hk_buffer_address {u64 base, u32 size, u32 zero}, 16 bytes per binding.",
+    "Mesa 25.3.6 (the M2's driver) agrees where the stored control shader shows it: base_group at words 20..22, the",
+    "set address in u2_u3, push constants from word 122 (its element count, push word 2, is root word 124)."
+  ],
+  "mesa": "26.0",
+  "uniforms": {"0": "root", "2": "set"},
+  "root_bytes": 1776,
+  "root": [
+    {"word": 0, "value": "self", "bytes": 8},
+    {"word": 2, "value": "set", "bytes": 8},
+    {"word": 18, "value": "group_count_addr", "bytes": 8},
+    {"word": 20, "value": "base:x"},
+    {"word": 21, "value": "base:y"},
+    {"word": 22, "value": "base:z"},
+    {"word": 122, "value": "push"}
+  ],
+  "descriptor": {"stride": 16, "fields": [{"word": 0, "value": "buffer:B", "bytes": 8}, {"word": 2, "value": "buffer_size:B"}]}
+}

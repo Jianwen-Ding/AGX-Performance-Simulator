@@ -1,0 +1,22 @@
+{
+ "blob": "spirv/compiled/mesa-25.2.8/bindlessu/shader.bin",
+ "code_start": 2236,
+ "code_size": 650,
+ "layout": "agx_shader_info",
+ "programs": [
+  {
+   "label": "main",
+   "file": "main.bin",
+   "offset": 128,
+   "bytes": 244,
+   "instructions": 37
+  },
+  {
+   "label": "preamble",
+   "file": "preamble.bin",
+   "offset": 512,
+   "bytes": 122,
+   "instructions": 20
+  }
+ ]
+}

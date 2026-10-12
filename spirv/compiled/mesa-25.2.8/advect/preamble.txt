@@ -1,0 +1,32 @@
+0x0280  0501100d00c87200         device_load 0, i32, xyz, r0_r1_r2, u0_u1, 1, signed, lsl 2
+0x0288  3800                     wait 0
+0x028a  0e01000064002000         iadd r0, 0, r0.sx, lsl 4
+0x0292  c500803d00803000         uniform_store 2, i16, xy, 0, r0l_r0h, 8
+0x029a  0e01002064002000         iadd r0, 0, r1.sx, lsl 4
+0x02a2  c500a03d00803000         uniform_store 2, i16, xy, 0, r0l_r0h, 10
+0x02aa  0501700d01c81200         device_load 0, i32, x, r0, u0_u1, 23, signed, lsl 2
+0x02b2  3800                     wait 0
+0x02b4  c500c03d00803000         uniform_store 2, i16, xy, 0, r0l_r0h, 12
+0x02bc  0511d00d05c03200         device_load 0, i32, xy, r2_r3, u0_u1, 93, signed
+0x02c4  3800                     wait 0
+0x02c6  c518e03d00803000         uniform_store 2, i16, xy, 0, r3l_r3h, 14
+0x02ce  1e05440664000000         imadd r1, r2.sx, r0.sx, 0
+0x02d6  c508003d01803000         uniform_store 2, i16, xy, 0, r1l_r1h, 16
+0x02de  0e05014864000000         isub r1, 1, r2.sx
+0x02e6  1e05420664000000         imadd r1, r1.sx, r0.sx, 0
+0x02ee  1e05420664000000         imadd r1, r1.sx, r0.sx, 0
+0x02f6  c508203d01803000         uniform_store 2, i16, xy, 0, r1l_r1h, 18
+0x02fe  0511700d02c83200         device_load 0, i32, xy, r2_r3, u0_u1, 39, signed, lsl 2
+0x0306  3800                     wait 0
+0x0308  0521144500c8f200         device_load 1, i32, xyzw, r4_r5_r6_r7, r2_r3, 1, signed, lsl 2
+0x0310  3801                     wait 1
+0x0312  c520403d0180f000         uniform_store 2, i16, xyzw, 0, r4l_r4h_r5l_r5h, 20
+0x031a  0e01401e00000000         isub r0, r0.sx, 1
+0x0322  c500803d01803000         uniform_store 2, i16, xy, 0, r0l_r0h, 24
+0x032a  0521040500c0f200         device_load 0, i32, xyzw, r4_r5_r6_r7, r2_r3, 0, signed
+0x0332  3800                     wait 0
+0x0334  c520c03d0180f000         uniform_store 2, i16, xyzw, 0, r4l_r4h_r5l_r5h, 28
+0x033c  0521240500c8f200         device_load 0, i32, xyzw, r4_r5_r6_r7, r2_r3, 2, signed, lsl 2
+0x0344  3800                     wait 0
+0x0346  c520003d0280f000         uniform_store 2, i16, xyzw, 0, r4l_r4h_r5l_r5h, 32
+0x034e  8800                     stop

@@ -1,0 +1,52 @@
+#version 450
+// LSD radix sort of (key, value) pairs, 4-bit digits (8 passes), each pass three dispatches:
+// mode 0: per-workgroup digit histogram of 1024 elements -> hist[digit * ngroups + group]
+// mode 1: one workgroup: exclusive scan of hist (16 * ngroups entries) -> global base of (digit, group)
+// mode 2: stable scatter: per-thread digit counts in shared memory, scanned per digit over the threads
+// Keys and values ping-pong between the two halves of their buffers (src half = pass & 1).
+layout(local_size_x = 256) in;
+layout(std430, binding = 0) buffer K { uint keys[]; };     // 2n
+layout(std430, binding = 1) buffer V { uint vals[]; };     // 2n
+layout(std430, binding = 2) buffer H { uint hist[]; };     // 16 * ngroups
+layout(push_constant) uniform P { uint mode; uint shift; uint ngroups; uint n; uint src; } p;
+shared uint cnt[16 * 256];
+shared uint part[256];
+
+void main() {
+    uint t = gl_LocalInvocationID.x, g = gl_WorkGroupID.x;
+    uint so = p.src * p.n, dout = (1u - p.src) * p.n;
+    if (p.mode == 1u) {
+        uint total = 16u * p.ngroups, chunk = (total + 255u) / 256u, s0 = min(t * chunk, total), s1 = min(s0 + chunk, total);
+        uint acc = 0u;
+        for (uint i = s0; i < s1; i++) acc += hist[i];
+        part[t] = acc;
+        barrier();
+        if (t == 0u) { uint a = 0u; for (uint i = 0u; i < 256u; i++) { uint v = part[i]; part[i] = a; a += v; } }
+        barrier();
+        acc = part[t];
+        for (uint i = s0; i < s1; i++) { uint v = hist[i]; hist[i] = acc; acc += v; }
+        return;
+    }
+    uint c[16];
+    for (uint d = 0u; d < 16u; d++) c[d] = 0u;
+    uint base = g * 1024u + 4u * t;
+    uint k[4];
+    for (uint e = 0u; e < 4u; e++) { k[e] = keys[so + base + e]; c[(k[e] >> p.shift) & 15u]++; }
+    for (uint d = 0u; d < 16u; d++) cnt[d * 256u + t] = c[d];
+    barrier();
+    if (p.mode == 0u) {
+        if (t < 16u) { uint a = 0u; for (uint i = 0u; i < 256u; i++) a += cnt[t * 256u + i]; hist[t * p.ngroups + g] = a; }
+        return;
+    }
+    if (t < 16u) { uint a = 0u; for (uint i = 0u; i < 256u; i++) { uint v = cnt[t * 256u + i]; cnt[t * 256u + i] = a; a += v; } }
+    barrier();
+    uint seen[16];
+    for (uint d = 0u; d < 16u; d++) seen[d] = 0u;
+    for (uint e = 0u; e < 4u; e++) {
+        uint d = (k[e] >> p.shift) & 15u;
+        uint dst = hist[d * p.ngroups + g] + cnt[d * 256u + t] + seen[d];
+        seen[d]++;
+        keys[dout + dst] = k[e];
+        vals[dout + dst] = vals[so + base + e];
+    }
+}

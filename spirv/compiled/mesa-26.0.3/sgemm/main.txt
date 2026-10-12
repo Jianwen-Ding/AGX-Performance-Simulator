@@ -1,0 +1,741 @@
+0x0200  f2053000                 get_sr r1.cache, sr48 (thread_position_in_threadgroup.x)
+0x0204  f2093100                 get_sr r2.cache, sr49 (thread_position_in_threadgroup.y)
+0x0208  f20d0000                 get_sr r3.cache, sr0 (threadgroup_position_in_grid.x)
+0x020c  f2110100                 get_sr r4.cache, sr1 (threadgroup_position_in_grid.y)
+0x0210  8e15004064002000         iadd r5.cache, 0, r2.sx, lsl 4
+0x0218  0e194a2664000000         iadd r6, r5.sx, r1.sx
+0x0220  8e0dc68658000000         iadd r3.cache, r3.discard.sx, u4.sx
+0x0228  2e0d00602c060000         bfi r3, 0, r3.discard, 6
+0x0230  8e11c8a658000000         iadd r4.cache, r4.discard.sx, u5.sx
+0x0238  2e1100802c060000         bfi r4, 0, r4.discard, 6
+0x0240  62000000                 mov_imm r0l, 0
+0x0244  621d00000000             mov_imm r7, 0, 0b0
+0x024a  622100000000             mov_imm r8, 0, 0b0
+0x0250  622500000000             mov_imm r9, 0, 0b0
+0x0256  622900000000             mov_imm r10, 0, 0b0
+0x025c  622d00000000             mov_imm r11, 0, 0b0
+0x0262  623100000000             mov_imm r12, 0, 0b0
+0x0268  623500000000             mov_imm r13, 0, 0b0
+0x026e  623900000000             mov_imm r14, 0, 0b0
+0x0274  623d00000000             mov_imm r15, 0, 0b0
+0x027a  624100000000             mov_imm r16, 0, 0b0
+0x0280  624500000000             mov_imm r17, 0, 0b0
+0x0286  624900000000             mov_imm r18, 0, 0b0
+0x028c  624d00000000             mov_imm r19, 0, 0b0
+0x0292  625100000000             mov_imm r20, 0, 0b0
+0x0298  625500000000             mov_imm r21, 0, 0b0
+0x029e  625900000000             mov_imm r22, 0, 0b0
+0x02a4  625d00000000             mov_imm r23, 0, 0b0
+0x02aa  522caee21800             while_icmp r0l, ult, r23.cache, u7, 1
+0x02b0  20c056120000             jmp_exec_none pc+4694
+0x02b6  aee100c028040000         bfeil r24.cache, 0, r6.cache, 4
+0x02be  8e6588066b000000         iadd r25.cache, r4.cache.sx, r24.cache.sx
+0x02c6  9e6572e658ae0600         imadd r25.cache, r25.sx, u7.sx, r23.cache.sx
+0x02ce  fe698cf28000             and r26.cache, r6.cache, 15
+0x02d4  0e65b42667000000         iadd r25, r26.cache.sx, r25.sx
+0x02dc  05c9200e13c01200         device_load 0, i32, x, r25, u8_u9, r25, unsigned
+0x02e4  1e6174865a701600         imadd r24, r26.sx, u20.sx, r24.sx, lsl 2
+0x02ec  3800                     wait 0
+0x02ee  29e5300214000000         threadgroup_store i32, x, r25, r24l, 0
+0x02f6  aee100c028060000         bfeil r24.cache, 0, r6.cache, 6
+0x02fe  8e65ae066b000000         iadd r25.cache, r23.cache.sx, r24.cache.sx
+0x0306  9e65724659860600         imadd r25.cache, r25.sx, u10.sx, r3.cache.sx
+0x030e  fe698cf28300             and r26.cache, r6.cache, 63
+0x0314  0e65b42667000000         iadd r25, r26.cache.sx, r25.sx
+0x031c  05c9280e13c01200         device_load 0, i32, x, r25, u12_u13, r25, unsigned
+0x0324  8e69aa4567001000         iadd r26.cache, u21.sx, r26.sx, lsl 2
+0x032c  1e6170865a740600         imadd r24, r24.sx, u20.sx, r26.sx
+0x0334  3800                     wait 0
+0x0336  29e5300214000000         threadgroup_store i32, x, r25, r24l, 0
+0x033e  8e618c8659020000         iadd r24.cache, r6.cache.sx, u76.sx
+0x0346  aee500002b040000         bfeil r25.cache, 0, r24.cache, 4
+0x034e  8e6988266b000000         iadd r26.cache, r4.cache.sx, r25.cache.sx
+0x0356  9e6974e658ae0600         imadd r26.cache, r26.sx, u7.sx, r23.cache.sx
+0x035e  fe6db0f28000             and r27.cache, r24.cache, 15
+0x0364  0e69b64667000000         iadd r26, r27.cache.sx, r26.sx
+0x036c  05d1400e13c01200         device_load 0, i32, x, r26, u8_u9, r26, unsigned
+0x0374  1e6576865a721600         imadd r25, r27.sx, u20.sx, r25.sx, lsl 2
+0x037c  3800                     wait 0
+0x037e  29e9320214000000         threadgroup_store i32, x, r26, r25l, 0
+0x0386  aee500002b060000         bfeil r25.cache, 0, r24.cache, 6
+0x038e  8e69ae266b000000         iadd r26.cache, r23.cache.sx, r25.cache.sx
+0x0396  9e69744659860600         imadd r26.cache, r26.sx, u10.sx, r3.cache.sx
+0x039e  fe6170f28300             and r24.cache, r24, 63
+0x03a4  0e69b04667000000         iadd r26, r24.cache.sx, r26.sx
+0x03ac  05d1480e13c01200         device_load 0, i32, x, r26, u12_u13, r26, unsigned
+0x03b4  8e61aa0567001000         iadd r24.cache, u21.sx, r24.sx, lsl 2
+0x03bc  1e6172865a700600         imadd r24, r25.sx, u20.sx, r24.sx
+0x03c4  3800                     wait 0
+0x03c6  29e9300214000000         threadgroup_store i32, x, r26, r24l, 0
+0x03ce  8e618c265b030000         iadd r24.cache, r6.cache.sx, u121.sx
+0x03d6  aee500002b040000         bfeil r25.cache, 0, r24.cache, 4
+0x03de  8e6988266b000000         iadd r26.cache, r4.cache.sx, r25.cache.sx
+0x03e6  9e6974e658ae0600         imadd r26.cache, r26.sx, u7.sx, r23.cache.sx
+0x03ee  fe6db0f28000             and r27.cache, r24.cache, 15
+0x03f4  0e69b64667000000         iadd r26, r27.cache.sx, r26.sx
+0x03fc  05d1400e13c01200         device_load 0, i32, x, r26, u8_u9, r26, unsigned
+0x0404  1e6576865a721600         imadd r25, r27.sx, u20.sx, r25.sx, lsl 2
+0x040c  3800                     wait 0
+0x040e  29e9320214000000         threadgroup_store i32, x, r26, r25l, 0
+0x0416  aee500002b060000         bfeil r25.cache, 0, r24.cache, 6
+0x041e  8e69ae266b000000         iadd r26.cache, r23.cache.sx, r25.cache.sx
+0x0426  9e69744659860600         imadd r26.cache, r26.sx, u10.sx, r3.cache.sx
+0x042e  fe6170f28300             and r24.cache, r24, 63
+0x0434  0e69b04667000000         iadd r26, r24.cache.sx, r26.sx
+0x043c  05d1480e13c01200         device_load 0, i32, x, r26, u12_u13, r26, unsigned
+0x0444  8e61aa0567001000         iadd r24.cache, u21.sx, r24.sx, lsl 2
+0x044c  1e6172865a700600         imadd r24, r25.sx, u20.sx, r24.sx
+0x0454  3800                     wait 0
+0x0456  29e9300214000000         threadgroup_store i32, x, r26, r24l, 0
+0x045e  8e614ca65b010000         iadd r24.cache, r6.sx, u61.sx
+0x0466  aee500002b040000         bfeil r25.cache, 0, r24.cache, 4
+0x046e  8e6948266b000000         iadd r26.cache, r4.sx, r25.cache.sx
+0x0476  9e6974e658ae0600         imadd r26.cache, r26.sx, u7.sx, r23.cache.sx
+0x047e  fe6db0f28000             and r27.cache, r24.cache, 15
+0x0484  0e69b64667000000         iadd r26, r27.cache.sx, r26.sx
+0x048c  05d1400e13c01200         device_load 0, i32, x, r26, u8_u9, r26, unsigned
+0x0494  1e6576865a721600         imadd r25, r27.sx, u20.sx, r25.sx, lsl 2
+0x049c  3800                     wait 0
+0x049e  29e9320214000000         threadgroup_store i32, x, r26, r25l, 0
+0x04a6  aee500002b060000         bfeil r25.cache, 0, r24.cache, 6
+0x04ae  8e69ae266b000000         iadd r26.cache, r23.cache.sx, r25.cache.sx
+0x04b6  9e69744659460600         imadd r26.cache, r26.sx, u10.sx, r3.sx
+0x04be  fe6170f28300             and r24.cache, r24, 63
+0x04c4  0e69b04667000000         iadd r26, r24.cache.sx, r26.sx
+0x04cc  05d1480e13c01200         device_load 0, i32, x, r26, u12_u13, r26, unsigned
+0x04d4  8e61aa0567001000         iadd r24.cache, u21.sx, r24.sx, lsl 2
+0x04dc  1e6172865a700600         imadd r24, r25.sx, u20.sx, r24.sx
+0x04e4  3800                     wait 0
+0x04e6  29e9300214000000         threadgroup_store i32, x, r26, r24l, 0
+0x04ee  6800                     threadgroup_barrier
+0x04f0  7e028a088000             mov r0h, r5l.cache
+0x04f6  69e1010214000000         threadgroup_load i32, x, r24, r0h, 0
+0x04fe  8e65002064002000         iadd r25.cache, 0, r1.sx, lsl 4
+0x0506  0e69aa256b000000         iadd r26, u21.sx, r25.cache.sx
+0x050e  69e9340214000000         threadgroup_load i32, x, r26, r26l, 0
+0x0516  0e6d8a4600000000         iadd r27, r5.cache.sx, 4
+0x051e  69ed360214000000         threadgroup_load i32, x, r27, r27l, 0
+0x0526  0e7198256b040000         iadd r28, u44.sx, r25.cache.sx
+0x052e  69f1380214000000         threadgroup_load i32, x, r28, r28l, 0
+0x0536  0e758a8600000000         iadd r29, r5.cache.sx, 8
+0x053e  69f53a0214000000         threadgroup_load i32, x, r29, r29l, 0
+0x0546  0e79bc256b040000         iadd r30, u62.sx, r25.cache.sx
+0x054e  69f93c0214000000         threadgroup_load i32, x, r30, r30l, 0
+0x0556  0e7d8ac600000000         iadd r31, r5.cache.sx, 12
+0x055e  69fd3e0214000000         threadgroup_load i32, x, r31, r31l, 0
+0x0566  0e0196256b1c0000         iadd r32, u107.sx, r25.cache.sx
+0x056e  6981000214000014         threadgroup_load i32, x, r32, r32l, 0
+0x0576  bad9b0422b6c0200         fmadd32 r22.cache, r24.cache, r26.cache, r22
+0x057e  bad5b0822b6a0200         fmadd32 r21.cache, r24.cache, r28.cache, r21
+0x0586  bad1b0c22b680200         fmadd32 r20.cache, r24.cache, r30.cache, r20
+0x058e  bacd700228660201         fmadd32 r19.cache, r24, r32.cache, r19
+0x0596  bac9b6422b640200         fmadd32 r18.cache, r27.cache, r26.cache, r18
+0x059e  bac5b6822b620200         fmadd32 r17.cache, r27.cache, r28.cache, r17
+0x05a6  bac1b6c22b600200         fmadd32 r16.cache, r27.cache, r30.cache, r16
+0x05ae  babd7602285e0201         fmadd32 r15.cache, r27, r32.cache, r15
+0x05b6  bab9ba422b5c0200         fmadd32 r14.cache, r29.cache, r26.cache, r14
+0x05be  bab5ba822b5a0200         fmadd32 r13.cache, r29.cache, r28.cache, r13
+0x05c6  bab1bac22b580200         fmadd32 r12.cache, r29.cache, r30.cache, r12
+0x05ce  baad7a0228560201         fmadd32 r11.cache, r29, r32.cache, r11
+0x05d6  baa9be4227540200         fmadd32 r10.cache, r31.cache, r26, r10
+0x05de  baa5be8227520200         fmadd32 r9.cache, r31.cache, r28, r9
+0x05e6  baa1bec227500200         fmadd32 r8.cache, r31.cache, r30, r8
+0x05ee  ba9d7e02244e0201         fmadd32 r7.cache, r31, r32, r7
+0x05f6  0e61a8a568000000         iadd r24, u20.sx, r5.cache.sx
+0x05fe  69e9300214000000         threadgroup_load i32, x, r26, r24l, 0
+0x0606  0e61ca256b000000         iadd r24, u133.sx, r25.cache.sx
+0x060e  69ed300214000000         threadgroup_load i32, x, r27, r24l, 0
+0x0616  0e619aa568080000         iadd r24, u77.sx, r5.cache.sx
+0x061e  69f1300214000000         threadgroup_load i32, x, r28, r24l, 0
+0x0626  0e61d0256b000000         iadd r24, u136.sx, r25.cache.sx
+0x062e  69f5300214000000         threadgroup_load i32, x, r29, r24l, 0
+0x0636  0e619ca568080000         iadd r24, u78.sx, r5.cache.sx
+0x063e  69f9300214000000         threadgroup_load i32, x, r30, r24l, 0
+0x0646  0e61ce256b000000         iadd r24, u135.sx, r25.cache.sx
+0x064e  69fd300214000000         threadgroup_load i32, x, r31, r24l, 0
+0x0656  0e61c0a568000000         iadd r24, u128.sx, r5.cache.sx
+0x065e  6981300214000010         threadgroup_load i32, x, r32, r24l, 0
+0x0666  0e61d4256b000000         iadd r24, u138.sx, r25.cache.sx
+0x066e  6985300214000010         threadgroup_load i32, x, r33, r24l, 0
+0x0676  bad9b4622b6c0200         fmadd32 r22.cache, r26.cache, r27.cache, r22
+0x067e  bad5b4a22b6a0200         fmadd32 r21.cache, r26.cache, r29.cache, r21
+0x0686  bad1b4e22b680200         fmadd32 r20.cache, r26.cache, r31.cache, r20
+0x068e  bacd742228660201         fmadd32 r19.cache, r26, r33.cache, r19
+0x0696  bac9b8622b640200         fmadd32 r18.cache, r28.cache, r27.cache, r18
+0x069e  bac5b8a22b620200         fmadd32 r17.cache, r28.cache, r29.cache, r17
+0x06a6  bac1b8e22b600200         fmadd32 r16.cache, r28.cache, r31.cache, r16
+0x06ae  babd7822285e0201         fmadd32 r15.cache, r28, r33.cache, r15
+0x06b6  bab9bc622b5c0200         fmadd32 r14.cache, r30.cache, r27.cache, r14
+0x06be  bab5bca22b5a0200         fmadd32 r13.cache, r30.cache, r29.cache, r13
+0x06c6  bab1bce22b580200         fmadd32 r12.cache, r30.cache, r31.cache, r12
+0x06ce  baad7c2228560201         fmadd32 r11.cache, r30, r33.cache, r11
+0x06d6  baa9806227540204         fmadd32 r10.cache, r32.cache, r27, r10
+0x06de  baa580a227520204         fmadd32 r9.cache, r32.cache, r29, r9
+0x06e6  baa180e227500204         fmadd32 r8.cache, r32.cache, r31, r8
+0x06ee  ba9d4022244e0205         fmadd32 r7.cache, r32, r33, r7
+0x06f6  0e618ea5680c0000         iadd r24, u103.sx, r5.cache.sx
+0x06fe  69e9300214000000         threadgroup_load i32, x, r26, r24l, 0
+0x0706  0e61a4256b040000         iadd r24, u50.sx, r25.cache.sx
+0x070e  69ed300214000000         threadgroup_load i32, x, r27, r24l, 0
+0x0716  0e6182a5680c0000         iadd r24, u97.sx, r5.cache.sx
+0x071e  69f1300214000000         threadgroup_load i32, x, r28, r24l, 0
+0x0726  0e61a2256b040000         iadd r24, u49.sx, r25.cache.sx
+0x072e  69f5300214000000         threadgroup_load i32, x, r29, r24l, 0
+0x0736  0e61c2a568000000         iadd r24, u129.sx, r5.cache.sx
+0x073e  69f9300214000000         threadgroup_load i32, x, r30, r24l, 0
+0x0746  0e619a256b040000         iadd r24, u45.sx, r25.cache.sx
+0x074e  69fd300214000000         threadgroup_load i32, x, r31, r24l, 0
+0x0756  0e61d8a568000000         iadd r24, u140.sx, r5.cache.sx
+0x075e  6981300214000010         threadgroup_load i32, x, r32, r24l, 0
+0x0766  0e61ae256b080000         iadd r24, u87.sx, r25.cache.sx
+0x076e  6985300214000010         threadgroup_load i32, x, r33, r24l, 0
+0x0776  bad9b4622b6c0200         fmadd32 r22.cache, r26.cache, r27.cache, r22
+0x077e  bad5b4a22b6a0200         fmadd32 r21.cache, r26.cache, r29.cache, r21
+0x0786  bad1b4e22b680200         fmadd32 r20.cache, r26.cache, r31.cache, r20
+0x078e  bacd742228660201         fmadd32 r19.cache, r26, r33.cache, r19
+0x0796  bac9b8622b640200         fmadd32 r18.cache, r28.cache, r27.cache, r18
+0x079e  bac5b8a22b620200         fmadd32 r17.cache, r28.cache, r29.cache, r17
+0x07a6  bac1b8e22b600200         fmadd32 r16.cache, r28.cache, r31.cache, r16
+0x07ae  babd7822285e0201         fmadd32 r15.cache, r28, r33.cache, r15
+0x07b6  bab9bc622b5c0200         fmadd32 r14.cache, r30.cache, r27.cache, r14
+0x07be  bab5bca22b5a0200         fmadd32 r13.cache, r30.cache, r29.cache, r13
+0x07c6  bab1bce22b580200         fmadd32 r12.cache, r30.cache, r31.cache, r12
+0x07ce  baad7c2228560201         fmadd32 r11.cache, r30, r33.cache, r11
+0x07d6  baa9806227540204         fmadd32 r10.cache, r32.cache, r27, r10
+0x07de  baa580a227520204         fmadd32 r9.cache, r32.cache, r29, r9
+0x07e6  baa180e227500204         fmadd32 r8.cache, r32.cache, r31, r8
+0x07ee  ba9d4022244e0205         fmadd32 r7.cache, r32, r33, r7
+0x07f6  0e6180a568080000         iadd r24, u64.sx, r5.cache.sx
+0x07fe  69e9300214000000         threadgroup_load i32, x, r26, r24l, 0
+0x0806  0e61b0256b0c0000         iadd r24, u120.sx, r25.cache.sx
+0x080e  69ed300214000000         threadgroup_load i32, x, r27, r24l, 0
+0x0816  0e61b0a568000000         iadd r24, u24.sx, r5.cache.sx
+0x081e  69f1300214000000         threadgroup_load i32, x, r28, r24l, 0
+0x0826  0e61b6256b0c0000         iadd r24, u123.sx, r25.cache.sx
+0x082e  69f5300214000000         threadgroup_load i32, x, r29, r24l, 0
+0x0836  0e6190a5680c0000         iadd r24, u104.sx, r5.cache.sx
+0x083e  69f9300214000000         threadgroup_load i32, x, r30, r24l, 0
+0x0846  0e61b4256b0c0000         iadd r24, u122.sx, r25.cache.sx
+0x084e  69fd300214000000         threadgroup_load i32, x, r31, r24l, 0
+0x0856  0e6194a5680c0000         iadd r24, u106.sx, r5.cache.sx
+0x085e  6981300214000010         threadgroup_load i32, x, r32, r24l, 0
+0x0866  0e61ba256b0c0000         iadd r24, u125.sx, r25.cache.sx
+0x086e  6985300214000010         threadgroup_load i32, x, r33, r24l, 0
+0x0876  bad9b4622b6c0200         fmadd32 r22.cache, r26.cache, r27.cache, r22
+0x087e  bad5b4a22b6a0200         fmadd32 r21.cache, r26.cache, r29.cache, r21
+0x0886  bad1b4e22b680200         fmadd32 r20.cache, r26.cache, r31.cache, r20
+0x088e  bacd742228660201         fmadd32 r19.cache, r26, r33.cache, r19
+0x0896  bac9b8622b640200         fmadd32 r18.cache, r28.cache, r27.cache, r18
+0x089e  bac5b8a22b620200         fmadd32 r17.cache, r28.cache, r29.cache, r17
+0x08a6  bac1b8e22b600200         fmadd32 r16.cache, r28.cache, r31.cache, r16
+0x08ae  babd7822285e0201         fmadd32 r15.cache, r28, r33.cache, r15
+0x08b6  bab9bc622b5c0200         fmadd32 r14.cache, r30.cache, r27.cache, r14
+0x08be  bab5bca22b5a0200         fmadd32 r13.cache, r30.cache, r29.cache, r13
+0x08c6  bab1bce22b580200         fmadd32 r12.cache, r30.cache, r31.cache, r12
+0x08ce  baad7c2228560201         fmadd32 r11.cache, r30, r33.cache, r11
+0x08d6  baa9806227540204         fmadd32 r10.cache, r32.cache, r27, r10
+0x08de  baa580a227520204         fmadd32 r9.cache, r32.cache, r29, r9
+0x08e6  baa180e227500204         fmadd32 r8.cache, r32.cache, r31, r8
+0x08ee  ba9d4022244e0205         fmadd32 r7.cache, r32, r33, r7
+0x08f6  0e6192a5680c0000         iadd r24, u105.sx, r5.cache.sx
+0x08fe  69e9300214000000         threadgroup_load i32, x, r26, r24l, 0
+0x0906  0e61d6256b000000         iadd r24, u139.sx, r25.cache.sx
+0x090e  69ed300214000000         threadgroup_load i32, x, r27, r24l, 0
+0x0916  0e61b8a5680c0000         iadd r24, u124.sx, r5.cache.sx
+0x091e  69f1300214000000         threadgroup_load i32, x, r28, r24l, 0
+0x0926  0e61da256b000000         iadd r24, u141.sx, r25.cache.sx
+0x092e  69f5300214000000         threadgroup_load i32, x, r29, r24l, 0
+0x0936  0e61bea5680c0000         iadd r24, u127.sx, r5.cache.sx
+0x093e  69f9300214000000         threadgroup_load i32, x, r30, r24l, 0
+0x0946  0e61d2256b000000         iadd r24, u137.sx, r25.cache.sx
+0x094e  69fd300214000000         threadgroup_load i32, x, r31, r24l, 0
+0x0956  0e61bca5680c0000         iadd r24, u126.sx, r5.cache.sx
+0x095e  6981300214000010         threadgroup_load i32, x, r32, r24l, 0
+0x0966  0e61de256b000000         iadd r24, u143.sx, r25.cache.sx
+0x096e  6985300214000010         threadgroup_load i32, x, r33, r24l, 0
+0x0976  bad9b4622b6c0200         fmadd32 r22.cache, r26.cache, r27.cache, r22
+0x097e  bad5b4a22b6a0200         fmadd32 r21.cache, r26.cache, r29.cache, r21
+0x0986  bad1b4e22b680200         fmadd32 r20.cache, r26.cache, r31.cache, r20
+0x098e  bacd742228660201         fmadd32 r19.cache, r26, r33.cache, r19
+0x0996  bac9b8622b640200         fmadd32 r18.cache, r28.cache, r27.cache, r18
+0x099e  bac5b8a22b620200         fmadd32 r17.cache, r28.cache, r29.cache, r17
+0x09a6  bac1b8e22b600200         fmadd32 r16.cache, r28.cache, r31.cache, r16
+0x09ae  babd7822285e0201         fmadd32 r15.cache, r28, r33.cache, r15
+0x09b6  bab9bc622b5c0200         fmadd32 r14.cache, r30.cache, r27.cache, r14
+0x09be  bab5bca22b5a0200         fmadd32 r13.cache, r30.cache, r29.cache, r13
+0x09c6  bab1bce22b580200         fmadd32 r12.cache, r30.cache, r31.cache, r12
+0x09ce  baad7c2228560201         fmadd32 r11.cache, r30, r33.cache, r11
+0x09d6  baa9806227540204         fmadd32 r10.cache, r32.cache, r27, r10
+0x09de  baa580a227520204         fmadd32 r9.cache, r32.cache, r29, r9
+0x09e6  baa180e227500204         fmadd32 r8.cache, r32.cache, r31, r8
+0x09ee  ba9d4022244e0205         fmadd32 r7.cache, r32, r33, r7
+0x09f6  0e619ca568040000         iadd r24, u46.sx, r5.cache.sx
+0x09fe  69e9300214000000         threadgroup_load i32, x, r26, r24l, 0
+0x0a06  0e61a6256b080000         iadd r24, u83.sx, r25.cache.sx
+0x0a0e  69ed300214000000         threadgroup_load i32, x, r27, r24l, 0
+0x0a16  0e61a0a568040000         iadd r24, u48.sx, r5.cache.sx
+0x0a1e  69f1300214000000         threadgroup_load i32, x, r28, r24l, 0
+0x0a26  0e61a8256b080000         iadd r24, u84.sx, r25.cache.sx
+0x0a2e  69f5300214000000         threadgroup_load i32, x, r29, r24l, 0
+0x0a36  0e619ea568040000         iadd r24, u47.sx, r5.cache.sx
+0x0a3e  69f9300214000000         threadgroup_load i32, x, r30, r24l, 0
+0x0a46  0e61aa256b080000         iadd r24, u85.sx, r25.cache.sx
+0x0a4e  69fd300214000000         threadgroup_load i32, x, r31, r24l, 0
+0x0a56  0e61b0a568040000         iadd r24, u56.sx, r5.cache.sx
+0x0a5e  6981300214000010         threadgroup_load i32, x, r32, r24l, 0
+0x0a66  0e61ac256b080000         iadd r24, u86.sx, r25.cache.sx
+0x0a6e  6985300214000010         threadgroup_load i32, x, r33, r24l, 0
+0x0a76  bad9b4622b6c0200         fmadd32 r22.cache, r26.cache, r27.cache, r22
+0x0a7e  bad5b4a22b6a0200         fmadd32 r21.cache, r26.cache, r29.cache, r21
+0x0a86  bad1b4e22b680200         fmadd32 r20.cache, r26.cache, r31.cache, r20
+0x0a8e  bacd742228660201         fmadd32 r19.cache, r26, r33.cache, r19
+0x0a96  bac9b8622b640200         fmadd32 r18.cache, r28.cache, r27.cache, r18
+0x0a9e  bac5b8a22b620200         fmadd32 r17.cache, r28.cache, r29.cache, r17
+0x0aa6  bac1b8e22b600200         fmadd32 r16.cache, r28.cache, r31.cache, r16
+0x0aae  babd7822285e0201         fmadd32 r15.cache, r28, r33.cache, r15
+0x0ab6  bab9bc622b5c0200         fmadd32 r14.cache, r30.cache, r27.cache, r14
+0x0abe  bab5bca22b5a0200         fmadd32 r13.cache, r30.cache, r29.cache, r13
+0x0ac6  bab1bce22b580200         fmadd32 r12.cache, r30.cache, r31.cache, r12
+0x0ace  baad7c2228560201         fmadd32 r11.cache, r30, r33.cache, r11
+0x0ad6  baa9806227540204         fmadd32 r10.cache, r32.cache, r27, r10
+0x0ade  baa580a227520204         fmadd32 r9.cache, r32.cache, r29, r9
+0x0ae6  baa180e227500204         fmadd32 r8.cache, r32.cache, r31, r8
+0x0aee  ba9d4022244e0205         fmadd32 r7.cache, r32, r33, r7
+0x0af6  0e61a0a5680c0000         iadd r24, u112.sx, r5.cache.sx
+0x0afe  69e9300214000000         threadgroup_load i32, x, r26, r24l, 0
+0x0b06  0e61a2256b0c0000         iadd r24, u113.sx, r25.cache.sx
+0x0b0e  69ed300214000000         threadgroup_load i32, x, r27, r24l, 0
+0x0b16  0e619ea5680c0000         iadd r24, u111.sx, r5.cache.sx
+0x0b1e  69f1300214000000         threadgroup_load i32, x, r28, r24l, 0
+0x0b26  0e61a6256b0c0000         iadd r24, u115.sx, r25.cache.sx
+0x0b2e  69f5300214000000         threadgroup_load i32, x, r29, r24l, 0
+0x0b36  0e6188a5680c0000         iadd r24, u100.sx, r5.cache.sx
+0x0b3e  69f9300214000000         threadgroup_load i32, x, r30, r24l, 0
+0x0b46  0e61a8256b0c0000         iadd r24, u116.sx, r25.cache.sx
+0x0b4e  69fd300214000000         threadgroup_load i32, x, r31, r24l, 0
+0x0b56  0e6186a5680c0000         iadd r24, u99.sx, r5.cache.sx
+0x0b5e  6981300214000010         threadgroup_load i32, x, r32, r24l, 0
+0x0b66  0e61aa256b0c0000         iadd r24, u117.sx, r25.cache.sx
+0x0b6e  6985300214000010         threadgroup_load i32, x, r33, r24l, 0
+0x0b76  bad9b4622b6c0200         fmadd32 r22.cache, r26.cache, r27.cache, r22
+0x0b7e  bad5b4a22b6a0200         fmadd32 r21.cache, r26.cache, r29.cache, r21
+0x0b86  bad1b4e22b680200         fmadd32 r20.cache, r26.cache, r31.cache, r20
+0x0b8e  bacd742228660201         fmadd32 r19.cache, r26, r33.cache, r19
+0x0b96  bac9b8622b640200         fmadd32 r18.cache, r28.cache, r27.cache, r18
+0x0b9e  bac5b8a22b620200         fmadd32 r17.cache, r28.cache, r29.cache, r17
+0x0ba6  bac1b8e22b600200         fmadd32 r16.cache, r28.cache, r31.cache, r16
+0x0bae  babd7822285e0201         fmadd32 r15.cache, r28, r33.cache, r15
+0x0bb6  bab9bc622b5c0200         fmadd32 r14.cache, r30.cache, r27.cache, r14
+0x0bbe  bab5bca22b5a0200         fmadd32 r13.cache, r30.cache, r29.cache, r13
+0x0bc6  bab1bce22b580200         fmadd32 r12.cache, r30.cache, r31.cache, r12
+0x0bce  baad7c2228560201         fmadd32 r11.cache, r30, r33.cache, r11
+0x0bd6  baa9806227540204         fmadd32 r10.cache, r32.cache, r27, r10
+0x0bde  baa580a227520204         fmadd32 r9.cache, r32.cache, r29, r9
+0x0be6  baa180e227500204         fmadd32 r8.cache, r32.cache, r31, r8
+0x0bee  ba9d4022244e0205         fmadd32 r7.cache, r32, r33, r7
+0x0bf6  0e618ca568040000         iadd r24, u38.sx, r5.cache.sx
+0x0bfe  69e9300214000000         threadgroup_load i32, x, r26, r24l, 0
+0x0c06  0e6190256b080000         iadd r24, u72.sx, r25.cache.sx
+0x0c0e  69ed300214000000         threadgroup_load i32, x, r27, r24l, 0
+0x0c16  0e6182a568040000         iadd r24, u33.sx, r5.cache.sx
+0x0c1e  69f1300214000000         threadgroup_load i32, x, r28, r24l, 0
+0x0c26  0e61b4256b040000         iadd r24, u58.sx, r25.cache.sx
+0x0c2e  69f5300214000000         threadgroup_load i32, x, r29, r24l, 0
+0x0c36  0e6180a568040000         iadd r24, u32.sx, r5.cache.sx
+0x0c3e  69f9300214000000         threadgroup_load i32, x, r30, r24l, 0
+0x0c46  0e61b6256b040000         iadd r24, u59.sx, r25.cache.sx
+0x0c4e  69fd300214000000         threadgroup_load i32, x, r31, r24l, 0
+0x0c56  0e6186a568040000         iadd r24, u35.sx, r5.cache.sx
+0x0c5e  6981300214000010         threadgroup_load i32, x, r32, r24l, 0
+0x0c66  0e61b8256b040000         iadd r24, u60.sx, r25.cache.sx
+0x0c6e  6985300214000010         threadgroup_load i32, x, r33, r24l, 0
+0x0c76  bad9b4622b6c0200         fmadd32 r22.cache, r26.cache, r27.cache, r22
+0x0c7e  bad5b4a22b6a0200         fmadd32 r21.cache, r26.cache, r29.cache, r21
+0x0c86  bad1b4e22b680200         fmadd32 r20.cache, r26.cache, r31.cache, r20
+0x0c8e  bacd742228660201         fmadd32 r19.cache, r26, r33.cache, r19
+0x0c96  bac9b8622b640200         fmadd32 r18.cache, r28.cache, r27.cache, r18
+0x0c9e  bac5b8a22b620200         fmadd32 r17.cache, r28.cache, r29.cache, r17
+0x0ca6  bac1b8e22b600200         fmadd32 r16.cache, r28.cache, r31.cache, r16
+0x0cae  babd7822285e0201         fmadd32 r15.cache, r28, r33.cache, r15
+0x0cb6  bab9bc622b5c0200         fmadd32 r14.cache, r30.cache, r27.cache, r14
+0x0cbe  bab5bca22b5a0200         fmadd32 r13.cache, r30.cache, r29.cache, r13
+0x0cc6  bab1bce22b580200         fmadd32 r12.cache, r30.cache, r31.cache, r12
+0x0cce  baad7c2228560201         fmadd32 r11.cache, r30, r33.cache, r11
+0x0cd6  baa9806227540204         fmadd32 r10.cache, r32.cache, r27, r10
+0x0cde  baa580a227520204         fmadd32 r9.cache, r32.cache, r29, r9
+0x0ce6  baa180e227500204         fmadd32 r8.cache, r32.cache, r31, r8
+0x0cee  ba9d4022244e0205         fmadd32 r7.cache, r32, r33, r7
+0x0cf6  0e618ca5680c0000         iadd r24, u102.sx, r5.cache.sx
+0x0cfe  69e9300214000000         threadgroup_load i32, x, r26, r24l, 0
+0x0d06  0e6194256b040000         iadd r24, u42.sx, r25.cache.sx
+0x0d0e  69ed300214000000         threadgroup_load i32, x, r27, r24l, 0
+0x0d16  0e6188a568080000         iadd r24, u68.sx, r5.cache.sx
+0x0d1e  69f1300214000000         threadgroup_load i32, x, r28, r24l, 0
+0x0d26  0e61ae256b000000         iadd r24, u23.sx, r25.cache.sx
+0x0d2e  69f5300214000000         threadgroup_load i32, x, r29, r24l, 0
+0x0d36  0e61b8a568000000         iadd r24, u28.sx, r5.cache.sx
+0x0d3e  69f9300214000000         threadgroup_load i32, x, r30, r24l, 0
+0x0d46  0e61ac256b000000         iadd r24, u22.sx, r25.cache.sx
+0x0d4e  69fd300214000000         threadgroup_load i32, x, r31, r24l, 0
+0x0d56  0e618aa5680c0000         iadd r24, u101.sx, r5.cache.sx
+0x0d5e  6981300214000010         threadgroup_load i32, x, r32, r24l, 0
+0x0d66  0e61e4256b000000         iadd r24, u146.sx, r25.cache.sx
+0x0d6e  6985300214000010         threadgroup_load i32, x, r33, r24l, 0
+0x0d76  bad9b4622b6c0200         fmadd32 r22.cache, r26.cache, r27.cache, r22
+0x0d7e  bad5b4a22b6a0200         fmadd32 r21.cache, r26.cache, r29.cache, r21
+0x0d86  bad1b4e22b680200         fmadd32 r20.cache, r26.cache, r31.cache, r20
+0x0d8e  bacd742228660201         fmadd32 r19.cache, r26, r33.cache, r19
+0x0d96  bac9b8622b640200         fmadd32 r18.cache, r28.cache, r27.cache, r18
+0x0d9e  bac5b8a22b620200         fmadd32 r17.cache, r28.cache, r29.cache, r17
+0x0da6  bac1b8e22b600200         fmadd32 r16.cache, r28.cache, r31.cache, r16
+0x0dae  babd7822285e0201         fmadd32 r15.cache, r28, r33.cache, r15
+0x0db6  bab9bc622b5c0200         fmadd32 r14.cache, r30.cache, r27.cache, r14
+0x0dbe  bab5bca22b5a0200         fmadd32 r13.cache, r30.cache, r29.cache, r13
+0x0dc6  bab1bce22b580200         fmadd32 r12.cache, r30.cache, r31.cache, r12
+0x0dce  baad7c2228560201         fmadd32 r11.cache, r30, r33.cache, r11
+0x0dd6  baa9806227540204         fmadd32 r10.cache, r32.cache, r27, r10
+0x0dde  baa580a227520204         fmadd32 r9.cache, r32.cache, r29, r9
+0x0de6  baa180e227500204         fmadd32 r8.cache, r32.cache, r31, r8
+0x0dee  ba9d4022244e0205         fmadd32 r7.cache, r32, r33, r7
+0x0df6  0e6188a568040000         iadd r24, u36.sx, r5.cache.sx
+0x0dfe  69e9300214000000         threadgroup_load i32, x, r26, r24l, 0
+0x0e06  0e61b4256b080000         iadd r24, u90.sx, r25.cache.sx
+0x0e0e  69ed300214000000         threadgroup_load i32, x, r27, r24l, 0
+0x0e16  0e61a8a568040000         iadd r24, u52.sx, r5.cache.sx
+0x0e1e  69f1300214000000         threadgroup_load i32, x, r28, r24l, 0
+0x0e26  0e61b2256b080000         iadd r24, u89.sx, r25.cache.sx
+0x0e2e  69f5300214000000         threadgroup_load i32, x, r29, r24l, 0
+0x0e36  0e6184a568040000         iadd r24, u34.sx, r5.cache.sx
+0x0e3e  69f9300214000000         threadgroup_load i32, x, r30, r24l, 0
+0x0e46  0e61b0256b080000         iadd r24, u88.sx, r25.cache.sx
+0x0e4e  69fd300214000000         threadgroup_load i32, x, r31, r24l, 0
+0x0e56  0e61bea568000000         iadd r24, u31.sx, r5.cache.sx
+0x0e5e  6981300214000010         threadgroup_load i32, x, r32, r24l, 0
+0x0e66  0e61bc256b080000         iadd r24, u94.sx, r25.cache.sx
+0x0e6e  6985300214000010         threadgroup_load i32, x, r33, r24l, 0
+0x0e76  bad9b4622b6c0200         fmadd32 r22.cache, r26.cache, r27.cache, r22
+0x0e7e  bad5b4a22b6a0200         fmadd32 r21.cache, r26.cache, r29.cache, r21
+0x0e86  bad1b4e22b680200         fmadd32 r20.cache, r26.cache, r31.cache, r20
+0x0e8e  bacd742228660201         fmadd32 r19.cache, r26, r33.cache, r19
+0x0e96  bac9b8622b640200         fmadd32 r18.cache, r28.cache, r27.cache, r18
+0x0e9e  bac5b8a22b620200         fmadd32 r17.cache, r28.cache, r29.cache, r17
+0x0ea6  bac1b8e22b600200         fmadd32 r16.cache, r28.cache, r31.cache, r16
+0x0eae  babd7822285e0201         fmadd32 r15.cache, r28, r33.cache, r15
+0x0eb6  bab9bc622b5c0200         fmadd32 r14.cache, r30.cache, r27.cache, r14
+0x0ebe  bab5bca22b5a0200         fmadd32 r13.cache, r30.cache, r29.cache, r13
+0x0ec6  bab1bce22b580200         fmadd32 r12.cache, r30.cache, r31.cache, r12
+0x0ece  baad7c2228560201         fmadd32 r11.cache, r30, r33.cache, r11
+0x0ed6  baa9806227540204         fmadd32 r10.cache, r32.cache, r27, r10
+0x0ede  baa580a227520204         fmadd32 r9.cache, r32.cache, r29, r9
+0x0ee6  baa180e227500204         fmadd32 r8.cache, r32.cache, r31, r8
+0x0eee  ba9d4022244e0205         fmadd32 r7.cache, r32, r33, r7
+0x0ef6  0e61dca568000000         iadd r24, u142.sx, r5.cache.sx
+0x0efe  69e9300214000000         threadgroup_load i32, x, r26, r24l, 0
+0x0f06  0e61ae256b0c0000         iadd r24, u119.sx, r25.cache.sx
+0x0f0e  69ed300214000000         threadgroup_load i32, x, r27, r24l, 0
+0x0f16  0e61e0a568000000         iadd r24, u144.sx, r5.cache.sx
+0x0f1e  69f1300214000000         threadgroup_load i32, x, r28, r24l, 0
+0x0f26  0e61ac256b0c0000         iadd r24, u118.sx, r25.cache.sx
+0x0f2e  69f5300214000000         threadgroup_load i32, x, r29, r24l, 0
+0x0f36  0e61a0a568080000         iadd r24, u80.sx, r5.cache.sx
+0x0f3e  69f9300214000000         threadgroup_load i32, x, r30, r24l, 0
+0x0f46  0e619a256b0c0000         iadd r24, u109.sx, r25.cache.sx
+0x0f4e  69fd300214000000         threadgroup_load i32, x, r31, r24l, 0
+0x0f56  0e61a2a568080000         iadd r24, u81.sx, r5.cache.sx
+0x0f5e  6981300214000010         threadgroup_load i32, x, r32, r24l, 0
+0x0f66  0e619e256b080000         iadd r24, u79.sx, r25.cache.sx
+0x0f6e  6985300214000010         threadgroup_load i32, x, r33, r24l, 0
+0x0f76  bad9b4622b6c0200         fmadd32 r22.cache, r26.cache, r27.cache, r22
+0x0f7e  bad5b4a22b6a0200         fmadd32 r21.cache, r26.cache, r29.cache, r21
+0x0f86  bad1b4e22b680200         fmadd32 r20.cache, r26.cache, r31.cache, r20
+0x0f8e  bacd742228660201         fmadd32 r19.cache, r26, r33.cache, r19
+0x0f96  bac9b8622b640200         fmadd32 r18.cache, r28.cache, r27.cache, r18
+0x0f9e  bac5b8a22b620200         fmadd32 r17.cache, r28.cache, r29.cache, r17
+0x0fa6  bac1b8e22b600200         fmadd32 r16.cache, r28.cache, r31.cache, r16
+0x0fae  babd7822285e0201         fmadd32 r15.cache, r28, r33.cache, r15
+0x0fb6  bab9bc622b5c0200         fmadd32 r14.cache, r30.cache, r27.cache, r14
+0x0fbe  bab5bca22b5a0200         fmadd32 r13.cache, r30.cache, r29.cache, r13
+0x0fc6  bab1bce22b580200         fmadd32 r12.cache, r30.cache, r31.cache, r12
+0x0fce  baad7c2228560201         fmadd32 r11.cache, r30, r33.cache, r11
+0x0fd6  baa9806227540204         fmadd32 r10.cache, r32.cache, r27, r10
+0x0fde  baa580a227520204         fmadd32 r9.cache, r32.cache, r29, r9
+0x0fe6  baa180e227500204         fmadd32 r8.cache, r32.cache, r31, r8
+0x0fee  ba9d4022244e0205         fmadd32 r7.cache, r32, r33, r7
+0x0ff6  0e61c6a568000000         iadd r24, u131.sx, r5.cache.sx
+0x0ffe  69e9300214000000         threadgroup_load i32, x, r26, r24l, 0
+0x1006  0e61b2256b040000         iadd r24, u57.sx, r25.cache.sx
+0x100e  69ed300214000000         threadgroup_load i32, x, r27, r24l, 0
+0x1016  0e619ca5680c0000         iadd r24, u110.sx, r5.cache.sx
+0x101e  69f1300214000000         threadgroup_load i32, x, r28, r24l, 0
+0x1026  0e6184256b080000         iadd r24, u66.sx, r25.cache.sx
+0x102e  69f5300214000000         threadgroup_load i32, x, r29, r24l, 0
+0x1036  0e61cca568000000         iadd r24, u134.sx, r5.cache.sx
+0x103e  69f9300214000000         threadgroup_load i32, x, r30, r24l, 0
+0x1046  0e6182256b080000         iadd r24, u65.sx, r25.cache.sx
+0x104e  69fd300214000000         threadgroup_load i32, x, r31, r24l, 0
+0x1056  0e6180a5680c0000         iadd r24, u96.sx, r5.cache.sx
+0x105e  6981300214000010         threadgroup_load i32, x, r32, r24l, 0
+0x1066  0e618e256b080000         iadd r24, u71.sx, r25.cache.sx
+0x106e  6985300214000010         threadgroup_load i32, x, r33, r24l, 0
+0x1076  bad9b4622b6c0200         fmadd32 r22.cache, r26.cache, r27.cache, r22
+0x107e  bad5b4a22b6a0200         fmadd32 r21.cache, r26.cache, r29.cache, r21
+0x1086  bad1b4e22b680200         fmadd32 r20.cache, r26.cache, r31.cache, r20
+0x108e  bacd742228660201         fmadd32 r19.cache, r26, r33.cache, r19
+0x1096  bac9b8622b640200         fmadd32 r18.cache, r28.cache, r27.cache, r18
+0x109e  bac5b8a22b620200         fmadd32 r17.cache, r28.cache, r29.cache, r17
+0x10a6  bac1b8e22b600200         fmadd32 r16.cache, r28.cache, r31.cache, r16
+0x10ae  babd7822285e0201         fmadd32 r15.cache, r28, r33.cache, r15
+0x10b6  bab9bc622b5c0200         fmadd32 r14.cache, r30.cache, r27.cache, r14
+0x10be  bab5bca22b5a0200         fmadd32 r13.cache, r30.cache, r29.cache, r13
+0x10c6  bab1bce22b580200         fmadd32 r12.cache, r30.cache, r31.cache, r12
+0x10ce  baad7c2228560201         fmadd32 r11.cache, r30, r33.cache, r11
+0x10d6  baa9806227540204         fmadd32 r10.cache, r32.cache, r27, r10
+0x10de  baa580a227520204         fmadd32 r9.cache, r32.cache, r29, r9
+0x10e6  baa180e227500204         fmadd32 r8.cache, r32.cache, r31, r8
+0x10ee  ba9d4022244e0205         fmadd32 r7.cache, r32, r33, r7
+0x10f6  0e61a4a568080000         iadd r24, u82.sx, r5.cache.sx
+0x10fe  69e9300214000000         threadgroup_load i32, x, r26, r24l, 0
+0x1106  0e61b8256b080000         iadd r24, u92.sx, r25.cache.sx
+0x110e  69ed300214000000         threadgroup_load i32, x, r27, r24l, 0
+0x1116  0e61baa568000000         iadd r24, u29.sx, r5.cache.sx
+0x111e  69f1300214000000         threadgroup_load i32, x, r28, r24l, 0
+0x1126  0e61ba256b080000         iadd r24, u93.sx, r25.cache.sx
+0x112e  69f5300214000000         threadgroup_load i32, x, r29, r24l, 0
+0x1136  0e61b6a568000000         iadd r24, u27.sx, r5.cache.sx
+0x113e  69f9300214000000         threadgroup_load i32, x, r30, r24l, 0
+0x1146  0e61aa256b040000         iadd r24, u53.sx, r25.cache.sx
+0x114e  69fd300214000000         threadgroup_load i32, x, r31, r24l, 0
+0x1156  0e61b4a568000000         iadd r24, u26.sx, r5.cache.sx
+0x115e  6981300214000010         threadgroup_load i32, x, r32, r24l, 0
+0x1166  0e61b6256b080000         iadd r24, u91.sx, r25.cache.sx
+0x116e  6985300214000010         threadgroup_load i32, x, r33, r24l, 0
+0x1176  bad9b4622b6c0200         fmadd32 r22.cache, r26.cache, r27.cache, r22
+0x117e  bad5b4a22b6a0200         fmadd32 r21.cache, r26.cache, r29.cache, r21
+0x1186  bad1b4e22b680200         fmadd32 r20.cache, r26.cache, r31.cache, r20
+0x118e  bacd742228660201         fmadd32 r19.cache, r26, r33.cache, r19
+0x1196  bac9b8622b640200         fmadd32 r18.cache, r28.cache, r27.cache, r18
+0x119e  bac5b8a22b620200         fmadd32 r17.cache, r28.cache, r29.cache, r17
+0x11a6  bac1b8e22b600200         fmadd32 r16.cache, r28.cache, r31.cache, r16
+0x11ae  babd7822285e0201         fmadd32 r15.cache, r28, r33.cache, r15
+0x11b6  bab9bc622b5c0200         fmadd32 r14.cache, r30.cache, r27.cache, r14
+0x11be  bab5bca22b5a0200         fmadd32 r13.cache, r30.cache, r29.cache, r13
+0x11c6  bab1bce22b580200         fmadd32 r12.cache, r30.cache, r31.cache, r12
+0x11ce  baad7c2228560201         fmadd32 r11.cache, r30, r33.cache, r11
+0x11d6  baa9806227540204         fmadd32 r10.cache, r32.cache, r27, r10
+0x11de  baa580a227520204         fmadd32 r9.cache, r32.cache, r29, r9
+0x11e6  baa180e227500204         fmadd32 r8.cache, r32.cache, r31, r8
+0x11ee  ba9d4022244e0205         fmadd32 r7.cache, r32, r33, r7
+0x11f6  0e61a4a5680c0000         iadd r24, u114.sx, r5.cache.sx
+0x11fe  69e9300214000000         threadgroup_load i32, x, r26, r24l, 0
+0x1206  0e61c4256b000000         iadd r24, u130.sx, r25.cache.sx
+0x120e  69ed300214000000         threadgroup_load i32, x, r27, r24l, 0
+0x1216  0e618ca568080000         iadd r24, u70.sx, r5.cache.sx
+0x121e  69f1300214000000         threadgroup_load i32, x, r28, r24l, 0
+0x1226  0e6190256b040000         iadd r24, u40.sx, r25.cache.sx
+0x122e  69f5300214000000         threadgroup_load i32, x, r29, r24l, 0
+0x1236  0e61c8a568000000         iadd r24, u132.sx, r5.cache.sx
+0x123e  69f9300214000000         threadgroup_load i32, x, r30, r24l, 0
+0x1246  0e6192256b040000         iadd r24, u41.sx, r25.cache.sx
+0x124e  69fd300214000000         threadgroup_load i32, x, r31, r24l, 0
+0x1256  0e61bea568080000         iadd r24, u95.sx, r5.cache.sx
+0x125e  6981300214000010         threadgroup_load i32, x, r32, r24l, 0
+0x1266  0e61e2256b000000         iadd r24, u145.sx, r25.cache.sx
+0x126e  6985300214000010         threadgroup_load i32, x, r33, r24l, 0
+0x1276  bad9b4622b6c0200         fmadd32 r22.cache, r26.cache, r27.cache, r22
+0x127e  bad5b4a22b6a0200         fmadd32 r21.cache, r26.cache, r29.cache, r21
+0x1286  bad1b4e22b680200         fmadd32 r20.cache, r26.cache, r31.cache, r20
+0x128e  bacd742228660201         fmadd32 r19.cache, r26, r33.cache, r19
+0x1296  bac9b8622b640200         fmadd32 r18.cache, r28.cache, r27.cache, r18
+0x129e  bac5b8a22b620200         fmadd32 r17.cache, r28.cache, r29.cache, r17
+0x12a6  bac1b8e22b600200         fmadd32 r16.cache, r28.cache, r31.cache, r16
+0x12ae  babd7822285e0201         fmadd32 r15.cache, r28, r33.cache, r15
+0x12b6  bab9bc622b5c0200         fmadd32 r14.cache, r30.cache, r27.cache, r14
+0x12be  bab5bca22b5a0200         fmadd32 r13.cache, r30.cache, r29.cache, r13
+0x12c6  bab1bce22b580200         fmadd32 r12.cache, r30.cache, r31.cache, r12
+0x12ce  baad7c2228560201         fmadd32 r11.cache, r30, r33.cache, r11
+0x12d6  baa9806227540204         fmadd32 r10.cache, r32.cache, r27, r10
+0x12de  baa580a227520204         fmadd32 r9.cache, r32.cache, r29, r9
+0x12e6  baa180e227500204         fmadd32 r8.cache, r32.cache, r31, r8
+0x12ee  ba9d4022244e0205         fmadd32 r7.cache, r32, r33, r7
+0x12f6  0e61aca568040000         iadd r24, u54.sx, r5.cache.sx
+0x12fe  69e9300214000000         threadgroup_load i32, x, r26, r24l, 0
+0x1306  0e6198256b0c0000         iadd r24, u108.sx, r25.cache.sx
+0x130e  69ed300214000000         threadgroup_load i32, x, r27, r24l, 0
+0x1316  0e6184a5680c0000         iadd r24, u98.sx, r5.cache.sx
+0x131e  69f1300214000000         threadgroup_load i32, x, r28, r24l, 0
+0x1326  0e6192256b080000         iadd r24, u73.sx, r25.cache.sx
+0x132e  69f5300214000000         threadgroup_load i32, x, r29, r24l, 0
+0x1336  0e618aa568080000         iadd r24, u69.sx, r5.cache.sx
+0x133e  69f9300214000000         threadgroup_load i32, x, r30, r24l, 0
+0x1346  0e6186256b080000         iadd r24, u67.sx, r25.cache.sx
+0x134e  69fd300214000000         threadgroup_load i32, x, r31, r24l, 0
+0x1356  0e618aa568040000         iadd r24, u37.sx, r5.cache.sx
+0x135e  6981300214000010         threadgroup_load i32, x, r32, r24l, 0
+0x1366  0e61be256b040000         iadd r24, u63.sx, r25.cache.sx
+0x136e  6985300214000010         threadgroup_load i32, x, r33, r24l, 0
+0x1376  bad9b4622b6c0200         fmadd32 r22.cache, r26.cache, r27.cache, r22
+0x137e  bad5b4a22b6a0200         fmadd32 r21.cache, r26.cache, r29.cache, r21
+0x1386  bad1b4e22b680200         fmadd32 r20.cache, r26.cache, r31.cache, r20
+0x138e  bacd742228660201         fmadd32 r19.cache, r26, r33.cache, r19
+0x1396  bac9b8622b640200         fmadd32 r18.cache, r28.cache, r27.cache, r18
+0x139e  bac5b8a22b620200         fmadd32 r17.cache, r28.cache, r29.cache, r17
+0x13a6  bac1b8e22b600200         fmadd32 r16.cache, r28.cache, r31.cache, r16
+0x13ae  babd7822285e0201         fmadd32 r15.cache, r28, r33.cache, r15
+0x13b6  bab9bc622b5c0200         fmadd32 r14.cache, r30.cache, r27.cache, r14
+0x13be  bab5bca22b5a0200         fmadd32 r13.cache, r30.cache, r29.cache, r13
+0x13c6  bab1bce22b580200         fmadd32 r12.cache, r30.cache, r31.cache, r12
+0x13ce  baad7c2228560201         fmadd32 r11.cache, r30, r33.cache, r11
+0x13d6  baa9806227540204         fmadd32 r10.cache, r32.cache, r27, r10
+0x13de  baa580a227520204         fmadd32 r9.cache, r32.cache, r29, r9
+0x13e6  baa180e227500204         fmadd32 r8.cache, r32.cache, r31, r8
+0x13ee  ba9d4022244e0205         fmadd32 r7.cache, r32, r33, r7
+0x13f6  0e6194a568080000         iadd r24, u74.sx, r5.cache.sx
+0x13fe  69e9300214000000         threadgroup_load i32, x, r26, r24l, 0
+0x1406  0e61bc256b000000         iadd r24, u30.sx, r25.cache.sx
+0x140e  69ed300214000000         threadgroup_load i32, x, r27, r24l, 0
+0x1416  0e618ea568040000         iadd r24, u39.sx, r5.cache.sx
+0x141e  69f1300214000000         threadgroup_load i32, x, r28, r24l, 0
+0x1426  0e61ae256b040000         iadd r24, u55.sx, r25.cache.sx
+0x142e  69f5300214000000         threadgroup_load i32, x, r29, r24l, 0
+0x1436  0e6196a568080000         iadd r24, u75.sx, r5.cache.sx
+0x143e  69f9300214000000         threadgroup_load i32, x, r30, r24l, 0
+0x1446  0e61b2256b000000         iadd r24, u25.sx, r25.cache.sx
+0x144e  69fd300214000000         threadgroup_load i32, x, r31, r24l, 0
+0x1456  0e61a6a564040000         iadd r24, u51.sx, r5.sx
+0x145e  6981300214000010         threadgroup_load i32, x, r32, r24l, 0
+0x1466  0e61962567040000         iadd r24, u43.sx, r25.sx
+0x146e  69e1300214000000         threadgroup_load i32, x, r24, r24l, 0
+0x1476  3ad9b4622b6c0200         fmadd32 r22, r26.cache, r27.cache, r22
+0x147e  3ad5b4a22b6a0200         fmadd32 r21, r26.cache, r29.cache, r21
+0x1486  3ad1b4e22b680200         fmadd32 r20, r26.cache, r31.cache, r20
+0x148e  3acd74022b660200         fmadd32 r19, r26, r24.cache, r19
+0x1496  3ac9b8622b640200         fmadd32 r18, r28.cache, r27.cache, r18
+0x149e  3ac5b8a22b620200         fmadd32 r17, r28.cache, r29.cache, r17
+0x14a6  3ac1b8e22b600200         fmadd32 r16, r28.cache, r31.cache, r16
+0x14ae  3abd78022b5e0200         fmadd32 r15, r28, r24.cache, r15
+0x14b6  3ab9bc622b5c0200         fmadd32 r14, r30.cache, r27.cache, r14
+0x14be  3ab5bca22b5a0200         fmadd32 r13, r30.cache, r29.cache, r13
+0x14c6  3ab1bce22b580200         fmadd32 r12, r30.cache, r31.cache, r12
+0x14ce  3aad7c022b560200         fmadd32 r11, r30, r24.cache, r11
+0x14d6  3aa9806227540204         fmadd32 r10, r32.cache, r27, r10
+0x14de  3aa580a227520204         fmadd32 r9, r32.cache, r29, r9
+0x14e6  3aa180e227500204         fmadd32 r8, r32.cache, r31, r8
+0x14ee  3a9d4002274e0204         fmadd32 r7, r32, r24, r7
+0x14f6  6800                     threadgroup_barrier
+0x14f8  0e5d6e0601000000         iadd r23, r23.sx, 16
+0x1500  00c0aaedffff             jmp_exec_any pc-4694
+0x1506  520e00000000             pop_exec r0l, 1
+0x150c  8e09484664001000         iadd r2.cache, r4.sx, r2.sx, lsl 2
+0x1514  8e05002064001000         iadd r1.cache, 0, r1.sx, lsl 2
+0x151c  8e11862668000000         iadd r4.cache, r3.cache.sx, r1.cache.sx
+0x1524  9e1584c659000000         imadd r5.cache, r2.cache.sx, u14.sx, 0
+0x152c  0e198a8668000000         iadd r6, r5.cache.sx, r4.cache.sx
+0x1534  05b9c40e20c01200         device_load 0, i32, x, r23, u18_u19, r6, unsigned
+0x153c  3800                     wait 0
+0x153e  9adda0e12600             fmul32 r23.cache, u16, r23
+0x1544  3ad99ec1266e0200         fmadd32 r22, u15, r22, r23
+0x154c  45b1c40e20c01200         device_store 0, i32, x, r22, u18_u19, r6, unsigned, 0
+0x1554  8e1582a664000000         iadd r5.cache, r1.cache.sx, r5.sx
+0x155c  8e19016068000000         iadd r6.cache, 1, r3.cache.sx
+0x1564  0e598ca668000000         iadd r22, r6.cache.sx, r5.cache.sx
+0x156c  05b9c44e22c01200         device_load 1, i32, x, r23, u18_u19, r22, unsigned
+0x1574  3801                     wait 1
+0x1576  9adda0e12600             fmul32 r23.cache, u16, r23
+0x157c  3ad59ea1266e0200         fmadd32 r21, u15, r21, r23
+0x1584  45a9c44e22c01200         device_store 1, i32, x, r21, u18_u19, r22, unsigned, 0
+0x158c  8e55026068000000         iadd r21.cache, 2, r3.cache.sx
+0x1594  0e59aaa668000000         iadd r22, r21.cache.sx, r5.cache.sx
+0x159c  05b9c40e22c01200         device_load 0, i32, x, r23, u18_u19, r22, unsigned
+0x15a4  3800                     wait 0
+0x15a6  9adda0e12600             fmul32 r23.cache, u16, r23
+0x15ac  3ad19e81266e0200         fmadd32 r20, u15, r20, r23
+0x15b4  45a1c40e22c01200         device_store 0, i32, x, r20, u18_u19, r22, unsigned, 0
+0x15bc  8e0d036064000000         iadd r3.cache, 3, r3.sx
+0x15c4  0e1586a664000000         iadd r5, r3.cache.sx, r5.sx
+0x15cc  05a1a40e20c01200         device_load 0, i32, x, r20, u18_u19, r5, unsigned
+0x15d4  3800                     wait 0
+0x15d6  9ad1a0812600             fmul32 r20.cache, u16, r20
+0x15dc  3acd9e6126680200         fmadd32 r19, u15, r19, r20
+0x15e4  4599a40e20c01200         device_store 0, i32, x, r19, u18_u19, r5, unsigned, 0
+0x15ec  8e15841600000000         iadd r5.cache, r2.cache.sx, 1
+0x15f4  9e154ac659000000         imadd r5.cache, r5.sx, u14.sx, 0
+0x15fc  0e4d8a8668000000         iadd r19, r5.cache.sx, r4.cache.sx
+0x1604  05a1640e22c01200         device_load 0, i32, x, r20, u18_u19, r19, unsigned
+0x160c  3800                     wait 0
+0x160e  9ad1a0812600             fmul32 r20.cache, u16, r20
+0x1614  3ac99e4126680200         fmadd32 r18, u15, r18, r20
+0x161c  4591640e22c01200         device_store 0, i32, x, r18, u18_u19, r19, unsigned, 0
+0x1624  8e194c2668000000         iadd r6.cache, r6.sx, r1.cache.sx
+0x162c  0e498ac668000000         iadd r18, r5.cache.sx, r6.cache.sx
+0x1634  0599440e22c01200         device_load 0, i32, x, r19, u18_u19, r18, unsigned
+0x163c  3800                     wait 0
+0x163e  9acda0612600             fmul32 r19.cache, u16, r19
+0x1644  3ac59e2126660200         fmadd32 r17, u15, r17, r19
+0x164c  4589440e22c01200         device_store 0, i32, x, r17, u18_u19, r18, unsigned, 0
+0x1654  8e456a2668000000         iadd r17.cache, r21.sx, r1.cache.sx
+0x165c  0e498a266a000000         iadd r18, r5.cache.sx, r17.cache.sx
+0x1664  0599440e22c01200         device_load 0, i32, x, r19, u18_u19, r18, unsigned
+0x166c  3800                     wait 0
+0x166e  9acda0612600             fmul32 r19.cache, u16, r19
+0x1674  3ac19e0126660200         fmadd32 r16, u15, r16, r19
+0x167c  4581440e22c01200         device_store 0, i32, x, r16, u18_u19, r18, unsigned, 0
+0x1684  8e05462664000000         iadd r1.cache, r3.sx, r1.sx
+0x168c  0e0d4a2668000000         iadd r3, r5.sx, r1.cache.sx
+0x1694  0529640e20c01200         device_load 0, i32, x, r5, u18_u19, r3, unsigned
+0x169c  3800                     wait 0
+0x169e  9a95a0a12400             fmul32 r5.cache, u16, r5
+0x16a4  3a959ee1254a0200         fmadd32 r5, u15, r15, r5
+0x16ac  4529640e20c01200         device_store 0, i32, x, r5, u18_u19, r3, unsigned, 0
+0x16b4  8e0d842600000000         iadd r3.cache, r2.cache.sx, 2
+0x16bc  9e0d46c659000000         imadd r3.cache, r3.sx, u14.sx, 0
+0x16c4  0e15868668000000         iadd r5, r3.cache.sx, r4.cache.sx
+0x16cc  0579a40e20c01200         device_load 0, i32, x, r15, u18_u19, r5, unsigned
+0x16d4  3800                     wait 0
+0x16d6  9abda0e12500             fmul32 r15.cache, u16, r15
+0x16dc  3ab99ec1255e0200         fmadd32 r14, u15, r14, r15
+0x16e4  4571a40e20c01200         device_store 0, i32, x, r14, u18_u19, r5, unsigned, 0
+0x16ec  0e1586c668000000         iadd r5, r3.cache.sx, r6.cache.sx
+0x16f4  0571a40e20c01200         device_load 0, i32, x, r14, u18_u19, r5, unsigned
+0x16fc  3800                     wait 0
+0x16fe  9ab9a0c12500             fmul32 r14.cache, u16, r14
+0x1704  3ab59ea1255c0200         fmadd32 r13, u15, r13, r14
+0x170c  4569a40e20c01200         device_store 0, i32, x, r13, u18_u19, r5, unsigned, 0
+0x1714  0e1586266a000000         iadd r5, r3.cache.sx, r17.cache.sx
+0x171c  0569a40e20c01200         device_load 0, i32, x, r13, u18_u19, r5, unsigned
+0x1724  3800                     wait 0
+0x1726  9ab5a0a12500             fmul32 r13.cache, u16, r13
+0x172c  3ab19e81255a0200         fmadd32 r12, u15, r12, r13
+0x1734  4561a40e20c01200         device_store 0, i32, x, r12, u18_u19, r5, unsigned, 0
+0x173c  0e0d462668000000         iadd r3, r3.sx, r1.cache.sx
+0x1744  0529640e20c01200         device_load 0, i32, x, r5, u18_u19, r3, unsigned
+0x174c  3800                     wait 0
+0x174e  9a95a0a12400             fmul32 r5.cache, u16, r5
+0x1754  3a959e61254a0200         fmadd32 r5, u15, r11, r5
+0x175c  4529640e20c01200         device_store 0, i32, x, r5, u18_u19, r3, unsigned, 0
+0x1764  8e09443600000000         iadd r2.cache, r2.sx, 3
+0x176c  9e0944c659000000         imadd r2.cache, r2.sx, u14.sx, 0
+0x1774  0e0d848664000000         iadd r3, r2.cache.sx, r4.sx
+0x177c  0521640e20c01200         device_load 0, i32, x, r4, u18_u19, r3, unsigned
+0x1784  3800                     wait 0
+0x1786  9a91a0812400             fmul32 r4.cache, u16, r4
+0x178c  3a919e4125480200         fmadd32 r4, u15, r10, r4
+0x1794  4521640e20c01200         device_store 0, i32, x, r4, u18_u19, r3, unsigned, 0
+0x179c  0e0d84c664000000         iadd r3, r2.cache.sx, r6.sx
+0x17a4  0521640e20c01200         device_load 0, i32, x, r4, u18_u19, r3, unsigned
+0x17ac  3800                     wait 0
+0x17ae  9a91a0812400             fmul32 r4.cache, u16, r4
+0x17b4  3a919e2125480200         fmadd32 r4, u15, r9, r4
+0x17bc  4521640e20c01200         device_store 0, i32, x, r4, u18_u19, r3, unsigned, 0
+0x17c4  0e0d842666000000         iadd r3, r2.cache.sx, r17.sx
+0x17cc  0521640e20c01200         device_load 0, i32, x, r4, u18_u19, r3, unsigned
+0x17d4  3800                     wait 0
+0x17d6  9a91a0812400             fmul32 r4.cache, u16, r4
+0x17dc  3a919e0125480200         fmadd32 r4, u15, r8, r4
+0x17e4  4521640e20c01200         device_store 0, i32, x, r4, u18_u19, r3, unsigned, 0
+0x17ec  0e05442664000000         iadd r1, r2.sx, r1.sx
+0x17f4  0511240e20c01200         device_load 0, i32, x, r2, u18_u19, r1, unsigned
+0x17fc  3800                     wait 0
+0x17fe  9a89a0412400             fmul32 r2.cache, u16, r2
+0x1804  3a899ee124440200         fmadd32 r2, u15, r7, r2
+0x180c  4511240e20c01200         device_store 0, i32, x, r2, u18_u19, r1, unsigned, 0
+0x1814  8800                     stop

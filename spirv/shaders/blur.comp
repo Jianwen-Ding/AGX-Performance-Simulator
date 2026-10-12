@@ -1,0 +1,32 @@
+#version 450
+// Separable 9-tap Gaussian blur of an fp32 image, two dispatches: pass 0 filters rows (src -> tmp), pass 1
+// columns (tmp -> dst), edges clamped. Each pass is a 1-D convolution through a 16 x 16 shared tile with an
+// 8-texel halo along the filter direction.
+layout(local_size_x = 16, local_size_y = 16) in;
+layout(std430, binding = 0) readonly buffer S { float src[]; };
+layout(std430, binding = 1) buffer T { float tmp[]; };
+layout(std430, binding = 2) writeonly buffer O { float dst[]; };
+layout(push_constant) uniform P { int width; int height; int pass_; } p;
+const float wts[9] = float[9](0.0162162162, 0.0540540541, 0.1216216216, 0.1945945946, 0.2270270270,
+                              0.1945945946, 0.1216216216, 0.0540540541, 0.0162162162);
+shared float tile[16][24];
+
+float fetch(int x, int y) {
+    x = clamp(x, 0, p.width - 1); y = clamp(y, 0, p.height - 1);
+    return p.pass_ == 0 ? src[y * p.width + x] : tmp[y * p.width + x];
+}
+
+void main() {
+    ivec2 l = ivec2(gl_LocalInvocationID.xy), o = ivec2(gl_WorkGroupID.xy) * 16;
+    // tile[a][b]: a across the filter, b along it (b = 0 is 4 texels before the block)
+    for (int k = l.x; k < 24; k += 16) {
+        tile[l.y][k] = p.pass_ == 0 ? fetch(o.x + k - 4, o.y + l.y) : fetch(o.x + l.y, o.y + k - 4);
+    }
+    barrier();
+    ivec2 g = p.pass_ == 0 ? o + l : o + l.yx;
+    if (g.x >= p.width || g.y >= p.height) return;
+    // thread (x, y) of pass 1 computes texel (o.x + y, o.y + x): along-filter index x, across index y
+    float acc = 0.0;
+    for (int t = 0; t < 9; t++) acc += wts[t] * tile[l.y][l.x + t];
+    if (p.pass_ == 0) tmp[g.y * p.width + g.x] = acc; else dst[g.y * p.width + g.x] = acc;
+}

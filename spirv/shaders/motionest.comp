@@ -1,0 +1,44 @@
+#version 450
+// Full-search block motion estimation (the costliest stage of H.264 / HEVC / AV1 encoders): for every 16 x 16 block
+// of the current frame, the offset (dx, dy) in [-16, 16]^2 into the previous frame with the smallest sum of
+// absolute differences; ties go to the smallest (SAD, |dx| + |dy|, dy, dx) so the answer is unique. One workgroup
+// per block: the block and its 48 x 48 search window in shared memory, each invocation scores ~4 of the 1089
+// candidates, then a shared-memory min reduction over packed keys.
+layout(local_size_x = 256) in;
+layout(std430, binding = 0) readonly buffer C { uint cur[]; };        // one 8-bit pixel per word
+layout(std430, binding = 1) readonly buffer R { uint ref_[]; };
+layout(std430, binding = 2) writeonly buffer O { uvec2 mv[]; };       // (packed dx, dy), SAD
+layout(push_constant) uniform P { uint w; uint h; } p;
+shared uint blk[256];
+shared uint win[48 * 48];
+shared uvec2 best[256];
+
+void main() {
+    uint l = gl_LocalInvocationID.x, bw = p.w / 16u;
+    uint bx = (gl_WorkGroupID.x % bw) * 16u, by = (gl_WorkGroupID.x / bw) * 16u;
+    blk[l] = cur[(by + l / 16u) * p.w + bx + l % 16u];
+    for (uint k = l; k < 48u * 48u; k += 256u) {                      // window, clamped at the frame edges
+        int x = clamp(int(bx) - 16 + int(k % 48u), 0, int(p.w) - 1), y = clamp(int(by) - 16 + int(k / 48u), 0, int(p.h) - 1);
+        win[k] = ref_[uint(y) * p.w + uint(x)];
+    }
+    barrier();
+    uvec2 mine = uvec2(0xffffffffu, 0xffffffffu);                      // (SAD, tie key)
+    for (uint c = l; c < 1089u; c += 256u) {
+        int dx = int(c % 33u) - 16, dy = int(c / 33u) - 16;
+        uint sad = 0u;
+        for (uint j = 0u; j < 256u; j++)
+            sad += uint(abs(int(blk[j]) - int(win[(uint(dy + 16) + j / 16u) * 48u + uint(dx + 16) + j % 16u])));
+        uint key = (uint(abs(dx) + abs(dy)) << 12) | (c & 4095u);     // c orders by dy then dx
+        if (sad < mine.x || (sad == mine.x && key < mine.y)) mine = uvec2(sad, key);
+    }
+    best[l] = mine;
+    barrier();
+    for (uint s = 128u; s > 0u; s >>= 1) {
+        if (l < s) { uvec2 o = best[l + s]; if (o.x < best[l].x || (o.x == best[l].x && o.y < best[l].y)) best[l] = o; }
+        barrier();
+    }
+    if (l == 0u) {
+        uint c = best[0].y & 4095u;
+        mv[gl_WorkGroupID.x] = uvec2((c % 33u) | ((c / 33u) << 8), best[0].x);   // offsets + 16
+    }
+}

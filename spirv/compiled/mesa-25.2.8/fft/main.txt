@@ -1,0 +1,675 @@
+0x0080  72013000                 get_sr r0, sr48 (thread_position_in_threadgroup.x)
+0x0084  3e0540060000             bitrev r1, r0
+0x008a  2e85002024160000         bfeil r1, 0, r1, 22
+0x0092  0e050020e4001000         iadd r1, 0, r1.sx, lsl 3
+0x009a  72090000                 get_sr r2, sr0 (threadgroup_position_in_grid.x)
+0x009e  0e09448658000000         iadd r2, r2.sx, u4.sx
+0x00a6  2e090040240a0000         bfi r2, 0, r2, 10
+0x00ae  0e0d440664000000         iadd r3, r2.sx, r0.sx
+0x00b6  0521600e10c43200         device_load 0, i32, xy, r4_r5, u8_u9, r3, unsigned, lsl 1
+0x00be  3800                     wait 0
+0x00c0  2991020234000000         threadgroup_store i32, xy, r4_r5, r1l, 0
+0x00c8  0e0540a659000000         iadd r1, r0.sx, u13.sx
+0x00d0  3e1142060000             bitrev r4, r1
+0x00d6  2e91008024160000         bfeil r4, 0, r4, 22
+0x00de  0e110080e4001000         iadd r4, 0, r4.sx, lsl 3
+0x00e6  0e15442664000000         iadd r5, r2.sx, r1.sx
+0x00ee  0531a00e10c43200         device_load 0, i32, xy, r6_r7, u8_u9, r5, unsigned, lsl 1
+0x00f6  3800                     wait 0
+0x00f8  2999080234000000         threadgroup_store i32, xy, r6_r7, r4l, 0
+0x0100  0e11408659000000         iadd r4, r0.sx, u12.sx
+0x0108  3e1948060000             bitrev r6, r4
+0x010e  2e9900c024160000         bfeil r6, 0, r6, 22
+0x0116  0e1900c0e4001000         iadd r6, 0, r6.sx, lsl 3
+0x011e  0e11448664000000         iadd r4, r2.sx, r4.sx
+0x0126  0541800e10c43200         device_load 0, i32, xy, r8_r9, u8_u9, r4, unsigned, lsl 1
+0x012e  3800                     wait 0
+0x0130  29a10c0234000000         threadgroup_store i32, xy, r8_r9, r6l, 0
+0x0138  0e1940c65a000000         iadd r6, r0.sx, u22.sx
+0x0140  0e0944c664000000         iadd r2, r2.sx, r6.sx
+0x0148  3e194c060000             bitrev r6, r6
+0x014e  2e9900c024160000         bfeil r6, 0, r6, 22
+0x0156  0e1900c0e4001000         iadd r6, 0, r6.sx, lsl 3
+0x015e  0541400e10c43200         device_load 0, i32, xy, r8_r9, u8_u9, r2, unsigned, lsl 1
+0x0166  3800                     wait 0
+0x0168  29a10c0234000000         threadgroup_store i32, xy, r8_r9, r6l, 0
+0x0170  0e19000064002000         iadd r6, 0, r0.sx, lsl 4
+0x0178  0e1d4c8600000000         iadd r7, r6.sx, 8
+0x0180  6800                     threadgroup_barrier
+0x0182  7e1e4c088000             mov r7h, r6l
+0x0188  69a10f0234000000         threadgroup_load i32, xy, r8_r9, r7h, 0
+0x0190  69a90e0234000000         threadgroup_load i32, xy, r10_r11, r7l, 0
+0x0198  2ab552622500             fadd32 r13, r9, r11
+0x019e  2ab150422500             fadd32 r12, r8, r10
+0x01a4  29b10f0234000000         threadgroup_store i32, xy, r12_r13, r7h, 0
+0x01ac  2ab55262a500             fadd32 r13, r9, r11.neg
+0x01b2  2ab15042a500             fadd32 r12, r8, r10.neg
+0x01b8  29b10e0234000000         threadgroup_store i32, xy, r12_r13, r7l, 0
+0x01c0  0e1d4c065a000000         iadd r7, r6.sx, u16.sx
+0x01c8  0e194ca65a000000         iadd r6, r6.sx, u21.sx
+0x01d0  69a10e0234000000         threadgroup_load i32, xy, r8_r9, r7l, 0
+0x01d8  69a90c0234000000         threadgroup_load i32, xy, r10_r11, r6l, 0
+0x01e0  2ab552622500             fadd32 r13, r9, r11
+0x01e6  2ab150422500             fadd32 r12, r8, r10
+0x01ec  29b10e0234000000         threadgroup_store i32, xy, r12_r13, r7l, 0
+0x01f4  2ab55262a500             fadd32 r13, r9, r11.neg
+0x01fa  2ab15042a500             fadd32 r12, r8, r10.neg
+0x0200  29b10c0234000000         threadgroup_store i32, xy, r12_r13, r6l, 0
+0x0208  7e1940128000             and r6, r0, 1
+0x020e  3e9d0ac42400             convert u32_to_f, r7, r6, rte
+0x0214  1a9d10e02408             fmul32 r7, -0.25, r7
+0x021a  2aa14e020100             fadd32 r8, r7, 0.25
+0x0220  0a255002                 floor r9, r8
+0x0224  2aa15022a500             fadd32 r8, r8, r9.neg
+0x022a  0a254e02                 floor r9, r7
+0x022e  2a9d4e22a500             fadd32 r7, r7, r9.neg
+0x0234  2ea5000024010000         bfeil r9, 0, r0, 1
+0x023c  0e194c2665001000         iadd r6, r6.sx, r9.sx, lsl 2
+0x0244  1aa150020101             fmul32 r8, r8, 4.0
+0x024a  0a2150a2                 sin_pt_1 r8, r8
+0x024e  0a2550e2                 sin_pt_2 r9, r8
+0x0252  1aa152022500             fmul32 r8, r9, r8
+0x0258  1a9d4e020101             fmul32 r7, r7, 4.0
+0x025e  0a1d4ea2                 sin_pt_1 r7, r7
+0x0262  0a254ee2                 sin_pt_2 r9, r7
+0x0266  1a9d52e22400             fmul32 r7, r9, r7
+0x026c  0e1900c0e4001000         iadd r6, 0, r6.sx, lsl 3
+0x0274  7e244c088000             mov r9l, r6l
+0x027a  0e194c0601000000         iadd r6, r6.sx, 16
+0x0282  6800                     threadgroup_barrier
+0x0284  69a9120234000000         threadgroup_load i32, xy, r10_r11, r9l, 0
+0x028c  69b10c0234000000         threadgroup_load i32, xy, r12_r13, r6l, 0
+0x0294  1ab95a022500             fmul32 r14, r13, r8
+0x029a  1ab55ae22400             fmul32 r13, r13, r7
+0x02a0  3a9d58e2245c0200         fmadd32 r7, r12, r7, r14
+0x02a8  3aa15802255a0a00         fmadd32 r8, r12, r8, r13.neg
+0x02b0  2ab556e22400             fadd32 r13, r11, r7
+0x02b6  2ab154022500             fadd32 r12, r10, r8
+0x02bc  29b1120234000000         threadgroup_store i32, xy, r12_r13, r9l, 0
+0x02c4  2ab556e2a400             fadd32 r13, r11, r7.neg
+0x02ca  2ab15402a500             fadd32 r12, r10, r8.neg
+0x02d0  29b10c0234000000         threadgroup_store i32, xy, r12_r13, r6l, 0
+0x02d8  7e1942128000             and r6, r1, 1
+0x02de  3e9d0ac42400             convert u32_to_f, r7, r6, rte
+0x02e4  1a9d10e02408             fmul32 r7, -0.25, r7
+0x02ea  2aa14e020100             fadd32 r8, r7, 0.25
+0x02f0  0a255002                 floor r9, r8
+0x02f4  2aa15022a500             fadd32 r8, r8, r9.neg
+0x02fa  0a254e02                 floor r9, r7
+0x02fe  2a9d4e22a500             fadd32 r7, r7, r9.neg
+0x0304  2ea5002024010000         bfeil r9, 0, r1, 1
+0x030c  0e194c2665001000         iadd r6, r6.sx, r9.sx, lsl 2
+0x0314  1aa150020101             fmul32 r8, r8, 4.0
+0x031a  0a2150a2                 sin_pt_1 r8, r8
+0x031e  0a2550e2                 sin_pt_2 r9, r8
+0x0322  1aa152022500             fmul32 r8, r9, r8
+0x0328  1a9d4e020101             fmul32 r7, r7, 4.0
+0x032e  0a1d4ea2                 sin_pt_1 r7, r7
+0x0332  0a254ee2                 sin_pt_2 r9, r7
+0x0336  1a9d52e22400             fmul32 r7, r9, r7
+0x033c  0e1900c0e4001000         iadd r6, 0, r6.sx, lsl 3
+0x0344  7e244c088000             mov r9l, r6l
+0x034a  0e194c0601000000         iadd r6, r6.sx, 16
+0x0352  69a9120234000000         threadgroup_load i32, xy, r10_r11, r9l, 0
+0x035a  69b10c0234000000         threadgroup_load i32, xy, r12_r13, r6l, 0
+0x0362  1ab95a022500             fmul32 r14, r13, r8
+0x0368  1ab55ae22400             fmul32 r13, r13, r7
+0x036e  3a9d58e2245c0200         fmadd32 r7, r12, r7, r14
+0x0376  3aa15802255a0a00         fmadd32 r8, r12, r8, r13.neg
+0x037e  2ab556e22400             fadd32 r13, r11, r7
+0x0384  2ab154022500             fadd32 r12, r10, r8
+0x038a  29b1120234000000         threadgroup_store i32, xy, r12_r13, r9l, 0
+0x0392  2ab556e2a400             fadd32 r13, r11, r7.neg
+0x0398  2ab15402a500             fadd32 r12, r10, r8.neg
+0x039e  29b10c0234000000         threadgroup_store i32, xy, r12_r13, r6l, 0
+0x03a6  7e1940328000             and r6, r0, 3
+0x03ac  3e9d0ac42400             convert u32_to_f, r7, r6, rte
+0x03b2  1a9d08e02408             fmul32 r7, -0.125, r7
+0x03b8  2aa14e020100             fadd32 r8, r7, 0.25
+0x03be  0a255002                 floor r9, r8
+0x03c2  2aa15022a500             fadd32 r8, r8, r9.neg
+0x03c8  0a254e02                 floor r9, r7
+0x03cc  2a9d4e22a500             fadd32 r7, r7, r9.neg
+0x03d2  2ea5000024020000         bfeil r9, 0, r0, 2
+0x03da  0e194c26e5001000         iadd r6, r6.sx, r9.sx, lsl 3
+0x03e2  1aa150020101             fmul32 r8, r8, 4.0
+0x03e8  0a2150a2                 sin_pt_1 r8, r8
+0x03ec  0a2550e2                 sin_pt_2 r9, r8
+0x03f0  1aa152022500             fmul32 r8, r9, r8
+0x03f6  1a9d4e020101             fmul32 r7, r7, 4.0
+0x03fc  0a1d4ea2                 sin_pt_1 r7, r7
+0x0400  0a254ee2                 sin_pt_2 r9, r7
+0x0404  1a9d52e22400             fmul32 r7, r9, r7
+0x040a  0e1900c0e4001000         iadd r6, 0, r6.sx, lsl 3
+0x0412  7e244c088000             mov r9l, r6l
+0x0418  0e194c0602000000         iadd r6, r6.sx, 32
+0x0420  6800                     threadgroup_barrier
+0x0422  69a9120234000000         threadgroup_load i32, xy, r10_r11, r9l, 0
+0x042a  69b10c0234000000         threadgroup_load i32, xy, r12_r13, r6l, 0
+0x0432  1ab95a022500             fmul32 r14, r13, r8
+0x0438  1ab55ae22400             fmul32 r13, r13, r7
+0x043e  3a9d58e2245c0200         fmadd32 r7, r12, r7, r14
+0x0446  3aa15802255a0a00         fmadd32 r8, r12, r8, r13.neg
+0x044e  2ab556e22400             fadd32 r13, r11, r7
+0x0454  2ab154022500             fadd32 r12, r10, r8
+0x045a  29b1120234000000         threadgroup_store i32, xy, r12_r13, r9l, 0
+0x0462  2ab556e2a400             fadd32 r13, r11, r7.neg
+0x0468  2ab15402a500             fadd32 r12, r10, r8.neg
+0x046e  29b10c0234000000         threadgroup_store i32, xy, r12_r13, r6l, 0
+0x0476  7e1942328000             and r6, r1, 3
+0x047c  3e9d0ac42400             convert u32_to_f, r7, r6, rte
+0x0482  1a9d08e02408             fmul32 r7, -0.125, r7
+0x0488  2aa14e020100             fadd32 r8, r7, 0.25
+0x048e  0a255002                 floor r9, r8
+0x0492  2aa15022a500             fadd32 r8, r8, r9.neg
+0x0498  0a254e02                 floor r9, r7
+0x049c  2a9d4e22a500             fadd32 r7, r7, r9.neg
+0x04a2  2ea5002024020000         bfeil r9, 0, r1, 2
+0x04aa  0e194c26e5001000         iadd r6, r6.sx, r9.sx, lsl 3
+0x04b2  1aa150020101             fmul32 r8, r8, 4.0
+0x04b8  0a2150a2                 sin_pt_1 r8, r8
+0x04bc  0a2550e2                 sin_pt_2 r9, r8
+0x04c0  1aa152022500             fmul32 r8, r9, r8
+0x04c6  1a9d4e020101             fmul32 r7, r7, 4.0
+0x04cc  0a1d4ea2                 sin_pt_1 r7, r7
+0x04d0  0a254ee2                 sin_pt_2 r9, r7
+0x04d4  1a9d52e22400             fmul32 r7, r9, r7
+0x04da  0e1900c0e4001000         iadd r6, 0, r6.sx, lsl 3
+0x04e2  7e244c088000             mov r9l, r6l
+0x04e8  0e194c0602000000         iadd r6, r6.sx, 32
+0x04f0  69a9120234000000         threadgroup_load i32, xy, r10_r11, r9l, 0
+0x04f8  69b10c0234000000         threadgroup_load i32, xy, r12_r13, r6l, 0
+0x0500  1ab95a022500             fmul32 r14, r13, r8
+0x0506  1ab55ae22400             fmul32 r13, r13, r7
+0x050c  3a9d58e2245c0200         fmadd32 r7, r12, r7, r14
+0x0514  3aa15802255a0a00         fmadd32 r8, r12, r8, r13.neg
+0x051c  2ab556e22400             fadd32 r13, r11, r7
+0x0522  2ab154022500             fadd32 r12, r10, r8
+0x0528  29b1120234000000         threadgroup_store i32, xy, r12_r13, r9l, 0
+0x0530  2ab556e2a400             fadd32 r13, r11, r7.neg
+0x0536  2ab15402a500             fadd32 r12, r10, r8.neg
+0x053c  29b10c0234000000         threadgroup_store i32, xy, r12_r13, r6l, 0
+0x0544  7e1940728000             and r6, r0, 7
+0x054a  3e9d0ac42400             convert u32_to_f, r7, r6, rte
+0x0550  1a9d04e02408             fmul32 r7, -0.0625, r7
+0x0556  2aa14e020100             fadd32 r8, r7, 0.25
+0x055c  0a255002                 floor r9, r8
+0x0560  2aa15022a500             fadd32 r8, r8, r9.neg
+0x0566  0a254e02                 floor r9, r7
+0x056a  2a9d4e22a500             fadd32 r7, r7, r9.neg
+0x0570  2ea5000024030000         bfeil r9, 0, r0, 3
+0x0578  0e194c2665002000         iadd r6, r6.sx, r9.sx, lsl 4
+0x0580  1aa150020101             fmul32 r8, r8, 4.0
+0x0586  0a2150a2                 sin_pt_1 r8, r8
+0x058a  0a2550e2                 sin_pt_2 r9, r8
+0x058e  1aa152022500             fmul32 r8, r9, r8
+0x0594  1a9d4e020101             fmul32 r7, r7, 4.0
+0x059a  0a1d4ea2                 sin_pt_1 r7, r7
+0x059e  0a254ee2                 sin_pt_2 r9, r7
+0x05a2  1a9d52e22400             fmul32 r7, r9, r7
+0x05a8  0e1900c0e4001000         iadd r6, 0, r6.sx, lsl 3
+0x05b0  7e244c088000             mov r9l, r6l
+0x05b6  0e194c0600010000         iadd r6, r6.sx, 64
+0x05be  6800                     threadgroup_barrier
+0x05c0  69a9120234000000         threadgroup_load i32, xy, r10_r11, r9l, 0
+0x05c8  69b10c0234000000         threadgroup_load i32, xy, r12_r13, r6l, 0
+0x05d0  1ab95a022500             fmul32 r14, r13, r8
+0x05d6  1ab55ae22400             fmul32 r13, r13, r7
+0x05dc  3a9d58e2245c0200         fmadd32 r7, r12, r7, r14
+0x05e4  3aa15802255a0a00         fmadd32 r8, r12, r8, r13.neg
+0x05ec  2ab556e22400             fadd32 r13, r11, r7
+0x05f2  2ab154022500             fadd32 r12, r10, r8
+0x05f8  29b1120234000000         threadgroup_store i32, xy, r12_r13, r9l, 0
+0x0600  2ab556e2a400             fadd32 r13, r11, r7.neg
+0x0606  2ab15402a500             fadd32 r12, r10, r8.neg
+0x060c  29b10c0234000000         threadgroup_store i32, xy, r12_r13, r6l, 0
+0x0614  7e1942728000             and r6, r1, 7
+0x061a  3e9d0ac42400             convert u32_to_f, r7, r6, rte
+0x0620  1a9d04e02408             fmul32 r7, -0.0625, r7
+0x0626  2aa14e020100             fadd32 r8, r7, 0.25
+0x062c  0a255002                 floor r9, r8
+0x0630  2aa15022a500             fadd32 r8, r8, r9.neg
+0x0636  0a254e02                 floor r9, r7
+0x063a  2a9d4e22a500             fadd32 r7, r7, r9.neg
+0x0640  2ea5002024030000         bfeil r9, 0, r1, 3
+0x0648  0e194c2665002000         iadd r6, r6.sx, r9.sx, lsl 4
+0x0650  1aa150020101             fmul32 r8, r8, 4.0
+0x0656  0a2150a2                 sin_pt_1 r8, r8
+0x065a  0a2550e2                 sin_pt_2 r9, r8
+0x065e  1aa152022500             fmul32 r8, r9, r8
+0x0664  1a9d4e020101             fmul32 r7, r7, 4.0
+0x066a  0a1d4ea2                 sin_pt_1 r7, r7
+0x066e  0a254ee2                 sin_pt_2 r9, r7
+0x0672  1a9d52e22400             fmul32 r7, r9, r7
+0x0678  0e1900c0e4001000         iadd r6, 0, r6.sx, lsl 3
+0x0680  7e244c088000             mov r9l, r6l
+0x0686  0e194c0600010000         iadd r6, r6.sx, 64
+0x068e  69a9120234000000         threadgroup_load i32, xy, r10_r11, r9l, 0
+0x0696  69b10c0234000000         threadgroup_load i32, xy, r12_r13, r6l, 0
+0x069e  1ab95a022500             fmul32 r14, r13, r8
+0x06a4  1ab55ae22400             fmul32 r13, r13, r7
+0x06aa  3a9d58e2245c0200         fmadd32 r7, r12, r7, r14
+0x06b2  3aa15802255a0a00         fmadd32 r8, r12, r8, r13.neg
+0x06ba  2ab556e22400             fadd32 r13, r11, r7
+0x06c0  2ab154022500             fadd32 r12, r10, r8
+0x06c6  29b1120234000000         threadgroup_store i32, xy, r12_r13, r9l, 0
+0x06ce  2ab556e2a400             fadd32 r13, r11, r7.neg
+0x06d4  2ab15402a500             fadd32 r12, r10, r8.neg
+0x06da  29b10c0234000000         threadgroup_store i32, xy, r12_r13, r6l, 0
+0x06e2  7e1940f28000             and r6, r0, 15
+0x06e8  3e9d0ac42400             convert u32_to_f, r7, r6, rte
+0x06ee  1a9d02e02408             fmul32 r7, -0.03125, r7
+0x06f4  2aa14e020100             fadd32 r8, r7, 0.25
+0x06fa  0a255002                 floor r9, r8
+0x06fe  2aa15022a500             fadd32 r8, r8, r9.neg
+0x0704  0a254e02                 floor r9, r7
+0x0708  2a9d4e22a500             fadd32 r7, r7, r9.neg
+0x070e  2ea5000024040000         bfeil r9, 0, r0, 4
+0x0716  1e195206024c0600         imadd r6, r9.sx, 32, r6.sx
+0x071e  1aa150020101             fmul32 r8, r8, 4.0
+0x0724  0a2150a2                 sin_pt_1 r8, r8
+0x0728  0a2550e2                 sin_pt_2 r9, r8
+0x072c  1aa152022500             fmul32 r8, r9, r8
+0x0732  1a9d4e020101             fmul32 r7, r7, 4.0
+0x0738  0a1d4ea2                 sin_pt_1 r7, r7
+0x073c  0a254ee2                 sin_pt_2 r9, r7
+0x0740  1a9d52e22400             fmul32 r7, r9, r7
+0x0746  0e1900c0e4001000         iadd r6, 0, r6.sx, lsl 3
+0x074e  7e244c088000             mov r9l, r6l
+0x0754  0e194c0600020000         iadd r6, r6.sx, 128
+0x075c  6800                     threadgroup_barrier
+0x075e  69a9120234000000         threadgroup_load i32, xy, r10_r11, r9l, 0
+0x0766  69b10c0234000000         threadgroup_load i32, xy, r12_r13, r6l, 0
+0x076e  1ab95a022500             fmul32 r14, r13, r8
+0x0774  1ab55ae22400             fmul32 r13, r13, r7
+0x077a  3a9d58e2245c0200         fmadd32 r7, r12, r7, r14
+0x0782  3aa15802255a0a00         fmadd32 r8, r12, r8, r13.neg
+0x078a  2ab556e22400             fadd32 r13, r11, r7
+0x0790  2ab154022500             fadd32 r12, r10, r8
+0x0796  29b1120234000000         threadgroup_store i32, xy, r12_r13, r9l, 0
+0x079e  2ab556e2a400             fadd32 r13, r11, r7.neg
+0x07a4  2ab15402a500             fadd32 r12, r10, r8.neg
+0x07aa  29b10c0234000000         threadgroup_store i32, xy, r12_r13, r6l, 0
+0x07b2  7e1942f28000             and r6, r1, 15
+0x07b8  3e9d0ac42400             convert u32_to_f, r7, r6, rte
+0x07be  1a9d02e02408             fmul32 r7, -0.03125, r7
+0x07c4  2aa14e020100             fadd32 r8, r7, 0.25
+0x07ca  0a255002                 floor r9, r8
+0x07ce  2aa15022a500             fadd32 r8, r8, r9.neg
+0x07d4  0a254e02                 floor r9, r7
+0x07d8  2a9d4e22a500             fadd32 r7, r7, r9.neg
+0x07de  2ea5002024040000         bfeil r9, 0, r1, 4
+0x07e6  1e195206024c0600         imadd r6, r9.sx, 32, r6.sx
+0x07ee  1aa150020101             fmul32 r8, r8, 4.0
+0x07f4  0a2150a2                 sin_pt_1 r8, r8
+0x07f8  0a2550e2                 sin_pt_2 r9, r8
+0x07fc  1aa152022500             fmul32 r8, r9, r8
+0x0802  1a9d4e020101             fmul32 r7, r7, 4.0
+0x0808  0a1d4ea2                 sin_pt_1 r7, r7
+0x080c  0a254ee2                 sin_pt_2 r9, r7
+0x0810  1a9d52e22400             fmul32 r7, r9, r7
+0x0816  0e1900c0e4001000         iadd r6, 0, r6.sx, lsl 3
+0x081e  7e244c088000             mov r9l, r6l
+0x0824  0e194c0600020000         iadd r6, r6.sx, 128
+0x082c  69a9120234000000         threadgroup_load i32, xy, r10_r11, r9l, 0
+0x0834  69b10c0234000000         threadgroup_load i32, xy, r12_r13, r6l, 0
+0x083c  1ab95a022500             fmul32 r14, r13, r8
+0x0842  1ab55ae22400             fmul32 r13, r13, r7
+0x0848  3a9d58e2245c0200         fmadd32 r7, r12, r7, r14
+0x0850  3aa15802255a0a00         fmadd32 r8, r12, r8, r13.neg
+0x0858  2ab556e22400             fadd32 r13, r11, r7
+0x085e  2ab154022500             fadd32 r12, r10, r8
+0x0864  29b1120234000000         threadgroup_store i32, xy, r12_r13, r9l, 0
+0x086c  2ab556e2a400             fadd32 r13, r11, r7.neg
+0x0872  2ab15402a500             fadd32 r12, r10, r8.neg
+0x0878  29b10c0234000000         threadgroup_store i32, xy, r12_r13, r6l, 0
+0x0880  7e1940f28100             and r6, r0, 31
+0x0886  3e9d0ac42400             convert u32_to_f, r7, r6, rte
+0x088c  1a9d01e02408             fmul32 r7, -0.015625, r7
+0x0892  2aa14e020100             fadd32 r8, r7, 0.25
+0x0898  0a255002                 floor r9, r8
+0x089c  2aa15022a500             fadd32 r8, r8, r9.neg
+0x08a2  0a254e02                 floor r9, r7
+0x08a6  2a9d4e22a500             fadd32 r7, r7, r9.neg
+0x08ac  2ea5000024050000         bfeil r9, 0, r0, 5
+0x08b4  1e195206004c0601         imadd r6, r9.sx, 64, r6.sx
+0x08bc  1aa150020101             fmul32 r8, r8, 4.0
+0x08c2  0a2150a2                 sin_pt_1 r8, r8
+0x08c6  0a2550e2                 sin_pt_2 r9, r8
+0x08ca  1aa152022500             fmul32 r8, r9, r8
+0x08d0  1a9d4e020101             fmul32 r7, r7, 4.0
+0x08d6  0a1d4ea2                 sin_pt_1 r7, r7
+0x08da  0a254ee2                 sin_pt_2 r9, r7
+0x08de  1a9d52e22400             fmul32 r7, r9, r7
+0x08e4  0e1900c0e4001000         iadd r6, 0, r6.sx, lsl 3
+0x08ec  7e244c088000             mov r9l, r6l
+0x08f2  0e194ca659000000         iadd r6, r6.sx, u13.sx
+0x08fa  6800                     threadgroup_barrier
+0x08fc  69a9120234000000         threadgroup_load i32, xy, r10_r11, r9l, 0
+0x0904  69b10c0234000000         threadgroup_load i32, xy, r12_r13, r6l, 0
+0x090c  1ab95a022500             fmul32 r14, r13, r8
+0x0912  1ab55ae22400             fmul32 r13, r13, r7
+0x0918  3a9d58e2245c0200         fmadd32 r7, r12, r7, r14
+0x0920  3aa15802255a0a00         fmadd32 r8, r12, r8, r13.neg
+0x0928  2ab556e22400             fadd32 r13, r11, r7
+0x092e  2ab154022500             fadd32 r12, r10, r8
+0x0934  29b1120234000000         threadgroup_store i32, xy, r12_r13, r9l, 0
+0x093c  2ab556e2a400             fadd32 r13, r11, r7.neg
+0x0942  2ab15402a500             fadd32 r12, r10, r8.neg
+0x0948  29b10c0234000000         threadgroup_store i32, xy, r12_r13, r6l, 0
+0x0950  7e1942f28100             and r6, r1, 31
+0x0956  3e9d0ac42400             convert u32_to_f, r7, r6, rte
+0x095c  1a9d01e02408             fmul32 r7, -0.015625, r7
+0x0962  2aa14e020100             fadd32 r8, r7, 0.25
+0x0968  0a255002                 floor r9, r8
+0x096c  2aa15022a500             fadd32 r8, r8, r9.neg
+0x0972  0a254e02                 floor r9, r7
+0x0976  2a9d4e22a500             fadd32 r7, r7, r9.neg
+0x097c  2ea5002024050000         bfeil r9, 0, r1, 5
+0x0984  1e195206004c0601         imadd r6, r9.sx, 64, r6.sx
+0x098c  1aa150020101             fmul32 r8, r8, 4.0
+0x0992  0a2150a2                 sin_pt_1 r8, r8
+0x0996  0a2550e2                 sin_pt_2 r9, r8
+0x099a  1aa152022500             fmul32 r8, r9, r8
+0x09a0  1a9d4e020101             fmul32 r7, r7, 4.0
+0x09a6  0a1d4ea2                 sin_pt_1 r7, r7
+0x09aa  0a254ee2                 sin_pt_2 r9, r7
+0x09ae  1a9d52e22400             fmul32 r7, r9, r7
+0x09b4  0e1900c0e4001000         iadd r6, 0, r6.sx, lsl 3
+0x09bc  7e244c088000             mov r9l, r6l
+0x09c2  0e194ca659000000         iadd r6, r6.sx, u13.sx
+0x09ca  69a9120234000000         threadgroup_load i32, xy, r10_r11, r9l, 0
+0x09d2  69b10c0234000000         threadgroup_load i32, xy, r12_r13, r6l, 0
+0x09da  1ab95a022500             fmul32 r14, r13, r8
+0x09e0  1ab55ae22400             fmul32 r13, r13, r7
+0x09e6  3a9d58e2245c0200         fmadd32 r7, r12, r7, r14
+0x09ee  3aa15802255a0a00         fmadd32 r8, r12, r8, r13.neg
+0x09f6  2ab556e22400             fadd32 r13, r11, r7
+0x09fc  2ab154022500             fadd32 r12, r10, r8
+0x0a02  29b1120234000000         threadgroup_store i32, xy, r12_r13, r9l, 0
+0x0a0a  2ab556e2a400             fadd32 r13, r11, r7.neg
+0x0a10  2ab15402a500             fadd32 r12, r10, r8.neg
+0x0a16  29b10c0234000000         threadgroup_store i32, xy, r12_r13, r6l, 0
+0x0a1e  7e1940f28300             and r6, r0, 63
+0x0a24  3e9d0ac42400             convert u32_to_f, r7, r6, rte
+0x0a2a  1a9d23e12400             fmul32 r7, u17h, r7
+0x0a30  2aa14e020100             fadd32 r8, r7, 0.25
+0x0a36  0a255002                 floor r9, r8
+0x0a3a  2aa15022a500             fadd32 r8, r8, r9.neg
+0x0a40  0a254e02                 floor r9, r7
+0x0a44  2a9d4e22a500             fadd32 r7, r7, r9.neg
+0x0a4a  2ea5000024060000         bfeil r9, 0, r0, 6
+0x0a52  1e195206004c0602         imadd r6, r9.sx, 128, r6.sx
+0x0a5a  1aa150020101             fmul32 r8, r8, 4.0
+0x0a60  0a2150a2                 sin_pt_1 r8, r8
+0x0a64  0a2550e2                 sin_pt_2 r9, r8
+0x0a68  1aa152022500             fmul32 r8, r9, r8
+0x0a6e  1a9d4e020101             fmul32 r7, r7, 4.0
+0x0a74  0a1d4ea2                 sin_pt_1 r7, r7
+0x0a78  0a254ee2                 sin_pt_2 r9, r7
+0x0a7c  1a9d52e22400             fmul32 r7, r9, r7
+0x0a82  0e1900c0e4001000         iadd r6, 0, r6.sx, lsl 3
+0x0a8a  7e244c088000             mov r9l, r6l
+0x0a90  0e194c8659000000         iadd r6, r6.sx, u12.sx
+0x0a98  6800                     threadgroup_barrier
+0x0a9a  69a9120234000000         threadgroup_load i32, xy, r10_r11, r9l, 0
+0x0aa2  69b10c0234000000         threadgroup_load i32, xy, r12_r13, r6l, 0
+0x0aaa  1ab95a022500             fmul32 r14, r13, r8
+0x0ab0  1ab55ae22400             fmul32 r13, r13, r7
+0x0ab6  3a9d58e2245c0200         fmadd32 r7, r12, r7, r14
+0x0abe  3aa15802255a0a00         fmadd32 r8, r12, r8, r13.neg
+0x0ac6  2ab556e22400             fadd32 r13, r11, r7
+0x0acc  2ab154022500             fadd32 r12, r10, r8
+0x0ad2  29b1120234000000         threadgroup_store i32, xy, r12_r13, r9l, 0
+0x0ada  2ab556e2a400             fadd32 r13, r11, r7.neg
+0x0ae0  2ab15402a500             fadd32 r12, r10, r8.neg
+0x0ae6  29b10c0234000000         threadgroup_store i32, xy, r12_r13, r6l, 0
+0x0aee  7e1942f28300             and r6, r1, 63
+0x0af4  3e9d0ac42400             convert u32_to_f, r7, r6, rte
+0x0afa  1a9d23e12400             fmul32 r7, u17h, r7
+0x0b00  2aa14e020100             fadd32 r8, r7, 0.25
+0x0b06  0a255002                 floor r9, r8
+0x0b0a  2aa15022a500             fadd32 r8, r8, r9.neg
+0x0b10  0a254e02                 floor r9, r7
+0x0b14  2a9d4e22a500             fadd32 r7, r7, r9.neg
+0x0b1a  2ea5002024060000         bfeil r9, 0, r1, 6
+0x0b22  1e195206004c0602         imadd r6, r9.sx, 128, r6.sx
+0x0b2a  1aa150020101             fmul32 r8, r8, 4.0
+0x0b30  0a2150a2                 sin_pt_1 r8, r8
+0x0b34  0a2550e2                 sin_pt_2 r9, r8
+0x0b38  1aa152022500             fmul32 r8, r9, r8
+0x0b3e  1a9d4e020101             fmul32 r7, r7, 4.0
+0x0b44  0a1d4ea2                 sin_pt_1 r7, r7
+0x0b48  0a254ee2                 sin_pt_2 r9, r7
+0x0b4c  1a9d52e22400             fmul32 r7, r9, r7
+0x0b52  0e1900c0e4001000         iadd r6, 0, r6.sx, lsl 3
+0x0b5a  7e244c088000             mov r9l, r6l
+0x0b60  0e194c8659000000         iadd r6, r6.sx, u12.sx
+0x0b68  69a9120234000000         threadgroup_load i32, xy, r10_r11, r9l, 0
+0x0b70  69b10c0234000000         threadgroup_load i32, xy, r12_r13, r6l, 0
+0x0b78  1ab95a022500             fmul32 r14, r13, r8
+0x0b7e  1ab55ae22400             fmul32 r13, r13, r7
+0x0b84  3a9d58e2245c0200         fmadd32 r7, r12, r7, r14
+0x0b8c  3aa15802255a0a00         fmadd32 r8, r12, r8, r13.neg
+0x0b94  2ab556e22400             fadd32 r13, r11, r7
+0x0b9a  2ab154022500             fadd32 r12, r10, r8
+0x0ba0  29b1120234000000         threadgroup_store i32, xy, r12_r13, r9l, 0
+0x0ba8  2ab556e2a400             fadd32 r13, r11, r7.neg
+0x0bae  2ab15402a500             fadd32 r12, r10, r8.neg
+0x0bb4  29b10c0234000000         threadgroup_store i32, xy, r12_r13, r6l, 0
+0x0bbc  7e1940f28301             and r6, r0, 127
+0x0bc2  3e9d0ac42400             convert u32_to_f, r7, r6, rte
+0x0bc8  1a9d1ce12400             fmul32 r7, u14l, r7
+0x0bce  2aa14e020100             fadd32 r8, r7, 0.25
+0x0bd4  0a255002                 floor r9, r8
+0x0bd8  2aa15022a500             fadd32 r8, r8, r9.neg
+0x0bde  0a254e02                 floor r9, r7
+0x0be2  2a9d4e22a500             fadd32 r7, r7, r9.neg
+0x0be8  2ea5000024070000         bfeil r9, 0, r0, 7
+0x0bf0  1e1952a6594c0600         imadd r6, r9.sx, u13.sx, r6.sx
+0x0bf8  1aa150020101             fmul32 r8, r8, 4.0
+0x0bfe  0a2150a2                 sin_pt_1 r8, r8
+0x0c02  0a2550e2                 sin_pt_2 r9, r8
+0x0c06  1aa152022500             fmul32 r8, r9, r8
+0x0c0c  1a9d4e020101             fmul32 r7, r7, 4.0
+0x0c12  0a1d4ea2                 sin_pt_1 r7, r7
+0x0c16  0a254ee2                 sin_pt_2 r9, r7
+0x0c1a  1a9d52e22400             fmul32 r7, r9, r7
+0x0c20  0e1900c0e4001000         iadd r6, 0, r6.sx, lsl 3
+0x0c28  7e244c088000             mov r9l, r6l
+0x0c2e  0e194ce659000000         iadd r6, r6.sx, u15.sx
+0x0c36  6800                     threadgroup_barrier
+0x0c38  69a9120234000000         threadgroup_load i32, xy, r10_r11, r9l, 0
+0x0c40  69b10c0234000000         threadgroup_load i32, xy, r12_r13, r6l, 0
+0x0c48  1ab95a022500             fmul32 r14, r13, r8
+0x0c4e  1ab55ae22400             fmul32 r13, r13, r7
+0x0c54  3a9d58e2245c0200         fmadd32 r7, r12, r7, r14
+0x0c5c  3aa15802255a0a00         fmadd32 r8, r12, r8, r13.neg
+0x0c64  2ab556e22400             fadd32 r13, r11, r7
+0x0c6a  2ab154022500             fadd32 r12, r10, r8
+0x0c70  29b1120234000000         threadgroup_store i32, xy, r12_r13, r9l, 0
+0x0c78  2ab556e2a400             fadd32 r13, r11, r7.neg
+0x0c7e  2ab15402a500             fadd32 r12, r10, r8.neg
+0x0c84  29b10c0234000000         threadgroup_store i32, xy, r12_r13, r6l, 0
+0x0c8c  7e1942f28301             and r6, r1, 127
+0x0c92  3e9d0ac42400             convert u32_to_f, r7, r6, rte
+0x0c98  1a9d1ce12400             fmul32 r7, u14l, r7
+0x0c9e  2aa14e020100             fadd32 r8, r7, 0.25
+0x0ca4  0a255002                 floor r9, r8
+0x0ca8  2aa15022a500             fadd32 r8, r8, r9.neg
+0x0cae  0a254e02                 floor r9, r7
+0x0cb2  2a9d4e22a500             fadd32 r7, r7, r9.neg
+0x0cb8  2ea5002024070000         bfeil r9, 0, r1, 7
+0x0cc0  1e1952a6594c0600         imadd r6, r9.sx, u13.sx, r6.sx
+0x0cc8  1aa150020101             fmul32 r8, r8, 4.0
+0x0cce  0a2150a2                 sin_pt_1 r8, r8
+0x0cd2  0a2550e2                 sin_pt_2 r9, r8
+0x0cd6  1aa152022500             fmul32 r8, r9, r8
+0x0cdc  1a9d4e020101             fmul32 r7, r7, 4.0
+0x0ce2  0a1d4ea2                 sin_pt_1 r7, r7
+0x0ce6  0a254ee2                 sin_pt_2 r9, r7
+0x0cea  1a9d52e22400             fmul32 r7, r9, r7
+0x0cf0  0e1900c0e4001000         iadd r6, 0, r6.sx, lsl 3
+0x0cf8  7e244c088000             mov r9l, r6l
+0x0cfe  0e194ce659000000         iadd r6, r6.sx, u15.sx
+0x0d06  69a9120234000000         threadgroup_load i32, xy, r10_r11, r9l, 0
+0x0d0e  69b10c0234000000         threadgroup_load i32, xy, r12_r13, r6l, 0
+0x0d16  1ab95a022500             fmul32 r14, r13, r8
+0x0d1c  1ab55ae22400             fmul32 r13, r13, r7
+0x0d22  3a9d58e2245c0200         fmadd32 r7, r12, r7, r14
+0x0d2a  3aa15802255a0a00         fmadd32 r8, r12, r8, r13.neg
+0x0d32  2ab556e22400             fadd32 r13, r11, r7
+0x0d38  2ab154022500             fadd32 r12, r10, r8
+0x0d3e  29b1120234000000         threadgroup_store i32, xy, r12_r13, r9l, 0
+0x0d46  2ab556e2a400             fadd32 r13, r11, r7.neg
+0x0d4c  2ab15402a500             fadd32 r12, r10, r8.neg
+0x0d52  29b10c0234000000         threadgroup_store i32, xy, r12_r13, r6l, 0
+0x0d5a  7e1940f28303             and r6, r0, 255
+0x0d60  3e9d0ac42400             convert u32_to_f, r7, r6, rte
+0x0d66  1a9d22e12400             fmul32 r7, u17l, r7
+0x0d6c  2aa14e020100             fadd32 r8, r7, 0.25
+0x0d72  0a255002                 floor r9, r8
+0x0d76  2aa15022a500             fadd32 r8, r8, r9.neg
+0x0d7c  0a254e02                 floor r9, r7
+0x0d80  2a9d4e22a500             fadd32 r7, r7, r9.neg
+0x0d86  2ea5000024080000         bfeil r9, 0, r0, 8
+0x0d8e  1e195286594c0600         imadd r6, r9.sx, u12.sx, r6.sx
+0x0d96  1aa150020101             fmul32 r8, r8, 4.0
+0x0d9c  0a2150a2                 sin_pt_1 r8, r8
+0x0da0  0a2550e2                 sin_pt_2 r9, r8
+0x0da4  1aa152022500             fmul32 r8, r9, r8
+0x0daa  1a9d4e020101             fmul32 r7, r7, 4.0
+0x0db0  0a1d4ea2                 sin_pt_1 r7, r7
+0x0db4  0a254ee2                 sin_pt_2 r9, r7
+0x0db8  1a9d52e22400             fmul32 r7, r9, r7
+0x0dbe  0e1900c0e4001000         iadd r6, 0, r6.sx, lsl 3
+0x0dc6  7e244c088000             mov r9l, r6l
+0x0dcc  0e194c465a000000         iadd r6, r6.sx, u18.sx
+0x0dd4  6800                     threadgroup_barrier
+0x0dd6  69a9120234000000         threadgroup_load i32, xy, r10_r11, r9l, 0
+0x0dde  69b10c0234000000         threadgroup_load i32, xy, r12_r13, r6l, 0
+0x0de6  1ab95a022500             fmul32 r14, r13, r8
+0x0dec  1ab55ae22400             fmul32 r13, r13, r7
+0x0df2  3a9d58e2245c0200         fmadd32 r7, r12, r7, r14
+0x0dfa  3aa15802255a0a00         fmadd32 r8, r12, r8, r13.neg
+0x0e02  2ab556e22400             fadd32 r13, r11, r7
+0x0e08  2ab154022500             fadd32 r12, r10, r8
+0x0e0e  29b1120234000000         threadgroup_store i32, xy, r12_r13, r9l, 0
+0x0e16  2ab556e2a400             fadd32 r13, r11, r7.neg
+0x0e1c  2ab15402a500             fadd32 r12, r10, r8.neg
+0x0e22  29b10c0234000000         threadgroup_store i32, xy, r12_r13, r6l, 0
+0x0e2a  7e1942f28303             and r6, r1, 255
+0x0e30  3e9d0ac42400             convert u32_to_f, r7, r6, rte
+0x0e36  1a9d22e12400             fmul32 r7, u17l, r7
+0x0e3c  2aa14e020100             fadd32 r8, r7, 0.25
+0x0e42  0a255002                 floor r9, r8
+0x0e46  2aa15022a500             fadd32 r8, r8, r9.neg
+0x0e4c  0a254e02                 floor r9, r7
+0x0e50  2a9d4e22a500             fadd32 r7, r7, r9.neg
+0x0e56  2ea5002024080000         bfeil r9, 0, r1, 8
+0x0e5e  1e195286594c0600         imadd r6, r9.sx, u12.sx, r6.sx
+0x0e66  1aa150020101             fmul32 r8, r8, 4.0
+0x0e6c  0a2150a2                 sin_pt_1 r8, r8
+0x0e70  0a2550e2                 sin_pt_2 r9, r8
+0x0e74  1aa152022500             fmul32 r8, r9, r8
+0x0e7a  1a9d4e020101             fmul32 r7, r7, 4.0
+0x0e80  0a1d4ea2                 sin_pt_1 r7, r7
+0x0e84  0a254ee2                 sin_pt_2 r9, r7
+0x0e88  1a9d52e22400             fmul32 r7, r9, r7
+0x0e8e  0e1900c0e4001000         iadd r6, 0, r6.sx, lsl 3
+0x0e96  7e244c088000             mov r9l, r6l
+0x0e9c  0e194c465a000000         iadd r6, r6.sx, u18.sx
+0x0ea4  69a9120234000000         threadgroup_load i32, xy, r10_r11, r9l, 0
+0x0eac  69b10c0234000000         threadgroup_load i32, xy, r12_r13, r6l, 0
+0x0eb4  1ab95a022500             fmul32 r14, r13, r8
+0x0eba  1ab55ae22400             fmul32 r13, r13, r7
+0x0ec0  3a9d58e2245c0200         fmadd32 r7, r12, r7, r14
+0x0ec8  3aa15802255a0a00         fmadd32 r8, r12, r8, r13.neg
+0x0ed0  2ab556e22400             fadd32 r13, r11, r7
+0x0ed6  2ab154022500             fadd32 r12, r10, r8
+0x0edc  29b1120234000000         threadgroup_store i32, xy, r12_r13, r9l, 0
+0x0ee4  2ab556e2a400             fadd32 r13, r11, r7.neg
+0x0eea  2ab15402a500             fadd32 r12, r10, r8.neg
+0x0ef0  29b10c0234000000         threadgroup_store i32, xy, r12_r13, r6l, 0
+0x0ef8  7e1940629a00             and r6, r0, u19
+0x0efe  3e9d0ac42400             convert u32_to_f, r7, r6, rte
+0x0f04  1a9d1de12400             fmul32 r7, u14h, r7
+0x0f0a  2aa14e020100             fadd32 r8, r7, 0.25
+0x0f10  0a255002                 floor r9, r8
+0x0f14  2aa15022a500             fadd32 r8, r8, r9.neg
+0x0f1a  0a254e02                 floor r9, r7
+0x0f1e  2a9d4e22a500             fadd32 r7, r7, r9.neg
+0x0f24  2ea5000024090000         bfeil r9, 0, r0, 9
+0x0f2c  1e1952e6594c0600         imadd r6, r9.sx, u15.sx, r6.sx
+0x0f34  1aa150020101             fmul32 r8, r8, 4.0
+0x0f3a  0a2150a2                 sin_pt_1 r8, r8
+0x0f3e  0a2550e2                 sin_pt_2 r9, r8
+0x0f42  1aa152022500             fmul32 r8, r9, r8
+0x0f48  1a9d4e020101             fmul32 r7, r7, 4.0
+0x0f4e  0a1d4ea2                 sin_pt_1 r7, r7
+0x0f52  0a254ee2                 sin_pt_2 r9, r7
+0x0f56  1a9d52e22400             fmul32 r7, r9, r7
+0x0f5c  0e1900c0e4001000         iadd r6, 0, r6.sx, lsl 3
+0x0f64  7e244c088000             mov r9l, r6l
+0x0f6a  0e194c065a000000         iadd r6, r6.sx, u16.sx
+0x0f72  6800                     threadgroup_barrier
+0x0f74  69a9120234000000         threadgroup_load i32, xy, r10_r11, r9l, 0
+0x0f7c  69b10c0234000000         threadgroup_load i32, xy, r12_r13, r6l, 0
+0x0f84  1ab95a022500             fmul32 r14, r13, r8
+0x0f8a  1ab55ae22400             fmul32 r13, r13, r7
+0x0f90  3a9d58e2245c0200         fmadd32 r7, r12, r7, r14
+0x0f98  3aa15802255a0a00         fmadd32 r8, r12, r8, r13.neg
+0x0fa0  2ab556e22400             fadd32 r13, r11, r7
+0x0fa6  2ab154022500             fadd32 r12, r10, r8
+0x0fac  29b1120234000000         threadgroup_store i32, xy, r12_r13, r9l, 0
+0x0fb4  2ab556e2a400             fadd32 r13, r11, r7.neg
+0x0fba  2ab15402a500             fadd32 r12, r10, r8.neg
+0x0fc0  29b10c0234000000         threadgroup_store i32, xy, r12_r13, r6l, 0
+0x0fc8  7e1942629a00             and r6, r1, u19
+0x0fce  3e9d0ac42400             convert u32_to_f, r7, r6, rte
+0x0fd4  1a9d1de12400             fmul32 r7, u14h, r7
+0x0fda  2aa14e020100             fadd32 r8, r7, 0.25
+0x0fe0  0a255002                 floor r9, r8
+0x0fe4  2aa15022a500             fadd32 r8, r8, r9.neg
+0x0fea  0a254e02                 floor r9, r7
+0x0fee  2a9d4e22a500             fadd32 r7, r7, r9.neg
+0x0ff4  2e85002024090000         bfeil r1, 0, r1, 9
+0x0ffc  1e0542e6594c0600         imadd r1, r1.sx, u15.sx, r6.sx
+0x1004  1a9950020101             fmul32 r6, r8, 4.0
+0x100a  0a194ca2                 sin_pt_1 r6, r6
+0x100e  0a214ce2                 sin_pt_2 r8, r6
+0x1012  1a9950c22400             fmul32 r6, r8, r6
+0x1018  1a9d4e020101             fmul32 r7, r7, 4.0
+0x101e  0a1d4ea2                 sin_pt_1 r7, r7
+0x1022  0a214ee2                 sin_pt_2 r8, r7
+0x1026  1a9d50e22400             fmul32 r7, r8, r7
+0x102c  0e050020e4001000         iadd r1, 0, r1.sx, lsl 3
+0x1034  7e2042088000             mov r8l, r1l
+0x103a  0e0542065a000000         iadd r1, r1.sx, u16.sx
+0x1042  69a9100234000000         threadgroup_load i32, xy, r10_r11, r8l, 0
+0x104a  69b1020234000000         threadgroup_load i32, xy, r12_r13, r1l, 0
+0x1052  1aa55ac22400             fmul32 r9, r13, r6
+0x1058  1ab55ae22400             fmul32 r13, r13, r7
+0x105e  3a9d58e224520200         fmadd32 r7, r12, r7, r9
+0x1066  3a9958c2245a0a00         fmadd32 r6, r12, r6, r13.neg
+0x106e  2ab556e22400             fadd32 r13, r11, r7
+0x1074  2ab154c22400             fadd32 r12, r10, r6
+0x107a  29b1100234000000         threadgroup_store i32, xy, r12_r13, r8l, 0
+0x1082  2aa556e2a400             fadd32 r9, r11, r7.neg
+0x1088  2aa154c2a400             fadd32 r8, r10, r6.neg
+0x108e  29a1020234000000         threadgroup_store i32, xy, r8_r9, r1l, 0
+0x1096  0e010000e4001000         iadd r0, 0, r0.sx, lsl 3
+0x109e  6800                     threadgroup_barrier
+0x10a0  7e0440088000             mov r1l, r0l
+0x10a6  6999020234000000         threadgroup_load i32, xy, r6_r7, r1l, 0
+0x10ae  4531640e10c43200         device_store 0, i32, xy, r6_r7, u10_u11, r3, unsigned, lsl 1, 0
+0x10b6  0e0540465a000000         iadd r1, r0.sx, u18.sx
+0x10be  6999020234000000         threadgroup_load i32, xy, r6_r7, r1l, 0
+0x10c6  4531a44e10c43200         device_store 1, i32, xy, r6_r7, u10_u11, r5, unsigned, lsl 1, 0
+0x10ce  0e0540065a000000         iadd r1, r0.sx, u16.sx
+0x10d6  6999020234000000         threadgroup_load i32, xy, r6_r7, r1l, 0
+0x10de  4531840e10c43200         device_store 0, i32, xy, r6_r7, u10_u11, r4, unsigned, lsl 1, 0
+0x10e6  0e0140865a000000         iadd r0, r0.sx, u20.sx
+0x10ee  6991000234000000         threadgroup_load i32, xy, r4_r5, r0l, 0
+0x10f6  4521440e10c43200         device_store 0, i32, xy, r4_r5, u10_u11, r2, unsigned, lsl 1, 0
+0x10fe  8800                     stop

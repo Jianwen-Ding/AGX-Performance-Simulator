@@ -1,0 +1,45 @@
+#version 450
+// A camera ISP in miniature, raw sensor data to display pixels, all integer (bit-exact): 12-bit RGGB Bayer samples
+// (16-bit storage) -> black level subtracted and white-balance gains applied (Q8) per CFA colour -> bilinear demosaic
+// (each missing colour the rounded mean of its 2 or 4 nearest samples of that colour; borders clamp) -> 3 x 3 colour
+// correction matrix (Q10, rows summing to 1) with clamping -> 4096-entry gamma table (shared memory) -> RGBA8.
+#extension GL_EXT_shader_16bit_storage : require
+layout(local_size_x = 16, local_size_y = 16) in;
+layout(std430, binding = 0) readonly buffer R { uint16_t raw[]; };
+layout(std430, binding = 1) readonly buffer L { uint lut[4096]; };   // linear 12-bit -> 8-bit
+layout(std430, binding = 2) readonly buffer C { int ccm[9]; uint wb[3]; uint black; };
+layout(std430, binding = 3) writeonly buffer O { uint rgba[]; };
+layout(push_constant) uniform P { uint w; uint h; } p;
+shared uint tab[4096];
+
+// CFA colour at (x, y) for RGGB: 0 = R, 1 = G, 2 = B
+uint cfa(int x, int y) { return (y & 1) == 0 ? ((x & 1) == 0 ? 0u : 1u) : ((x & 1) == 0 ? 1u : 2u); }
+
+uint wbs(int x, int y) {                                           // white-balanced linear value, clamped coordinates
+    x = clamp(x, 0, int(p.w) - 1); y = clamp(y, 0, int(p.h) - 1);
+    uint v = uint(raw[uint(y) * p.w + uint(x)]);
+    v = v > black ? v - black : 0u;
+    return min((v * wb[cfa(x, y)] + 128u) >> 8, 4095u);
+}
+
+void main() {
+    uint li = gl_LocalInvocationIndex;
+    for (uint i = li; i < 4096u; i += 256u) tab[i] = lut[i];
+    barrier();
+    int x = int(gl_GlobalInvocationID.x), y = int(gl_GlobalInvocationID.y);
+    if (x >= int(p.w) || y >= int(p.h)) return;
+    uint c = cfa(x, y), self = wbs(x, y);
+    uint cross4 = (wbs(x - 1, y) + wbs(x + 1, y) + wbs(x, y - 1) + wbs(x, y + 1) + 2u) >> 2;
+    uint diag4 = (wbs(x - 1, y - 1) + wbs(x + 1, y - 1) + wbs(x - 1, y + 1) + wbs(x + 1, y + 1) + 2u) >> 2;
+    uint horiz = (wbs(x - 1, y) + wbs(x + 1, y) + 1u) >> 1, vert = (wbs(x, y - 1) + wbs(x, y + 1) + 1u) >> 1;
+    uvec3 rgb;
+    if (c == 0u) rgb = uvec3(self, cross4, diag4);
+    else if (c == 2u) rgb = uvec3(diag4, cross4, self);
+    else if ((y & 1) == 0) rgb = uvec3(horiz, self, vert);           // green on a red row
+    else rgb = uvec3(vert, self, horiz);                              // green on a blue row
+    ivec3 v = ivec3(rgb);
+    ivec3 o;
+    for (int k = 0; k < 3; k++)
+        o[k] = clamp((ccm[3 * k] * v.x + ccm[3 * k + 1] * v.y + ccm[3 * k + 2] * v.z + 512) >> 10, 0, 4095);
+    rgba[uint(y) * p.w + uint(x)] = tab[o.x] | (tab[o.y] << 8) | (tab[o.z] << 16) | 0xff000000u;
+}

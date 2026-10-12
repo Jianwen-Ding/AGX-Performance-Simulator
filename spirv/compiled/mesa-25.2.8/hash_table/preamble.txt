@@ -1,0 +1,34 @@
+0x0300  0501100d00c87200         device_load 0, i32, xyz, r0_r1_r2, u0_u1, 1, signed, lsl 2
+0x0308  3800                     wait 0
+0x030a  2e01000024070000         bfi r0, 0, r0, 7
+0x0312  c500803d00803000         uniform_store 2, i16, xy, 0, r0l_r0h, 8
+0x031a  0501d00d05c01200         device_load 0, i32, x, r0, u0_u1, 93, signed
+0x0322  3800                     wait 0
+0x0324  c500a03d00803000         uniform_store 2, i16, xy, 0, r0l_r0h, 10
+0x032c  0501700d01c81200         device_load 0, i32, x, r0, u0_u1, 23, signed, lsl 2
+0x0334  3800                     wait 0
+0x0336  1200400200010110         icmpsel ueq, r0l, r0, 0, 1, 0
+0x033e  c500c03d00801000         uniform_store 2, i16, x, 0, r0l, 12
+0x0346  0501700d02c83200         device_load 0, i32, xy, r0_r1, u0_u1, 39, signed, lsl 2
+0x034e  3800                     wait 0
+0x0350  0521004500c0f200         device_load 1, i32, xyzw, r4_r5_r6_r7, r0_r1, 0, signed
+0x0358  3801                     wait 1
+0x035a  c520003d0180f000         uniform_store 2, i16, xyzw, 0, r4l_r4h_r5l_r5h, 16
+0x0362  0511f00d02c41200         device_load 0, i32, x, r2, u0_u1, 47, signed, lsl 1
+0x036a  3800                     wait 0
+0x036c  c510403d01803000         uniform_store 2, i16, xy, 0, r2l_r2h, 20
+0x0374  0521200500c8f200         device_load 0, i32, xyzw, r4_r5_r6_r7, r0_r1, 2, signed, lsl 2
+0x037c  3800                     wait 0
+0x037e  c520803d0180f000         uniform_store 2, i16, xyzw, 0, r4l_r4h_r5l_r5h, 24
+0x0386  0541100500c8f200         device_load 0, i32, xyzw, r8_r9_r10_r11, r0_r1, 1, signed, lsl 2
+0x038e  3800                     wait 0
+0x0390  c540c03d0180f000         uniform_store 2, i16, xyzw, 0, r8l_r8h_r9l_r9h, 28
+0x0398  0541300500c8f200         device_load 0, i32, xyzw, r8_r9_r10_r11, r0_r1, 3, signed, lsl 2
+0x03a0  3800                     wait 0
+0x03a2  c540003d0280f000         uniform_store 2, i16, xyzw, 0, r8l_r8h_r9l_r9h, 32
+0x03aa  c510403d02803000         uniform_store 2, i16, xy, 0, r2l_r2h, 36
+0x03b2  c520803d0280f000         uniform_store 2, i16, xyzw, 0, r4l_r4h_r5l_r5h, 40
+0x03ba  0501400500c8f200         device_load 0, i32, xyzw, r0_r1_r2_r3, r0_r1, 4, signed, lsl 2
+0x03c2  3800                     wait 0
+0x03c4  c500c03d0280f000         uniform_store 2, i16, xyzw, 0, r0l_r0h_r1l_r1h, 44
+0x03cc  8800                     stop

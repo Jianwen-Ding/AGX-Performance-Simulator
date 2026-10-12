@@ -1,0 +1,39 @@
+#version 450
+// Exact squared Euclidean distance transform (skeletons, clearance maps for robots, morphology), in two passes over
+// a binary image (1 = feature):
+// pass 0: one invocation per row: forward and backward scans give g(x, y), the distance along the row to the
+//         nearest feature (BIG if the row has none)
+// pass 1: one invocation per pixel: d(x, y) = min over y' of g(x, y')^2 + (y - y')^2, exact in 32-bit integers
+// Neighbouring invocations of pass 1 read neighbouring columns, so each y' step is one coalesced row read.
+layout(local_size_x = 64) in;
+layout(std430, binding = 0) readonly buffer I { uint img[]; };
+layout(std430, binding = 1) buffer G { uint g[]; };
+layout(std430, binding = 2) writeonly buffer D { uint dist[]; };
+layout(push_constant) uniform P { uint pass; uint w; uint h; } p;
+const uint BIG = 1u << 14;
+
+void main() {
+    uint i = gl_GlobalInvocationID.x;
+    if (p.pass == 0u) {
+        if (i >= p.h) return;
+        uint row = i * p.w, d = BIG;
+        for (uint x = 0u; x < p.w; x++) {
+            d = img[row + x] != 0u ? 0u : min(d + 1u, BIG);
+            g[row + x] = d;
+        }
+        d = BIG;
+        for (uint x = p.w; x-- > 0u;) {
+            d = img[row + x] != 0u ? 0u : min(d + 1u, BIG);
+            g[row + x] = min(g[row + x], d);
+        }
+        return;
+    }
+    if (i >= p.w * p.h) return;
+    uint x = i % p.w, y = i / p.w, best = 0xffffffffu;
+    for (uint yy = 0u; yy < p.h; yy++) {
+        uint gx = g[yy * p.w + x];
+        int dy = int(y) - int(yy);
+        best = min(best, gx * gx + uint(dy * dy));
+    }
+    dist[i] = best;
+}

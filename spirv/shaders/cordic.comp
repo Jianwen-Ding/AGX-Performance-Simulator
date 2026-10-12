@@ -1,0 +1,24 @@
+#version 450
+// CORDIC sine and cosine in Q2.30 fixed point (FPGA / microcontroller DSP without an FPU): 30 shift-and-add
+// rotation steps per angle driven by an arctangent table, after folding the angle into [-pi/2, pi/2].
+// Integer-exact; accuracy against sin / cos is reported.
+layout(local_size_x = 256) in;
+layout(std430, binding = 0) readonly buffer A { int angles[]; };      // Q2.29 radians in [-pi, pi]
+layout(std430, binding = 1) readonly buffer T { int atan_tab[30]; int k_gain; int half_pi; };
+layout(std430, binding = 2) writeonly buffer O { ivec2 cs[]; };       // (cos, sin) in Q2.30
+layout(push_constant) uniform P { uint n; } p;
+
+void main() {
+    uint i = gl_GlobalInvocationID.x;
+    if (i >= p.n) return;
+    int z = angles[i], sgn = 1;
+    if (z > half_pi) { z -= 2 * half_pi; sgn = -1; }   // rotate by pi: negate both results
+    else if (z < -half_pi) { z += 2 * half_pi; sgn = -1; }
+    int x = k_gain, y = 0;
+    for (int k = 0; k < 30; k++) {
+        int dx = y >> k, dy = x >> k;
+        if (z >= 0) { x -= dx; y += dy; z -= atan_tab[k]; }
+        else { x += dx; y -= dy; z += atan_tab[k]; }
+    }
+    cs[i] = ivec2(sgn * x, sgn * y);
+}

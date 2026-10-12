@@ -1,0 +1,21 @@
+#version 450
+// Workgroup barrier cost sweep (a timing probe): each dispatch runs N rounds (N = 0, 16, 64, 256) of a neighbour
+// exchange in shared memory with a barrier per round, so time per barrier on the M2 can be read off. Exact results.
+layout(local_size_x = 256) in;
+layout(std430, binding = 0) writeonly buffer O { uint outv[]; };
+layout(push_constant) uniform P { uint rounds; uint slot; } p;
+shared uint s[256];
+
+void main() {
+    uint t = gl_LocalInvocationID.x;
+    s[t] = t;
+    barrier();
+    uint v = t;
+    for (uint r = 0u; r < p.rounds; r++) {
+        v = v * 3u + s[(t + 1u) & 255u];
+        barrier();
+        s[t] = v;
+        barrier();
+    }
+    outv[p.slot * gl_NumWorkGroups.x * 256u + gl_GlobalInvocationID.x] = v;
+}

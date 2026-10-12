@@ -1,0 +1,18 @@
+0x0180  0501500d00c87200         device_load 0, i32, xyz, r0_r1_r2, u0_u1, 5, signed, lsl 2
+0x0188  3800                     wait 0
+0x018a  0e0100006c002000         iadd r0, 0, r0.discard.sx, lsl 4
+0x0192  c500e03d00803000         uniform_store 2, i16, xy, 0, r0l_r0h, 14
+0x019a  0e0100206c002000         iadd r0, 0, r1.discard.sx, lsl 4
+0x01a2  c500003d01803000         uniform_store 2, i16, xy, 0, r0l_r0h, 16
+0x01aa  0501d00d03c41200         device_load 0, i32, x, r0, u0_u1, 61, signed, lsl 1
+0x01b2  3800                     wait 0
+0x01b4  c500803d00803000         uniform_store 2, i16, xy, 0, r0l_r0h, 8
+0x01bc  0501b00d07c01200         device_load 0, i32, x, r0, u0_u1, 123, signed
+0x01c4  3800                     wait 0
+0x01c6  c500a03d00803000         uniform_store 2, i16, xy, 0, r0l_r0h, 10
+0x01ce  ed0010000000000c         tex_state_store ts0, u3_u4, r0
+0x01d6  0501f04d01c81200         device_load 1, i32, x, r0, u0_u1, 31, signed, lsl 2
+0x01de  3801                     wait 1
+0x01e0  c500c03d00803000         uniform_store 2, i16, xy, 0, r0l_r0h, 12
+0x01e8  ed0111600000000c         tex_state_store ts1, u3_u4, r12
+0x01f0  8800                     stop

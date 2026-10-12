@@ -1,0 +1,36 @@
+#version 450
+// Canonical Huffman decoding (the entropy stage of DEFLATE / JPEG): each invocation decodes one independently coded
+// block of 256 symbols from an MSB-first bit stream. The workgroup first copies the 12-bit lookup table
+// (entry = symbol << 4 | code length) into shared memory; each symbol is then one 12-bit peek, one table lookup and
+// a variable advance of the bit position.
+layout(local_size_x = 128) in;
+layout(std430, binding = 0) readonly buffer B { uint bits[]; };
+layout(std430, binding = 1) readonly buffer S { uint start[]; };    // first bit of each block
+layout(std430, binding = 2) readonly buffer T { uint table[]; };    // 4096 entries
+layout(std430, binding = 3) writeonly buffer O { uint outp[]; };    // 4 symbols per word
+layout(push_constant) uniform P { uint nblocks; } p;
+shared uint lut[4096];
+
+uint peek12(uint pos) {
+    uint w = pos >> 5, s = pos & 31u;
+    uint hi = bits[w] << s;
+    uint lo = s == 0u ? 0u : bits[w + 1u] >> (32u - s);
+    return (hi | lo) >> 20;
+}
+
+void main() {
+    for (uint i = gl_LocalInvocationID.x; i < 4096u; i += 128u) lut[i] = table[i];
+    barrier();
+    uint b = gl_GlobalInvocationID.x;
+    if (b >= p.nblocks) return;
+    uint pos = start[b];
+    for (uint k = 0u; k < 64u; k++) {
+        uint word = 0u;
+        for (uint j = 0u; j < 4u; j++) {
+            uint e = lut[peek12(pos)];
+            word |= (e >> 4) << (8u * j);
+            pos += e & 15u;
+        }
+        outp[64u * b + k] = word;
+    }
+}

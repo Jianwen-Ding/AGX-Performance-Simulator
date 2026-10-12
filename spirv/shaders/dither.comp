@@ -1,0 +1,24 @@
+#version 450
+// Ordered (8 x 8 Bayer) dithering of an 8-bit grayscale image to 1 bit per pixel (e-ink / printers): each thread
+// thresholds 32 consecutive pixels of a row against the Bayer matrix and writes one packed word. Integer-exact;
+// the bit image is the output.
+#extension GL_EXT_shader_8bit_storage : require
+#extension GL_EXT_shader_explicit_arithmetic_types_int8 : require
+layout(local_size_x = 64) in;
+layout(std430, binding = 0) readonly buffer I { uint8_t img[]; };
+layout(std430, binding = 1) writeonly buffer O { uint packed_[]; };
+layout(push_constant) uniform P { uint width; uint height; } p;
+const uint bayer[64] = uint[64](0, 32, 8, 40, 2, 34, 10, 42, 48, 16, 56, 24, 50, 18, 58, 26, 12, 44, 4, 36, 14, 46, 6, 38,
+    60, 28, 52, 20, 62, 30, 54, 22, 3, 35, 11, 43, 1, 33, 9, 41, 51, 19, 59, 27, 49, 17, 57, 25, 15, 47, 7, 39, 13, 45, 5, 37,
+    63, 31, 55, 23, 61, 29, 53, 21);
+
+void main() {
+    uint w = gl_GlobalInvocationID.x, words = p.width / 32u;
+    if (w >= words * p.height) return;
+    uint y = w / words, x0 = (w % words) * 32u, v = 0u;
+    for (uint k = 0u; k < 32u; k++) {
+        uint x = x0 + k;
+        if (uint(img[y * p.width + x]) > bayer[(y & 7u) * 8u + (x & 7u)] * 4u + 1u) v |= 1u << k;
+    }
+    packed_[w] = v;
+}

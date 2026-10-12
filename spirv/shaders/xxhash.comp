@@ -1,0 +1,30 @@
+#version 450
+// xxHash32 of fixed 1036-byte records (deduplication / content-addressed storage): one thread per record, four
+// accumulator lanes of multiply-rotate rounds over 16-byte stripes, three tail words, then the avalanche.
+// Integer-exact (32-bit multiplies and rotates).
+layout(local_size_x = 64) in;
+layout(std430, binding = 0) readonly buffer I { uint data[]; };
+layout(std430, binding = 1) writeonly buffer O { uint hashes[]; };
+layout(push_constant) uniform P { uint n; uint words; uint seed; } p;
+
+const uint P1 = 2654435761u, P2 = 2246822519u, P3 = 3266489917u, P4 = 668265263u;
+uint rotl(uint x, int r) { return (x << r) | (x >> (32 - r)); }
+uint round_(uint v, uint w) { return rotl(v + w * P2, 13) * P1; }
+
+void main() {
+    uint i = gl_GlobalInvocationID.x;
+    if (i >= p.n) return;
+    uint base = i * p.words;
+    uint v1 = p.seed + P1 + P2, v2 = p.seed + P2, v3 = p.seed, v4 = p.seed - P1;
+    uint k = 0u;
+    for (; k + 4u <= p.words; k += 4u) {
+        v1 = round_(v1, data[base + k]);
+        v2 = round_(v2, data[base + k + 1u]);
+        v3 = round_(v3, data[base + k + 2u]);
+        v4 = round_(v4, data[base + k + 3u]);
+    }
+    uint h = rotl(v1, 1) + rotl(v2, 7) + rotl(v3, 12) + rotl(v4, 18) + 4u * p.words;
+    for (; k < p.words; k++) h = rotl(h + data[base + k] * P3, 17) * P4;
+    h ^= h >> 15; h *= P2; h ^= h >> 13; h *= P3; h ^= h >> 16;
+    hashes[i] = h;
+}

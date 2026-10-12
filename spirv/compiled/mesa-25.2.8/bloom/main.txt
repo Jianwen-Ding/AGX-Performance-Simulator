@@ -1,0 +1,195 @@
+0x0080  72051004                 get_sr r1, sr80 (thread_position_in_grid.x)
+0x0084  0e05428658000000         iadd r1, r1.sx, u4.sx
+0x008c  62000000                 mov_imm r0l, 0
+0x0090  522842a21800             if_icmp r0l, ult, r1, u5, 1
+0x0096  20c0ec040000             jmp_exec_none pc+1260
+0x009c  52090c010000             if_icmp r0l, nueq, u6l, 0, 1
+0x00a2  0511200e10c01200         device_load 0, i32, x, r2, u8_u9, r1, unsigned
+0x00aa  3800                     wait 0
+0x00ac  420a00000000             else_fcmp r0l, eq, 0.0, 0.0, 1
+0x00b2  0511240e10c01200         device_load 0, i32, x, r2, u10_u11, r1, unsigned
+0x00ba  3800                     wait 0
+0x00bc  520e00000000             pop_exec r0l, 1
+0x00c2  7e0245088000             mov r0h, r2h
+0x00c8  7e0d441a4400             xor r3, r2, r0h
+0x00ce  1e0d46a659000001         imadd r3, r3.sx, u45.sx, 0
+0x00d6  2e910060240d0000         bfeil r4, 0, r3, 13
+0x00de  7e0d468a6400             xor r3, r3, r4
+0x00e4  1e0d468659000001         imadd r3, r3.sx, u44.sx, 0
+0x00ec  7e0247088000             mov r0h, r3h
+0x00f2  7e0d461a4400             xor r3, r3, r0h
+0x00f8  7e0944ca5901             xor r2, r2, u46
+0x00fe  7e0245088000             mov r0h, r2h
+0x0104  7e09441a4400             xor r2, r2, r0h
+0x010a  1e0944a659000001         imadd r2, r2.sx, u45.sx, 0
+0x0112  2e910040240d0000         bfeil r4, 0, r2, 13
+0x011a  7e09448a6400             xor r2, r2, r4
+0x0120  1e09448659000001         imadd r2, r2.sx, u44.sx, 0
+0x0128  7e0245088000             mov r0h, r2h
+0x012e  7e09441a4400             xor r2, r2, r0h
+0x0134  1e1346a219000000         imadd r4_r5, r3, u13, 0
+0x013c  1e114a8659000000         imadd r4, r5.sx, u12.sx, 0
+0x0144  0e11468e64000000         isub r4, r3.sx, r4.sx
+0x014c  0e1548c659000000         iadd r5, r4.sx, u14.sx
+0x0154  121148821948a024         icmpsel ult, r4, r4, u12, r4, r5
+0x015c  0e1548c659000000         iadd r5, r4.sx, u14.sx
+0x0164  121148821948a024         icmpsel ult, r4, r4, u12, r4, r5
+0x016c  52090c010000             if_icmp r0l, nueq, u6l, 0, 1
+0x0172  7e1548f28100             and r5, r4, 31
+0x0178  2e150010004a0200         bfi r5, 0, 1, r5
+0x0180  2e91008024050000         bfeil r4, 0, r4, 5
+0x0188  5502808c20500a00         atomic or, 0, None, u16_u17, r4, signed, r5, 1, 0, 1, 4, 2
+0x0190  62020100                 mov_imm r0h, 1
+0x0194  3800                     wait 0
+0x0196  420a00000000             else_fcmp r0l, eq, 0.0, 0.0, 1
+0x019c  2e95008024050000         bfeil r5, 0, r4, 5
+0x01a4  0529a40e20c01200         device_load 0, i32, x, r5, u18_u19, r5, unsigned
+0x01ac  7e1148f28100             and r4, r4, 31
+0x01b2  2e11001000480200         bfi r4, 0, 1, r4
+0x01ba  3800                     wait 0
+0x01bc  7e114a82a400             and r4, r5, r4
+0x01c2  1202480200001110         icmpsel ueq, r0h, r4, 0, 0, 1
+0x01ca  520e00000000             pop_exec r0l, 1
+0x01d0  7e09441ac000             or r2, r2, 1
+0x01d6  0e11464664000000         iadd r4, r3.sx, r2.sx
+0x01de  1e1b48a219000000         imadd r6_r7, r4, u13, 0
+0x01e6  1e154e8659000000         imadd r5, r7.sx, u12.sx, 0
+0x01ee  0e1148ae64000000         isub r4, r4.sx, r5.sx
+0x01f6  0e1548c659000000         iadd r5, r4.sx, u14.sx
+0x01fe  121148821948a024         icmpsel ult, r4, r4, u12, r4, r5
+0x0206  0e1548c659000000         iadd r5, r4.sx, u14.sx
+0x020e  121148821948a024         icmpsel ult, r4, r4, u12, r4, r5
+0x0216  52090c010000             if_icmp r0l, nueq, u6l, 0, 1
+0x021c  7e1548f28100             and r5, r4, 31
+0x0222  2e150010004a0200         bfi r5, 0, 1, r5
+0x022a  2e91008024050000         bfeil r4, 0, r4, 5
+0x0232  5502888c20500a00         atomic or, 0, None, u20_u21, r4, signed, r5, 1, 0, 1, 4, 2
+0x023a  3800                     wait 0
+0x023c  420a00000000             else_fcmp r0l, eq, 0.0, 0.0, 1
+0x0242  520941000000             if_icmp r0l, nueq, r0h, 0, 1
+0x0248  2e95008024050000         bfeil r5, 0, r4, 5
+0x0250  0529ac0e20c01200         device_load 0, i32, x, r5, u22_u23, r5, unsigned
+0x0258  7e1148f28100             and r4, r4, 31
+0x025e  2e11001000480200         bfi r4, 0, 1, r4
+0x0266  3800                     wait 0
+0x0268  7e114a82a400             and r4, r5, r4
+0x026e  1202480200001110         icmpsel ueq, r0h, r4, 0, 0, 1
+0x0276  420a00000000             else_fcmp r0l, eq, 0.0, 0.0, 1
+0x027c  62020000                 mov_imm r0h, 0
+0x0280  520e00000000             pop_exec r0l, 1
+0x0286  520e00000000             pop_exec r0l, 1
+0x028c  0e114646e4000000         iadd r4, r3.sx, r2.sx, lsl 1
+0x0294  1e1b48a219000000         imadd r6_r7, r4, u13, 0
+0x029c  1e154e8659000000         imadd r5, r7.sx, u12.sx, 0
+0x02a4  0e1148ae64000000         isub r4, r4.sx, r5.sx
+0x02ac  0e1548c659000000         iadd r5, r4.sx, u14.sx
+0x02b4  121148821948a024         icmpsel ult, r4, r4, u12, r4, r5
+0x02bc  0e1548c659000000         iadd r5, r4.sx, u14.sx
+0x02c4  121148821948a024         icmpsel ult, r4, r4, u12, r4, r5
+0x02cc  52090c010000             if_icmp r0l, nueq, u6l, 0, 1
+0x02d2  7e1548f28100             and r5, r4, 31
+0x02d8  2e150010004a0200         bfi r5, 0, 1, r5
+0x02e0  2e91008024050000         bfeil r4, 0, r4, 5
+0x02e8  5502808c30500a00         atomic or, 0, None, u24_u25, r4, signed, r5, 1, 0, 1, 4, 2
+0x02f0  3800                     wait 0
+0x02f2  420a00000000             else_fcmp r0l, eq, 0.0, 0.0, 1
+0x02f8  520941000000             if_icmp r0l, nueq, r0h, 0, 1
+0x02fe  2e95008024050000         bfeil r5, 0, r4, 5
+0x0306  0529a40e30c01200         device_load 0, i32, x, r5, u26_u27, r5, unsigned
+0x030e  7e1148f28100             and r4, r4, 31
+0x0314  2e11001000480200         bfi r4, 0, 1, r4
+0x031c  3800                     wait 0
+0x031e  7e114a82a400             and r4, r5, r4
+0x0324  1202480200001110         icmpsel ueq, r0h, r4, 0, 0, 1
+0x032c  420a00000000             else_fcmp r0l, eq, 0.0, 0.0, 1
+0x0332  62020000                 mov_imm r0h, 0
+0x0336  520e00000000             pop_exec r0l, 1
+0x033c  520e00000000             pop_exec r0l, 1
+0x0342  1e11034064460600         imadd r4, 3, r2.sx, r3.sx
+0x034a  1e1b48a219000000         imadd r6_r7, r4, u13, 0
+0x0352  1e154e8659000000         imadd r5, r7.sx, u12.sx, 0
+0x035a  0e1148ae64000000         isub r4, r4.sx, r5.sx
+0x0362  0e1548c659000000         iadd r5, r4.sx, u14.sx
+0x036a  121148821948a024         icmpsel ult, r4, r4, u12, r4, r5
+0x0372  0e1548c659000000         iadd r5, r4.sx, u14.sx
+0x037a  121148821948a024         icmpsel ult, r4, r4, u12, r4, r5
+0x0382  52090c010000             if_icmp r0l, nueq, u6l, 0, 1
+0x0388  7e1548f28100             and r5, r4, 31
+0x038e  2e150010004a0200         bfi r5, 0, 1, r5
+0x0396  2e91008024050000         bfeil r4, 0, r4, 5
+0x039e  5502888c30500a00         atomic or, 0, None, u28_u29, r4, signed, r5, 1, 0, 1, 4, 2
+0x03a6  3800                     wait 0
+0x03a8  420a00000000             else_fcmp r0l, eq, 0.0, 0.0, 1
+0x03ae  520941000000             if_icmp r0l, nueq, r0h, 0, 1
+0x03b4  2e95008024050000         bfeil r5, 0, r4, 5
+0x03bc  0529ac0e30c01200         device_load 0, i32, x, r5, u30_u31, r5, unsigned
+0x03c4  7e1148f28100             and r4, r4, 31
+0x03ca  2e11001000480200         bfi r4, 0, 1, r4
+0x03d2  3800                     wait 0
+0x03d4  7e114a82a400             and r4, r5, r4
+0x03da  1202480200001110         icmpsel ueq, r0h, r4, 0, 0, 1
+0x03e2  420a00000000             else_fcmp r0l, eq, 0.0, 0.0, 1
+0x03e8  62020000                 mov_imm r0h, 0
+0x03ec  520e00000000             pop_exec r0l, 1
+0x03f2  520e00000000             pop_exec r0l, 1
+0x03f8  0e11464664001000         iadd r4, r3.sx, r2.sx, lsl 2
+0x0400  1e1b48a219000000         imadd r6_r7, r4, u13, 0
+0x0408  1e154e8659000000         imadd r5, r7.sx, u12.sx, 0
+0x0410  0e1148ae64000000         isub r4, r4.sx, r5.sx
+0x0418  0e1548c659000000         iadd r5, r4.sx, u14.sx
+0x0420  121148821948a024         icmpsel ult, r4, r4, u12, r4, r5
+0x0428  0e1548c659000000         iadd r5, r4.sx, u14.sx
+0x0430  121148821948a024         icmpsel ult, r4, r4, u12, r4, r5
+0x0438  52090c010000             if_icmp r0l, nueq, u6l, 0, 1
+0x043e  7e1548f28100             and r5, r4, 31
+0x0444  2e150010004a0200         bfi r5, 0, 1, r5
+0x044c  2e91008024050000         bfeil r4, 0, r4, 5
+0x0454  5502808c40500a00         atomic or, 0, None, u32_u33, r4, signed, r5, 1, 0, 1, 4, 2
+0x045c  3800                     wait 0
+0x045e  420a00000000             else_fcmp r0l, eq, 0.0, 0.0, 1
+0x0464  520941000000             if_icmp r0l, nueq, r0h, 0, 1
+0x046a  2e95008024050000         bfeil r5, 0, r4, 5
+0x0472  0529a40e40c01200         device_load 0, i32, x, r5, u34_u35, r5, unsigned
+0x047a  7e1148f28100             and r4, r4, 31
+0x0480  2e11001000480200         bfi r4, 0, 1, r4
+0x0488  3800                     wait 0
+0x048a  7e114a82a400             and r4, r5, r4
+0x0490  1202480200001110         icmpsel ueq, r0h, r4, 0, 0, 1
+0x0498  420a00000000             else_fcmp r0l, eq, 0.0, 0.0, 1
+0x049e  62020000                 mov_imm r0h, 0
+0x04a2  520e00000000             pop_exec r0l, 1
+0x04a8  520e00000000             pop_exec r0l, 1
+0x04ae  1e09054064460600         imadd r2, 5, r2.sx, r3.sx
+0x04b6  1e1344a219000000         imadd r4_r5, r2, u13, 0
+0x04be  1e0d4a8659000000         imadd r3, r5.sx, u12.sx, 0
+0x04c6  0e09446e64000000         isub r2, r2.sx, r3.sx
+0x04ce  0e0d44c659000000         iadd r3, r2.sx, u14.sx
+0x04d6  1209448219446024         icmpsel ult, r2, r2, u12, r2, r3
+0x04de  0e0d44c659000000         iadd r3, r2.sx, u14.sx
+0x04e6  1209448219446024         icmpsel ult, r2, r2, u12, r2, r3
+0x04ee  52090c010000             if_icmp r0l, nueq, u6l, 0, 1
+0x04f4  7e0d44f28100             and r3, r2, 31
+0x04fa  2e0d001000460200         bfi r3, 0, 1, r3
+0x0502  2e89004024050000         bfeil r2, 0, r2, 5
+0x050a  5502488c40500600         atomic or, 0, None, u36_u37, r2, signed, r3, 1, 0, 1, 4, 2
+0x0512  3800                     wait 0
+0x0514  420a00000000             else_fcmp r0l, eq, 0.0, 0.0, 1
+0x051a  520941000000             if_icmp r0l, nueq, r0h, 0, 1
+0x0520  2e8d004024050000         bfeil r3, 0, r2, 5
+0x0528  05196c0e40c01200         device_load 0, i32, x, r3, u38_u39, r3, unsigned
+0x0530  7e0944f28100             and r2, r2, 31
+0x0536  2e09001000440200         bfi r2, 0, 1, r2
+0x053e  3800                     wait 0
+0x0540  7e094642a400             and r2, r3, r2
+0x0546  1202440200001110         icmpsel ueq, r0h, r2, 0, 0, 1
+0x054e  420a00000000             else_fcmp r0l, eq, 0.0, 0.0, 1
+0x0554  62020000                 mov_imm r0h, 0
+0x0558  520e00000000             pop_exec r0l, 1
+0x055e  520e00000000             pop_exec r0l, 1
+0x0564  520910010004             if_icmp r0l, nueq, u40l, 0, 1
+0x056a  1209410000001110         icmpsel ueq, r2, r0h, 0, 0, 1
+0x0572  4511240e50c01200         device_store 0, i32, x, r2, u42_u43, r1, unsigned, 0
+0x057a  3800                     wait 0
+0x057c  520e00000000             pop_exec r0l, 1
+0x0582  520e00000000             pop_exec r0l, 1
+0x0588  8800                     stop

@@ -1,0 +1,17 @@
+#version 450
+// Shared-memory bank-conflict sweep (a timing probe): each dispatch reads a 32 KiB shared array 64 times per
+// invocation at index (lane * stride + k) mod 8192 for one stride (push constant), so lanes of a SIMD group hit
+// 1 .. 32 banks; the per-dispatch GPU times on the M2 calibrate the cost model's shared-memory rules. Exact sums.
+layout(local_size_x = 256) in;
+layout(std430, binding = 0) writeonly buffer O { uint sums[]; };
+layout(push_constant) uniform P { uint stride; uint slot; } p;
+shared uint s[8192];
+
+void main() {
+    uint t = gl_LocalInvocationID.x;
+    for (uint k = t; k < 8192u; k += 256u) s[k] = k * 2654435761u;
+    barrier();
+    uint acc = 0u;
+    for (uint k = 0u; k < 64u; k++) acc += s[(t * p.stride + k) & 8191u];
+    sums[p.slot * gl_NumWorkGroups.x * 256u + gl_GlobalInvocationID.x] = acc;
+}

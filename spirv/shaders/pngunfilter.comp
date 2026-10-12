@@ -1,0 +1,41 @@
+#version 450
+// PNG scanline un-filtering, the step of PNG decoding after inflate: each row starts with a filter type (None,
+// Sub, Up, Average, Paeth) and its bytes are predicted from the byte bpp to the left, the byte above and the one
+// above-left. Every filter but Up depends on the reconstructed left neighbour, and all but None / Sub on the row
+// above, so an image is a serial chain - except that with bpp = 4 (RGBA8) the four channels are independent
+// chains. One invocation per (image, channel); many thumbnails at once, as an image-processing service decodes them.
+#extension GL_EXT_shader_8bit_storage : require
+layout(local_size_x = 64) in;
+layout(std430, binding = 0) readonly buffer F { uint8_t filt[]; };   // per image: H rows of 1 + 4 W bytes
+layout(std430, binding = 1) buffer O { uint8_t pix[]; };             // per image: H rows of 4 W bytes (RGBA)
+layout(push_constant) uniform P { uint nimg; uint w; uint h; } p;
+
+void main() {
+    uint id = gl_GlobalInvocationID.x;
+    if (id >= 4u * p.nimg) return;
+    uint img = id >> 2, ch = id & 3u, stride = 4u * p.w;
+    uint fbase = img * p.h * (stride + 1u), obase = img * p.h * stride;
+    for (uint y = 0u; y < p.h; y++) {
+        uint ft = uint(filt[fbase + y * (stride + 1u)]);
+        uint a = 0u, c = 0u;                                          // left, above-left (0 at the row start)
+        for (uint x = 0u; x < p.w; x++) {
+            uint i = 4u * x + ch;
+            uint raw = uint(filt[fbase + y * (stride + 1u) + 1u + i]);
+            uint b = y > 0u ? uint(pix[obase + (y - 1u) * stride + i]) : 0u;
+            uint pred;
+            if (ft == 0u) pred = 0u;
+            else if (ft == 1u) pred = a;
+            else if (ft == 2u) pred = b;
+            else if (ft == 3u) pred = (a + b) >> 1;
+            else {
+                int pp = int(a) + int(b) - int(c);
+                uint pa = uint(abs(pp - int(a))), pb = uint(abs(pp - int(b))), pc = uint(abs(pp - int(c)));
+                pred = (pa <= pb && pa <= pc) ? a : (pb <= pc ? b : c);
+            }
+            uint v = (raw + pred) & 255u;
+            pix[obase + y * stride + i] = uint8_t(v);
+            a = v;
+            c = b;
+        }
+    }
+}

@@ -1,0 +1,34 @@
+#version 450
+// Posting-list intersection, the core of a search engine's AND query: for each query (a pair of terms), the
+// documents in both sorted posting lists. One invocation per query walks the shorter list and gallops through the
+// longer one (an exponential probe, then a binary search) from where the last match left off. List lengths are
+// Zipf-distributed, so invocations differ wildly in work and their loads are data dependent. Output per query:
+// the number of common documents and the xor of doc * 0x9E3779B1 over them (order independent).
+layout(local_size_x = 64) in;
+layout(std430, binding = 0) readonly buffer OF { uint off[]; };     // list k: docs[off[k] .. off[k + 1])
+layout(std430, binding = 1) readonly buffer DO { uint docs[]; };    // each list sorted, distinct
+layout(std430, binding = 2) readonly buffer QU { uvec2 qry[]; };
+layout(std430, binding = 3) writeonly buffer OU { uvec2 res[]; };
+layout(push_constant) uniform P { uint nq; } p;
+
+void main() {
+    uint q = gl_GlobalInvocationID.x;
+    if (q >= p.nq) return;
+    uint a = qry[q].x, b = qry[q].y;
+    uint sa = off[a], na = off[a + 1u] - sa, sb = off[b], nb = off[b + 1u] - sb;
+    if (na > nb) { uint t = sa; sa = sb; sb = t; t = na; na = nb; nb = t; }
+    uint lo = 0u, cnt = 0u, h = 0u;
+    for (uint i = 0u; i < na && lo < nb; i++) {
+        uint x = docs[sa + i];
+        uint left = lo, right = lo, step = 1u;                         // first index >= lo with docs >= x
+        while (right < nb && docs[sb + right] < x) { left = right + 1u; right += step; step <<= 1; }
+        right = min(right, nb);
+        while (left < right) {
+            uint mid = (left + right) >> 1;
+            if (docs[sb + mid] < x) left = mid + 1u; else right = mid;
+        }
+        lo = left;
+        if (lo < nb && docs[sb + lo] == x) { cnt++; h ^= x * 0x9E3779B1u; lo++; }
+    }
+    res[q] = uvec2(cnt, h);
+}

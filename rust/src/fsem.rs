@@ -7,7 +7,7 @@
 //! canonical NaN 0x7e00. `.sat`: clamp to [0, 1], NaN -> +0.
 
 use crate::isa::exec::{CoreState, SIMD_WIDTH};
-use crate::isa::fma::{bfma64, f16_to_f64, f64_to_f16, ROUND_TO_ODD};
+use crate::isa::fma::{f16_to_f64, f64_to_f16};
 use crate::isa::operand::{ImmVal, Operand, F_ABS, F_NEG, F_SX};
 use crate::isa::{fget, Fields};
 
@@ -97,7 +97,7 @@ pub fn sat(x: f64) -> f64 {
 }
 
 fn fma_odd(a: f64, b: f64, c: f64) -> f64 {
-    f64::from_bits(bfma64(a.to_bits(), b.to_bits(), c.to_bits(), &ROUND_TO_ODD))
+    f64::from_bits(crate::isa::fma::fma_rto_narrow(a.to_bits(), b.to_bits(), c.to_bits()))
 }
 
 /// Write a value to a destination operand for lane t (Reg16: low 16 bits, Reg32: 32, Reg64: 64).
@@ -118,19 +118,92 @@ fn dsize(d: &Operand) -> u32 {
     }
 }
 
+/// An fp32 source resolved once per instruction: a 32-bit lane register (DAZ, then abs / neg), or a value that is
+/// the same in every lane (uniform or immediate: `float` of lane 0).
+#[derive(Clone, Copy)]
+enum FSrc {
+    L(usize, bool, bool),
+    K(f64),
+}
+
+fn fsrc_of(st: &CoreState, o: &Operand) -> R<Option<FSrc>> {
+    Ok(match o {
+        Operand::Reg32(n, _) => Some(FSrc::L(*n as usize, o.flags() & F_ABS != 0, o.flags() & F_NEG != 0)),
+        Operand::UReg16(..) | Operand::UReg32(..) | Operand::Imm(..) => Some(FSrc::K(float(st, o, 0, true)?)),
+        _ => None,
+    })
+}
+
+#[inline]
+fn fsrc_get(st: &CoreState, s: FSrc, t: usize) -> R<f64> {
+    Ok(match s {
+        FSrc::L(n, abs, neg) => {
+            let mut x = f32_in(st.get_reg32(n, t)? as u32);
+            if abs {
+                x = x.abs();
+            }
+            if neg {
+                x = -x;
+            }
+            x
+        }
+        FSrc::K(x) => x,
+    })
+}
+
+/// fp32 fadd / fmul / fmadd with 32-bit register, uniform or immediate sources and a 32-bit destination: `float_arith`
+/// without the per-lane operand dispatch (same values: `float` with DAZ, then the same rounding).
+fn float_arith_fast(kind: u8, s: bool, ops: &[Operand], st: &mut CoreState) -> R<bool> {
+    let Operand::Reg32(dn, _) = ops[0] else { return Ok(false) };
+    if !st.exec.iter().any(|&e| e) {
+        return Ok(true); // no lane writes (the general path reads nothing either)
+    }
+    let (Some(a), Some(b)) = (fsrc_of(st, &ops[1])?, fsrc_of(st, &ops[2])?) else { return Ok(false) };
+    let c = if kind == 2 {
+        match fsrc_of(st, &ops[3])? {
+            Some(c) => Some(c),
+            None => return Ok(false),
+        }
+    } else {
+        None
+    };
+    for t in 0..SIMD_WIDTH {
+        if !st.exec[t] {
+            continue;
+        }
+        let av = fsrc_get(st, a, t)?;
+        let bv = fsrc_get(st, b, t)?;
+        let mut x = match c {
+            None if kind == 0 => av + bv,
+            None => av * bv,
+            Some(c) => fma_odd(av, bv, fsrc_get(st, c, t)?),
+        };
+        if s {
+            x = sat(x);
+        }
+        st.set_reg32(dn as usize, t, to_f32(x) as i128)?;
+    }
+    Ok(true)
+}
+
 /// fadd/fmul/fmadd 16/32 (`ops` = D, A, B[, C])
 pub fn float_arith(name: &str, f: &Fields, ops: &[Operand], st: &mut CoreState) -> R<()> {
     let half = name.ends_with("16");
     let s = fget(f, "S").unwrap_or(0) != 0;
+    let kind = if name.starts_with("fadd") { 0u8 } else if name.starts_with("fmul") { 1 } else { 2 };
+    if !half && float_arith_fast(kind, s, ops, st)? {
+        return Ok(());
+    }
+    let out16 = half || dsize(&ops[0]) == 16;
     for t in 0..SIMD_WIDTH {
         if !st.exec[t] {
             continue;
         }
         let a = float(st, &ops[1], t, !half)?;
         let b = float(st, &ops[2], t, !half)?;
-        let mut x = if name.starts_with("fadd") {
+        let mut x = if kind == 0 {
             a + b // exact in f64 for fp32/fp16 operands, except far-apart exponents where double rounding is harmless
-        } else if name.starts_with("fmul") {
+        } else if kind == 1 {
             a * b // exact (48-bit product)
         } else {
             let c = float(st, &ops[3], t, !half)?;
@@ -139,7 +212,7 @@ pub fn float_arith(name: &str, f: &Fields, ops: &[Operand], st: &mut CoreState) 
         if s {
             x = sat(x);
         }
-        let bits = if half || dsize(&ops[0]) == 16 { to_f16(x) } else { to_f32(x) };
+        let bits = if out16 { to_f16(x) } else { to_f32(x) };
         put(st, &ops[0], t, bits as u64)?;
     }
     Ok(())
@@ -180,7 +253,12 @@ fn cc_of(f: &Fields) -> u64 {
 }
 
 pub fn compare(float_cmp: bool, f: &Fields, a: &Operand, b: &Operand, st: &CoreState, t: usize) -> R<bool> {
-    let cc = cc_of(f);
+    compare_cc(float_cmp, cc_of(f), a, b, st, t)
+}
+
+/// `compare` with the condition code already read from the fields (lane loops read it once per instruction)
+#[inline]
+pub fn compare_cc(float_cmp: bool, cc: u64, a: &Operand, b: &Operand, st: &CoreState, t: usize) -> R<bool> {
     if float_cmp {
         Ok(fcond(cc, float(st, a, t, true)?, float(st, b, t, true)?))
     } else {
@@ -190,13 +268,152 @@ pub fn compare(float_cmp: bool, f: &Fields, a: &Operand, b: &Operand, st: &CoreS
     }
 }
 
-/// icmpsel / fcmpsel: D = cond(A, B) ? X : Y  (ops: D, A, B, X, Y)
-pub fn cmpsel(float_cmp: bool, f: &Fields, ops: &[Operand], st: &mut CoreState) -> R<()> {
+/// A source operand resolved once per instruction: a lane register (16 / 32-bit) or a value that is the same in every
+/// lane (uniform, immediate). `raw` without the per-lane operand match.
+#[derive(Clone, Copy)]
+enum Src {
+    L16(usize),
+    L32(usize),
+    K(u64, u32),
+}
+
+fn src_of(st: &CoreState, o: &Operand) -> R<Option<Src>> {
+    Ok(match o {
+        Operand::Reg16(n, _) => Some(Src::L16(*n as usize)),
+        Operand::Reg32(n, _) => Some(Src::L32(*n as usize)),
+        Operand::UReg16(..) | Operand::UReg32(..) | Operand::Imm(ImmVal::Int(_), _) => {
+            let (v, sz) = raw(st, o, 0)?;
+            Some(Src::K(v, sz))
+        }
+        _ => None,
+    })
+}
+
+#[inline(always)]
+fn src_get(st: &CoreState, s: Src, t: usize) -> R<(u64, u32)> {
+    Ok(match s {
+        Src::L16(n) => (st.get_reg16(n, t)? as u64, 16),
+        Src::L32(n) => (st.get_reg32(n, t)? as u64, 32),
+        Src::K(v, sz) => (v, sz),
+    })
+}
+
+/// icmpsel with 16 / 32-bit register, uniform or immediate operands: the common case, without per-lane operand
+/// dispatch. Same result as the general path (compare masks to the operand size and sign-extends for signed codes).
+/// Every operand is at most 32 bits wide, so the compare runs in i64; the condition code is decoded once.
+fn icmpsel_fast(cc: u64, ops: &[Operand], st: &mut CoreState) -> R<bool> {
+    let (Some(a), Some(b), Some(x), Some(y)) = (src_of(st, &ops[1])?, src_of(st, &ops[2])?, src_of(st, &ops[3])?, src_of(st, &ops[4])?)
+    else {
+        return Ok(false);
+    };
+    let (dn, d16) = match ops[0] {
+        Operand::Reg16(n, _) => (n as usize, true),
+        Operand::Reg32(n, _) => (n as usize, false),
+        _ => return Ok(false),
+    };
+    let signed = cc & 4 != 0;
+    let inv = cc & 8 != 0;
+    let op = cc & 3;
+    #[inline]
+    fn ext(v: u64, sz: u32, signed: bool) -> i64 {
+        let m = v & ((1u64 << sz) - 1);
+        if signed && m >> (sz - 1) & 1 == 1 { m as i64 - (1i64 << sz) } else { m as i64 }
+    }
+    // a constant operand is extended once
+    let ka = if let Src::K(v, sz) = a { Some(ext(v, sz, signed)) } else { None };
+    let kb = if let Src::K(v, sz) = b { Some(ext(v, sz, signed)) } else { None };
+    // Every register in range (checked once): lanes read and write the halves directly, with no per-lane checks.
+    // Otherwise the general loop below, which reports an out-of-range register at the lane that first touches it.
+    let n16 = st.reg16s.len();
+    let fits = |s: Src| match s { Src::L16(n) => n < n16, Src::L32(n) => 2 * n + 1 < n16, Src::K(..) => true };
+    if fits(a) && fits(b) && fits(x) && fits(y) && if d16 { dn < n16 } else { 2 * dn + 1 < n16 } {
+        #[inline(always)]
+        fn get(r: &[[u16; SIMD_WIDTH]], s: Src, t: usize) -> (u64, u32) {
+            match s {
+                Src::L16(n) => (r[n][t] as u64, 16),
+                Src::L32(n) => (r[2 * n][t] as u64 | (r[2 * n + 1][t] as u64) << 16, 32),
+                Src::K(v, sz) => (v, sz),
+            }
+        }
+        // operands gathered for every lane first (a lane only reads and writes its own registers)
+        let r = &st.reg16s;
+        let mut c = [inv; SIMD_WIDTH];
+        if op != 3 {
+            // the operand kind decided once, each loop with a fixed size
+            let ext_all = |s: Src, k: Option<i64>| -> [i64; SIMD_WIDTH] {
+                let mut o = [0i64; SIMD_WIDTH];
+                match (k, s) {
+                    (Some(k), _) => o.fill(k),
+                    (None, Src::L16(n)) => {
+                        for (t, x) in o.iter_mut().enumerate() {
+                            *x = ext(r[n][t] as u64, 16, signed);
+                        }
+                    }
+                    (None, Src::L32(n)) => {
+                        for (t, x) in o.iter_mut().enumerate() {
+                            *x = ext(r[2 * n][t] as u64 | (r[2 * n + 1][t] as u64) << 16, 32, signed);
+                        }
+                    }
+                    (None, s) => {
+                        for (t, x) in o.iter_mut().enumerate() {
+                            let (v, sz) = get(r, s, t);
+                            *x = ext(v, sz, signed);
+                        }
+                    }
+                }
+                o
+            };
+            let (av, bv) = (ext_all(a, ka), ext_all(b, kb));
+            for t in 0..SIMD_WIDTH {
+                c[t] = (match op { 0 => av[t] == bv[t], 1 => av[t] < bv[t], _ => av[t] > bv[t] }) != inv;
+            }
+        }
+        for t in 0..SIMD_WIDTH {
+            if !st.exec[t] {
+                continue;
+            }
+            let (v, _) = get(&st.reg16s, if c[t] { x } else { y }, t);
+            if d16 {
+                st.reg16s[dn][t] = v as u16;
+            } else {
+                st.reg16s[2 * dn][t] = v as u16;
+                st.reg16s[2 * dn + 1][t] = (v >> 16) as u16;
+            }
+        }
+        return Ok(true);
+    }
     for t in 0..SIMD_WIDTH {
         if !st.exec[t] {
             continue;
         }
-        let c = compare(float_cmp, f, &ops[1], &ops[2], st, t)?;
+        let c = if op == 3 {
+            inv
+        } else {
+            let av = match ka { Some(k) => k, None => { let (v, sz) = src_get(st, a, t)?; ext(v, sz, signed) } };
+            let bv = match kb { Some(k) => k, None => { let (v, sz) = src_get(st, b, t)?; ext(v, sz, signed) } };
+            (match op { 0 => av == bv, 1 => av < bv, _ => av > bv }) != inv
+        };
+        let (v, _) = src_get(st, if c { x } else { y }, t)?;
+        if d16 {
+            st.set_reg16(dn, t, (v & 0xffff) as i128)?;
+        } else {
+            st.set_reg32(dn, t, (v & 0xffff_ffff) as i128)?;
+        }
+    }
+    Ok(true)
+}
+
+/// icmpsel / fcmpsel: D = cond(A, B) ? X : Y  (ops: D, A, B, X, Y)
+pub fn cmpsel(float_cmp: bool, f: &Fields, ops: &[Operand], st: &mut CoreState) -> R<()> {
+    let cc = cc_of(f);
+    if !float_cmp && icmpsel_fast(cc, ops, st)? {
+        return Ok(());
+    }
+    for t in 0..SIMD_WIDTH {
+        if !st.exec[t] {
+            continue;
+        }
+        let c = compare_cc(float_cmp, cc, &ops[1], &ops[2], st, t)?;
         let (v, _) = raw(st, if c { &ops[3] } else { &ops[4] }, t)?;
         put(st, &ops[0], t, v)?;
     }
@@ -206,8 +423,9 @@ pub fn cmpsel(float_cmp: bool, f: &Fields, ops: &[Operand], st: &mut CoreState) 
 /// icmp/fcmp ballot (quad: each lane receives the 4-bit mask of its quad... variant chosen by the suite)
 pub fn ballot(float_cmp: bool, quad: bool, f: &Fields, ops: &[Operand], st: &mut CoreState) -> R<()> {
     let mut bits = 0u64;
+    let cc = cc_of(f);
     for t in 0..SIMD_WIDTH {
-        if st.exec[t] && compare(float_cmp, f, &ops[1], &ops[2], st, t)? {
+        if st.exec[t] && compare_cc(float_cmp, cc, &ops[1], &ops[2], st, t)? {
             bits |= 1 << t;
         }
     }
@@ -223,28 +441,42 @@ pub fn ballot(float_cmp: bool, quad: bool, f: &Fields, ops: &[Operand], st: &mut
 /// if / else / while exec-mask update (applegpu semantics, r0l nesting counter), any condition code
 pub fn mask_ctl(kind: &str, float_cmp: bool, f: &Fields, ops: &[Operand], st: &mut CoreState) -> R<()> {
     let n = fget(f, "n").unwrap_or(1) as i128;
+    let cc = cc_of(f);
+    let k = match kind { "if" => 0u8, "while" => 1, _ => 2 };
     // operands: r0l (destination), A, B
     let (a, b) = (&ops[1], &ops[2]);
+    // integer compares on 16 / 32-bit registers, uniforms or immediates: operands resolved once (as icmpsel_fast)
+    let fast = if float_cmp { None } else { match (src_of(st, a)?, src_of(st, b)?) { (Some(x), Some(y)) => Some((x, y)), _ => None } };
+    let cmp = |st: &CoreState, t: usize| -> R<bool> {
+        match fast {
+            Some((x, y)) => {
+                let (av, asz) = src_get(st, x, t)?;
+                let (bv, bsz) = src_get(st, y, t)?;
+                Ok(icond(cc, (av & ((1u64 << asz) - 1)) as i128, asz, (bv & ((1u64 << bsz) - 1)) as i128, bsz))
+            }
+            None => compare_cc(float_cmp, cc, a, b, st, t),
+        }
+    };
     for t in 0..SIMD_WIDTH {
         let mut v = st.get_reg16(0, t)?;
-        match kind {
-            "if" => {
+        match k {
+            0 => {
                 if v != 0 {
                     v += n;
-                } else if !compare(float_cmp, f, a, b, st, t)? {
+                } else if !cmp(st, t)? {
                     v = 1;
                 }
             }
-            "while" => {
+            1 => {
                 if v < n {
-                    v = if compare(float_cmp, f, a, b, st, t)? { 0 } else { n };
+                    v = if cmp(st, t)? { 0 } else { n };
                 }
             }
             _ => {
                 if v == 0 {
                     v = n;
                 } else if v == 1 {
-                    v = if compare(float_cmp, f, a, b, st, t)? { 0 } else { 1 };
+                    v = if cmp(st, t)? { 0 } else { 1 };
                 }
             }
         }
@@ -412,7 +644,8 @@ fn xapply(op: XOp, x: u32, y: u32) -> u32 {
         XOp::MinF | XOp::MaxF => {
             let (fx, fy) = (daz_bits(x), daz_bits(y));
             if fx.is_nan() {
-                return y;
+                // NaN loses; of two NaNs the left one is kept
+                return if fy.is_nan() { x } else { y };
             }
             if fy.is_nan() || fx == fy {
                 return x;
@@ -470,6 +703,10 @@ pub fn cross_lane(name: &str, ops: &[Operand], st: &mut CoreState) -> R<()> {
             // fadd / fmul read denormals as signed zero (also when a lane's value passes through unchanged)
             let flush = matches!(op, XOp::FAdd | XOp::FMul) && (b >> 23) & 0xff == 0;
             x[t] = Some(if flush { b & 0x8000_0000 } else { b });
+        } else if matches!(op, XOp::MinF | XOp::MaxF) {
+            // inactive lanes take part as the canonical NaN (random/prog_106: a lone active NaN comes out canonical,
+            // while four active NaNs keep their raw bits, prog_077)
+            x[t] = Some(NAN32);
         }
     }
     let w = if quad { 4 } else { 32 };
@@ -549,6 +786,92 @@ pub fn quad_shuffle(name: &str, ops: &[Operand], st: &mut CoreState) -> R<()> {
         .ok_or_else(|| format!("{} not modelled", name))?;
         let v = if (0..4).contains(&j) { a[q + j as usize] } else { a[t] };
         put(st, &ops[0], t, v)?;
+    }
+    Ok(())
+}
+
+// ---- transcendentals --------------------------------------------------------------------------------------
+//
+// fp16 forms are correctly rounded (every sampled lane of the suite). fp32 forms are the hardware's ~26-bit
+// approximation, which the suite does not pin down (10-15% of lanes differ by 1-3 ulp from correct rounding);
+// they are modelled as correctly rounded unless a recorded table (`transcendental_table`) supplies the exact
+// mantissa mapping. Special values, the denormal rules (fp32 inputs flushed to zero, fp16 denormals kept) and
+// sin_pt_1 are exact.
+
+/// Exact value (in f64) of the function, before rounding to the destination format.
+fn trans_f64(name: &str, x: f64) -> f64 {
+    match name {
+        "rcp" => 1.0 / x,
+        "rsqrt" | "rsqrt_special" => {
+            if x < 0.0 {
+                f64::NAN
+            } else if x == 0.0 {
+                // rsqrt(±0) = ±inf; rsqrt_special(±0) = 1
+                if name == "rsqrt" { f64::INFINITY.copysign(x) } else { 1.0 }
+            } else if x.is_infinite() {
+                if name == "rsqrt" { 0.0 } else { 1.0 }
+            } else {
+                1.0 / x.sqrt()
+            }
+        }
+        "log2" => {
+            if x == 0.0 {
+                f64::NEG_INFINITY
+            } else if x < 0.0 {
+                f64::NAN
+            } else {
+                x.log2()
+            }
+        }
+        "exp2" => x.exp2(),
+        "sin_pt_1" => {
+            let ax = x.abs();
+            if x.is_nan() || ax > 4.0 {
+                f64::NAN
+            } else if x == 0.0 {
+                0.0
+            } else if ax <= 1.0 {
+                x
+            } else if ax <= 3.0 {
+                (2.0 - ax) * x.signum()
+            } else {
+                (ax - 4.0) * x.signum()
+            }
+        }
+        "sin_pt_2" => {
+            if x.is_nan() || x.abs() > 1.0 {
+                f64::NAN
+            } else if x == 0.0 {
+                std::f64::consts::FRAC_PI_2
+            } else {
+                (std::f64::consts::FRAC_PI_2 * x).sin() / x
+            }
+        }
+        _ => f64::NAN,
+    }
+}
+
+pub fn transcendental(name: &str, ops: &[Operand], st: &mut CoreState) -> R<()> {
+    let d16 = dsize(&ops[0]) == 16;
+    for t in 0..SIMD_WIDTH {
+        if !st.exec[t] {
+            continue;
+        }
+        let (bits, sz) = raw(st, &ops[1], t)?;
+        // fp32 sources: denormals read as zero; fp16 sources keep denormals
+        let x = float(st, &ops[1], t, true)?;
+        let y = if !d16 && sz == 32 {
+            match crate::transtab::lookup(name, bits as u32, &ops[1]) {
+                Some(b) => {
+                    put(st, &ops[0], t, b as u64)?;
+                    continue;
+                }
+                None => trans_f64(name, x),
+            }
+        } else {
+            trans_f64(name, x)
+        };
+        put(st, &ops[0], t, if d16 { to_f16(y) } else { to_f32(y) } as u64)?;
     }
     Ok(())
 }

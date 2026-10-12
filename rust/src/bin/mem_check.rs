@@ -95,11 +95,15 @@ fn main() {
         let d = read_json(std::path::Path::new(f)).unwrap();
         let st: Vec<u32> = d["steps"].as_array().unwrap().iter().map(|x| x.as_u64().unwrap() as u32).collect();
         let mut errs = vec![];
-        for r in d["rows"].as_array().unwrap() {
-            let Some(meas) = r["core_cycles_per_step"].as_f64() else { continue };
+        let rows: Vec<&serde_json::Value> = d["rows"].as_array().unwrap().iter().filter(|r| r["core_cycles_per_step"].as_f64().is_some()).collect();
+        // rows are independent: simulate them on every core (output order unchanged)
+        let preds = agx_sim::par::map_by(&rows, |r| r["groups"].as_u64().unwrap_or(1), |r| {
             let mm = MemModel { clock_mhz: r["mhz"].as_f64().unwrap_or(1398.0) * cost::REAL_CYCLES_PER_UNIT, warm: false, ..Default::default() };
             let mm = MemModel { l2_extra: std::env::var("AGX_L2_EXTRA").ok().and_then(|v| v.parse().ok()).unwrap_or(mm.l2_extra), ..mm };
-            let pred = predict(&p, r, [st[0], st[1]], &mm);
+            predict(&p, r, [st[0], st[1]], &mm)
+        });
+        for (r, pred) in rows.into_iter().zip(preds) {
+            let meas = r["core_cycles_per_step"].as_f64().unwrap();
             let e = (pred - meas) / meas;
             errs.push(e.abs());
             if verbose {

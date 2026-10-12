@@ -1,0 +1,23 @@
+#version 450
+// Minimum, maximum and xor of 64-bit values with shared-memory 64-bit atomics: every workgroup combines its 256
+// values in shared memory (atomicMin / atomicMax / atomicXor on uint64), then one lane merges the workgroup's
+// results into the global ones with buffer 64-bit atomics. Exact under any order.
+#extension GL_ARB_gpu_shader_int64 : require
+#extension GL_EXT_shader_atomic_int64 : require
+layout(local_size_x = 256) in;
+layout(std430, binding = 0) readonly buffer V { uint64_t v[]; };
+layout(std430, binding = 1) buffer R { uint64_t gmin; uint64_t gmax; uint64_t gxor; };
+layout(push_constant) uniform P { uint n; } p;
+shared uint64_t smin, smax, sxor;
+
+void main() {
+    uint i = gl_GlobalInvocationID.x, l = gl_LocalInvocationID.x;
+    if (l == 0u) { smin = 0xfffffffffffffffful; smax = 0ul; sxor = 0ul; }
+    barrier();
+    if (i < p.n) {
+        uint64_t x = v[i];
+        atomicMin(smin, x); atomicMax(smax, x); atomicXor(sxor, x);
+    }
+    barrier();
+    if (l == 0u) { atomicMin(gmin, smin); atomicMax(gmax, smax); atomicXor(gxor, sxor); }
+}
