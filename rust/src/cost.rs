@@ -1874,14 +1874,20 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
                             // bank conflicts: 32 banks of 4 bytes; lanes on the same word share one access, except
                             // for threadgroup atomics, which serialise per lane (one word for all lanes: 32 cycles)
                             let tga = r.kind == Kind::TgAtomic;
-                            let mut per_bank: HashMap<u64, Vec<u64>> = HashMap::new();
-                            for &w in words {
-                                let e = per_bank.entry(w % 32).or_default();
-                                if tga || !e.contains(&w) {
-                                    e.push(w);
+                            let mut per_bank = [0usize; 32];
+                            if tga {
+                                for &w in words {
+                                    per_bank[(w % 32) as usize] += 1;
+                                }
+                            } else {
+                                let mut ws = words.clone();
+                                ws.sort_unstable();
+                                ws.dedup();
+                                for &w in &ws {
+                                    per_bank[(w % 32) as usize] += 1;
                                 }
                             }
-                            let degree = per_bank.values().map(Vec::len).max().unwrap_or(1).max(1);
+                            let degree = per_bank.iter().copied().max().unwrap_or(1).max(1);
                             // the group's own threadgroup accesses are serial
                             let base = if tga {
                                 if r.dst.is_empty() { mm.tg_group_atomic } else { mm.tg_group_atomic_ret }
