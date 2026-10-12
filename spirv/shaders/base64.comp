@@ -1,0 +1,23 @@
+#version 450
+// Base64 encoding (RFC 4648 alphabet, '=' padding): each thread turns 3 input bytes into 4 output characters.
+#extension GL_EXT_shader_8bit_storage : require
+#extension GL_EXT_shader_explicit_arithmetic_types_int8 : require
+layout(local_size_x = 256) in;
+layout(std430, binding = 0) readonly buffer I { uint8_t src[]; };
+layout(std430, binding = 1) writeonly buffer O { uint8_t dst[]; };
+layout(push_constant) uniform P { uint n; } p;
+
+uint enc(uint v) {                                     // 0..63 -> A-Z a-z 0-9 + /
+    return v < 26u ? 65u + v : v < 52u ? 97u + v - 26u : v < 62u ? 48u + v - 52u : v == 62u ? 43u : 47u;
+}
+
+void main() {
+    uint g = gl_GlobalInvocationID.x, i = 3u * g;
+    if (i >= p.n) return;
+    uint b0 = uint(src[i]), b1 = i + 1u < p.n ? uint(src[i + 1u]) : 0u, b2 = i + 2u < p.n ? uint(src[i + 2u]) : 0u;
+    uint w = b0 << 16 | b1 << 8 | b2;
+    dst[4u * g] = uint8_t(enc(w >> 18));
+    dst[4u * g + 1u] = uint8_t(enc((w >> 12) & 63u));
+    dst[4u * g + 2u] = uint8_t(i + 1u < p.n ? enc((w >> 6) & 63u) : 61u);
+    dst[4u * g + 3u] = uint8_t(i + 2u < p.n ? enc(w & 63u) : 61u);
+}

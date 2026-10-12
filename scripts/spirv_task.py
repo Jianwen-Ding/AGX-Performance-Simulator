@@ -1075,6 +1075,76 @@ def w_poisson(size, rng):
     return W('poisson', {0: (8 * n * n, True), 1: (f, False)}, ds, check, (16, 16, 1), {'cell_updates': n * n * iters})
 
 
+
+LBM_C = np.array([[0, 0], [1, 0], [0, 1], [-1, 0], [0, -1], [1, 1], [-1, 1], [-1, -1], [1, -1]])
+LBM_W = np.array([4 / 9] + [1 / 9] * 4 + [1 / 36] * 4)
+
+
+def lbm_feq(rho, ux, uy):
+    cu = LBM_C[:, 0, None, None] * ux + LBM_C[:, 1, None, None] * uy
+    return LBM_W[:, None, None] * rho * (1 + 3 * cu + 4.5 * cu * cu - 1.5 * (ux * ux + uy * uy))
+
+
+def w_lbm(size, rng):
+    nx, ny, steps = (48, 32, 20) if size == 'small' else (512, 512, 200)
+    omega = 1.2
+    yy = np.arange(ny)[:, None] * np.ones((1, nx))
+    ux0 = 0.05 * np.sin(2 * np.pi * yy / ny); uy0 = np.zeros((ny, nx))   # decaying shear wave
+    f0 = f32(lbm_feq(np.ones((ny, nx)), ux0, uy0))                     # [9, ny, nx]
+    def check(o):
+        got = o[0].view(np.float32)[:9 * nx * ny].reshape(9, ny, nx)    # even step count ends in the first half
+        fv = f0.astype(np.float64)
+        for _ in range(steps):
+            fi = np.stack([np.roll(np.roll(fv[i], LBM_C[i, 1], 0), LBM_C[i, 0], 1) for i in range(9)])
+            rho = fi.sum(0); ux = (fi * LBM_C[:, 0, None, None]).sum(0) / rho; uy = (fi * LBM_C[:, 1, None, None]).sum(0) / rho
+            fv = fi + omega * (lbm_feq(rho, ux, uy) - fi)
+        err = float(np.max(np.abs(got - fv)))
+        mass = float(abs(got.astype(np.float64).sum() - nx * ny) / (nx * ny))
+        return err < 2e-6 and mass < 1e-5, {'max_abs_err': err, 'mass_drift': mass}
+    ds = [((nx + 15) // 16, (ny + 15) // 16, 1, push(nx, ny, k & 1, omega)) for k in range(steps)]
+    return W('lbm', {0: (np.concatenate([f0.ravel(), np.zeros(9 * nx * ny, np.float32)]), True)}, ds, check, (16, 16, 1),
+             {'cell_updates': nx * ny * steps})
+
+
+def w_base64(size, rng):
+    n = 3 * 1000 + 2 if size == 'small' else 3 * (1 << 22) + 1           # lengths leave a 2- / 1-byte tail: '=' / '=='
+    data = rng.integers(0, 256, n, dtype=np.uint8)
+    out_len = 4 * ((n + 2) // 3)
+    def check(o):
+        import base64
+        got = o[1][:out_len].tobytes()
+        ref = base64.b64encode(data.tobytes())
+        bad = [i for i in range(len(ref)) if got[i] != ref[i]][:5] if got != ref else []
+        return got == ref, {'chars': out_len, 'first_mismatches': bad, 'tail': got[-4:].decode('latin1')}
+    return W('base64', {0: (data, False), 1: (out_len, True)}, [(((n + 2) // 3 + 255) // 256, 1, 1, push(n))],
+             check, 256, {'bytes': n})
+
+
+def w_md5(size, rng):
+    n = 256 if size == 'small' else 1 << 18
+    msgs = rng.integers(0, 256, (n, 55), dtype=np.uint8)
+    blocks = np.zeros((n, 64), np.uint8); blocks[:, :55] = msgs; blocks[:, 55] = 0x80; blocks[:, 56] = 0xb8; blocks[:, 57] = 0x01   # 440 bits
+    words = blocks.view('<u4').astype(np.uint32)
+    def check(o):
+        got = o[1].view(np.uint32)[:4 * n].reshape(n, 4)
+        rows = range(n) if size == 'small' else rng.choice(n, 4096, replace=False)
+        bad = sum(got[i].astype('<u4').tobytes() != hashlib.md5(bytes(msgs[i])).digest() for i in rows)
+        return bad == 0, {'bad_digests': int(bad)}
+    return W('md5', {0: (words, False), 1: (16 * n, True)}, [((n + 63) // 64, 1, 1, push(n))], check, 64, {'hashes': n})
+
+
+def w_gemv(size, rng):
+    M, N = (64, 1000) if size == 'small' else (8192, 8192)
+    a = f32(rng.uniform(-1, 1, (M, N))); x = f32(rng.uniform(-1, 1, N))
+    def check(o):
+        got = o[2].view(np.float32)[:M]
+        ref = a.astype(np.float64) @ x.astype(np.float64)
+        bound = (np.abs(a).astype(np.float64) @ np.abs(x).astype(np.float64)) * (N + 2) * 2.0 ** -24
+        excess = float(np.max(np.abs(got - ref) / bound))
+        return excess <= 1.0, {'max_err_over_bound': excess}
+    return W('gemv', {0: (a, False), 1: (x, False), 2: (4 * M, True)}, [(M, 1, 1, push(N))], check, 256, {'bytes': 4 * M * N, 'flops': 2 * M * N})
+
+
 WORKLOADS = {'reduce': w_reduce, 'scan': w_scan, 'sgemm': w_sgemm, 'conv2d': w_conv2d, 'histogram': w_histogram,
              'nbody': w_nbody, 'bitonic': w_bitonic, 'sha256': w_sha256, 'fp16': w_fp16, 'int64': w_int64, 'bitops': w_bitops,
              'intdiv': w_intdiv, 'compact': w_compact, 'spmv': w_spmv, 'transpose': w_transpose, 'mandelbrot': w_mandelbrot,
@@ -1083,7 +1153,8 @@ WORKLOADS = {'reduce': w_reduce, 'scan': w_scan, 'sgemm': w_sgemm, 'conv2d': w_c
              'crc32': w_crc32, 'kmeans': w_kmeans, 'int8dot': w_int8dot, 'stencil3d': w_stencil3d, 'int16': w_int16, 'trig': w_trig,
              'raytrace': w_raytrace, 'mlp': w_mlp, 'sobel': w_sobel, 'life': w_life, 'bfs': w_bfs, 'conv_layer': w_conv_layer,
              'hist_eq': w_hist_eq, 'aes': w_aes, 'hash_table': w_hash_table, 'word_count': w_word_count, 'dct8': w_dct8,
-             'attention': w_attention, 'resize': w_resize, 'median3': w_median3, 'poisson': w_poisson}
+             'attention': w_attention, 'resize': w_resize, 'median3': w_median3, 'poisson': w_poisson,
+             'lbm': w_lbm, 'base64': w_base64, 'md5': w_md5, 'gemv': w_gemv}
 
 
 # ---------------------------------------------------------------------------------------------------------------

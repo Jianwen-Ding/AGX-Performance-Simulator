@@ -1,7 +1,7 @@
 # Task SPIR-V 8: applications (ray tracer, neural networks, image processing, cellular automaton, graph search,
 # encryption, hashing, text, compression)
 
-**Workloads:** `raytrace`, `mlp`, `sobel`, `life`, `bfs`, `conv_layer`, `hist_eq`, `aes`, `hash_table`, `word_count`, `dct8`, `attention`, `resize`, `median3`, `poisson`. These are recorded and verified by `make asahi-verify` with the others;
+**Workloads:** `raytrace`, `mlp`, `sobel`, `life`, `bfs`, `conv_layer`, `hist_eq`, `aes`, `hash_table`, `word_count`, `dct8`, `attention`, `resize`, `median3`, `poisson`, `lbm`, `base64`, `md5`, `gemv`. These are recorded and verified by `make asahi-verify` with the others;
 they are **PENDING** until then. The detailed procedure is in `tasks/spirv-workloads.md`.
 
 ## Why these
@@ -27,11 +27,15 @@ reference.
 | `resize` | Bilinear 3× upscale of a 720p RGBA image to 4K | `image1.ppm`; within 1 level per channel |
 | `median3` | Removing salt-and-pepper noise (10% of pixels) from a 4K image with a 3×3 median | `image1.pgm`; exact (830 K noisy pixels in, 643 out on lavapipe) |
 | `poisson` | 200 Jacobi sweeps of a 1024² Poisson solve, one dispatch each | Solution field; within 1e-5 of the same iteration in float64 |
+| `lbm` | A decaying shear wave in a lattice-Boltzmann fluid (512², 200 steps) | Distributions within 2e-6 of float64; mass drift < 1e-5 |
+| `base64` | Base64-encode 12 MiB of bytes | Text identical to Python's `base64` |
+| `md5` | MD5 of 256 Ki messages | Digests identical to `hashlib` |
+| `gemv` | y = A x for an 8192 × 8192 fp32 matrix (256 MiB read) | Within the summation error bound; GB/s against the memory bandwidth |
 
 ## Offline sanity checks (not hardware verification)
 
 - **lavapipe:** all three pass at both sizes.
-- **Shim-compiled Mesa 25.2.8 and 26.0.3 code on the functional simulator:** 30 of 30.
+- **Shim-compiled Mesa 25.2.8 and 26.0.3 code on the functional simulator:** 38 of 38.
   - `bfs` found a simulator bug. Mesa aggregates `atomicAdd(found[l], 1)` under divergence: one lane, chosen with SR58
     (`active_thread_index_in_simdgroup`), adds SR59, the number of active lanes. The simulator modelled both from the
     launch shape (lane index, 32), which is only right when every lane is active, so the counts came out as multiples

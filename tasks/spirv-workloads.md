@@ -31,7 +31,7 @@ The rest of this file is the detailed procedure, for investigating results.
 
 ## Workloads
 
-Forty-seven realistic compute kernels, written in GLSL (`spirv/shaders/*.comp`) and compiled to SPIR-V:
+Fifty-one realistic compute kernels, written in GLSL (`spirv/shaders/*.comp`) and compiled to SPIR-V:
 
 | Workload | Kernel | Stresses |
 |---|---|---|
@@ -82,6 +82,10 @@ Forty-seven realistic compute kernels, written in GLSL (`spirv/shaders/*.comp`) 
 | `resize` | Bilinear RGBA8 upscaling (1280×720 → 3840×2160 large) | Fractional coordinates, floor, mix, unorm pack; ±1 level; writes a `.ppm` |
 | `median3` | 3×3 median filter (19-exchange min/max network) on a noisy 4K image | Integer min / max, shared halo tile; exact; writes a `.pgm` |
 | `poisson` | Jacobi iterations of a 2-D Poisson solve (1024², 200 dispatches large) | Many small dispatches, ping-pong buffers, boundary branches |
+| `lbm` | Lattice-Boltzmann fluid flow (D2Q9 BGK, periodic 512², 200 steps large) | 9-direction gathers, division, many dispatches; mass conserved |
+| `base64` | Base64 encoding of 12 MiB (both '=' padding cases) | Byte loads / stores, select chains; exact |
+| `md5` | MD5 of 256 Ki single-block messages | Integer rotates, branches per round group; exact |
+| `gemv` | Dense matrix-vector product, 8192² fp32, one workgroup per row | Memory bandwidth, shared-memory tree reduction |
 
 Each workload has two sizes:
 
@@ -168,11 +172,11 @@ references are right; a wrong result on the M2 is therefore a GPU, driver or run
    python3 -B scripts/spirv_task.py sim sgemm --code-dir spirv/out/sgemm-small/code --hardware spirv/out/sgemm-small
    ```
 
-   - Offline, all forty-seven workloads pass their numpy references with shim-compiled Mesa 25.2.8 and 26.0.3 code
+   - Offline, all fifty-one workloads pass their numpy references with shim-compiled Mesa 25.2.8 and 26.0.3 code
      (`make spirv-sim`). That is a sanity check; verification is `make spirv-verify` against the M2 recordings.
    - Integer workloads (`scan`, `histogram`, `bitonic`, `sha256`, `int64`, `bitops`, `intdiv`, `compact`, `transpose`,
      `mandelbrot`, `atomics`, `geom3d`, `spill`, `control`, `shuffle`, `floatops`, `radix_sort`, `crc32`, `int8dot`, `int16`, `sobel`,
-     `life`, `bfs`, `hist_eq`, `aes`, `hash_table`, `word_count`, `median3`, and reduce's uint half) must match the hardware word for word.
+     `life`, `bfs`, `hist_eq`, `aes`, `hash_table`, `word_count`, `median3`, `base64`, `md5`, and reduce's uint half) must match the hardware word for word.
    - Float workloads only need to be close: within the workload's reference tolerance. Last-bit float differences
      (fp32 transcendentals, summation order) are not worth chasing.
    - When `agx_run` stops on an unimplemented instruction or format, that is the finding: report it, and implement it

@@ -1,0 +1,40 @@
+#version 450
+// MD5 of independent single-block messages (already padded to 64 bytes), one per thread: 64 rounds of the four
+// auxiliary functions, left rotations and the sine-derived constants. Words little-endian.
+layout(local_size_x = 64) in;
+layout(std430, binding = 0) readonly buffer M { uint msg[]; };
+layout(std430, binding = 1) writeonly buffer D { uint digest[]; };
+layout(push_constant) uniform P { uint n; } p;
+
+const uint K[64] = uint[](
+    0xd76aa478u, 0xe8c7b756u, 0x242070dbu, 0xc1bdceeeu, 0xf57c0fafu, 0x4787c62au, 0xa8304613u, 0xfd469501u,
+    0x698098d8u, 0x8b44f7afu, 0xffff5bb1u, 0x895cd7beu, 0x6b901122u, 0xfd987193u, 0xa679438eu, 0x49b40821u,
+    0xf61e2562u, 0xc040b340u, 0x265e5a51u, 0xe9b6c7aau, 0xd62f105du, 0x02441453u, 0xd8a1e681u, 0xe7d3fbc8u,
+    0x21e1cde6u, 0xc33707d6u, 0xf4d50d87u, 0x455a14edu, 0xa9e3e905u, 0xfcefa3f8u, 0x676f02d9u, 0x8d2a4c8au,
+    0xfffa3942u, 0x8771f681u, 0x6d9d6122u, 0xfde5380cu, 0xa4beea44u, 0x4bdecfa9u, 0xf6bb4b60u, 0xbebfbc70u,
+    0x289b7ec6u, 0xeaa127fau, 0xd4ef3085u, 0x04881d05u, 0xd9d4d039u, 0xe6db99e5u, 0x1fa27cf8u, 0xc4ac5665u,
+    0xf4292244u, 0x432aff97u, 0xab9423a7u, 0xfc93a039u, 0x655b59c3u, 0x8f0ccc92u, 0xffeff47du, 0x85845dd1u,
+    0x6fa87e4fu, 0xfe2ce6e0u, 0xa3014314u, 0x4e0811a1u, 0xf7537e82u, 0xbd3af235u, 0x2ad7d2bbu, 0xeb86d391u);
+const uint R[16] = uint[](7u, 12u, 17u, 22u, 5u, 9u, 14u, 20u, 4u, 11u, 16u, 23u, 6u, 10u, 15u, 21u);
+
+uint rotl(uint x, uint c) { return (x << c) | (x >> (32u - c)); }
+
+void main() {
+    uint i = gl_GlobalInvocationID.x;
+    if (i >= p.n) return;
+    uint m[16];
+    for (uint k = 0u; k < 16u; k++) m[k] = msg[16u * i + k];
+    uint a = 0x67452301u, b = 0xefcdab89u, c = 0x98badcfeu, d = 0x10325476u;
+    for (uint r = 0u; r < 64u; r++) {
+        uint F, gidx;
+        if (r < 16u) { F = (b & c) | (~b & d); gidx = r; }
+        else if (r < 32u) { F = (d & b) | (~d & c); gidx = (5u * r + 1u) & 15u; }
+        else if (r < 48u) { F = b ^ c ^ d; gidx = (3u * r + 5u) & 15u; }
+        else { F = c ^ (b | ~d); gidx = (7u * r) & 15u; }
+        uint tmp = d; d = c; c = b;
+        b = b + rotl(a + F + K[r] + m[gidx], R[(r / 16u) * 4u + (r & 3u)]);
+        a = tmp;
+    }
+    digest[4u * i] = 0x67452301u + a; digest[4u * i + 1u] = 0xefcdab89u + b;
+    digest[4u * i + 2u] = 0x98badcfeu + c; digest[4u * i + 3u] = 0x10325476u + d;
+}
