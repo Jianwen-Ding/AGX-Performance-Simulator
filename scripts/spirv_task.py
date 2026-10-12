@@ -1619,6 +1619,31 @@ def w_bvhrays(size, rng):
                          2: (np.ascontiguousarray(R.reshape(-1, 4)), False), 3: (8 * n, True)},
              [((n + 63) // 64, 1, 1, push(n))], check, 64, {'items': n})
 
+def w_adamw(size, rng):
+    n = 1 << 14 if size == 'small' else 1 << 22
+    lr, b1, b2, eps, wd, t = 1e-3, 0.9, 0.999, 1e-8, 0.01, 100
+    bc1, bc2 = 1 - b1 ** t, 1 - b2 ** t
+    p0 = f32(rng.normal(0, 0.05, n)); g = f32(rng.normal(0, 1e-2, n) * rng.lognormal(0, 1.5, n))
+    m0 = f32(rng.normal(0, 1e-3, n)); v0 = f32(np.abs(rng.normal(0, 1e-4, n)) ** 2)
+    g[:4] = [0.0, 1e-30, -5.0, 3e3]                                            # zero, tiny, large gradients
+    def check(o):
+        P = o[0].view(np.float32)[:n].astype(np.float64)
+        M = o[2].view(np.float32)[:n].astype(np.float64); V = o[3].view(np.float32)[:n].astype(np.float64)
+        g64 = g.astype(np.float64)
+        rm = np.float32(b1) * m0.astype(np.float64) + (1 - np.float32(b1)) * g64
+        rv = np.float32(b2) * v0.astype(np.float64) + (1 - np.float32(b2)) * g64 * g64
+        upd = (rm / np.float32(bc1)) / (np.sqrt(rv / np.float32(bc2)) + np.float32(eps))
+        rp = p0.astype(np.float64) - np.float32(lr) * (upd + np.float32(wd) * p0.astype(np.float64))
+        u = 2.0 ** -24
+        em = float(np.max(np.abs(M - rm) / (np.abs(m0) + np.abs(g64) + 1e-38) / u))
+        ev = float(np.max(np.abs(V - rv) / (np.abs(v0) + g64 * g64 + 1e-38) / u))
+        ep = float(np.max(np.abs(P - rp) / (np.abs(p0) + np.float32(lr) * (np.abs(upd) + 1) + 1e-38) / u))
+        return max(em, ev, ep) <= 16, {'m_err_ulps': round(em, 2), 'v_err_ulps': round(ev, 2), 'p_err_ulps': round(ep, 2)}
+    pc = push(n, lr, b1, b2, eps, wd, bc1, bc2)
+    return W('adamw', {0: (p0, True), 1: (g, False), 2: (m0, True), 3: (v0, True)}, [((n + 255) // 256, 1, 1, pc)], check, 256,
+             {'bytes': 28 * n})
+
+
 def w_spmv(size, rng):
     rows, cols = (512, 512) if size == 'small' else (1 << 18, 1 << 18)
     nnz = rng.integers(0, 64, rows) * (rng.random(rows) < 0.95)    # some empty rows
@@ -4148,7 +4173,7 @@ WORKLOADS = {'reduce': w_reduce, 'scan': w_scan, 'sgemm': w_sgemm, 'conv2d': w_c
              'aluprobe': w_aluprobe, 'ubopalette': w_ubopalette, 'uboparams': w_uboparams,
              'bindless': w_bindless, 'bindlessu': w_bindlessu,
              # appended only: the input seed is the index in this dict
-             'rle': w_rle, 'huffdec': w_huffdec, 'lookback': w_lookback, 'hll': w_hll, 'tricount': w_tricount, 'sha3': w_sha3, 'stereo': w_stereo, 'viterbi': w_viterbi, 'viterbifix': w_viterbifix, 'shiftfuse': w_shiftfuse, 'bc1enc': w_bc1enc, 'lz4dec': w_lz4dec, 'nttmul': w_nttmul, 'topk': w_topk, 'cellsort': w_cellsort, 'boruvka': w_boruvka, 'biquad': w_biquad, 'edt': w_edt, 'mt19937': w_mt19937, 'bitap': w_bitap, 'cholesky': w_cholesky, 'rsshash': w_rsshash, 'poly1305': w_poly1305, 'crc32c': w_crc32c, 'siphash': w_siphash, 'blake2s': w_blake2s, 'blake2sfast': w_blake2sfast, 'q4gemv': w_q4gemv, 'attndec': w_attndec, 'attndecsplit': w_attndecsplit, 'rmsrope': w_rmsrope, 'q8dot': w_q8dot, 'isp': w_isp, 'contour': w_contour, 'hough': w_hough, 'spmvsg': w_spmvsg, 'varint': w_varint, 'bvhrays': w_bvhrays}
+             'rle': w_rle, 'huffdec': w_huffdec, 'lookback': w_lookback, 'hll': w_hll, 'tricount': w_tricount, 'sha3': w_sha3, 'stereo': w_stereo, 'viterbi': w_viterbi, 'viterbifix': w_viterbifix, 'shiftfuse': w_shiftfuse, 'bc1enc': w_bc1enc, 'lz4dec': w_lz4dec, 'nttmul': w_nttmul, 'topk': w_topk, 'cellsort': w_cellsort, 'boruvka': w_boruvka, 'biquad': w_biquad, 'edt': w_edt, 'mt19937': w_mt19937, 'bitap': w_bitap, 'cholesky': w_cholesky, 'rsshash': w_rsshash, 'poly1305': w_poly1305, 'crc32c': w_crc32c, 'siphash': w_siphash, 'blake2s': w_blake2s, 'blake2sfast': w_blake2sfast, 'q4gemv': w_q4gemv, 'attndec': w_attndec, 'attndecsplit': w_attndecsplit, 'rmsrope': w_rmsrope, 'q8dot': w_q8dot, 'isp': w_isp, 'contour': w_contour, 'hough': w_hough, 'spmvsg': w_spmvsg, 'varint': w_varint, 'bvhrays': w_bvhrays, 'adamw': w_adamw}
 
 
 # ---------------------------------------------------------------------------------------------------------------
