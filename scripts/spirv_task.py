@@ -1232,6 +1232,33 @@ def w_blake2sfast(size, rng):
     return w
 
 
+def w_q4gemv(size, rng):
+    rows, cols = (64, 1024) if size == 'small' else (4096, 4096)
+    nb = cols // 32
+    W_ = rng.normal(0, 0.02, (rows, cols)).astype(np.float32)                 # weights, quantised as llama.cpp does
+    blocks = W_.reshape(rows, nb, 32)
+    amax_idx = np.abs(blocks).argmax(-1)
+    mx = np.take_along_axis(blocks, amax_idx[..., None], -1)[..., 0]           # signed value of largest magnitude
+    d = (mx / -8).astype(np.float16)
+    idf = np.where(d != 0, 1 / d.astype(np.float32), 0)
+    q = np.clip(np.floor(blocks * idf[..., None] + 8.5), 0, 15).astype(np.uint8)
+    raw = np.zeros((rows, nb, 18), np.uint8)
+    raw[..., :2] = d.view(np.uint8).reshape(rows, nb, 2)
+    raw[..., 2:] = q[..., :16] | (q[..., 16:] << 4)
+    x = f32(rng.normal(0, 1, cols))
+    deq = (q.astype(np.float64) - 8) * d.astype(np.float64)[..., None]        # the weights the kernel multiplies
+    def check(o):
+        got = o[2].view(np.float32)[:rows].astype(np.float64)
+        ref = deq.reshape(rows, cols) @ x.astype(np.float64)
+        bound = (np.abs(deq.reshape(rows, cols)) @ np.abs(x.astype(np.float64))) * (cols + 2) * 2.0 ** -24 + 1e-30
+        excess = float(np.max(np.abs(got - ref) / bound))
+        rel_to_fp32_weights = float(np.linalg.norm(got - W_.astype(np.float64) @ x) / np.linalg.norm(W_.astype(np.float64) @ x))
+        return excess <= 1.0, {'max_err_over_bound': excess, 'quantisation_rel_error': round(rel_to_fp32_weights, 4)}
+    return W('q4gemv', {0: (np.ascontiguousarray(raw.reshape(-1)), False), 1: (x, False), 2: (4 * rows, True)},
+             [(rows, 1, 1, push(rows, cols))], check, 64, {'bytes': raw.size + 4 * cols, 'flops': 2 * rows * cols},
+             requires=['storage_buffer_8bit', 'subgroup_arithmetic'])
+
+
 def w_spmv(size, rng):
     rows, cols = (512, 512) if size == 'small' else (1 << 18, 1 << 18)
     nnz = rng.integers(0, 64, rows) * (rng.random(rows) < 0.95)    # some empty rows
@@ -3761,7 +3788,7 @@ WORKLOADS = {'reduce': w_reduce, 'scan': w_scan, 'sgemm': w_sgemm, 'conv2d': w_c
              'aluprobe': w_aluprobe, 'ubopalette': w_ubopalette, 'uboparams': w_uboparams,
              'bindless': w_bindless, 'bindlessu': w_bindlessu,
              # appended only: the input seed is the index in this dict
-             'rle': w_rle, 'huffdec': w_huffdec, 'lookback': w_lookback, 'hll': w_hll, 'tricount': w_tricount, 'sha3': w_sha3, 'stereo': w_stereo, 'viterbi': w_viterbi, 'viterbifix': w_viterbifix, 'shiftfuse': w_shiftfuse, 'bc1enc': w_bc1enc, 'lz4dec': w_lz4dec, 'nttmul': w_nttmul, 'topk': w_topk, 'cellsort': w_cellsort, 'boruvka': w_boruvka, 'biquad': w_biquad, 'edt': w_edt, 'mt19937': w_mt19937, 'bitap': w_bitap, 'cholesky': w_cholesky, 'rsshash': w_rsshash, 'poly1305': w_poly1305, 'crc32c': w_crc32c, 'siphash': w_siphash, 'blake2s': w_blake2s, 'blake2sfast': w_blake2sfast}
+             'rle': w_rle, 'huffdec': w_huffdec, 'lookback': w_lookback, 'hll': w_hll, 'tricount': w_tricount, 'sha3': w_sha3, 'stereo': w_stereo, 'viterbi': w_viterbi, 'viterbifix': w_viterbifix, 'shiftfuse': w_shiftfuse, 'bc1enc': w_bc1enc, 'lz4dec': w_lz4dec, 'nttmul': w_nttmul, 'topk': w_topk, 'cellsort': w_cellsort, 'boruvka': w_boruvka, 'biquad': w_biquad, 'edt': w_edt, 'mt19937': w_mt19937, 'bitap': w_bitap, 'cholesky': w_cholesky, 'rsshash': w_rsshash, 'poly1305': w_poly1305, 'crc32c': w_crc32c, 'siphash': w_siphash, 'blake2s': w_blake2s, 'blake2sfast': w_blake2sfast, 'q4gemv': w_q4gemv}
 
 
 # ---------------------------------------------------------------------------------------------------------------

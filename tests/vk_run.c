@@ -19,7 +19,7 @@
  *                                 copied back to after the functional run, or '-'
  *   require FEATURE               a device feature the shader needs (int64, float64, float16, int8, buffer_int64_atomics,
  *                                 shared_int64_atomics, subgroup_vote / arithmetic / ballot / shuffle / shuffle_relative /
- *                                 clustered / quad in compute) or a minimum limit (shared_bytes=N, invocations=N,
+ *                                 clustered / quad in compute, storage_buffer_8bit / 16bit) or a minimum limit (shared_bytes=N, invocations=N,
  *                                 push_bytes=N): without it vk_run prints {"unsupported": FEATURE} and exits 3
  *   specialize ID VALUE           a 32-bit specialization constant (also applied to the exported shader object)
  *   dispatch_indirect BINDING OFFSET [PUSHHEX]
@@ -262,7 +262,7 @@ int main(int argc, char **argv) {
                                "subgroup_vote", "subgroup_arithmetic", "subgroup_ballot", "subgroup_shuffle",
                                "subgroup_shuffle_relative", "subgroup_clustered", "subgroup_quad", "vulkan_memory_model", "buffer_float32_atomic_add",
                                "shared_float32_atomic_add", "storage_buffer_array_dynamic",
-                               "storage_buffer_array_nonuniform"};
+                               "storage_buffer_array_nonuniform", "storage_buffer_8bit", "storage_buffer_16bit"};
         VkSubgroupFeatureFlags ops = sg_compute ? sgp.supportedOperations : 0;
         int have[] = {f2.features.shaderInt64, f2.features.shaderFloat64, f12.shaderFloat16, f12.shaderInt8,
                       f12.shaderBufferInt64Atomics, f12.shaderSharedInt64Atomics,
@@ -271,9 +271,11 @@ int main(int argc, char **argv) {
                       !!(ops & VK_SUBGROUP_FEATURE_SHUFFLE_RELATIVE_BIT), !!(ops & VK_SUBGROUP_FEATURE_CLUSTERED_BIT),
                       !!(ops & VK_SUBGROUP_FEATURE_QUAD_BIT), f12.vulkanMemoryModel,
                       aff.shaderBufferFloat32AtomicAdd, aff.shaderSharedFloat32AtomicAdd,
-                      f2.features.shaderStorageBufferArrayDynamicIndexing, f12.shaderStorageBufferArrayNonUniformIndexing};
+                      f2.features.shaderStorageBufferArrayDynamicIndexing, f12.shaderStorageBufferArrayNonUniformIndexing,
+                      f12.storageBuffer8BitAccess, f11.storageBuffer16BitAccess};
         int known = 0, ok = 0;
-        for (int k = 0; k < 18; k++) if (!strcmp(req[i], names[k])) { known = 1; ok = have[k]; }
+        _Static_assert(sizeof names / sizeof names[0] == sizeof have / sizeof have[0], "names / have");
+        for (int k = 0; k < (int)(sizeof names / sizeof names[0]); k++) if (!strcmp(req[i], names[k])) { known = 1; ok = have[k]; }
         unsigned need;   /* minimum limits: shared_bytes=N, invocations=N, push_bytes=N */
         if (sscanf(req[i], "shared_bytes=%u", &need) == 1) { known = 1; ok = props.limits.maxComputeSharedMemorySize >= need; }
         if (sscanf(req[i], "invocations=%u", &need) == 1) { known = 1; ok = props.limits.maxComputeWorkGroupInvocations >= need; }

@@ -1,0 +1,37 @@
+#version 450
+// 4-bit quantised matrix-vector product in llama.cpp's Q4_0 format (LLM token generation): each block of 32 weights
+// is 18 bytes, an fp16 scale d then 16 bytes of 4-bit quants q (element j < 16 in the low nibble of byte j, element
+// j + 16 in its high nibble), weight = (q - 8) * d. Blocks are read through an 8-bit storage buffer (as llama.cpp's
+// Vulkan backend does), the scale rebuilt from its two bytes. One workgroup per output row; partial sums are reduced
+// with subgroupAdd and shared memory. fp32 accumulation.
+#extension GL_EXT_shader_8bit_storage : require
+#extension GL_KHR_shader_subgroup_arithmetic : require
+layout(local_size_x = 64) in;
+layout(std430, binding = 0) readonly buffer Wq { uint8_t wq[]; };
+layout(std430, binding = 1) readonly buffer X { float x[]; };
+layout(std430, binding = 2) writeonly buffer Y { float y[]; };
+layout(push_constant) uniform P { uint rows; uint cols; } p;
+shared float part[64];
+
+void main() {
+    uint row = gl_WorkGroupID.x, l = gl_LocalInvocationID.x, nb = p.cols / 32u;
+    float acc = 0.0;
+    for (uint b = l; b < nb; b += 64u) {
+        uint off = 18u * (row * nb + b);
+        float d = unpackHalf2x16(uint(wq[off]) | (uint(wq[off + 1u]) << 8)).x;
+        float s = 0.0;
+        for (uint j = 0u; j < 16u; j++) {
+            uint q = uint(wq[off + 2u + j]);
+            s += (float(q & 15u) - 8.0) * x[32u * b + j] + (float(q >> 4) - 8.0) * x[32u * b + j + 16u];
+        }
+        acc += s * d;
+    }
+    acc = subgroupAdd(acc);
+    if (subgroupElect()) part[gl_SubgroupID] = acc;
+    barrier();
+    if (l == 0u) {
+        float t = 0.0;
+        for (uint k = 0u; k < gl_NumSubgroups; k++) t += part[k];
+        y[row] = t;
+    }
+}

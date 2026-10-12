@@ -54,7 +54,7 @@ The rest of this file is the detailed procedure, for investigating results.
 
 ## Workloads
 
-One hundred and fifty-one realistic compute kernels, written in GLSL (`spirv/shaders/*.comp`) and compiled to SPIR-V:
+One hundred and fifty-two realistic compute kernels, written in GLSL (`spirv/shaders/*.comp`) and compiled to SPIR-V:
 
 | Workload | Kernel | Stresses |
 |---|---|---|
@@ -209,6 +209,7 @@ One hundred and fifty-one realistic compute kernels, written in GLSL (`spirv/sha
 | `siphash` | SipHash-2-4 of 0-255-byte messages, one per invocation | 64-bit add / rotate / xor on 32-bit ALUs (rotations by 32 are free half swaps), loop counts that differ per lane |
 | `blake2s` | BLAKE2s-256 (RFC 7693) of 0-255-byte messages, written with loops over the G mix and SIGMA-indexed message words | Dynamic local-array indexing: the state and message live in scratch memory (416 B, 256 GPRs) |
 | `blake2sfast` | The same hash with every G call written out (constant indices, generated) | Everything in registers (about 90 GPRs, no scratch): with `blake2s`, the scratch-memory penalty for identical work |
+| `q4gemv` | 4-bit quantised GEMV in llama.cpp's Q4_0 block format (LLM token generation) | 8-bit storage-buffer loads (18-byte unaligned blocks), fp16 scale rebuilt from bytes, nibble unpacking, `subgroupAdd` row reduction; requires `storage_buffer_8bit` |
 
 Each workload has two sizes:
 
