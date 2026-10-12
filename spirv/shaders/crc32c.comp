@@ -1,0 +1,52 @@
+#version 450
+// CRC-32C (Castagnoli: iSCSI, ext4, Btrfs, SSE4.2 crc32) of one large buffer in parallel, as zlib's crc32_combine
+// and ISA-L do it. CRC is linear over GF(2), so:
+// pass 0: each invocation computes the zero-initialised CRC of one 4 KiB chunk (64 chunks per workgroup, the
+//         byte table in shared memory)
+// pass 1: one workgroup merges the chunk CRCs up a binary tree: left * x^(8 len(right)) xor right, the shift being a
+//         precomputed 32 x 32 GF(2) matrix (32 column words) per level; finally the standard init 0xffffffff
+//         shifted over the whole length and the output xor are applied.
+layout(local_size_x = 64) in;
+layout(std430, binding = 0) readonly buffer D { uint data[]; };
+layout(std430, binding = 1) readonly buffer T { uint table[256]; };
+layout(std430, binding = 2) readonly buffer MX { uint mat[]; };       // 32 columns per level, level k = 2^k chunks
+layout(std430, binding = 3) buffer C { uint part[]; };
+layout(std430, binding = 4) writeonly buffer R { uint result; };
+layout(push_constant) uniform P { uint pass; uint nchunks; uint levels; } p;
+shared uint tab[256];
+shared uint node[4096];
+
+uint apply(uint level, uint v) {
+    uint r = 0u;
+    for (uint j = 0u; j < 32u; j++) if (((v >> j) & 1u) != 0u) r ^= mat[32u * level + j];
+    return r;
+}
+
+void main() {
+    uint l = gl_LocalInvocationID.x;
+    if (p.pass == 0u) {
+        for (uint i = l; i < 256u; i += 64u) tab[i] = table[i];
+        barrier();
+        uint c = gl_GlobalInvocationID.x;
+        if (c >= p.nchunks) return;
+        uint crc = 0u;
+        for (uint w = 0u; w < 1024u; w++) {
+            uint v = data[1024u * c + w];
+            crc = tab[(crc ^ v) & 255u] ^ (crc >> 8);
+            crc = tab[(crc ^ (v >> 8)) & 255u] ^ (crc >> 8);
+            crc = tab[(crc ^ (v >> 16)) & 255u] ^ (crc >> 8);
+            crc = tab[(crc ^ (v >> 24)) & 255u] ^ (crc >> 8);
+        }
+        part[c] = crc;
+        return;
+    }
+    for (uint i = l; i < p.nchunks; i += 64u) node[i] = part[i];
+    barrier();
+    for (uint k = 0u; k < p.levels; k++) {                           // pairs at distance 2^k
+        uint stride = 2u << k;
+        for (uint i = l * stride; i < p.nchunks; i += 64u * stride)
+            node[i] = apply(k, node[i]) ^ node[i + (stride >> 1)];
+        barrier();
+    }
+    if (l == 0u) result = node[0] ^ apply(p.levels, 0xffffffffu) ^ 0xffffffffu;
+}

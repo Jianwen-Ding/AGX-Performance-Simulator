@@ -1116,6 +1116,61 @@ def w_poly1305(size, rng):
              [((n + 63) // 64, 1, 1, push(n))], check, 64, {'bytes': int(lens.sum())})
 
 
+CRC32C_POLY = 0x82F63B78                                                    # reflected Castagnoli polynomial
+
+
+def crc32c_table():
+    t = []
+    for i in range(256):
+        c = i
+        for _ in range(8):
+            c = (c >> 1) ^ (CRC32C_POLY if c & 1 else 0)
+        t.append(c)
+    return t
+
+
+def crc32c_bytes(data, t=None):
+    """plain byte-at-a-time CRC-32C (init and output xor 0xffffffff)"""
+    t = t or crc32c_table(); c = 0xffffffff
+    for b in data:
+        c = t[(c ^ b) & 255] ^ (c >> 8)
+    return c ^ 0xffffffff
+
+
+def gf2_shift_matrix(nbytes, t):
+    """32 column words of the linear map 'feed nbytes zero bytes' on a CRC register (by squaring)"""
+    def apply(m, v):
+        r = 0
+        for j in range(32):
+            if v >> j & 1:
+                r ^= m[j]
+        return r
+    one = [t[(1 << j) & 255] ^ ((1 << j) >> 8) for j in range(32)]           # one zero byte
+    res = [1 << j for j in range(32)]; base = one; n = nbytes
+    while n:
+        if n & 1:
+            res = [apply(base, c) for c in res]
+        base = [apply(base, c) for c in base]; n >>= 1
+    return res
+
+
+def w_crc32c(size, rng):
+    levels = 4 if size == 'small' else 12
+    nchunks = 1 << levels
+    t = crc32c_table()
+    data = rng.integers(0, 256, nchunks * 4096, dtype=np.uint8)
+    mats = [gf2_shift_matrix(4096 << k, t) for k in range(levels + 1)]          # level k: 2^k chunks; last: whole length
+    def check(o):
+        got = int(o[4].view(np.uint32)[0])
+        ref = crc32c_bytes(data.tobytes(), t)                                    # no chunking, no combining
+        kat = crc32c_bytes(b'123456789', t) == 0xE3069283
+        return got == ref and kat, {'crc': hex(got), 'reference': hex(ref), 'check_value_ok': kat}
+    ds = [((nchunks + 63) // 64, 1, 1, push(0, nchunks, levels)), (1, 1, 1, push(1, nchunks, levels))]
+    return W('crc32c', {0: (u32(np.frombuffer(data.tobytes(), np.uint32)), False), 1: (u32(t), False),
+                        2: (u32(np.concatenate(mats)), False), 3: (4 * nchunks, False), 4: (4, True)},
+             ds, check, 64, {'bytes': len(data)})
+
+
 def w_spmv(size, rng):
     rows, cols = (512, 512) if size == 'small' else (1 << 18, 1 << 18)
     nnz = rng.integers(0, 64, rows) * (rng.random(rows) < 0.95)    # some empty rows
@@ -3645,7 +3700,7 @@ WORKLOADS = {'reduce': w_reduce, 'scan': w_scan, 'sgemm': w_sgemm, 'conv2d': w_c
              'aluprobe': w_aluprobe, 'ubopalette': w_ubopalette, 'uboparams': w_uboparams,
              'bindless': w_bindless, 'bindlessu': w_bindlessu,
              # appended only: the input seed is the index in this dict
-             'rle': w_rle, 'huffdec': w_huffdec, 'lookback': w_lookback, 'hll': w_hll, 'tricount': w_tricount, 'sha3': w_sha3, 'stereo': w_stereo, 'viterbi': w_viterbi, 'viterbifix': w_viterbifix, 'shiftfuse': w_shiftfuse, 'bc1enc': w_bc1enc, 'lz4dec': w_lz4dec, 'nttmul': w_nttmul, 'topk': w_topk, 'cellsort': w_cellsort, 'boruvka': w_boruvka, 'biquad': w_biquad, 'edt': w_edt, 'mt19937': w_mt19937, 'bitap': w_bitap, 'cholesky': w_cholesky, 'rsshash': w_rsshash, 'poly1305': w_poly1305}
+             'rle': w_rle, 'huffdec': w_huffdec, 'lookback': w_lookback, 'hll': w_hll, 'tricount': w_tricount, 'sha3': w_sha3, 'stereo': w_stereo, 'viterbi': w_viterbi, 'viterbifix': w_viterbifix, 'shiftfuse': w_shiftfuse, 'bc1enc': w_bc1enc, 'lz4dec': w_lz4dec, 'nttmul': w_nttmul, 'topk': w_topk, 'cellsort': w_cellsort, 'boruvka': w_boruvka, 'biquad': w_biquad, 'edt': w_edt, 'mt19937': w_mt19937, 'bitap': w_bitap, 'cholesky': w_cholesky, 'rsshash': w_rsshash, 'poly1305': w_poly1305, 'crc32c': w_crc32c}
 
 
 # ---------------------------------------------------------------------------------------------------------------

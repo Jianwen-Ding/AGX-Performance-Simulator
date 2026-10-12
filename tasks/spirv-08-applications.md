@@ -1,7 +1,7 @@
 # Task SPIR-V 8: applications (ray tracer, neural networks, image processing, cellular automaton, graph search,
 # encryption, hashing, text, compression)
 
-**Workloads:** `raytrace`, `mlp`, `sobel`, `life`, `bfs`, `conv_layer`, `hist_eq`, `aes`, `hash_table`, `word_count`, `dct8`, `attention`, `resize`, `median3`, `poisson`, `lbm`, `base64`, `md5`, `gemv`, `levenshtein`, `blur`, `yuv420`, `montecarlo`, `xxhash`, `bloom`, `collatz`, `tridiag`, `merge`, `ccl`, `pagerank`, `skinning`, `strsearch`, `quantize`, `rule110`, `voxel`, `nms`, `sat`, `sssp`, `morton`, `utf8`, `fir`, `composite`, `nqueens`, `lzmatch`, `bitpack`, `perlin`, `adler32`, `sieve`, `gcd`, `dither`, `advect`, `knn`, `csvparse`, `pip`, `lift53`, `chacha20`, `modexp`, `floyd`, `f16pack`, `raster`, `canny`, `secded`, `bicubic`, `dfa`, `b64decode`, `cordic`, `rsenc`, `texfetch`, `texfilter`, `imgerode`, `imgtonemap`, `argmax64`, `minmax64`, `dsum`, `quadmip`, `clustered`, `specblur`, `cullindirect`, `bigsort`, `pushmat`, `mplitmus`, `splat`, `splatfix`, `smembank`, `coalesce`, `atomcontend`, `barriercost`, `aluprobe`, `ubopalette`, `uboparams`, `bindless`, `bindlessu`, `rle`, `huffdec`, `lookback`, `hll`, `tricount`, `sha3`, `stereo`, `viterbi`, `viterbifix`, `shiftfuse`, `bc1enc`, `lz4dec`, `nttmul`, `topk`, `cellsort`, `boruvka`, `biquad`, `edt`, `mt19937`, `bitap`, `cholesky`, `rsshash`, `poly1305`. These are recorded and verified by `make asahi-verify` with the others;
+**Workloads:** `raytrace`, `mlp`, `sobel`, `life`, `bfs`, `conv_layer`, `hist_eq`, `aes`, `hash_table`, `word_count`, `dct8`, `attention`, `resize`, `median3`, `poisson`, `lbm`, `base64`, `md5`, `gemv`, `levenshtein`, `blur`, `yuv420`, `montecarlo`, `xxhash`, `bloom`, `collatz`, `tridiag`, `merge`, `ccl`, `pagerank`, `skinning`, `strsearch`, `quantize`, `rule110`, `voxel`, `nms`, `sat`, `sssp`, `morton`, `utf8`, `fir`, `composite`, `nqueens`, `lzmatch`, `bitpack`, `perlin`, `adler32`, `sieve`, `gcd`, `dither`, `advect`, `knn`, `csvparse`, `pip`, `lift53`, `chacha20`, `modexp`, `floyd`, `f16pack`, `raster`, `canny`, `secded`, `bicubic`, `dfa`, `b64decode`, `cordic`, `rsenc`, `texfetch`, `texfilter`, `imgerode`, `imgtonemap`, `argmax64`, `minmax64`, `dsum`, `quadmip`, `clustered`, `specblur`, `cullindirect`, `bigsort`, `pushmat`, `mplitmus`, `splat`, `splatfix`, `smembank`, `coalesce`, `atomcontend`, `barriercost`, `aluprobe`, `ubopalette`, `uboparams`, `bindless`, `bindlessu`, `rle`, `huffdec`, `lookback`, `hll`, `tricount`, `sha3`, `stereo`, `viterbi`, `viterbifix`, `shiftfuse`, `bc1enc`, `lz4dec`, `nttmul`, `topk`, `cellsort`, `boruvka`, `biquad`, `edt`, `mt19937`, `bitap`, `cholesky`, `rsshash`, `poly1305`, `crc32c`. These are recorded and verified by `make asahi-verify` with the others;
 they are **PENDING** until then. The detailed procedure is in `tasks/spirv-workloads.md`.
 
 ## Why these
@@ -127,6 +127,7 @@ reference.
 | `cholesky` | 16384 SPD matrices (B Bᵀ / n + I) | Backward error ‖A − L Lᵀ‖ / ‖A‖ ≤ 4 n 2⁻²⁴ (1.4e-7 offline), lower-triangular with a positive diagonal; difference from numpy's float64 factor reported |
 | `rsshash` | 1M IPv4/TCP headers, 5% with corrupted checksums, the first 5 being Microsoft's RSS verification packets | Exact hashes and checksum verdicts; the 10 published RSS verification hashes |
 | `poly1305` | 65536 messages of 0-1023 bytes with their own keys; message 0 is RFC 8439's 2.5.2 vector | Every tag equals a Python big-integer Poly1305; the RFC's published tag |
+| `crc32c` | 16 MiB of random bytes (4096 chunks of 4 KiB) | Equals a plain byte-at-a-time CRC-32C of the whole buffer (no chunking, no combining); the check value crc32c("123456789") = 0xE3069283 |
 
 ## Offline sanity checks (not hardware verification)
 
@@ -463,3 +464,9 @@ reference.
       WireGuard. Lengths of 0-1023 bytes make lanes run 0-64 blocks, so a SIMD group runs as long as its longest
       message.
     - Correct under both hypotheses of note 37. Predicted 0.32 ms for 32 MB.
+53. **Parallel CRC-32C.**
+    - Pass 0 is 4096 invocations (64 workgroups), each a 4096-step chain where every step is a shared-memory table
+      lookup that depends on the previous one: latency at low occupancy. Predicted 534 µs.
+    - Pass 1 merges up a 12-level tree in one workgroup, each merge a 32-column GF(2) matrix-vector product
+      (data-dependent bit tests). Predicted 168 µs.
+    - Correct under both hypotheses of note 37.
