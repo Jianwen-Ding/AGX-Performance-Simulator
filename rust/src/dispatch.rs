@@ -189,20 +189,24 @@ pub fn simulate_with(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer
         let mut sharing = 0.0;
         if l.mem && n > 1 {
             let others: Vec<u64> = [1u64, 2, cores / 2, cores - 1].iter().copied().filter(|&k| k < n && k > 0).collect();
-            let mut ovs = vec![];
-            for &k in &others {
-                let tr = match tracer {
-                    Some(t) => t(wg_coords(k))?,
-                    None => {
+            // the other workgroups are traced and compared independently: concurrently, summed in the same order
+            let ovs: Vec<f64> = match tracer {
+                Some(t) => crate::par::map(&others, |&k| t(wg_coords(k)).map(|tr| cost::segment_overlap(&traces, &tr, &device_pcs)))
+                    .into_iter()
+                    .collect::<Result<Vec<_>, _>>()?,
+                None => {
+                    let mut ovs = vec![];
+                    for &k in &others {
                         let gs: Vec<u32> = (0..gpw).collect();
-                        crate::par::map(&gs, |&g| {
+                        let tr = crate::par::map(&gs, |&g| {
                             let ctx = GroupCtx { wg_size: l.wg, wg_id: wg_coords(k), group: g, core: 1, slot: g, uniforms: l.uniforms.clone() };
                             cost::trace_group(code, &ctx, l.max_steps)
-                        }).into_iter().collect::<Result<Vec<_>, _>>()?
+                        }).into_iter().collect::<Result<Vec<_>, _>>()?;
+                        ovs.push(cost::segment_overlap(&traces, &tr, &device_pcs));
                     }
-                };
-                ovs.push(cost::segment_overlap(&traces, &tr, &device_pcs));
-            }
+                    ovs
+                }
+            };
             if !ovs.is_empty() {
                 sharing = ovs.iter().sum::<f64>() / ovs.len() as f64;
             }

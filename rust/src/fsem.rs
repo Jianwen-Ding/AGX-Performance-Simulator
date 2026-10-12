@@ -118,11 +118,82 @@ fn dsize(d: &Operand) -> u32 {
     }
 }
 
+/// An fp32 source resolved once per instruction: a 32-bit lane register (DAZ, then abs / neg), or a value that is
+/// the same in every lane (uniform or immediate: `float` of lane 0).
+#[derive(Clone, Copy)]
+enum FSrc {
+    L(usize, bool, bool),
+    K(f64),
+}
+
+fn fsrc_of(st: &CoreState, o: &Operand) -> R<Option<FSrc>> {
+    Ok(match o {
+        Operand::Reg32(n, _) => Some(FSrc::L(*n as usize, o.flags() & F_ABS != 0, o.flags() & F_NEG != 0)),
+        Operand::UReg16(..) | Operand::UReg32(..) | Operand::Imm(..) => Some(FSrc::K(float(st, o, 0, true)?)),
+        _ => None,
+    })
+}
+
+#[inline]
+fn fsrc_get(st: &CoreState, s: FSrc, t: usize) -> R<f64> {
+    Ok(match s {
+        FSrc::L(n, abs, neg) => {
+            let mut x = f32_in(st.get_reg32(n, t)? as u32);
+            if abs {
+                x = x.abs();
+            }
+            if neg {
+                x = -x;
+            }
+            x
+        }
+        FSrc::K(x) => x,
+    })
+}
+
+/// fp32 fadd / fmul / fmadd with 32-bit register, uniform or immediate sources and a 32-bit destination: `float_arith`
+/// without the per-lane operand dispatch (same values: `float` with DAZ, then the same rounding).
+fn float_arith_fast(kind: u8, s: bool, ops: &[Operand], st: &mut CoreState) -> R<bool> {
+    let Operand::Reg32(dn, _) = ops[0] else { return Ok(false) };
+    if !st.exec.iter().any(|&e| e) {
+        return Ok(true); // no lane writes (the general path reads nothing either)
+    }
+    let (Some(a), Some(b)) = (fsrc_of(st, &ops[1])?, fsrc_of(st, &ops[2])?) else { return Ok(false) };
+    let c = if kind == 2 {
+        match fsrc_of(st, &ops[3])? {
+            Some(c) => Some(c),
+            None => return Ok(false),
+        }
+    } else {
+        None
+    };
+    for t in 0..SIMD_WIDTH {
+        if !st.exec[t] {
+            continue;
+        }
+        let av = fsrc_get(st, a, t)?;
+        let bv = fsrc_get(st, b, t)?;
+        let mut x = match c {
+            None if kind == 0 => av + bv,
+            None => av * bv,
+            Some(c) => fma_odd(av, bv, fsrc_get(st, c, t)?),
+        };
+        if s {
+            x = sat(x);
+        }
+        st.set_reg32(dn as usize, t, to_f32(x) as i128)?;
+    }
+    Ok(true)
+}
+
 /// fadd/fmul/fmadd 16/32 (`ops` = D, A, B[, C])
 pub fn float_arith(name: &str, f: &Fields, ops: &[Operand], st: &mut CoreState) -> R<()> {
     let half = name.ends_with("16");
     let s = fget(f, "S").unwrap_or(0) != 0;
     let kind = if name.starts_with("fadd") { 0u8 } else if name.starts_with("fmul") { 1 } else { 2 };
+    if !half && float_arith_fast(kind, s, ops, st)? {
+        return Ok(());
+    }
     let out16 = half || dsize(&ops[0]) == 16;
     for t in 0..SIMD_WIDTH {
         if !st.exec[t] {

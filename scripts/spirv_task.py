@@ -962,12 +962,27 @@ def w_hash_table(size, rng):
 def w_word_count(size, rng):
     n = 1 << 14 if size == 'small' else 1 << 24
     words = [''.join(rng.choice(list('abcdefghijklmnopqrstuvwxyz0123'), rng.integers(1, 21))) for _ in range(4096)]
-    out, total = [], 0
-    while total < n:
-        wd = words[rng.integers(0, len(words))]
-        sep = rng.choice([' ', ' ', ' ', ', ', '. ', '\n', '  ', ' - '])
-        out.append(wd + sep); total += len(wd) + len(sep)
-    text = np.frombuffer(''.join(out).encode()[:n], dtype=np.uint8).copy()
+    seps = [' ', ' ', ' ', ', ', '. ', '\n', '  ', ' - ']
+    # The text is a word then a separator, drawn with rng.integers(0, 4096) and rng.choice(seps) in turn, until n bytes.
+    # With power-of-two bounds each draw is the top bits of one 32-bit output, so the pairs are drawn in bulk. The
+    # original scalar calls on a copy of the generator confirm that on this numpy; otherwise they produce the text.
+    start = rng.bit_generator.state
+    x = rng.integers(0, 1 << 32, size=2 * (n // 4 + 16), dtype=np.uint32).astype(np.uint64).reshape(-1, 2)
+    wi, si = (x[:, 0] * 4096) >> 32, (x[:, 1] * 8) >> 32
+    probe = np.random.Generator(type(rng.bit_generator)()); probe.bit_generator.state = start
+    if all(words[probe.integers(0, len(words))] == words[wi[k]] and probe.choice(seps) == seps[si[k]] for k in range(64)):
+        cum = np.cumsum(np.array([len(w) for w in words])[wi] + np.array([len(p_) for p_ in seps])[si])
+        k = int(np.searchsorted(cum, n)) + 1                               # the first pair that reaches n, inclusive
+        text = ''.join(words[a] + seps[b] for a, b in zip(wi[:k].tolist(), si[:k].tolist()))
+    else:
+        rng.bit_generator.state = start
+        out, total = [], 0
+        while total < n:
+            wd = words[rng.integers(0, len(words))]
+            sep = rng.choice(seps)
+            out.append(wd + sep); total += len(wd) + len(sep)
+        text = ''.join(out)
+    text = np.frombuffer(text.encode()[:n], dtype=np.uint8).copy()
     def check(o):
         import re
         got = o[1].view(np.uint32)[:18]
