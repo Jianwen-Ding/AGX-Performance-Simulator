@@ -5,6 +5,10 @@
 //! uniforms (u4 = 0, u5 = count, u6_u7 = out VA, u8_u9 = table VA), run every SIMD group of the grid and compare the
 //! deterministic parts word for word. Prints per-category pass counts and, with -v, each failure's first mismatch
 //! or the instruction the simulator could not run.
+//! Cases whose program runs an fp32 transcendental the simulator does not reproduce bit for bit (log2, exp2, sin_pt_2:
+//! the hardware's approximation is not tabulated, see fsem.rs) pass as CLOSE when every differing word is within
+//! ULP_TOL ulp of the hardware (words compared as ordered fp32); the summary lists the ulp error per such op.
+//! Everything else is compared exactly.
 //! --traces instead compares the first workgroup's paths and memory accesses from the functional simulator with the
 //! cost model's emulation (`cost::trace_group`, memory read as zero): "mismatch" there means the path depends on data.
 
@@ -50,7 +54,6 @@ fn load(p: &std::path::Path) -> Value {
     serde_json::from_str(&s).unwrap()
 }
 
-/// Ok(None) = pass; Ok(Some(msg)) = mismatch; Err = simulator error
 static TRACES: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 
 /// --traces: the first workgroup's SIMD-group paths from the functional simulator (real memory) against the cost
@@ -71,7 +74,58 @@ fn compare_traces(d: &Dispatch, mem: &Memory) -> Result<Option<String>, String> 
     Ok(None)
 }
 
-pub fn check(c: &Value) -> Result<Option<String>, String> {
+/// Largest accepted distance (fp32 ulp) from the hardware for words of a case using an approximated transcendental.
+const ULP_TOL: u64 = 2;
+
+/// fp32 transcendentals modelled as correctly rounded, not as the hardware's (untabulated) approximation.
+const APPROX: [&str; 3] = ["log2", "exp2", "sin_pt_2"];
+
+/// The approximated transcendentals a program runs (decoded linearly; stops at the first undecodable word).
+fn approx_ops(code: &[u8]) -> Vec<&'static str> {
+    let mut v = vec![];
+    let mut p = 0;
+    while p < code.len() {
+        let mut buf = code[p..].to_vec();
+        buf.resize(buf.len().max(16), 0);
+        let Some((d, _, size)) = agx_sim::isa::decode_one(&buf) else { break };
+        if size == 0 {
+            break;
+        }
+        if let Some(n) = APPROX.iter().find(|&&n| n == d.name) {
+            if !v.contains(n) {
+                v.push(*n);
+            }
+        }
+        p += size;
+    }
+    v
+}
+
+/// Distance in fp32 ulp between two words read as floats (sign-magnitude mapped to a monotonic integer line).
+fn ulp(a: u32, b: u32) -> u64 {
+    let o = |x: u32| if x & 0x8000_0000 != 0 { -((x & 0x7fff_ffff) as i64) } else { x as i64 };
+    (o(a) - o(b)).unsigned_abs()
+}
+
+#[derive(Default, Clone)]
+struct UlpStats {
+    words: u64,
+    differ: u64,
+    le1: u64,
+    le2: u64,
+    max: u64,
+}
+
+enum Verdict {
+    Pass,
+    /// within ULP_TOL of the hardware: (ops, stats of the compared words)
+    Close(String, UlpStats),
+    /// mismatch message, plus the ulp stats when the case uses an approximated op
+    Mismatch(String, Option<(String, UlpStats)>),
+}
+
+/// Ok(Pass / Close / Mismatch); Err = simulator error
+fn check(c: &Value) -> Result<Verdict, String> {
     let u = |v: &Value| v.as_u64().unwrap();
     let launch = &c["launch"];
     let dim = |k: &str| -> [u32; 3] {
@@ -101,7 +155,10 @@ pub fn check(c: &Value) -> Result<Option<String>, String> {
         max_steps: 50_000_000,
     };
     if TRACES.load(std::sync::atomic::Ordering::Relaxed) {
-        return compare_traces(&d, &mem);
+        return Ok(match compare_traces(&d, &mem)? {
+            None => Verdict::Pass,
+            Some(m) => Verdict::Mismatch(m, None),
+        });
     }
     func::run(&d, &mut mem)?;
     let got_out = mem.words(out_va, out_words)?;
@@ -122,19 +179,42 @@ pub fn check(c: &Value) -> Result<Option<String>, String> {
     let got_tab: Vec<u32> = got_tab.iter().zip(&skip).map(|(&g, &s)| if s { 0 } else { g }).collect();
     let want_tab: Vec<u32> = want_tab.iter().zip(&skip).map(|(&g, &s)| if s { 0 } else { g }).collect();
     let first = |a: &[u32], b: &[u32]| a.iter().zip(b).position(|(x, y)| x != y);
+    let mut pairs: Vec<(&[u32], &[u32], &str)> = vec![];
     if det("deterministic_table") {
-        if let Some(i) = first(&got_tab, &want_tab) {
-            let n = got_tab.iter().zip(&want_tab).filter(|(x, y)| x != y).count();
-            return Ok(Some(format!("table word {} : got {:#010x}, hardware {:#010x} ({} words differ)", i, got_tab[i], want_tab[i], n)));
-        }
+        pairs.push((&got_tab, &want_tab, "table"));
     }
     if det("deterministic_out") {
-        if let Some(i) = first(&got_out, &want_out) {
-            let n = got_out.iter().zip(&want_out).filter(|(x, y)| x != y).count();
-            return Ok(Some(format!("out word {} : got {:#010x}, hardware {:#010x} ({} words differ)", i, got_out[i], want_out[i], n)));
+        pairs.push((&got_out, &want_out, "out"));
+    }
+    let mut msg = None;
+    let mut st = UlpStats::default();
+    for (g, w, what) in &pairs {
+        if let Some(i) = first(g, w) {
+            let n = g.iter().zip(w.iter()).filter(|(x, y)| x != y).count();
+            msg.get_or_insert(format!("{} word {} : got {:#010x}, hardware {:#010x} ({} words differ)", what, i, g[i], w[i], n));
+        }
+        for (&x, &y) in g.iter().zip(w.iter()) {
+            st.words += 1;
+            if x != y {
+                let u = ulp(x, y);
+                st.differ += 1;
+                st.le1 += (u <= 1) as u64;
+                st.le2 += (u <= 2) as u64;
+                st.max = st.max.max(u);
+            }
         }
     }
-    Ok(None)
+    let Some(m) = msg else { return Ok(Verdict::Pass) };
+    let ops = approx_ops(&d.code);
+    if ops.is_empty() {
+        return Ok(Verdict::Mismatch(m, None));
+    }
+    let key = ops.join("+");
+    Ok(if st.max <= ULP_TOL {
+        Verdict::Close(key, st)
+    } else {
+        Verdict::Mismatch(format!("{}; max {} ulp", m, st.max), Some((key, st)))
+    })
 }
 
 fn main() {
@@ -146,8 +226,20 @@ fn main() {
     let one = opt("--case");
     let dir = args.iter().find(|a| !a.starts_with('-') && Some(*a) != only.as_ref() && Some(*a) != one.as_ref()).cloned()
         .unwrap_or_else(|| agx_sim::cost::repo_root().join("testsuite").display().to_string());
-    let mut cats: BTreeMap<String, (u32, u32, u32)> = BTreeMap::new();
+    // per category: (exact, close, mismatch, error)
+    let mut cats: BTreeMap<String, (u32, u32, u32, u32)> = BTreeMap::new();
     let mut reasons: BTreeMap<String, u32> = BTreeMap::new();
+    // per approximated op set: (cases close, cases mismatched, stats over the compared words of those cases)
+    let mut ulps: BTreeMap<String, (u32, u32, UlpStats)> = BTreeMap::new();
+    let mut add = |k: String, close: bool, s: &UlpStats| {
+        let e = ulps.entry(k).or_default();
+        if close { e.0 += 1 } else { e.1 += 1 }
+        e.2.words += s.words;
+        e.2.differ += s.differ;
+        e.2.le1 += s.le1;
+        e.2.le2 += s.le2;
+        e.2.max = e.2.max.max(s.max);
+    };
     let mut entries: Vec<_> = walk(std::path::Path::new(&dir));
     entries.sort();
     for p in entries {
@@ -159,15 +251,25 @@ fn main() {
         }
         let e = cats.entry(cat.clone()).or_default();
         match check(&c) {
-            Ok(None) => e.0 += 1,
-            Ok(Some(m)) => {
+            Ok(Verdict::Pass) => e.0 += 1,
+            Ok(Verdict::Close(k, s)) => {
                 e.1 += 1;
+                if verbose {
+                    println!("CLOSE    {}/{}: {} words differ, all within {} ulp (max {}; {})", cat, name, s.differ, ULP_TOL, s.max, k);
+                }
+                add(k, true, &s);
+            }
+            Ok(Verdict::Mismatch(m, u)) => {
+                e.2 += 1;
                 if verbose {
                     println!("MISMATCH {}/{}: {}", cat, name, m);
                 }
+                if let Some((k, s)) = u {
+                    add(k, false, &s);
+                }
             }
             Err(m) => {
-                e.2 += 1;
+                e.3 += 1;
                 let key = m.split(':').next().unwrap_or("").to_string();
                 *reasons.entry(key).or_default() += 1;
                 if verbose {
@@ -176,13 +278,22 @@ fn main() {
             }
         }
     }
-    let (mut p, mut t) = (0, 0);
-    for (cat, (ok, mis, err)) in &cats {
-        println!("{:12} pass {:4} / {:4}   mismatch {:4}   unsupported {:4}", cat, ok, ok + mis + err, mis, err);
-        p += ok;
-        t += ok + mis + err;
+    let (mut p, mut t, mut cl) = (0, 0, 0);
+    for (cat, (ok, close, mis, err)) in &cats {
+        let n = ok + close + mis + err;
+        println!("{:12} pass {:4} / {:4}   close {:4}   mismatch {:4}   unsupported {:4}", cat, ok + close, n, close, mis, err);
+        p += ok + close;
+        cl += close;
+        t += n;
     }
-    println!("total        pass {:4} / {:4}", p, t);
+    println!("total        pass {:4} / {:4}   ({} exact, {} within {} ulp)", p, t, p - cl, cl, ULP_TOL);
+    if !ulps.is_empty() {
+        println!("approximated transcendentals (cases whose words differ; ulp over those words):");
+        for (k, (close, mis, s)) in &ulps {
+            println!("  {:22} cases close {:3} mismatch {:3}   words {:7} differ {:6} (<=1 ulp {:6}, <=2 ulp {:6})   max {} ulp",
+                k, close, mis, s.words, s.differ, s.le1, s.le2, s.max);
+        }
+    }
     if !reasons.is_empty() {
         println!("unsupported (first error per case): {:?}", reasons);
     }

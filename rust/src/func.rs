@@ -360,7 +360,7 @@ fn step_group(g: &mut Group, code: &[u8], cache: &mut [Option<Info>], mem: &mut 
             OpKind::TgAtomic => tg_atomic(g, f, tg)?,
             OpKind::Round => fsem::round_op(desc.name, v, &mut g.st)?,
             OpKind::Intl => fsem::intl(v, &mut g.st)?,
-            OpKind::Transcendental => fsem::transcendental(desc.name, v, &mut g.st)?,
+            OpKind::Transcendental => fsem::transcendental(desc.name, f, v, &mut g.st)?,
             OpKind::Convert => fsem::convert(f, v, &mut g.st)?,
             OpKind::QuadShuffle => fsem::quad_shuffle(desc.name, v, &mut g.st)?,
             OpKind::CrossLane => fsem::cross_lane(desc.name, v, &mut g.st)?,

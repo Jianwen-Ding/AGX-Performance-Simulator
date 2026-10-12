@@ -792,11 +792,12 @@ pub fn quad_shuffle(name: &str, ops: &[Operand], st: &mut CoreState) -> R<()> {
 
 // ---- transcendentals --------------------------------------------------------------------------------------
 //
-// fp16 forms are correctly rounded (every sampled lane of the suite). fp32 forms are the hardware's ~26-bit
-// approximation, which the suite does not pin down (10-15% of lanes differ by 1-3 ulp from correct rounding);
-// they are modelled as correctly rounded unless a recorded table (`transcendental_table`) supplies the exact
-// mantissa mapping. Special values, the denormal rules (fp32 inputs flushed to zero, fp16 denormals kept) and
-// sin_pt_1 are exact.
+// fp16 forms are correctly rounded (every sampled lane of the suite). fp32 forms are the hardware's approximation:
+// rcp / rsqrt / rsqrt_special come from recorded exact tables and log2 from the recorded fixed-point samples
+// (`transtab`: exact on every suite lane), for fp32 and fp16 sources alike. exp2 and sin_pt_2 have no table (not
+// separable by exponent) and are modelled as correctly rounded, within 2 ulp of the hardware on every suite lane
+// (suite_check accepts them as CLOSE). Special values, the denormal rules (fp32 inputs flushed to zero, fp16
+// denormals kept), `.sat` and sin_pt_1 are exact.
 
 /// Exact value (in f64) of the function, before rounding to the destination format.
 fn trans_f64(name: &str, x: f64) -> f64 {
@@ -851,27 +852,31 @@ fn trans_f64(name: &str, x: f64) -> f64 {
     }
 }
 
-pub fn transcendental(name: &str, ops: &[Operand], st: &mut CoreState) -> R<()> {
+/// `ops` = D, A. `.sat` clamps the result to [0, 1] (NaN -> +0), also on table results. fp32 destinations take the
+/// recorded table when one covers the operand (fp32 or fp16 source: the unit computes on the fp32 value).
+pub fn transcendental(name: &str, f: &Fields, ops: &[Operand], st: &mut CoreState) -> R<()> {
     let d16 = dsize(&ops[0]) == 16;
+    let s = fget(f, "S").unwrap_or(0) != 0;
     for t in 0..SIMD_WIDTH {
         if !st.exec[t] {
             continue;
         }
-        let (bits, sz) = raw(st, &ops[1], t)?;
-        // fp32 sources: denormals read as zero; fp16 sources keep denormals
+        // fp32 sources: denormals read as zero; fp16 sources keep denormals (exact in fp32)
         let x = float(st, &ops[1], t, true)?;
-        let y = if !d16 && sz == 32 {
-            match crate::transtab::lookup(name, bits as u32, &ops[1]) {
-                Some(b) => {
-                    put(st, &ops[0], t, b as u64)?;
-                    continue;
-                }
-                None => trans_f64(name, x),
-            }
-        } else {
-            trans_f64(name, x)
+        let table = if d16 || x.is_nan() { None } else { crate::transtab::lookup(name, (x as f32).to_bits()) };
+        let mut y = match table {
+            Some(b) => f32::from_bits(b) as f64,
+            None => trans_f64(name, x),
         };
-        put(st, &ops[0], t, if d16 { to_f16(y) } else { to_f32(y) } as u64)?;
+        if s {
+            y = sat(y);
+        }
+        let bits = match table {
+            Some(b) if !s => b,
+            _ if d16 => to_f16(y),
+            _ => to_f32(y),
+        };
+        put(st, &ops[0], t, bits as u64)?;
     }
     Ok(())
 }
