@@ -12,31 +12,34 @@ use crate::cost::{self, is_barrier78, GroupCtx, Trace};
 use crate::fsem;
 use crate::isa::{self, compiled::Compiled, exec::CoreState, fget, Desc, Fields, Operand};
 
-/// Sparse byte-addressed memory made of mapped regions.
+/// Sparse byte-addressed memory made of mapped regions. Regions are shared copy-on-write: cloning a Memory (one per
+/// traced workgroup) shares every buffer, and a write copies only the region it lands in.
 #[derive(Clone, Debug, Default)]
 pub struct Memory {
-    pub regions: Vec<(u64, Vec<u8>)>,
+    pub regions: Vec<(u64, std::sync::Arc<Vec<u8>>)>,
 }
 
 impl Memory {
     pub fn map(&mut self, va: u64, bytes: Vec<u8>) {
-        self.regions.push((va, bytes));
+        self.regions.push((va, std::sync::Arc::new(bytes)));
     }
     fn find(&self, va: u64, len: u64) -> Option<(usize, usize)> {
         self.regions.iter().position(|(b, d)| va >= *b && va + len <= *b + d.len() as u64).map(|i| (i, (va - self.regions[i].0) as usize))
     }
     pub fn read(&self, va: u64, len: usize) -> Result<u64, String> {
         let (i, o) = self.find(va, len as u64).ok_or_else(|| format!("read of unmapped address {:#x}", va))?;
+        let d = &self.regions[i].1;
         let mut v = 0u64;
         for k in 0..len {
-            v |= (self.regions[i].1[o + k] as u64) << (8 * k);
+            v |= (d[o + k] as u64) << (8 * k);
         }
         Ok(v)
     }
     pub fn write(&mut self, va: u64, len: usize, v: u64) -> Result<(), String> {
         let (i, o) = self.find(va, len as u64).ok_or_else(|| format!("write to unmapped address {:#x}", va))?;
+        let d = std::sync::Arc::make_mut(&mut self.regions[i].1);
         for k in 0..len {
-            self.regions[i].1[o + k] = (v >> (8 * k)) as u8;
+            d[o + k] = (v >> (8 * k)) as u8;
         }
         Ok(())
     }
