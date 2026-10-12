@@ -84,6 +84,18 @@ pub fn check(c: &Value) -> Result<Option<String>, String> {
     let want_out = words(&b64(c["expect"]["out"].as_str().unwrap()));
     let want_tab = words(&b64(c["expect"]["table"].as_str().unwrap()));
     let det = |k: &str| c.get(k).and_then(Value::as_bool).unwrap_or(true);
+    // order-dependent words (contended atomics) are not compared: [start, end, step]
+    let mut skip = vec![false; want_tab.len()];
+    for r in c.get("ignore_table").and_then(Value::as_array).into_iter().flatten() {
+        let v: Vec<usize> = r.as_array().unwrap().iter().map(|x| x.as_u64().unwrap() as usize).collect();
+        let mut i = v[0];
+        while i < v[1].min(skip.len()) {
+            skip[i] = true;
+            i += v[2].max(1);
+        }
+    }
+    let got_tab: Vec<u32> = got_tab.iter().zip(&skip).map(|(&g, &s)| if s { 0 } else { g }).collect();
+    let want_tab: Vec<u32> = want_tab.iter().zip(&skip).map(|(&g, &s)| if s { 0 } else { g }).collect();
     let first = |a: &[u32], b: &[u32]| a.iter().zip(b).position(|(x, y)| x != y);
     if det("deterministic_table") {
         if let Some(i) = first(&got_tab, &want_tab) {

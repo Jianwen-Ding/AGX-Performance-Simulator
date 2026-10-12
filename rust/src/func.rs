@@ -252,6 +252,8 @@ fn device_mem(g: &mut Group, f: &Fields, mem: &mut Memory, load: bool) -> Result
     let shift = if x("s") == 3 { 2 } else { x("s") };
     let mask = x("mask");
     let (r, rt) = (x("R") as usize, x("Rt") != 0);
+    // per-lane element address
+    let mut addr = [0i128; 32];
     for t in 0..32 {
         if !g.st.exec[t] {
             continue;
@@ -264,13 +266,19 @@ fn device_mem(g: &mut Group, f: &Fields, mem: &mut Memory, load: bool) -> Result
             if x("Ou") == 0 { ext(o, 32, true) } else { o }
         };
         off <<= shift;
-        let a = (base & !(item as i128 - 1)) as i128;
-        let mut k = 0;
-        for c in 0..4 {
-            if mask & (1 << c) == 0 {
+        addr[t] = (base & !(item as i128 - 1)) + off * item as i128;
+    }
+    // components in order, all lanes per component (overlapping multi-component stores: mem_store suite cases)
+    let mut k = 0;
+    for c in 0..4 {
+        if mask & (1 << c) == 0 {
+            continue;
+        }
+        for t in 0..32 {
+            if !g.st.exec[t] {
                 continue;
             }
-            let va = (a + (off + c) * item as i128) as u64;
+            let va = (addr[t] + c as i128 * item as i128) as u64;
             if load {
                 let v = mem.read(va, item as usize)? as i128;
                 put(&mut g.st, rt, r, k, t, v)?;
@@ -278,32 +286,37 @@ fn device_mem(g: &mut Group, f: &Fields, mem: &mut Memory, load: bool) -> Result
                 let v = get(&g.st, rt, r, k, t)?;
                 mem.write(va, item as usize, v as u64)?;
             }
-            k += 1;
         }
+        k += 1;
     }
     Ok(())
 }
 
 fn tg_mem(g: &mut Group, f: &Fields, tg: &mut [u8], load: bool) -> Result<(), String> {
     let x = |k: &str| fget(f, k).unwrap_or(0);
-    let fmt = x("F");
-    let item = item_size(fmt) as usize;
+    let item = item_size(x("F")) as usize;
     let mask = x("mask");
     let (r, rt) = (x("R") as usize, x("Rt") != 0);
+    let mut addr = [0usize; 32];
     for t in 0..32 {
-        if !g.st.exec[t] {
+        if g.st.exec[t] {
+            let base = if x("At") == 0 { g.st.get_reg16(x("A") as usize, t)? as usize } else { 0 };
+            let idx = if x("Ot") != 0 { x("O") as usize } else { g.st.get_reg16(x("O") as usize, t)? as usize };
+            addr[t] = base + 4 * item * idx;
+        }
+    }
+    let mut k = 0;
+    for c in 0..4 {
+        if mask & (1 << c) == 0 {
             continue;
         }
-        let base = if x("At") == 0 { g.st.get_reg16(x("A") as usize, t)? as usize } else { 0 };
-        let idx = if x("Ot") != 0 { x("O") as usize } else { g.st.get_reg16(x("O") as usize, t)? as usize };
-        let mut k = 0;
-        for c in 0..4 {
-            if mask & (1 << c) == 0 {
+        for t in 0..32 {
+            if !g.st.exec[t] {
                 continue;
             }
-            let b = base + 4 * item * idx + item * c;
+            let b = addr[t] + item * c;
             if b + item > tg.len() {
-                // out of the declared threadgroup memory: loads read 0, stores are dropped (tg-addressing finding)
+                // outside the declared threadgroup memory: loads read 0, stores are dropped
                 if load {
                     put(&mut g.st, rt, r, k, t, 0)?;
                 }
@@ -316,8 +329,8 @@ fn tg_mem(g: &mut Group, f: &Fields, tg: &mut [u8], load: bool) -> Result<(), St
                     tg[b + i] = (v >> (8 * i)) as u8;
                 }
             }
-            k += 1;
         }
+        k += 1;
     }
     Ok(())
 }

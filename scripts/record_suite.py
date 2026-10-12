@@ -191,9 +191,11 @@ def gen_mem_store():
         # distinct per-lane targets: element index 2*gid >> shift (+ signed: - 512 around the pair base = table + 8 KiB)
         shift = int(sh.split()[-1]) if sh else 0
         lo = -512 if mode == 'signed' and base == 'r24_r25' else 0
-        b += mov(27, 2 if shift == 0 else 1)+e('imadd r5, r1, r27, 0')
+        # element index m*(gid + (gid >> 5)): lanes of one SIMD group overlap (component order), groups do not
+        m = 2 if shift == 0 else 1
+        b += mov(27, 5)+e('asr r28, r1, r27')+mov(27, m)+e('imadd r5, r1, r27, 0')+e('imadd r5, r28, r27, r5')
         if lo: b += mov(27, lo & 0xffffffff)+e('iadd r5, r5, r27')
-        check_bounds(fmt, mask, sh, base, (lo, lo+(2 if shift == 0 else 1)*(n-1)), 12288)
+        check_bounds(fmt, mask, sh, base, (lo, lo+m*(n-1+(n-1)//32)), 12288)
         for k in range(4):   # values: (gid << 8) | 0x11*(k+1) in each register
             b += mov(26, 256)+e(f'imadd r{14+k}, r1, r26, 0')+mov(26, 0x11*(k+1))+e(f'or r{14+k}, r{14+k}, r26')
         b += store_like(t)+e('wait 0')+e('iadd r2, r1, 0')
@@ -211,7 +213,7 @@ def gen_tg():
             for index_mode in ('imm0', 'reg'):
                 name = f'tg_{fmt}_mask{mask}_{index_mode}'
                 rng = random.Random(name)
-                table = [rng.getrandbits(32) for _ in range(2*n)]+[0]*(4*n)
+                table = [rng.getrandbits(32) for _ in range(4*n)]+[0]*(4*n)   # inputs [0, 4n), outputs [4n, 8n)
                 b = B.get_sr(51, 23)+mov(27, 4*size)+e('imadd r24, r23, r27, 0')         # byte base 16*size*local... (vec4 slots)
                 b += mov(27, 4)+e('imadd r5, r1, r27, 0')+e('device_load 0, i32, xyzw, r14_r15_r16_r17, u8_u9, r5, unsigned')+e('wait 0')
                 idx = ('r', 22) if index_mode == 'reg' else 0
@@ -220,7 +222,7 @@ def gen_tg():
                 b += mov(27, 1)+e('iadd r25, r23, r27')+mov(27, wg-1)+e('and r25, r25, r27')+mov(27, 4*size)+e('imadd r25, r25, r27, 0')
                 b += b''.join(mov(r, 0xdeadbeef) for r in range(14, 18))
                 b += tg(True, fmt, 14, base=25, index=idx, mask=mask)+e('wait 0')
-                b += mov(27, 2*n)+mov(26, 4)+e('imadd r26, r1, r26, r27')
+                b += mov(27, 4*n)+mov(26, 4)+e('imadd r26, r1, r26, r27')
                 for k in range(4):
                     b += agx_loop.store(14+k, 8, 26)+e('iadd r26, r26, 1')
                 b += e('wait 0')+e('iadd r2, r14, 0')+bytes.fromhex('6800')
