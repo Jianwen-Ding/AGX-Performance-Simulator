@@ -1960,23 +1960,28 @@ def w_swalignpad(size, rng):
 
 
 def jp_ref(rowptr, colidx, prio):
-    """jpcolor.comp: Jones-Plassmann rounds; the colours (1-63) and the colours after each round"""
+    """jpcolor.comp: Jones-Plassmann rounds; the colours (1-63) and the colours after each round. Each round looks
+    only at the edges of the vertices still uncoloured."""
     n = len(rowptr) - 1
-    src = np.repeat(np.arange(n), np.diff(rowptr.astype(np.int64)))
+    rp = rowptr.astype(np.int64); deg = np.diff(rp); col = colidx.astype(np.int64)
     c = np.zeros(n, np.int64); hist = []
     pr = prio.astype(np.int64)
-    while (c == 0).any():
-        unc = c == 0
-        mx = np.full(n, -1, np.int64)
-        np.maximum.at(mx, src, np.where(unc[colidx], pr[colidx], -1))
-        best = unc & (pr > mx)
-        used = np.zeros(n, np.uint64)
-        cn = c[colidx]
-        np.bitwise_or.at(used, src, np.where(cn > 0, np.left_shift(np.uint64(1), cn.astype(np.uint64)), np.uint64(0)))
+    act = np.arange(n)
+    while act.size:
+        d = deg[act]
+        off = np.cumsum(d) - d
+        e = np.repeat(rp[act] - off, d) + np.arange(int(d.sum()))       # the active vertices' edges, in order
+        nb = col[e]; cn = c[nb]
+        rows = np.flatnonzero(d > 0)
+        mx = np.full(act.size, -1, np.int64); used = np.zeros(act.size, np.uint64)
+        if rows.size:
+            mx[rows] = np.maximum.reduceat(np.where(cn == 0, pr[nb], -1), off[rows])
+            used[rows] = np.bitwise_or.reduceat(np.where(cn > 0, np.left_shift(np.uint64(1), cn.astype(np.uint64)), np.uint64(0)), off[rows])
+        best = pr[act] > mx
         m = used | np.uint64(1)
         low = ~m & (m + np.uint64(1))                                          # lowest clear bit
-        newc = np.log2(low.astype(np.float64)).astype(np.int64)
-        c = np.where(best, newc, c)
+        c[act[best]] = np.log2(low[best].astype(np.float64)).astype(np.int64)
+        act = act[~best]
         hist.append(c.copy())
     return c, hist
 
@@ -1987,11 +1992,10 @@ def w_jpcolor(size, rng):
     pts = rng.random((n, 2))
     pairs = cKDTree(pts).query_pairs(np.sqrt(8 / (np.pi * n)), output_type='ndarray')   # ~8 neighbours each
     a = np.concatenate([pairs[:, 0], pairs[:, 1]]); b = np.concatenate([pairs[:, 1], pairs[:, 0]])
-    o = np.lexsort((b, a)); a, b = a[o], b[o]
+    o = np.argsort(a.astype(np.int64) * n + b); a, b = a[o], b[o]           # by source, then neighbour
     rowptr = u32(np.concatenate([[0], np.cumsum(np.bincount(a, minlength=n))]))
     colidx = u32(b)
-    prio = u32(rng.permutation(n).astype(np.uint64) * 2654435761 % (1 << 32))   # distinct
-    assert len(np.unique(prio)) == n
+    prio = u32(rng.permutation(n).astype(np.uint64) * 2654435761 % (1 << 32))   # distinct: an odd factor is invertible mod 2^32
     cref, hist = jp_ref(rowptr, colidx, prio)
     R = len(hist)
     assert cref.max() < 64
