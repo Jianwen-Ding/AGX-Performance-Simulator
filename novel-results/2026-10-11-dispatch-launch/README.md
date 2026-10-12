@@ -33,9 +33,9 @@ and use the minimum.
 **Whole-dispatch model.** AGX-Performance-Simulator's `agx_dispatch` combines occupancy, this placement and
 launch cost, the [core structure](../2026-10-11-core-scaling/README.md) and the
 [memory hierarchy](../2026-10-11-memory-hierarchy/README.md), simulating the busiest core's workgroups with
-per-group traces. Against 29 dispatches (empty, ALU-, latency-, shared-unit-, register-read-, DRAM-bound and divergent;
-1,216 to 16 M threads; 32–1,024-lane workgroups; 64–192 register halves) at 1,398 MHz: **median error 5.4%,
-p90 13.4%, max 21%**.
+per-group traces. Against 36 dispatches (empty, ALU-, latency-, shared-unit-, register-read-, DRAM-bound, divergent and tree reductions;
+1,216 to 16 M threads; 32–1,024-lane workgroups; 64–192 register halves) at 1,398 MHz: **median error 4.7%,
+p90 9.2%, max 21%**.
 
 **Divergence.** A counted loop with `if (lane < k) { 64 fadd32 } else { 32 fadd32 }` in Mesa's structured form
 (`if_icmp`, `jmp_exec_none`, `else_icmp`, `jmp_exec_none`, `pop_exec`), 155,648 threads:
@@ -48,6 +48,16 @@ A SIMD group with lanes on both sides runs both sides in full (1,671 ≈ 686 + 1
 the split falls inside the group does not matter; `jmp_exec_none` skips an empty side. With many groups per core
 the exec-mask instructions (`if`, `else`, `push`, `pop`, `jmp_exec_none`) hold their scheduler for about 3 cycles:
 the simulator otherwise under-predicts these dispatches by 12–19%; with that rule they are within −5% to +2%.
+
+**A realistic kernel: per-workgroup tree reduction** (`scripts/reduce_probe.py`): each of 256 threads grid-stride
+sums T device loads, stores to threadgroup memory, then 8 tree steps (`if (l < k)` threadgroup load/add/store,
+whole-workgroup barrier), every thread reads the total. All 7 dispatches (9,728 – 1 M threads, 8 – 256 loads per
+thread) are exact against the host oracle. Measured 7.7 – 786 µs; the simulator predicts −17% … +6% (median −4%).
+
+Two rules came out of it: (1) **data written by the CPU just before a dispatch and small enough to fit the
+system-level cache is served from it**: a 5 MB input streams at ~250 GB/s (the model with first touches from
+DRAM was +55%); (2) **whole dispatches sustain ~360 GB/s from DRAM** (a 268 MB reduction: 341 GB/s;
+grid-stride streaming 330–350 GB/s), below the ~410 GB/s of steady per-core streaming.
 
 ## Not established
 

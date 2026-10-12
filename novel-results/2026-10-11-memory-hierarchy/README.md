@@ -41,6 +41,10 @@ so one instruction touches 1–32 distinct 64-byte segments.
 * **ALU work after a `wait` delays the next whole batch of loads**: 4 ALU instructions add ~27 cycles to an 8-load
   round (the load-after-ALU quiet time), each further independent instruction ~1. The quiet time holds back
   every load of the batch, not only the first (loads complete in order).
+* **A load issued after ALU work waits ~50 cycles behind the previous load, not for its completion**: one `iadd`
+  after every load (private windows, one group) costs 50.5 cycles per load at L1, 57 at L2 and 75 at DRAM. A full
+  wait for completion would cost 135–500. So the earlier "load after ALU waits for the pending load" rule (measured
+  on L1 hits) is a wait for the pending load to pass the L1, plus any completion deferral by ALU work.
 * **CPU load does not disturb these measurements**: with 10 CPU cores busy, L1 and DRAM-bandwidth rows moved < 2%.
   L2 rows vary ±10% between runs either way, and latency-bound DRAM rows with 1 group vary with the GPU clock
   (latency is fixed in ns). Use medians of repeats.
