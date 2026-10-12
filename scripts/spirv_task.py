@@ -3556,6 +3556,74 @@ def cmd_verify(a):
     return 1 if c.get('FAIL') or c.get('STALE') or (a.strict and c.get('PENDING')) else 0
 
 
+def cmd_probes(a):
+    """What the M2 recordings say about the cost model: for each timing probe, the measured per-dispatch times next to the
+    model's predictions (on the recorded code) and the quantity the probe exists to measure; plus the functional
+    measurements (texture precision, unorm rounding, memory ordering) and the features the driver lacks."""
+    exp = Path(a.expected)
+    rows = []
+    def rec_of(name):
+        f = exp / name / 'hardware.json'
+        if not f.exists():
+            return None
+        r = json.loads(f.read_text())
+        return None if (r.get('test_recording_not_hardware') and not os.environ.get('AGX_VERIFY_ALLOW_TEST_RECORDINGS')) else r
+    def times(name, r):
+        meas = [x / 1e3 for x in (r.get('large') or {}).get('dispatch_ns_median') or []]
+        pred = None
+        if a.predict and (exp / name / 'code/main.bin').exists():
+            q = subprocess.run([sys.executable, '-B', __file__, 'predict', name, '--code-dir', str(exp / name / 'code'), '--size', 'large'],
+                               capture_output=True, text=True)
+            if q.returncode == 0 and 'dispatch_us' in q.stdout:
+                pred = json.loads(q.stdout)['dispatch_us']
+        return meas, pred
+    def fit_slope(xs, ys):
+        xs, ys = np.asarray(xs, float), np.asarray(ys, float)
+        return float(np.polyfit(xs, ys, 1)[0]) if len(xs) > 1 else None
+    def rel(v):
+        return [round(x / v[0], 2) for x in v] if v and v[0] else None
+    probes = {
+        'barriercost': lambda m, p_: {'rounds': BARRIER_ROUNDS, 'us_per_round_measured': fit_slope(BARRIER_ROUNDS, m),
+                                      'us_per_round_model': fit_slope(BARRIER_ROUNDS, p_) if p_ else None},
+        'atomcontend': lambda m, p_: {'counters': ATOM_TABLES, 'hot_over_spread_measured': round(m[0] / m[-1], 2) if m else None,
+                                      'hot_over_spread_model': round(p_[0] / p_[-1], 2) if p_ else None},
+        'smembank': lambda m, p_: {'strides': SMEM_STRIDES, 'relative_measured': rel(m), 'relative_model': rel(p_)},
+        'coalesce': lambda m, p_: {'strides': COALESCE_STRIDES, 'relative_measured': rel(m), 'relative_model': rel(p_)},
+        'aluprobe': lambda m, p_: {'kinds': ['fma32 dep', 'fma32 x8', 'fma16 dep', 'fma16 x8', 'imad dep', 'imad x8'],
+                                   'dep_over_x8_measured': [round(m[k] / m[k + 1], 2) for k in (0, 2, 4)] if len(m) == 6 else None,
+                                   'dep_over_x8_model': [round(p_[k] / p_[k + 1], 2) for k in (0, 2, 4)] if p_ else None},
+        'rule110': lambda m, p_: {'us_per_dispatch_measured': round(float(np.median(m)), 2) if m else None,
+                                  'us_per_dispatch_model': round(float(np.median(p_)), 2) if p_ else None},
+    }
+    for name, derive in probes.items():
+        r = rec_of(name)
+        if r is None:
+            rows.append({'probe': name, 'status': 'PENDING'}); continue
+        m, p_ = times(name, r)
+        show = lambda v: None if not v else ([round(x, 2) for x in v] if len(v) <= 16 else      # long chains: a summary
+                                             {'dispatches': len(v), 'median': round(float(np.median(v)), 2), 'min': round(min(v), 2), 'max': round(max(v), 2)})
+        rows.append({'probe': name, 'measured_us': show(m), 'predicted_us': show(p_), **derive(m, p_)})
+    functional = {'texfilter': 'best_subtexel_bits', 'imgtonemap': 'round_to_nearest_fraction', 'mplitmus': 'relaxed_stale_reads',
+                  'f16pack': 'half_mismatches'}
+    for name, key in functional.items():
+        r = rec_of(name)
+        if r is None:
+            rows.append({'probe': name, 'status': 'PENDING'}); continue
+        rows.append({'probe': name, key: {sz: ((r.get(sz) or {}).get('functional') or {}).get(key) for sz in ('small', 'large')},
+                     'hardware_matches_reference': (r.get('small') or {}).get('functional_ok')})
+    nodev = {}
+    for name in WORKLOADS:
+        r = rec_of(name)
+        if r and r.get('unsupported_on_device'):
+            nodev[name] = r['unsupported_on_device']
+    rows.append({'features_missing_on_device': nodev})
+    for row in rows:
+        print(json.dumps(row), flush=True)
+    if a.json:
+        Path(a.json).write_text(json.dumps(rows, indent=1) + '\n')
+    return 0
+
+
 def run_dispatch(cmd):
     r = subprocess.run(cmd, capture_output=True, text=True)
     if r.returncode:
@@ -3566,6 +3634,8 @@ def run_dispatch(cmd):
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest='cmd', required=True)
+    p = sub.add_parser('probes'); p.add_argument('--expected', default=str(EXPECTED)); p.add_argument('--json')
+    p.add_argument('--no-predict', dest='predict', action='store_false')
     sub.add_parser('build'); sub.add_parser('list')
     p = sub.add_parser('run'); p.add_argument('workload'); p.add_argument('--size', choices=['small', 'large'], default='large')
     p.add_argument('--repeat', type=int, default=10); p.add_argument('--out', type=Path, default=ROOT / 'spirv/out')
@@ -3605,7 +3675,7 @@ def main():
             print(k, '-', (SHADERS / f'{k}.comp').read_text().splitlines()[1].lstrip('/ '))
         return
     sys.exit({'build': cmd_build, 'run': cmd_run, 'compile': cmd_compile, 'extract': cmd_extract, 'sim': cmd_sim, 'simall': cmd_simall, 'predictall': cmd_predictall,
-              'predict': cmd_predict, 'record': cmd_record, 'verify': cmd_verify}[a.cmd](a) or 0)
+              'predict': cmd_predict, 'record': cmd_record, 'verify': cmd_verify, 'probes': cmd_probes}[a.cmd](a) or 0)
 
 
 if __name__ == '__main__':

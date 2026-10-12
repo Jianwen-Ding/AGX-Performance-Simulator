@@ -36,6 +36,19 @@ and the reference agree; that is a sanity check, not hardware verification.
    That one line is the model's accuracy on real kernels. `nms` is expected near the top of the under-predicted
    list (see `spirv-08-applications.md`).
 
+4. Runs `spirv_task.py probes`, which gives `probes.txt` / `probes.json` and the report's Probes section. It reads
+   the recordings of the timing probes and lists measured against predicted per dispatch, together with what each probe
+   measures:
+   - `barriercost`: µs per barrier round;
+   - `atomcontend`: hot-counter over spread-counter time;
+   - `smembank` / `coalesce`: time per stride relative to stride 1;
+   - `aluprobe`: dependent over 8-chain ratio for fp32, fp16 and integer;
+   - `rule110`: µs per dispatch.
+
+   It also lists the device measurements (`texfilter` sub-texel bits, `imgtonemap` rounding, `mplitmus` relaxed stale
+   reads, `f16pack` subnormal results) and the features the driver lacks (NODEV workloads). These are the numbers to
+   bring back for the next model revision.
+
 After the recordings are committed, `make spirv-verify` repeats the comparison offline on any machine.
 The rest of this file is the detailed procedure, for investigating results.
 

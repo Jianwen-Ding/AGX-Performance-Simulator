@@ -41,6 +41,8 @@ OUT=results/$(date -u +%Y-%m-%d)-asahi-verify
 mkdir -p "$OUT"
 echo "== verify (simulator vs the recordings)"
 python3 -B scripts/spirv_task.py verify "$WORKLOADS" --timing --json "$OUT/verify.json" | tee "$OUT/verify.txt" || true
+echo "== probes (what the recordings say about the cost model and the device)"
+python3 -B scripts/spirv_task.py probes --json "$OUT/probes.json" | tee "$OUT/probes.txt" || true
 
 if [ $COVERAGE = 1 ]; then
     echo "== coverage catalog (safe cases)"
@@ -57,6 +59,12 @@ fi
     echo
     echo '```'
     cat "$OUT/verify.txt"
+    echo '```'
+    echo
+    echo '## Probes'
+    echo
+    echo '```'
+    cat "$OUT/probes.txt"
     echo '```'
     echo
     echo "PASS = simulator identical to the GPU word for word; CLOSE = differs, both within the reference tolerance;"
