@@ -38,13 +38,12 @@ const ALU: &[(&str, &str)] = &[
     ("simd_shuffle_xor", "simd_shuffle_xor"), ("simd_shuffle_rotate_up", "simd_shuffle_down"),
     ("simd_shuf_op", "simd_shuffle"), ("quad_shuffle", "quad_shuffle"), ("quad_shuffle_down", "quad_shuffle"),
     ("quad_shuffle_up", "quad_shuffle"), ("quad_shuffle_xor", "quad_shuffle"), ("quad_shuffle_rotate_up", "quad_shuffle"),
-    ("icmp_ballot", "icmp_ballot"), ("fcmp_ballot", "fcmp_ballot"), ("icmp_quad_ballot", "icmp_ballot"),
-    ("fcmp_quad_ballot", "fcmp_ballot"), ("get_sr", "get_sr"), ("TODO.sr_thing", "get_sr"),
+    ("icmp_ballot", "icmp_ballot"), ("fcmp_ballot", "fcmp_ballot"), ("icmp_quad_ballot", "quad_shuffle"),
+    ("fcmp_quad_ballot", "quad_shuffle"), ("get_sr", "get_sr"), ("TODO.sr_thing", "get_sr"),
 ];
 const UNMEASURED_ALU: &[&str] = &[
     "iunop", "ceil", "trunc", "funop", "dfdx", "dfdy", "simd_shuffle_up", "simd_shuffle_rotate_up", "simd_shuf_op",
-    "quad_shuffle_down", "quad_shuffle_up", "quad_shuffle_xor", "quad_shuffle_rotate_up", "icmp_quad_ballot",
-    "fcmp_quad_ballot", "TODO.sr_thing",
+    "quad_shuffle_down", "quad_shuffle_up", "quad_shuffle_xor", "quad_shuffle_rotate_up", "TODO.sr_thing",
 ];
 const LOADS: &[&str] = &[
     "device_load", "device_load.TODO", "threadgroup_load", "stack_load", "async_load", "texture_sample", "texture_load",
@@ -91,6 +90,23 @@ const HALF_UNIT_SLOW: &[(&str, f64)] = &[("rcp", 2.94 * 1.049), ("rsqrt", 3.92 *
 const HALF_UNIT_FAST: f64 = 1.96 * 1.049;
 /// 64-bit add and 32x32->64 multiply-add occupy the same half unit (no sfu-pipe rules otherwise).
 const HALF_UNIT_WIDE: &[(&str, f64)] = &[("iadd64", 3.92 * 1.049), ("imadd_wide", 3.92 * 1.049)];
+
+/// Classes whose bench row reads three or more 32-bit registers and issues in 2 cycles; a form of them reading at
+/// most two 32-bit registers issues in one (coverage/timing: fmadd32 with an immediate 1.06, icmpsel / fcmpsel
+/// with immediates or 16-bit operands 1.06-1.17, vs 2.0-2.13).
+const PORT_BOUND: &[&str] = &["fmadd32", "icmpsel", "fcmpsel"];
+/// Rows derived from the instruction-bench coverage (coverage/timing/<form>.json, reference units):
+/// (name, base row, latency, simd_issue or None to take the base row's, issue base row or None). The per-core
+/// rate scales the base row's by the issue ratio.
+const DERIVED_ROWS: &[(&str, &str, Option<f64>, Option<f64>, Option<&str>)] = &[
+    // quad_min.* / quad_max.* / quad_xor (r14l, r6l forms)
+    ("quad_minmax", "quad_iadd", Some(9.62), Some(7.71), None),
+    // quad_prefix_fadd / fmul / iadd
+    ("quad_prefix", "quad_iadd", Some(5.80), Some(3.90), None),
+    // cmpsel reading at most two 32-bit registers: the select latency, a single-cycle issue (iadd's)
+    ("icmpsel_2r", "icmpsel", None, None, Some("iadd")),
+    ("fcmpsel_2r", "fcmpsel", None, None, Some("iadd")),
+];
 
 fn lookup<'a, T: Copy>(table: &'a [(&str, T)], k: &str) -> Option<T> {
     table.iter().find(|(n, _)| *n == k).map(|(_, v)| *v)
@@ -209,6 +225,16 @@ impl Params {
                 ipc: g("gpu", "lanes_per_cycle_per_core")? / 32.0 / k,
                 tmpl: v.get("template").and_then(Value::as_str).unwrap_or("").to_string(),
             });
+        }
+        for (name, base, lat, ii, ii_from) in DERIVED_ROWS {
+            let Some(b0) = rows.get(*base).cloned() else { continue };
+            let src = match ii_from {
+                Some(n) => match rows.get(*n) { Some(r) => r.clone(), None => continue },
+                None => b0.clone(),
+            };
+            let ii_real = ii.map(|x| (x * k).max(1.0)).unwrap_or(src.ii);
+            let ipc = if ii_from.is_some() { src.ipc } else { b0.ipc * b0.ii / ii_real };
+            rows.insert(name.to_string(), Row { lat: lat.map(|x| x * k).unwrap_or(b0.lat), ii: ii_real, ipc, tmpl: b0.tmpl.clone() });
         }
         let cal = if calib.exists() { read_json(calib)? } else { Value::Object(Default::default()) };
         let c = |key: &str, d: f64| cal.get(key).and_then(num).unwrap_or(d);
@@ -345,6 +371,13 @@ pub struct Instr {
     pub uniform_src: bool,
     pub loop_bytes: Option<usize>,
     pub wait_run: usize,
+    /// latency beyond the class row, in real cycles (operand-dependent forms: saturating fp32)
+    pub lat_extra: f64,
+    /// 32-bit registers read with the `.cache` hint (the `_cache` classes' extra issue cycle applies only when
+    /// one of them is not in the group's result cache)
+    pub cache_regs: Vec<u32>,
+    /// register halves read one cycle after issue (the select operands of icmpsel / fcmpsel)
+    pub late_src: Vec<u32>,
 }
 
 fn set_of(v: impl IntoIterator<Item = u32>) -> Vec<u32> {
@@ -382,7 +415,7 @@ pub fn decode(code: &[u8], p: &Params) -> Result<Vec<Instr>, String> {
             out.push(Instr {
                 pc, size: 2, name: "barrier_4groups".into(), text: "0x78 barrier (aligned 4 SIMD groups)".into(), dst: vec![], src: vec![],
                 reads32: 0, src32: vec![], unit: None, kind: Kind::Barrier, unmeasured: false, slot: 0, cache: false, uniform_src: false,
-                loop_bytes: None, wait_run: 0,
+                loop_bytes: None, wait_run: 0, lat_extra: 0.0, cache_regs: vec![], late_src: vec![],
             });
             pc += 2;
             continue;
@@ -400,6 +433,7 @@ pub fn decode(code: &[u8], p: &Params) -> Result<Vec<Instr>, String> {
         let mut rec = Instr {
             pc, size, name: String::new(), text: String::new(), dst: vec![], src: vec![], reads32: 0, src32: vec![], unit: None,
             kind: Kind::Alu, unmeasured: false, slot: 0, cache: false, uniform_src: false, loop_bytes: None, wait_run: 0,
+            lat_extra: 0.0, cache_regs: vec![], late_src: vec![],
         };
         let nm = d.name;
         if nm == "stack_store" && is_stack_adjust(n) {
@@ -469,6 +503,24 @@ pub fn decode(code: &[u8], p: &Params) -> Result<Vec<Instr>, String> {
             if nm == "get_sr" {
                 rec.src = vec![];
             }
+            // bitop with a constant truth table (0000 / 1111) reads neither source: latency-mode chains run at
+            // the issue rate (coverage/timing bitop_0000 / bitop_1111: 1.04 vs 1.99 for every other table)
+            let tt = (0..4).map(|i| fget(&f, &format!("tt{}", i)).unwrap_or(0)).collect::<Vec<_>>();
+            let const_bitop = nm == "bitop" && (tt.iter().all(|&b| b == 0) || tt.iter().all(|&b| b == 1));
+            if const_bitop {
+                rec.src = vec![];
+            }
+            // Cross-half read: an instruction with two or more register sources that writes one 16-bit half and
+            // reads the other half of the same register waits for the in-flight write of its destination half
+            // (and/or/xor/nand/nor/xnor/fadd16.sat/fmul16.sat `rXl, rXh, r7l`: 1.99 per step with no data
+            // dependency). One-source forms (`mov rXl, rXh`, transcendentals) and same-half forms
+            // (half.json 'f16 low/high independent') do not wait.
+            if !const_bitop && regops.len() >= 3 && regops[0].1.len() == 1 && !is_reduce(nm) {
+                let hd = regops[0].1[0];
+                if regops[1..].iter().any(|(o, r)| matches!(o, Operand::Reg16(..)) && r.len() == 1 && r[0] / 2 == hd / 2 && r[0] != hd) {
+                    rec.src = set_of(rec.src.iter().copied().chain([hd]));
+                }
+            }
             let wide = set_of(
                 regops
                     .iter()
@@ -476,20 +528,62 @@ pub fn decode(code: &[u8], p: &Params) -> Result<Vec<Instr>, String> {
                     .filter(|(o, _)| matches!(o, Operand::Reg32(..) | Operand::Reg64(..)))
                     .flat_map(|(_, r)| r.iter().map(|h| h / 2)),
             );
+            let wide = if const_bitop { vec![] } else { wide };
+            // icmpsel / fcmpsel read 16-bit select operands a cycle after the compared pair: a select fed by the
+            // previous instruction does not wait (16-bit forms whose select operands are other chains' results:
+            // 1.06-1.17 per step with 8 chains, as if only the compared operands were dependencies). 32-bit select
+            // operands are not covered by the bench (constants there) and keep the ordinary dependency.
+            if matches!(nm, "icmpsel" | "fcmpsel") {
+                let vals: Vec<&Operand> = ops.iter().filter(|o| matches!(o, Operand::Reg16(..) | Operand::Reg32(..) | Operand::Reg64(..)
+                    | Operand::UReg16(..) | Operand::UReg32(..) | Operand::UReg64(..) | Operand::Imm(..))).collect();
+                if vals.len() == 5 {
+                    let early: Vec<u32> = vals[1..3].iter().flat_map(|o| regs_of(o)).collect();
+                    rec.late_src = set_of(vals[3..].iter().filter(|o| matches!(o, Operand::Reg16(..))).flat_map(|o| regs_of(o))
+                        .filter(|h| !early.contains(h)));
+                }
+            }
             rec.reads32 = wide.len();
             rec.src32 = wide.clone();
             rec.cache = regops.iter().skip(1).any(|(o, _)| o.flags() & isa::operand::F_CACHE != 0);
+            rec.cache_regs = set_of(
+                regops
+                    .iter()
+                    .skip(1)
+                    .filter(|(o, _)| o.flags() & isa::operand::F_CACHE != 0)
+                    .flat_map(|(_, r)| r.iter().map(|h| h / 2)),
+            );
+            // Saturating fp32 forms take one more cycle (fadd32/fmul32/fmadd32 .sat: 2.94 vs 1.99), and one more
+            // again when the result is narrowed to a 16-bit register (fadd32/fmul32.sat rXl: 3.90). 16-bit and
+            // integer .sat forms cost nothing extra.
+            if matches!(nm, "fadd32" | "fmul32" | "fmadd32") && fget(&f, "S") == Some(1) {
+                rec.lat_extra = 1.0 + if regops.first().map(|(_, r)| r.len() == 1).unwrap_or(false) { 1.0 } else { 0.0 };
+            }
             let imm = ops.iter().filter(|o| matches!(o, Operand::Imm(..))).count();
             let key = if is_reduce(nm) {
-                rec.unmeasured = p.row(nm).is_none();
-                if p.row(nm).is_some() {
+                // Reduction classes (coverage/timing, any source width): min / max / xor reduce faster than
+                // and / or / iadd / fadd / fmul (quad 9.6 vs 11.5, simd 22.0 vs 22.9), and quad prefix scans take
+                // half a quad reduction (5.8); simd prefix scans all match simd_prefix_iadd.
+                let op = nm.trim_start_matches("simd_").trim_start_matches("quad_");
+                let fast = op.starts_with("min") || op.starts_with("max") || op.starts_with("xor");
+                let k = if p.row(nm).is_some() {
                     nm.to_string()
+                } else if nm.starts_with("quad_prefix") {
+                    "quad_prefix".into()
                 } else if nm.starts_with("quad") {
-                    "quad_iadd".into()
+                    if fast { "quad_minmax".into() } else { "quad_iadd".into() }
                 } else if nm.contains("prefix") {
                     "simd_prefix_iadd".into()
+                } else if fast {
+                    "simd_min.u".into()
                 } else {
                     "simd_iadd".into()
+                };
+                rec.unmeasured = p.row(&k).is_none();
+                if rec.unmeasured {
+                    // derived rows missing (custom bench file): fall back to the measured base classes
+                    if nm.starts_with("quad") { "quad_iadd".into() } else if nm.contains("prefix") { "simd_prefix_iadd".into() } else { "simd_iadd".into() }
+                } else {
+                    k
                 }
             } else {
                 let mut key = lookup(ALU, nm).unwrap().to_string();
@@ -501,7 +595,21 @@ pub fn decode(code: &[u8], p: &Params) -> Result<Vec<Instr>, String> {
                 if nm == "imadd" && first4 {
                     key = "imadd_wide".into();
                 }
-                if imm > 0 && rec.reads32 <= 1 && p.row(&format!("{}_imm", key)).is_some() {
+                let short_fp = matches!(nm, "fadd32" | "fmul32" | "fadd16" | "fmul16");
+                if short_fp {
+                    // fp add/mul: the 4-byte short-immediate encoding issues in one cycle and completes one
+                    // tenth of a unit sooner (fadd32_imm row); longer encodings, immediate or not, are the base class
+                    if size == 4 && p.row("fadd32_imm").is_some() {
+                        key = "fadd32_imm".into();
+                    } else if rec.cache && p.row(&format!("{}_cache", key)).is_some() {
+                        key += "_cache";
+                    }
+                } else if PORT_BOUND.contains(&key.as_str()) && rec.reads32 <= 2 && !rec.cache
+                    && p.row(&format!("{}_2r", key)).or_else(|| p.row(&format!("{}_imm", key))).is_some() {
+                    // the class row was measured reading three or more 32-bit registers (2 issue cycles); with at
+                    // most two (immediates, 16-bit operands) the form issues in one
+                    key = if p.row(&format!("{}_2r", key)).is_some() { format!("{}_2r", key) } else { format!("{}_imm", key) };
+                } else if imm > 0 && rec.reads32 <= 1 && p.row(&format!("{}_imm", key)).is_some() {
                     key += "_imm";
                 } else if rec.cache && p.row(&format!("{}_cache", key)).is_some() {
                     key += "_cache";
@@ -959,6 +1067,10 @@ struct SimInstr {
     reduce: bool,
     lat: i64,
     ii: i64,
+    /// issue interval when every `.cache` source is in the result cache (`_cache` classes only)
+    ii_cache_hit: Option<i64>,
+    cache_regs: Vec<u32>,
+    late_src: Vec<u32>,
     sfu_op: bool,
     sfu_slow: Option<i64>,
     core_slow: Option<i64>,
@@ -1253,8 +1365,13 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
         };
         let row = r.unit.as_ref().map(|u| p.rows.get(u).ok_or_else(|| format!("KeyError: {}", u))).transpose()?;
         let (lat, ii) = match row {
-            Some(row) => (tk(row.lat), tk(row.ii)),
+            Some(row) => (tk(row.lat + r.lat_extra), tk(row.ii)),
             None => (0, 0),
+        };
+        // `_cache` classes: the extra issue cycle only when a `.cache` source misses the result cache
+        let ii_cache_hit = match r.unit.as_deref().and_then(|u| u.strip_suffix("_cache")).and_then(|b| p.rows.get(b)) {
+            Some(b) if !r.cache_regs.is_empty() => Some(tk(b.ii)),
+            _ => None,
         };
         let u = r.unit.as_deref().unwrap_or("");
         let is_tg = r.name.starts_with("threadgroup");
@@ -1287,6 +1404,9 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
             reduce: is_reduce(&r.name),
             lat,
             ii,
+            ii_cache_hit,
+            cache_regs: r.cache_regs.clone(),
+            late_src: r.late_src.clone(),
             sfu_op,
             sfu_slow: lookup(SFU_SLOW, u).map(tk),
             core_slow: lookup(HALF_UNIT_SLOW, u).map(tk),
@@ -1548,6 +1668,9 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
                     for &h in &r.src {
                         let i = touch(&mut ready[gi], &mut present[gi], &mut present_list[gi], h);
                         let mut v = ready[gi][i];
+                        if !r.late_src.is_empty() && r.late_src.contains(&h) {
+                            v -= t_;
+                        }
                         let reg = (h / 2) as usize;
                         if let Some((t0, narrow)) = wtime[gi][reg] {
                             if !rcache[gi].contains(&(reg as u32)) {
@@ -2080,6 +2203,11 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
                 Kind::Alu => {
                     let lat = r.lat;
                     let mut iiv = r.ii;
+                    if let Some(h) = r.ii_cache_hit {
+                        if r.cache_regs.iter().all(|x| rcache[gi].contains(x)) {
+                            iiv = h;
+                        }
+                    }
                     if r.sfu_op {
                         sfu_iss[gi] = t;
                         sfu_wb[gi] = sfu_wb[gi].max(t + lat);
