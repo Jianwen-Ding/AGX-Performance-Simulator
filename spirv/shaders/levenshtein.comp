@@ -1,0 +1,32 @@
+#version 450
+// Edit distance (Levenshtein) of string pairs, one pair per thread: the classic dynamic program with a single
+// 33-entry row in private memory (dynamically indexed: register array or stack). Strings are up to 32 bytes in
+// 32-byte slots. Integer-exact; a fuzzy-matching / spell-checking kernel.
+#extension GL_EXT_shader_8bit_storage : require
+#extension GL_EXT_shader_explicit_arithmetic_types_int8 : require
+layout(local_size_x = 64) in;
+layout(std430, binding = 0) readonly buffer A { uint8_t sa[]; };
+layout(std430, binding = 1) readonly buffer B { uint8_t sb[]; };
+layout(std430, binding = 2) readonly buffer L { uint lens[]; };     // (len a, len b) per pair
+layout(std430, binding = 3) writeonly buffer D { uint dist[]; };
+layout(push_constant) uniform P { uint n; } p;
+
+void main() {
+    uint i = gl_GlobalInvocationID.x;
+    if (i >= p.n) return;
+    uint la = lens[2 * i], lb = lens[2 * i + 1];
+    uint row[33];
+    for (uint j = 0u; j <= lb; j++) row[j] = j;
+    for (uint k = 1u; k <= la; k++) {
+        uint ca = uint(sa[32u * i + k - 1u]);
+        uint diag = row[0];
+        row[0] = k;
+        for (uint j = 1u; j <= lb; j++) {
+            uint up = row[j];
+            uint sub = diag + (ca == uint(sb[32u * i + j - 1u]) ? 0u : 1u);
+            row[j] = min(min(up + 1u, row[j - 1u] + 1u), sub);
+            diag = up;
+        }
+    }
+    dist[i] = row[lb];
+}

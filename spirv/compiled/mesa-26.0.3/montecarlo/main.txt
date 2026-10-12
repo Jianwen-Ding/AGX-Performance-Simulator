@@ -1,0 +1,45 @@
+0x0080  f2051004                 get_sr r1.cache, sr80 (thread_position_in_grid.x)
+0x0084  0e05c28658000000         iadd r1, r1.discard.sx, u4.sx
+0x008c  62000000                 mov_imm r0l, 0
+0x0090  522842a21800             if_icmp r0l, ult, r1, u5, 1
+0x0096  620900000000             mov_imm r2, 0, 0b0
+0x009c  620d00000000             mov_imm r3, 0, 0b0
+0x00a2  420800000000             push_exec r0l, 1
+0x00a8  522c84020001             while_icmp r0l, ult, r2.cache, 64, 1
+0x00ae  9e11420600840601         imadd r4.cache, r1.sx, 64, r2.cache.sx
+0x00b6  fe1148ca5800             xor r4.cache, r4, u6
+0x00bc  9e1148065a9c0500         imadd r4.cache, r4.sx, u16.sx, u14.sx
+0x00c4  ae950080281c0000         bfeil r5.cache, 0, r4.cache, 28
+0x00cc  8e154a4600000000         iadd r5.cache, r5.sx, 4
+0x00d4  fe154af28100             and r5.cache, r5, 31
+0x00da  ae950080284a0200         bfeil r5.cache, 0, r4.cache, r5
+0x00e2  fe114a8a6400             xor r4.cache, r5, r4
+0x00e8  9e1148a659000000         imadd r4.cache, r4.sx, u13.sx, 0
+0x00f0  ae95008028160000         bfeil r5.cache, 0, r4.cache, 22
+0x00f8  fe114a8a6400             xor r4.cache, r5, r4
+0x00fe  ae950080e80f0c00         bfeil r5.cache, 0, r4.cache, 15, mask 0x7FFF
+0x0106  9e154aa664000000         imadd r5.cache, r5.sx, r5.sx, 0
+0x010e  fe1148e29900             and r4.cache, r4, u15
+0x0114  9e114886644a0600         imadd r4.cache, r4.sx, r4.sx, r5.sx
+0x011c  9211488219010130         icmpsel ult, r4.cache, r4, u12, 1, 0
+0x0124  0e0d468664000000         iadd r3, r3.sx, r4.sx
+0x012c  0e09441600000000         iadd r2, r2.sx, 1
+0x0134  00c074ffffff             jmp_exec_any pc-140
+0x013a  520e00000000             pop_exec r0l, 1
+0x0140  4519200e10c01200         device_store 0, i32, x, r3, u8_u9, r1, unsigned, 0
+0x0148  3800                     wait 0
+0x014a  420a00000000             else_fcmp r0l, eq, 0.0, 0.0, 1
+0x0150  620d00000000             mov_imm r3, 0, 0b0
+0x0156  520e00000000             pop_exec r0l, 1
+0x015c  72023a00                 get_sr r0h, sr58 (active_thread_index_in_simdgroup)
+0x0160  6f8546220080             simd_iadd r1, r3
+0x0166  520841000000             if_icmp r0l, ueq, r0h, 0, 1
+0x016c  f2093b00                 get_sr r2.cache, sr59
+0x0170  1e05442664000000         imadd r1, r2.sx, r1.sx, 0
+0x0178  72023a00                 get_sr r0h, sr58 (active_thread_index_in_simdgroup)
+0x017c  520841000000             if_icmp r0l, ueq, r0h, 0, 1
+0x0182  1500048d10500200         atomic add, 0, None, u10_u11, 0, signed, r1, 1, 0, 1, 4, 2
+0x018a  3800                     wait 0
+0x018c  520e00000000             pop_exec r0l, 1
+0x0192  520e00000000             pop_exec r0l, 1
+0x0198  8800                     stop

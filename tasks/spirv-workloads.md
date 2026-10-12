@@ -31,7 +31,7 @@ The rest of this file is the detailed procedure, for investigating results.
 
 ## Workloads
 
-Fifty-one realistic compute kernels, written in GLSL (`spirv/shaders/*.comp`) and compiled to SPIR-V:
+Fifty-five realistic compute kernels, written in GLSL (`spirv/shaders/*.comp`) and compiled to SPIR-V:
 
 | Workload | Kernel | Stresses |
 |---|---|---|
@@ -86,6 +86,10 @@ Fifty-one realistic compute kernels, written in GLSL (`spirv/shaders/*.comp`) an
 | `base64` | Base64 encoding of 12 MiB (both '=' padding cases) | Byte loads / stores, select chains; exact |
 | `md5` | MD5 of 256 Ki single-block messages | Integer rotates, branches per round group; exact |
 | `gemv` | Dense matrix-vector product, 8192² fp32, one workgroup per row | Memory bandwidth, shared-memory tree reduction |
+| `levenshtein` | Edit distance of string pairs, a dynamic program per thread | Dynamically indexed private array (register selects) |
+| `blur` | Separable 9-tap Gaussian blur, 4K fp32, two passes | Shared-memory tiles, fp32 FMA, multi-dispatch |
+| `yuv420` | RGBA8 → NV12 colour conversion at 4K | 8-bit stores, integer multiply-add, arithmetic shifts |
+| `montecarlo` | Monte Carlo π from a PCG hash | Integer hashing, subgroup reduction, elected atomics |
 
 Each workload has two sizes:
 
@@ -172,7 +176,7 @@ references are right; a wrong result on the M2 is therefore a GPU, driver or run
    python3 -B scripts/spirv_task.py sim sgemm --code-dir spirv/out/sgemm-small/code --hardware spirv/out/sgemm-small
    ```
 
-   - Offline, all fifty-one workloads pass their numpy references with shim-compiled Mesa 25.2.8 and 26.0.3 code
+   - Offline, all fifty-five workloads pass their numpy references with shim-compiled Mesa 25.2.8 and 26.0.3 code
      (`make spirv-sim`). That is a sanity check; verification is `make spirv-verify` against the M2 recordings.
    - Integer workloads (`scan`, `histogram`, `bitonic`, `sha256`, `int64`, `bitops`, `intdiv`, `compact`, `transpose`,
      `mandelbrot`, `atomics`, `geom3d`, `spill`, `control`, `shuffle`, `floatops`, `radix_sort`, `crc32`, `int8dot`, `int16`, `sobel`,

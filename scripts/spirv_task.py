@@ -1145,6 +1145,100 @@ def w_gemv(size, rng):
     return W('gemv', {0: (a, False), 1: (x, False), 2: (4 * M, True)}, [(M, 1, 1, push(N))], check, 256, {'bytes': 4 * M * N, 'flops': 2 * M * N})
 
 
+def lev_ref(a, b):
+    row = list(range(len(b) + 1))
+    for k in range(1, len(a) + 1):
+        diag, row[0] = row[0], k
+        for j in range(1, len(b) + 1):
+            up = row[j]
+            row[j] = min(up + 1, row[j - 1] + 1, diag + (a[k - 1] != b[j - 1]))
+            diag = up
+    return row[len(b)]
+
+
+def w_levenshtein(size, rng):
+    n = 512 if size == 'small' else 1 << 18
+    la = rng.integers(0, 33, n); lb = np.clip(la + rng.integers(-4, 5, n), 0, 32)
+    sa = rng.integers(97, 101, (n, 32), dtype=np.uint8)                       # 4-letter alphabet: many matches
+    sb = sa.copy()
+    edits = rng.random((n, 32)) < 0.2
+    sb[edits] = rng.integers(97, 101, int(edits.sum()), dtype=np.uint8)       # mutated copies: small distances
+    lens = u32(np.stack([la, lb], 1))
+    def check(o):
+        got = o[3].view(np.uint32)[:n]
+        rows = range(n) if size == 'small' else rng.choice(n, 4096, replace=False)
+        bad = [int(i) for i in rows if got[i] != lev_ref(bytes(sa[i, :la[i]]), bytes(sb[i, :lb[i]]))]
+        return not bad, {'bad_pairs': len(bad), 'first_bad': bad[:5], 'mean_distance': float(np.mean(got))}
+    return W('levenshtein', {0: (sa, False), 1: (sb, False), 2: (lens, False), 3: (4 * n, True)}, [((n + 63) // 64, 1, 1, push(n))],
+             check, 64, {'pairs': n, 'cells': int(np.sum(la * lb))})
+
+
+BLUR_W = np.array([0.0162162162, 0.0540540541, 0.1216216216, 0.1945945946, 0.2270270270,
+                   0.1945945946, 0.1216216216, 0.0540540541, 0.0162162162])
+
+
+def w_blur(size, rng):
+    Wd, H = (72, 40) if size == 'small' else (3840, 2160)
+    gy, gx = np.mgrid[0:H, 0:Wd]
+    img = f32(((gx // 8 + gy // 8) % 2) * 0.8 + 0.1 + 0.05 * rng.standard_normal((H, Wd)))   # noisy checkerboard
+    wt = BLUR_W.astype(np.float32).astype(np.float64)
+    def conv(a, axis):
+        q = np.pad(a, [(4, 4) if ax == axis else (0, 0) for ax in range(2)], mode='edge')
+        return sum(wt[t] * (q[t:t + H, :] if axis == 0 else q[:, t:t + Wd]) for t in range(9))
+    def check(o):
+        got = o[2].view(np.float32)[:Wd * H].reshape(H, Wd)
+        ref = conv(conv(img.astype(np.float64), 1), 0)
+        bound = 40 * 2.0 ** -24 * float(np.max(np.abs(img)))                # 2 passes of 9 rounded products and sums
+        err = float(np.max(np.abs(got - ref)))
+        return err <= bound, {'max_abs_err': err, 'bound': bound, 'contrast_in': float(np.std(img)), 'contrast_out': float(np.std(ref))}
+    grid = (max(Wd, H) + 15) // 16
+    ds = [(grid, grid, 1, push(Wd, H, k)) for k in range(2)]
+    return W('blur', {0: (img, False), 1: (4 * Wd * H, False), 2: (4 * Wd * H, True)}, ds, check, (16, 16, 1), {'pixels': Wd * H})
+
+
+def w_yuv420(size, rng):
+    Wd, H = (64, 48) if size == 'small' else (3840, 2160)
+    gy, gx = np.mgrid[0:H, 0:Wd]
+    rgb = np.stack([255 * gx / (Wd - 1), 255 * gy / (H - 1), 128 + 127 * np.sin(gx / 9.0 + gy / 13.0)], -1)
+    rgb = np.clip(rgb + rng.integers(-8, 9, rgb.shape), 0, 255).astype(np.int64)
+    rgba = u32(rgb[..., 0] | rgb[..., 1] << 8 | rgb[..., 2] << 16 | 255 << 24)
+    def check(o):
+        got = o[1][:Wd * H * 3 // 2]
+        Y = ((66 * rgb[..., 0] + 129 * rgb[..., 1] + 25 * rgb[..., 2] + 128) >> 8) + 16
+        a = (rgb.reshape(H // 2, 2, Wd // 2, 2, 3).sum((1, 3)) + 2) >> 2
+        cb = ((-38 * a[..., 0] - 74 * a[..., 1] + 112 * a[..., 2] + 128) >> 8) + 128
+        cr = ((112 * a[..., 0] - 94 * a[..., 1] - 18 * a[..., 2] + 128) >> 8) + 128
+        ref = np.concatenate([Y.ravel(), np.stack([cb, cr], -1).ravel()]).astype(np.uint8)
+        return np.array_equal(got, ref), {'luma_mismatches': int(np.sum(got[:Wd * H] != ref[:Wd * H])),
+                                          'chroma_mismatches': int(np.sum(got[Wd * H:] != ref[Wd * H:]))}
+    return W('yuv420', {0: (rgba, False), 1: (Wd * H * 3 // 2, True)}, [((Wd // 2 + 15) // 16, (H // 2 + 15) // 16, 1, push(Wd, H))],
+             check, (16, 16, 1), {'pixels': Wd * H}, images=[(1, Wd, H, 'gray8')])
+
+
+def pcg_hash(v):
+    s = (v * 747796405 + 2891336453) & 0xffffffff
+    w = (((s >> ((s >> 28) + 4)) ^ s) * 277803737) & 0xffffffff
+    return (w >> 22) ^ w
+
+
+def w_montecarlo(size, rng):
+    n = 1000 if size == 'small' else 1 << 22
+    seed = int(rng.integers(0, 1 << 32))
+    def check(o):
+        cnt = o[0].view(np.uint32)[:n]; total = int(o[1].view(np.uint32)[0])
+        ref = np.zeros(n, np.int64)
+        for c in range(0, n, 1 << 16):                                         # chunks keep the uint64 temporaries small
+            v = (np.arange(c, min(n, c + (1 << 16)), dtype=np.uint64)[:, None] * 64 + np.arange(64, dtype=np.uint64)) ^ np.uint64(seed)
+            h = pcg_hash(v & 0xffffffff)
+            x, y = h & 32767, (h >> 15) & 32767
+            ref[c:c + len(v)] = (x * x + y * y < (1 << 30)).sum(1)
+        ok = np.array_equal(cnt, ref) and total == int(ref.sum())
+        return ok, {'count_mismatches': int(np.sum(cnt != ref)), 'total': total, 'ref_total': int(ref.sum()),
+                    'pi_estimate': 4 * total / (64 * n)}
+    return W('montecarlo', {0: (4 * n, True), 1: (u32([0]), True)}, [((n + 127) // 128, 1, 1, push(n, seed))], check, 128,
+             {'samples': 64 * n})
+
+
 WORKLOADS = {'reduce': w_reduce, 'scan': w_scan, 'sgemm': w_sgemm, 'conv2d': w_conv2d, 'histogram': w_histogram,
              'nbody': w_nbody, 'bitonic': w_bitonic, 'sha256': w_sha256, 'fp16': w_fp16, 'int64': w_int64, 'bitops': w_bitops,
              'intdiv': w_intdiv, 'compact': w_compact, 'spmv': w_spmv, 'transpose': w_transpose, 'mandelbrot': w_mandelbrot,
@@ -1154,7 +1248,8 @@ WORKLOADS = {'reduce': w_reduce, 'scan': w_scan, 'sgemm': w_sgemm, 'conv2d': w_c
              'raytrace': w_raytrace, 'mlp': w_mlp, 'sobel': w_sobel, 'life': w_life, 'bfs': w_bfs, 'conv_layer': w_conv_layer,
              'hist_eq': w_hist_eq, 'aes': w_aes, 'hash_table': w_hash_table, 'word_count': w_word_count, 'dct8': w_dct8,
              'attention': w_attention, 'resize': w_resize, 'median3': w_median3, 'poisson': w_poisson,
-             'lbm': w_lbm, 'base64': w_base64, 'md5': w_md5, 'gemv': w_gemv}
+             'lbm': w_lbm, 'base64': w_base64, 'md5': w_md5, 'gemv': w_gemv,
+             'levenshtein': w_levenshtein, 'blur': w_blur, 'yuv420': w_yuv420, 'montecarlo': w_montecarlo}
 
 
 # ---------------------------------------------------------------------------------------------------------------

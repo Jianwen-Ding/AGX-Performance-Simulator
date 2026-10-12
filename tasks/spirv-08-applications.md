@@ -1,7 +1,7 @@
 # Task SPIR-V 8: applications (ray tracer, neural networks, image processing, cellular automaton, graph search,
 # encryption, hashing, text, compression)
 
-**Workloads:** `raytrace`, `mlp`, `sobel`, `life`, `bfs`, `conv_layer`, `hist_eq`, `aes`, `hash_table`, `word_count`, `dct8`, `attention`, `resize`, `median3`, `poisson`, `lbm`, `base64`, `md5`, `gemv`. These are recorded and verified by `make asahi-verify` with the others;
+**Workloads:** `raytrace`, `mlp`, `sobel`, `life`, `bfs`, `conv_layer`, `hist_eq`, `aes`, `hash_table`, `word_count`, `dct8`, `attention`, `resize`, `median3`, `poisson`, `lbm`, `base64`, `md5`, `gemv`, `levenshtein`, `blur`, `yuv420`, `montecarlo`. These are recorded and verified by `make asahi-verify` with the others;
 they are **PENDING** until then. The detailed procedure is in `tasks/spirv-workloads.md`.
 
 ## Why these
@@ -31,11 +31,15 @@ reference.
 | `base64` | Base64-encode 12 MiB of bytes | Text identical to Python's `base64` |
 | `md5` | MD5 of 256 Ki messages | Digests identical to `hashlib` |
 | `gemv` | y = A x for an 8192 × 8192 fp32 matrix (256 MiB read) | Within the summation error bound; GB/s against the memory bandwidth |
+| `levenshtein` | Edit distance of 262144 string pairs (up to 32 bytes), one dynamic program per thread | Exact; Mesa keeps the 33-entry row in registers, indexed through `icmpsel` chains (329 of 421 instructions) |
+| `blur` | Separable 9-tap Gaussian blur of a 3840 × 2160 fp32 image, row pass then column pass | Within 40 ulp of the image maximum (float64 reference) |
+| `yuv420` | RGBA8 → NV12 (BT.601 limited range, integer coefficients) at 3840 × 2160 | Byte-exact luma and chroma planes; `sim_image1.pgm` / `image1.pgm` show the luma |
+| `montecarlo` | π from 2^28 PCG-hashed points with 15-bit integer coordinates | Exact per-thread counts and total (subgroup sum, one atomic per subgroup) |
 
 ## Offline sanity checks (not hardware verification)
 
-- **lavapipe:** all three pass at both sizes.
-- **Shim-compiled Mesa 25.2.8 and 26.0.3 code on the functional simulator:** 38 of 38.
+- **lavapipe:** all pass at both sizes.
+- **Shim-compiled Mesa 25.2.8 and 26.0.3 code on the functional simulator:** 46 of 46.
   - `bfs` found a simulator bug. Mesa aggregates `atomicAdd(found[l], 1)` under divergence: one lane, chosen with SR58
     (`active_thread_index_in_simdgroup`), adds SR59, the number of active lanes. The simulator modelled both from the
     launch shape (lane index, 32), which is only right when every lane is active, so the counts came out as multiples
@@ -60,3 +64,6 @@ reference.
 5. `life`, `bfs` and `hist_eq` are exact and multi-dispatch. They must PASS, and they show whether results carry
    correctly across dispatches. For `life` and `bfs`, compare the time per dispatch (64 and 32 small dispatches) with
    the launch overhead.
+6. `levenshtein`, `yuv420` and `montecarlo` are exact and must PASS. `levenshtein` is the first workload where the
+   compiler turns a dynamically indexed private array into register selects; compare its time with `predict`, since
+   the select chains make it ALU-bound. `blur` is CLOSE or PASS; report megapixels per second for both passes.
