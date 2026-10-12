@@ -1,0 +1,59 @@
+#version 450
+// Content-defined chunking for deduplication (the gear rolling hash of FastCDC; backup tools cut their streams
+// this way so that an insertion only changes the chunks around it). Two passes over independent regions:
+//   pass 0: one invocation per 32 bytes: h = (h << 1) + gear[byte] at every byte, a candidate cut after byte p
+//           where the top bits of h are zero. A 32-bit h forgets a byte after 32 shifts, so 31 bytes of history
+//           give the exact hash, and each invocation is independent. The hash restarts at every region start.
+//   pass 1: one invocation per region, serial: the greedy chunker. A chunk is at least MIN bytes: it ends at the
+//           first candidate that allows that, or at MAX bytes, or at the region end.
+layout(local_size_x = 256) in;
+layout(std430, binding = 0) readonly buffer D { uint data[]; };     // 4 bytes per word, little-endian
+layout(std430, binding = 1) readonly buffer G { uint gear[]; };     // 256 random words
+layout(std430, binding = 2) buffer C { uint cand[]; };              // bit i of word k: cut after byte 32 k + i
+layout(std430, binding = 3) writeonly buffer K { uint chunks[]; };  // per region: count, then chunk end offsets
+layout(push_constant) uniform P { uint pass_; uint region; uint minsz; uint maxsz; uint mask; uint n; } p;
+shared uint sg[256];
+
+uint byte_at(uint i) { return (data[i >> 2] >> (8u * (i & 3u))) & 255u; }
+
+void main() {
+    uint gid = gl_GlobalInvocationID.x;
+    if (p.pass_ == 0u) {
+        sg[gl_LocalInvocationID.x] = gear[gl_LocalInvocationID.x];
+        barrier();
+        uint p0 = gid * 32u;
+        if (p0 >= p.n) return;
+        uint r0 = (p0 / p.region) * p.region;
+        uint h = 0u;
+        for (uint j = max(r0, p0 >= 31u ? p0 - 31u : 0u); j < p0; j++)
+            h = (h << 1) + sg[byte_at(j)];
+        uint bits = 0u;
+        for (uint i = 0u; i < 32u; i++) {
+            h = (h << 1) + sg[byte_at(p0 + i)];
+            if ((h & p.mask) == 0u) bits |= 1u << i;
+        }
+        cand[gid] = bits;
+    } else {
+        uint nreg = p.n / p.region;
+        if (gid >= nreg) return;
+        uint base = gid * p.region, out0 = gid * (p.region / p.minsz + 2u);
+        uint last = 0u, cnt = 0u;
+        while (last < p.region) {
+            uint lo = last + p.minsz - 1u, hi = min(last + p.maxsz, p.region);   // cut after byte q in [lo, hi)
+            uint end = hi;
+            for (uint q = lo; q < hi; ) {
+                uint w = cand[(base + q) >> 5] >> (q & 31u);
+                if (w != 0u) {
+                    uint c = q + uint(findLSB(w));
+                    if (c < hi) end = c + 1u;
+                    break;
+                }
+                q = (q | 31u) + 1u;
+            }
+            chunks[out0 + 1u + cnt] = end;
+            cnt++;
+            last = end;
+        }
+        chunks[out0] = cnt;
+    }
+}

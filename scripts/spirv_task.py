@@ -1789,6 +1789,81 @@ def w_jsonidx(size, rng):
              {'bytes': len(data)})
 
 
+def cdc_ref(b, gear, region, mn, mx, mask):
+    """cdc.comp: candidate bit masks and each region's chunk ends (gear hash restarting at every region)"""
+    n = len(b); g = gear[b].astype(np.uint32)
+    h = np.zeros(n, np.uint32); pos = np.arange(n) % region
+    for k in range(32):                                                       # h[p] = sum gear[b[p - k]] << k
+        t = np.zeros(n, np.uint32); t[k:] = g[:n - k] << np.uint32(k)
+        t[pos < k] = 0                                                        # not across a region start
+        h += t
+    cand = (h & np.uint32(mask)) == 0
+    ends = []
+    for r in range(n // region):
+        cs = np.flatnonzero(cand[r * region:(r + 1) * region])
+        e, last = [], 0
+        while last < region:
+            lo, hi = last + mn - 1, min(last + mx, region)
+            i = np.searchsorted(cs, lo)
+            end = int(cs[i]) + 1 if i < len(cs) and cs[i] < hi else hi
+            e.append(end); last = end
+        ends.append(e)
+    return np.packbits(cand, bitorder='little').view(np.uint32), ends
+
+
+def w_cdc(size, rng):
+    region, mn, mx, mask = (1 << 16, 512, 8192, 0xFFE00000) if size == 'small' else (1 << 20, 2048, 65536, 0xFFF80000)
+    nreg = 2 if size == 'small' else 64                                      # 128 KiB / 64 MiB
+    n = nreg * region
+    # a backup stream: versions of a set of files, each version with a few edits (insertions, deletions, overwrites)
+    files = [rng.integers(0, 256, int(rng.integers(region // 8, region // 2)), dtype=np.uint8) for _ in range(6)]
+    parts, total = [], 0
+    while total < n:
+        f = files[int(rng.integers(len(files)))]
+        for _ in range(int(rng.integers(1, 4))):
+            at = int(rng.integers(len(f))); kind = int(rng.integers(3))
+            ins = rng.integers(0, 256, int(rng.integers(1, 64)), dtype=np.uint8)
+            f = np.concatenate([f[:at], ins, f[at:]]) if kind == 0 else np.concatenate([f[:at], f[at + len(ins):]]) if kind == 1 \
+                else np.concatenate([f[:at], ins, f[at + len(ins):]])
+        files.append(f); parts.append(f); total += len(f)
+    b = np.concatenate(parts)[:n]
+    gear = u32(rng.integers(0, 1 << 32, 256, dtype=np.uint64))
+    cref, eref = cdc_ref(b, gear, region, mn, mx, mask)
+    if size == 'small':                                                       # the hash one byte at a time, as written
+        bits, h = np.zeros(n, bool), 0
+        for i, x in enumerate(b.tolist()):
+            h = 0 if i % region == 0 else h
+            h = ((h << 1) + int(gear[x])) & 0xFFFFFFFF
+            bits[i] = h & mask == 0
+        assert np.array_equal(np.packbits(bits, bitorder='little').view(np.uint32), cref), 'vectorised gear hash disagrees'
+    per = region // mn + 2
+    def dedup(bounds):                                                        # unique bytes / all bytes
+        seen, uniq = set(), 0
+        for r, e in enumerate(bounds):
+            s0 = 0
+            for x in e:
+                d = hashlib.sha256(b[r * region + s0:r * region + x].tobytes()).digest()
+                if d not in seen:
+                    seen.add(d); uniq += x - s0
+                s0 = x
+        return uniq / n
+    def check(o):
+        cg = o[2].view(np.uint32)[:n // 32]
+        kg = o[3].view(np.uint32)[:nreg * per].reshape(nreg, per)
+        bad_c = int(np.count_nonzero(cg != cref))
+        got = [[int(x) for x in kg[r, 1:1 + min(int(kg[r, 0]), per - 1)]] for r in range(nreg)]
+        bad_r = sum(g != e for g, e in zip(got, eref))
+        nch = sum(len(e) for e in eref)
+        step = max(1, round(n / nch))                                          # fixed-size chunks of the same mean size
+        fixed = [list(range(step, region, step)) + [region] for _ in range(nreg)]
+        return bad_c == 0 and bad_r == 0, {'bad_candidate_words': bad_c, 'bad_regions': bad_r, 'chunks': nch,
+                                           'mean_chunk': round(n / nch, 1), 'stored_fraction_cdc': round(dedup(eref), 4),
+                                           'stored_fraction_fixed': round(dedup(fixed), 4)}
+    ds = [((n // 32 + 255) // 256, 1, 1, push(0, region, mn, mx, mask, n)), ((nreg + 255) // 256, 1, 1, push(1, region, mn, mx, mask, n))]
+    return W('cdc', {0: (b.view(np.uint32).copy(), False), 1: (gear, False), 2: (n // 8, True), 3: (4 * nreg * per, True)}, ds, check, 256,
+             {'bytes': n})
+
+
 def w_spmv(size, rng):
     rows, cols = (512, 512) if size == 'small' else (1 << 18, 1 << 18)
     nnz = rng.integers(0, 64, rows) * (rng.random(rows) < 0.95)    # some empty rows
@@ -4318,7 +4393,7 @@ WORKLOADS = {'reduce': w_reduce, 'scan': w_scan, 'sgemm': w_sgemm, 'conv2d': w_c
              'aluprobe': w_aluprobe, 'ubopalette': w_ubopalette, 'uboparams': w_uboparams,
              'bindless': w_bindless, 'bindlessu': w_bindlessu,
              # appended only: the input seed is the index in this dict
-             'rle': w_rle, 'huffdec': w_huffdec, 'lookback': w_lookback, 'hll': w_hll, 'tricount': w_tricount, 'sha3': w_sha3, 'stereo': w_stereo, 'viterbi': w_viterbi, 'viterbifix': w_viterbifix, 'shiftfuse': w_shiftfuse, 'bc1enc': w_bc1enc, 'lz4dec': w_lz4dec, 'nttmul': w_nttmul, 'topk': w_topk, 'cellsort': w_cellsort, 'boruvka': w_boruvka, 'biquad': w_biquad, 'edt': w_edt, 'mt19937': w_mt19937, 'bitap': w_bitap, 'cholesky': w_cholesky, 'rsshash': w_rsshash, 'poly1305': w_poly1305, 'crc32c': w_crc32c, 'siphash': w_siphash, 'blake2s': w_blake2s, 'blake2sfast': w_blake2sfast, 'q4gemv': w_q4gemv, 'attndec': w_attndec, 'attndecsplit': w_attndecsplit, 'rmsrope': w_rmsrope, 'q8dot': w_q8dot, 'isp': w_isp, 'contour': w_contour, 'hough': w_hough, 'spmvsg': w_spmvsg, 'varint': w_varint, 'bvhrays': w_bvhrays, 'adamw': w_adamw, 'stream': w_stream, 'motionest': w_motionest, 'jsonidx': w_jsonidx}
+             'rle': w_rle, 'huffdec': w_huffdec, 'lookback': w_lookback, 'hll': w_hll, 'tricount': w_tricount, 'sha3': w_sha3, 'stereo': w_stereo, 'viterbi': w_viterbi, 'viterbifix': w_viterbifix, 'shiftfuse': w_shiftfuse, 'bc1enc': w_bc1enc, 'lz4dec': w_lz4dec, 'nttmul': w_nttmul, 'topk': w_topk, 'cellsort': w_cellsort, 'boruvka': w_boruvka, 'biquad': w_biquad, 'edt': w_edt, 'mt19937': w_mt19937, 'bitap': w_bitap, 'cholesky': w_cholesky, 'rsshash': w_rsshash, 'poly1305': w_poly1305, 'crc32c': w_crc32c, 'siphash': w_siphash, 'blake2s': w_blake2s, 'blake2sfast': w_blake2sfast, 'q4gemv': w_q4gemv, 'attndec': w_attndec, 'attndecsplit': w_attndecsplit, 'rmsrope': w_rmsrope, 'q8dot': w_q8dot, 'isp': w_isp, 'contour': w_contour, 'hough': w_hough, 'spmvsg': w_spmvsg, 'varint': w_varint, 'bvhrays': w_bvhrays, 'adamw': w_adamw, 'stream': w_stream, 'motionest': w_motionest, 'jsonidx': w_jsonidx, 'cdc': w_cdc}
 
 
 # ---------------------------------------------------------------------------------------------------------------

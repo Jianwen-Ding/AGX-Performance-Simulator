@@ -1,7 +1,7 @@
 # Task SPIR-V 8: applications (ray tracer, neural networks, image processing, cellular automaton, graph search,
 # encryption, hashing, text, compression)
 
-**Workloads:** `raytrace`, `mlp`, `sobel`, `life`, `bfs`, `conv_layer`, `hist_eq`, `aes`, `hash_table`, `word_count`, `dct8`, `attention`, `resize`, `median3`, `poisson`, `lbm`, `base64`, `md5`, `gemv`, `levenshtein`, `blur`, `yuv420`, `montecarlo`, `xxhash`, `bloom`, `collatz`, `tridiag`, `merge`, `ccl`, `pagerank`, `skinning`, `strsearch`, `quantize`, `rule110`, `voxel`, `nms`, `sat`, `sssp`, `morton`, `utf8`, `fir`, `composite`, `nqueens`, `lzmatch`, `bitpack`, `perlin`, `adler32`, `sieve`, `gcd`, `dither`, `advect`, `knn`, `csvparse`, `pip`, `lift53`, `chacha20`, `modexp`, `floyd`, `f16pack`, `raster`, `canny`, `secded`, `bicubic`, `dfa`, `b64decode`, `cordic`, `rsenc`, `texfetch`, `texfilter`, `imgerode`, `imgtonemap`, `argmax64`, `minmax64`, `dsum`, `quadmip`, `clustered`, `specblur`, `cullindirect`, `bigsort`, `pushmat`, `mplitmus`, `splat`, `splatfix`, `smembank`, `coalesce`, `atomcontend`, `barriercost`, `aluprobe`, `ubopalette`, `uboparams`, `bindless`, `bindlessu`, `rle`, `huffdec`, `lookback`, `hll`, `tricount`, `sha3`, `stereo`, `viterbi`, `viterbifix`, `shiftfuse`, `bc1enc`, `lz4dec`, `nttmul`, `topk`, `cellsort`, `boruvka`, `biquad`, `edt`, `mt19937`, `bitap`, `cholesky`, `rsshash`, `poly1305`, `crc32c`, `siphash`, `blake2s`, `blake2sfast`, `q4gemv`, `attndec`, `attndecsplit`, `rmsrope`, `q8dot`, `isp`, `contour`, `hough`, `spmvsg`, `varint`, `bvhrays`, `adamw`, `stream`, `motionest`, `jsonidx`. These are recorded and verified by `make asahi-verify` with the others;
+**Workloads:** `raytrace`, `mlp`, `sobel`, `life`, `bfs`, `conv_layer`, `hist_eq`, `aes`, `hash_table`, `word_count`, `dct8`, `attention`, `resize`, `median3`, `poisson`, `lbm`, `base64`, `md5`, `gemv`, `levenshtein`, `blur`, `yuv420`, `montecarlo`, `xxhash`, `bloom`, `collatz`, `tridiag`, `merge`, `ccl`, `pagerank`, `skinning`, `strsearch`, `quantize`, `rule110`, `voxel`, `nms`, `sat`, `sssp`, `morton`, `utf8`, `fir`, `composite`, `nqueens`, `lzmatch`, `bitpack`, `perlin`, `adler32`, `sieve`, `gcd`, `dither`, `advect`, `knn`, `csvparse`, `pip`, `lift53`, `chacha20`, `modexp`, `floyd`, `f16pack`, `raster`, `canny`, `secded`, `bicubic`, `dfa`, `b64decode`, `cordic`, `rsenc`, `texfetch`, `texfilter`, `imgerode`, `imgtonemap`, `argmax64`, `minmax64`, `dsum`, `quadmip`, `clustered`, `specblur`, `cullindirect`, `bigsort`, `pushmat`, `mplitmus`, `splat`, `splatfix`, `smembank`, `coalesce`, `atomcontend`, `barriercost`, `aluprobe`, `ubopalette`, `uboparams`, `bindless`, `bindlessu`, `rle`, `huffdec`, `lookback`, `hll`, `tricount`, `sha3`, `stereo`, `viterbi`, `viterbifix`, `shiftfuse`, `bc1enc`, `lz4dec`, `nttmul`, `topk`, `cellsort`, `boruvka`, `biquad`, `edt`, `mt19937`, `bitap`, `cholesky`, `rsshash`, `poly1305`, `crc32c`, `siphash`, `blake2s`, `blake2sfast`, `q4gemv`, `attndec`, `attndecsplit`, `rmsrope`, `q8dot`, `isp`, `contour`, `hough`, `spmvsg`, `varint`, `bvhrays`, `adamw`, `stream`, `motionest`, `jsonidx`, `cdc`. These are recorded and verified by `make asahi-verify` with the others;
 they are **PENDING** until then. The detailed procedure is in `tasks/spirv-workloads.md`.
 
 ## Why these
@@ -146,6 +146,7 @@ reference.
 | `stream` | 3 arrays of 2^24 fp32 + a fill target (64 MiB each) | Each STREAM kernel within 2 ulps of float64 applied in sequence; per-workgroup read sums within the fp32 bound; the fill exact |
 | `motionest` | 1280×720 frames (3600 blocks), the second panned by (5, -3) with noise | Every block's (offset, SAD) equal to a numpy full search with the same tie order; `true_motion_found` (the fraction of blocks whose answer is the pan) is 1.0 at both sizes on lavapipe and the simulator |
 | `jsonidx` | 4096 documents of 8 KiB (32 MiB) of JSON lines, strings full of escaped quotes, backslash runs and structural characters | Every chunk's mask equal to a vectorised numpy reference, itself checked against a byte-at-a-time state machine at the small size |
+| `cdc` | 64 regions of 1 MiB (64 MiB): versions of six files, each with a few insertions, deletions and overwrites | Candidate masks and every region's chunk ends equal to the reference, whose gear hash is checked against a byte-at-a-time loop at the small size |
 
 ## Offline sanity checks (not hardware verification)
 
@@ -155,6 +156,7 @@ reference.
     - 144 pass.
     - 5 are hardware-only (texture, image and indirect workloads, UNSIM).
     - 4 fail by design under the default `bfeil` semantics: `viterbi`, `shiftfuse`, `lz4dec` and `bitap` (note 37).
+      `cdc`, added since, is a fifth (note 70).
       All 4 pass with `AGX_BFEIL_MASKED_SHIFT32=1`.
   - The 4 workloads without compiled code need features the offline Asahi driver does not offer (NODEV).
   - `bfs` found a simulator bug. Mesa aggregates `atomicAdd(found[l], 1)` under divergence: one lane, chosen with SR58
@@ -349,19 +351,19 @@ reference.
     - **Hypothesis A** (the simulator's default, extrapolated from the full-width recording): the masked form also
       takes 7 bits.
       - Then this is a Mesa bug. `viterbi` fails (states 32-63 read 0, about 30% of bits wrong), and so do the three
-        `shiftfuse` columns and `lz4dec` (note 40).
+        `shiftfuse` columns, `lz4dec`, `bitap` and `cdc` (notes 40, 70).
       - A minimal fix would match only constant shifts in `fuse_ubfe` (`'#b'`), or emit
         `ubitfield_extract(a, iand(b, 31), bits)`.
     - **Hypothesis B**: the masked form takes its shift modulo 32.
       - Then the compiler is right and the simulator must change. Set `AGX_BFEIL_MASKED_SHIFT32=1` to simulate it:
         all of these workloads then pass, and the 721-case suite is unchanged (691 / 721 either way).
-      - B is the more plausible one a priori. `lz4dec` and `bitap` show the fused form arising from the most
+      - B is the more plausible one a priori. `lz4dec`, `bitap` and `cdc` show the fused form arising from the most
         ordinary byte / 2-bit unpacking, `(w >> ((i & 3) * 8)) & 255` (or `& 3`), and the driver is
         Vulkan-conformant.
     - No existing hardware data covers the masked form. The testsuite's only `bfeil` case is full-width, and the
       Apple-M2-Playground ALU bit-flip runs (`results/2026-10-11-alu-bitflip`) flipped bits 52, 53 and 62 of
       `bfeil r5, r6, r7, r8`, all of which decode with `m = 0`.
-    - The M2 run decides. A: `viterbi`, the three `shiftfuse` columns and `lz4dec` fail, and `viterbifix` passes.
+    - The M2 run decides. A: `viterbi`, the three `shiftfuse` columns, `lz4dec`, `bitap` and `cdc` fail, and `viterbifix` passes.
       B: everything passes, and `AGX_BFEIL_MASKED_SHIFT32` semantics should become the default.
     - It is also decided at the instruction level. `make asahi-verify` records the coverage catalog's 70 bitfield
       cases (`bfi` / `bfeil` / `extr` / `shlhi` / `shrhi` with immediate shifts 0-127 and masks 0x1 to 0x7FFFFFFF, about
@@ -637,3 +639,24 @@ reference.
       question 1.
     - Predicted 333 µs for 32 MiB, about 100 GB/s, well under the modelled DRAM rate.
     - The check is exact, so it must PASS whatever the timings.
+70. **`cdc`: content-defined chunking for deduplication.**
+    - FastCDC's gear rolling hash, `h = (h << 1) + gear[byte]`, cuts a stream where the top 13 bits of `h` are zero.
+      Backup tools cut this way so that an edit only changes the chunks around it.
+      - Pass 0 marks the candidate cuts, one invocation per 32 bytes. A 32-bit `h` forgets a byte after 32 shifts, so
+        31 bytes of history give the exact hash and the invocations are independent.
+      - Pass 1 is the greedy chunker, serial, one invocation per 1 MiB region. A chunk ends at the first candidate
+        at least 2 KiB in, at 64 KiB, or at the region end.
+    - The data is a backup stream: versions of six files, each version with a few small edits. The check reports what
+      deduplication by chunk hash stores. At the large size, 13.9% of the stream with these chunks, against 99.7%
+      with fixed-size chunks of the same mean size (10.1 KB), because an insertion shifts every later fixed
+      boundary.
+    - Predicted 1.84 ms for pass 0 (64 MiB, about 36 GB/s) and 4.12 ms for pass 1. Pass 1 is 64 serial invocations,
+      a single workgroup on one core: on the GPU the serial pass costs more than the parallel one. The M2 time tests
+      the model's single-core latency over a long data-dependent loop.
+    - **It also depends on question 1 (note 37).** The shader reads byte `i` as
+      `(data[i >> 2] >> (8 * (i & 3))) & 255`. Mesa drops the `& 3`, since `8 * (i & 3)` and `8 * i` agree modulo 32,
+      and fuses shift and mask into `bfeil ..., mask 0xFF` with the shift `i << 3`.
+      - Under the default semantics (7 bits of the shift), bytes 4 and on of every loop read 0. The simulator then
+        gets 120 of 4096 candidate words wrong, at both Mesa versions.
+      - Under `AGX_BFEIL_MASKED_SHIFT32=1` everything passes.
+      - This is the most ordinary byte-unpacking idiom there is, which adds to the case for B.

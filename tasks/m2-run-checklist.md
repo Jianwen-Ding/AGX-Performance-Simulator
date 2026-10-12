@@ -8,8 +8,8 @@ where each answer appears, and what to change for each outcome. The details are 
 
 | # | Question | Where to look | If ... | then ... |
 |---|---|---|---|---|
-| 1 | How does `bfeil` with an immediate mask treat shifts of 32 or more? (note 37) | The report's "bfeil shift question" line (`scripts/bitfield_question.py` over the 70 recorded bitfield cases) | verdict B: the shift is taken modulo 32 | make `AGX_BFEIL_MASKED_SHIFT32` semantics the default in `bfeil_shift` (`rust/src/isa/exec.rs`); `viterbi`, `shiftfuse`, `lz4dec` and `bitap` should then PASS |
-| | | | verdict A: 7 bits, as the full-width form | Mesa's `fuse_ubfe` is unsound for variable shifts; `viterbi` / `shiftfuse` (3 columns) / `lz4dec` / `bitap` FAIL on the GPU too; report upstream with note 37's root cause and `viterbifix` as the workaround |
+| 1 | How does `bfeil` with an immediate mask treat shifts of 32 or more? (note 37) | The report's "bfeil shift question" line (`scripts/bitfield_question.py` over the 70 recorded bitfield cases) | verdict B: the shift is taken modulo 32 | make `AGX_BFEIL_MASKED_SHIFT32` semantics the default in `bfeil_shift` (`rust/src/isa/exec.rs`); `viterbi`, `shiftfuse`, `lz4dec`, `bitap` and `cdc` should then PASS |
+| | | | verdict A: 7 bits, as the full-width form | Mesa's `fuse_ubfe` is unsound for variable shifts; `viterbi` / `shiftfuse` (3 columns) / `lz4dec` / `bitap` / `cdc` FAIL on the GPU too; report upstream with note 37's root cause and `viterbifix` as the workaround |
 | 2 | Do SR58 / SR59 count active lanes? (offline checks: `bfs`) | `bfs` status | PASS | confirmed; nothing to do |
 | | | | FAIL with counts in multiples of 32 | the simulator's active-lane reading is wrong for this case |
 | 2b | Does store write-back cost DRAM bandwidth? (notes 66-67) | `adamw` time; `stream` per-dispatch times (`probes` GB/s) | they follow the `AGX_CHARGE_WRITEBACK=1` column of note 67 | make write-back charging the default (`charge_writeback` in `rust/src/cost.rs`). The recorded dispatches are read-only, so `dispatch_check` cannot object (under 1% either way) |
@@ -35,6 +35,7 @@ where each answer appears, and what to change for each outcome. The details are 
 | `stream` (note 67) | measured GB/s per access kind (`probes`): read, fill, copy, scale, add, triad | 316, 213, 357, 318, 308, 291 GB/s |
 | `motionest` (note 68) | shared-memory load throughput in a real encoder kernel, with an idle-lane tail | 4.92 ms |
 | `jsonidx` (note 69) | per-byte bit manipulation plus shared-memory scans: a compute-bound text-processing kernel | 333 µs (≈ 100 GB/s) |
+| `cdc` (note 70) | a parallel hash pass, then a serial greedy pass with one invocation per 1 MiB region | 1.84 ms + 4.12 ms |
 | `nms` (note 10) | a known under-prediction: work grows with the workgroup index | low |
 
 ## Results that must hold whatever the timings

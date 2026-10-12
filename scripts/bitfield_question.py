@@ -6,7 +6,7 @@ of the coverage catalog's bitfield cases (coverage/expected/alu/{bfi,bfeil,extr,
 
 The functional simulator takes 7 bits of the shift for every form by default (fitted to the one recorded full-width
 case); AGX_BFEIL_MASKED_SHIFT32=1 makes bfeil with a non-zero mask take it modulo 32. Which one the recordings match
-decides whether viterbi, the three shiftfuse columns and lz4dec are compiler bugs (default right) or simulator gaps
+decides whether viterbi, the three shiftfuse columns, lz4dec, bitap and cdc are compiler bugs (default right) or simulator gaps
 (the alternative right): tasks/spirv-08-applications.md, notes 37-40.
 
 Record the cases first (on the M2): scripts/coverage.py record --area alu --match 'bfeil|bfi_|extr|shlhi|shrhi'
