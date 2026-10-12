@@ -1,0 +1,40 @@
+0x0080  f2051004                 get_sr r1.cache, sr80 (thread_position_in_grid.x)
+0x0084  f2091104                 get_sr r2.cache, sr81 (thread_position_in_grid.y)
+0x0088  8e05c28658000000         iadd r1.cache, r1.discard.sx, u4.sx
+0x0090  8e09c4a658000000         iadd r2.cache, r2.discard.sx, u5.sx
+0x0098  920244e218001130         icmpsel ult, r0h.cache, r2, u7, 0, 1
+0x00a0  120242c218c11030         icmpsel ult, r0h, r1, u6, r0h.discard, 1
+0x00a8  62000000                 mov_imm r0l, 0
+0x00ac  5208c1000000             if_icmp r0l, ueq, r0h.discard, 0, 1
+0x00b2  1e0d444659920500         imadd r3, r2.sx, u10.sx, u9.sx
+0x00ba  1e11424659900500         imadd r4, r1.sx, u10.sx, u8.sx
+0x00c2  621500000000             mov_imm r5, 0, 0b0
+0x00c8  621900000000             mov_imm r6, 0, 0b0
+0x00ce  621d00000000             mov_imm r7, 0, 0b0
+0x00d4  420800000000             push_exec r0l, 1
+0x00da  522c4a621900             while_icmp r0l, ult, r5, u11, 1
+0x00e0  8e2100c868000000         isub r8.cache, 0, r6.cache.sx
+0x00e8  92218c02258c00c5         icmpsel sgt, r8.cache, r6.cache, r8, r6.cache, r8
+0x00f0  8e2500e868000000         isub r9.cache, 0, r7.cache.sx
+0x00f8  92258e22258e20c5         icmpsel sgt, r9.cache, r7.cache, r9, r7.cache, r9
+0x0100  92215202255200c5         icmpsel sgt, r8.cache, r9, r8, r9, r8
+0x0108  92029e01250101b0         icmpsel slt, r0h.cache, u15, r8, 1, 0
+0x0110  9e214cc664000000         imadd r8.cache, r6.sx, r6.sx, 0
+0x0118  9e254ee664000000         imadd r9.cache, r7.sx, r7.sx, 0
+0x0120  8e29520665000000         iadd r10.cache, r9.sx, r8.sx
+0x0128  12029c41250111a4         icmpsel slt, r0h, u14, r10, 1, r0h
+0x0130  520c41000000             while_icmp r0l, ueq, r0h, 0, 1
+0x0136  9e194ec664000000         imadd r6.cache, r7.sx, r6.sx, 0
+0x013e  8e1d520e65000000         isub r7.cache, r9.sx, r8.sx
+0x0146  ae9d4ed600000000         asr r7.cache, r7, 13
+0x014e  0e1d4e8664000000         iadd r7, r7.sx, r4.sx
+0x0156  ae994cc600000000         asr r6.cache, r6, 12
+0x015e  0e194c6664000000         iadd r6, r6.sx, r3.sx
+0x0166  0e154a1600000000         iadd r5, r5.sx, 1
+0x016e  00c06cffffff             jmp_exec_any pc-148
+0x0174  520e00000000             pop_exec r0l, 1
+0x017a  1e0544c658420600         imadd r1, r2.sx, u6.sx, r1.sx
+0x0182  4529280e10c01200         device_store 0, i32, x, r5, u12_u13, r1, unsigned, 0
+0x018a  3800                     wait 0
+0x018c  520e00000000             pop_exec r0l, 1
+0x0192  8800                     stop

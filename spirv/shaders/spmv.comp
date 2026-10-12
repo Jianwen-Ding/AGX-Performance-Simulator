@@ -1,0 +1,18 @@
+#version 450
+// Sparse matrix-vector product, CSR, one thread per row: data-dependent trip counts (0..max_nnz per row) and
+// irregular gathers from x.
+layout(local_size_x = 128) in;
+layout(std430, binding = 0) readonly buffer R { uint rowptr[]; };
+layout(std430, binding = 1) readonly buffer Cl { uint col[]; };
+layout(std430, binding = 2) readonly buffer V { float val[]; };
+layout(std430, binding = 3) readonly buffer X { float x[]; };
+layout(std430, binding = 4) writeonly buffer Y { float y[]; };
+layout(push_constant) uniform P { uint rows; } p;
+
+void main() {
+    uint r = gl_GlobalInvocationID.x;
+    if (r >= p.rows) return;
+    float acc = 0.0;
+    for (uint k = rowptr[r]; k < rowptr[r + 1u]; k++) acc = fma(val[k], x[col[k]], acc);
+    y[r] = acc;
+}

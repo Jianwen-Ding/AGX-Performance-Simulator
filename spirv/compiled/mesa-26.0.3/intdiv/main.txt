@@ -1,0 +1,108 @@
+0x0080  f2051004                 get_sr r1.cache, sr80 (thread_position_in_grid.x)
+0x0084  0e05c28658000000         iadd r1, r1.discard.sx, u4.sx
+0x008c  62000000                 mov_imm r0l, 0
+0x0090  522842a21800             if_icmp r0l, ult, r1, u5, 1
+0x0096  20c0e8020000             jmp_exec_none pc+744
+0x009c  05212c0e00c8f200         device_load 0, i32, xyzw, r4_r5_r6_r7, u6_u7, r1, unsigned, lsl 2
+0x00a4  3800                     wait 0
+0x00a6  8e0900e868000000         isub r2.cache, 0, r7.cache.sx
+0x00ae  92098e42248e40c4         icmpsel sgt, r2.cache, r7.cache, r2, r7.cache, r2
+0x00b6  be8d0a442800             convert u32_to_f, r3.cache, r2.cache, rte
+0x00bc  8a218682                 rcp r8.cache, r3.cache
+0x00c0  ba0d460a2930             fmadd32 r3.cache, r3.neg, r8.cache, 1.0
+0x00c6  ba8d460229900200         fmadd32 r3.cache, r3, r8.cache, r8.cache
+0x00ce  820d466224460005         fcmpsel eq, r3.cache, r3, r3, r3, r8
+0x00d6  1a8d46421900             fmul32 r3, r3, u10
+0x00dc  be8d08602400             convert f_to_u32, r3.cache, r3, rtz
+0x00e2  9e21846668000000         imadd r8.cache, r2.cache.sx, r3.cache.sx, 0
+0x00ea  8e21000865000000         isub r8.cache, 0, r8.sx
+0x00f2  1e23860225000000         imadd r8_r9, r3.cache, r8, 0
+0x00fa  8e0d462665000000         iadd r3.cache, r3.sx, r9.sx
+0x0102  8e2100c868000000         isub r8.cache, 0, r6.cache.sx
+0x010a  92218c02258c00c5         icmpsel sgt, r8.cache, r6.cache, r8, r6.cache, r8
+0x0112  1e2b906224000000         imadd r10_r11, r8.cache, r3, 0
+0x011a  9e0d964668000000         imadd r3.cache, r11.cache.sx, r2.cache.sx, 0
+0x0122  8e0d506e64000000         isub r3.cache, r8.sx, r3.sx
+0x012a  8e21961600000000         iadd r8.cache, r11.cache.sx, 1
+0x0132  9221864228560025         icmpsel ult, r8.cache, r3.cache, r2.cache, r11, r8
+0x013a  8e25864e68000000         isub r9.cache, r3.cache.sx, r2.cache.sx
+0x0142  920d464228462025         icmpsel ult, r3.cache, r3, r2.cache, r3, r9
+0x014a  8e25901600000000         iadd r9.cache, r8.cache.sx, 1
+0x0152  9209464224502025         icmpsel ult, r2.cache, r3, r2, r8, r9
+0x015a  be8d0aa42800             convert u32_to_f, r3.cache, r5.cache, rte
+0x0160  8a218682                 rcp r8.cache, r3.cache
+0x0164  ba0d460a2930             fmadd32 r3.cache, r3.neg, r8.cache, 1.0
+0x016a  ba8d460229900200         fmadd32 r3.cache, r3, r8.cache, r8.cache
+0x0172  820d466224460005         fcmpsel eq, r3.cache, r3, r3, r3, r8
+0x017a  1a8d46421900             fmul32 r3, r3, u10
+0x0180  be8d08602400             convert f_to_u32, r3.cache, r3, rtz
+0x0186  9e218a6668000000         imadd r8.cache, r5.cache.sx, r3.cache.sx, 0
+0x018e  8e21000865000000         isub r8.cache, 0, r8.sx
+0x0196  1e23860225000000         imadd r8_r9, r3.cache, r8, 0
+0x019e  8e0d462665000000         iadd r3.cache, r3.sx, r9.sx
+0x01a6  1e23886224000000         imadd r8_r9, r4.cache, r3, 0
+0x01ae  9e0d92a668000000         imadd r3.cache, r9.cache.sx, r5.cache.sx, 0
+0x01b6  8e0d886e64000000         isub r3.cache, r4.cache.sx, r3.sx
+0x01be  8e21921600000000         iadd r8.cache, r9.cache.sx, 1
+0x01c6  922186a228520025         icmpsel ult, r8.cache, r3.cache, r5.cache, r9, r8
+0x01ce  8e2586ae68000000         isub r9.cache, r3.cache.sx, r5.cache.sx
+0x01d6  920d46a228462025         icmpsel ult, r3.cache, r3, r5.cache, r3, r9
+0x01de  8e25901600000000         iadd r9.cache, r8.cache.sx, 1
+0x01e6  122186a228502025         icmpsel ult, r8, r3.cache, r5.cache, r8, r9
+0x01ee  9e050c2064000000         imadd r1.cache, 12, r1.sx, 0
+0x01f6  4541200e10c01200         device_store 0, i32, x, r8, u8_u9, r1, unsigned, 0
+0x01fe  8e2186ae68000000         isub r8.cache, r3.cache.sx, r5.cache.sx
+0x0206  120d46a228460025         icmpsel ult, r3, r3, r5.cache, r3, r8
+0x020e  0e21821600000000         iadd r8, r1.cache.sx, 1
+0x0216  4519004e11c01200         device_store 1, i32, x, r3, u8_u9, r8, unsigned, 0
+0x021e  ce0d881200000000         iadd.sat r3.cache, r4.cache, 1
+0x0226  1e2346021a000000         imadd r8_r9, r3, u16, 0
+0x022e  2e8d002025010000         bfeil r3, 0, r9, 1
+0x0236  0e21822600000000         iadd r8, r1.cache.sx, 2
+0x023e  4519000e11c01200         device_store 0, i32, x, r3, u8_u9, r8, unsigned, 0
+0x0246  1e2388a219000000         imadd r8_r9, r4.cache, u13, 0
+0x024e  ae8d002025060000         bfeil r3.cache, 0, r9, 6
+0x0256  9e0d46465a000000         imadd r3.cache, r3.sx, u18.sx, 0
+0x025e  0e0d886e64000000         isub r3, r4.cache.sx, r3.sx
+0x0266  0e21823600000000         iadd r8, r1.cache.sx, 3
+0x026e  4519000e11c01200         device_store 0, i32, x, r3, u8_u9, r8, unsigned, 0
+0x0276  1e2388c219000000         imadd r8_r9, r4.cache, u14, 0
+0x027e  7e0d53088000             mov r3, r9h
+0x0284  0e21824600000000         iadd r8, r1.cache.sx, 4
+0x028c  4519000e11c01200         device_store 0, i32, x, r3, u8_u9, r8, unsigned, 0
+0x0294  8e0d004868000000         isub r3.cache, 0, r2.cache.sx
+0x029c  fe218cea6800             xor r8.cache, r6.cache, r7.cache
+0x02a2  12095002004640a4         icmpsel slt, r2, r8, 0, r3, r2
+0x02aa  0e0d825600000000         iadd r3, r1.cache.sx, 5
+0x02b2  4511600e10c01200         device_store 0, i32, x, r2, u8_u9, r3, unsigned, 0
+0x02ba  1e0b8c6659000000         imadd r2_r3, r6.cache.sx, u11.sx, 0
+0x02c2  ae890060281f0000         bfeil r2.cache, 0, r3.cache, 31
+0x02ca  0e09464664000000         iadd r2, r3.sx, r2.sx
+0x02d2  0e0d826600000000         iadd r3, r1.cache.sx, 6
+0x02da  4511600e10c01200         device_store 0, i32, x, r2, u8_u9, r3, unsigned, 0
+0x02e2  0e09827600000000         iadd r2, r1.cache.sx, 7
+0x02ea  3e8d0a842800             convert u32_to_f, r3, r4.cache, rte
+0x02f0  4519400e10c01200         device_store 0, i32, x, r3, u8_u9, r2, unsigned, 0
+0x02f8  0e09828600000000         iadd r2, r1.cache.sx, 8
+0x0300  3e8d0bc42800             convert s32_to_f, r3, r6.cache, rte
+0x0306  4519400e10c01200         device_store 0, i32, x, r3, u8_u9, r2, unsigned, 0
+0x030e  fe094a829900             and r2.cache, r5, u12
+0x0314  7e09446ada00             or r2, r2, u19
+0x031a  3e8908402400             convert f_to_u32, r2, r2, rtz
+0x0320  0e0d829600000000         iadd r3, r1.cache.sx, 9
+0x0328  3800                     wait 0
+0x032a  4511600e10c01200         device_store 0, i32, x, r2, u8_u9, r3, unsigned, 0
+0x0332  fe094ee29900             and r2.cache, r7, u15
+0x0338  7e09442ada00             or r2, r2, u17
+0x033e  3e8909402400             convert f_to_s32, r2, r2, rtz
+0x0344  0e0d82a600000000         iadd r3, r1.cache.sx, 10
+0x034c  4511600e10c01200         device_store 0, i32, x, r2, u8_u9, r3, unsigned, 0
+0x0354  ae890080241d0000         bfeil r2.cache, 0, r4, 29
+0x035c  ae8d4c3600000000         asr r3.cache, r6, 3
+0x0364  7e09464a6400             xor r2, r3, r2
+0x036a  0e0542b600000000         iadd r1, r1.sx, 11
+0x0372  4511200e10c01200         device_store 0, i32, x, r2, u8_u9, r1, unsigned, 0
+0x037a  3800                     wait 0
+0x037c  3801                     wait 1
+0x037e  520e00000000             pop_exec r0l, 1
+0x0384  8800                     stop

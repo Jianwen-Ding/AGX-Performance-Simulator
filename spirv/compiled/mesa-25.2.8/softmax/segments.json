@@ -1,0 +1,22 @@
+{
+ "blob": "spirv/compiled/mesa-25.2.8/softmax/shader.bin",
+ "code_start": 2236,
+ "code_size": 1532,
+ "layout": "agx_shader_info",
+ "programs": [
+  {
+   "label": "main",
+   "file": "main.bin",
+   "offset": 128,
+   "bytes": 1190,
+   "instructions": 187
+  },
+  {
+   "label": "preamble",
+   "file": "preamble.bin",
+   "offset": 1408,
+   "bytes": 108,
+   "instructions": 18
+  }
+ ]
+}

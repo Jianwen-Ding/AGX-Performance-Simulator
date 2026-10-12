@@ -45,6 +45,13 @@ class W:
         self.shader, self.buffers, self.dispatches, self.check, self.wg, self.work = shader, buffers, dispatches, check, wg, work or {}
 
 
+def wg_of(w, name):
+    """workgroup size when the driver's info is not at hand: a workload's 3-tuple, else 1-D (sgemm / conv2d: 16 x 16)"""
+    if isinstance(w.wg, (tuple, list)):
+        return list(w.wg)
+    return [16, 16, 1] if name in ('sgemm', 'conv2d') else [w.wg, 1, 1]
+
+
 def rel_err(got, ref):
     scale = max(float(np.max(np.abs(ref))), 1e-30)
     return float(np.max(np.abs(got.astype(np.float64) - ref))) / scale
@@ -177,8 +184,215 @@ def w_sha256(size, rng):
     return W('sha256', {0: (words, False), 1: (32 * n, True)}, [((n + 63) // 64, 1, 1, push(n))], check, 64, {'hashes': n})
 
 
+
+def f16_ulps(got, ref):
+    """distance in fp16 ulps (ordered bit patterns), NaN-free inputs"""
+    g = got.view(np.uint16).astype(np.int32); r = ref.astype(np.float16).view(np.uint16).astype(np.int32)
+    g = np.where(g & 0x8000, 0x8000 - g, g); r = np.where(r & 0x8000, 0x8000 - r, r)
+    return np.abs(g - r)
+
+
+def w_fp16(size, rng):
+    n = 4096 if size == 'small' else 1 << 22
+    x = rng.uniform(-8, 8, n).astype(np.float16); y = rng.uniform(-8, 8, n).astype(np.float16)
+    a = 0.75
+    def check(o):
+        got = o[2].view(np.float16)[:3 * n].reshape(n, 3)
+        x64, y64 = x.astype(np.float64), y.astype(np.float64)
+        g = got.astype(np.float64)
+        ulp = lambda v: 2.0 ** np.maximum(np.floor(np.log2(np.maximum(np.abs(v), 2.0 ** -24))) - 10, -24)
+        # Vulkan lets fma and x*y - y round the product and the sum separately: each within half an ulp of the
+        # product plus half an ulp of the result of the exact value; the fp32 expression rounds once on the store
+        excess = []
+        for k, (prod, exact) in enumerate([(0.75 * x64, 0.75 * x64 + y64), (x64 * y64, x64 * y64 - y64)]):
+            excess.append(float(np.max(np.abs(g[:, k] - exact) / (0.5 * ulp(prod) + 0.5 * ulp(g[:, k]) + 1e-12))))
+        conv = int(f16_ulps(got[:, 2], x64 * 1.5 + 0.25).max())
+        return max(excess) <= 1.0 and conv == 0, {'max_err_over_bound': excess, 'conversion_ulps': conv}
+    return W('fp16', {0: (x, False), 1: (y, False), 2: (6 * n, True)}, [((n + 255) // 256, 1, 1, push(n, a))], check, 256,
+             {'bytes': 10 * n})
+
+
+M64 = (1 << 64) - 1
+
+
+def splitmix64(x):
+    z = (x + 0x9E3779B97F4A7C15) & M64
+    z = ((z ^ (z >> 30)) * 0xBF58476D1CE4E5B9) & M64
+    z = ((z ^ (z >> 27)) * 0x94D049BB133111EB) & M64
+    return z ^ (z >> 31)
+
+
+def w_int64(size, rng):
+    n = 1024 if size == 'small' else 1 << 20
+    seed = rng.integers(0, 1 << 63, n, dtype=np.uint64) * np.uint64(2) + rng.integers(0, 2, n, dtype=np.uint64)
+    a = rng.integers(-(1 << 31), 1 << 31, 2 * n, dtype=np.int64).astype(np.int32)
+    def check(o):
+        got = o[2].view(np.uint64)[:4 * n].reshape(n, 4)
+        bad = 0
+        for i in range(n) if size == 'small' else rng.choice(n, 4096, replace=False):
+            s_ = int(seed[i]); h = splitmix64(s_)
+            prod = int(a[2 * i]) * int(a[2 * i + 1])
+            want = [h, (prod >> 7) & M64, h - s_ if h > s_ else s_ - h, (s_ + (int(a[2 * i]) & 0xffffffff)) & M64]
+            bad += [int(v) for v in got[i]] != want
+        return bad == 0, {'bad_rows': bad}
+    return W('int64', {0: (seed, False), 1: (a, False), 2: (32 * n, True)}, [((n + 63) // 64, 1, 1, push(n))], check, 64,
+             {'hashes': n})
+
+
+def bitops_ref(x, y, w, z):
+    off = w & 31; bits = ((w >> 8) % (33 - off)); r = (w >> 16) & 31
+    mask = ((1 << bits) - 1) << off
+    ext = (x & mask) >> off
+    sext = ext - (1 << bits) if bits and ext >> (bits - 1) & 1 else ext
+    s32 = lambda v: v - (1 << 32) if v & 0x80000000 else v
+    lsb = (x & -x).bit_length() - 1 if x else -1
+    msb = x.bit_length() - 1 if x else -1
+    sy = s32(y); smsb = (sy.bit_length() - 1 if sy > 0 else (~sy).bit_length() - 1) if sy not in (0, -1) else -1
+    rot = lambda v, k: ((v << k) | (v >> ((32 - k) & 31))) & 0xffffffff
+    rotr = lambda v, k: ((v >> k) | (v << ((32 - k) & 31))) & 0xffffffff
+    um = x * y; im = s32(x) * s32(z)
+    add = x + z
+    m = 0xffffffff
+    return [ext, sext & m, (x & ~mask & m) | ((y << off) & mask), lsb & m, msb & m, smsb & m, bin(x).count('1'),
+            int(f'{y:032b}'[::-1], 2), rot(x, r), rotr(z, r), um >> 32, um & m, (im >> 32) & m, im & m, add & m, add >> 32]
+
+
+def w_bitops(size, rng):
+    n = 1024 if size == 'small' else 1 << 18
+    pick = lambda: np.where(rng.random(n) < 0.15, rng.choice(np.array([0, 1, 0x80000000, 0xffffffff, 0x7fffffff, 0x00010000], dtype=np.uint64), n),
+                            rng.integers(0, 1 << 32, n, dtype=np.uint64))
+    inp = np.stack([pick(), pick(), rng.integers(0, 1 << 32, n, dtype=np.uint64), pick()], 1).astype(np.uint32)
+    def check(o):
+        got = o[1].view(np.uint32)[:16 * n].reshape(n, 16)
+        rows = range(n) if size == 'small' else rng.choice(n, 4096, replace=False)
+        bad = [k for i in rows for k, (g, w) in enumerate(zip(got[i], bitops_ref(*map(int, inp[i])))) if int(g) != w]
+        return not bad, {'mismatches': len(bad), 'by_output': {str(k): bad.count(k) for k in sorted(set(bad))}}
+    return W('bitops', {0: (inp, False), 1: (64 * n, True)}, [((n + 63) // 64, 1, 1, push(n))], check, 64, {'items': n})
+
+
+def w_intdiv(size, rng):
+    n = 1024 if size == 'small' else 1 << 20
+    a = rng.integers(0, 1 << 32, n, dtype=np.uint64)
+    b = np.where(rng.random(n) < 0.5, rng.integers(1, 1 << 12, n, dtype=np.uint64), rng.integers(1, 1 << 32, n, dtype=np.uint64))
+    sa = rng.integers(-(1 << 31) + 1, 1 << 31, n, dtype=np.int64)
+    sb = rng.integers(1, 1 << 16, n, dtype=np.int64) * rng.choice([-1, 1], n)
+    inp = np.stack([a, b, sa & 0xffffffff, sb & 0xffffffff], 1).astype(np.uint32)
+    def check(o):
+        got = o[1].view(np.uint32)[:12 * n].reshape(n, 12).astype(np.int64)
+        m = 0xffffffff
+        tdiv = lambda p_, q: (abs(p_) // abs(q)) * (1 if (p_ >= 0) == (q >= 0) else -1)
+        bw = b.astype(np.uint32)
+        ref = np.stack([a // b, a % b, a // 7, a % 1000, a // 65537,
+                        np.array([tdiv(int(x), int(y)) for x, y in zip(sa, sb)]) & m, np.array([tdiv(int(x), 3) for x in sa]) & m,
+                        a.astype(np.float32).view(np.uint32), sa.astype(np.float32).view(np.uint32),
+                        ((bw & 0x007fffff) | 0x4b000000).view(np.float32).astype(np.int64),
+                        np.trunc(((inp[:, 3] & 0x807fffff) | 0x49000000).view(np.float32)).astype(np.int64) & m,
+                        ((sa >> 3) & m) ^ (a >> 29).astype(np.int64)], 1).astype(np.int64)
+        bad = got != ref
+        return not bad.any(), {'mismatches': int(bad.sum()), 'by_output': {str(k): int(v) for k, v in enumerate(bad.sum(0)) if v}}
+    return W('intdiv', {0: (inp, False), 1: (48 * n, True)}, [((n + 127) // 128, 1, 1, push(n))], check, 128, {'items': n})
+
+
+def w_compact(size, rng):
+    n = (1 << 14) if size == 'small' else (1 << 22)
+    groups = n // 256
+    data = u32(rng.integers(0, 1 << 32, n, dtype=np.uint64))
+    thr = 0x55555555                                           # keeps about a third
+    def check(o):
+        keep = data[data < thr]
+        got = o[2].view(np.uint32)
+        tot = int(o[3].view(np.uint32)[0])
+        ok = tot == len(keep) and np.array_equal(got[:tot], keep)
+        return ok, {'kept': len(keep), 'total': tot, 'order_ok': bool(np.array_equal(got[:min(tot, len(keep))], keep[:tot]))}
+    ds = [(groups, 1, 1, push(0, groups, thr)), (1, 1, 1, push(1, groups, thr)), (groups, 1, 1, push(2, groups, thr))]
+    return W('compact', {0: (data, False), 1: (4 * groups, False), 2: (4 * n, True), 3: (4, True)}, ds, check, 256, {'bytes': 8 * n})
+
+
+def w_spmv(size, rng):
+    rows, cols = (512, 512) if size == 'small' else (1 << 18, 1 << 18)
+    nnz = rng.integers(0, 64, rows) * (rng.random(rows) < 0.95)    # some empty rows
+    rowptr = u32(np.concatenate([[0], np.cumsum(nnz)]))
+    col = u32(rng.integers(0, cols, int(rowptr[-1])))
+    val = f32(rng.uniform(-1, 1, int(rowptr[-1])))
+    x = f32(rng.uniform(-1, 1, cols))
+    def check(o):
+        got = o[4].view(np.float32)[:rows]
+        prod = val.astype(np.float64) * x[col].astype(np.float64)
+        ref = np.add.reduceat(prod, rowptr[:-1].astype(np.int64)) if len(prod) else np.zeros(rows)
+        ref = np.where(nnz > 0, ref, 0.0)
+        bound = np.add.reduceat(np.abs(prod), rowptr[:-1].astype(np.int64)) * (nnz + 1) * 2.0 ** -24
+        excess = float(np.max(np.abs(got - ref) / np.maximum(bound, 1e-30) * (nnz > 0)))
+        return excess <= 1.0 and bool(np.all(got[nnz == 0] == 0)), {'max_err_over_bound': excess}
+    return W('spmv', {0: (rowptr, False), 1: (col, False), 2: (val, False), 3: (x, False), 4: (4 * rows, True)},
+             [((rows + 127) // 128, 1, 1, push(rows))], check, 128, {'flops': 2 * int(rowptr[-1]), 'bytes': 12 * int(rowptr[-1]) + 8 * rows})
+
+
+def w_transpose(size, rng):
+    Wd, H = (100, 70) if size == 'small' else (4100, 2050)
+    m = u32(rng.integers(0, 1 << 32, (H, Wd), dtype=np.uint64))
+    def check(o):
+        got = o[1].view(np.uint32)[:Wd * H].reshape(Wd, H)
+        return np.array_equal(got, m.T), {'mismatches': int(np.sum(got != m.T))}
+    return W('transpose', {0: (m, False), 1: (4 * Wd * H, True)}, [((Wd + 31) // 32, (H + 31) // 32, 1, push(Wd, H))], check,
+             (16, 16, 1), {'bytes': 8 * Wd * H})
+
+
+def mandel_ref(Wd, H, x0, y0, step, maxit):
+    cx = (x0 + np.arange(Wd) * step)[None, :].repeat(H, 0).astype(np.int64)
+    cy = (y0 + np.arange(H) * step)[:, None].repeat(Wd, 1).astype(np.int64)
+    x = np.zeros_like(cx); y = np.zeros_like(cy); n = np.zeros(cx.shape, np.int64); live = np.ones(cx.shape, bool)
+    for _ in range(maxit):
+        live &= (np.abs(x) <= 16384) & (np.abs(y) <= 16384)
+        xx, yy = x * x, y * y
+        live &= (xx + yy) <= (4 << 26)
+        if not live.any(): break
+        nx = ((xx - yy) >> 13) + cx; ny = ((x * y) >> 12) + cy
+        x = np.where(live, nx, x); y = np.where(live, ny, y); n += live
+    return n
+
+
+def w_mandelbrot(size, rng):
+    Wd, H, maxit = (96, 64, 64) if size == 'small' else (2048, 2048, 512)
+    step = int(3.0 * 8192 / Wd); x0, y0 = int(-2.25 * 8192), -(H // 2) * step
+    def check(o):
+        got = o[0].view(np.uint32)[:Wd * H].reshape(H, Wd)
+        ref = mandel_ref(Wd, H, x0, y0, step, maxit)
+        return np.array_equal(got, ref), {'mismatches': int(np.sum(got != ref)), 'mean_iter': float(ref.mean())}
+    return W('mandelbrot', {0: (4 * Wd * H, True)}, [((Wd + 15) // 16, (H + 15) // 16, 1, push(Wd, H, x0, y0, step, maxit))], check,
+             (16, 16, 1), {'pixels': Wd * H})
+
+
+def w_softmax(size, rng):
+    rows, cols = (64, 1000) if size == 'small' else (1 << 14, 1024)
+    x = f32(rng.standard_normal((rows, cols)) * 4)
+    def check(o):
+        got = o[1].view(np.float32)[:rows * cols].reshape(rows, cols)
+        x64 = x.astype(np.float64); e = np.exp(x64 - x64.max(1, keepdims=True)); ref = e / e.sum(1, keepdims=True)
+        err = float(np.max(np.abs(got - ref) / ref))
+        return err < 1e-5, {'max_rel_err': err}
+    return W('softmax', {0: (x, False), 1: (4 * rows * cols, True)}, [(rows, 1, 1, push(cols))], check, 256, {'bytes': 8 * rows * cols})
+
+
+def w_rgba8(size, rng):
+    n = 4096 if size == 'small' else 1 << 22
+    px = u32(rng.integers(0, 1 << 32, n, dtype=np.uint64))
+    def check(o):
+        c = (px[:, None] >> np.array([0, 8, 16, 24], np.uint32) & 0xff).astype(np.float64) / 255.0
+        g = c[:, :3] ** 2 * (3 - 2 * c[:, :3])
+        refc = np.concatenate([g, c[:, 3:]], 1) * 255.0
+        got = (o[1].view(np.uint32)[:n, None] >> np.array([0, 8, 16, 24], np.uint32) & 0xff).astype(np.float64)
+        y = c[:, :3] @ np.array([0.299, 0.587, 0.114]) * 255.0 + 0.5
+        gl = o[2][:n].astype(np.float64)
+        # packUnorm rounds to nearest (ties are implementation-defined): within 0.5 + float slack of the exact value
+        e1 = float(np.max(np.abs(got - refc))); e2 = float(np.max(np.abs(gl - np.minimum(np.floor(y), 255))))
+        return e1 <= 0.5001 and e2 <= 1, {'max_pack_err': e1, 'max_luma_err': e2}
+    return W('rgba8', {0: (px, False), 1: (4 * n, True), 2: (n, True)}, [((n + 255) // 256, 1, 1, push(n))], check, 256, {'bytes': 9 * n})
+
+
 WORKLOADS = {'reduce': w_reduce, 'scan': w_scan, 'sgemm': w_sgemm, 'conv2d': w_conv2d, 'histogram': w_histogram,
-             'nbody': w_nbody, 'bitonic': w_bitonic, 'sha256': w_sha256}
+             'nbody': w_nbody, 'bitonic': w_bitonic, 'sha256': w_sha256, 'fp16': w_fp16, 'int64': w_int64, 'bitops': w_bitops,
+             'intdiv': w_intdiv, 'compact': w_compact, 'spmv': w_spmv, 'transpose': w_transpose, 'mandelbrot': w_mandelbrot,
+             'softmax': w_softmax, 'rgba8': w_rgba8}
 
 
 # ---------------------------------------------------------------------------------------------------------------
@@ -528,7 +742,7 @@ class DriverLaunch:
         if info:
             self.wg, self.shared, self.regs = info['workgroup_size'], info['local_size'], info['nr_gprs']
         else:
-            self.wg, self.shared, self.regs = ([w.wg, 1, 1] if workload not in ('sgemm', 'conv2d') else [16, 16, 1]), shared or 0, None
+            self.wg, self.shared, self.regs = wg_of(w, workload), shared or 0, None
 
     def args(self, k):
         """(grid, launch arguments) of dispatch k; writes its root table and group count into the work directory"""
@@ -613,7 +827,7 @@ def cmd_predict(a):
         rng = np.random.default_rng([1, list(WORKLOADS).index(a.workload)])
         w = WORKLOADS[a.workload](a.size, rng)
         for gx, gy, gz, pc in w.dispatches:
-            wg = [w.wg, 1, 1] if a.workload not in ('sgemm', 'conv2d') else [16, 16, 1]
+            wg = wg_of(w, a.workload)
             grid = [gx * wg[0], gy * wg[1], gz * wg[2]]
             cmd = [str(exe), a.code, '--grid', ','.join(map(str, grid)), '--wg', ','.join(map(str, wg))]
             if a.regs: cmd += ['--regs', str(a.regs)]

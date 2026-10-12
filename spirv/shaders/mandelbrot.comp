@@ -1,0 +1,24 @@
+#version 450
+// Mandelbrot iteration counts in Q13 fixed point (exact integer arithmetic, so every implementation agrees):
+// divergent loops with per-pixel trip counts up to max_iter.
+layout(local_size_x = 16, local_size_y = 16) in;
+layout(std430, binding = 0) writeonly buffer O { uint iters[]; };
+layout(push_constant) uniform P { uint width; uint height; int x0; int y0; int step; uint max_iter; } p;
+
+void main() {
+    uvec2 g = gl_GlobalInvocationID.xy;
+    if (g.x >= p.width || g.y >= p.height) return;
+    int cx = p.x0 + int(g.x) * p.step, cy = p.y0 + int(g.y) * p.step;
+    int x = 0, y = 0;
+    uint n = 0u;
+    while (n < p.max_iter) {
+        if (abs(x) > 16384 || abs(y) > 16384) break;          // |x| or |y| > 2: escaped (and keeps x*x < 2^31)
+        int xx = x * x, yy = y * y;
+        if (xx + yy > (4 << 26)) break;                     // |z|^2 > 4 in Q26
+        int xy = x * y;
+        x = ((xx - yy) >> 13) + cx;
+        y = (xy >> 12) + cy;                                 // 2xy in Q13
+        n++;
+    }
+    iters[g.y * p.width + g.x] = n;
+}

@@ -1,0 +1,26 @@
+0x0000  72051004                 get_sr r1, sr80 (thread_position_in_grid.x)
+0x0004  0e05428658000000         iadd r1, r1.sx, u4.sx
+0x000c  62000000                 mov_imm r0l, 0
+0x0010  522842a21800             if_icmp r0l, ult, r1, u5, 1
+0x0016  20c076000000             jmp_exec_none pc+118
+0x001c  05112c0e00c01200         device_load 0, i32, x, r2, u6_u7, r1, unsigned
+0x0024  620d00000000             mov_imm r3, 0, 0b0
+0x002a  3800                     wait 0
+0x002c  420800000000             push_exec r0l, 1
+0x0032  0e11012064000000         iadd r4, 1, r1.sx
+0x003a  05218c0e00c01200         device_load 0, i32, x, r4, u6_u7, r4, unsigned
+0x0042  3800                     wait 0
+0x0044  522c44822400             while_icmp r0l, ult, r2, r4, 1
+0x004a  0521400e10c01200         device_load 0, i32, x, r4, u8_u9, r2, unsigned
+0x0052  0529444e10c01200         device_load 1, i32, x, r5, u10_u11, r2, unsigned
+0x005a  3801                     wait 1
+0x005c  0529a80e10c01200         device_load 0, i32, x, r5, u12_u13, r5, unsigned
+0x0064  3800                     wait 0
+0x0066  3a8d48a224460200         fmadd32 r3, r4, r5, r3
+0x006e  0e09441600000000         iadd r2, r2.sx, 1
+0x0076  00c0bcffffff             jmp_exec_any pc-68
+0x007c  520e00000000             pop_exec r0l, 1
+0x0082  45192c0e10c01200         device_store 0, i32, x, r3, u14_u15, r1, unsigned, 0
+0x008a  3800                     wait 0
+0x008c  520e00000000             pop_exec r0l, 1
+0x0092  8800                     stop

@@ -1,0 +1,22 @@
+{
+ "blob": "spirv/compiled/mesa-26.0.3/mandelbrot/shader.bin",
+ "code_start": 2244,
+ "code_size": 670,
+ "layout": "agx_shader_info",
+ "programs": [
+  {
+   "label": "main",
+   "file": "main.bin",
+   "offset": 128,
+   "bytes": 276,
+   "instructions": 40
+  },
+  {
+   "label": "preamble",
+   "file": "preamble.bin",
+   "offset": 512,
+   "bytes": 142,
+   "instructions": 23
+  }
+ ]
+}

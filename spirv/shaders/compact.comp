@@ -1,0 +1,48 @@
+#version 450
+// Stable stream compaction (keep x < threshold) with subgroup ballots, in three passes:
+// pass 0: count kept elements per workgroup (subgroupBallot + subgroupBallotBitCount) -> counts[wg]
+// pass 1: one workgroup turns counts into exclusive offsets (n_groups <= 4096)
+// pass 2: write kept elements at offset[wg] + workgroup prefix (subgroupBallotExclusiveBitCount, subgroup prefix in
+//         shared memory, the subgroup's base broadcast from its first lane). Elements are assigned by
+//         (subgroup id, subgroup lane), so the output order is the input order whatever the subgroup size.
+#extension GL_KHR_shader_subgroup_ballot : require
+layout(local_size_x = 256) in;
+layout(std430, binding = 0) readonly buffer D { uint data[]; };
+layout(std430, binding = 1) buffer C { uint counts[]; };
+layout(std430, binding = 2) writeonly buffer O { uint outp[]; };
+layout(std430, binding = 3) writeonly buffer T { uint total; };
+layout(push_constant) uniform P { uint pass; uint ngroups; uint threshold; } p;
+shared uint sub_count[256];
+
+void main() {
+    uint local = gl_SubgroupID * gl_SubgroupSize + gl_SubgroupInvocationID;
+    uint i = gl_WorkGroupID.x * 256u + local;
+    if (p.pass == 1u) {
+        if (gl_LocalInvocationID.x == 0u) {
+            uint acc = 0u;
+            for (uint g = 0u; g < p.ngroups; g++) { uint c = counts[g]; counts[g] = acc; acc += c; }
+            total = acc;
+        }
+        return;
+    }
+    uint x = data[i];
+    bool keep = x < p.threshold;
+    uvec4 b = subgroupBallot(keep);
+    if (subgroupElect()) sub_count[gl_SubgroupID] = subgroupBallotBitCount(b);
+    barrier();
+    if (p.pass == 0u) {
+        if (gl_LocalInvocationID.x == 0u) {
+            uint acc = 0u;
+            for (uint s = 0u; s < gl_NumSubgroups; s++) acc += sub_count[s];
+            counts[gl_WorkGroupID.x] = acc;
+        }
+        return;
+    }
+    uint base = 0u;
+    if (subgroupElect()) {
+        base = counts[gl_WorkGroupID.x];
+        for (uint s = 0u; s < gl_SubgroupID; s++) base += sub_count[s];
+    }
+    base = subgroupBroadcastFirst(base);
+    if (keep) outp[base + subgroupBallotExclusiveBitCount(b)] = x;
+}
