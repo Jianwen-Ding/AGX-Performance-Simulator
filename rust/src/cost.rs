@@ -1096,31 +1096,63 @@ impl std::hash::Hasher for SegHash {
 
 type SegBuild = std::hash::BuildHasherDefault<SegHash>;
 
-/// Least-recently-used set of 64-byte segments.
+/// Least-recently-used set of 64-byte segments: a hash map to slots of a doubly linked list in recency order
+/// (head = least recent), so a touch is O(1). Evicts exactly as an order-by-last-touch map would.
 struct Lru {
     cap: usize,
-    stamp: u64,
-    at: HashMap<u64, u64, SegBuild>,
-    order: std::collections::BTreeMap<u64, u64>,
+    at: HashMap<u64, u32, SegBuild>,
+    /// slot: (segment, previous (less recent), next (more recent)); NIL ends the list
+    slot: Vec<(u64, u32, u32)>,
+    free: Vec<u32>,
+    head: u32,
+    tail: u32,
 }
+
+const NIL: u32 = u32::MAX;
 
 impl Lru {
     fn new(bytes: usize) -> Self {
-        Lru { cap: (bytes / 64).max(1), stamp: 0, at: HashMap::default(), order: Default::default() }
+        Lru { cap: (bytes / 64).max(1), at: HashMap::default(), slot: Vec::new(), free: Vec::new(), head: NIL, tail: NIL }
     }
     fn contains(&self, s: u64) -> bool {
         self.at.contains_key(&s)
     }
+    fn unlink(&mut self, i: u32) {
+        let (_, p, n) = self.slot[i as usize];
+        if p == NIL { self.head = n } else { self.slot[p as usize].2 = n }
+        if n == NIL { self.tail = p } else { self.slot[n as usize].1 = p }
+    }
+    fn push_tail(&mut self, i: u32) {
+        self.slot[i as usize].1 = self.tail;
+        self.slot[i as usize].2 = NIL;
+        if self.tail == NIL { self.head = i } else { self.slot[self.tail as usize].2 = i }
+        self.tail = i;
+    }
     fn touch(&mut self, s: u64) {
-        self.stamp += 1;
-        if let Some(old) = self.at.insert(s, self.stamp) {
-            self.order.remove(&old);
+        if let Some(&i) = self.at.get(&s) {
+            if i != self.tail {
+                self.unlink(i);
+                self.push_tail(i);
+            }
+            return;
         }
-        self.order.insert(self.stamp, s);
+        let i = match self.free.pop() {
+            Some(i) => {
+                self.slot[i as usize].0 = s;
+                i
+            }
+            None => {
+                self.slot.push((s, NIL, NIL));
+                (self.slot.len() - 1) as u32
+            }
+        };
+        self.at.insert(s, i);
+        self.push_tail(i);
         if self.at.len() > self.cap {
-            let (&o, &victim) = self.order.iter().next().unwrap();
-            self.order.remove(&o);
-            self.at.remove(&victim);
+            let h = self.head;
+            self.unlink(h);
+            self.at.remove(&self.slot[h as usize].0);
+            self.free.push(h);
         }
     }
 }
@@ -1341,6 +1373,11 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
         }
     });
     let memv: Vec<&[(u32, Vec<u64>)]> = mem.map(|(v, _)| v.to_vec()).unwrap_or_default();
+    // a fingerprint of each access's segment list: lists with different fingerprints differ, so only equal
+    // fingerprints need the full comparison
+    let memfp: Vec<Vec<u64>> = memv.iter().map(|v| v.iter().map(|(_, sg)| {
+        sg.iter().fold(sg.len() as u64, |h, &x| (h ^ x).wrapping_mul(0x100_0000_01b3).rotate_left(29))
+    }).collect()).collect();
     if let (Some(m), Some((_, mm))) = (ms.as_mut(), mem) {
         if mm.resident_slc && !mm.warm {
             let mut distinct: std::collections::HashSet<u64> = Default::default();
@@ -1871,7 +1908,8 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
                         } else {
                             // the same lines as the core's previous load (every group on one line): 1.22 cycles per
                             // load instead of 1.0 (coalesce-shared vs coalesce-private)
-                            let same = m.last_load.is_some_and(|(g2, c2)| memv[g2][c2].1 == *segs);
+                            let fp = memfp[gi][m.cur[gi]];
+                            let same = m.last_load.is_some_and(|(g2, c2)| memfp[g2][c2] == fp && memv[g2][c2].1 == *segs);
                             need[0] = n.max(m_l1_load_min(mem) * if same { 1.22 } else { 1.0 });
                             m.last_load = Some((gi, m.cur[gi]));
                         }
