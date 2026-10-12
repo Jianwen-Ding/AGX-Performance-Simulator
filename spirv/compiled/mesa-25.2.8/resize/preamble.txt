@@ -1,0 +1,38 @@
+0x0480  0501100d00c87200         device_load 0, i32, xyz, r0_r1_r2, u0_u1, 1, signed, lsl 2
+0x0488  3800                     wait 0
+0x048a  0e01000064002000         iadd r0, 0, r0.sx, lsl 4
+0x0492  c500803d00803000         uniform_store 2, i16, xy, 0, r0l_r0h, 8
+0x049a  0e01002064002000         iadd r0, 0, r1.sx, lsl 4
+0x04a2  c500a03d00803000         uniform_store 2, i16, xy, 0, r0l_r0h, 10
+0x04aa  0501f00d02c41200         device_load 0, i32, x, r0, u0_u1, 47, signed, lsl 1
+0x04b2  3800                     wait 0
+0x04b4  c500c03d00803000         uniform_store 2, i16, xy, 0, r0l_r0h, 12
+0x04bc  0509f00d05c01200         device_load 0, i32, x, r1, u0_u1, 95, signed
+0x04c4  3800                     wait 0
+0x04c6  c508e03d00803000         uniform_store 2, i16, xy, 0, r1l_r1h, 14
+0x04ce  0511700d01c83200         device_load 0, i32, xy, r2_r3, u0_u1, 23, signed, lsl 2
+0x04d6  3800                     wait 0
+0x04d8  c510003d01803000         uniform_store 2, i16, xy, 0, r2l_r2h, 16
+0x04e0  3e910b442400             convert s32_to_f, r4, r2, rte
+0x04e6  c520203d01803000         uniform_store 2, i16, xy, 0, r4l_r4h, 18
+0x04ee  3e810b042400             convert s32_to_f, r0, r0, rte
+0x04f4  0a014082                 rcp r0, r0
+0x04f8  c500403d01803000         uniform_store 2, i16, xy, 0, r0l_r0h, 20
+0x0500  3e810b642400             convert s32_to_f, r0, r3, rte
+0x0506  c500603d01803000         uniform_store 2, i16, xy, 0, r0l_r0h, 22
+0x050e  3e810b242400             convert s32_to_f, r0, r1, rte
+0x0514  0a014082                 rcp r0, r0
+0x0518  c500803d01803000         uniform_store 2, i16, xy, 0, r0l_r0h, 24
+0x0520  0e01461e00000000         isub r0, r3.sx, 1
+0x0528  c500a03d01803000         uniform_store 2, i16, xy, 0, r0l_r0h, 26
+0x0530  0e01441e00000000         isub r0, r2.sx, 1
+0x0538  c500c03d01803000         uniform_store 2, i16, xy, 0, r0l_r0h, 28
+0x0540  0501700d02c83200         device_load 0, i32, xy, r0_r1, u0_u1, 39, signed, lsl 2
+0x0548  3800                     wait 0
+0x054a  0521004500c0f200         device_load 1, i32, xyzw, r4_r5_r6_r7, r0_r1, 0, signed
+0x0552  3801                     wait 1
+0x0554  c520003d0280f000         uniform_store 2, i16, xyzw, 0, r4l_r4h_r5l_r5h, 32
+0x055c  0501100500c8f200         device_load 0, i32, xyzw, r0_r1_r2_r3, r0_r1, 1, signed, lsl 2
+0x0564  3800                     wait 0
+0x0566  c500403d0280f000         uniform_store 2, i16, xyzw, 0, r0l_r0h_r1l_r1h, 36
+0x056e  8800                     stop

@@ -1,0 +1,19 @@
+#version 450
+// Bilinear image resize (RGBA8 -> RGBA8, any scale), pixel-centre aligned like most image libraries: source
+// coordinate (x + 0.5) * sw / dw - 0.5, clamped edges; channels through unpackUnorm4x8 / packUnorm4x8.
+layout(local_size_x = 16, local_size_y = 16) in;
+layout(std430, binding = 0) readonly buffer I { uint src[]; };
+layout(std430, binding = 1) writeonly buffer O { uint dst[]; };
+layout(push_constant) uniform P { int sw; int sh; int dw; int dh; } p;
+
+vec4 px(int x, int y) { return unpackUnorm4x8(src[clamp(y, 0, p.sh - 1) * p.sw + clamp(x, 0, p.sw - 1)]); }
+
+void main() {
+    ivec2 g = ivec2(gl_GlobalInvocationID.xy);
+    if (g.x >= p.dw || g.y >= p.dh) return;
+    float fx = (float(g.x) + 0.5) * float(p.sw) / float(p.dw) - 0.5, fy = (float(g.y) + 0.5) * float(p.sh) / float(p.dh) - 0.5;
+    int x0 = int(floor(fx)), y0 = int(floor(fy));
+    float ax = fx - float(x0), ay = fy - float(y0);
+    vec4 c = mix(mix(px(x0, y0), px(x0 + 1, y0), ax), mix(px(x0, y0 + 1), px(x0 + 1, y0 + 1), ax), ay);
+    dst[g.y * p.dw + g.x] = packUnorm4x8(c);
+}

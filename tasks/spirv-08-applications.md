@@ -1,7 +1,7 @@
 # Task SPIR-V 8: applications (ray tracer, neural networks, image processing, cellular automaton, graph search,
 # encryption, hashing, text, compression)
 
-**Workloads:** `raytrace`, `mlp`, `sobel`, `life`, `bfs`, `conv_layer`, `hist_eq`, `aes`, `hash_table`, `word_count`, `dct8`. These are recorded and verified by `make asahi-verify` with the others;
+**Workloads:** `raytrace`, `mlp`, `sobel`, `life`, `bfs`, `conv_layer`, `hist_eq`, `aes`, `hash_table`, `word_count`, `dct8`, `attention`, `resize`, `median3`, `poisson`. These are recorded and verified by `make asahi-verify` with the others;
 they are **PENDING** until then. The detailed procedure is in `tasks/spirv-workloads.md`.
 
 ## Why these
@@ -23,11 +23,15 @@ reference.
 | `hash_table` | Build a 2 Mi-slot open-addressing table from 1 Mi keys (atomicCompSwap), then 1 Mi lookups (about half hits) | Lookup results, table occupancy; exact |
 | `word_count` | Word count, line count and word-length histogram of 16 MiB of generated text | 18 counters; exact |
 | `dct8` | JPEG luminance DCT + quantisation of a 4K image (the first stage of a JPEG encoder) | Quantised coefficients; exact except ±1 at .5 ties |
+| `attention` | The core of a transformer layer: softmax(Q Kᵀ / 8) V for 64 Ki queries over 256 keys | Attention outputs; relative error < 2e-5 |
+| `resize` | Bilinear 3× upscale of a 720p RGBA image to 4K | `image1.ppm`; within 1 level per channel |
+| `median3` | Removing salt-and-pepper noise (10% of pixels) from a 4K image with a 3×3 median | `image1.pgm`; exact (830 K noisy pixels in, 643 out on lavapipe) |
+| `poisson` | 200 Jacobi sweeps of a 1024² Poisson solve, one dispatch each | Solution field; within 1e-5 of the same iteration in float64 |
 
 ## Offline sanity checks (not hardware verification)
 
 - **lavapipe:** all three pass at both sizes.
-- **Shim-compiled Mesa 25.2.8 and 26.0.3 code on the functional simulator:** 22 of 22.
+- **Shim-compiled Mesa 25.2.8 and 26.0.3 code on the functional simulator:** 30 of 30.
   - `bfs` found a simulator bug. Mesa aggregates `atomicAdd(found[l], 1)` under divergence: one lane, chosen with SR58
     (`active_thread_index_in_simdgroup`), adds SR59, the number of active lanes. The simulator modelled both from the
     launch shape (lane index, 32), which is only right when every lane is active, so the counts came out as multiples

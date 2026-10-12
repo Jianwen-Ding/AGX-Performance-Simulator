@@ -1,0 +1,22 @@
+{
+ "blob": "spirv/compiled/mesa-26.0.3/attention/shader.bin",
+ "code_start": 2244,
+ "code_size": 1670,
+ "layout": "agx_shader_info",
+ "programs": [
+  {
+   "label": "main",
+   "file": "main.bin",
+   "offset": 128,
+   "bytes": 1284,
+   "instructions": 200
+  },
+  {
+   "label": "preamble",
+   "file": "preamble.bin",
+   "offset": 1536,
+   "bytes": 118,
+   "instructions": 20
+  }
+ ]
+}

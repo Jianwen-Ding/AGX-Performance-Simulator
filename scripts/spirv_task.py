@@ -1005,6 +1005,76 @@ def w_dct8(size, rng):
              {'pixels': Wd * H})
 
 
+
+def w_attention(size, rng):
+    nq, seq = (64, 64) if size == 'small' else (65536, 256)  # query rows (one workgroup each) against seq keys / values
+    q = f32(rng.standard_normal((nq, 64))); k = f32(rng.standard_normal((seq, 64))); v = f32(rng.standard_normal((seq, 64)))
+    def check(o):
+        got = o[3].view(np.float32)[:nq * 64].reshape(nq, 64)
+        s_ = q.astype(np.float64) @ k.T.astype(np.float64) / 8
+        pr = np.exp(s_ - s_.max(-1, keepdims=True)); pr /= pr.sum(-1, keepdims=True)
+        ref = pr @ v.astype(np.float64)
+        err = float(np.max(np.abs(got - ref)) / np.max(np.abs(ref)))
+        return err < 2e-5, {'max_err_rel_to_max': err}
+    return W('attention', {0: (q, False), 1: (k, False), 2: (v, False), 3: (4 * nq * 64, True)}, [(nq, 1, 1, push(seq))], check, 256,
+             {'flops': 4 * nq * seq * 64})
+
+
+def w_resize(size, rng):
+    (sw, sh, dw, dh) = (40, 30, 97, 61) if size == 'small' else (1280, 720, 3840, 2160)
+    gy, gx = np.mgrid[0:sh, 0:sw]
+    rgba = np.stack([128 + 100 * np.sin(gx / 5.0), 128 + 100 * np.cos(gy / 7.0), 255.0 * ((gx // 8 + gy // 8) % 2), np.full(gx.shape, 255.0)], -1)
+    src = (np.clip(rgba + rng.normal(0, 3, rgba.shape), 0, 255).astype(np.uint8)).view(np.uint32).reshape(sh, sw)
+    def check(o):
+        got = o[1][:4 * dw * dh].reshape(dh, dw, 4).astype(np.int64)
+        s8 = src.view(np.uint8).reshape(sh, sw, 4).astype(np.float64) / 255
+        fx = (np.arange(dw) + 0.5) * sw / dw - 0.5; fy = (np.arange(dh) + 0.5) * sh / dh - 0.5
+        x0, y0 = np.floor(fx).astype(int), np.floor(fy).astype(int); ax, ay = fx - x0, fy - y0
+        P = lambda yy, xx: s8[np.clip(yy, 0, sh - 1)[:, None], np.clip(xx, 0, sw - 1)[None, :]]
+        top = P(y0, x0) * (1 - ax)[None, :, None] + P(y0, x0 + 1) * ax[None, :, None]
+        bot = P(y0 + 1, x0) * (1 - ax)[None, :, None] + P(y0 + 1, x0 + 1) * ax[None, :, None]
+        ref = (top * (1 - ay)[:, None, None] + bot * ay[:, None, None]) * 255
+        d = np.abs(got - ref)
+        return float(d.max()) <= 1.0, {'max_err_levels': float(d.max()), 'mean_err': float(d.mean())}
+    return W('resize', {0: (src, False), 1: (4 * dw * dh, True)}, [((dw + 15) // 16, (dh + 15) // 16, 1, push(sw, sh, dw, dh))], check,
+             (16, 16, 1), {'pixels': dw * dh}, images=[(1, dw, dh, 'rgba8')])
+
+
+def w_median3(size, rng):
+    Wd, H = (80, 60) if size == 'small' else (3840, 2160)
+    gy, gx = np.mgrid[0:H, 0:Wd]
+    img = (128 + 80 * np.sin(gx / 15.0) * np.cos(gy / 19.0)).astype(np.uint8)
+    noise = rng.random((H, Wd))
+    img[noise < 0.05] = 0; img[noise > 0.95] = 255                              # salt and pepper
+    def check(o):
+        got = o[1][:Wd * H].reshape(H, Wd)
+        q = np.pad(img, 1, mode='edge')
+        stack = np.stack([q[dy:dy + H, dx:dx + Wd] for dy in range(3) for dx in range(3)])
+        ref = np.median(stack, axis=0).astype(np.uint8)
+        return np.array_equal(got, ref), {'mismatches': int(np.sum(got != ref)), 'noisy_pixels_in': int(np.sum((img == 0) | (img == 255))),
+                                          'noisy_pixels_out': int(np.sum((got == 0) | (got == 255)))}
+    return W('median3', {0: (img, False), 1: (Wd * H, True)}, [((Wd + 15) // 16, (H + 15) // 16, 1, push(Wd, H))], check, (16, 16, 1),
+             {'pixels': Wd * H}, images=[(1, Wd, H, 'gray8')])
+
+
+def w_poisson(size, rng):
+    n, iters = (48, 40) if size == 'small' else (1024, 200)
+    h = 1.0 / (n + 1)
+    x = (np.arange(n) + 1) * h
+    f = f32(2 * np.pi ** 2 * np.sin(np.pi * x)[:, None] * np.sin(np.pi * x)[None, :])   # exact solution sin(pi x) sin(pi y)
+    h2 = float(np.float32(h * h))
+    def check(o):
+        got = o[0].view(np.float32)[:n * n].reshape(n, n)                      # even iteration count ends in the first half
+        u = np.zeros((n, n))
+        for _ in range(iters):
+            q = np.pad(u, 1)
+            u = 0.25 * (q[:-2, 1:-1] + q[2:, 1:-1] + q[1:-1, :-2] + q[1:-1, 2:] + h2 * f.astype(np.float64))
+        err = float(np.max(np.abs(got - u)) / np.max(np.abs(u)))
+        return err < 1e-5, {'rel_err_vs_float64_jacobi': err, 'max_u': float(np.max(u))}
+    ds = [((n + 15) // 16, (n + 15) // 16, 1, push(n, k & 1, h2)) for k in range(iters)]
+    return W('poisson', {0: (8 * n * n, True), 1: (f, False)}, ds, check, (16, 16, 1), {'cell_updates': n * n * iters})
+
+
 WORKLOADS = {'reduce': w_reduce, 'scan': w_scan, 'sgemm': w_sgemm, 'conv2d': w_conv2d, 'histogram': w_histogram,
              'nbody': w_nbody, 'bitonic': w_bitonic, 'sha256': w_sha256, 'fp16': w_fp16, 'int64': w_int64, 'bitops': w_bitops,
              'intdiv': w_intdiv, 'compact': w_compact, 'spmv': w_spmv, 'transpose': w_transpose, 'mandelbrot': w_mandelbrot,
@@ -1012,7 +1082,8 @@ WORKLOADS = {'reduce': w_reduce, 'scan': w_scan, 'sgemm': w_sgemm, 'conv2d': w_c
              'control': w_control, 'shuffle': w_shuffle, 'floatops': w_floatops, 'radix_sort': w_radix_sort, 'fft': w_fft,
              'crc32': w_crc32, 'kmeans': w_kmeans, 'int8dot': w_int8dot, 'stencil3d': w_stencil3d, 'int16': w_int16, 'trig': w_trig,
              'raytrace': w_raytrace, 'mlp': w_mlp, 'sobel': w_sobel, 'life': w_life, 'bfs': w_bfs, 'conv_layer': w_conv_layer,
-             'hist_eq': w_hist_eq, 'aes': w_aes, 'hash_table': w_hash_table, 'word_count': w_word_count, 'dct8': w_dct8}
+             'hist_eq': w_hist_eq, 'aes': w_aes, 'hash_table': w_hash_table, 'word_count': w_word_count, 'dct8': w_dct8,
+             'attention': w_attention, 'resize': w_resize, 'median3': w_median3, 'poisson': w_poisson}
 
 
 # ---------------------------------------------------------------------------------------------------------------

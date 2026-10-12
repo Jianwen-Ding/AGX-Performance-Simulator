@@ -1,0 +1,38 @@
+0x0480  0501500d00c87200         device_load 0, i32, xyz, r0_r1_r2, u0_u1, 5, signed, lsl 2
+0x0488  3800                     wait 0
+0x048a  0e0100006c002000         iadd r0, 0, r0.discard.sx, lsl 4
+0x0492  c500803d00803000         uniform_store 2, i16, xy, 0, r0l_r0h, 8
+0x049a  0e0100206c002000         iadd r0, 0, r1.discard.sx, lsl 4
+0x04a2  c500a03d00803000         uniform_store 2, i16, xy, 0, r0l_r0h, 10
+0x04aa  0501f00d01c81200         device_load 0, i32, x, r0, u0_u1, 31, signed, lsl 2
+0x04b2  3800                     wait 0
+0x04b4  c500c03d00803000         uniform_store 2, i16, xy, 0, r0l_r0h, 12
+0x04bc  0509d00d07c01200         device_load 0, i32, x, r1, u0_u1, 125, signed
+0x04c4  3800                     wait 0
+0x04c6  c508e03d00803000         uniform_store 2, i16, xy, 0, r1l_r1h, 14
+0x04ce  0511d00d03c43200         device_load 0, i32, xy, r2_r3, u0_u1, 61, signed, lsl 1
+0x04d6  3800                     wait 0
+0x04d8  7e11840a8000             mov r4, r2.cache
+0x04de  7e15860a8000             mov r5, r3.cache
+0x04e4  c520003d0180f000         uniform_store 2, i16, xyzw, 0, r4l_r4h_r5l_r5h, 16
+0x04ec  be810b042c00             convert s32_to_f, r0.cache, r0.discard, rte
+0x04f2  8a01c082                 rcp r0.cache, r0.discard
+0x04f6  be910b442800             convert s32_to_f, r4.cache, r2.cache, rte
+0x04fc  1a81c8022c00             fmul32 r0, r4.discard, r0.discard
+0x0502  c500403d01803000         uniform_store 2, i16, xy, 0, r0l_r0h, 20
+0x050a  be810b242c00             convert s32_to_f, r0.cache, r1.discard, rte
+0x0510  8a01c082                 rcp r0.cache, r0.discard
+0x0514  be850b642800             convert s32_to_f, r1.cache, r3.cache, rte
+0x051a  1a81c2022c00             fmul32 r0, r1.discard, r0.discard
+0x0520  c500603d01803000         uniform_store 2, i16, xy, 0, r0l_r0h, 22
+0x0528  0e01c61e00000000         isub r0, r3.discard.sx, 1
+0x0530  c500803d01803000         uniform_store 2, i16, xy, 0, r0l_r0h, 24
+0x0538  0e01c41e00000000         isub r0, r2.discard.sx, 1
+0x0540  c500a03d01803000         uniform_store 2, i16, xy, 0, r0l_r0h, 26
+0x0548  0501040d00c0f200         device_load 0, i32, xyzw, r0_r1_r2_r3, u2_u3, 0, signed
+0x0550  3800                     wait 0
+0x0552  c500c03d0180f000         uniform_store 2, i16, xyzw, 0, r0l_r0h_r1l_r1h, 28
+0x055a  0501140d00c8f200         device_load 0, i32, xyzw, r0_r1_r2_r3, u2_u3, 1, signed, lsl 2
+0x0562  3800                     wait 0
+0x0564  c500003d0280f000         uniform_store 2, i16, xyzw, 0, r0l_r0h_r1l_r1h, 32
+0x056c  8800                     stop

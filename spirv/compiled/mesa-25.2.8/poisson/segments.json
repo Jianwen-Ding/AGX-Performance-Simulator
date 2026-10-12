@@ -1,0 +1,22 @@
+{
+ "blob": "spirv/compiled/mesa-25.2.8/poisson/shader.bin",
+ "code_start": 2236,
+ "code_size": 1000,
+ "layout": "agx_shader_info",
+ "programs": [
+  {
+   "label": "main",
+   "file": "main.bin",
+   "offset": 128,
+   "bytes": 508,
+   "instructions": 76
+  },
+  {
+   "label": "preamble",
+   "file": "preamble.bin",
+   "offset": 768,
+   "bytes": 216,
+   "instructions": 33
+  }
+ ]
+}

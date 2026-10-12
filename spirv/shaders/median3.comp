@@ -1,0 +1,31 @@
+#version 450
+// 3 x 3 median filter of an 8-bit image (removes salt-and-pepper noise): 18 x 18 shared tile with clamped halo,
+// median of 9 by a min / max exchange network. Integer-exact.
+#extension GL_EXT_shader_8bit_storage : require
+#extension GL_EXT_shader_explicit_arithmetic_types_int8 : require
+layout(local_size_x = 16, local_size_y = 16) in;
+layout(std430, binding = 0) readonly buffer I { uint8_t src[]; };
+layout(std430, binding = 1) writeonly buffer O { uint8_t dst[]; };
+layout(push_constant) uniform P { int width; int height; } p;
+shared uint tile[18][18];
+
+void sw(inout uint a, inout uint b) { uint lo = min(a, b); b = max(a, b); a = lo; }
+
+void main() {
+    ivec2 l = ivec2(gl_LocalInvocationID.xy), o = ivec2(gl_WorkGroupID.xy) * 16;
+    for (int k = l.y * 16 + l.x; k < 324; k += 256) {
+        ivec2 t = ivec2(k % 18, k / 18);
+        ivec2 s = clamp(o + t - 1, ivec2(0), ivec2(p.width - 1, p.height - 1));
+        tile[t.y][t.x] = uint(src[s.y * p.width + s.x]);
+    }
+    barrier();
+    ivec2 g = o + l;
+    if (g.x >= p.width || g.y >= p.height) return;
+    uint v0 = tile[l.y][l.x], v1 = tile[l.y][l.x + 1], v2 = tile[l.y][l.x + 2];
+    uint v3 = tile[l.y + 1][l.x], v4 = tile[l.y + 1][l.x + 1], v5 = tile[l.y + 1][l.x + 2];
+    uint v6 = tile[l.y + 2][l.x], v7 = tile[l.y + 2][l.x + 1], v8 = tile[l.y + 2][l.x + 2];
+    // median-of-9 exchange network (19 compare-exchanges)
+    sw(v1, v2); sw(v4, v5); sw(v7, v8); sw(v0, v1); sw(v3, v4); sw(v6, v7); sw(v1, v2); sw(v4, v5); sw(v7, v8);
+    sw(v0, v3); sw(v5, v8); sw(v4, v7); sw(v3, v6); sw(v1, v4); sw(v2, v5); sw(v4, v7); sw(v4, v2); sw(v6, v4); sw(v4, v2);
+    dst[g.y * p.width + g.x] = uint8_t(v4);
+}

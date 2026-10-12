@@ -1,0 +1,16 @@
+#version 450
+// Jacobi iterations for the 2-D Poisson problem -lap(u) = f on an n x n grid with zero boundary values:
+// u'(i,j) = (u(i-1,j) + u(i+1,j) + u(i,j-1) + u(i,j+1) + h^2 f(i,j)) / 4, one iteration per dispatch, ping-pong halves.
+layout(local_size_x = 16, local_size_y = 16) in;
+layout(std430, binding = 0) buffer U { float u[]; };          // 2 * n * n
+layout(std430, binding = 1) readonly buffer F { float f[]; };
+layout(push_constant) uniform P { int n; uint src; float h2; } p;
+
+float at(uint base, int i, int j) { return (i < 0 || j < 0 || i >= p.n || j >= p.n) ? 0.0 : u[base + uint(i * p.n + j)]; }
+
+void main() {
+    int i = int(gl_GlobalInvocationID.y), j = int(gl_GlobalInvocationID.x);
+    if (i >= p.n || j >= p.n) return;
+    uint so = p.src * uint(p.n * p.n), dout = (1u - p.src) * uint(p.n * p.n);
+    u[dout + uint(i * p.n + j)] = 0.25 * (at(so, i - 1, j) + at(so, i + 1, j) + at(so, i, j - 1) + at(so, i, j + 1) + p.h2 * f[i * p.n + j]);
+}
