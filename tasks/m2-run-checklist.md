@@ -14,7 +14,7 @@ where each answer appears, and what to change for each outcome. The details are 
 | | | | FAIL with counts in multiples of 32 | the simulator's active-lane reading is wrong for this case |
 | 2b | Does store write-back cost DRAM bandwidth? (notes 66-67) | `adamw` time; `stream` per-dispatch times (`probes` GB/s) | they follow the `AGX_CHARGE_WRITEBACK=1` column of note 67 | make write-back charging the default (`charge_writeback` in `rust/src/cost.rs`). The recorded dispatches are read-only, so `dispatch_check` cannot object (under 1% either way) |
 | 3 | Should multi-pass workloads be timed from the evolving state? (notes 44-45) | the `stateful_vs_default` list in the verify summary | `stateful` is closer for the frontier / converging workloads | make `--stateful` the default for them in `predictall` |
-| 4 | Are the 30 transcendental suite failures 1-ulp table differences? | `cholesky` (CLOSE expected), `rmsrope` `max_rel_error` in probes; `make record-transcendentals` records the exact fp32 `rcp` / `rsqrt` tables | words differ only in the last bit | the simulator's `rcp` / `rsqrt_special` / `sin_pt` need the recorded tables |
+| 4 | Are the 30 transcendental suite failures 1-ulp table differences? | `cholesky` (CLOSE expected), `rmsrope` `max_rel_error` and `blackscholes` `max_abs_error` (note 80) in probes; `make record-transcendentals` records the exact fp32 `rcp` / `rsqrt` tables | words differ only in the last bit | the simulator's `rcp` / `rsqrt_special` / `sin_pt` need the recorded tables |
 
 ## Measurements to read against the model
 
@@ -46,6 +46,7 @@ where each answer appears, and what to change for each outcome. The details are 
 | `pngunfilter` (note 77) | a serial byte chain per invocation with store-to-load reuse, at low occupancy | 5.92 ms |
 | `inflate` vs `inflateshm` (note 78) | 131 KiB of select-chain code against 20.5 KiB for the same decoder: instruction-cache and ALU cost the model does not see | 19.5 ms both |
 | `csrbuild` (note 79) | contended degree atomics, a two-level scan and an atomic-cursor scatter, default against stateful prediction | 386 / 905 µs |
+| `blackscholes` (note 80) | a memory-bound kernel with `log2` / `exp2` / `rcp` / `rsqrt` per element | 338 µs |
 | `nms` (note 10) | a known under-prediction: work grows with the workgroup index | low |
 
 ## Results that must hold whatever the timings

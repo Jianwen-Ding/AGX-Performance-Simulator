@@ -57,7 +57,7 @@ The rest of this file is the detailed procedure, for investigating results.
 
 ## Workloads
 
-One hundred and seventy-nine realistic compute kernels, written in GLSL (`spirv/shaders/*.comp`) and compiled to SPIR-V:
+One hundred and eighty realistic compute kernels, written in GLSL (`spirv/shaders/*.comp`) and compiled to SPIR-V:
 
 | Workload | Kernel | Stresses |
 |---|---|---|
@@ -240,6 +240,7 @@ One hundred and seventy-nine realistic compute kernels, written in GLSL (`spirv/
 | `inflate` | DEFLATE decompression (zlib / gzip / PNG / ZIP), one raw stream per invocation, puff-style: stored, fixed- and dynamic-Huffman blocks, LZ77 copies | Bit-serial canonical Huffman decoding, data-indexed private tables (Mesa turns the small ones into select chains: 13897 instructions, 131 KiB of code) and scratch, copies reading back device memory |
 | `inflateshm` | `inflate` with the per-length code counts and offsets in shared memory | The same decoder in 2987 instructions (20.5 KiB): code size and dynamic instruction count against latency |
 | `csrbuild` | Graph construction: a Graph500 Kronecker edge list (2^18 vertices, 4.2M edges) into CSR adjacency | Five passes: degree counting with contended device atomics (hubs of 30000 edges), a two-level shared-memory scan, a scatter through atomic cursors |
+| `blackscholes` | Black-Scholes call and put prices for 4M European options (the CUDA sample's kernel, Abramowitz-Stegun CND) | `log2` / `exp2` / `rcp` / `rsqrt_special` per option, 28 bytes of traffic each: memory bound |
 
 Each workload has two sizes:
 

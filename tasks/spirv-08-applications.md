@@ -1,7 +1,7 @@
 # Task SPIR-V 8: applications (ray tracer, neural networks, image processing, cellular automaton, graph search,
 # encryption, hashing, text, compression)
 
-**Workloads:** `raytrace`, `mlp`, `sobel`, `life`, `bfs`, `conv_layer`, `hist_eq`, `aes`, `hash_table`, `word_count`, `dct8`, `attention`, `resize`, `median3`, `poisson`, `lbm`, `base64`, `md5`, `gemv`, `levenshtein`, `blur`, `yuv420`, `montecarlo`, `xxhash`, `bloom`, `collatz`, `tridiag`, `merge`, `ccl`, `pagerank`, `skinning`, `strsearch`, `quantize`, `rule110`, `voxel`, `nms`, `sat`, `sssp`, `morton`, `utf8`, `fir`, `composite`, `nqueens`, `lzmatch`, `bitpack`, `perlin`, `adler32`, `sieve`, `gcd`, `dither`, `advect`, `knn`, `csvparse`, `pip`, `lift53`, `chacha20`, `modexp`, `floyd`, `f16pack`, `raster`, `canny`, `secded`, `bicubic`, `dfa`, `b64decode`, `cordic`, `rsenc`, `texfetch`, `texfilter`, `imgerode`, `imgtonemap`, `argmax64`, `minmax64`, `dsum`, `quadmip`, `clustered`, `specblur`, `cullindirect`, `bigsort`, `pushmat`, `mplitmus`, `splat`, `splatfix`, `smembank`, `coalesce`, `atomcontend`, `barriercost`, `aluprobe`, `ubopalette`, `uboparams`, `bindless`, `bindlessu`, `rle`, `huffdec`, `lookback`, `hll`, `tricount`, `sha3`, `stereo`, `viterbi`, `viterbifix`, `shiftfuse`, `bc1enc`, `lz4dec`, `nttmul`, `topk`, `cellsort`, `boruvka`, `biquad`, `edt`, `mt19937`, `bitap`, `cholesky`, `rsshash`, `poly1305`, `crc32c`, `siphash`, `blake2s`, `blake2sfast`, `q4gemv`, `attndec`, `attndecsplit`, `rmsrope`, `q8dot`, `isp`, `contour`, `hough`, `spmvsg`, `varint`, `bvhrays`, `adamw`, `stream`, `motionest`, `jsonidx`, `cdc`, `swalign`, `swalignfit`, `swalignpad`, `jpcolor`, `postings`, `tpchq6`, `ghash`, `scrypt`, `pngunfilter`, `inflate`, `inflateshm`, `csrbuild`. These are recorded and verified by `make asahi-verify` with the others;
+**Workloads:** `raytrace`, `mlp`, `sobel`, `life`, `bfs`, `conv_layer`, `hist_eq`, `aes`, `hash_table`, `word_count`, `dct8`, `attention`, `resize`, `median3`, `poisson`, `lbm`, `base64`, `md5`, `gemv`, `levenshtein`, `blur`, `yuv420`, `montecarlo`, `xxhash`, `bloom`, `collatz`, `tridiag`, `merge`, `ccl`, `pagerank`, `skinning`, `strsearch`, `quantize`, `rule110`, `voxel`, `nms`, `sat`, `sssp`, `morton`, `utf8`, `fir`, `composite`, `nqueens`, `lzmatch`, `bitpack`, `perlin`, `adler32`, `sieve`, `gcd`, `dither`, `advect`, `knn`, `csvparse`, `pip`, `lift53`, `chacha20`, `modexp`, `floyd`, `f16pack`, `raster`, `canny`, `secded`, `bicubic`, `dfa`, `b64decode`, `cordic`, `rsenc`, `texfetch`, `texfilter`, `imgerode`, `imgtonemap`, `argmax64`, `minmax64`, `dsum`, `quadmip`, `clustered`, `specblur`, `cullindirect`, `bigsort`, `pushmat`, `mplitmus`, `splat`, `splatfix`, `smembank`, `coalesce`, `atomcontend`, `barriercost`, `aluprobe`, `ubopalette`, `uboparams`, `bindless`, `bindlessu`, `rle`, `huffdec`, `lookback`, `hll`, `tricount`, `sha3`, `stereo`, `viterbi`, `viterbifix`, `shiftfuse`, `bc1enc`, `lz4dec`, `nttmul`, `topk`, `cellsort`, `boruvka`, `biquad`, `edt`, `mt19937`, `bitap`, `cholesky`, `rsshash`, `poly1305`, `crc32c`, `siphash`, `blake2s`, `blake2sfast`, `q4gemv`, `attndec`, `attndecsplit`, `rmsrope`, `q8dot`, `isp`, `contour`, `hough`, `spmvsg`, `varint`, `bvhrays`, `adamw`, `stream`, `motionest`, `jsonidx`, `cdc`, `swalign`, `swalignfit`, `swalignpad`, `jpcolor`, `postings`, `tpchq6`, `ghash`, `scrypt`, `pngunfilter`, `inflate`, `inflateshm`, `csrbuild`, `blackscholes`. These are recorded and verified by `make asahi-verify` with the others;
 they are **PENDING** until then. The detailed procedure is in `tasks/spirv-workloads.md`.
 
 ## Why these
@@ -156,11 +156,12 @@ reference.
 | `pngunfilter` | 2048 RGBA8 images of 128×128 (separable gradients, texture, integer noise; half opaque), filtered with libpng's default heuristic (least sum of absolute signed bytes) | Every reconstructed row equal to the image; the filtered streams of the first 8 images, wrapped as PNG files, decode to the same pixels with Pillow |
 | `inflate`, `inflateshm` | 2048 raw-deflate streams of 2-8 KiB from Python's `zlib` (pseudo-English over a Zipf vocabulary, some with a binary prefix): 1 in 8 stored, 1 in 4 `Z_FIXED`, the rest dynamic at levels 1 / 6 / 9 | Every stream's output equal to the original bytes (and its length), with no decoder error; every block type is exercised |
 | `csrbuild` | Graph500's Kronecker generator at scale 18, edge factor 16 (A, B, C = 0.57, 0.19, 0.19, vertices relabelled at random; duplicates and self-loops kept) | `rowptr` exact; every row's neighbours equal to the edge list's as a multiset (the atomics fix no order); the GPU's CSR with duplicates summed equal to scipy's conversion of the edge list |
+| `blackscholes` | 4M options: spot 5-30, strike 1-100, 0.25-10 years (the CUDA sample's ranges), rate 1-5%, volatility 10-50% | Every call and put within 1e-3 + 1e-5 max(S, K) of the exact float64 formula with scipy's normal CDF; put-call parity reported |
 
 ## Offline sanity checks (not hardware verification)
 
 - **lavapipe:** all pass at both sizes. Last whole-suite rerun at the small size: 174 of 174 functionally correct
-  (`scrypt`, `pngunfilter`, `inflate`, `inflateshm` and `csrbuild`, added since, pass at both sizes).
+  (`scrypt`, `pngunfilter`, `inflate`, `inflateshm`, `csrbuild` and `blackscholes`, added since, pass at both sizes).
 - **Shim-compiled Mesa 25.2.8 and 26.0.3 code on the functional simulator:** every workload the simulator can run, under
   `bfeil` semantics B; under the default, all but the five of question 1 (below).
   - Last whole-suite rerun (`simall`, Mesa 26.0.3): 170 compiled workloads.
@@ -822,4 +823,15 @@ reference.
       It is in `STATEFUL`, so `verify --timing` reports both.
     - The counting pass (166 µs) puts up to 30248 atomics on one address. The model does not serialise same-address
       atomics (as for `atomcontend`, `cellsort` and `hough`), so its hub cost is a lower bound.
+    - It passes on lavapipe, and on the simulator at both Mesa versions under both `bfeil` semantics.
+80. **`blackscholes`: option pricing with the transcendental units.**
+    - Per option: a log, a square root, three exponentials and the divisions. Mesa emits one `log2`, three `exp2`,
+      four `rcp` and an `rsqrt_special`, the instructions whose exact fp32 tables are question 4.
+    - The reference is the exact formula in float64 with scipy's normal CDF, on the same fp32 inputs. The tolerance
+      covers fp32 rounding and the Abramowitz-Stegun polynomial's 7.5e-8.
+    - Largest error: lavapipe 3.3e-5 (4M options), the simulator 1.5e-5 (4096 options), both about 30 times inside
+      the tolerance. So it must PASS on the M2 whatever the tables' last bits.
+    - `probes` reports the M2's `max_abs_error` next to the simulator's. That is a workload-level view of question
+      4: a large jump would mean the transcendental units are much less accurate than the simulator's.
+    - Predicted 338 µs: 28 bytes per option at about 347 GB/s, memory bound at the model's DRAM rate.
     - It passes on lavapipe, and on the simulator at both Mesa versions under both `bfeil` semantics.

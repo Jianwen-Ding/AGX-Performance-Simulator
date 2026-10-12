@@ -2259,6 +2259,27 @@ def w_csrbuild(size, rng):
                           4: (4 * n, False), 5: (4 * m, True)}, ds, check, 256, {'edges': m})
 
 
+def w_blackscholes(size, rng):
+    from scipy.stats import norm
+    n = 1 << 12 if size == 'small' else 1 << 22                              # 4M options (112 MB) at the large size
+    # the CUDA sample's ranges (spot 5-30, strike 1-100, 0.25-10 years), with rate and volatility varied a little
+    o = f32(np.stack([rng.uniform(5, 30, n), rng.uniform(1, 100, n), rng.uniform(0.25, 10, n),
+                      rng.uniform(0.01, 0.05, n), rng.uniform(0.1, 0.5, n)], 1))
+    S, K, T, r, v = (o[:, k].astype(np.float64) for k in range(5))
+    def check(out):
+        got = out[1].view(np.float32)[:2 * n].reshape(n, 2).astype(np.float64)
+        d1 = (np.log(S / K) + (r + 0.5 * v * v) * T) / (v * np.sqrt(T)); d2 = d1 - v * np.sqrt(T)
+        df = K * np.exp(-r * T)
+        call = S * norm.cdf(d1) - df * norm.cdf(d2); put = df * norm.cdf(-d2) - S * norm.cdf(-d1)    # exact, float64
+        err = np.abs(got - np.stack([call, put], 1))
+        tol = 1e-3 + 1e-5 * np.maximum(S, K)[:, None]                        # fp32 and the CND polynomial's 7.5e-8
+        parity = np.abs((got[:, 0] - got[:, 1]) - (S - df))                  # call - put = S - K e^-rT
+        return bool((err <= tol).all()), {'max_abs_error': float(err.max()), 'mean_abs_error': float(err.mean()),
+                                          'max_parity_error': float(parity.max()), 'options': n}
+    return W('blackscholes', {0: (o.ravel(), False), 1: (8 * n, True)}, [((n + 255) // 256, 1, 1, push(n))], check, 256,
+             {'bytes': 28 * n, 'options': n})
+
+
 def w_spmv(size, rng):
     rows, cols = (512, 512) if size == 'small' else (1 << 18, 1 << 18)
     nnz = rng.integers(0, 64, rows) * (rng.random(rows) < 0.95)    # some empty rows
@@ -4788,7 +4809,7 @@ WORKLOADS = {'reduce': w_reduce, 'scan': w_scan, 'sgemm': w_sgemm, 'conv2d': w_c
              'aluprobe': w_aluprobe, 'ubopalette': w_ubopalette, 'uboparams': w_uboparams,
              'bindless': w_bindless, 'bindlessu': w_bindlessu,
              # appended only: the input seed is the index in this dict
-             'rle': w_rle, 'huffdec': w_huffdec, 'lookback': w_lookback, 'hll': w_hll, 'tricount': w_tricount, 'sha3': w_sha3, 'stereo': w_stereo, 'viterbi': w_viterbi, 'viterbifix': w_viterbifix, 'shiftfuse': w_shiftfuse, 'bc1enc': w_bc1enc, 'lz4dec': w_lz4dec, 'nttmul': w_nttmul, 'topk': w_topk, 'cellsort': w_cellsort, 'boruvka': w_boruvka, 'biquad': w_biquad, 'edt': w_edt, 'mt19937': w_mt19937, 'bitap': w_bitap, 'cholesky': w_cholesky, 'rsshash': w_rsshash, 'poly1305': w_poly1305, 'crc32c': w_crc32c, 'siphash': w_siphash, 'blake2s': w_blake2s, 'blake2sfast': w_blake2sfast, 'q4gemv': w_q4gemv, 'attndec': w_attndec, 'attndecsplit': w_attndecsplit, 'rmsrope': w_rmsrope, 'q8dot': w_q8dot, 'isp': w_isp, 'contour': w_contour, 'hough': w_hough, 'spmvsg': w_spmvsg, 'varint': w_varint, 'bvhrays': w_bvhrays, 'adamw': w_adamw, 'stream': w_stream, 'motionest': w_motionest, 'jsonidx': w_jsonidx, 'cdc': w_cdc, 'swalign': w_swalign, 'swalignfit': w_swalignfit, 'swalignpad': w_swalignpad, 'jpcolor': w_jpcolor, 'postings': w_postings, 'tpchq6': w_tpchq6, 'ghash': w_ghash, 'scrypt': w_scrypt, 'pngunfilter': w_pngunfilter, 'inflate': w_inflate, 'inflateshm': w_inflateshm, 'csrbuild': w_csrbuild}
+             'rle': w_rle, 'huffdec': w_huffdec, 'lookback': w_lookback, 'hll': w_hll, 'tricount': w_tricount, 'sha3': w_sha3, 'stereo': w_stereo, 'viterbi': w_viterbi, 'viterbifix': w_viterbifix, 'shiftfuse': w_shiftfuse, 'bc1enc': w_bc1enc, 'lz4dec': w_lz4dec, 'nttmul': w_nttmul, 'topk': w_topk, 'cellsort': w_cellsort, 'boruvka': w_boruvka, 'biquad': w_biquad, 'edt': w_edt, 'mt19937': w_mt19937, 'bitap': w_bitap, 'cholesky': w_cholesky, 'rsshash': w_rsshash, 'poly1305': w_poly1305, 'crc32c': w_crc32c, 'siphash': w_siphash, 'blake2s': w_blake2s, 'blake2sfast': w_blake2sfast, 'q4gemv': w_q4gemv, 'attndec': w_attndec, 'attndecsplit': w_attndecsplit, 'rmsrope': w_rmsrope, 'q8dot': w_q8dot, 'isp': w_isp, 'contour': w_contour, 'hough': w_hough, 'spmvsg': w_spmvsg, 'varint': w_varint, 'bvhrays': w_bvhrays, 'adamw': w_adamw, 'stream': w_stream, 'motionest': w_motionest, 'jsonidx': w_jsonidx, 'cdc': w_cdc, 'swalign': w_swalign, 'swalignfit': w_swalignfit, 'swalignpad': w_swalignpad, 'jpcolor': w_jpcolor, 'postings': w_postings, 'tpchq6': w_tpchq6, 'ghash': w_ghash, 'scrypt': w_scrypt, 'pngunfilter': w_pngunfilter, 'inflate': w_inflate, 'inflateshm': w_inflateshm, 'csrbuild': w_csrbuild, 'blackscholes': w_blackscholes}
 
 
 # ---------------------------------------------------------------------------------------------------------------
@@ -5636,7 +5657,7 @@ def cmd_probes(a):
     functional = {'texfilter': 'best_subtexel_bits', 'imgtonemap': 'round_to_nearest_fraction', 'mplitmus': 'relaxed_stale_reads',
                   'f16pack': 'half_mismatches', 'lookback': 'mean_lookback_steps',
                   'viterbi': 'mismatched_bits', 'viterbifix': 'mismatched_bits', 'shiftfuse': 'mismatches',
-                  'rmsrope': 'max_rel_error'}
+                  'rmsrope': 'max_rel_error', 'blackscholes': 'max_abs_error'}
     for name, key in functional.items():
         r = rec_of(name)
         if r is None:

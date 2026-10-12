@@ -1,0 +1,72 @@
+0x0080  f2051004                 get_sr r1.cache, sr80 (thread_position_in_grid.x)
+0x0084  0e05c28658000000         iadd r1, r1.discard.sx, u4.sx
+0x008c  62000000                 mov_imm r0l, 0
+0x0090  522842a21800             if_icmp r0l, ult, r1, u5, 1
+0x0096  20c0a0010000             jmp_exec_none pc+416
+0x009c  8e09422664001000         iadd r2.cache, r1.sx, r1.sx, lsl 2
+0x00a4  05194c0e00c01200         device_load 0, i32, x, r3, u6_u7, r2, unsigned
+0x00ac  0e11841600000000         iadd r4, r2.cache.sx, 1
+0x00b4  05218c4e00c01200         device_load 1, i32, x, r4, u6_u7, r4, unsigned
+0x00bc  0e15842600000000         iadd r5, r2.cache.sx, 2
+0x00c4  0529ac0e00c01200         device_load 0, i32, x, r5, u6_u7, r5, unsigned
+0x00cc  0e19843600000000         iadd r6, r2.cache.sx, 3
+0x00d4  0531cc0e00c01200         device_load 0, i32, x, r6, u6_u7, r6, unsigned
+0x00dc  0e09444600000000         iadd r2, r2.sx, 4
+0x00e4  05114c0e00c01200         device_load 0, i32, x, r2, u6_u7, r2, unsigned
+0x00ec  3800                     wait 0
+0x00ee  8a1d8a12                 rsqrt_special r7.cache, r5.cache
+0x00f2  9a9d8ae22400             fmul32 r7.cache, r5.cache, r7
+0x00f8  9a9d84e22400             fmul32 r7.cache, r2.cache, r7
+0x00fe  3801                     wait 1
+0x0100  8a218882                 rcp r8.cache, r4.cache
+0x0104  9aa186022500             fmul32 r8.cache, r3.cache, r8
+0x010a  9aa520402800             fmul32 r9.cache, 0.5, r2.cache
+0x0110  ba895242248c0200         fmadd32 r2.cache, r9, r2, r6.cache
+0x0118  9a8944a22800             fmul32 r2.cache, r2, r5.cache
+0x011e  8a2150c2                 log2 r8.cache, r8
+0x0122  ba8950421a440200         fmadd32 r2.cache, r8, u18, r2
+0x012a  8a218e82                 rcp r8.cache, r7.cache
+0x012e  9a8944022500             fmul32 r2.cache, r2, r8
+0x0134  aa9d84e2a400             fadd32 r7.cache, r2.cache, r7.neg
+0x013a  9a95a6a12400             fmul32 r5.cache, u19, r5
+0x0140  9a954ca22400             fmul32 r5.cache, r6, r5
+0x0146  8a154ada                 exp2 r5.cache, r5.neg
+0x014a  9a9148a22400             fmul32 r4.cache, r4, r5
+0x0150  9a959e412800             fmul32 r5.cache, u15, r2.cache
+0x0156  9a954a422800             fmul32 r5.cache, r5, r2.cache
+0x015c  ba199c416830             fmadd32 r6.cache, u14, r2.cache.abs, 1.0
+0x0162  8a194c82                 rcp r6.cache, r6
+0x0166  baa18ca219a20100         fmadd32 r8.cache, r6.cache, u13, u17
+0x016e  baa18c0225a00100         fmadd32 r8.cache, r6.cache, r8, u16
+0x0176  baa18c0225980100         fmadd32 r8.cache, r6.cache, r8, u12
+0x017e  baa18c0225960100         fmadd32 r8.cache, r6.cache, r8, u11
+0x0186  9a9994c12400             fmul32 r6.cache, u10, r6
+0x018c  9a994c022500             fmul32 r6.cache, r6, r8
+0x0192  8a154ad2                 exp2 r5.cache, r5
+0x0196  9a954ac22400             fmul32 r5.cache, r5, r6
+0x019c  aa9930a0a800             fadd32 r6.cache, 1.0, r5.cache.neg
+0x01a2  82090040244ca024         fcmpsel lt, r2.cache, 0.0, r2, r6, r5
+0x01aa  9a959ee12800             fmul32 r5.cache, u15, r7.cache
+0x01b0  9a954ae22800             fmul32 r5.cache, r5, r7.cache
+0x01b6  ba199ce16830             fmadd32 r6.cache, u14, r7.cache.abs, 1.0
+0x01bc  8a194c82                 rcp r6.cache, r6
+0x01c0  baa18ca219a20100         fmadd32 r8.cache, r6.cache, u13, u17
+0x01c8  baa18c0225a00100         fmadd32 r8.cache, r6.cache, r8, u16
+0x01d0  baa18c0225980100         fmadd32 r8.cache, r6.cache, r8, u12
+0x01d8  baa18c0225960100         fmadd32 r8.cache, r6.cache, r8, u11
+0x01e0  9a9994c12400             fmul32 r6.cache, u10, r6
+0x01e6  9a994c022500             fmul32 r6.cache, r6, r8
+0x01ec  8a154ad2                 exp2 r5.cache, r5
+0x01f0  9a954ac22400             fmul32 r5.cache, r5, r6
+0x01f6  aa9930a0a800             fadd32 r6.cache, 1.0, r5.cache.neg
+0x01fc  821500e0244ca024         fcmpsel lt, r5.cache, 0.0, r7, r6, r5
+0x0204  9a9988a22800             fmul32 r6.cache, r4.cache, r5.cache
+0x020a  3a998642284c0a00         fmadd32 r6, r3.cache, r2.cache, r6.neg
+0x0212  aa893040a400             fadd32 r2.cache, 1.0, r2.neg
+0x0218  9a8946422400             fmul32 r2.cache, r3, r2
+0x021e  aa8d30a0a400             fadd32 r3.cache, 1.0, r5.neg
+0x0224  3a9d486224440a00         fmadd32 r7, r4, r3, r2.neg
+0x022c  4531200e10c43200         device_store 0, i32, xy, r6_r7, u8_u9, r1, unsigned, lsl 1, 0
+0x0234  3800                     wait 0
+0x0236  520e00000000             pop_exec r0l, 1
+0x023c  8800                     stop
