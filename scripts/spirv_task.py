@@ -474,23 +474,27 @@ def w_hll(size, rng):
     n, per = ((1 << 15), 4) if size == 'small' else ((1 << 24), 16)
     distinct = n // 3
     items = u32(rng.integers(0, 1 << 32, distinct, dtype=np.uint64))[rng.integers(0, distinct, n)]   # repeats
-    M = np.uint64(0xffffffff)
-    def fmix(h):
-        h = h.astype(np.uint64)
-        h ^= h >> np.uint64(16); h = (h * np.uint64(0x85ebca6b)) & M; h ^= h >> np.uint64(13)
-        h = (h * np.uint64(0xc2b2ae35)) & M; h ^= h >> np.uint64(16)
-        return h
-    hi = fmix(items); lo = fmix(hi ^ np.uint64(0x9e3779b9))
-    rest = ((hi & np.uint64(0xfffff)) << np.uint64(32)) | lo                  # 52 bits
-    bl = np.zeros(n, dtype=np.int64); r = rest.copy()
-    for sh in (32, 16, 8, 4, 2, 1):                                             # bit length of rest
-        big = r >= (np.uint64(1) << np.uint64(sh)); bl[big] += sh; r[big] >>= np.uint64(sh)
-    bl += (r > 0)
-    rank = 53 - bl
-    ref = np.zeros(4096, dtype=np.int64)
-    np.maximum.at(ref, (hi >> np.uint64(20)).astype(np.int64), rank)
+    def reference():
+        """registers from the items (only check needs them: seconds of numpy over 16M 64-bit values)"""
+        M = np.uint64(0xffffffff)
+        def fmix(h):
+            h = h.astype(np.uint64)
+            h ^= h >> np.uint64(16); h = (h * np.uint64(0x85ebca6b)) & M; h ^= h >> np.uint64(13)
+            h = (h * np.uint64(0xc2b2ae35)) & M; h ^= h >> np.uint64(16)
+            return h
+        hi = fmix(items); lo = fmix(hi ^ np.uint64(0x9e3779b9))
+        rest = ((hi & np.uint64(0xfffff)) << np.uint64(32)) | lo                  # 52 bits
+        bl = np.zeros(n, dtype=np.int64); r = rest.copy()
+        for sh in (32, 16, 8, 4, 2, 1):                                             # bit length of rest
+            big = r >= (np.uint64(1) << np.uint64(sh)); bl[big] += sh; r[big] >>= np.uint64(sh)
+        bl += (r > 0)
+        rank = 53 - bl
+        ref = np.zeros(4096, dtype=np.int64)
+        np.maximum.at(ref, (hi >> np.uint64(20)).astype(np.int64), rank)
+        return ref
     def check(o):
         got = o[1].view(np.uint32)[:4096].astype(np.int64)
+        ref = reference()
         bad = int(np.sum(got != ref))
         m = 4096; z = np.sum(2.0 ** -got); est = 0.7213 / (1 + 1.079 / m) * m * m / z
         zeros = int(np.sum(got == 0))
@@ -516,9 +520,9 @@ def w_tricount(size, rng):
     eu, ev = (key // nv).astype(np.int64), (key % nv).astype(np.int64)        # sorted by (u, v)
     ne = len(eu)
     rowptr = u32(np.concatenate([[0], np.cumsum(np.bincount(eu, minlength=nv))]))
-    A = sp.csr_matrix((np.ones(ne, np.int64), (eu, ev)), shape=(nv, nv))
-    ref = np.asarray((A @ A.T)[eu, ev]).ravel().astype(np.int64)             # |N+(u) & N+(v)|
     def check(o):
+        A = sp.csr_matrix((np.ones(ne, np.int64), (eu, ev)), shape=(nv, nv))
+        ref = np.asarray((A @ A.T)[eu, ev]).ravel().astype(np.int64)         # |N+(u) & N+(v)| (only check needs it)
         got = o[3].view(np.uint32)[:ne].astype(np.int64)
         tot = int(o[4].view(np.uint32)[0])
         bad = int(np.sum(got != ref))
@@ -619,18 +623,21 @@ def viterbi_ref(rx):
     return bits
 
 
+VIT_PAR = np.array([bin(i).count('1') & 1 for i in range(128)], np.int64)
+
+
 def w_viterbi(size, rng):
     F = 64 if size == 'small' else 8192
     data = np.zeros((F, 256), np.int64); data[:, :250] = rng.integers(0, 2, (F, 250))
     reg = np.zeros(F, np.int64); rx = np.zeros((F, 256), np.uint32)
     for t in range(256):
         full = ((reg << 1) | data[:, t]) & 127
-        e0 = np.array([bin(int(x) & 121).count('1') & 1 for x in full]); e1 = np.array([bin(int(x) & 91).count('1') & 1 for x in full])
+        e0, e1 = VIT_PAR[full & 121], VIT_PAR[full & 91]
         flip = rng.random((F, 2)) < 0.03                                       # binary symmetric channel
         rx[:, t] = (e0 ^ flip[:, 0]) | ((e1 ^ flip[:, 1]) << 1)
         reg = full & 63
-    ref = viterbi_ref(rx)
     def check(o):
+        ref = viterbi_ref(rx)
         words = o[1].view(np.uint32)[:8 * F].reshape(F, 8)
         got = ((words[:, :, None] >> np.arange(32, dtype=np.uint32)) & 1).reshape(F, 256)
         bad = int(np.sum(got != ref))
@@ -3225,6 +3232,17 @@ def cmd_build(a=None):
     print(json.dumps({'built': sorted(p.name for p in BUILD.glob('*.spv')), 'runner': str(VK_RUN)}))
 
 
+_made = {}
+
+
+def make_workload(name, size):
+    """The workload with its fixed inputs (seed 1), built once per process: sim / predict look at it more than once
+    and some workloads take seconds to build. Callers that run its check, which may draw from the rng, build their own."""
+    if (name, size) not in _made:
+        _made[name, size] = WORKLOADS[name](size, np.random.default_rng([1, list(WORKLOADS).index(name)]))
+    return _made[name, size]
+
+
 def run_one(name, size, repeat, out_root, export=True, seed=1):
     rng = np.random.default_rng([seed, list(WORKLOADS).index(name)])
     w = WORKLOADS[name](size, rng)
@@ -3560,8 +3578,7 @@ class DriverLaunch:
                 sys.exit('no info.json in the code directory (extract could not read the shader info): pass --layout')
             layout = ROOT / f'spirv/root_layout.mesa-{info["root_layout"]}.json'
         self.layout = json.loads(Path(layout).read_text())
-        rng = np.random.default_rng([1, list(WORKLOADS).index(workload)])
-        self.w = w = WORKLOADS[workload](size, rng)
+        self.w = w = make_workload(workload, size)
         self.work = work = Path(work)
         work.mkdir(parents=True, exist_ok=True)
         self.va, self.size, self.files = {}, {}, {}
@@ -3631,7 +3648,7 @@ def cmd_sim(a):
     across dispatches; outputs checked with the workload's reference and compared word for word with a hardware run.
     With the extract's info.json, the workgroup size, threadgroup memory, registers and the constants the driver
     preloads into uniforms come from the driver's own shader info."""
-    if hw_only(WORKLOADS[a.workload](a.size, np.random.default_rng([1, list(WORKLOADS).index(a.workload)]))):
+    if hw_only(make_workload(a.workload, a.size)):
         print(json.dumps({'workload': a.workload, 'size': a.size, 'simulated_ok': None, 'unsupported': NO_TEXTURE_UNIT}))
         return 0
     L = DriverLaunch(a.workload, a.size, a.code_dir, a.layout, a.out or Path(a.code_dir) / f'sim-{a.workload}-{a.size}', a.shared)
@@ -3670,7 +3687,7 @@ def cmd_predict(a):
     matters where control flow or addresses depend on them). With --code alone: the cost model's own emulation."""
     exe = ROOT / 'rust/target/release/agx_dispatch'
     rows, total = [], 0.0
-    if hw_only(WORKLOADS[a.workload](a.size, np.random.default_rng([1, list(WORKLOADS).index(a.workload)]))):
+    if hw_only(make_workload(a.workload, a.size)):
         print(json.dumps({'workload': a.workload, 'size': a.size, 'unsupported': NO_TEXTURE_UNIT}))
         return 0
     if a.code_dir:
@@ -3696,8 +3713,7 @@ def cmd_predict(a):
     else:
         if not a.code:
             sys.exit('predict needs --code-dir (extract output) or --code main.bin')
-        rng = np.random.default_rng([1, list(WORKLOADS).index(a.workload)])
-        w = WORKLOADS[a.workload](a.size, rng)
+        w = make_workload(a.workload, a.size)
         for gx, gy, gz, pc in w.dispatches:
             wg = wg_of(w, a.workload)
             grid = [gx * wg[0], gy * wg[1], gz * wg[2]]
