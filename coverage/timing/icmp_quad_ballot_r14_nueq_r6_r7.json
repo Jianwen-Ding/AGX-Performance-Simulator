@@ -1,0 +1,57 @@
+{
+ "class": "simd",
+ "template": "icmp_quad_ballot r{d}, nueq, r{d}, r20",
+ "latency": {
+  "groups": 1,
+  "stable_groups": 1,
+  "ns_per_cycle": 1.08203125,
+  "mhz": 924.1877256317689,
+  "cycles_per_step": 3.9037304452466906,
+  "ns_per_step": 4.223958333333333,
+  "cycles_spread": [
+   3.9037304452466906,
+   3.9037304452466906
+  ],
+  "max_abs_drift": 0.0023337222870479096,
+  "fw_ns": [
+   6324292,
+   6321625,
+   4065958
+  ],
+  "attempts": 1,
+  "accepted": true,
+  "dvfs_level_mhz": 968,
+  "dvfs_mismatch": 0.0015216158964106807
+ },
+ "simd_issue": {
+  "groups": 1,
+  "stable_groups": 1,
+  "ns_per_cycle": 1.083767361111111,
+  "mhz": 922.7072486984383,
+  "cycles_per_step": 1.0588706447737286,
+  "ns_per_step": 1.1475694444444444,
+  "cycles_spread": [
+   1.0588706447737286,
+   1.0588706447737286
+  ],
+  "max_abs_drift": 0.0023350846468183114,
+  "fw_ns": [
+   2670500,
+   2924458,
+   2668583
+  ],
+  "attempts": 1,
+  "accepted": true,
+  "dvfs_level_mhz": 968,
+  "dvfs_mismatch": 8.274392080400687e-05
+ },
+ "id": "bench/icmp_quad_ballot_r14_nueq_r6_r7",
+ "form": "icmp_quad_ballot r14, nueq, r6, r7",
+ "finding": "instruction-bench",
+ "trips": 1000,
+ "steps": [
+  16,
+  64
+ ],
+ "recorded_utc": "2026-10-12T23:23:41Z"
+}

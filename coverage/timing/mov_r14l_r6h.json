@@ -1,0 +1,57 @@
+{
+ "class": "int",
+ "template": "mov r{d}l, r{d}h",
+ "latency": {
+  "groups": 1,
+  "stable_groups": 1,
+  "ns_per_cycle": 1.0833333333333333,
+  "mhz": 923.0769230769231,
+  "cycles_per_step": 1.0400641025641024,
+  "ns_per_step": 1.126736111111111,
+  "cycles_spread": [
+   1.0400641025641024,
+   1.0400641025641024
+  ],
+  "max_abs_drift": 0.0005837711617044758,
+  "fw_ns": [
+   5794375,
+   4901167,
+   2658917
+  ],
+  "attempts": 1,
+  "accepted": true,
+  "dvfs_level_mhz": 968,
+  "dvfs_mismatch": 0.00031786395422754544
+ },
+ "simd_issue": {
+  "groups": 1,
+  "stable_groups": 1,
+  "ns_per_cycle": 1.0828993055555556,
+  "mhz": 923.4468937875752,
+  "cycles_per_step": 1.0420841683366733,
+  "ns_per_step": 1.128472222222222,
+  "cycles_spread": [
+   1.0420841683366733,
+   1.0420841683366733
+  ],
+  "max_abs_drift": 0.0,
+  "fw_ns": [
+   2661167,
+   2914167,
+   2659334
+  ],
+  "attempts": 1,
+  "accepted": true,
+  "dvfs_level_mhz": 968,
+  "dvfs_mismatch": 0.0007187929578164081
+ },
+ "id": "bench/mov_r14l_r6h",
+ "form": "mov r14l, r6h",
+ "finding": "instruction-bench",
+ "trips": 1000,
+ "steps": [
+  16,
+  64
+ ],
+ "recorded_utc": "2026-10-12T23:22:29Z"
+}

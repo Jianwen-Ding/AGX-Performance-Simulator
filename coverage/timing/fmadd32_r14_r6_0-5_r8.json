@@ -1,0 +1,57 @@
+{
+ "class": "float",
+ "template": "fmadd32 r{d}, r{d}, 0.5, r22",
+ "latency": {
+  "groups": 1,
+  "stable_groups": 1,
+  "ns_per_cycle": 1.0846354166666667,
+  "mhz": 921.9687875150059,
+  "cycles_per_step": 1.9887955182072825,
+  "ns_per_step": 2.1571180555555554,
+  "cycles_spread": [
+   1.9887955182072825,
+   1.9887955182072825
+  ],
+  "max_abs_drift": 0.004678362573099347,
+  "fw_ns": [
+   5973292,
+   5659292,
+   2821500
+  ],
+  "attempts": 1,
+  "accepted": true,
+  "dvfs_level_mhz": 968,
+  "dvfs_mismatch": 0.0008829978272301757
+ },
+ "simd_issue": {
+  "groups": 1,
+  "stable_groups": 1,
+  "ns_per_cycle": 1.08203125,
+  "mhz": 924.1877256317689,
+  "cycles_per_step": 1.0621740874448455,
+  "ns_per_step": 1.1493055555555556,
+  "cycles_spread": [
+   1.0621740874448455,
+   1.0621740874448455
+  ],
+  "max_abs_drift": 0.0011668611435240567,
+  "fw_ns": [
+   2670458,
+   2677291,
+   2891125
+  ],
+  "attempts": 1,
+  "accepted": true,
+  "dvfs_level_mhz": 968,
+  "dvfs_mismatch": 0.0015216158964106807
+ },
+ "id": "bench/fmadd32_r14_r6_0-5_r8",
+ "form": "fmadd32 r14, r6, 0.5, r8",
+ "finding": "instruction-bench",
+ "trips": 1000,
+ "steps": [
+  16,
+  64
+ ],
+ "recorded_utc": "2026-10-12T23:23:06Z"
+}

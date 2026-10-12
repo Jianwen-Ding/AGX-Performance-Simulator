@@ -1,0 +1,57 @@
+{
+ "class": "half",
+ "template": "fcmpsel lte, r{d}l, r{d}l, r7l, r8l, r9l",
+ "latency": {
+  "groups": 1,
+  "stable_groups": 1,
+  "ns_per_cycle": 1.0824652777777777,
+  "mhz": 923.8171611868485,
+  "cycles_per_step": 1.995188452285485,
+  "ns_per_step": 2.159722222222222,
+  "cycles_spread": [
+   1.995188452285485,
+   1.995188452285485
+  ],
+  "max_abs_drift": 0.0035026269702276708,
+  "fw_ns": [
+   5978584,
+   5975708,
+   4425583
+  ],
+  "attempts": 1,
+  "accepted": true,
+  "dvfs_level_mhz": 968,
+  "dvfs_mismatch": 0.001120043476243796
+ },
+ "simd_issue": {
+  "groups": 1,
+  "stable_groups": 1,
+  "ns_per_cycle": 1.0833333333333333,
+  "mhz": 923.0769230769231,
+  "cycles_per_step": 1.1602564102564104,
+  "ns_per_step": 1.2569444444444444,
+  "cycles_spread": [
+   1.1602564102564104,
+   1.1602564102564104
+  ],
+  "max_abs_drift": 0.003504672897196262,
+  "fw_ns": [
+   2820417,
+   2694875,
+   2694292
+  ],
+  "attempts": 1,
+  "accepted": true,
+  "dvfs_level_mhz": 968,
+  "dvfs_mismatch": 0.00031786395422754544
+ },
+ "id": "bench/fcmpsel_lte_r14l_r6l_r7l_r8l_r9l",
+ "form": "fcmpsel lte, r14l, r6l, r7l, r8l, r9l",
+ "finding": "instruction-bench",
+ "trips": 1000,
+ "steps": [
+  16,
+  64
+ ],
+ "recorded_utc": "2026-10-12T23:23:35Z"
+}

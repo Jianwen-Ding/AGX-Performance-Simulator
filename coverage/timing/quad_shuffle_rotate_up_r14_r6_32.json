@@ -1,0 +1,57 @@
+{
+ "class": "simd",
+ "template": "quad_shuffle_rotate_up r{d}, r{d}, 32",
+ "latency": {
+  "groups": 1,
+  "stable_groups": 1,
+  "ns_per_cycle": 1.0828993055555556,
+  "mhz": 923.4468937875752,
+  "cycles_per_step": 3.898196392785571,
+  "ns_per_step": 4.221354166666667,
+  "cycles_spread": [
+   3.898196392785571,
+   3.898196392785571
+  ],
+  "max_abs_drift": 0.0005834305717618245,
+  "fw_ns": [
+   6320917,
+   4928333,
+   2900417
+  ],
+  "attempts": 1,
+  "accepted": true,
+  "dvfs_level_mhz": 968,
+  "dvfs_mismatch": 0.0007187929578164081
+ },
+ "simd_issue": {
+  "groups": 1,
+  "stable_groups": 1,
+  "ns_per_cycle": 1.0833333333333333,
+  "mhz": 923.0769230769231,
+  "cycles_per_step": 1.0424679487179487,
+  "ns_per_step": 1.1293402777777777,
+  "cycles_spread": [
+   1.0424679487179487,
+   1.0424679487179487
+  ],
+  "max_abs_drift": 0.0005837711617046798,
+  "fw_ns": [
+   2661208,
+   2689833,
+   2862375
+  ],
+  "attempts": 1,
+  "accepted": true,
+  "dvfs_level_mhz": 968,
+  "dvfs_mismatch": 0.00031786395422754544
+ },
+ "id": "bench/quad_shuffle_rotate_up_r14_r6_32",
+ "form": "quad_shuffle_rotate_up r14, r6, 32",
+ "finding": "instruction-bench",
+ "trips": 1000,
+ "steps": [
+  16,
+  64
+ ],
+ "recorded_utc": "2026-10-12T23:24:04Z"
+}

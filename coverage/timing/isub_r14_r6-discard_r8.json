@@ -1,0 +1,57 @@
+{
+ "class": "int",
+ "template": "isub r{d}, r{d}.discard, r22",
+ "latency": {
+  "groups": 1,
+  "stable_groups": 1,
+  "ns_per_cycle": 1.0815972222222223,
+  "mhz": 924.5585874799357,
+  "cycles_per_step": 1.9999999999999996,
+  "ns_per_step": 2.163194444444444,
+  "cycles_spread": [
+   1.9999999999999996,
+   1.9999999999999996
+  ],
+  "max_abs_drift": 0.0011668611435240567,
+  "fw_ns": [
+   5474750,
+   2779792,
+   2741416
+  ],
+  "attempts": 1,
+  "accepted": true,
+  "dvfs_level_mhz": 968,
+  "dvfs_mismatch": 0.0019235106058393197
+ },
+ "simd_issue": {
+  "groups": 1,
+  "stable_groups": 1,
+  "ns_per_cycle": 1.2960069444444444,
+  "mhz": 771.6008037508373,
+  "cycles_per_step": 1.0622906898861355,
+  "ns_per_step": 1.3767361111111114,
+  "cycles_spread": [
+   1.0622906898861355,
+   1.0622906898861355
+  ],
+  "max_abs_drift": 0.0009746588693956547,
+  "fw_ns": [
+   3008417,
+   2669291,
+   2919917
+  ],
+  "attempts": 1,
+  "accepted": true,
+  "dvfs_level_mhz": 808,
+  "dvfs_mismatch": 0.0017441127903814863
+ },
+ "id": "bench/isub_r14_r6-discard_r8",
+ "form": "isub r14, r6.discard, r8",
+ "finding": "instruction-bench",
+ "trips": 1000,
+ "steps": [
+  16,
+  64
+ ],
+ "recorded_utc": "2026-10-12T23:22:13Z"
+}

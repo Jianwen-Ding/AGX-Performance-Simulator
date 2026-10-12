@@ -1,0 +1,57 @@
+{
+ "class": "bitfield",
+ "template": "bfeil r{d}, r{d}, r20, r22, mask 0x7FFFFFFF",
+ "latency": {
+  "groups": 1,
+  "stable_groups": 1,
+  "ns_per_cycle": 1.0811631944444444,
+  "mhz": 924.9297470895223,
+  "cycles_per_step": 2.952228020875151,
+  "ns_per_step": 3.191840277777778,
+  "cycles_spread": [
+   2.952228020875151,
+   2.952228020875151
+  ],
+  "max_abs_drift": 0.0023337222870479096,
+  "fw_ns": [
+   6154459,
+   5625042,
+   2861416
+  ],
+  "attempts": 1,
+  "accepted": true,
+  "dvfs_level_mhz": 968,
+  "dvfs_mismatch": 0.002325727992674428
+ },
+ "simd_issue": {
+  "groups": 1,
+  "stable_groups": 1,
+  "ns_per_cycle": 1.0820312499999998,
+  "mhz": 924.1877256317691,
+  "cycles_per_step": 1.9967910148415566,
+  "ns_per_step": 2.1605902777777777,
+  "cycles_spread": [
+   1.9967910148415566,
+   1.9967910148415566
+  ],
+  "max_abs_drift": 0.0005830903790088143,
+  "fw_ns": [
+   2901333,
+   2752792,
+   2752125
+  ],
+  "attempts": 1,
+  "accepted": true,
+  "dvfs_level_mhz": 968,
+  "dvfs_mismatch": 0.0015216158964109156
+ },
+ "id": "bench/bfeil_r14_r6_r7_r8_mask_0x7FFFFFFF",
+ "form": "bfeil r14, r6, r7, r8, mask 0x7FFFFFFF",
+ "finding": "instruction-bench",
+ "trips": 1000,
+ "steps": [
+  16,
+  64
+ ],
+ "recorded_utc": "2026-10-12T23:22:34Z"
+}

@@ -1,0 +1,57 @@
+{
+ "class": "bitfield",
+ "template": "ffs r{d}l, r{d}l",
+ "latency": {
+  "groups": 1,
+  "stable_groups": 1,
+  "ns_per_cycle": 1.082465277777778,
+  "mhz": 923.8171611868484,
+  "cycles_per_step": 2.9478748997594217,
+  "ns_per_step": 3.190972222222222,
+  "cycles_spread": [
+   2.9478748997594217,
+   2.9478748997594217
+  ],
+  "max_abs_drift": 0.0011661807580174248,
+  "fw_ns": [
+   6144625,
+   6141541,
+   3584500
+  ],
+  "attempts": 1,
+  "accepted": true,
+  "dvfs_level_mhz": 968,
+  "dvfs_mismatch": 0.0011200434762436784
+ },
+ "simd_issue": {
+  "groups": 1,
+  "stable_groups": 1,
+  "ns_per_cycle": 1.082465277777778,
+  "mhz": 923.8171611868484,
+  "cycles_per_step": 1.9959903769045706,
+  "ns_per_step": 2.1605902777777777,
+  "cycles_spread": [
+   1.9959903769045706,
+   1.9959903769045706
+  ],
+  "max_abs_drift": 0.0005830903790088143,
+  "fw_ns": [
+   2742166,
+   2845791,
+   2868542
+  ],
+  "attempts": 1,
+  "accepted": true,
+  "dvfs_level_mhz": 968,
+  "dvfs_mismatch": 0.0011200434762436784
+ },
+ "id": "bench/ffs_r14l_r6l",
+ "form": "ffs r14l, r6l",
+ "finding": "instruction-bench",
+ "trips": 1000,
+ "steps": [
+  16,
+  64
+ ],
+ "recorded_utc": "2026-10-12T23:22:48Z"
+}

@@ -1,0 +1,57 @@
+{
+ "class": "float",
+ "template": "fadd32 r{d}, r{d}, 0.5",
+ "latency": {
+  "groups": 1,
+  "stable_groups": 1,
+  "ns_per_cycle": 1.08203125,
+  "mhz": 924.1877256317689,
+  "cycles_per_step": 1.9943842759727233,
+  "ns_per_step": 2.1579861111111107,
+  "cycles_spread": [
+   1.9943842759727233,
+   1.9943842759727233
+  ],
+  "max_abs_drift": 0.0005834305717618245,
+  "fw_ns": [
+   5970584,
+   5048042,
+   2739333
+  ],
+  "attempts": 1,
+  "accepted": true,
+  "dvfs_level_mhz": 968,
+  "dvfs_mismatch": 0.0015216158964106807
+ },
+ "simd_issue": {
+  "groups": 1,
+  "stable_groups": 1,
+  "ns_per_cycle": 1.0824652777777777,
+  "mhz": 923.8171611868485,
+  "cycles_per_step": 1.0433039294306337,
+  "ns_per_step": 1.129340277777778,
+  "cycles_spread": [
+   1.0433039294306337,
+   1.0433039294306337
+  ],
+  "max_abs_drift": 0.0005837711617044758,
+  "fw_ns": [
+   3073875,
+   2659334,
+   2658958
+  ],
+  "attempts": 1,
+  "accepted": true,
+  "dvfs_level_mhz": 968,
+  "dvfs_mismatch": 0.001120043476243796
+ },
+ "id": "bench/fadd32_r14_r6_0-5",
+ "form": "fadd32 r14, r6, 0.5",
+ "finding": "instruction-bench",
+ "trips": 1000,
+ "steps": [
+  16,
+  64
+ ],
+ "recorded_utc": "2026-10-12T23:22:52Z"
+}

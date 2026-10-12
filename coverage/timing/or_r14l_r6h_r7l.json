@@ -1,0 +1,57 @@
+{
+ "class": "int",
+ "template": "or r{d}l, r{d}h, r7l",
+ "latency": {
+  "groups": 1,
+  "stable_groups": 1,
+  "ns_per_cycle": 1.0824652777777777,
+  "mhz": 923.8171611868485,
+  "cycles_per_step": 1.9943865276663995,
+  "ns_per_step": 2.1588541666666665,
+  "cycles_spread": [
+   1.9943865276663995,
+   1.9943865276663995
+  ],
+  "max_abs_drift": 0.002333722287047706,
+  "fw_ns": [
+   5974375,
+   5529417,
+   2794000
+  ],
+  "attempts": 1,
+  "accepted": true,
+  "dvfs_level_mhz": 968,
+  "dvfs_mismatch": 0.001120043476243796
+ },
+ "simd_issue": {
+  "groups": 1,
+  "stable_groups": 1,
+  "ns_per_cycle": 1.0833333333333333,
+  "mhz": 923.0769230769231,
+  "cycles_per_step": 1.1594551282051282,
+  "ns_per_step": 1.2560763888888888,
+  "cycles_spread": [
+   1.1594551282051282,
+   1.1594551282051282
+  ],
+  "max_abs_drift": 0.0005834305717620284,
+  "fw_ns": [
+   2683833,
+   2936875,
+   2682000
+  ],
+  "attempts": 1,
+  "accepted": true,
+  "dvfs_level_mhz": 968,
+  "dvfs_mismatch": 0.00031786395422754544
+ },
+ "id": "bench/or_r14l_r6h_r7l",
+ "form": "or r14l, r6h, r7l",
+ "finding": "instruction-bench",
+ "trips": 1000,
+ "steps": [
+  16,
+  64
+ ],
+ "recorded_utc": "2026-10-12T23:22:27Z"
+}

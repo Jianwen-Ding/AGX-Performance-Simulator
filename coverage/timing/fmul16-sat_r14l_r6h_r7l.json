@@ -1,0 +1,57 @@
+{
+ "class": "half",
+ "template": "fmul16.sat r{d}l, r{d}h, r7l",
+ "latency": {
+  "groups": 1,
+  "stable_groups": 1,
+  "ns_per_cycle": 1.0824652777777777,
+  "mhz": 923.8171611868485,
+  "cycles_per_step": 1.9903769045709705,
+  "ns_per_step": 2.154513888888889,
+  "cycles_spread": [
+   1.9903769045709705,
+   1.9903769045709705
+  ],
+  "max_abs_drift": 0.0017513134851138354,
+  "fw_ns": [
+   5973542,
+   4611541,
+   2741583
+  ],
+  "attempts": 1,
+  "accepted": true,
+  "dvfs_level_mhz": 968,
+  "dvfs_mismatch": 0.001120043476243796
+ },
+ "simd_issue": {
+  "groups": 1,
+  "stable_groups": 1,
+  "ns_per_cycle": 1.0833333333333333,
+  "mhz": 923.0769230769231,
+  "cycles_per_step": 1.1634615384615385,
+  "ns_per_step": 1.2604166666666667,
+  "cycles_spread": [
+   1.1634615384615385,
+   1.1634615384615385
+  ],
+  "max_abs_drift": 0.0,
+  "fw_ns": [
+   2684459,
+   2883916,
+   2715084
+  ],
+  "attempts": 1,
+  "accepted": true,
+  "dvfs_level_mhz": 968,
+  "dvfs_mismatch": 0.00031786395422754544
+ },
+ "id": "bench/fmul16-sat_r14l_r6h_r7l",
+ "form": "fmul16.sat r14l, r6h, r7l",
+ "finding": "instruction-bench",
+ "trips": 1000,
+ "steps": [
+  16,
+  64
+ ],
+ "recorded_utc": "2026-10-12T23:23:03Z"
+}

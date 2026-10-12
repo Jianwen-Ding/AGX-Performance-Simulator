@@ -1,0 +1,57 @@
+{
+ "class": "half",
+ "template": "fmadd16 r{d}l, r{d}l.abs.neg, r7l, r8l",
+ "latency": {
+  "groups": 1,
+  "stable_groups": 1,
+  "ns_per_cycle": 1.082465277777778,
+  "mhz": 923.8171611868484,
+  "cycles_per_step": 1.993584603047313,
+  "ns_per_step": 2.1579861111111107,
+  "cycles_spread": [
+   1.993584603047313,
+   1.993584603047313
+  ],
+  "max_abs_drift": 0.0011661807580174248,
+  "fw_ns": [
+   5973958,
+   2891584,
+   2741583
+  ],
+  "attempts": 1,
+  "accepted": true,
+  "dvfs_level_mhz": 968,
+  "dvfs_mismatch": 0.0011200434762436784
+ },
+ "simd_issue": {
+  "groups": 1,
+  "stable_groups": 1,
+  "ns_per_cycle": 1.0828993055555556,
+  "mhz": 923.4468937875752,
+  "cycles_per_step": 1.2809619238476952,
+  "ns_per_step": 1.3871527777777777,
+  "cycles_spread": [
+   1.2809619238476952,
+   1.2809619238476952
+  ],
+  "max_abs_drift": 0.0,
+  "fw_ns": [
+   2696916,
+   2787583,
+   2694167
+  ],
+  "attempts": 1,
+  "accepted": true,
+  "dvfs_level_mhz": 968,
+  "dvfs_mismatch": 0.0007187929578164081
+ },
+ "id": "bench/fmadd16_r14l_r6l-abs-neg_r7l_r8l",
+ "form": "fmadd16 r14l, r6l.abs.neg, r7l, r8l",
+ "finding": "instruction-bench",
+ "trips": 1000,
+ "steps": [
+  16,
+  64
+ ],
+ "recorded_utc": "2026-10-12T23:23:08Z"
+}

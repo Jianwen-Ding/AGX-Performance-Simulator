@@ -1,0 +1,57 @@
+{
+ "class": "sfu",
+ "template": "ceil r{d}, r{d}",
+ "latency": {
+  "groups": 1,
+  "stable_groups": 1,
+  "ns_per_cycle": 1.7122395833333333,
+  "mhz": 584.0304182509506,
+  "cycles_per_step": 2.9460076045627375,
+  "ns_per_step": 5.044270833333333,
+  "cycles_spread": [
+   2.9460076045627375,
+   2.9460076045627375
+  ],
+  "max_abs_drift": 0.0007399186089531013,
+  "fw_ns": [
+   6144834,
+   6141542,
+   4706625
+  ],
+  "attempts": 1,
+  "accepted": true,
+  "dvfs_level_mhz": 612,
+  "dvfs_mismatch": 0.001058674420338481
+ },
+ "simd_issue": {
+  "groups": 1,
+  "stable_groups": 1,
+  "ns_per_cycle": 1.297309027777778,
+  "mhz": 770.8263633322181,
+  "cycles_per_step": 1.9926396788223486,
+  "ns_per_step": 2.5850694444444446,
+  "cycles_spread": [
+   1.9926396788223486,
+   1.9926396788223486
+  ],
+  "max_abs_drift": 0.0,
+  "fw_ns": [
+   3983667,
+   3281750,
+   3281209
+  ],
+  "attempts": 1,
+  "accepted": true,
+  "dvfs_level_mhz": 808,
+  "dvfs_mismatch": 0.0007386820983870706
+ },
+ "id": "bench/ceil_r14_r6",
+ "form": "ceil r14, r6",
+ "finding": "instruction-bench",
+ "trips": 1000,
+ "steps": [
+  16,
+  64
+ ],
+ "recorded_utc": "2026-10-12T23:23:11Z"
+}

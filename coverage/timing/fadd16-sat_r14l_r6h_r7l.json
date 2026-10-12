@@ -1,0 +1,58 @@
+{
+ "class": "half",
+ "template": "fadd16.sat r{d}l, r{d}h, r7l",
+ "latency": {
+  "groups": 1,
+  "stable_groups": 1,
+  "ns_per_cycle": 1.0842013888888888,
+  "mhz": 922.337870296237,
+  "cycles_per_step": 1.9919935948759009,
+  "ns_per_step": 2.1597222222222223,
+  "cycles_spread": [
+   1.9919935948759009,
+   1.9919935948759009
+  ],
+  "max_abs_drift": 0.0,
+  "fw_ns": [
+   5974125,
+   5800875,
+   2854459
+  ],
+  "attempts": 1,
+  "accepted": true,
+  "dvfs_level_mhz": 968,
+  "dvfs_mismatch": 0.0004830310529415847
+ },
+ "simd_issue": {
+  "groups": 1,
+  "stable_groups": 1,
+  "ns_per_cycle": 1.08203125,
+  "mhz": 924.1877256317689,
+  "cycles_per_step": 1.1600481347773766,
+  "ns_per_step": 1.2552083333333333,
+  "cycles_spread": [
+   1.1600481347773766,
+   1.1600481347773766
+  ],
+  "max_abs_drift": 0.0,
+  "fw_ns": [
+   2684834,
+   2915500,
+   2681875,
+   2681750
+  ],
+  "attempts": 2,
+  "accepted": true,
+  "dvfs_level_mhz": 968,
+  "dvfs_mismatch": 0.0015216158964106807
+ },
+ "id": "bench/fadd16-sat_r14l_r6h_r7l",
+ "form": "fadd16.sat r14l, r6h, r7l",
+ "finding": "instruction-bench",
+ "trips": 1000,
+ "steps": [
+  16,
+  64
+ ],
+ "recorded_utc": "2026-10-12T23:23:01Z"
+}

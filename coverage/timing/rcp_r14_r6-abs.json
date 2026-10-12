@@ -1,0 +1,57 @@
+{
+ "class": "sfu",
+ "template": "rcp r{d}, r{d}.abs",
+ "latency": {
+  "groups": 1,
+  "stable_groups": 1,
+  "ns_per_cycle": 1.7118055555555554,
+  "mhz": 584.1784989858013,
+  "cycles_per_step": 4.769776876267749,
+  "ns_per_step": 8.164930555555555,
+  "cycles_spread": [
+   4.769776876267749,
+   4.769776876267749
+  ],
+  "max_abs_drift": 0.002589715131335467,
+  "fw_ns": [
+   6486917,
+   6483791,
+   4941042
+  ],
+  "attempts": 1,
+  "accepted": true,
+  "dvfs_level_mhz": 612,
+  "dvfs_mismatch": 0.0013124925426560438
+ },
+ "simd_issue": {
+  "groups": 1,
+  "stable_groups": 1,
+  "ns_per_cycle": 1.2968749999999998,
+  "mhz": 771.0843373493977,
+  "cycles_per_step": 2.862115127175368,
+  "ns_per_step": 3.711805555555555,
+  "cycles_spread": [
+   2.862115127175368,
+   2.862115127175368
+  ],
+  "max_abs_drift": 0.0034129692832765074,
+  "fw_ns": [
+   4273792,
+   3373042,
+   3372542
+  ],
+  "attempts": 1,
+  "accepted": true,
+  "dvfs_level_mhz": 808,
+  "dvfs_mismatch": 0.0010736013360372844
+ },
+ "id": "bench/rcp_r14_r6-abs",
+ "form": "rcp r14, r6.abs",
+ "finding": "instruction-bench",
+ "trips": 1000,
+ "steps": [
+  16,
+  64
+ ],
+ "recorded_utc": "2026-10-12T23:23:14Z"
+}

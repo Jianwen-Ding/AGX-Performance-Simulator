@@ -1,0 +1,57 @@
+{
+ "class": "bitfield",
+ "template": "extr r{d}, r{d}, r20, r22, mask 0xFF",
+ "latency": {
+  "groups": 1,
+  "stable_groups": 1,
+  "ns_per_cycle": 1.0842013888888886,
+  "mhz": 922.3378702962373,
+  "cycles_per_step": 2.9431545236188965,
+  "ns_per_step": 3.1909722222222228,
+  "cycles_spread": [
+   2.9431545236188965,
+   2.9431545236188965
+  ],
+  "max_abs_drift": 0.0017482517482517483,
+  "fw_ns": [
+   6155333,
+   6123000,
+   2960583
+  ],
+  "attempts": 1,
+  "accepted": true,
+  "dvfs_level_mhz": 968,
+  "dvfs_mismatch": 0.0004830310529412324
+ },
+ "simd_issue": {
+  "groups": 1,
+  "stable_groups": 1,
+  "ns_per_cycle": 1.0828993055555556,
+  "mhz": 923.4468937875752,
+  "cycles_per_step": 1.9951903807615232,
+  "ns_per_step": 2.160590277777778,
+  "cycles_spread": [
+   1.9951903807615232,
+   1.9951903807615232
+  ],
+  "max_abs_drift": 0.0023337222870479096,
+  "fw_ns": [
+   2755667,
+   2973041,
+   2767417
+  ],
+  "attempts": 1,
+  "accepted": true,
+  "dvfs_level_mhz": 968,
+  "dvfs_mismatch": 0.0007187929578164081
+ },
+ "id": "bench/extr_r14_r6_r7_r8_mask_0xFF",
+ "form": "extr r14, r6, r7, r8, mask 0xFF",
+ "finding": "instruction-bench",
+ "trips": 1000,
+ "steps": [
+  16,
+  64
+ ],
+ "recorded_utc": "2026-10-12T23:22:36Z"
+}

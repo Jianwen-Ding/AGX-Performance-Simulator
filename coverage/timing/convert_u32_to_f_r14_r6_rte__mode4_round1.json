@@ -1,0 +1,57 @@
+{
+ "class": "convert",
+ "template": "@mode=4,round=1\tconvert u32_to_f, r{d}, r{d}, rte",
+ "latency": {
+  "groups": 1,
+  "stable_groups": 1,
+  "ns_per_cycle": 1.082465277777778,
+  "mhz": 923.8171611868484,
+  "cycles_per_step": 2.9470729751403364,
+  "ns_per_step": 3.1901041666666665,
+  "cycles_spread": [
+   2.9470729751403364,
+   2.9470729751403364
+  ],
+  "max_abs_drift": 0.0005841121495327783,
+  "fw_ns": [
+   6145000,
+   4626792,
+   2819750
+  ],
+  "attempts": 1,
+  "accepted": true,
+  "dvfs_level_mhz": 968,
+  "dvfs_mismatch": 0.0011200434762436784
+ },
+ "simd_issue": {
+  "groups": 1,
+  "stable_groups": 1,
+  "ns_per_cycle": 1.0828993055555556,
+  "mhz": 923.4468937875752,
+  "cycles_per_step": 1.9959919839679359,
+  "ns_per_step": 2.1614583333333335,
+  "cycles_spread": [
+   1.9959919839679359,
+   1.9959919839679359
+  ],
+  "max_abs_drift": 0.0,
+  "fw_ns": [
+   2743333,
+   2973500,
+   2739500
+  ],
+  "attempts": 1,
+  "accepted": true,
+  "dvfs_level_mhz": 968,
+  "dvfs_mismatch": 0.0007187929578164081
+ },
+ "id": "bench/convert_u32_to_f_r14_r6_rte__mode4_round1",
+ "form": "@mode=4,round=1\tconvert u32_to_f, r14, r6, rte",
+ "finding": "instruction-bench",
+ "trips": 1000,
+ "steps": [
+  16,
+  64
+ ],
+ "recorded_utc": "2026-10-12T23:23:25Z"
+}

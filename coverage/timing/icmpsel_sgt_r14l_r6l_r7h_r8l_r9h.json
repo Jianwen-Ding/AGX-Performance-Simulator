@@ -1,0 +1,57 @@
+{
+ "class": "select",
+ "template": "icmpsel sgt, r{d}l, r{d}l, r7h, r8l, r9h",
+ "latency": {
+  "groups": 1,
+  "stable_groups": 1,
+  "ns_per_cycle": 1.0828993055555556,
+  "mhz": 923.4468937875752,
+  "cycles_per_step": 1.995190380761523,
+  "ns_per_step": 2.1605902777777777,
+  "cycles_spread": [
+   1.995190380761523,
+   1.995190380761523
+  ],
+  "max_abs_drift": 0.0011668611435240567,
+  "fw_ns": [
+   5975500,
+   3215500,
+   2741833
+  ],
+  "attempts": 1,
+  "accepted": true,
+  "dvfs_level_mhz": 968,
+  "dvfs_mismatch": 0.0007187929578164081
+ },
+ "simd_issue": {
+  "groups": 1,
+  "stable_groups": 1,
+  "ns_per_cycle": 1.081597222222222,
+  "mhz": 924.5585874799359,
+  "cycles_per_step": 1.065008025682183,
+  "ns_per_step": 1.151909722222222,
+  "cycles_spread": [
+   1.065008025682183,
+   1.065008025682183
+  ],
+  "max_abs_drift": 0.0017492711370262393,
+  "fw_ns": [
+   2676875,
+   2674625,
+   2905709
+  ],
+  "attempts": 1,
+  "accepted": true,
+  "dvfs_level_mhz": 968,
+  "dvfs_mismatch": 0.0019235106058395545
+ },
+ "id": "bench/icmpsel_sgt_r14l_r6l_r7h_r8l_r9h",
+ "form": "icmpsel sgt, r14l, r6l, r7h, r8l, r9h",
+ "finding": "instruction-bench",
+ "trips": 1000,
+ "steps": [
+  16,
+  64
+ ],
+ "recorded_utc": "2026-10-12T23:23:34Z"
+}

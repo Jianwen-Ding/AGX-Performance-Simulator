@@ -1,0 +1,57 @@
+{
+ "class": "half",
+ "template": "fmadd16.sat r{d}l, r{d}l, r7l, r8l",
+ "latency": {
+  "groups": 1,
+  "stable_groups": 1,
+  "ns_per_cycle": 1.0820312499999998,
+  "mhz": 924.1877256317691,
+  "cycles_per_step": 1.9943842759727237,
+  "ns_per_step": 2.1579861111111107,
+  "cycles_spread": [
+   1.9943842759727237,
+   1.9943842759727237
+  ],
+  "max_abs_drift": 0.0005830903790088143,
+  "fw_ns": [
+   5974667,
+   4986417,
+   2741667
+  ],
+  "attempts": 1,
+  "accepted": true,
+  "dvfs_level_mhz": 968,
+  "dvfs_mismatch": 0.0015216158964109156
+ },
+ "simd_issue": {
+  "groups": 1,
+  "stable_groups": 1,
+  "ns_per_cycle": 1.082465277777778,
+  "mhz": 923.8171611868484,
+  "cycles_per_step": 1.280673616680032,
+  "ns_per_step": 1.3862847222222223,
+  "cycles_spread": [
+   1.280673616680032,
+   1.280673616680032
+  ],
+  "max_abs_drift": 0.0,
+  "fw_ns": [
+   2696167,
+   3022666,
+   2694250
+  ],
+  "attempts": 1,
+  "accepted": true,
+  "dvfs_level_mhz": 968,
+  "dvfs_mismatch": 0.0011200434762436784
+ },
+ "id": "bench/fmadd16-sat_r14l_r6l_r7l_r8l",
+ "form": "fmadd16.sat r14l, r6l, r7l, r8l",
+ "finding": "instruction-bench",
+ "trips": 1000,
+ "steps": [
+  16,
+  64
+ ],
+ "recorded_utc": "2026-10-12T23:23:10Z"
+}

@@ -1,0 +1,57 @@
+{
+ "class": "int",
+ "template": "iadd.sat r{d}, r{d}, r20, lsl 1",
+ "latency": {
+  "groups": 1,
+  "stable_groups": 1,
+  "ns_per_cycle": 1.0833333333333333,
+  "mhz": 923.0769230769231,
+  "cycles_per_step": 1.9935897435897434,
+  "ns_per_step": 2.159722222222222,
+  "cycles_spread": [
+   1.9935897435897434,
+   1.9935897435897434
+  ],
+  "max_abs_drift": 0.0017513134851138354,
+  "fw_ns": [
+   5974833,
+   4597208,
+   2741750
+  ],
+  "attempts": 1,
+  "accepted": true,
+  "dvfs_level_mhz": 968,
+  "dvfs_mismatch": 0.00031786395422754544
+ },
+ "simd_issue": {
+  "groups": 1,
+  "stable_groups": 1,
+  "ns_per_cycle": 1.0828993055555556,
+  "mhz": 923.4468937875752,
+  "cycles_per_step": 1.0621242484969937,
+  "ns_per_step": 1.150173611111111,
+  "cycles_spread": [
+   1.0621242484969937,
+   1.0621242484969937
+  ],
+  "max_abs_drift": 0.0017492711370262393,
+  "fw_ns": [
+   2672250,
+   2924666,
+   2668834
+  ],
+  "attempts": 1,
+  "accepted": true,
+  "dvfs_level_mhz": 968,
+  "dvfs_mismatch": 0.0007187929578164081
+ },
+ "id": "bench/iadd-sat_r14_r6_r7_lsl_1",
+ "form": "iadd.sat r14, r6, r7, lsl 1",
+ "finding": "instruction-bench",
+ "trips": 1000,
+ "steps": [
+  16,
+  64
+ ],
+ "recorded_utc": "2026-10-12T23:22:12Z"
+}

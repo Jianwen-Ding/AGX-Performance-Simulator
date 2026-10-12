@@ -1,0 +1,58 @@
+{
+ "class": "sfu",
+ "template": "log2.sat r{d}, r{d}",
+ "latency": {
+  "groups": 1,
+  "stable_groups": 1,
+  "ns_per_cycle": 0.9453124999999999,
+  "mhz": 1057.8512396694216,
+  "cycles_per_step": 4.757575757575758,
+  "ns_per_step": 4.497395833333333,
+  "cycles_spread": [
+   4.757575757575758,
+   4.757575757575758
+  ],
+  "max_abs_drift": 0.0046791443850268165,
+  "fw_ns": [
+   3153916,
+   2976875,
+   2871542,
+   2596875
+  ],
+  "attempts": 2,
+  "accepted": true,
+  "dvfs_level_mhz": 1110,
+  "dvfs_mismatch": 0.00028292755565470143
+ },
+ "simd_issue": {
+  "groups": 1,
+  "stable_groups": 1,
+  "ns_per_cycle": 0.9448784722222223,
+  "mhz": 1058.3371612310518,
+  "cycles_per_step": 1.9062930638493336,
+  "ns_per_step": 1.8012152777777777,
+  "cycles_spread": [
+   1.9062930638493336,
+   1.9062930638493336
+  ],
+  "max_abs_drift": 0.0033377837116155265,
+  "fw_ns": [
+   2388500,
+   2219250,
+   2238208
+  ],
+  "attempts": 1,
+  "accepted": true,
+  "dvfs_level_mhz": 1110,
+  "dvfs_mismatch": 0.00017629020844446837
+ },
+ "id": "bench/log2-sat_r14_r6",
+ "form": "log2.sat r14, r6",
+ "finding": "instruction-bench",
+ "trips": 1000,
+ "steps": [
+  16,
+  64
+ ],
+ "recorded_utc": "2026-10-12T23:23:17Z"
+}

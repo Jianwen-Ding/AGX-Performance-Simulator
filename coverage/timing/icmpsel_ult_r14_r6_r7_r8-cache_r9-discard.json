@@ -1,0 +1,57 @@
+{
+ "class": "select",
+ "template": "icmpsel ult, r{d}, r{d}, r20, r22.cache, r21.discard",
+ "latency": {
+  "groups": 1,
+  "stable_groups": 1,
+  "ns_per_cycle": 1.0828993055555556,
+  "mhz": 923.4468937875752,
+  "cycles_per_step": 1.9951903807615226,
+  "ns_per_step": 2.1605902777777772,
+  "cycles_spread": [
+   1.9951903807615226,
+   1.9951903807615226
+  ],
+  "max_abs_drift": 0.0011668611435240567,
+  "fw_ns": [
+   5699167,
+   2817000,
+   2745667
+  ],
+  "attempts": 1,
+  "accepted": true,
+  "dvfs_level_mhz": 968,
+  "dvfs_mismatch": 0.0007187929578164081
+ },
+ "simd_issue": {
+  "groups": 1,
+  "stable_groups": 1,
+  "ns_per_cycle": 1.0828993055555556,
+  "mhz": 923.4468937875752,
+  "cycles_per_step": 4.855310621242485,
+  "ns_per_step": 5.2578125,
+  "cycles_spread": [
+   4.855310621242485,
+   4.855310621242485
+  ],
+  "max_abs_drift": 0.0017502917152858813,
+  "fw_ns": [
+   3408292,
+   2992292,
+   2991709
+  ],
+  "attempts": 1,
+  "accepted": true,
+  "dvfs_level_mhz": 968,
+  "dvfs_mismatch": 0.0007187929578164081
+ },
+ "id": "bench/icmpsel_ult_r14_r6_r7_r8-cache_r9-discard",
+ "form": "icmpsel ult, r14, r6, r7, r8.cache, r9.discard",
+ "finding": "instruction-bench",
+ "trips": 1000,
+ "steps": [
+  16,
+  64
+ ],
+ "recorded_utc": "2026-10-12T23:23:36Z"
+}

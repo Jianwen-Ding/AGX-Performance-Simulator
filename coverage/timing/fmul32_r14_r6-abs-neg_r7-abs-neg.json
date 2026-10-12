@@ -1,0 +1,57 @@
+{
+ "class": "float",
+ "template": "fmul32 r{d}, r{d}.abs.neg, r20.abs.neg",
+ "latency": {
+  "groups": 1,
+  "stable_groups": 1,
+  "ns_per_cycle": 1.0815972222222223,
+  "mhz": 924.5585874799357,
+  "cycles_per_step": 1.9935794542536114,
+  "ns_per_step": 2.15625,
+  "cycles_spread": [
+   1.9935794542536114,
+   1.9935794542536114
+  ],
+  "max_abs_drift": 0.0005834305717618245,
+  "fw_ns": [
+   5974625,
+   5971459,
+   3067750
+  ],
+  "attempts": 1,
+  "accepted": true,
+  "dvfs_level_mhz": 968,
+  "dvfs_mismatch": 0.0019235106058393197
+ },
+ "simd_issue": {
+  "groups": 1,
+  "stable_groups": 1,
+  "ns_per_cycle": 1.0833333333333333,
+  "mhz": 923.0769230769231,
+  "cycles_per_step": 1.0440705128205128,
+  "ns_per_step": 1.1310763888888888,
+  "cycles_spread": [
+   1.0440705128205128,
+   1.0440705128205128
+  ],
+  "max_abs_drift": 0.0017492711370262393,
+  "fw_ns": [
+   2844750,
+   2668000,
+   2667792
+  ],
+  "attempts": 1,
+  "accepted": true,
+  "dvfs_level_mhz": 968,
+  "dvfs_mismatch": 0.00031786395422754544
+ },
+ "id": "bench/fmul32_r14_r6-abs-neg_r7-abs-neg",
+ "form": "fmul32 r14, r6.abs.neg, r7.abs.neg",
+ "finding": "instruction-bench",
+ "trips": 1000,
+ "steps": [
+  16,
+  64
+ ],
+ "recorded_utc": "2026-10-12T23:22:57Z"
+}

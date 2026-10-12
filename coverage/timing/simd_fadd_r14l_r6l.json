@@ -1,0 +1,57 @@
+{
+ "class": "simd",
+ "template": "simd_fadd r{d}l, r{d}l",
+ "latency": {
+  "groups": 1,
+  "stable_groups": 1,
+  "ns_per_cycle": 0.7513020833333334,
+  "mhz": 1331.0225303292893,
+  "cycles_per_step": 22.92432120161756,
+  "ns_per_step": 17.223090277777775,
+  "cycles_spread": [
+   22.92432120161756,
+   22.92432120161756
+  ],
+  "max_abs_drift": 0.0008382229673092556,
+  "fw_ns": [
+   8668792,
+   4559291,
+   3754500
+  ],
+  "attempts": 1,
+  "accepted": true,
+  "dvfs_level_mhz": 1398,
+  "dvfs_mismatch": 0.0012570569989810167
+ },
+ "simd_issue": {
+  "groups": 1,
+  "stable_groups": 1,
+  "ns_per_cycle": 0.7513020833333334,
+  "mhz": 1331.0225303292893,
+  "cycles_per_step": 22.924321201617563,
+  "ns_per_step": 17.22309027777778,
+  "cycles_spread": [
+   22.924321201617563,
+   22.924321201617563
+  ],
+  "max_abs_drift": 0.0,
+  "fw_ns": [
+   3162334,
+   3159292,
+   3158958
+  ],
+  "attempts": 1,
+  "accepted": true,
+  "dvfs_level_mhz": 1398,
+  "dvfs_mismatch": 0.0012570569989810167
+ },
+ "id": "bench/simd_fadd_r14l_r6l",
+ "form": "simd_fadd r14l, r6l",
+ "finding": "instruction-bench",
+ "trips": 1000,
+ "steps": [
+  16,
+  64
+ ],
+ "recorded_utc": "2026-10-12T23:24:06Z"
+}

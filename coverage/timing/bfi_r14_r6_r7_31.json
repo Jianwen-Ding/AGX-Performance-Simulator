@@ -1,0 +1,57 @@
+{
+ "class": "bitfield",
+ "template": "bfi r{d}, r{d}, r20, 31",
+ "latency": {
+  "groups": 1,
+  "stable_groups": 1,
+  "ns_per_cycle": 1.082465277777778,
+  "mhz": 923.8171611868484,
+  "cycles_per_step": 2.9486768243785075,
+  "ns_per_step": 3.1918402777777772,
+  "cycles_spread": [
+   2.9486768243785075,
+   2.9486768243785075
+  ],
+  "max_abs_drift": 0.0023323615160350535,
+  "fw_ns": [
+   6150625,
+   4896000,
+   2822500
+  ],
+  "attempts": 1,
+  "accepted": true,
+  "dvfs_level_mhz": 968,
+  "dvfs_mismatch": 0.0011200434762436784
+ },
+ "simd_issue": {
+  "groups": 1,
+  "stable_groups": 1,
+  "ns_per_cycle": 1.082465277777778,
+  "mhz": 923.8171611868484,
+  "cycles_per_step": 1.994386527666399,
+  "ns_per_step": 2.1588541666666665,
+  "cycles_spread": [
+   1.994386527666399,
+   1.994386527666399
+  ],
+  "max_abs_drift": 0.0011661807580174248,
+  "fw_ns": [
+   2744667,
+   2742250,
+   2974292
+  ],
+  "attempts": 1,
+  "accepted": true,
+  "dvfs_level_mhz": 968,
+  "dvfs_mismatch": 0.0011200434762436784
+ },
+ "id": "bench/bfi_r14_r6_r7_31",
+ "form": "bfi r14, r6, r7, 31",
+ "finding": "instruction-bench",
+ "trips": 1000,
+ "steps": [
+  16,
+  64
+ ],
+ "recorded_utc": "2026-10-12T23:22:30Z"
+}

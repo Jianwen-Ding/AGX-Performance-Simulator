@@ -1,0 +1,57 @@
+{
+ "class": "int",
+ "template": "imsub r{d}, r{d}, r20, r22, lsl 5",
+ "latency": {
+  "groups": 1,
+  "stable_groups": 1,
+  "ns_per_cycle": 2.3580729166666665,
+  "mhz": 424.0750966316952,
+  "cycles_per_step": 2.947910914780048,
+  "ns_per_step": 6.951388888888888,
+  "cycles_spread": [
+   2.947910914780048,
+   2.947910914780048
+  ],
+  "max_abs_drift": 0.0013444474321054674,
+  "fw_ns": [
+   6154916,
+   6151250,
+   6150833
+  ],
+  "attempts": 1,
+  "accepted": true,
+  "dvfs_level_mhz": 444,
+  "dvfs_mismatch": 0.0019251719969555234
+ },
+ "simd_issue": {
+  "groups": 1,
+  "stable_groups": 1,
+  "ns_per_cycle": 1.7100694444444446,
+  "mhz": 584.7715736040608,
+  "cycles_per_step": 1.9969543147208115,
+  "ns_per_step": 3.414930555555555,
+  "cycles_spread": [
+   1.9969543147208115,
+   1.9969543147208115
+  ],
+  "max_abs_drift": 0.001850481125092481,
+  "fw_ns": [
+   4875416,
+   5625500,
+   4349750
+  ],
+  "attempts": 1,
+  "accepted": true,
+  "dvfs_level_mhz": 612,
+  "dvfs_mismatch": 0.0023290534487904213
+ },
+ "id": "bench/imsub_r14_r6_r7_r8_lsl_5",
+ "form": "imsub r14, r6, r7, r8, lsl 5",
+ "finding": "instruction-bench",
+ "trips": 1000,
+ "steps": [
+  16,
+  64
+ ],
+ "recorded_utc": "2026-10-12T23:22:24Z"
+}

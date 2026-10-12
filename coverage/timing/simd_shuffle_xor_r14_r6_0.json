@@ -1,0 +1,57 @@
+{
+ "class": "simd",
+ "template": "simd_shuffle_xor r{d}, r{d}, 0",
+ "latency": {
+  "groups": 1,
+  "stable_groups": 1,
+  "ns_per_cycle": 1.0833333333333333,
+  "mhz": 923.0769230769231,
+  "cycles_per_step": 4.8485576923076925,
+  "ns_per_step": 5.252604166666666,
+  "cycles_spread": [
+   4.8485576923076925,
+   4.8485576923076925
+  ],
+  "max_abs_drift": 0.0005827505827506506,
+  "fw_ns": [
+   6501000,
+   4458166,
+   2983709
+  ],
+  "attempts": 1,
+  "accepted": true,
+  "dvfs_level_mhz": 968,
+  "dvfs_mismatch": 0.00031786395422754544
+ },
+ "simd_issue": {
+  "groups": 1,
+  "stable_groups": 1,
+  "ns_per_cycle": 1.083767361111111,
+  "mhz": 922.7072486984383,
+  "cycles_per_step": 1.995194233079696,
+  "ns_per_step": 2.162326388888889,
+  "cycles_spread": [
+   1.995194233079696,
+   1.995194233079696
+  ],
+  "max_abs_drift": 0.0,
+  "fw_ns": [
+   2781125,
+   3015416,
+   2741958
+  ],
+  "attempts": 1,
+  "accepted": true,
+  "dvfs_level_mhz": 968,
+  "dvfs_mismatch": 8.274392080400687e-05
+ },
+ "id": "bench/simd_shuffle_xor_r14_r6_0",
+ "form": "simd_shuffle_xor r14, r6, 0",
+ "finding": "instruction-bench",
+ "trips": 1000,
+ "steps": [
+  16,
+  64
+ ],
+ "recorded_utc": "2026-10-12T23:23:52Z"
+}

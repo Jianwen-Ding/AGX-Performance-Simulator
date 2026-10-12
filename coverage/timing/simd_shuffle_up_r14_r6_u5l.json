@@ -1,0 +1,57 @@
+{
+ "class": "simd",
+ "template": "simd_shuffle_up r{d}, r{d}, u5l",
+ "latency": {
+  "groups": 1,
+  "stable_groups": 1,
+  "ns_per_cycle": 1.082465277777778,
+  "mhz": 923.8171611868484,
+  "cycles_per_step": 4.853247794707297,
+  "ns_per_step": 5.253472222222222,
+  "cycles_spread": [
+   4.853247794707297,
+   4.853247794707297
+  ],
+  "max_abs_drift": 0.0005830903790088143,
+  "fw_ns": [
+   6499667,
+   5755375,
+   2982958
+  ],
+  "attempts": 1,
+  "accepted": true,
+  "dvfs_level_mhz": 968,
+  "dvfs_mismatch": 0.0011200434762436784
+ },
+ "simd_issue": {
+  "groups": 1,
+  "stable_groups": 1,
+  "ns_per_cycle": 1.082465277777778,
+  "mhz": 923.8171611868484,
+  "cycles_per_step": 1.9951884522854846,
+  "ns_per_step": 2.159722222222222,
+  "cycles_spread": [
+   1.9951884522854846,
+   1.9951884522854846
+  ],
+  "max_abs_drift": 0.0005830903790088143,
+  "fw_ns": [
+   2744375,
+   2996875,
+   2741666
+  ],
+  "attempts": 1,
+  "accepted": true,
+  "dvfs_level_mhz": 968,
+  "dvfs_mismatch": 0.0011200434762436784
+ },
+ "id": "bench/simd_shuffle_up_r14_r6_u5l",
+ "form": "simd_shuffle_up r14, r6, u5l",
+ "finding": "instruction-bench",
+ "trips": 1000,
+ "steps": [
+  16,
+  64
+ ],
+ "recorded_utc": "2026-10-12T23:23:51Z"
+}

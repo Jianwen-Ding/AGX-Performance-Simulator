@@ -1,0 +1,57 @@
+{
+ "class": "select",
+ "template": "icmpsel ult, r{d}, r{d}, r20, u5, r21",
+ "latency": {
+  "groups": 1,
+  "stable_groups": 1,
+  "ns_per_cycle": 1.0828993055555556,
+  "mhz": 923.4468937875752,
+  "cycles_per_step": 1.9951903807615226,
+  "ns_per_step": 2.1605902777777772,
+  "cycles_spread": [
+   1.9951903807615226,
+   1.9951903807615226
+  ],
+  "max_abs_drift": 0.0011668611435240567,
+  "fw_ns": [
+   5979583,
+   5530833,
+   2800833
+  ],
+  "attempts": 1,
+  "accepted": true,
+  "dvfs_level_mhz": 968,
+  "dvfs_mismatch": 0.0007187929578164081
+ },
+ "simd_issue": {
+  "groups": 1,
+  "stable_groups": 1,
+  "ns_per_cycle": 1.0828993055555556,
+  "mhz": 923.4468937875752,
+  "cycles_per_step": 2.133867735470942,
+  "ns_per_step": 2.310763888888889,
+  "cycles_spread": [
+   2.133867735470942,
+   2.133867735470942
+  ],
+  "max_abs_drift": 0.0011668611435240567,
+  "fw_ns": [
+   2762042,
+   2774500,
+   2977375
+  ],
+  "attempts": 1,
+  "accepted": true,
+  "dvfs_level_mhz": 968,
+  "dvfs_mismatch": 0.0007187929578164081
+ },
+ "id": "bench/icmpsel_ult_r14_r6_r7_u5_r9",
+ "form": "icmpsel ult, r14, r6, r7, u5, r9",
+ "finding": "instruction-bench",
+ "trips": 1000,
+ "steps": [
+  16,
+  64
+ ],
+ "recorded_utc": "2026-10-12T23:23:36Z"
+}

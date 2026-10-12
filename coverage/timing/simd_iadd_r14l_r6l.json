@@ -1,0 +1,57 @@
+{
+ "class": "simd",
+ "template": "simd_iadd r{d}l, r{d}l",
+ "latency": {
+  "groups": 1,
+  "stable_groups": 1,
+  "ns_per_cycle": 1.084201388888889,
+  "mhz": 922.3378702962368,
+  "cycles_per_step": 22.943955164131303,
+  "ns_per_step": 24.875868055555557,
+  "cycles_spread": [
+   22.943955164131303,
+   22.943955164131303
+  ],
+  "max_abs_drift": 0.0005834305717620284,
+  "fw_ns": [
+   9937500,
+   6459125,
+   4558875
+  ],
+  "attempts": 1,
+  "accepted": true,
+  "dvfs_level_mhz": 968,
+  "dvfs_mismatch": 0.0004830310529418196
+ },
+ "simd_issue": {
+  "groups": 1,
+  "stable_groups": 1,
+  "ns_per_cycle": 0.75,
+  "mhz": 1333.3333333333333,
+  "cycles_per_step": 22.96875,
+  "ns_per_step": 17.2265625,
+  "cycles_spread": [
+   22.96875,
+   22.96875
+  ],
+  "max_abs_drift": 0.0008389261744965955,
+  "fw_ns": [
+   3162417,
+   3159250,
+   3158708
+  ],
+  "attempts": 1,
+  "accepted": true,
+  "dvfs_level_mhz": 1398,
+  "dvfs_mismatch": 0.0004768717215068062
+ },
+ "id": "bench/simd_iadd_r14l_r6l",
+ "form": "simd_iadd r14l, r6l",
+ "finding": "instruction-bench",
+ "trips": 1000,
+ "steps": [
+  16,
+  64
+ ],
+ "recorded_utc": "2026-10-12T23:24:06Z"
+}

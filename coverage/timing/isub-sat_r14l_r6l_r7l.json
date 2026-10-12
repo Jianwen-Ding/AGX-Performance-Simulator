@@ -1,0 +1,57 @@
+{
+ "class": "int",
+ "template": "isub.sat r{d}l, r{d}l, r7l",
+ "latency": {
+  "groups": 1,
+  "stable_groups": 1,
+  "ns_per_cycle": 1.0811631944444444,
+  "mhz": 924.9297470895223,
+  "cycles_per_step": 1.9959855479727018,
+  "ns_per_step": 2.157986111111111,
+  "cycles_spread": [
+   1.9959855479727018,
+   1.9959855479727018
+  ],
+  "max_abs_drift": 0.001164822364589536,
+  "fw_ns": [
+   5969792,
+   5966541,
+   4440292
+  ],
+  "attempts": 1,
+  "accepted": true,
+  "dvfs_level_mhz": 968,
+  "dvfs_mismatch": 0.002325727992674428
+ },
+ "simd_issue": {
+  "groups": 1,
+  "stable_groups": 1,
+  "ns_per_cycle": 1.081597222222222,
+  "mhz": 924.5585874799359,
+  "cycles_per_step": 1.1813804173354736,
+  "ns_per_step": 1.2777777777777777,
+  "cycles_spread": [
+   1.1813804173354736,
+   1.1813804173354736
+  ],
+  "max_abs_drift": 0.0017492711370262393,
+  "fw_ns": [
+   2683041,
+   2680667,
+   2911084
+  ],
+  "attempts": 1,
+  "accepted": true,
+  "dvfs_level_mhz": 968,
+  "dvfs_mismatch": 0.0019235106058395545
+ },
+ "id": "bench/isub-sat_r14l_r6l_r7l",
+ "form": "isub.sat r14l, r6l, r7l",
+ "finding": "instruction-bench",
+ "trips": 1000,
+ "steps": [
+  16,
+  64
+ ],
+ "recorded_utc": "2026-10-12T23:22:18Z"
+}

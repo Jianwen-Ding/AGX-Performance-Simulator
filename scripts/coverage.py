@@ -99,9 +99,10 @@ def install():
         return ASMB
     ASMB = asm = Asm()
     import agx_loop, record_suite as RS, run_bench as B, run_drm_tg_layout as TL, run_drm_atomic as DA, run_agx_timestamps
+    import run_drm_cpu_clock as CLK                     # run_bench's clock_read encodes through it
     shim = _Shim(asm)
     agx_loop._tools = lambda: (None, shim)
-    for m in (agx_loop, RS, B, TL):
+    for m in (agx_loop, RS, B, TL, CLK):
         if hasattr(m, 'e'):
             m.e = asm.encode
         if hasattr(m, 'enc'):

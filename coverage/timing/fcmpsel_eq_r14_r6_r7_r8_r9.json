@@ -1,0 +1,57 @@
+{
+ "class": "float",
+ "template": "fcmpsel eq, r{d}, r{d}, r20, r22, r21",
+ "latency": {
+  "groups": 1,
+  "stable_groups": 1,
+  "ns_per_cycle": 1.0842013888888888,
+  "mhz": 922.337870296237,
+  "cycles_per_step": 1.9911929543634908,
+  "ns_per_step": 2.1588541666666665,
+  "cycles_spread": [
+   1.9911929543634908,
+   1.9911929543634908
+  ],
+  "max_abs_drift": 0.0023364485981309095,
+  "fw_ns": [
+   5983333,
+   5980708,
+   2911666
+  ],
+  "attempts": 1,
+  "accepted": true,
+  "dvfs_level_mhz": 968,
+  "dvfs_mismatch": 0.0004830310529415847
+ },
+ "simd_issue": {
+  "groups": 1,
+  "stable_groups": 1,
+  "ns_per_cycle": 1.0828993055555556,
+  "mhz": 923.4468937875752,
+  "cycles_per_step": 2.0352705410821645,
+  "ns_per_step": 2.203993055555556,
+  "cycles_spread": [
+   2.0352705410821645,
+   2.0352705410821645
+  ],
+  "max_abs_drift": 0.0011668611435240567,
+  "fw_ns": [
+   2754167,
+   2751750,
+   2902541
+  ],
+  "attempts": 1,
+  "accepted": true,
+  "dvfs_level_mhz": 968,
+  "dvfs_mismatch": 0.0007187929578164081
+ },
+ "id": "bench/fcmpsel_eq_r14_r6_r7_r8_r9",
+ "form": "fcmpsel eq, r14, r6, r7, r8, r9",
+ "finding": "instruction-bench",
+ "trips": 1000,
+ "steps": [
+  16,
+  64
+ ],
+ "recorded_utc": "2026-10-12T23:23:31Z"
+}

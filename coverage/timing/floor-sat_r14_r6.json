@@ -1,0 +1,57 @@
+{
+ "class": "sfu",
+ "template": "floor.sat r{d}, r{d}",
+ "latency": {
+  "groups": 1,
+  "stable_groups": 1,
+  "ns_per_cycle": 1.0833333333333333,
+  "mhz": 923.0769230769231,
+  "cycles_per_step": 2.8597756410256405,
+  "ns_per_step": 3.0980902777777772,
+  "cycles_spread": [
+   2.8597756410256405,
+   2.8597756410256405
+  ],
+  "max_abs_drift": 0.0035005834305717625,
+  "fw_ns": [
+   6135875,
+   4795000,
+   2815958
+  ],
+  "attempts": 1,
+  "accepted": true,
+  "dvfs_level_mhz": 968,
+  "dvfs_mismatch": 0.00031786395422754544
+ },
+ "simd_issue": {
+  "groups": 1,
+  "stable_groups": 1,
+  "ns_per_cycle": 1.081597222222222,
+  "mhz": 924.5585874799359,
+  "cycles_per_step": 1.910112359550562,
+  "ns_per_step": 2.0659722222222223,
+  "cycles_spread": [
+   1.910112359550562,
+   1.910112359550562
+  ],
+  "max_abs_drift": 0.0005820721769500095,
+  "fw_ns": [
+   2738000,
+   2735958,
+   2908750
+  ],
+  "attempts": 1,
+  "accepted": true,
+  "dvfs_level_mhz": 968,
+  "dvfs_mismatch": 0.0019235106058395545
+ },
+ "id": "bench/floor-sat_r14_r6",
+ "form": "floor.sat r14, r6",
+ "finding": "instruction-bench",
+ "trips": 1000,
+ "steps": [
+  16,
+  64
+ ],
+ "recorded_utc": "2026-10-12T23:23:11Z"
+}

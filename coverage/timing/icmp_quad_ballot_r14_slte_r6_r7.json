@@ -1,0 +1,57 @@
+{
+ "class": "simd",
+ "template": "icmp_quad_ballot r{d}, slte, r{d}, r20",
+ "latency": {
+  "groups": 1,
+  "stable_groups": 1,
+  "ns_per_cycle": 1.0828993055555556,
+  "mhz": 923.4468937875752,
+  "cycles_per_step": 3.8981963927855703,
+  "ns_per_step": 4.221354166666666,
+  "cycles_spread": [
+   3.8981963927855703,
+   3.8981963927855703
+  ],
+  "max_abs_drift": 0.0023323615160350535,
+  "fw_ns": [
+   6324667,
+   6322000,
+   3050208
+  ],
+  "attempts": 1,
+  "accepted": true,
+  "dvfs_level_mhz": 968,
+  "dvfs_mismatch": 0.0007187929578164081
+ },
+ "simd_issue": {
+  "groups": 1,
+  "stable_groups": 1,
+  "ns_per_cycle": 1.083767361111111,
+  "mhz": 922.7072486984383,
+  "cycles_per_step": 1.0612735282338808,
+  "ns_per_step": 1.150173611111111,
+  "cycles_spread": [
+   1.0612735282338808,
+   1.0612735282338808
+  ],
+  "max_abs_drift": 0.003506721215663355,
+  "fw_ns": [
+   2671375,
+   3007166,
+   2668500
+  ],
+  "attempts": 1,
+  "accepted": true,
+  "dvfs_level_mhz": 968,
+  "dvfs_mismatch": 8.274392080400687e-05
+ },
+ "id": "bench/icmp_quad_ballot_r14_slte_r6_r7",
+ "form": "icmp_quad_ballot r14, slte, r6, r7",
+ "finding": "instruction-bench",
+ "trips": 1000,
+ "steps": [
+  16,
+  64
+ ],
+ "recorded_utc": "2026-10-12T23:23:45Z"
+}

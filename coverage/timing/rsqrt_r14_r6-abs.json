@@ -1,0 +1,57 @@
+{
+ "class": "sfu",
+ "template": "rsqrt r{d}, r{d}.abs",
+ "latency": {
+  "groups": 1,
+  "stable_groups": 1,
+  "ns_per_cycle": 1.0828993055555556,
+  "mhz": 923.4468937875752,
+  "cycles_per_step": 5.71943887775551,
+  "ns_per_step": 6.193576388888888,
+  "cycles_spread": [
+   5.71943887775551,
+   5.71943887775551
+  ],
+  "max_abs_drift": 0.0029171528588099378,
+  "fw_ns": [
+   6666792,
+   6371417,
+   3142375
+  ],
+  "attempts": 1,
+  "accepted": true,
+  "dvfs_level_mhz": 968,
+  "dvfs_mismatch": 0.0007187929578164081
+ },
+ "simd_issue": {
+  "groups": 1,
+  "stable_groups": 1,
+  "ns_per_cycle": 1.0828993055555556,
+  "mhz": 923.4468937875752,
+  "cycles_per_step": 3.8156312625250495,
+  "ns_per_step": 4.131944444444444,
+  "cycles_spread": [
+   3.8156312625250495,
+   3.8156312625250495
+  ],
+  "max_abs_drift": 0.0029171528588099378,
+  "fw_ns": [
+   2900917,
+   3080333,
+   2948291
+  ],
+  "attempts": 1,
+  "accepted": true,
+  "dvfs_level_mhz": 968,
+  "dvfs_mismatch": 0.0007187929578164081
+ },
+ "id": "bench/rsqrt_r14_r6-abs",
+ "form": "rsqrt r14, r6.abs",
+ "finding": "instruction-bench",
+ "trips": 1000,
+ "steps": [
+  16,
+  64
+ ],
+ "recorded_utc": "2026-10-12T23:23:15Z"
+}

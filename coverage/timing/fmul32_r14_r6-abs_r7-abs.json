@@ -1,0 +1,57 @@
+{
+ "class": "float",
+ "template": "fmul32 r{d}, r{d}.abs, r20.abs",
+ "latency": {
+  "groups": 1,
+  "stable_groups": 1,
+  "ns_per_cycle": 1.0833333333333333,
+  "mhz": 923.0769230769231,
+  "cycles_per_step": 1.9911858974358974,
+  "ns_per_step": 2.1571180555555554,
+  "cycles_spread": [
+   1.9911858974358974,
+   1.9911858974358974
+  ],
+  "max_abs_drift": 0.0017502917152858813,
+  "fw_ns": [
+   5974208,
+   5970666,
+   4323458
+  ],
+  "attempts": 1,
+  "accepted": true,
+  "dvfs_level_mhz": 968,
+  "dvfs_mismatch": 0.00031786395422754544
+ },
+ "simd_issue": {
+  "groups": 1,
+  "stable_groups": 1,
+  "ns_per_cycle": 1.08203125,
+  "mhz": 924.1877256317689,
+  "cycles_per_step": 1.0453269153630163,
+  "ns_per_step": 1.1310763888888886,
+  "cycles_spread": [
+   1.0453269153630163,
+   1.0453269153630163
+  ],
+  "max_abs_drift": 0.0005834305717620284,
+  "fw_ns": [
+   2671458,
+   2668125,
+   2842625
+  ],
+  "attempts": 1,
+  "accepted": true,
+  "dvfs_level_mhz": 968,
+  "dvfs_mismatch": 0.0015216158964106807
+ },
+ "id": "bench/fmul32_r14_r6-abs_r7-abs",
+ "form": "fmul32 r14, r6.abs, r7.abs",
+ "finding": "instruction-bench",
+ "trips": 1000,
+ "steps": [
+  16,
+  64
+ ],
+ "recorded_utc": "2026-10-12T23:22:55Z"
+}

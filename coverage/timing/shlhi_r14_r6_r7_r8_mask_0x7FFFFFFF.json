@@ -1,0 +1,57 @@
+{
+ "class": "bitfield",
+ "template": "shlhi r{d}, r{d}, r20, r22, mask 0x7FFFFFFF",
+ "latency": {
+  "groups": 1,
+  "stable_groups": 1,
+  "ns_per_cycle": 1.0820312499999998,
+  "mhz": 924.1877256317691,
+  "cycles_per_step": 2.9466506217408748,
+  "ns_per_step": 3.1883680555555554,
+  "cycles_spread": [
+   2.9466506217408748,
+   2.9466506217408748
+  ],
+  "max_abs_drift": 0.0017492711370262393,
+  "fw_ns": [
+   6155208,
+   3279583,
+   2824375
+  ],
+  "attempts": 1,
+  "accepted": true,
+  "dvfs_level_mhz": 968,
+  "dvfs_mismatch": 0.0015216158964109156
+ },
+ "simd_issue": {
+  "groups": 1,
+  "stable_groups": 1,
+  "ns_per_cycle": 1.082465277777778,
+  "mhz": 923.8171611868484,
+  "cycles_per_step": 1.9967923015236566,
+  "ns_per_step": 2.1614583333333335,
+  "cycles_spread": [
+   1.9967923015236566,
+   1.9967923015236566
+  ],
+  "max_abs_drift": 0.0011661807580174248,
+  "fw_ns": [
+   2754292,
+   2856500,
+   2879000
+  ],
+  "attempts": 1,
+  "accepted": true,
+  "dvfs_level_mhz": 968,
+  "dvfs_mismatch": 0.0011200434762436784
+ },
+ "id": "bench/shlhi_r14_r6_r7_r8_mask_0x7FFFFFFF",
+ "form": "shlhi r14, r6, r7, r8, mask 0x7FFFFFFF",
+ "finding": "instruction-bench",
+ "trips": 1000,
+ "steps": [
+  16,
+  64
+ ],
+ "recorded_utc": "2026-10-12T23:22:39Z"
+}

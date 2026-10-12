@@ -1,0 +1,57 @@
+{
+ "class": "select",
+ "template": "icmpsel seq, r{d}l, r{d}l, r7h, r8l, r9h",
+ "latency": {
+  "groups": 1,
+  "stable_groups": 1,
+  "ns_per_cycle": 1.082465277777778,
+  "mhz": 923.8171611868484,
+  "cycles_per_step": 1.9935846030473134,
+  "ns_per_step": 2.157986111111111,
+  "cycles_spread": [
+   1.9935846030473134,
+   1.9935846030473134
+  ],
+  "max_abs_drift": 0.0023323615160350535,
+  "fw_ns": [
+   5975375,
+   5971958,
+   3414708
+  ],
+  "attempts": 1,
+  "accepted": true,
+  "dvfs_level_mhz": 968,
+  "dvfs_mismatch": 0.0011200434762436784
+ },
+ "simd_issue": {
+  "groups": 1,
+  "stable_groups": 1,
+  "ns_per_cycle": 1.0811631944444444,
+  "mhz": 924.9297470895223,
+  "cycles_per_step": 1.065435568044962,
+  "ns_per_step": 1.1519097222222223,
+  "cycles_spread": [
+   1.065435568044962,
+   1.065435568044962
+  ],
+  "max_abs_drift": 0.0023350846468183114,
+  "fw_ns": [
+   2678209,
+   2675000,
+   2850292
+  ],
+  "attempts": 1,
+  "accepted": true,
+  "dvfs_level_mhz": 968,
+  "dvfs_mismatch": 0.002325727992674428
+ },
+ "id": "bench/icmpsel_seq_r14l_r6l_r7h_r8l_r9h",
+ "form": "icmpsel seq, r14l, r6l, r7h, r8l, r9h",
+ "finding": "instruction-bench",
+ "trips": 1000,
+ "steps": [
+  16,
+  64
+ ],
+ "recorded_utc": "2026-10-12T23:23:33Z"
+}

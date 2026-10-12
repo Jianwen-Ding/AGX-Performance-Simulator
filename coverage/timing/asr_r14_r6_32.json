@@ -1,0 +1,57 @@
+{
+ "class": "bitfield",
+ "template": "asr r{d}, r{d}, 32",
+ "latency": {
+  "groups": 1,
+  "stable_groups": 1,
+  "ns_per_cycle": 1.082465277777778,
+  "mhz": 923.8171611868484,
+  "cycles_per_step": 2.945469125902165,
+  "ns_per_step": 3.1883680555555554,
+  "cycles_spread": [
+   2.945469125902165,
+   2.945469125902165
+  ],
+  "max_abs_drift": 0.0023323615160350535,
+  "fw_ns": [
+   6144584,
+   6141917,
+   4429208
+  ],
+  "attempts": 1,
+  "accepted": true,
+  "dvfs_level_mhz": 968,
+  "dvfs_mismatch": 0.0011200434762436784
+ },
+ "simd_issue": {
+  "groups": 1,
+  "stable_groups": 1,
+  "ns_per_cycle": 1.0828993055555556,
+  "mhz": 923.4468937875752,
+  "cycles_per_step": 1.9943887775551103,
+  "ns_per_step": 2.1597222222222223,
+  "cycles_spread": [
+   1.9943887775551103,
+   1.9943887775551103
+  ],
+  "max_abs_drift": 0.0011668611435240567,
+  "fw_ns": [
+   2741166,
+   2806083,
+   2903833
+  ],
+  "attempts": 1,
+  "accepted": true,
+  "dvfs_level_mhz": 968,
+  "dvfs_mismatch": 0.0007187929578164081
+ },
+ "id": "bench/asr_r14_r6_32",
+ "form": "asr r14, r6, 32",
+ "finding": "instruction-bench",
+ "trips": 1000,
+ "steps": [
+  16,
+  64
+ ],
+ "recorded_utc": "2026-10-12T23:22:43Z"
+}

@@ -1,0 +1,57 @@
+{
+ "class": "sfu",
+ "template": "rint.sat r{d}, r{d}",
+ "latency": {
+  "groups": 1,
+  "stable_groups": 1,
+  "ns_per_cycle": 1.081597222222222,
+  "mhz": 924.5585874799359,
+  "cycles_per_step": 2.9486356340288924,
+  "ns_per_step": 3.1892361111111107,
+  "cycles_spread": [
+   2.9486356340288924,
+   2.9486356340288924
+  ],
+  "max_abs_drift": 0.0005830903790088143,
+  "fw_ns": [
+   6144250,
+   6141458,
+   3460625
+  ],
+  "attempts": 1,
+  "accepted": true,
+  "dvfs_level_mhz": 968,
+  "dvfs_mismatch": 0.0019235106058395545
+ },
+ "simd_issue": {
+  "groups": 1,
+  "stable_groups": 1,
+  "ns_per_cycle": 1.08203125,
+  "mhz": 924.1877256317689,
+  "cycles_per_step": 1.997593261131167,
+  "ns_per_step": 2.161458333333333,
+  "cycles_spread": [
+   1.997593261131167,
+   1.997593261131167
+  ],
+  "max_abs_drift": 0.0017482517482517483,
+  "fw_ns": [
+   2742792,
+   2740750,
+   2915000
+  ],
+  "attempts": 1,
+  "accepted": true,
+  "dvfs_level_mhz": 968,
+  "dvfs_mismatch": 0.0015216158964106807
+ },
+ "id": "bench/rint-sat_r14_r6",
+ "form": "rint.sat r14, r6",
+ "finding": "instruction-bench",
+ "trips": 1000,
+ "steps": [
+  16,
+  64
+ ],
+ "recorded_utc": "2026-10-12T23:23:14Z"
+}

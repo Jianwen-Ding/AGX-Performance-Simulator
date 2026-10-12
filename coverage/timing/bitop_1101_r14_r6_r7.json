@@ -1,0 +1,57 @@
+{
+ "class": "int",
+ "template": "bitop 1101, r{d}, r{d}, r20",
+ "latency": {
+  "groups": 1,
+  "stable_groups": 1,
+  "ns_per_cycle": 1.083767361111111,
+  "mhz": 922.7072486984383,
+  "cycles_per_step": 1.9895875050060075,
+  "ns_per_step": 2.15625,
+  "cycles_spread": [
+   1.9895875050060075,
+   1.9895875050060075
+  ],
+  "max_abs_drift": 0.0005837711617044758,
+  "fw_ns": [
+   5973084,
+   5286167,
+   2741542
+  ],
+  "attempts": 1,
+  "accepted": true,
+  "dvfs_level_mhz": 968,
+  "dvfs_mismatch": 8.274392080400687e-05
+ },
+ "simd_issue": {
+  "groups": 1,
+  "stable_groups": 1,
+  "ns_per_cycle": 1.08203125,
+  "mhz": 924.1877256317689,
+  "cycles_per_step": 1.0437224227837947,
+  "ns_per_step": 1.129340277777778,
+  "cycles_spread": [
+   1.0437224227837947,
+   1.0437224227837947
+  ],
+  "max_abs_drift": 0.0,
+  "fw_ns": [
+   2669250,
+   2922375,
+   2667000
+  ],
+  "attempts": 1,
+  "accepted": true,
+  "dvfs_level_mhz": 968,
+  "dvfs_mismatch": 0.0015216158964106807
+ },
+ "id": "bench/bitop_1101_r14_r6_r7",
+ "form": "bitop 1101, r14, r6, r7",
+ "finding": "instruction-bench",
+ "trips": 1000,
+ "steps": [
+  16,
+  64
+ ],
+ "recorded_utc": "2026-10-12T23:22:26Z"
+}

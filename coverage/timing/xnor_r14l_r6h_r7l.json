@@ -1,0 +1,57 @@
+{
+ "class": "int",
+ "template": "xnor r{d}l, r{d}h, r7l",
+ "latency": {
+  "groups": 1,
+  "stable_groups": 1,
+  "ns_per_cycle": 1.0711805555555556,
+  "mhz": 933.54943273906,
+  "cycles_per_step": 1.9902755267423011,
+  "ns_per_step": 2.131944444444444,
+  "cycles_spread": [
+   1.9902755267423011,
+   1.9902755267423011
+  ],
+  "max_abs_drift": 0.0005834305717618245,
+  "fw_ns": [
+   5973084,
+   5937709,
+   2879875
+  ],
+  "attempts": 1,
+  "accepted": true,
+  "dvfs_level_mhz": 968,
+  "dvfs_mismatch": 0.011666688990985342
+ },
+ "simd_issue": {
+  "groups": 1,
+  "stable_groups": 1,
+  "ns_per_cycle": 1.0828993055555556,
+  "mhz": 923.4468937875752,
+  "cycles_per_step": 1.1607214428857715,
+  "ns_per_step": 1.2569444444444444,
+  "cycles_spread": [
+   1.1607214428857715,
+   1.1607214428857715
+  ],
+  "max_abs_drift": 0.0,
+  "fw_ns": [
+   2859416,
+   2682333,
+   2681916
+  ],
+  "attempts": 1,
+  "accepted": true,
+  "dvfs_level_mhz": 968,
+  "dvfs_mismatch": 0.0007187929578164081
+ },
+ "id": "bench/xnor_r14l_r6h_r7l",
+ "form": "xnor r14l, r6h, r7l",
+ "finding": "instruction-bench",
+ "trips": 1000,
+ "steps": [
+  16,
+  64
+ ],
+ "recorded_utc": "2026-10-12T23:22:28Z"
+}

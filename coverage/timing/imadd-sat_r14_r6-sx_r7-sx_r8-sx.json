@@ -1,0 +1,57 @@
+{
+ "class": "int",
+ "template": "imadd.sat r{d}, r{d}.sx, r20.sx, r22.sx",
+ "latency": {
+  "groups": 1,
+  "stable_groups": 1,
+  "ns_per_cycle": 1.08203125,
+  "mhz": 924.1877256317689,
+  "cycles_per_step": 2.949057360609707,
+  "ns_per_step": 3.190972222222222,
+  "cycles_spread": [
+   2.949057360609707,
+   2.949057360609707
+  ],
+  "max_abs_drift": 0.0017482517482517483,
+  "fw_ns": [
+   6155417,
+   3335375,
+   2824417
+  ],
+  "attempts": 1,
+  "accepted": true,
+  "dvfs_level_mhz": 968,
+  "dvfs_mismatch": 0.0015216158964106807
+ },
+ "simd_issue": {
+  "groups": 1,
+  "stable_groups": 1,
+  "ns_per_cycle": 1.0815972222222223,
+  "mhz": 924.5585874799357,
+  "cycles_per_step": 1.997592295345104,
+  "ns_per_step": 2.1605902777777777,
+  "cycles_spread": [
+   1.997592295345104,
+   1.997592295345104
+  ],
+  "max_abs_drift": 0.0017502917152858813,
+  "fw_ns": [
+   2755875,
+   2917709,
+   3161083
+  ],
+  "attempts": 1,
+  "accepted": true,
+  "dvfs_level_mhz": 968,
+  "dvfs_mismatch": 0.0019235106058393197
+ },
+ "id": "bench/imadd-sat_r14_r6-sx_r7-sx_r8-sx",
+ "form": "imadd.sat r14, r6.sx, r7.sx, r8.sx",
+ "finding": "instruction-bench",
+ "trips": 1000,
+ "steps": [
+  16,
+  64
+ ],
+ "recorded_utc": "2026-10-12T23:22:22Z"
+}

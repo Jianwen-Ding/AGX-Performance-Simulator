@@ -1,0 +1,57 @@
+{
+ "class": "simd",
+ "template": "fcmp_ballot r{d}, eq, r{d}, r20",
+ "latency": {
+  "groups": 1,
+  "stable_groups": 1,
+  "ns_per_cycle": 1.0828993055555556,
+  "mhz": 923.4468937875752,
+  "cycles_per_step": 4.852905811623246,
+  "ns_per_step": 5.255208333333333,
+  "cycles_spread": [
+   4.852905811623246,
+   4.852905811623246
+  ],
+  "max_abs_drift": 0.0023323615160350535,
+  "fw_ns": [
+   6505833,
+   5385167,
+   2985584
+  ],
+  "attempts": 1,
+  "accepted": true,
+  "dvfs_level_mhz": 968,
+  "dvfs_mismatch": 0.0007187929578164081
+ },
+ "simd_issue": {
+  "groups": 1,
+  "stable_groups": 1,
+  "ns_per_cycle": 1.0846354166666665,
+  "mhz": 921.9687875150062,
+  "cycles_per_step": 1.9919967987194875,
+  "ns_per_step": 2.1605902777777772,
+  "cycles_spread": [
+   1.9919967987194875,
+   1.9919967987194875
+  ],
+  "max_abs_drift": 0.0029205607476634836,
+  "fw_ns": [
+   2747041,
+   2744375,
+   2919125
+  ],
+  "attempts": 1,
+  "accepted": true,
+  "dvfs_level_mhz": 968,
+  "dvfs_mismatch": 0.0008829978272299409
+ },
+ "id": "bench/fcmp_ballot_r14_eq_r6_r7",
+ "form": "fcmp_ballot r14, eq, r6, r7",
+ "finding": "instruction-bench",
+ "trips": 1000,
+ "steps": [
+  16,
+  64
+ ],
+ "recorded_utc": "2026-10-12T23:23:37Z"
+}

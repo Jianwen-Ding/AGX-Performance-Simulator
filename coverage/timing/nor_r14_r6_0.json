@@ -1,0 +1,57 @@
+{
+ "class": "int",
+ "template": "nor r{d}, r{d}, 0",
+ "latency": {
+  "groups": 1,
+  "stable_groups": 1,
+  "ns_per_cycle": 1.0850694444444444,
+  "mhz": 921.6,
+  "cycles_per_step": 1.9863999999999997,
+  "ns_per_step": 2.155381944444444,
+  "cycles_spread": [
+   1.9863999999999997,
+   1.9863999999999997
+  ],
+  "max_abs_drift": 0.0035087719298245615,
+  "fw_ns": [
+   5969083,
+   3785250,
+   2739417
+  ],
+  "attempts": 1,
+  "accepted": true,
+  "dvfs_level_mhz": 968,
+  "dvfs_mismatch": 0.0012826446280992379
+ },
+ "simd_issue": {
+  "groups": 1,
+  "stable_groups": 1,
+  "ns_per_cycle": 1.0833333333333333,
+  "mhz": 923.0769230769231,
+  "cycles_per_step": 1.0416666666666665,
+  "ns_per_step": 1.128472222222222,
+  "cycles_spread": [
+   1.0416666666666665,
+   1.0416666666666665
+  ],
+  "max_abs_drift": 0.0005830903790088143,
+  "fw_ns": [
+   2662334,
+   2881084,
+   2669042
+  ],
+  "attempts": 1,
+  "accepted": true,
+  "dvfs_level_mhz": 968,
+  "dvfs_mismatch": 0.00031786395422754544
+ },
+ "id": "bench/nor_r14_r6_0",
+ "form": "nor r14, r6, 0",
+ "finding": "instruction-bench",
+ "trips": 1000,
+ "steps": [
+  16,
+  64
+ ],
+ "recorded_utc": "2026-10-12T23:22:28Z"
+}

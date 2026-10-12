@@ -1,0 +1,57 @@
+{
+ "class": "simd",
+ "template": "fcmp_ballot r{d}, lte, r{d}, r20",
+ "latency": {
+  "groups": 1,
+  "stable_groups": 1,
+  "ns_per_cycle": 1.0807291666666665,
+  "mhz": 925.3012048192772,
+  "cycles_per_step": 4.861044176706828,
+  "ns_per_step": 5.253472222222222,
+  "cycles_spread": [
+   4.861044176706828,
+   4.861044176706828
+  ],
+  "max_abs_drift": 0.0011661807580174248,
+  "fw_ns": [
+   6289042,
+   3083083,
+   2985166
+  ],
+  "attempts": 1,
+  "accepted": true,
+  "dvfs_level_mhz": 968,
+  "dvfs_mismatch": 0.0027282684456836504
+ },
+ "simd_issue": {
+  "groups": 1,
+  "stable_groups": 1,
+  "ns_per_cycle": 1.083767361111111,
+  "mhz": 922.7072486984383,
+  "cycles_per_step": 2.603123748498198,
+  "ns_per_step": 2.8211805555555554,
+  "cycles_spread": [
+   2.603123748498198,
+   2.603123748498198
+  ],
+  "max_abs_drift": 0.0005837711617044758,
+  "fw_ns": [
+   2746375,
+   3055833,
+   2743667
+  ],
+  "attempts": 1,
+  "accepted": true,
+  "dvfs_level_mhz": 968,
+  "dvfs_mismatch": 8.274392080400687e-05
+ },
+ "id": "bench/fcmp_ballot_r14_lte_r6_r7",
+ "form": "fcmp_ballot r14, lte, r6, r7",
+ "finding": "instruction-bench",
+ "trips": 1000,
+ "steps": [
+  16,
+  64
+ ],
+ "recorded_utc": "2026-10-12T23:23:40Z"
+}

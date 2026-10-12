@@ -1,0 +1,57 @@
+{
+ "class": "sfu",
+ "template": "exp2 r{d}, r{d}.neg",
+ "latency": {
+  "groups": 1,
+  "stable_groups": 1,
+  "ns_per_cycle": 1.083767361111111,
+  "mhz": 922.7072486984383,
+  "cycles_per_step": 4.761714056868242,
+  "ns_per_step": 5.160590277777778,
+  "cycles_spread": [
+   4.761714056868242,
+   4.761714056868242
+  ],
+  "max_abs_drift": 0.004670169293636827,
+  "fw_ns": [
+   6486667,
+   4175292,
+   2977125
+  ],
+  "attempts": 1,
+  "accepted": true,
+  "dvfs_level_mhz": 968,
+  "dvfs_mismatch": 8.274392080400687e-05
+ },
+ "simd_issue": {
+  "groups": 1,
+  "stable_groups": 1,
+  "ns_per_cycle": 1.0846354166666667,
+  "mhz": 921.9687875150059,
+  "cycles_per_step": 1.9063625450180073,
+  "ns_per_step": 2.0677083333333335,
+  "cycles_spread": [
+   1.9063625450180073,
+   1.9063625450180073
+  ],
+  "max_abs_drift": 0.0046756282875512764,
+  "fw_ns": [
+   2738750,
+   3073625,
+   2735291
+  ],
+  "attempts": 1,
+  "accepted": true,
+  "dvfs_level_mhz": 968,
+  "dvfs_mismatch": 0.0008829978272301757
+ },
+ "id": "bench/exp2_r14_r6-neg",
+ "form": "exp2 r14, r6.neg",
+ "finding": "instruction-bench",
+ "trips": 1000,
+ "steps": [
+  16,
+  64
+ ],
+ "recorded_utc": "2026-10-12T23:23:18Z"
+}

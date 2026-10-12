@@ -1,0 +1,57 @@
+{
+ "class": "sfu",
+ "template": "ceil.sat r{d}, r{d}",
+ "latency": {
+  "groups": 1,
+  "stable_groups": 1,
+  "ns_per_cycle": 1.0828993055555554,
+  "mhz": 923.4468937875753,
+  "cycles_per_step": 2.9426853707414833,
+  "ns_per_step": 3.186631944444444,
+  "cycles_spread": [
+   2.9426853707414833,
+   2.9426853707414833
+  ],
+  "max_abs_drift": 0.0,
+  "fw_ns": [
+   6144167,
+   6142000,
+   3178250
+  ],
+  "attempts": 1,
+  "accepted": true,
+  "dvfs_level_mhz": 968,
+  "dvfs_mismatch": 0.0007187929578165256
+ },
+ "simd_issue": {
+  "groups": 1,
+  "stable_groups": 1,
+  "ns_per_cycle": 1.082465277777778,
+  "mhz": 923.8171611868484,
+  "cycles_per_step": 1.9951884522854846,
+  "ns_per_step": 2.159722222222222,
+  "cycles_spread": [
+   1.9951884522854846,
+   1.9951884522854846
+  ],
+  "max_abs_drift": 0.0005830903790088143,
+  "fw_ns": [
+   2742000,
+   2765667,
+   2945792
+  ],
+  "attempts": 1,
+  "accepted": true,
+  "dvfs_level_mhz": 968,
+  "dvfs_mismatch": 0.0011200434762436784
+ },
+ "id": "bench/ceil-sat_r14_r6",
+ "form": "ceil.sat r14, r6",
+ "finding": "instruction-bench",
+ "trips": 1000,
+ "steps": [
+  16,
+  64
+ ],
+ "recorded_utc": "2026-10-12T23:23:12Z"
+}
