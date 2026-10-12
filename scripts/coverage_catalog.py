@@ -394,7 +394,12 @@ def control_cases():
                 table += [rng.randrange(64) for _ in range(4)] + [struct.unpack('<I', struct.pack('<f', rng.uniform(-4, 4)))[0] for _ in range(2)] + [rng.randrange(64) for _ in range(2)]
             return ('control', name, f'{if_t or else_t}', b, N, WG, 64, 0, table)
         texts = [(t, None) for t in (if_t, else_t) if t]
-        out.append(Case(f'control/{name}', 'control', 'cf-float / exec-control-cost', 'safe', 'functional', name, build, texts))
+        # while_* is not bounded for every condition: with r3 counting up from 1 and r20 in 1..8, `while_icmp ugte`
+        # never exits (r3 >= r20 stays true). It hung the M2 on 2026-10-12 and wedged the GPU (display froze, reboot
+        # needed); every later dispatch that boot timed out. Until each condition's loop is proven to terminate, all
+        # while_* cases are may_fault.
+        risk = 'may_fault' if name.startswith('while_') else 'safe'
+        out.append(Case(f'control/{name}', 'control', 'cf-float / exec-control-cost', risk, 'functional', name, build, texts))
     # nesting depth 1..8 (r0l counter) and push counts n = 1..3
     for depth in range(1, 9):
         def build(depth=depth):
