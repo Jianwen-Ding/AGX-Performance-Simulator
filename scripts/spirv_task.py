@@ -5112,10 +5112,14 @@ def cmd_extract(a):
         (out / 'rodata.bin').write_bytes(ro)
         (out / 'code_region.bin').write_bytes(code)
         info['uniform_init'] = rodata_uniforms(info, ro)
-        # root-table layout: from Mesa 25.3 (the M2's stored control shader) the driver preloads the set addresses into
-        # u2_u3.., and the preamble reads descriptors through them; up to 25.2 it loads sets[0] from root word 156
-        pre = (out / 'preamble.txt').read_text() if info['has_preamble'] else ''
-        info['root_layout'] = '26.0' if 'u2_u3' in pre else '25.2'
+        # root-table layout: by the compiling driver's version when known (device.json from compile, hardware.json or
+        # the recording's device from record); else from the preamble: from Mesa 25.3 the driver preloads the set
+        # addresses into u2_u3.. and the preamble reads descriptors through them (up to 25.2 it loads sets[0] from root
+        # word 156), but texture-only shaders read no descriptor, and 25.3 / 26.0 differ only in the push offset
+        info['root_layout'] = root_layout_of_driver(getattr(a, 'driver_version', None) or driver_version_near(out))
+        if not info['root_layout']:
+            pre = (out / 'preamble.txt').read_text() if info['has_preamble'] else ''
+            info['root_layout'] = '26.0' if 'u2_u3' in pre else '25.2'
         (out / 'info.json').write_text(json.dumps(info, indent=1) + '\n')
         res = {'blob': a.blob, 'code_start': info['code_at'], 'code_size': info['code_size'], 'layout': 'agx_shader_info', 'programs': segs}
         (out / 'segments.json').write_text(json.dumps(res, indent=1) + '\n')
@@ -5155,6 +5159,30 @@ def cmd_extract(a):
         print(json.dumps(res))
         return 0
     sys.exit('no decodable program found; inspect the blob by hand (see tasks/spirv-workloads.md)')
+
+
+def root_layout_of_driver(version):
+    """spirv/root_layout.mesa-<name>.json for a Vulkan driver_version (Mesa's VK_MAKE_VERSION(major, minor, patch)),
+    None when unknown: 25.2 and older -> 25.2, 25.3 -> 25.3 (push constants at root word 124), 26 and newer -> 26.0"""
+    if not version:
+        return None
+    mm = (version >> 22, (version >> 12) & 0x3ff)
+    return '25.2' if mm <= (25, 2) else '25.3' if mm == (25, 3) else '26.0'
+
+
+def driver_version_near(code_dir):
+    """driver_version of the driver that compiled the code in code_dir: its device.json (compile) or the recording's
+    hardware.json next to it (record: spirv/expected/<workload>/code)"""
+    code_dir = Path(code_dir)
+    for f in (code_dir / 'device.json', code_dir.parent / 'hardware.json'):
+        try:
+            d = json.loads(f.read_text())
+        except (OSError, ValueError):
+            continue
+        v = d.get('driver_version') or (d.get('device') or {}).get('driver_version')
+        if v:
+            return v
+    return None
 
 
 def rodata_uniforms(info, ro):
@@ -5200,7 +5228,9 @@ class DriverLaunch:
         if not layout:
             if not info:
                 sys.exit('no info.json in the code directory (extract could not read the shader info): pass --layout')
-            layout = ROOT / f'spirv/root_layout.mesa-{info["root_layout"]}.json'
+            # the compiling driver's version wins over info.json's label (older extracts guessed it from the preamble)
+            name = root_layout_of_driver(driver_version_near(seg)) or info['root_layout']
+            layout = ROOT / f'spirv/root_layout.mesa-{name}.json'
         self.layout = json.loads(Path(layout).read_text())
         self.w = w = make_workload(workload, size)
         self.work = work = Path(work)
@@ -5281,6 +5311,8 @@ def cmd_sim(a):
     for k in range(len(L.w.dispatches[:a.dispatches])):
         grid, args = L.args(k)
         cmd = [str(exe), str(L.main_bin), '--grid', ','.join(map(str, grid)), '--shared', str(L.shared)] + args
+        if os.environ.get('AGX_MAX_STEPS'):                  # per-workgroup step bound: a runaway loop fails, not hangs
+            cmd += ['--max-steps', os.environ['AGX_MAX_STEPS']]
         for b in L.w.buffers:
             cmd += ['--dump', f'{L.va[b]:#x}={L.size[b]}:{L.files[b]}']
         r = subprocess.run(cmd, capture_output=True, text=True)
@@ -5487,7 +5519,8 @@ def cmd_record(a):
             shutil.copy(run / 'shader.bin', dest / 'code/shader.bin')
             if (run / 'props.json').exists():
                 shutil.copy(run / 'props.json', dest / 'code/props.json')
-            ext = cmd_extract(argparse.Namespace(blob=str(dest / 'code/shader.bin'), out=str(dest / 'code')))
+            ext = cmd_extract(argparse.Namespace(blob=str(dest / 'code/shader.bin'), out=str(dest / 'code'),
+                                                 driver_version=r['device'].get('driver_version')))
             rec = {'workload': name, 'device': r['device'], 'test_recording_not_hardware': bool(why), 'recorded_utc': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()),
                    'inputs_sha256': input_hashes(w), 'numpy': np.__version__, 'small': {k: r.get(k) for k in
                    ('functional_ok', 'functional', 'gpu_ns', 'dispatch_ns_median', 'repeat')}, 'code_extracted': not ext}
@@ -5515,6 +5548,23 @@ def cmd_record(a):
     return 1 if bad else 0
 
 
+def run_limited(cmd, timeout):
+    """subprocess.run(cmd) with a wall-clock limit that also kills the command's own children (agx_run under sim);
+    None on timeout"""
+    p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, start_new_session=True)
+    try:
+        out, err = p.communicate(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        import signal
+        try:
+            os.killpg(p.pid, signal.SIGKILL)
+        except OSError:
+            pass
+        p.communicate()
+        return None
+    return subprocess.CompletedProcess(cmd, p.returncode, out, err)
+
+
 def verify_one(name, exp, layout, timing):
     d = exp / name
     if not (d / 'hardware.json').exists():
@@ -5536,9 +5586,12 @@ def verify_one(name, exp, layout, timing):
         return {'workload': name, 'status': 'FAIL', 'why': "the recording's driver code could not be extracted (see code/)"}
     work = Path(tempfile.mkdtemp(prefix=f'agx-verify-{name}-'))
     lay = ['--layout', layout] if layout else []
-    r = subprocess.run([sys.executable, '-B', __file__, 'sim', name, '--code-dir', str(d / 'code'), '--size', 'small', '--out', str(work)] + lay,
-                       capture_output=True, text=True)
+    limit = float(os.environ.get('AGX_VERIFY_TIMEOUT') or 0) or None    # seconds per simulation / prediction
+    r = run_limited([sys.executable, '-B', __file__, 'sim', name, '--code-dir', str(d / 'code'), '--size', 'small', '--out', str(work)] + lay, limit)
     res = {'workload': name, 'device': rec['device'].get('device'), 'hardware_matches_reference': rec['small']['functional_ok']}
+    if r is None:
+        shutil.rmtree(work, ignore_errors=True)
+        return {**res, 'status': 'FAIL', 'why': f'simulator timeout: sim did not finish in {limit:g} s (AGX_VERIFY_TIMEOUT)'}
     if r.returncode and not (work / 'sim.json').exists():
         shutil.rmtree(work, ignore_errors=True)
         return {**res, 'status': 'FAIL', 'why': 'simulator error: ' + (r.stdout + r.stderr).strip()[-300:]}
@@ -5563,9 +5616,11 @@ def verify_one(name, exp, layout, timing):
     if timing and rec.get('large', {}).get('dispatch_ns_median'):
         # prediction buffers go to a temporary directory: never next to the recordings, which get committed
         with tempfile.TemporaryDirectory() as tmp:
-            r = subprocess.run([sys.executable, '-B', __file__, 'predict', name, '--code-dir', str(d / 'code'), '--size', 'large',
-                                '--out', tmp] + lay, capture_output=True, text=True)
-        if r.returncode == 0:
+            r = run_limited([sys.executable, '-B', __file__, 'predict', name, '--code-dir', str(d / 'code'), '--size', 'large',
+                             '--out', tmp] + lay, limit)
+        if r is None:
+            res['timing'] = {'error': f'predict timeout ({limit:g} s)'}
+        elif r.returncode == 0:
             pred = json.loads(r.stdout)['dispatch_us']
             meas = [x / 1e3 for x in rec['large']['dispatch_ns_median']]
             res['timing'] = {'measured_us': round(sum(meas), 1), 'predicted_us': round(sum(pred), 1),
@@ -5574,9 +5629,9 @@ def verify_one(name, exp, layout, timing):
                 res['timing']['per_dispatch_us'] = [[round(m, 2), round(q, 2)] for m, q in zip(meas, pred)]
             if name in STATEFUL:                                                 # multi-pass: also from the evolving state
                 with tempfile.TemporaryDirectory() as tmp:
-                    r2 = subprocess.run([sys.executable, '-B', __file__, 'predict', name, '--code-dir', str(d / 'code'), '--size', 'large',
-                                         '--out', tmp, '--stateful'] + lay, capture_output=True, text=True)
-                if r2.returncode == 0:
+                    r2 = run_limited([sys.executable, '-B', __file__, 'predict', name, '--code-dir', str(d / 'code'), '--size', 'large',
+                                      '--out', tmp, '--stateful'] + lay, limit)
+                if r2 is not None and r2.returncode == 0:
                     ps = json.loads(r2.stdout)['dispatch_us']
                     res['timing'].update({'predicted_stateful_us': round(sum(ps), 1),
                                           'ratio_stateful': round(sum(ps) / sum(meas), 3) if sum(meas) else None})
@@ -5607,7 +5662,9 @@ def timing_summary(rows):
 
 
 def cmd_verify(a):
-    """Simulator vs the recorded hardware results (spirv/expected); PENDING where nothing is recorded yet."""
+    """Simulator vs the recorded hardware results (spirv/expected); PENDING where nothing is recorded yet.
+    AGX_THREADS: workloads in parallel; AGX_VERIFY_TIMEOUT: seconds per sim / predict (a runaway one FAILs instead of
+    blocking); AGX_MAX_STEPS: agx_run --max-steps for sim (steps per workgroup)."""
     names = list(WORKLOADS) if a.workload == 'all' else a.workload.split(',')
     rows = pmap(lambda n: verify_one(n, Path(a.expected), a.layout, a.timing), names)
     for r in rows:

@@ -1,0 +1,26 @@
+{
+  "_comment": [
+    "hk_root_descriptor_table of Mesa 25.3.x, inferred from the preambles the M2's driver (Mesa 25.3.6, driver_version",
+    "104869894) compiled for all 177 recorded workloads in spirv/expected/*/code. Word = 32-bit word index.",
+    "Every root load agrees with 26.0 (spirv/root_layout.mesa-26.0.json) except the push constants: u0_u1 = the table's",
+    "own address, u2_u3.. = sets[0..set_count) preloaded by the driver, group_count_addr at words 18..19 (indirect",
+    "dispatch, loaded by aluprobe/geom3d/hist_eq/barriercost/coalesce/smembank), base_group at words 20..22 (173",
+    "workloads), descriptors read through u2_u3 at the same set offsets as 26.0 -- but push word n is root word 124 + n",
+    "(26.0: 122 + n), for every push load seen (words 124..129 scalar/vector, pushmat 124..187). So the draw arm of",
+    "the cs/draw union in front of push is 8 bytes longer in 25.3. root_bytes = 26.0's + 8, assuming the tail",
+    "(dynamic buffers, set_dynamic_buffer_start) is unchanged; no recorded workload reads past the push constants."
+  ],
+  "mesa": "25.3",
+  "uniforms": {"0": "root", "2": "set"},
+  "root_bytes": 1784,
+  "root": [
+    {"word": 0, "value": "self", "bytes": 8},
+    {"word": 2, "value": "set", "bytes": 8},
+    {"word": 18, "value": "group_count_addr", "bytes": 8},
+    {"word": 20, "value": "base:x"},
+    {"word": 21, "value": "base:y"},
+    {"word": 22, "value": "base:z"},
+    {"word": 124, "value": "push"}
+  ],
+  "descriptor": {"stride": 16, "fields": [{"word": 0, "value": "buffer:B", "bytes": 8}, {"word": 2, "value": "buffer_size:B"}]}
+}

@@ -1,0 +1,182 @@
+PASS     reduce      differing words      0  time measured 53.2 us predicted 467.2 us
+PASS     scan        differing words      0  time measured 38.8 us predicted 43.9 us
+PASS     sgemm       differing words      0  time measured 32.7 us predicted 2069.2 us
+PASS     conv2d      differing words      0  time measured 29.1 us predicted 290.0 us
+PASS     histogram   differing words      0  time measured 26.7 us predicted 58.6 us
+PASS     nbody       differing words      0  time measured 27.3 us predicted 6596.7 us
+PASS     bitonic     differing words      0  time measured 1141.4 us predicted 1719.7 us
+PASS     sha256      differing words      0  time measured 31.3 us predicted 4761.8 us
+PASS     fp16        differing words      0  time measured 31.2 us predicted 111.6 us
+PASS     int64       differing words      0  time measured 30.6 us predicted 143.3 us
+PASS     bitops      differing words      0  time measured 27.2 us predicted 98.4 us
+PASS     intdiv      differing words      0  time measured 36.0 us predicted 234.6 us
+PASS     compact     differing words      0  time measured 80.9 us predicted 1991.7 us
+PASS     spmv        differing words      0  time measured 32.4 us predicted 802.0 us
+PASS     transpose   differing words      0  time measured 33.2 us predicted 270.1 us
+PASS     mandelbrot  differing words      0  time measured 29.9 us predicted 88.2 us
+CLOSE    softmax     differing words  42884  time measured 35.6 us predicted 498.1 us  (42884 words differ, both within the reference tolerance)
+PASS     rgba8       differing words      0  time measured 31.7 us predicted 100.0 us
+CLOSE    atomics     differing words   1536  time measured 28.6 us predicted 103.9 us  (1536 words differ, both within the reference tolerance)
+PASS     geom3d      differing words      0  time measured 28.5 us predicted 326.7 us
+PASS     spill       differing words      0  time measured 34.5 us predicted 347.8 us
+PASS     control     differing words      0  time measured 27.8 us predicted 539.1 us
+PASS     shuffle     differing words      0  time measured 26.9 us predicted 95.7 us
+PASS     floatops    differing words      0  time measured 26.7 us predicted 92.5 us
+PASS     radix_sort  differing words      0  time measured 531.0 us predicted 4721.6 us
+CLOSE    fft         differing words   7004  time measured 34.0 us predicted 367.3 us  (7004 words differ, both within the reference tolerance)
+PASS     crc32       differing words      0  time measured 27.4 us predicted 125.6 us
+PASS     kmeans      differing words      0  time measured 29.9 us predicted 257.4 us
+PASS     int8dot     differing words      0  time measured 29.1 us predicted 4778.8 us
+PASS     stencil3d   differing words      0  time measured 34.4 us predicted 718.2 us
+PASS     int16       differing words      0  time measured 30.6 us predicted 109.6 us
+CLOSE    trig        differing words  14168  time measured 31.0 us predicted 234.8 us  (14168 words differ, both within the reference tolerance)
+PASS     raytrace    differing words      0  time measured 27.4 us predicted 180.0 us
+CLOSE    mlp         differing words    631  time measured 30.3 us predicted 6249.7 us  (631 words differ, both within the reference tolerance)
+PASS     sobel       differing words      0  time measured 28.0 us predicted 305.5 us
+PASS     life        differing words      0  time measured 1343.4 us predicted 14621.7 us
+PASS     bfs         differing words      0  time measured 654.3 us predicted 919.0 us
+PASS     conv_layer  differing words      0  time measured 30.0 us predicted 2234.2 us
+PASS     hist_eq     differing words      0  time measured 71.6 us predicted 207.0 us
+PASS     aes         differing words      0  time measured 31.1 us predicted 574.0 us
+CLOSE    hash_table  differing words   1088  time measured 53.7 us predicted 429.0 us  (1088 words differ, both within the reference tolerance)
+PASS     word_count  differing words      0  time measured 30.1 us predicted 1901.2 us
+PASS     dct8        differing words      0  time measured 32.9 us predicted 3025.9 us
+CLOSE    attention   differing words   3234  time measured 32.2 us predicted 16414.4 us  (3234 words differ, both within the reference tolerance)
+PASS     resize      differing words      0  time measured 29.8 us predicted 339.4 us
+PASS     median3     differing words      0  time measured 27.4 us predicted 372.3 us
+PASS     poisson     differing words      0  time measured 2860.5 us predicted 7211.8 us
+PASS     lbm         differing words      0  time measured 3543.8 us predicted 8819.9 us
+PASS     base64      differing words      0  time measured 27.1 us predicted 99.4 us
+PASS     md5         differing words      0  time measured 28.0 us predicted 881.0 us
+PASS     gemv        differing words      0  time measured 29.9 us predicted 855.9 us
+PASS     levenshtein differing words      0  time measured 31.3 us predicted 18523.0 us
+PASS     blur        differing words      0  time measured 61.8 us predicted 1410.0 us
+PASS     yuv420      differing words      0  time measured 32.0 us predicted 178.1 us
+PASS     montecarlo  differing words      0  time measured 27.3 us predicted 1610.1 us
+PASS     xxhash      differing words      0  time measured 31.3 us predicted 875.7 us
+PASS     bloom       differing words      0  time measured 53.4 us predicted 874.3 us
+PASS     collatz     differing words      0  time measured 29.9 us predicted 2798.2 us
+PASS     tridiag     differing words      0  time measured 40.6 us predicted 1298.5 us
+PASS     merge       differing words      0  time measured 41.2 us predicted 1667.0 us
+PASS     ccl         differing words      0  time measured 3436.4 us predicted 5002.2 us
+PASS     pagerank    differing words      0  time measured 444.9 us predicted 30579.2 us
+PASS     skinning    differing words      0  time measured 33.5 us predicted 341.8 us
+PASS     strsearch   differing words      0  time measured 35.1 us predicted 1433.5 us
+PASS     quantize    differing words      0  time measured 32.5 us predicted 157.4 us
+PASS     rule110     differing words      0  time measured 16673.8 us predicted 6364.9 us
+PASS     voxel       differing words      0  time measured 31.5 us predicted 585.9 us
+PASS     nms         differing words      0  time measured 26.8 us predicted 77.5 us
+PASS     sat         differing words      0  time measured 58.1 us predicted 1796.4 us
+PASS     sssp        differing words      0  time measured 1077.4 us predicted 858.0 us
+PASS     morton      differing words      0  time measured 33.7 us predicted 334.4 us
+PASS     utf8        differing words      0  time measured 32.2 us predicted 520.1 us
+PASS     fir         differing words      0  time measured 34.7 us predicted 1056.4 us
+PASS     composite   differing words      0  time measured 33.4 us predicted 280.1 us
+PASS     nqueens     differing words      0  time measured 29.8 us predicted 4708.4 us
+PASS     lzmatch     differing words      0  time measured 26.8 us predicted 1014.2 us
+PASS     bitpack     differing words      0  time measured 32.1 us predicted 1130.9 us
+PASS     perlin      differing words      0  time measured 26.4 us predicted 287.5 us
+PASS     adler32     differing words      0  time measured 32.0 us predicted 512.3 us
+PASS     sieve       differing words      0  time measured 28.5 us predicted 3262.7 us
+PASS     gcd         differing words      0  time measured 37.9 us predicted 223.3 us
+PASS     dither      differing words      0  time measured 28.4 us predicted 576.8 us
+PASS     advect      differing words      0  time measured 728.1 us predicted 1283.9 us
+PASS     knn         differing words      0  time measured 29.0 us predicted 9156.8 us
+PASS     csvparse    differing words      0  time measured 33.9 us predicted 555.4 us
+PASS     pip         differing words      0  time measured 29.5 us predicted 6841.3 us
+PASS     lift53      differing words      0  time measured 33.3 us predicted 233.7 us
+PASS     chacha20    differing words      0  time measured 31.5 us predicted 287.1 us
+PASS     modexp      differing words      0  time measured 31.1 us predicted 30278.3 us
+PASS     floyd       differing words      0  time measured 5796.4 us predicted 4577.6 us
+PASS     f16pack     differing words      0  time measured 57.8 us predicted 285.8 us
+PASS     raster      differing words      0  time measured 30.3 us predicted 961.6 us
+PASS     canny       differing words      0  time measured 54.2 us predicted 574.2 us
+PASS     secded      differing words      0  time measured 56.4 us predicted 356.5 us
+PASS     bicubic     differing words      0  time measured 33.4 us predicted 449.1 us
+PASS     dfa         differing words      0  time measured 30.4 us predicted 956.1 us
+PASS     b64decode   differing words      0  time measured 26.8 us predicted 83.3 us
+PASS     cordic      differing words      0  time measured 32.1 us predicted 467.5 us
+PASS     rsenc       differing words      0  time measured 32.5 us predicted 1648.8 us
+UNSIM    texfetch     (texture sampling, image access and indirect dispatch are not modelled by the simulator (hardware verification only))
+UNSIM    texfilter    (texture sampling, image access and indirect dispatch are not modelled by the simulator (hardware verification only))
+UNSIM    imgerode     (texture sampling, image access and indirect dispatch are not modelled by the simulator (hardware verification only))
+UNSIM    imgtonemap   (texture sampling, image access and indirect dispatch are not modelled by the simulator (hardware verification only))
+NODEV    argmax64     (the driver does not offer buffer_int64_atomics, which the shader needs)
+NODEV    minmax64     (the driver does not offer buffer_int64_atomics, which the shader needs)
+NODEV    dsum         (the driver does not offer float64, which the shader needs)
+PASS     quadmip     differing words      0  time measured 33.9 us predicted 985.1 us
+PASS     clustered   differing words      0  time measured 31.0 us predicted 413.1 us
+PASS     specblur    differing words      0  time measured 30.4 us predicted 293.8 us
+UNSIM    cullindirect  (texture sampling, image access and indirect dispatch are not modelled by the simulator (hardware verification only))
+PASS     bigsort     differing words      0  time measured 31.6 us predicted 2579.5 us
+PASS     pushmat     differing words      0  time measured 34.4 us predicted 362.2 us
+CLOSE    mplitmus    differing words      3  time measured 25.3 us predicted 27.2 us  (3 words differ, both within the reference tolerance)
+NODEV    splat        (the driver does not offer buffer_float32_atomic_add, which the shader needs)
+PASS     splatfix    differing words      0  time measured 30.9 us predicted 588.3 us
+PASS     smembank    differing words      0  time measured 153.9 us predicted 683.1 us
+PASS     coalesce    differing words      0  time measured 131.8 us predicted 2098.7 us
+PASS     atomcontend differing words      0  time measured 141.7 us predicted 57.4 us
+PASS     barriercost differing words      0  time measured 76.1 us predicted 232.7 us
+PASS     aluprobe    differing words      0  time measured 137.7 us predicted 531.0 us
+PASS     ubopalette  differing words      0  time measured 35.0 us predicted 504.4 us
+PASS     uboparams   differing words      0  time measured 30.9 us predicted 87.5 us
+PASS     bindless    differing words      0  time measured 32.6 us predicted 525.3 us
+PASS     bindlessu   differing words      0  time measured 31.0 us predicted 322.0 us
+PASS     rle         differing words      0  time measured 94.2 us predicted 2089.4 us
+PASS     huffdec     differing words      0  time measured 29.3 us predicted 257.2 us
+CLOSE    lookback    differing words      1  time measured 29.2 us predicted 55.1 us  (1 words differ, both within the reference tolerance)
+PASS     hll         differing words      0  time measured 35.9 us predicted 344.5 us
+PASS     tricount    differing words      0  time measured 31.3 us predicted 3736.0 us
+PASS     sha3        differing words      0  time measured 30.0 us predicted 454.4 us
+PASS     stereo      differing words      0  time measured 55.4 us predicted 3616.5 us
+PASS     viterbi     differing words      0  [hardware does not match the numpy reference]  time measured 28.0 us predicted 3648.0 us
+PASS     viterbifix  differing words      0  time measured 28.8 us predicted 3720.2 us
+PASS     shiftfuse   differing words      0  [hardware does not match the numpy reference]  time measured 33.0 us predicted 178.0 us
+PASS     bc1enc      differing words      0  time measured 27.7 us predicted 100.2 us
+PASS     lz4dec      differing words      0  [hardware does not match the numpy reference]  time measured 25.7 us predicted 24.9 us
+PASS     nttmul      differing words      0  time measured 29.0 us predicted 247.5 us
+PASS     topk        differing words      0  time measured 31.9 us predicted 836.8 us
+CLOSE    cellsort    differing words   8328  time measured 83.8 us predicted 639.1 us  (8328 words differ, both within the reference tolerance)
+PASS     boruvka     differing words      0  time measured 1811.7 us predicted 42947.6 us
+PASS     biquad      differing words      0  time measured 36.8 us predicted 3747.5 us
+PASS     edt         differing words      0  time measured 52.4 us predicted 783.6 us
+PASS     mt19937     differing words      0  time measured 31.3 us predicted 479.0 us
+PASS     bitap       differing words      0  [hardware does not match the numpy reference]  time measured 27.4 us predicted 308.3 us
+PASS     cholesky    differing words      0  time measured 29.6 us predicted 572.3 us
+PASS     rsshash     differing words      0  time measured 31.7 us predicted 1236.6 us
+PASS     poly1305    differing words      0  time measured 32.1 us predicted 322.0 us
+PASS     crc32c      differing words      0  time measured 54.1 us predicted 700.6 us
+PASS     siphash     differing words      0  time measured 33.1 us predicted 257.1 us
+PASS     blake2s     differing words      0  time measured 36.3 us predicted 13284.4 us
+PASS     blake2sfast differing words      0  time measured 29.3 us predicted 183.5 us
+PASS     q4gemv      differing words      0  time measured 27.8 us predicted 200.2 us
+CLOSE    attndec     differing words    321  time measured 33.1 us predicted 2447.8 us  (321 words differ, both within the reference tolerance)
+CLOSE    attndecsplit differing words    312  time measured 44.2 us predicted 634.3 us  (312 words differ, both within the reference tolerance)
+CLOSE    rmsrope     differing words  56554  time measured 34.2 us predicted 205.1 us  (56554 words differ, both within the reference tolerance)
+PASS     q8dot       differing words      0  time measured 29.0 us predicted 64.3 us
+PASS     isp         differing words      0  time measured 33.9 us predicted 1981.1 us
+CLOSE    contour     differing words   1905  time measured 31.5 us predicted 466.6 us  (1905 words differ, both within the reference tolerance)
+PASS     hough       differing words      0  time measured 27.4 us predicted 238.8 us
+PASS     spmvsg      differing words      0  time measured 29.4 us predicted 405.2 us
+PASS     varint      differing words      0  time measured 83.4 us predicted 2147.2 us
+PASS     bvhrays     differing words      0  time measured 26.3 us predicted 458.8 us
+PASS     adamw       differing words      0  time measured 33.8 us predicted 202.2 us
+PASS     stream      differing words      0  time measured 162.7 us predicted 2672.0 us
+PASS     motionest   differing words      0  time measured 17.4 us predicted 4925.2 us
+PASS     jsonidx     differing words      0  time measured 30.2 us predicted 333.4 us
+PASS     cdc         differing words      0  [hardware does not match the numpy reference]  time measured 68.2 us predicted 5958.3 us
+PASS     swalign     differing words      0  time measured 39.8 us predicted 72209.2 us
+PASS     swalignfit  differing words      0  time measured 35.5 us predicted 33476.5 us
+PASS     swalignpad  differing words      0  time measured 30.2 us predicted 56823.6 us
+PASS     jpcolor     differing words      0  time measured 577.4 us predicted 28786.1 us
+PASS     postings    differing words      0  time measured 30.5 us predicted 2113.7 us
+PASS     tpchq6      differing words      0  time measured 30.6 us predicted 329.5 us
+PASS     ghash       differing words      0  time measured 29.3 us predicted 705.0 us
+PASS     scrypt      differing words      0  time measured 36.5 us predicted 17365.9 us
+PASS     pngunfilter differing words      0  time measured 36.4 us predicted 5924.3 us
+PASS     inflate     differing words      0  time measured 30.4 us predicted 20759.5 us
+PASS     inflateshm  differing words      0  time measured 37.9 us predicted 20580.0 us
+CLOSE    csrbuild    differing words  15182  time measured 117.1 us predicted 385.7 us  (15182 words differ, both within the reference tolerance)
+CLOSE    blackscholes differing words   6028  time measured 34.5 us predicted 337.9 us  (6028 words differ, both within the reference tolerance)
+CLOSE    warphash    differing words   3830  time measured 69.3 us predicted 6759.3 us  (3830 words differ, both within the reference tolerance)
+{"summary": {"PASS": 155, "CLOSE": 17, "UNSIM": 5, "NODEV": 4}, "timing": {"workloads": 172, "median_factor": 13.59, "p90_factor": 152.176, "within_10pct": 2, "within_25pct": 3, "within_2x": 10, "most_under_predicted": [["rule110", 0.382], ["atomcontend", 0.405], ["floyd", 0.79], ["sssp", 0.796], ["lz4dec", 0.97]], "most_over_predicted": [["swalignpad", 1883.667], ["swalign", 1815.623], ["modexp", 972.798], ["swalignfit", 942.442], ["inflate", 682.508]]}, "stateful_vs_default": [{"workload": "bfs", "ratio_default": 1.405, "ratio_stateful": 4.521, "closer": "default"}, {"workload": "ccl", "ratio_default": 1.456, "ratio_stateful": 1.456, "closer": "default"}, {"workload": "pagerank", "ratio_default": 68.727, "ratio_stateful": 68.727, "closer": "default"}, {"workload": "sssp", "ratio_default": 0.796, "ratio_stateful": 1.79, "closer": "default"}, {"workload": "lookback", "ratio_default": 1.889, "ratio_stateful": 1.889, "closer": "default"}, {"workload": "cellsort", "ratio_default": 7.623, "ratio_stateful": 13.764, "closer": "default"}, {"workload": "boruvka", "ratio_default": 23.706, "ratio_stateful": 17.789, "closer": "stateful"}, {"workload": "jpcolor", "ratio_default": 49.855, "ratio_stateful": 15.752, "closer": "stateful"}, {"workload": "csrbuild", "ratio_default": 3.293, "ratio_stateful": 7.727, "closer": "default"}, {"workload": "warphash", "ratio_default": 97.579, "ratio_stateful": 97.948, "closer": "default"}]}

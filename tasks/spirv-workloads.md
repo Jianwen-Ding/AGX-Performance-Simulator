@@ -314,14 +314,16 @@ references are right; a wrong result on the M2 is therefore a GPU, driver or run
      offline ones never do.
    - Any undecodable instruction in main or preamble is a decoder gap. Report it with its bytes.
 
-4. **Check the root-table layout once.** `extract` picks it from the preamble (`info.json` → `root_layout`):
-   `spirv/root_layout.mesa-26.0.json` when the preamble reads the set address from the preloaded `u2_u3` (Mesa >= 25.3),
-   `spirv/root_layout.mesa-25.2.json` otherwise. Both come from `offsetof()` on built drivers; 25.3.6 is expected to
-   match 26.0 (the stored control shader reads base_group from words 20..22 and push word 2 from word 124).
+4. **Check the root-table layout once.** `extract` picks it from the compiling driver's `driver_version`
+   (`device.json` from `compile`, the recording's device / `hardware.json` from `record`; `info.json` → `root_layout`,
+   and `sim`/`verify` re-derive it from those files): `spirv/root_layout.mesa-25.2.json` up to 25.2,
+   `spirv/root_layout.mesa-25.3.json` for 25.3, `spirv/root_layout.mesa-26.0.json` from 26.0. 25.2 and 26.0 come from
+   `offsetof()` on built drivers; 25.3 is inferred from all 177 recorded 25.3.6 preambles: identical to 26.0 except
+   that push constants start at root word 124 (26.0: 122). Without a driver version it falls back to the preamble
+   (`u2_u3` read -> 26.0, else 25.2), which mislabels texture-only shaders.
 
    - Verify it with a one-binding probe shader: write `gl_GlobalInvocationID`, push constants and `gl_NumWorkGroups`
-     to a buffer. `sim` must then match the hardware word for word. If it does not, write the corrected layout to
-     `spirv/root_layout.mesa-25.3.json` and pass it with `--layout`.
+     to a buffer. `sim` must then match the hardware word for word. If it does not, correct the layout file.
 
 5. **Simulate functionally:**
 
