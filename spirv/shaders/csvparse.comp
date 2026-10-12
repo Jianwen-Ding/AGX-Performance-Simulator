@@ -1,0 +1,30 @@
+#version 450
+// Parse fixed-width CSV integer fields (12 characters, right-aligned, optional '-', spaces before): one thread per
+// field accumulates the decimal digits and flags fields that hold anything else (letters, a misplaced sign, empty)
+// as invalid. Integer-exact; the ingest step of data pipelines.
+#extension GL_EXT_shader_8bit_storage : require
+#extension GL_EXT_shader_explicit_arithmetic_types_int8 : require
+layout(local_size_x = 256) in;
+layout(std430, binding = 0) readonly buffer T { uint8_t text[]; };  // 13 bytes per field: 12 characters and ',' or '\n'
+layout(std430, binding = 1) writeonly buffer V { int vals[]; };
+layout(std430, binding = 2) writeonly buffer F { uint valid[]; };
+layout(push_constant) uniform P { uint n; } p;
+
+void main() {
+    uint f = gl_GlobalInvocationID.x;
+    if (f >= p.n) return;
+    uint base = 13u * f;
+    int v = 0;
+    bool neg = false, ok = true, seen = false, started = false;
+    for (uint k = 0u; k < 12u; k++) {
+        uint c = uint(text[base + k]);
+        if (c == 32u && !started) continue;               // leading spaces
+        started = true;
+        if (c == 45u && !seen && !neg) { neg = true; continue; }
+        if (c >= 48u && c <= 57u) { v = v * 10 + int(c - 48u); seen = true; }
+        else ok = false;
+    }
+    ok = ok && seen;
+    vals[f] = ok ? (neg ? -v : v) : 0;
+    valid[f] = ok ? 1u : 0u;
+}

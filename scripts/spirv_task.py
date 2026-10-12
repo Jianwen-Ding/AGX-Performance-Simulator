@@ -1912,6 +1912,100 @@ def w_advect(size, rng):
              (16, 16, 1), {'cell_updates': n * n * steps}, images=[(2, n, n, 'gray8')])
 
 
+def w_knn(size, rng):
+    nref, nq = (300, 512) if size == 'small' else (4096, 1 << 16)
+    refs = rng.integers(-10000, 10001, (nref, 2)).astype(np.int32)
+    refs[nref // 2] = refs[0]                                                  # duplicate point: an exact tie
+    queries = rng.integers(-10000, 10001, (nq, 2)).astype(np.int32)
+    def check(o):
+        gi = o[2].view(np.uint32)[:8 * nq].reshape(nq, 8); gd = o[3].view(np.uint32)[:8 * nq].reshape(nq, 8)
+        r64 = refs.astype(np.int64); bad = 0
+        for c in range(0, nq, 1024):
+            q = queries[c:c + 1024].astype(np.int64)
+            d = ((q[:, None, :] - r64[None, :, :]) ** 2).sum(-1)
+            key = d * nref + np.arange(nref)[None, :]                         # sort by distance, then index
+            top = np.argsort(key, axis=1, kind='stable')[:, :8]
+            bad += int(np.sum(np.any(gi[c:c + 1024] != top, axis=1) | np.any(gd[c:c + 1024] != np.take_along_axis(d, top, 1), axis=1)))
+        return bad == 0, {'bad_queries': bad}
+    return W('knn', {0: (refs, False), 1: (queries, False), 2: (32 * nq, True), 3: (32 * nq, True)}, [((nq + 255) // 256, 1, 1, push(nref, nq))],
+             check, 256, {'distance_evals': nref * nq})
+
+
+def w_csvparse(size, rng):
+    n = 4096 if size == 'small' else 1 << 22
+    vals = rng.integers(-999999999, 1000000000, n)
+    fields = [str(v).rjust(12) for v in vals.tolist()]
+    for k in rng.choice(n, max(16, n // 200), replace=False):                  # malformed fields
+        fields[k] = rng.choice(['         12a', '        - 42', '       5-3  ', '            ', '         --7', '        1.50',
+                                '           -', 'abcdefghijkl', ' 12 34      '])
+    for k, w in zip(range(1, 6), ['          -0', '           0', '000000000017', '  -999999999', '   999999999']):
+        fields[k] = w
+    assert all(len(f) == 12 for f in fields)
+    text = np.frombuffer(''.join(f + (',' if (k % 8) != 7 else '\n') for k, f in enumerate(fields)).encode(), np.uint8).copy()
+    def check(o):
+        import re
+        got = o[1].view(np.int32)[:n]; ok_ = o[2].view(np.uint32)[:n]
+        pat = re.compile(r' *-?[0-9]+')
+        ref_ok = np.array([bool(pat.fullmatch(f)) for f in fields]); ref_v = np.array([int(f) if m else 0 for f, m in zip(fields, ref_ok)])
+        ok = np.array_equal(ok_, ref_ok.astype(np.uint32)) and np.array_equal(got, ref_v.astype(np.int32))
+        return ok, {'value_mismatches': int(np.sum(got != ref_v)), 'flag_mismatches': int(np.sum(ok_ != ref_ok)), 'invalid_fields': int((~ref_ok).sum())}
+    return W('csvparse', {0: (text, False), 1: (4 * n, True), 2: (4 * n, True)}, [((n + 255) // 256, 1, 1, push(n))], check, 256,
+             {'bytes': len(text)})
+
+
+def w_pip(size, rng):
+    nv, npt = (40, 2048) if size == 'small' else (500, 1 << 20)
+    ang = np.sort(rng.uniform(0, 2 * np.pi, nv))
+    rad = rng.uniform(3000, 10000, nv)                                          # star-shaped, many concave corners
+    verts = np.stack([np.round(rad * np.cos(ang)), np.round(rad * np.sin(ang))], 1).astype(np.int32)
+    pts = rng.integers(-11000, 11001, (npt, 2)).astype(np.int32)
+    pts[:4] = verts[:4]                                                         # vertices themselves (boundary cases)
+    def check(o):
+        got = o[2].view(np.int32)[:npt]
+        a = verts.astype(np.int64); b = np.roll(a, -1, 0); q = pts.astype(np.int64)
+        wn = np.zeros(npt, np.int64)
+        for k in range(nv):
+            left = (b[k, 0] - a[k, 0]) * (q[:, 1] - a[k, 1]) - (q[:, 0] - a[k, 0]) * (b[k, 1] - a[k, 1])
+            up = (a[k, 1] <= q[:, 1]) & (b[k, 1] > q[:, 1]) & (left > 0)
+            down = (a[k, 1] > q[:, 1]) & (b[k, 1] <= q[:, 1]) & (left < 0)
+            wn += up.astype(np.int64) - down
+        return np.array_equal(got, wn), {'mismatches': int(np.sum(got != wn)), 'inside': int(np.sum(wn != 0))}
+    return W('pip', {0: (verts, False), 1: (pts, False), 2: (4 * npt, True)}, [((npt + 255) // 256, 1, 1, push(nv, npt))], check, 256,
+             {'edge_tests': nv * npt})
+
+
+def lift53_ref(x):
+    """forward LeGall 5/3 by lifting on the rows of x (even length), symmetric extension; returns [s | d]"""
+    x = x.astype(np.int64); ev, od = x[:, 0::2], x[:, 1::2]
+    right = np.concatenate([ev[:, 1:], ev[:, -1:]], 1)
+    d = od - ((ev + right) >> 1)
+    left = np.concatenate([d[:, :1], d[:, :-1]], 1)
+    return np.concatenate([ev + ((left + d + 2) >> 2), d], 1)
+
+
+def lift53_inv(y):
+    h = y.shape[1] // 2; s, d = y[:, :h], y[:, h:]
+    left = np.concatenate([d[:, :1], d[:, :-1]], 1)
+    ev = s - ((left + d + 2) >> 2)
+    right = np.concatenate([ev[:, 1:], ev[:, -1:]], 1)
+    od = d + ((ev + right) >> 1)
+    x = np.empty_like(y); x[:, 0::2] = ev; x[:, 1::2] = od
+    return x
+
+
+def w_lift53(size, rng):
+    rows, ln = (16, 64) if size == 'small' else (4096, 2048)
+    gx = np.arange(ln)[None, :]
+    x = (2000 * np.sin(gx / 37.0 + np.arange(rows)[:, None]) + rng.integers(-300, 301, (rows, ln))).astype(np.int32)
+    def check(o):
+        got = o[1].view(np.int32)[:rows * ln].reshape(rows, ln).astype(np.int64)
+        ref = lift53_ref(x)
+        back = lift53_inv(got)
+        return np.array_equal(got, ref) and np.array_equal(back, x), {'mismatches': int(np.sum(got != ref)), 'reconstructs': bool(np.array_equal(back, x)),
+                                                                      'detail_energy_ratio': float((ref[:, ln // 2:] ** 2).sum() / (ref ** 2).sum())}
+    return W('lift53', {0: (x, False), 1: (4 * rows * ln, True)}, [(rows, 1, 1, push(ln))], check, 256, {'samples': rows * ln})
+
+
 WORKLOADS = {'reduce': w_reduce, 'scan': w_scan, 'sgemm': w_sgemm, 'conv2d': w_conv2d, 'histogram': w_histogram,
              'nbody': w_nbody, 'bitonic': w_bitonic, 'sha256': w_sha256, 'fp16': w_fp16, 'int64': w_int64, 'bitops': w_bitops,
              'intdiv': w_intdiv, 'compact': w_compact, 'spmv': w_spmv, 'transpose': w_transpose, 'mandelbrot': w_mandelbrot,
@@ -1929,7 +2023,8 @@ WORKLOADS = {'reduce': w_reduce, 'scan': w_scan, 'sgemm': w_sgemm, 'conv2d': w_c
              'nms': w_nms, 'sat': w_sat, 'sssp': w_sssp, 'morton': w_morton,
              'utf8': w_utf8, 'fir': w_fir, 'composite': w_composite, 'nqueens': w_nqueens,
              'lzmatch': w_lzmatch, 'bitpack': w_bitpack, 'perlin': w_perlin, 'adler32': w_adler32,
-             'sieve': w_sieve, 'gcd': w_gcd, 'dither': w_dither, 'advect': w_advect}
+             'sieve': w_sieve, 'gcd': w_gcd, 'dither': w_dither, 'advect': w_advect,
+             'knn': w_knn, 'csvparse': w_csvparse, 'pip': w_pip, 'lift53': w_lift53}
 
 
 # ---------------------------------------------------------------------------------------------------------------

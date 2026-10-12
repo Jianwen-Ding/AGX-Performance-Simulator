@@ -1,7 +1,7 @@
 # Task SPIR-V 8: applications (ray tracer, neural networks, image processing, cellular automaton, graph search,
 # encryption, hashing, text, compression)
 
-**Workloads:** `raytrace`, `mlp`, `sobel`, `life`, `bfs`, `conv_layer`, `hist_eq`, `aes`, `hash_table`, `word_count`, `dct8`, `attention`, `resize`, `median3`, `poisson`, `lbm`, `base64`, `md5`, `gemv`, `levenshtein`, `blur`, `yuv420`, `montecarlo`, `xxhash`, `bloom`, `collatz`, `tridiag`, `merge`, `ccl`, `pagerank`, `skinning`, `strsearch`, `quantize`, `rule110`, `voxel`, `nms`, `sat`, `sssp`, `morton`, `utf8`, `fir`, `composite`, `nqueens`, `lzmatch`, `bitpack`, `perlin`, `adler32`, `sieve`, `gcd`, `dither`, `advect`. These are recorded and verified by `make asahi-verify` with the others;
+**Workloads:** `raytrace`, `mlp`, `sobel`, `life`, `bfs`, `conv_layer`, `hist_eq`, `aes`, `hash_table`, `word_count`, `dct8`, `attention`, `resize`, `median3`, `poisson`, `lbm`, `base64`, `md5`, `gemv`, `levenshtein`, `blur`, `yuv420`, `montecarlo`, `xxhash`, `bloom`, `collatz`, `tridiag`, `merge`, `ccl`, `pagerank`, `skinning`, `strsearch`, `quantize`, `rule110`, `voxel`, `nms`, `sat`, `sssp`, `morton`, `utf8`, `fir`, `composite`, `nqueens`, `lzmatch`, `bitpack`, `perlin`, `adler32`, `sieve`, `gcd`, `dither`, `advect`, `knn`, `csvparse`, `pip`, `lift53`. These are recorded and verified by `make asahi-verify` with the others;
 they are **PENDING** until then. The detailed procedure is in `tasks/spirv-workloads.md`.
 
 ## Why these
@@ -63,11 +63,15 @@ reference.
 | `gcd` | Binary (Stein) GCD of 2^22 pairs of 32-bit integers sharing random factors, zeros and powers of two included | Exact against `numpy.gcd` |
 | `dither` | 8 × 8 Bayer ordered dithering of a 4096 × 4096 grayscale image to 1 bit per pixel | Exact packed bits; `image1.pgm` shows the dithered picture |
 | `advect` | 40 steps of semi-Lagrangian dye advection in a 1024² swirl (bilinear back-trace sampling) | Within a per-step bound of fp32 position rounding times the dye slope (≤ 1 per cell) |
+| `knn` | 8 nearest of 4096 integer reference points for 65536 queries, shared-memory tiles, insertion-sorted per thread | Exact indices and squared distances (ties to the lower index; a duplicated point forces one) |
+| `csvparse` | Parse 4M fixed-width CSV integer fields, flagging malformed ones (letters, stray signs, decimals, blanks) | Exact values and validity (reference: the regular expression ` *-?[0-9]+`) |
+| `pip` | Winding number of 2^20 points against a 500-vertex concave polygon with 64-bit cross products | Exact, vertices themselves included |
+| `lift53` | JPEG 2000 lossless LeGall 5/3 forward wavelet of 4096 rows of 2048 samples by integer lifting | Exact, and the inverse transform reconstructs the input |
 
 ## Offline sanity checks (not hardware verification)
 
 - **lavapipe:** all pass at both sizes.
-- **Shim-compiled Mesa 25.2.8 and 26.0.3 code on the functional simulator:** 102 of 102.
+- **Shim-compiled Mesa 25.2.8 and 26.0.3 code on the functional simulator:** 110 of 110.
   - `bfs` found a simulator bug. Mesa aggregates `atomicAdd(found[l], 1)` under divergence: one lane, chosen with SR58
     (`active_thread_index_in_simdgroup`), adds SR59, the number of active lanes. The simulator modelled both from the
     launch shape (lane index, 32), which is only right when every lane is active, so the counts came out as multiples
@@ -117,3 +121,4 @@ reference.
     the `perlin` height map next to the simulator's.
 13. `sieve`, `gcd` and `dither` are exact and must PASS; `advect` is fp32 interpolation over 40 dispatches, so expect
     CLOSE. Its bound is derived (positions rounded to fp32, dye slope at most 1 per cell, non-expansive sampling).
+14. `knn`, `csvparse`, `pip` and `lift53` are exact and must PASS.

@@ -1,0 +1,27 @@
+#version 450
+// Integer LeGall 5/3 wavelet (JPEG 2000 lossless) forward transform of each row by lifting, one workgroup per
+// row held in shared memory: predict d[i] = x[2i+1] - floor((x[2i] + x[2i+2]) / 2), then update
+// s[i] = x[2i] + floor((d[i-1] + d[i] + 2) / 4), with symmetric extension at both ends. Output [s | d] per row.
+// Integer-exact and perfectly invertible.
+layout(local_size_x = 256) in;
+layout(std430, binding = 0) readonly buffer X { int x[]; };
+layout(std430, binding = 1) writeonly buffer Y { int y[]; };
+layout(push_constant) uniform P { uint len; } p;            // even, at most 2048
+shared int row[2048];
+shared int dd[1024];
+
+void main() {
+    uint r = gl_WorkGroupID.x, t = gl_LocalInvocationID.x, half_ = p.len / 2u;
+    for (uint k = t; k < p.len; k += 256u) row[k] = x[r * p.len + k];
+    barrier();
+    for (uint i = t; i < half_; i += 256u) {
+        int right = (2u * i + 2u < p.len) ? row[2u * i + 2u] : row[2u * i];           // mirror x[len] = x[len - 2]
+        dd[i] = row[2u * i + 1u] - ((row[2u * i] + right) >> 1);
+    }
+    barrier();
+    for (uint i = t; i < half_; i += 256u) {
+        int left = i > 0u ? dd[i - 1u] : dd[0];                                       // mirror d[-1] = d[0]
+        y[r * p.len + i] = row[2u * i] + ((left + dd[i] + 2) >> 2);
+        y[r * p.len + half_ + i] = dd[i];
+    }
+}
