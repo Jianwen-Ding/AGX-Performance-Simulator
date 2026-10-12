@@ -543,6 +543,59 @@ def w_sha3(size, rng):
              {'hashes': n, 'bytes': 64 * n})
 
 
+def stereo_ref(left, right, maxd=64):
+    H, Wd = left.shape
+    def census(img):
+        pad = np.pad(img, 2, mode='edge').astype(np.int64); c = img.astype(np.int64); bits = np.zeros((H, Wd), np.int64)
+        for dy in range(-2, 3):
+            for dx in range(-2, 3):
+                if dx == 0 and dy == 0:
+                    continue
+                bits = (bits << 1) | (pad[2 + dy:2 + dy + H, 2 + dx:2 + dx + Wd] < c)
+        return bits.astype(np.uint32)
+    cl, cr = census(left), census(right)
+    xs = np.arange(Wd); best = np.full((H, Wd), 1 << 30, np.int64); bd = np.zeros((H, Wd), np.int64)
+    pop = np.array([bin(i).count('1') for i in range(256)], np.int64)
+    def popc(v):
+        v = v.astype(np.uint32)
+        return pop[v & 255] + pop[(v >> 8) & 255] + pop[(v >> 16) & 255] + pop[v >> 24]
+    for d in range(maxd):
+        ham = popc(cl ^ cr[:, np.maximum(xs - d, 0)])                          # per (y, xl) with xr = max(xl - d, 0)
+        hp = np.pad(ham, 2, mode='edge')                                         # clamp on y and on xl
+        cost = sum(hp[2 + dy:2 + dy + H, 2 + dx:2 + dx + Wd] for dy in range(-2, 3) for dx in range(-2, 3))
+        better = cost < best; best[better] = cost[better]; bd[better] = d
+    return bd.astype(np.uint32)
+
+
+def w_stereo(size, rng):
+    Wd, H = (96, 48) if size == 'small' else (1024, 512)
+    # a scene of fronto-parallel layers: textured background, then rectangles at larger disparities; the right
+    # image sees each layer shifted left by its disparity, plus sensor noise
+    tex = rng.integers(0, 256, (H, Wd + 64)).astype(np.int64)
+    dmap = np.full((H, Wd), 4, np.int64)
+    for _ in range(12 if size == 'large' else 3):
+        x0, y0 = rng.integers(0, Wd - Wd // 6), rng.integers(0, H - H // 4)
+        dmap[y0:y0 + H // 4, x0:x0 + Wd // 6] = rng.integers(8, 60)
+    left = np.zeros((H, Wd), np.int64); right = np.zeros((H, Wd), np.int64)
+    ys, xs = np.mgrid[0:H, 0:Wd]
+    left = tex[ys, xs + 32]
+    right = left.copy()
+    xsrc = xs + dmap                                                             # right(x) = left(x + d)
+    ok = xsrc < Wd
+    right[ok] = left[ys[ok], xsrc[ok]]
+    left = np.clip(left + rng.integers(-3, 4, left.shape), 0, 255).astype(np.uint32)
+    right = np.clip(right + rng.integers(-3, 4, right.shape), 0, 255).astype(np.uint32)
+    ref = stereo_ref(left, right)
+    def check(o):
+        got = o[4].view(np.uint32)[:Wd * H].reshape(H, Wd)
+        bad = int(np.sum(got != ref))
+        return bad == 0, {'mismatches': bad, 'within_1px_of_truth': round(float(np.mean(np.abs(got.astype(np.int64) - dmap) <= 1)), 4)}
+    n = Wd * H
+    ds = [((Wd + 15) // 16, (H + 15) // 16, 1, push(k, Wd, H)) for k in (0, 1)]
+    return W('stereo', {0: (u32(left), False), 1: (u32(right), False), 2: (4 * n, False), 3: (4 * n, False), 4: (4 * n, True)},
+             ds, check, (16, 16, 1), {'items': n * 64})
+
+
 def w_spmv(size, rng):
     rows, cols = (512, 512) if size == 'small' else (1 << 18, 1 << 18)
     nnz = rng.integers(0, 64, rows) * (rng.random(rows) < 0.95)    # some empty rows
@@ -3072,7 +3125,7 @@ WORKLOADS = {'reduce': w_reduce, 'scan': w_scan, 'sgemm': w_sgemm, 'conv2d': w_c
              'aluprobe': w_aluprobe, 'ubopalette': w_ubopalette, 'uboparams': w_uboparams,
              'bindless': w_bindless, 'bindlessu': w_bindlessu,
              # appended only: the input seed is the index in this dict
-             'rle': w_rle, 'huffdec': w_huffdec, 'lookback': w_lookback, 'hll': w_hll, 'tricount': w_tricount, 'sha3': w_sha3}
+             'rle': w_rle, 'huffdec': w_huffdec, 'lookback': w_lookback, 'hll': w_hll, 'tricount': w_tricount, 'sha3': w_sha3, 'stereo': w_stereo}
 
 
 # ---------------------------------------------------------------------------------------------------------------
