@@ -7,6 +7,9 @@ make asahi-verify            # = scripts/asahi_verify.sh: preflight, build, reco
 git add spirv/expected results/*-asahi-verify && git commit -m 'Asahi verification: SPIR-V workloads recorded on the M2'
 ```
 
+After the run, read `tasks/m2-run-checklist.md` first: it lists the questions the recording settles and the change
+attached to each outcome.
+
 None of these tests counts as verified yet. Until the M2 has run them, `make spirv-verify` reports every workload as
 **PENDING**. Passing the numpy reference (lavapipe, or the simulator on shim-compiled code) only shows that the shader
 and the reference agree; that is a sanity check, not hardware verification.
