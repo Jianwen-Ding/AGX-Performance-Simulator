@@ -1,7 +1,7 @@
 # Task SPIR-V 8: applications (ray tracer, neural networks, image processing, cellular automaton, graph search,
 # encryption, hashing, text, compression)
 
-**Workloads:** `raytrace`, `mlp`, `sobel`, `life`, `bfs`, `conv_layer`, `hist_eq`, `aes`, `hash_table`, `word_count`, `dct8`, `attention`, `resize`, `median3`, `poisson`, `lbm`, `base64`, `md5`, `gemv`, `levenshtein`, `blur`, `yuv420`, `montecarlo`, `xxhash`, `bloom`, `collatz`, `tridiag`, `merge`, `ccl`, `pagerank`, `skinning`, `strsearch`, `quantize`, `rule110`, `voxel`, `nms`, `sat`, `sssp`, `morton`, `utf8`, `fir`, `composite`, `nqueens`, `lzmatch`, `bitpack`, `perlin`, `adler32`, `sieve`, `gcd`, `dither`, `advect`, `knn`, `csvparse`, `pip`, `lift53`, `chacha20`, `modexp`, `floyd`, `f16pack`, `raster`, `canny`, `secded`, `bicubic`, `dfa`, `b64decode`, `cordic`, `rsenc`, `texfetch`, `texfilter`, `imgerode`, `imgtonemap`, `argmax64`, `minmax64`, `dsum`, `quadmip`, `clustered`, `specblur`, `cullindirect`. These are recorded and verified by `make asahi-verify` with the others;
+**Workloads:** `raytrace`, `mlp`, `sobel`, `life`, `bfs`, `conv_layer`, `hist_eq`, `aes`, `hash_table`, `word_count`, `dct8`, `attention`, `resize`, `median3`, `poisson`, `lbm`, `base64`, `md5`, `gemv`, `levenshtein`, `blur`, `yuv420`, `montecarlo`, `xxhash`, `bloom`, `collatz`, `tridiag`, `merge`, `ccl`, `pagerank`, `skinning`, `strsearch`, `quantize`, `rule110`, `voxel`, `nms`, `sat`, `sssp`, `morton`, `utf8`, `fir`, `composite`, `nqueens`, `lzmatch`, `bitpack`, `perlin`, `adler32`, `sieve`, `gcd`, `dither`, `advect`, `knn`, `csvparse`, `pip`, `lift53`, `chacha20`, `modexp`, `floyd`, `f16pack`, `raster`, `canny`, `secded`, `bicubic`, `dfa`, `b64decode`, `cordic`, `rsenc`, `texfetch`, `texfilter`, `imgerode`, `imgtonemap`, `argmax64`, `minmax64`, `dsum`, `quadmip`, `clustered`, `specblur`, `cullindirect`, `bigsort`, `pushmat`, `mplitmus`. These are recorded and verified by `make asahi-verify` with the others;
 they are **PENDING** until then. The detailed procedure is in `tasks/spirv-workloads.md`.
 
 ## Why these
@@ -90,6 +90,9 @@ reference.
 | `clustered` | Clustered add (2, 4, 8 lanes) and max (8 lanes) over 4M values | Exact, grouped by the ids the device reports |
 | `specblur` | 15-tap horizontal box filter of a 4K 8-bit image; radius 7 and workgroup 128 from specialization constants | Exact |
 | `cullindirect` | Cull 2^20 spheres against a 6-plane frustum, write dispatch arguments from the visible count, then an indirect dispatch assigns levels of detail | Exact visible set, count, arguments and per-object LOD |
+| `bigsort` | 512 workgroups each sort 8192 keys in 32 KiB of shared memory with 1024 invocations (bitonic, barrier per stage) | Exact |
+| `pushmat` | 4M vertices through four mat4 (256 bytes of push constants), integer-valued so fp32 is exact | Bit-exact |
+| `mplitmus` | 4096 writer / reader workgroup pairs race on data + flag: release / acquire atomics, and relaxed for comparison, with no waiting | Zero stale reads after an acquire; relaxed stale reads are reported, not judged |
 
 ## Offline sanity checks (not hardware verification)
 
@@ -183,3 +186,13 @@ reference.
     in, and the simulator runs that code.
     **`cullindirect`** is the first launch whose size the GPU itself computes (`vkCmdDispatchIndirect`). Expect PASS;
     it is UNSIM in verification.
+23. **Device limits and the memory model.**
+    - `bigsort` and `pushmat` `require` the limits they use, and the offline Asahi driver offers them: 32 KiB shared
+      memory, 1024 invocations, 256-byte push constants.
+    - `mplitmus` is a race by design: on lavapipe every reader saw its flag, and on the M2 workgroups run truly in
+      parallel.
+    - It must show `acquire_stale = 0`. Record `relaxed_stale_reads`: a non-zero count would be the M2 visibly
+      reordering relaxed accesses.
+    - Mesa compiles its atomic loads / stores to the `.TODO` encodings of `device_load` / `device_store`, between
+      `memory_barrier` sequences. The simulator now executes those as the plain accesses (their extra bits are
+      coherence controls), which is exact for its single sequential memory.

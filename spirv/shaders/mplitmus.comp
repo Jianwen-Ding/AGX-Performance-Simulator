@@ -1,0 +1,32 @@
+#version 450
+// Message-passing litmus test of the Vulkan memory model across workgroups, without any waiting (so it cannot
+// hang): writer workgroups store data and then set a flag; reader workgroups read the flag and then the data, and
+// count how often they saw the flag set and how often the data was stale even so. Release / acquire atomics must
+// show no stale data; with relaxed atomics stale reads are allowed, and their count is reported as a measurement.
+#extension GL_KHR_memory_scope_semantics : require
+layout(local_size_x = 64) in;
+layout(std430, binding = 0) queuefamilycoherent buffer D { uint data[]; };
+layout(std430, binding = 1) queuefamilycoherent buffer F { uint flag[]; };
+layout(std430, binding = 2) buffer C { uint seen_acq; uint stale_acq; uint seen_rlx; uint stale_rlx; };
+layout(push_constant) uniform P { uint slots; } p;
+
+void main() {
+    uint wg = gl_WorkGroupID.x, l = gl_LocalInvocationID.x;
+    uint slot = (wg >> 1) * 64u + l;                             // workgroups 2k (writer) and 2k + 1 (reader) share slots
+    uint a = slot, r = p.slots + slot;                           // first half: release / acquire; second half: relaxed
+    if ((wg & 1u) == 0u) {
+        data[a] = slot + 1u;
+        atomicStore(flag[a], 1u, gl_ScopeQueueFamily, gl_StorageSemanticsBuffer, gl_SemanticsRelease);
+        data[r] = slot + 1u;
+        atomicStore(flag[r], 1u, gl_ScopeQueueFamily, gl_StorageSemanticsBuffer, gl_SemanticsRelaxed);
+    } else {
+        if (atomicLoad(flag[a], gl_ScopeQueueFamily, gl_StorageSemanticsBuffer, gl_SemanticsAcquire) == 1u) {
+            atomicAdd(seen_acq, 1u, gl_ScopeQueueFamily, gl_StorageSemanticsBuffer, gl_SemanticsRelaxed);
+            if (data[a] != slot + 1u) atomicAdd(stale_acq, 1u, gl_ScopeQueueFamily, gl_StorageSemanticsBuffer, gl_SemanticsRelaxed);
+        }
+        if (atomicLoad(flag[r], gl_ScopeQueueFamily, gl_StorageSemanticsBuffer, gl_SemanticsRelaxed) == 1u) {
+            atomicAdd(seen_rlx, 1u, gl_ScopeQueueFamily, gl_StorageSemanticsBuffer, gl_SemanticsRelaxed);
+            if (data[r] != slot + 1u) atomicAdd(stale_rlx, 1u, gl_ScopeQueueFamily, gl_StorageSemanticsBuffer, gl_SemanticsRelaxed);
+        }
+    }
+}

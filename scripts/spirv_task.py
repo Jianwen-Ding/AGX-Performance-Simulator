@@ -2610,6 +2610,48 @@ def w_cullindirect(size, rng):
                               4: (u32(np.full(n, 0xffffffff, np.uint64)), True)}, ds, check, 64, {'objects': n})
 
 
+def w_bigsort(size, rng):
+    chunks = 2 if size == 'small' else 512
+    keys = u32(rng.integers(0, 1 << 32, chunks * 8192, dtype=np.uint64))
+    keys[:100] = 7                                                               # duplicates
+    def check(o):
+        got = o[1].view(np.uint32)[:chunks * 8192].reshape(chunks, 8192)
+        ref = np.sort(keys.reshape(chunks, 8192), axis=1)
+        return np.array_equal(got, ref), {'mismatches': int(np.sum(got != ref))}
+    return W('bigsort', {0: (keys, False), 1: (4 * chunks * 8192, True)}, [(chunks, 1, 1, b'')], check, 1024, {'keys': chunks * 8192},
+             requires=['shared_bytes=32768', 'invocations=1024'])
+
+
+def w_pushmat(size, rng):
+    n = 4096 if size == 'small' else 1 << 22
+    mats = [f32(rng.integers(-2, 3, (4, 4))) for _ in range(4)]
+    pos = f32(np.concatenate([rng.integers(-64, 65, (n, 3)), np.ones((n, 1))], 1))
+    pc = b''.join(m.T.astype('<f4').tobytes() for m in mats)                     # GLSL mat4: column-major
+    assert len(pc) == 256
+    def check(o):
+        got = o[1].view(np.float32)[:4 * n].reshape(n, 4)
+        ref = pos.astype(np.float64)
+        for m in mats:
+            ref = ref @ m.astype(np.float64).T
+        assert np.max(np.abs(ref)) < 2 ** 24                                     # every intermediate an exact fp32 integer
+        return np.array_equal(got, ref.astype(np.float32)), {'mismatches': int(np.sum(np.any(got != ref, axis=1))), 'push_bytes': len(pc)}
+    return W('pushmat', {0: (pos, False), 1: (16 * n, True)}, [((n + 63) // 64, 1, 1, pc)], check, 64, {'vertices': n},
+             requires=['push_bytes=256'])
+
+
+def w_mplitmus(size, rng):
+    pairs = 64 if size == 'small' else 4096
+    slots = pairs * 64
+    def check(o):
+        seen_a, stale_a, seen_r, stale_r = (int(x) for x in o[2].view(np.uint32)[:4])
+        flags = o[1].view(np.uint32)[:2 * slots]; data = o[0].view(np.uint32)[:2 * slots]
+        writes_ok = bool(np.all(flags == 1) and np.array_equal(data, np.tile(np.arange(1, slots + 1, dtype=np.uint32), 2)))
+        return stale_a == 0 and writes_ok, {'acquire_saw_flag': seen_a, 'acquire_stale': stale_a, 'relaxed_saw_flag': seen_r,
+                                            'relaxed_stale_reads': stale_r, 'writes_complete': writes_ok}
+    return W('mplitmus', {0: (8 * slots, True), 1: (8 * slots, True), 2: (16, True)}, [(2 * pairs, 1, 1, push(slots))], check, 64,
+             {'slots': slots}, requires=['vulkan_memory_model'])
+
+
 WORKLOADS = {'reduce': w_reduce, 'scan': w_scan, 'sgemm': w_sgemm, 'conv2d': w_conv2d, 'histogram': w_histogram,
              'nbody': w_nbody, 'bitonic': w_bitonic, 'sha256': w_sha256, 'fp16': w_fp16, 'int64': w_int64, 'bitops': w_bitops,
              'intdiv': w_intdiv, 'compact': w_compact, 'spmv': w_spmv, 'transpose': w_transpose, 'mandelbrot': w_mandelbrot,
@@ -2636,7 +2678,8 @@ WORKLOADS = {'reduce': w_reduce, 'scan': w_scan, 'sgemm': w_sgemm, 'conv2d': w_c
              'imgerode': w_imgerode, 'imgtonemap': w_imgtonemap,
              'argmax64': w_argmax64, 'minmax64': w_minmax64,
              'dsum': w_dsum, 'quadmip': w_quadmip, 'clustered': w_clustered,
-             'specblur': w_specblur, 'cullindirect': w_cullindirect}
+             'specblur': w_specblur, 'cullindirect': w_cullindirect,
+             'bigsort': w_bigsort, 'pushmat': w_pushmat, 'mplitmus': w_mplitmus}
 
 
 # ---------------------------------------------------------------------------------------------------------------

@@ -113,7 +113,10 @@ fn op_kind(name: &'static str) -> OpKind {
         "threadgroup_barrier" => TgBarrier,
         "wait" | "memory_barrier" => Nop,
         "get_sr" => GetSr,
-        "device_load" | "device_store" => DevMem { load: name == "device_load" },
+        // the .TODO encodings differ from the plain ones only in control bits (Mesa emits them for Vulkan-memory-model
+        // atomic loads / stores, between memory_barrier sequences); on one sequentially simulated memory they read and
+        // write exactly as the plain access does
+        "device_load" | "device_store" | "device_load.TODO" | "device_store.TODO" => DevMem { load: name.starts_with("device_load") },
         "stack_load" | "stack_store" => Stack { load: name == "stack_load" },
         "uniform_store" => UniformStore,
         "threadgroup_load" | "threadgroup_store" => TgMem { load: name == "threadgroup_load" },
@@ -287,7 +290,7 @@ fn step_group(g: &mut Group, code: &[u8], cache: &mut [Option<Info>], mem: &mut 
             tr.pcs.push(g.pc);
             let at = (tr.pcs.len() - 1) as u32;
             let touched = match info.desc.map(|d| d.name) {
-                Some("device_load" | "device_store") => cost::mem_segments(&info.fields, &g.st),
+                Some("device_load" | "device_store" | "device_load.TODO" | "device_store.TODO") => cost::mem_segments(&info.fields, &g.st),
                 Some(n) if n.starts_with("threadgroup_") && n != "threadgroup_barrier" => cost::tg_words(&info.fields, &g.st),
                 Some("atomic") => cost::atomic_words(&info.fields, &g.st),
                 _ => None,

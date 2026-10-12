@@ -40,7 +40,7 @@ The rest of this file is the detailed procedure, for investigating results.
 
 ## Workloads
 
-One hundred and ten realistic compute kernels, written in GLSL (`spirv/shaders/*.comp`) and compiled to SPIR-V:
+One hundred and thirteen realistic compute kernels, written in GLSL (`spirv/shaders/*.comp`) and compiled to SPIR-V:
 
 | Workload | Kernel | Stresses |
 |---|---|---|
@@ -154,6 +154,9 @@ One hundred and ten realistic compute kernels, written in GLSL (`spirv/shaders/*
 | `clustered` | Clustered subgroup add / max over 2, 4, 8 lanes | `simd_shuffle` trees and `quad_iadd` |
 | `specblur` | Box blur with radius and workgroup size as specialization constants | `vk_run` `specialize`; constants folded by the compiler (simulated) |
 | `cullindirect` | Frustum culling → dispatch arguments → `vkCmdDispatchIndirect` | GPU-driven launch; hardware-only (UNSIM) |
+| `bigsort` | Bitonic sort of 8192 keys per workgroup | The limits: 1024 invocations, all 32 KiB of shared memory |
+| `pushmat` | Vertex transform by four mat4 push constants | A full 256-byte push-constant block |
+| `mplitmus` | Message-passing litmus test, release / acquire and relaxed | Vulkan memory model atomics (`device_store` / `device_load` coherence variants, `memory_barrier`) |
 
 Each workload has two sizes:
 
