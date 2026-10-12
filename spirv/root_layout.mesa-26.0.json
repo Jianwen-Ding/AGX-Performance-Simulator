@@ -4,8 +4,8 @@
     "The driver preloads u0_u1 = the table's own address and u2_u3.. = sets[0..set_count) (agx_usc_uniform(0,",
     "4 * (1 + set_count) halves, root_ptr); sets follow root_desc_addr for that). Storage-buffer descriptors are",
     "hk_buffer_address {u64 base, u32 size, u32 zero}, 16 bytes per binding.",
-    "Mesa 25.3.6 (the M2's driver) agrees where the stored control shader shows it: base_group at words 20..22, the",
-    "set address in u2_u3, push constants from word 122 (its element count, push word 2, is root word 124)."
+    "Mesa 25.3.6 (the M2's driver) differs: its push constants start at root word 124, not 122 (every recorded",
+    "preamble in spirv/expected/*/code loads push word n from 124 + n); see spirv/root_layout.mesa-25.3.json."
   ],
   "mesa": "26.0",
   "uniforms": {"0": "root", "2": "set"},

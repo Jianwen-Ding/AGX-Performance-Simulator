@@ -1,0 +1,18 @@
+{"probe": "barriercost", "measured_us": [15.44, 12.06, 25.27, 23.35], "predicted_us": [8.54, 16.57, 45.63, 161.98], "rounds": [0, 16, 64, 256], "us_per_round_measured": 0.03347143817204305, "us_per_round_model": 0.6025123694920769}
+{"probe": "atomcontend", "measured_us": [34.94, 31.25, 25.23, 25.33, 25.0], "predicted_us": [11.48, 11.48, 11.48, 11.48, 11.48], "counters": [1, 32, 1024, 32768, 1048576], "hot_over_spread_measured": 1.4, "hot_over_spread_model": 1.0}
+{"probe": "smembank", "measured_us": [16.35, 24.35, 23.21, 22.6, 22.52, 22.83, 22.04], "predicted_us": [76.42, 76.45, 77.09, 78.76, 105.9, 192.03, 76.42], "strides": [1, 2, 4, 8, 16, 32, 33], "relative_measured": [1.0, 1.49, 1.42, 1.38, 1.38, 1.4, 1.35], "relative_model": [1.0, 1.0, 1.01, 1.03, 1.39, 2.51, 1.0]}
+{"probe": "coalesce", "measured_us": [18.23, 11.65, 11.75, 23.02, 22.6, 21.98, 22.6], "predicted_us": [24.13, 103.51, 196.59, 382.62, 756.06, 405.46, 230.35], "strides": [1, 2, 4, 8, 16, 32, 64], "relative_measured": [1.0, 0.64, 0.64, 1.26, 1.24, 1.21, 1.24], "relative_model": [1.0, 4.29, 8.15, 15.86, 31.34, 16.8, 9.55]}
+{"probe": "aluprobe", "measured_us": [25.63, 22.81, 21.9, 21.81, 22.94, 22.6], "predicted_us": [111.96, 52.35, 95.23, 57.27, 116.91, 97.27], "kinds": ["fma32 dep", "fma32 x8", "fma16 dep", "fma16 x8", "imad dep", "imad x8"], "dep_over_x8_measured": [1.12, 1.0, 1.01], "dep_over_x8_model": [2.14, 1.66, 1.2]}
+{"probe": "rule110", "measured_us": {"dispatches": 1000, "median": 16.55, "min": 13.71, "max": 21.06}, "predicted_us": {"dispatches": 1000, "median": 6.36, "min": 6.36, "max": 6.36}, "us_per_dispatch_measured": 16.55, "us_per_dispatch_model": 6.36}
+{"probe": "stream", "measured_us": [35.02, 26.21, 29.29, 27.38, 22.94, 21.87], "predicted_us": [376.54, 421.82, 653.82, 692.77, 212.4, 314.64], "kinds": ["copy", "scale", "add", "triad", "read", "fill"], "gbps_measured": [3832.5, 5121.2, 6873.2, 7354.4, 2925.7, 3067.9], "gbps_model": [356.5, 318.2, 307.9, 290.6, 315.9, 213.3]}
+{"probe": "texfilter", "best_subtexel_bits": {"small": 10, "large": 10}, "hardware_matches_reference": true}
+{"probe": "imgtonemap", "round_to_nearest_fraction": {"small": 0.99609375, "large": 0.9960896910365227}, "hardware_matches_reference": true}
+{"probe": "mplitmus", "relaxed_stale_reads": {"small": 3392, "large": 4064}, "hardware_matches_reference": true}
+{"probe": "f16pack", "half_mismatches": {"small": 0, "large": 0}, "hardware_matches_reference": true}
+{"probe": "lookback", "mean_lookback_steps": {"small": 5.267, "large": 27.726}, "hardware_matches_reference": true}
+{"probe": "viterbi", "mismatched_bits": {"small": 4923, "large": 634159}, "hardware_matches_reference": false}
+{"probe": "viterbifix", "mismatched_bits": {"small": 0, "large": 0}, "hardware_matches_reference": true}
+{"probe": "shiftfuse", "mismatches": {"small": {"bit_test": 1520, "byte_extract": 2922, "double_and_mask": 1944}, "large": {"bit_test": 393363, "byte_extract": 759283, "double_and_mask": 507882}}, "hardware_matches_reference": false}
+{"probe": "rmsrope", "max_rel_error": {"small": 0.0007370990065600776, "large": 0.0007995462332695336}, "hardware_matches_reference": true}
+{"probe": "blackscholes", "max_abs_error": {"small": 1.9854037304867234e-05, "large": 2.694422661875251e-05}, "hardware_matches_reference": true}
+{"features_missing_on_device": {"argmax64": "buffer_int64_atomics", "minmax64": "buffer_int64_atomics", "dsum": "float64", "splat": "buffer_float32_atomic_add"}}

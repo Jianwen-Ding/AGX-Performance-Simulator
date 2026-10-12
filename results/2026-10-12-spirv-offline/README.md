@@ -40,9 +40,10 @@ ignores outputs and times.
 
   - In both versions the driver preloads u0_u1 with the table's own address.
   - 26.0 also preloads u2_u3 with the set address.
-  - The M2's 25.3.6 control shader reads base_group from words 20..22 and a push word from word 124. That matches
-    26.0, so it should use `spirv/root_layout.mesa-26.0.json`. `extract` chooses this layout whenever the preamble
-    reads `u2_u3`.
+  - The M2's 25.3.6 control shader reads base_group from words 20..22 and a push word from word 124. (Correction,
+    from the full 25.3.6 recordings: word 124 is push word 0, not 2. 25.3 matches 26.0 except that push constants start
+    at word 124 instead of 122; see `spirv/root_layout.mesa-25.3.json` and `results/2026-10-12-asahi-verify`. `extract`
+    now picks the layout from the driver version.)
 - **Statistics** (26.0.3).
 
   | Workload | Instructions (25.2.8 / 26.0.3) | Register halves | Max threads per core | Threadgroup bytes | Workgroup |
