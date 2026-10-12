@@ -916,12 +916,22 @@ def cmd_compile(a):
     return 1 if bad else 0
 
 
+def pmap(f, items):
+    """f over items on all cores (each item runs subprocesses), results in item order; AGX_THREADS overrides"""
+    from concurrent.futures import ThreadPoolExecutor
+    n = int(os.environ.get('AGX_THREADS') or os.cpu_count() or 1)
+    with ThreadPoolExecutor(max(1, min(n, len(items) or 1))) as ex:
+        return list(ex.map(f, items))
+
+
 def cmd_simall(a):
     """sim every workload compiled under DIR (compile's output; one subdirectory per workload); exit 1 if any fails"""
+    dirs = sorted(p for p in Path(a.dir).iterdir() if (p / 'main.bin').exists())
+    def one(d):
+        return subprocess.run([sys.executable, '-B', __file__, 'sim', d.name, '--code-dir', str(d), '--size', a.size,
+                               '--out', str(Path(a.work) / d.name)], capture_output=True, text=True)
     bad = 0
-    for d in sorted(p for p in Path(a.dir).iterdir() if (p / 'main.bin').exists()):
-        r = subprocess.run([sys.executable, '-B', __file__, 'sim', d.name, '--code-dir', str(d), '--size', a.size,
-                            '--out', str(Path(a.work) / d.name)], capture_output=True, text=True)
+    for r in pmap(one, dirs):
         line = (r.stdout.strip().splitlines() or [r.stderr.strip()])[-1]
         print(line, flush=True)
         bad += r.returncode != 0
@@ -1250,9 +1260,10 @@ def cmd_predict(a):
 def cmd_predictall(a):
     """predict every workload compiled under DIR (functional paths); one line each, JSON per workload in --work"""
     work = Path(a.work); work.mkdir(parents=True, exist_ok=True)
-    for d in sorted(p for p in Path(a.dir).iterdir() if (p / 'main.bin').exists()):
-        r = subprocess.run([sys.executable, '-B', __file__, 'predict', d.name, '--code-dir', str(d), '--size', a.size,
-                            '--out', str(work / d.name)], capture_output=True, text=True)
+    dirs = sorted(p for p in Path(a.dir).iterdir() if (p / 'main.bin').exists())
+    runs = pmap(lambda d: subprocess.run([sys.executable, '-B', __file__, 'predict', d.name, '--code-dir', str(d), '--size', a.size,
+                                          '--out', str(work / d.name)], capture_output=True, text=True), dirs)
+    for d, r in zip(dirs, runs):
         if r.returncode:
             print(f'{d.name:10} error: {(r.stdout + r.stderr).strip()[-300:]}'); continue
         (work / f'{d.name}.json').write_text(r.stdout)
@@ -1408,7 +1419,7 @@ def verify_one(name, exp, layout, timing):
 def cmd_verify(a):
     """Simulator vs the recorded hardware results (spirv/expected); PENDING where nothing is recorded yet."""
     names = list(WORKLOADS) if a.workload == 'all' else a.workload.split(',')
-    rows = [verify_one(n, Path(a.expected), a.layout, a.timing) for n in names]
+    rows = pmap(lambda n: verify_one(n, Path(a.expected), a.layout, a.timing), names)
     for r in rows:
         line = f'{r["status"]:8} {r["workload"]:11}'
         if 'words_differing' in r: line += f' differing words {sum(r["words_differing"].values()):6}'

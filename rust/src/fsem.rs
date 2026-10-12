@@ -122,15 +122,17 @@ fn dsize(d: &Operand) -> u32 {
 pub fn float_arith(name: &str, f: &Fields, ops: &[Operand], st: &mut CoreState) -> R<()> {
     let half = name.ends_with("16");
     let s = fget(f, "S").unwrap_or(0) != 0;
+    let kind = if name.starts_with("fadd") { 0u8 } else if name.starts_with("fmul") { 1 } else { 2 };
+    let out16 = half || dsize(&ops[0]) == 16;
     for t in 0..SIMD_WIDTH {
         if !st.exec[t] {
             continue;
         }
         let a = float(st, &ops[1], t, !half)?;
         let b = float(st, &ops[2], t, !half)?;
-        let mut x = if name.starts_with("fadd") {
+        let mut x = if kind == 0 {
             a + b // exact in f64 for fp32/fp16 operands, except far-apart exponents where double rounding is harmless
-        } else if name.starts_with("fmul") {
+        } else if kind == 1 {
             a * b // exact (48-bit product)
         } else {
             let c = float(st, &ops[3], t, !half)?;
@@ -139,7 +141,7 @@ pub fn float_arith(name: &str, f: &Fields, ops: &[Operand], st: &mut CoreState) 
         if s {
             x = sat(x);
         }
-        let bits = if half || dsize(&ops[0]) == 16 { to_f16(x) } else { to_f32(x) };
+        let bits = if out16 { to_f16(x) } else { to_f32(x) };
         put(st, &ops[0], t, bits as u64)?;
     }
     Ok(())
@@ -180,7 +182,12 @@ fn cc_of(f: &Fields) -> u64 {
 }
 
 pub fn compare(float_cmp: bool, f: &Fields, a: &Operand, b: &Operand, st: &CoreState, t: usize) -> R<bool> {
-    let cc = cc_of(f);
+    compare_cc(float_cmp, cc_of(f), a, b, st, t)
+}
+
+/// `compare` with the condition code already read from the fields (lane loops read it once per instruction)
+#[inline]
+pub fn compare_cc(float_cmp: bool, cc: u64, a: &Operand, b: &Operand, st: &CoreState, t: usize) -> R<bool> {
     if float_cmp {
         Ok(fcond(cc, float(st, a, t, true)?, float(st, b, t, true)?))
     } else {
@@ -192,11 +199,12 @@ pub fn compare(float_cmp: bool, f: &Fields, a: &Operand, b: &Operand, st: &CoreS
 
 /// icmpsel / fcmpsel: D = cond(A, B) ? X : Y  (ops: D, A, B, X, Y)
 pub fn cmpsel(float_cmp: bool, f: &Fields, ops: &[Operand], st: &mut CoreState) -> R<()> {
+    let cc = cc_of(f);
     for t in 0..SIMD_WIDTH {
         if !st.exec[t] {
             continue;
         }
-        let c = compare(float_cmp, f, &ops[1], &ops[2], st, t)?;
+        let c = compare_cc(float_cmp, cc, &ops[1], &ops[2], st, t)?;
         let (v, _) = raw(st, if c { &ops[3] } else { &ops[4] }, t)?;
         put(st, &ops[0], t, v)?;
     }
@@ -206,8 +214,9 @@ pub fn cmpsel(float_cmp: bool, f: &Fields, ops: &[Operand], st: &mut CoreState) 
 /// icmp/fcmp ballot (quad: each lane receives the 4-bit mask of its quad... variant chosen by the suite)
 pub fn ballot(float_cmp: bool, quad: bool, f: &Fields, ops: &[Operand], st: &mut CoreState) -> R<()> {
     let mut bits = 0u64;
+    let cc = cc_of(f);
     for t in 0..SIMD_WIDTH {
-        if st.exec[t] && compare(float_cmp, f, &ops[1], &ops[2], st, t)? {
+        if st.exec[t] && compare_cc(float_cmp, cc, &ops[1], &ops[2], st, t)? {
             bits |= 1 << t;
         }
     }
@@ -223,28 +232,30 @@ pub fn ballot(float_cmp: bool, quad: bool, f: &Fields, ops: &[Operand], st: &mut
 /// if / else / while exec-mask update (applegpu semantics, r0l nesting counter), any condition code
 pub fn mask_ctl(kind: &str, float_cmp: bool, f: &Fields, ops: &[Operand], st: &mut CoreState) -> R<()> {
     let n = fget(f, "n").unwrap_or(1) as i128;
+    let cc = cc_of(f);
+    let k = match kind { "if" => 0u8, "while" => 1, _ => 2 };
     // operands: r0l (destination), A, B
     let (a, b) = (&ops[1], &ops[2]);
     for t in 0..SIMD_WIDTH {
         let mut v = st.get_reg16(0, t)?;
-        match kind {
-            "if" => {
+        match k {
+            0 => {
                 if v != 0 {
                     v += n;
-                } else if !compare(float_cmp, f, a, b, st, t)? {
+                } else if !compare_cc(float_cmp, cc, a, b, st, t)? {
                     v = 1;
                 }
             }
-            "while" => {
+            1 => {
                 if v < n {
-                    v = if compare(float_cmp, f, a, b, st, t)? { 0 } else { n };
+                    v = if compare_cc(float_cmp, cc, a, b, st, t)? { 0 } else { n };
                 }
             }
             _ => {
                 if v == 0 {
                     v = n;
                 } else if v == 1 {
-                    v = if compare(float_cmp, f, a, b, st, t)? { 0 } else { 1 };
+                    v = if compare_cc(float_cmp, cc, a, b, st, t)? { 0 } else { 1 };
                 }
             }
         }

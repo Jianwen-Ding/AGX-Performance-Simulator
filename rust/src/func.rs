@@ -69,6 +69,67 @@ struct Info {
     fields: Fields,
     op: Option<Compiled>,
     ops: Vec<Operand>,
+    /// the value operands (registers, uniforms, immediates) the semantic helpers take, computed once
+    vals: Vec<Operand>,
+    /// what step_group does with it, decided once from the name instead of on every execution
+    kind: OpKind,
+}
+
+#[derive(Clone, Copy)]
+enum OpKind {
+    Stop,
+    Jmp { any: bool },
+    TgBarrier,
+    Nop,
+    GetSr,
+    DevMem { load: bool },
+    Stack { load: bool },
+    UniformStore,
+    TgMem { load: bool },
+    Atomic,
+    FloatArith,
+    CmpSel { float: bool },
+    Ballot { float: bool, quad: bool },
+    MaskCtl { kind: &'static str, float: bool },
+    TgAtomic,
+    Round,
+    Intl,
+    Transcendental,
+    Convert,
+    QuadShuffle,
+    CrossLane,
+    Generic,
+}
+
+fn op_kind(name: &'static str) -> OpKind {
+    use OpKind::*;
+    match name {
+        "stop" | "trap" => Stop,
+        "jmp_exec_any" => Jmp { any: true },
+        "jmp_exec_none" => Jmp { any: false },
+        "threadgroup_barrier" => TgBarrier,
+        "wait" | "memory_barrier" => Nop,
+        "get_sr" => GetSr,
+        "device_load" | "device_store" => DevMem { load: name == "device_load" },
+        "stack_load" | "stack_store" => Stack { load: name == "stack_load" },
+        "uniform_store" => UniformStore,
+        "threadgroup_load" | "threadgroup_store" => TgMem { load: name == "threadgroup_load" },
+        "atomic" => Atomic,
+        "fadd32" | "fmul32" | "fmadd32" | "fadd16" | "fmul16" | "fmadd16" => FloatArith,
+        "icmpsel" | "fcmpsel" => CmpSel { float: name == "fcmpsel" },
+        "icmp_ballot" | "fcmp_ballot" | "icmp_quad_ballot" | "fcmp_quad_ballot" => Ballot { float: name.starts_with('f'), quad: name.contains("quad") },
+        "if_icmp" | "if_fcmp" | "else_icmp" | "else_fcmp" | "while_icmp" | "while_fcmp" => {
+            MaskCtl { kind: name.split('_').next().unwrap(), float: name.ends_with("fcmp") }
+        }
+        "threadgroup_atomic" => TgAtomic,
+        "floor" | "ceil" | "trunc" | "rint" => Round,
+        "intl" => Intl,
+        "rcp" | "rsqrt" | "rsqrt_special" | "log2" | "exp2" | "sin_pt_1" | "sin_pt_2" => Transcendental,
+        "convert" => Convert,
+        n if n.starts_with("quad_shuffle") => QuadShuffle,
+        n if (n.starts_with("simd_") || n.starts_with("quad_")) && !n.starts_with("simd_shuffle") && !n.starts_with("simd_matrix") => CrossLane,
+        _ => Generic,
+    }
 }
 
 enum Stop {
@@ -190,7 +251,7 @@ fn run_workgroup(d: &Dispatch, cache: &mut [Option<Info>], mem: &mut Memory, [wx
 
 fn decode_at(code: &[u8], pc: usize, nregs: usize) -> Result<Info, String> {
     if is_barrier78(code, pc) {
-        return Ok(Info { desc: None, size: 2, fields: vec![], op: None, ops: vec![] });
+        return Ok(Info { desc: None, size: 2, fields: vec![], op: None, ops: vec![], vals: vec![], kind: OpKind::Nop });
     }
     let n0 = isa::opcode_to_number(&code[pc..code.len().min(pc + 16)]);
     let desc = isa::get_instruction_descriptor(n0).ok_or_else(|| format!("undecodable instruction at {}", pc))?;
@@ -199,7 +260,8 @@ fn decode_at(code: &[u8], pc: usize, nregs: usize) -> Result<Info, String> {
     let fields = desc.decode_fields(n);
     let ops = if desc.name == "stop" || desc.name == "trap" { vec![] } else { desc.fields_to_operands(&fields)? };
     let op = Compiled::new(desc, &fields, &ops, nregs);
-    Ok(Info { desc: Some(desc), size, fields, op: Some(op), ops })
+    let vals = vals(&ops);
+    Ok(Info { desc: Some(desc), size, fields, op: Some(op), ops, vals, kind: op_kind(desc.name) })
 }
 
 fn step_group(g: &mut Group, code: &[u8], cache: &mut [Option<Info>], mem: &mut Memory, tg: &mut [u8], max_steps: u64,
@@ -237,11 +299,12 @@ fn step_group(g: &mut Group, code: &[u8], cache: &mut [Option<Info>], mem: &mut 
         };
         let f = &info.fields;
         let x = |k: &str| fget(f, k).unwrap_or(0);
-        match desc.name {
-            "stop" | "trap" => return Ok(Stop::Done),
-            "jmp_exec_any" | "jmp_exec_none" => {
+        let v = &info.vals;
+        match info.kind {
+            OpKind::Stop => return Ok(Stop::Done),
+            OpKind::Jmp { any: want_any } => {
                 let any = g.st.exec.iter().any(|&e| e);
-                let take = if desc.name == "jmp_exec_any" { any } else { !any };
+                let take = if want_any { any } else { !any };
                 let mut off = x("off") as i64;
                 if off & (1 << 31) != 0 {
                     off -= 1 << 32;
@@ -249,12 +312,12 @@ fn step_group(g: &mut Group, code: &[u8], cache: &mut [Option<Info>], mem: &mut 
                 g.pc = if take { (g.pc as i64 + off) as usize } else { g.pc + info.size };
                 continue;
             }
-            "threadgroup_barrier" => {
+            OpKind::TgBarrier => {
                 g.pc += info.size;
                 return Ok(Stop::Barrier(1));
             }
-            "wait" | "memory_barrier" => {}
-            "get_sr" => {
+            OpKind::Nop => {}
+            OpKind::GetSr => {
                 let sr = x("SR") as u32;
                 // 32-bit or 16-bit destination (Mesa writes e.g. sr58 to a half register); a half takes the low 16 bits
                 let (dr, half) = match info.ops.first() {
@@ -269,32 +332,23 @@ fn step_group(g: &mut Group, code: &[u8], cache: &mut [Option<Info>], mem: &mut 
                     }
                 }
             }
-            "device_load" | "device_store" => device_mem(g, f, mem, desc.name == "device_load")?,
-            "stack_load" | "stack_store" => stack_mem(g, f, desc.name == "stack_load")?,
-            "uniform_store" => uniform_store(g, f)?,
-            "threadgroup_load" | "threadgroup_store" => tg_mem(g, f, tg, desc.name == "threadgroup_load")?,
-            "atomic" => device_atomic(g, f, mem)?,
-            "fadd32" | "fmul32" | "fmadd32" | "fadd16" | "fmul16" | "fmadd16" => fsem::float_arith(desc.name, f, &vals(&info.ops), &mut g.st)?,
-            "icmpsel" | "fcmpsel" => fsem::cmpsel(desc.name == "fcmpsel", f, &vals(&info.ops), &mut g.st)?,
-            "icmp_ballot" | "fcmp_ballot" | "icmp_quad_ballot" | "fcmp_quad_ballot" => {
-                fsem::ballot(desc.name.starts_with('f'), desc.name.contains("quad"), f, &vals(&info.ops), &mut g.st)?
-            }
-            "if_icmp" | "if_fcmp" | "else_icmp" | "else_fcmp" | "while_icmp" | "while_fcmp" => {
-                let kind = desc.name.split('_').next().unwrap();
-                fsem::mask_ctl(kind, desc.name.ends_with("fcmp"), f, &vals(&info.ops), &mut g.st)?
-            }
-            "threadgroup_atomic" => tg_atomic(g, f, tg)?,
-            "floor" | "ceil" | "trunc" | "rint" => fsem::round_op(desc.name, &vals(&info.ops), &mut g.st)?,
-            "intl" => fsem::intl(&vals(&info.ops), &mut g.st)?,
-            "rcp" | "rsqrt" | "rsqrt_special" | "log2" | "exp2" | "sin_pt_1" | "sin_pt_2" => {
-                fsem::transcendental(desc.name, &vals(&info.ops), &mut g.st)?
-            }
-            "convert" => fsem::convert(f, &vals(&info.ops), &mut g.st)?,
-            n if n.starts_with("quad_shuffle") => fsem::quad_shuffle(n, &vals(&info.ops), &mut g.st)?,
-            n if (n.starts_with("simd_") || n.starts_with("quad_")) && !n.starts_with("simd_shuffle") && !n.starts_with("simd_matrix") => {
-                fsem::cross_lane(n, &vals(&info.ops), &mut g.st)?
-            }
-            _ => {
+            OpKind::DevMem { load } => device_mem(g, f, mem, load)?,
+            OpKind::Stack { load } => stack_mem(g, f, load)?,
+            OpKind::UniformStore => uniform_store(g, f)?,
+            OpKind::TgMem { load } => tg_mem(g, f, tg, load)?,
+            OpKind::Atomic => device_atomic(g, f, mem)?,
+            OpKind::FloatArith => fsem::float_arith(desc.name, f, v, &mut g.st)?,
+            OpKind::CmpSel { float } => fsem::cmpsel(float, f, v, &mut g.st)?,
+            OpKind::Ballot { float, quad } => fsem::ballot(float, quad, f, v, &mut g.st)?,
+            OpKind::MaskCtl { kind, float } => fsem::mask_ctl(kind, float, f, v, &mut g.st)?,
+            OpKind::TgAtomic => tg_atomic(g, f, tg)?,
+            OpKind::Round => fsem::round_op(desc.name, v, &mut g.st)?,
+            OpKind::Intl => fsem::intl(v, &mut g.st)?,
+            OpKind::Transcendental => fsem::transcendental(desc.name, v, &mut g.st)?,
+            OpKind::Convert => fsem::convert(f, v, &mut g.st)?,
+            OpKind::QuadShuffle => fsem::quad_shuffle(desc.name, v, &mut g.st)?,
+            OpKind::CrossLane => fsem::cross_lane(desc.name, v, &mut g.st)?,
+            OpKind::Generic => {
                 let pc = g.pc;
                 info.op.as_ref().unwrap().exec(&mut g.st).map_err(|e| {
                     let bytes: String = code[pc..pc + info.size].iter().map(|b| format!("{:02x}", b)).collect();
@@ -425,6 +479,8 @@ fn get(st: &CoreState, rt: bool, r: usize, k: usize, t: usize) -> Result<i128, S
 
 fn device_mem(g: &mut Group, f: &Fields, mem: &mut Memory, load: bool) -> Result<(), String> {
     let x = |k: &str| fget(f, k).unwrap_or(0);
+    // fields read once, not per lane (fget searches the field list by name)
+    let (f_at, f_a, f_ot, f_o, f_ou) = (x("At"), x("A"), x("Ot"), x("O"), x("Ou"));
     let fmt = x("F") | x("Fx") << 3;
     if !plain_format(fmt) && !(fmt == 4 && load) {
         return Err(format!("device memory format {} not implemented", fmt));
@@ -439,12 +495,12 @@ fn device_mem(g: &mut Group, f: &Fields, mem: &mut Memory, load: bool) -> Result
         if !g.st.exec[t] {
             continue;
         }
-        let base = if x("At") != 0 { g.st.ureg64((x("A") >> 1) as usize)? } else { g.st.get_reg64((x("A") >> 1) as usize, t)? };
-        let mut off: i128 = if x("Ot") != 0 {
-            ext(x("O") as i128, 16, true)
+        let base = if f_at != 0 { g.st.ureg64((f_a >> 1) as usize)? } else { g.st.get_reg64((f_a >> 1) as usize, t)? };
+        let mut off: i128 = if f_ot != 0 {
+            ext(f_o as i128, 16, true)
         } else {
-            let o = g.st.get_reg32((x("O") >> 1) as usize, t)?;
-            if x("Ou") == 0 { ext(o, 32, true) } else { o }
+            let o = g.st.get_reg32((f_o >> 1) as usize, t)?;
+            if f_ou == 0 { ext(o, 32, true) } else { o }
         };
         off <<= shift;
         addr[t] = (base & !(item as i128 - 1)) + off * item as i128;
@@ -476,14 +532,16 @@ fn device_mem(g: &mut Group, f: &Fields, mem: &mut Memory, load: bool) -> Result
 
 fn tg_mem(g: &mut Group, f: &Fields, tg: &mut [u8], load: bool) -> Result<(), String> {
     let x = |k: &str| fget(f, k).unwrap_or(0);
+    // fields read once, not per lane (fget searches the field list by name)
+    let (f_at, f_a, f_ot, f_o) = (x("At"), x("A"), x("Ot"), x("O"));
     let item = item_size(x("F")) as usize;
     let mask = x("mask");
     let (r, rt) = (x("R") as usize, x("Rt") != 0);
     let mut addr = [0usize; 32];
     for t in 0..32 {
         if g.st.exec[t] {
-            let base = crate::cost::tg_base(&g.st, x("At"), x("A"), t)?;
-            let idx = if x("Ot") != 0 { x("O") as usize } else { g.st.get_reg16(x("O") as usize, t)? as usize };
+            let base = crate::cost::tg_base(&g.st, f_at, f_a, t)?;
+            let idx = if f_ot != 0 { f_o as usize } else { g.st.get_reg16(f_o as usize, t)? as usize };
             addr[t] = base + 4 * item * idx;
         }
     }
@@ -536,6 +594,8 @@ fn atomic_op(op: u64, old: u32, v: u32, cmp: u32) -> Result<u32, String> {
 
 fn device_atomic(g: &mut Group, f: &Fields, mem: &mut Memory) -> Result<(), String> {
     let x = |k: &str| fget(f, k).unwrap_or(0);
+    // fields read once, not per lane (fget searches the field list by name)
+    let (f_at, f_a, f_ot, f_o, f_ou, f_op) = (x("At"), x("A"), x("Ot"), x("O"), x("Ou"), x("op"));
     let r = (x("R") | x("Rx") << 6) as usize;
     let ret = x("Rt") != 0;
     let s = x("S") as usize;
@@ -543,18 +603,18 @@ fn device_atomic(g: &mut Group, f: &Fields, mem: &mut Memory) -> Result<(), Stri
         if !g.st.exec[t] {
             continue;
         }
-        let base = if x("At") != 0 { g.st.ureg64((x("A") >> 1) as usize)? } else { g.st.get_reg64((x("A") >> 1) as usize, t)? };
-        let off: i128 = if x("Ot") != 0 {
-            ext(x("O") as i128, 16, true)
+        let base = if f_at != 0 { g.st.ureg64((f_a >> 1) as usize)? } else { g.st.get_reg64((f_a >> 1) as usize, t)? };
+        let off: i128 = if f_ot != 0 {
+            ext(f_o as i128, 16, true)
         } else {
-            let o = g.st.get_reg32((x("O") >> 1) as usize, t)?;
-            if x("Ou") == 0 { ext(o, 32, true) } else { o }
+            let o = g.st.get_reg32((f_o >> 1) as usize, t)?;
+            if f_ou == 0 { ext(o, 32, true) } else { o }
         };
         let va = (base + 4 * off) as u64;
         let old = mem.read(va, 4)? as u32;
         let v = g.st.get_reg32(s / 2, t)? as u32;
         let cmp = g.st.get_reg32(s / 2 + 1, t)? as u32;
-        mem.write(va, 4, atomic_op(x("op"), old, v, cmp)? as u64)?;
+        mem.write(va, 4, atomic_op(f_op, old, v, cmp)? as u64)?;
         if ret {
             g.st.set_reg32(r / 2, t, old as i128)?;
         }
@@ -564,6 +624,8 @@ fn device_atomic(g: &mut Group, f: &Fields, mem: &mut Memory) -> Result<(), Stri
 
 fn tg_atomic(g: &mut Group, f: &Fields, tg: &mut [u8]) -> Result<(), String> {
     let x = |k: &str| fget(f, k).unwrap_or(0);
+    // fields read once, not per lane (fget searches the field list by name)
+    let (f_at, f_a, f_ot, f_o, f_op) = (x("At"), x("A"), x("Ot"), x("O"), x("op"));
     let r = x("R") as usize;
     let ret = x("Ra") != 0;
     let s = x("S") as usize;
@@ -571,8 +633,8 @@ fn tg_atomic(g: &mut Group, f: &Fields, tg: &mut [u8]) -> Result<(), String> {
         if !g.st.exec[t] {
             continue;
         }
-        let base = crate::cost::tg_base(&g.st, x("At"), x("A"), t)?;
-        let idx = if x("Ot") != 0 { x("O") as usize } else { g.st.get_reg16(x("O") as usize, t)? as usize };
+        let base = crate::cost::tg_base(&g.st, f_at, f_a, t)?;
+        let idx = if f_ot != 0 { f_o as usize } else { g.st.get_reg16(f_o as usize, t)? as usize };
         let b = base + 16 * idx;
         if b + 4 > tg.len() {
             return Err(format!("threadgroup atomic outside the declared memory ({} bytes)", tg.len()));
@@ -580,7 +642,7 @@ fn tg_atomic(g: &mut Group, f: &Fields, tg: &mut [u8]) -> Result<(), String> {
         let old = u32::from_le_bytes([tg[b], tg[b + 1], tg[b + 2], tg[b + 3]]);
         let v = g.st.get_reg32(s / 2, t)? as u32;
         let cmp = g.st.get_reg32(s / 2 + 1, t)? as u32;
-        tg[b..b + 4].copy_from_slice(&atomic_op(x("op"), old, v, cmp)?.to_le_bytes());
+        tg[b..b + 4].copy_from_slice(&atomic_op(f_op, old, v, cmp)?.to_le_bytes());
         if ret {
             g.st.set_reg32(r / 2, t, old as i128)?;
         }
