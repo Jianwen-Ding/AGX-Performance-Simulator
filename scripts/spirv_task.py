@@ -40,6 +40,16 @@ def f32(a): return np.ascontiguousarray(a, dtype=np.float32)
 def u32(a): return np.ascontiguousarray(a, dtype=np.uint32)
 
 
+def lazy(f):
+    """f() computed on the first call and kept: a reference that only check() needs (predict never calls it)"""
+    box = []
+    def get():
+        if not box:
+            box.append(f())
+        return box[0]
+    return get
+
+
 class W:
     """a workload instance: buffers {binding: (init array or byte size, read back?)}, dispatches [(gx, gy, gz, push)],
     check(outputs) -> (ok, detail), metrics for throughput"""
@@ -1776,16 +1786,21 @@ def w_jsonidx(size, rng):
         docs.append(d + b' ' * (DOC - len(d)))
     data = b''.join(docs)
     b = np.frombuffer(data, np.uint8)
-    ref = json_struct_ref(b, DOC)
-    if size == 'small':
-        assert np.array_equal(ref, json_struct_loop(data, DOC)), 'vectorised reference disagrees with the byte loop'
-    nstruct = int(sum(bin(int(x)).count('1') for x in ref)) if size == 'small' else int(np.unpackbits(ref.view(np.uint8)).sum())
+    def reference():
+        ref = json_struct_ref(b, DOC)
+        if size == 'small':
+            assert np.array_equal(ref, json_struct_loop(data, DOC)), 'vectorised reference disagrees with the byte loop'
+        return ref
+    reference = lazy(reference)
+    nchunk = len(data) // 32
     def check(o):
+        ref = reference()
+        nstruct = int(np.unpackbits(ref.view(np.uint8)).sum())
         got = o[1].view(np.uint32)[:len(ref)]
         bad = int(np.count_nonzero(got != ref))
         return bad == 0, {'bad_chunks': bad, 'chunks': len(ref), 'structurals': nstruct,
                           'in_string_structurals': int(np.isin(b, np.frombuffer(b'{}[]:,', np.uint8)).sum()) - nstruct}
-    return W('jsonidx', {0: (b.view(np.uint32).copy(), False), 1: (4 * len(ref), True)}, [(ndoc, 1, 1, b'')], check, 256,
+    return W('jsonidx', {0: (b.view(np.uint32).copy(), False), 1: (4 * nchunk, True)}, [(ndoc, 1, 1, b'')], check, 256,
              {'bytes': len(data)})
 
 
@@ -1828,14 +1843,17 @@ def w_cdc(size, rng):
         files.append(f); parts.append(f); total += len(f)
     b = np.concatenate(parts)[:n]
     gear = u32(rng.integers(0, 1 << 32, 256, dtype=np.uint64))
-    cref, eref = cdc_ref(b, gear, region, mn, mx, mask)
-    if size == 'small':                                                       # the hash one byte at a time, as written
-        bits, h = np.zeros(n, bool), 0
-        for i, x in enumerate(b.tolist()):
-            h = 0 if i % region == 0 else h
-            h = ((h << 1) + int(gear[x])) & 0xFFFFFFFF
-            bits[i] = h & mask == 0
-        assert np.array_equal(np.packbits(bits, bitorder='little').view(np.uint32), cref), 'vectorised gear hash disagrees'
+    def reference():
+        cref, eref = cdc_ref(b, gear, region, mn, mx, mask)
+        if size == 'small':                                                   # the hash one byte at a time, as written
+            bits, h = np.zeros(n, bool), 0
+            for i, x in enumerate(b.tolist()):
+                h = 0 if i % region == 0 else h
+                h = ((h << 1) + int(gear[x])) & 0xFFFFFFFF
+                bits[i] = h & mask == 0
+            assert np.array_equal(np.packbits(bits, bitorder='little').view(np.uint32), cref), 'vectorised gear hash disagrees'
+        return cref, eref
+    reference = lazy(reference)
     per = region // mn + 2
     def dedup(bounds):                                                        # unique bytes / all bytes
         seen, uniq = set(), 0
@@ -1848,6 +1866,7 @@ def w_cdc(size, rng):
                 s0 = x
         return uniq / n
     def check(o):
+        cref, eref = reference()
         cg = o[2].view(np.uint32)[:n // 32]
         kg = o[3].view(np.uint32)[:nreg * per].reshape(nreg, per)
         bad_c = int(np.count_nonzero(cg != cref))
@@ -1906,11 +1925,15 @@ def w_swalign(size, rng, fit=False):
         r = np.concatenate([r[:k], rng.integers(0, 4, int(rng.integers(0, 3))).astype(np.uint8), r[k + int(rng.integers(0, 3)):]])
         at = int(rng.integers(0, L - len(r)))                                # plus an indel of up to 2 bases each way
         R[w, at:at + len(r)] = r
-    ref = sw_ref(q, R)
-    if size == 'small':
-        for w in range(8):
-            assert sw_slow(list(q), list(R[w])) == ref[w], 'clamped Gotoh disagrees with the textbook recursion'
+    def reference():
+        ref = sw_ref(q, R)
+        if size == 'small':
+            for w in range(8):
+                assert sw_slow(list(q), list(R[w])) == ref[w], 'clamped Gotoh disagrees with the textbook recursion'
+        return ref
+    reference = lazy(reference)
     def check(o):
+        ref = reference()
         got = o[2].view(np.uint32)[:nw].astype(np.int64)
         bad = int(np.count_nonzero(got != ref))
         thr = m                                                              # half the perfect score 2 m
