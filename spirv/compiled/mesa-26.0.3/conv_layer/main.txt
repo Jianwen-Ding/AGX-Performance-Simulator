@@ -1,0 +1,73 @@
+0x0080  f2051104                 get_sr r1.cache, sr81 (thread_position_in_grid.y)
+0x0084  8e05c20659000000         iadd r1.cache, r1.discard.sx, u8.sx
+0x008c  f2091004                 get_sr r2.cache, sr80 (thread_position_in_grid.x)
+0x0090  8e09c4e658000000         iadd r2.cache, r2.discard.sx, u7.sx
+0x0098  92024242190011b0         icmpsel slt, r0h.cache, r1, u10, 0, 1
+0x00a0  1202442219c110b0         icmpsel slt, r0h, r2, u9, r0h.discard, 1
+0x00a8  62000000                 mov_imm r0l, 0
+0x00ac  720d1204                 get_sr r3, sr82 (thread_position_in_grid.z)
+0x00b0  5208c1000000             if_icmp r0l, ueq, r0h.discard, 0, 1
+0x00b6  20c092010000             jmp_exec_none pc+402
+0x00bc  0e0d46c658000000         iadd r3, r3.sx, u6.sx
+0x00c4  0521680e10c01200         device_load 0, i32, x, r4, u12_u13, r3, unsigned
+0x00cc  3800                     wait 0
+0x00ce  7e15480a8000             mov r5, r4
+0x00d4  621100000000             mov_imm r4, 0, 0b0
+0x00da  420800000000             push_exec r0l, 1
+0x00e0  52ac48c21900             while_icmp r0l, slt, r4, u14, 1
+0x00e6  62020000                 mov_imm r0h, 0
+0x00ea  7e194a0a8000             mov r6, r5
+0x00f0  621500000000             mov_imm r5, 0, 0b0
+0x00f6  420800000000             push_exec r0l, 1
+0x00fc  8e1d8a1600000000         iadd r7.cache, r5.cache.sx, 1
+0x0104  12154100004ae004         icmpsel ueq, r5, r0h, 0, r5, r7
+0x010c  52ac8a320000             while_icmp r0l, slt, r5.cache, 3, 1
+0x0112  8e1db4a564000000         iadd r7.cache, u26.sx, r5.sx
+0x011a  8e1d42e664000000         iadd r7.cache, r1.sx, r7.sx
+0x0122  92028ee2190011b0         icmpsel slt, r0h.cache, r7.cache, u15, 0, 1
+0x012a  12024e02000111a4         icmpsel slt, r0h, r7, 0, 1, r0h
+0x0132  520841000000             if_icmp r0l, ueq, r0h, 0, 1
+0x0138  20c0b8000000             jmp_exec_none pc+184
+0x013e  62020000                 mov_imm r0h, 0
+0x0142  7e214c0a8000             mov r8, r6
+0x0148  621900000000             mov_imm r6, 0, 0b0
+0x014e  420800000000             push_exec r0l, 1
+0x0154  8e258c1600000000         iadd r9.cache, r6.cache.sx, 1
+0x015c  12194100004c2005         icmpsel ueq, r6, r0h, 0, r6, r9
+0x0164  52ac8c320000             while_icmp r0l, slt, r6.cache, 3, 1
+0x016a  8e25b4c564000000         iadd r9.cache, u26.sx, r6.sx
+0x0172  8e25442665000000         iadd r9.cache, r2.sx, r9.sx
+0x017a  92029222190011b0         icmpsel slt, r0h.cache, r9.cache, u9, 0, 1
+0x0182  12025202000111a4         icmpsel slt, r0h, r9, 0, 1, r0h
+0x018a  520841000000             if_icmp r0l, ueq, r0h, 0, 1
+0x0190  9e2988465a4e0600         imadd r10.cache, r4.cache.sx, u18.sx, r7.sx
+0x0198  1e25542659520600         imadd r9, r10.sx, u9.sx, r9.sx
+0x01a0  9e2946c659480600         imadd r10.cache, r3.sx, u14.sx, r4.sx
+0x01a8  9e295436004a0600         imadd r10.cache, r10.sx, 3, r5.sx
+0x01b0  1e295436004c0600         imadd r10, r10.sx, 3, r6.sx
+0x01b8  0551400e21c01200         device_load 0, i32, x, r10, u16_u17, r10, unsigned
+0x01c0  0549284e21c01200         device_load 1, i32, x, r9, u20_u21, r9, unsigned
+0x01c8  3800                     wait 0
+0x01ca  3801                     wait 1
+0x01cc  3aa1542225500200         fmadd32 r8, r10, r9, r8
+0x01d4  520e00000000             pop_exec r0l, 1
+0x01da  62020100                 mov_imm r0h, 1
+0x01de  00c076ffffff             jmp_exec_any pc-138
+0x01e4  520e00000000             pop_exec r0l, 1
+0x01ea  7e19500a8000             mov r6, r8
+0x01f0  520e00000000             pop_exec r0l, 1
+0x01f6  62020100                 mov_imm r0h, 1
+0x01fa  00c002ffffff             jmp_exec_any pc-254
+0x0200  520e00000000             pop_exec r0l, 1
+0x0206  0e11481600000000         iadd r4, r4.sx, 1
+0x020e  7e154c0a8000             mov r5, r6
+0x0214  00c0ccfeffff             jmp_exec_any pc-308
+0x021a  520e00000000             pop_exec r0l, 1
+0x0220  9e0546c65a420600         imadd r1.cache, r3.sx, u22.sx, r1.sx
+0x0228  1e05422659440600         imadd r1, r1.sx, u9.sx, r2.sx
+0x0230  82094a02004a00f0         fcmpsel gtn, r2.cache, r5, 0.0, r5, 0
+0x0238  2a8944020002             fadd32 r2, r2, -0.0
+0x023e  4511200e30c01200         device_store 0, i32, x, r2, u24_u25, r1, unsigned, 0
+0x0246  3800                     wait 0
+0x0248  520e00000000             pop_exec r0l, 1
+0x024e  8800                     stop

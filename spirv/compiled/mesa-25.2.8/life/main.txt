@@ -1,0 +1,194 @@
+0x0000  72051004                 get_sr r1, sr80 (thread_position_in_grid.x)
+0x0004  72091104                 get_sr r2, sr81 (thread_position_in_grid.y)
+0x0008  0e0944a658000000         iadd r2, r2.sx, u5.sx
+0x0010  120244e2180011b0         icmpsel slt, r0h, r2, u7, 0, 1
+0x0018  0e05428658000000         iadd r1, r1.sx, u4.sx
+0x0020  120c42c2180011b0         icmpsel slt, r3l, r1, u6, 0, 1
+0x0028  7e0e46184000             xor r3h, r3l, 1
+0x002e  1202470000461004         icmpsel ueq, r0h, r3h, 0, r3l, r0h
+0x0036  62000000                 mov_imm r0l, 0
+0x003a  520841000000             if_icmp r0l, ueq, r0h, 0, 1
+0x0040  20c070050000             jmp_exec_none pc+1392
+0x0046  0e0d421e00000000         isub r3, r1.sx, 1
+0x004e  0e0d46c658000000         iadd r3, r3.sx, u6.sx
+0x0056  0e11006864000000         isub r4, 0, r3.sx
+0x005e  12114682244680c4         icmpsel sgt, r4, r3, r4, r3, r4
+0x0066  1e1b488219000000         imadd r6_r7, r4, u12, 0
+0x006e  1e154e6659000000         imadd r5, r7.sx, u11.sx, 0
+0x0076  0e1148ae64000000         isub r4, r4.sx, r5.sx
+0x007e  0e1548a659000000         iadd r5, r4.sx, u13.sx
+0x0086  121148621948a024         icmpsel ult, r4, r4, u11, r4, r5
+0x008e  0e1548a659000000         iadd r5, r4.sx, u13.sx
+0x0096  121148621948a024         icmpsel ult, r4, r4, u11, r4, r5
+0x009e  0e15008864000000         isub r5, 0, r4.sx
+0x00a6  12024602000101b0         icmpsel slt, r0h, r3, 0, 1, 0
+0x00ae  120d4602004a80a4         icmpsel slt, r3, r3, 0, r5, r4
+0x00b6  0e1146c658000000         iadd r4, r3.sx, u6.sx
+0x00be  1211460200468004         icmpsel ueq, r4, r3, 0, r3, r4
+0x00c6  120d41c011468004         icmpsel ueq, r3, r0h, u14l, r3, r4
+0x00ce  0e11441e00000000         isub r4, r2.sx, 1
+0x00d6  0e11480659000000         iadd r4, r4.sx, u8.sx
+0x00de  0e15008864000000         isub r5, 0, r4.sx
+0x00e6  121548a22448a0c4         icmpsel sgt, r5, r4, r5, r4, r5
+0x00ee  1e1b4a021a000000         imadd r6_r7, r5, u16, 0
+0x00f6  1e194ee659000000         imadd r6, r7.sx, u15.sx, 0
+0x00fe  0e154ace64000000         isub r5, r5.sx, r6.sx
+0x0106  0e194a265a000000         iadd r6, r5.sx, u17.sx
+0x010e  12154ae2194ac024         icmpsel ult, r5, r5, u15, r5, r6
+0x0116  0e194a265a000000         iadd r6, r5.sx, u17.sx
+0x011e  12154ae2194ac024         icmpsel ult, r5, r5, u15, r5, r6
+0x0126  0e1900a864000000         isub r6, 0, r5.sx
+0x012e  12024802000101b0         icmpsel slt, r0h, r4, 0, 1, 0
+0x0136  12114802004ca0a4         icmpsel slt, r4, r4, 0, r6, r5
+0x013e  0e15480659000000         iadd r5, r4.sx, u8.sx
+0x0146  121548020048a004         icmpsel ueq, r5, r4, 0, r4, r5
+0x014e  121141401248a004         icmpsel ueq, r4, r0h, u18l, r4, r5
+0x0156  1e1148c658000000         imadd r4, r4.sx, u6.sx, 0
+0x015e  0e15486664000000         iadd r5, r4.sx, r3.sx
+0x0166  0e1592a564000000         iadd r5, u9.sx, r5.sx
+0x016e  0504a80e20c01000         device_load 0, i8, x, r0h, u20_u21, r5, unsigned
+0x0176  0e1542c658000000         iadd r5, r1.sx, u6.sx
+0x017e  0e1900a864000000         isub r6, 0, r5.sx
+0x0186  12194ac2244ac0c4         icmpsel sgt, r6, r5, r6, r5, r6
+0x018e  1e234c8219000000         imadd r8_r9, r6, u12, 0
+0x0196  1e1d526659000000         imadd r7, r9.sx, u11.sx, 0
+0x019e  0e194cee64000000         isub r6, r6.sx, r7.sx
+0x01a6  0e1d4ca659000000         iadd r7, r6.sx, u13.sx
+0x01ae  12194c62194ce024         icmpsel ult, r6, r6, u11, r6, r7
+0x01b6  0e1d4ca659000000         iadd r7, r6.sx, u13.sx
+0x01be  12194c62194ce024         icmpsel ult, r6, r6, u11, r6, r7
+0x01c6  0e1d00c864000000         isub r7, 0, r6.sx
+0x01ce  12204a02000101b0         icmpsel slt, r8l, r5, 0, 1, 0
+0x01d6  12154a02004ec0a4         icmpsel slt, r5, r5, 0, r7, r6
+0x01de  0e194ac658000000         iadd r6, r5.sx, u6.sx
+0x01e6  12194a02004ac004         icmpsel ueq, r6, r5, 0, r5, r6
+0x01ee  121550c0114ac004         icmpsel ueq, r5, r8l, u14l, r5, r6
+0x01f6  0e1948a664000000         iadd r6, r4.sx, r5.sx
+0x01fe  0e1992c564000000         iadd r6, u9.sx, r6.sx
+0x0206  0530c84e20c01000         device_load 1, i8, x, r6l, u20_u21, r6, unsigned
+0x020e  3801                     wait 1
+0x0210  2e1800c004080000         bfi r6l, 0, r6l, 8
+0x0218  2e984c8400000000         asr r6l, r6l, 8
+0x0220  12194c0000001110         icmpsel ueq, r6, r6l, 0, 0, 1
+0x0228  3800                     wait 0
+0x022a  2e02001004080000         bfi r0h, 0, r0h, 8
+0x0232  2e82418400000000         asr r0h, r0h, 8
+0x023a  121d410000001110         icmpsel ueq, r7, r0h, 0, 0, 1
+0x0242  0e194ec664000000         iadd r6, r7.sx, r6.sx
+0x024a  0e1d421600000000         iadd r7, r1.sx, 1
+0x0252  0e1d4ec658000000         iadd r7, r7.sx, u6.sx
+0x025a  0e2100e864000000         isub r8, 0, r7.sx
+0x0262  12214e02254e00c5         icmpsel sgt, r8, r7, r8, r7, r8
+0x026a  1e2b508219000000         imadd r10_r11, r8, u12, 0
+0x0272  1e25566659000000         imadd r9, r11.sx, u11.sx, 0
+0x027a  0e21502e65000000         isub r8, r8.sx, r9.sx
+0x0282  0e2550a659000000         iadd r9, r8.sx, u13.sx
+0x028a  1221506219502025         icmpsel ult, r8, r8, u11, r8, r9
+0x0292  0e2550a659000000         iadd r9, r8.sx, u13.sx
+0x029a  1221506219502025         icmpsel ult, r8, r8, u11, r8, r9
+0x02a2  0e25000865000000         isub r9, 0, r8.sx
+0x02aa  12024e02000101b0         icmpsel slt, r0h, r7, 0, 1, 0
+0x02b2  121d4e02005200a5         icmpsel slt, r7, r7, 0, r9, r8
+0x02ba  0e214ec658000000         iadd r8, r7.sx, u6.sx
+0x02c2  12214e02004e0005         icmpsel ueq, r8, r7, 0, r7, r8
+0x02ca  121d41c0114e0005         icmpsel ueq, r7, r0h, u14l, r7, r8
+0x02d2  0e1148e664000000         iadd r4, r4.sx, r7.sx
+0x02da  0e11928564000000         iadd r4, u9.sx, r4.sx
+0x02e2  0504880e20c01000         device_load 0, i8, x, r0h, u20_u21, r4, unsigned
+0x02ea  3800                     wait 0
+0x02ec  2e02001004080000         bfi r0h, 0, r0h, 8
+0x02f4  2e82418400000000         asr r0h, r0h, 8
+0x02fc  1211410000001110         icmpsel ueq, r4, r0h, 0, 0, 1
+0x0304  0e114c8664000000         iadd r4, r6.sx, r4.sx
+0x030c  0e19440659000000         iadd r6, r2.sx, u8.sx
+0x0314  0e2100c864000000         isub r8, 0, r6.sx
+0x031c  12214c02254c00c5         icmpsel sgt, r8, r6, r8, r6, r8
+0x0324  1e2b50021a000000         imadd r10_r11, r8, u16, 0
+0x032c  1e2556e659000000         imadd r9, r11.sx, u15.sx, 0
+0x0334  0e21502e65000000         isub r8, r8.sx, r9.sx
+0x033c  0e2550265a000000         iadd r9, r8.sx, u17.sx
+0x0344  122150e219502025         icmpsel ult, r8, r8, u15, r8, r9
+0x034c  0e2550265a000000         iadd r9, r8.sx, u17.sx
+0x0354  122150e219502025         icmpsel ult, r8, r8, u15, r8, r9
+0x035c  0e25000865000000         isub r9, 0, r8.sx
+0x0364  12024c02000101b0         icmpsel slt, r0h, r6, 0, 1, 0
+0x036c  12194c02005200a5         icmpsel slt, r6, r6, 0, r9, r8
+0x0374  0e214c0659000000         iadd r8, r6.sx, u8.sx
+0x037c  12214c02004c0005         icmpsel ueq, r8, r6, 0, r6, r8
+0x0384  12194140124c0005         icmpsel ueq, r6, r0h, u18l, r6, r8
+0x038c  1e194cc658000000         imadd r6, r6.sx, u6.sx, 0
+0x0394  0e214c6664000000         iadd r8, r6.sx, r3.sx
+0x039c  0e21920565000000         iadd r8, u9.sx, r8.sx
+0x03a4  0504080e21c01000         device_load 0, i8, x, r0h, u20_u21, r8, unsigned
+0x03ac  3800                     wait 0
+0x03ae  2e02001004080000         bfi r0h, 0, r0h, 8
+0x03b6  2e82418400000000         asr r0h, r0h, 8
+0x03be  1221410000001110         icmpsel ueq, r8, r0h, 0, 0, 1
+0x03c6  0e11480665000000         iadd r4, r4.sx, r8.sx
+0x03ce  0e194ce664000000         iadd r6, r6.sx, r7.sx
+0x03d6  0e1992c564000000         iadd r6, u9.sx, r6.sx
+0x03de  0504c80e20c01000         device_load 0, i8, x, r0h, u20_u21, r6, unsigned
+0x03e6  3800                     wait 0
+0x03e8  2e02001004080000         bfi r0h, 0, r0h, 8
+0x03f0  2e82418400000000         asr r0h, r0h, 8
+0x03f8  1219410000001110         icmpsel ueq, r6, r0h, 0, 0, 1
+0x0400  0e1148c664000000         iadd r4, r4.sx, r6.sx
+0x0408  0e19441600000000         iadd r6, r2.sx, 1
+0x0410  0e194c0659000000         iadd r6, r6.sx, u8.sx
+0x0418  0e2100c864000000         isub r8, 0, r6.sx
+0x0420  12214c02254c00c5         icmpsel sgt, r8, r6, r8, r6, r8
+0x0428  1e2b50021a000000         imadd r10_r11, r8, u16, 0
+0x0430  1e2556e659000000         imadd r9, r11.sx, u15.sx, 0
+0x0438  0e21502e65000000         isub r8, r8.sx, r9.sx
+0x0440  0e2550265a000000         iadd r9, r8.sx, u17.sx
+0x0448  122150e219502025         icmpsel ult, r8, r8, u15, r8, r9
+0x0450  0e2550265a000000         iadd r9, r8.sx, u17.sx
+0x0458  122150e219502025         icmpsel ult, r8, r8, u15, r8, r9
+0x0460  0e25000865000000         isub r9, 0, r8.sx
+0x0468  12024c02000101b0         icmpsel slt, r0h, r6, 0, 1, 0
+0x0470  12194c02005200a5         icmpsel slt, r6, r6, 0, r9, r8
+0x0478  0e214c0659000000         iadd r8, r6.sx, u8.sx
+0x0480  12214c02004c0005         icmpsel ueq, r8, r6, 0, r6, r8
+0x0488  12194140124c0005         icmpsel ueq, r6, r0h, u18l, r6, r8
+0x0490  1e194cc658000000         imadd r6, r6.sx, u6.sx, 0
+0x0498  0e0d4c6664000000         iadd r3, r6.sx, r3.sx
+0x04a0  0e0d926564000000         iadd r3, u9.sx, r3.sx
+0x04a8  0504680e20c01000         device_load 0, i8, x, r0h, u20_u21, r3, unsigned
+0x04b0  3800                     wait 0
+0x04b2  2e02001004080000         bfi r0h, 0, r0h, 8
+0x04ba  2e82418400000000         asr r0h, r0h, 8
+0x04c2  120d410000001110         icmpsel ueq, r3, r0h, 0, 0, 1
+0x04ca  0e0d486664000000         iadd r3, r4.sx, r3.sx
+0x04d2  0e114ca664000000         iadd r4, r6.sx, r5.sx
+0x04da  0e11928564000000         iadd r4, u9.sx, r4.sx
+0x04e2  0504880e20c01000         device_load 0, i8, x, r0h, u20_u21, r4, unsigned
+0x04ea  3800                     wait 0
+0x04ec  2e02001004080000         bfi r0h, 0, r0h, 8
+0x04f4  2e82418400000000         asr r0h, r0h, 8
+0x04fc  1211410000001110         icmpsel ueq, r4, r0h, 0, 0, 1
+0x0504  0e0d468664000000         iadd r3, r3.sx, r4.sx
+0x050c  0e114ce664000000         iadd r4, r6.sx, r7.sx
+0x0514  0e11928564000000         iadd r4, u9.sx, r4.sx
+0x051c  0504880e20c01000         device_load 0, i8, x, r0h, u20_u21, r4, unsigned
+0x0524  3800                     wait 0
+0x0526  2e02001004080000         bfi r0h, 0, r0h, 8
+0x052e  2e82418400000000         asr r0h, r0h, 8
+0x0536  1211410000001110         icmpsel ueq, r4, r0h, 0, 0, 1
+0x053e  0e0d468664000000         iadd r3, r3.sx, r4.sx
+0x0546  1e0544c658420600         imadd r1, r2.sx, u6.sx, r1.sx
+0x054e  0e09922564000000         iadd r2, u9.sx, r1.sx
+0x0556  0504480e20c01000         device_load 0, i8, x, r0h, u20_u21, r2, unsigned
+0x055e  3800                     wait 0
+0x0560  2e02001004080000         bfi r0h, 0, r0h, 8
+0x0568  2e82418400000000         asr r0h, r0h, 8
+0x0570  1208462200010110         icmpsel ueq, r2l, r3, 2, 1, 0
+0x0578  1202410000004104         icmpsel ueq, r0h, r0h, 0, 0, r2l
+0x0580  1202410000001110         icmpsel ueq, r0h, r0h, 0, 0, 1
+0x0588  1202463200011104         icmpsel ueq, r0h, r3, 3, 1, r0h
+0x0590  0e02001844000000         isub r0h, 0, r0h.sx
+0x0598  7e0241f08303             and r0h, r0h, 255
+0x059e  0e05942564000000         iadd r1, u10.sx, r1.sx
+0x05a6  4504280e20c01000         device_store 0, i8, x, r0h, u20_u21, r1, unsigned, 0
+0x05ae  3800                     wait 0
+0x05b0  520e00000000             pop_exec r0l, 1
+0x05b6  8800                     stop

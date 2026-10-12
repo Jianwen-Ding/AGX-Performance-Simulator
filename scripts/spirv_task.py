@@ -791,13 +791,99 @@ def w_sobel(size, rng):
              {'pixels': Wd * H}, images=[(1, Wd, H, 'gray8')])
 
 
+
+def w_life(size, rng):
+    Wd, H, steps = (64, 48, 16) if size == 'small' else (2048, 2048, 64)
+    grid = np.where(rng.random((H, Wd)) < 0.3, 255, 0).astype(np.uint8)
+    def check(o):
+        g = grid > 0
+        for _ in range(steps):
+            n = sum(np.roll(np.roll(g, dy, 0), dx, 1) for dy in (-1, 0, 1) for dx in (-1, 0, 1) if dy or dx)
+            g = (n == 3) | (g & (n == 2))
+        got = o[0][:Wd * H].reshape(H, Wd)                      # an even number of steps ends in the first half
+        ref = np.where(g, 255, 0).astype(np.uint8)
+        return np.array_equal(got, ref), {'mismatches': int(np.sum(got != ref)), 'alive': int(g.sum())}
+    ds = [((Wd + 15) // 16, (H + 15) // 16, 1, push(Wd, H, k & 1)) for k in range(steps)]
+    return W('life', {0: (np.concatenate([grid.ravel(), np.zeros(Wd * H, np.uint8)]), True)}, ds, check, (16, 16, 1),
+             {'cells': Wd * H * steps}, images=[(0, Wd, H, 'gray8')])
+
+
+def w_bfs(size, rng):
+    n, deg, levels = (2000, 4, 24) if size == 'small' else (1 << 20, 8, 32)
+    # random graph: a ring for connectivity plus random edges, undirected, CSR
+    src = np.concatenate([np.arange(n), rng.integers(0, n, n * deg // 2)])
+    dst = np.concatenate([(np.arange(n) + 1) % n, rng.integers(0, n, n * deg // 2)])
+    u_, v_ = np.concatenate([src, dst]), np.concatenate([dst, src])
+    order = np.lexsort((v_, u_)); u_, v_ = u_[order], v_[order]
+    rowptr = u32(np.searchsorted(u_, np.arange(n + 1))); col = u32(v_)
+    INF = 0xffffffff
+    dist0 = np.full(n, INF, np.uint32); dist0[0] = 0
+    def check(o):
+        got = o[2].view(np.uint32)[:n]; found = o[3].view(np.uint32)[:levels + 1]
+        ref = np.full(n, INF, np.int64); ref[0] = 0; frontier = [0]; d = 0
+        while frontier and d < levels:
+            nxt = []
+            for v in frontier:
+                for u in col[rowptr[v]:rowptr[v + 1]]:
+                    if ref[u] == INF:
+                        ref[u] = d + 1; nxt.append(int(u))
+            frontier = nxt; d += 1
+        reff = np.bincount(ref[(ref != INF) & (ref > 0)], minlength=levels + 1)[:levels + 1]
+        ok = np.array_equal(got.astype(np.int64), ref) and np.array_equal(found[1:], reff[1:])
+        return ok, {'dist_mismatches': int(np.sum(got.astype(np.int64) != ref)), 'reached': int(np.sum(ref != INF)),
+                    'depth': int(ref[ref != INF].max())}
+    ds = [((n + 127) // 128, 1, 1, push(n, k)) for k in range(levels)]
+    return W('bfs', {0: (rowptr, False), 1: (col, False), 2: (dist0, True), 3: (4 * (levels + 1), True)}, ds, check, 128,
+             {'edges': int(len(col)), 'dispatches': levels})
+
+
+def w_conv_layer(size, rng):
+    Wd, H, cin, cout = (24, 20, 16, 32) if size == 'small' else (224, 224, 16, 32)
+    x = f32(rng.standard_normal((cin, H, Wd)))
+    w = f32(rng.standard_normal((cout, cin, 3, 3)) / np.sqrt(cin * 9)); b = f32(rng.standard_normal(cout) * 0.1)
+    def check(o):
+        got = o[3].view(np.float32)[:cout * H * Wd].reshape(cout, H, Wd)
+        xp = np.pad(x.astype(np.float64), ((0, 0), (1, 1), (1, 1)))
+        acc = np.zeros((cout, H, Wd)) + b[:, None, None]
+        absacc = np.zeros((cout, H, Wd)) + np.abs(b)[:, None, None]
+        for dy in range(3):
+            for dx in range(3):
+                patch = xp[:, dy:dy + H, dx:dx + Wd]
+                acc += np.einsum('kc,chw->khw', w[:, :, dy, dx].astype(np.float64), patch)
+                absacc += np.einsum('kc,chw->khw', np.abs(w[:, :, dy, dx]).astype(np.float64), np.abs(patch))
+        ref = np.maximum(acc, 0)
+        excess = float(np.max(np.abs(got - ref) / (absacc * (cin * 9 + 2) * 2.0 ** -24 + 1e-30)))
+        return excess <= 1.0, {'max_err_over_bound': excess}
+    return W('conv_layer', {0: (x, False), 1: (w, False), 2: (b, False), 3: (4 * cout * H * Wd, True)},
+             [((Wd + 15) // 16, (H + 15) // 16, cout, push(Wd, H, cin))], check, (16, 16, 1), {'flops': 2 * cout * cin * 9 * H * Wd})
+
+
+def w_hist_eq(size, rng):
+    Wd, H = (96, 64) if size == 'small' else (3840, 2160)
+    gy, gx = np.mgrid[0:H, 0:Wd]
+    img = (90 + 40 * np.sin(gx / 13.0) * np.cos(gy / 17.0) + rng.normal(0, 6, (H, Wd))).clip(0, 255).astype(np.uint8)   # low contrast
+    n = Wd * H
+    groups = min(256, (n + 255) // 256)
+    def check(o):
+        hist = np.bincount(img.ravel(), minlength=256).astype(np.int64); cdf = np.cumsum(hist)
+        cmin = int(cdf[cdf > 0][0]); den = n - cmin
+        lut = np.arange(256) if den == 0 else ((cdf - np.minimum(cdf, cmin)) * 255 + den // 2) // den
+        ref = lut[img].astype(np.uint8)
+        got = o[2][:n].reshape(H, Wd)
+        return np.array_equal(got, ref), {'mismatches': int(np.sum(got != ref)), 'in_range': [int(img.min()), int(img.max())],
+                                          'out_range': [int(got.min()), int(got.max())]}
+    ds = [(groups, 1, 1, push(m, n)) for m in range(3)]
+    return W('hist_eq', {0: (img, False), 1: (2048, False), 2: (n, True)}, ds, check, 256, {'pixels': n}, images=[(2, Wd, H, 'gray8')])
+
+
 WORKLOADS = {'reduce': w_reduce, 'scan': w_scan, 'sgemm': w_sgemm, 'conv2d': w_conv2d, 'histogram': w_histogram,
              'nbody': w_nbody, 'bitonic': w_bitonic, 'sha256': w_sha256, 'fp16': w_fp16, 'int64': w_int64, 'bitops': w_bitops,
              'intdiv': w_intdiv, 'compact': w_compact, 'spmv': w_spmv, 'transpose': w_transpose, 'mandelbrot': w_mandelbrot,
              'softmax': w_softmax, 'rgba8': w_rgba8, 'atomics': w_atomics, 'geom3d': w_geom3d, 'spill': w_spill,
              'control': w_control, 'shuffle': w_shuffle, 'floatops': w_floatops, 'radix_sort': w_radix_sort, 'fft': w_fft,
              'crc32': w_crc32, 'kmeans': w_kmeans, 'int8dot': w_int8dot, 'stencil3d': w_stencil3d, 'int16': w_int16, 'trig': w_trig,
-             'raytrace': w_raytrace, 'mlp': w_mlp, 'sobel': w_sobel}
+             'raytrace': w_raytrace, 'mlp': w_mlp, 'sobel': w_sobel, 'life': w_life, 'bfs': w_bfs, 'conv_layer': w_conv_layer,
+             'hist_eq': w_hist_eq}
 
 
 # ---------------------------------------------------------------------------------------------------------------

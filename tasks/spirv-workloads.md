@@ -31,7 +31,7 @@ The rest of this file is the detailed procedure, for investigating results.
 
 ## Workloads
 
-Thirty-five realistic compute kernels, written in GLSL (`spirv/shaders/*.comp`) and compiled to SPIR-V:
+Thirty-nine realistic compute kernels, written in GLSL (`spirv/shaders/*.comp`) and compiled to SPIR-V:
 
 | Workload | Kernel | Stresses |
 |---|---|---|
@@ -70,6 +70,10 @@ Thirty-five realistic compute kernels, written in GLSL (`spirv/shaders/*.comp`) 
 | `raytrace` | Ray tracer: 3 spheres, checkered ground, hard shadows, one mirror bounce, RGBA8 image (1920×1080 large) | Divergent shading, sqrt / normalize, packUnorm; writes a viewable `.ppm` |
 | `mlp` | Two-layer perceptron inference (128 → 256 ReLU → 16 softmax), one workgroup per input | Matrix-vector FMA chains, shared-memory activations, exp |
 | `sobel` | Sobel edge detection on an 8-bit image (3840×2160 large), shared-memory halo tile | Byte loads / stores, integer stencil (exact); writes a viewable `.pgm` |
+| `life` | Conway's Game of Life on a toroidal grid, one dispatch per generation (16 / 64) | Byte stencil, ping-pong buffers; exact; writes a `.pgm` |
+| `bfs` | Level-synchronous breadth-first search on a random graph (1 Mi vertices large), 24 / 32 dispatches | atomicMin, atomic counters under divergence (Mesa aggregates them with SR58 / SR59); exact |
+| `conv_layer` | CNN layer: 3×3 convolution, 16 → 32 channels, bias, ReLU (224×224 large), 3-D dispatch | FMA chains, zero-padding branches; error bound |
+| `hist_eq` | Histogram equalisation of an 8-bit image: histogram, CDF / lookup table, remap (3 dispatches) | Shared and device atomics, integer division, byte remap; exact; writes a `.pgm` |
 
 Each workload has two sizes:
 
@@ -156,11 +160,11 @@ references are right; a wrong result on the M2 is therefore a GPU, driver or run
    python3 -B scripts/spirv_task.py sim sgemm --code-dir spirv/out/sgemm-small/code --hardware spirv/out/sgemm-small
    ```
 
-   - Offline, all thirty-five workloads pass their numpy references with shim-compiled Mesa 25.2.8 and 26.0.3 code
+   - Offline, all thirty-nine workloads pass their numpy references with shim-compiled Mesa 25.2.8 and 26.0.3 code
      (`make spirv-sim`). That is a sanity check; verification is `make spirv-verify` against the M2 recordings.
    - Integer workloads (`scan`, `histogram`, `bitonic`, `sha256`, `int64`, `bitops`, `intdiv`, `compact`, `transpose`,
-     `mandelbrot`, `atomics`, `geom3d`, `spill`, `control`, `shuffle`, `floatops`, `radix_sort`, `crc32`, `int8dot`, `int16`, and
-     reduce's uint half) must match the hardware word for word.
+     `mandelbrot`, `atomics`, `geom3d`, `spill`, `control`, `shuffle`, `floatops`, `radix_sort`, `crc32`, `int8dot`, `int16`, `sobel`,
+     `life`, `bfs`, `hist_eq`, and reduce's uint half) must match the hardware word for word.
    - Float workloads only need to be close: within the workload's reference tolerance. Last-bit float differences
      (fp32 transcendentals, summation order) are not worth chasing.
    - When `agx_run` stops on an unimplemented instruction or format, that is the finding: report it, and implement it

@@ -325,9 +325,19 @@ fn step_group(g: &mut Group, code: &[u8], cache: &mut [Option<Info>], mem: &mut 
                     Some(Operand::Reg16(r, _)) => (*r as usize, true),
                     _ => return Err("get_sr: unexpected destination".into()),
                 };
+                // SR58 / SR59 are the active thread's index among the active threads and the number of active threads
+                // (Mesa aggregates atomics with them under divergence); with every lane active they equal the launch
+                // geometry's lane index / lane count, which is what the recorded suite covers
+                let active = g.st.exec.iter().filter(|&&e| e).count() as u32;
+                let mut rank = 0u32;
                 for t in 0..32 {
                     if g.st.exec[t] {
-                        let v = g.ctx.sr(sr, t).ok_or_else(|| format!("get_sr: special register {} not modelled", sr))?;
+                        let v = match sr {
+                            58 => rank,
+                            59 => active,
+                            _ => g.ctx.sr(sr, t).ok_or_else(|| format!("get_sr: special register {} not modelled", sr))?,
+                        };
+                        rank += 1;
                         if half { g.st.set_reg16(dr, t, v as i128)? } else { g.st.set_reg32(dr, t, v as i128)? }
                     }
                 }
