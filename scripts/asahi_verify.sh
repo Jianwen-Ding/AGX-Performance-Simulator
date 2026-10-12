@@ -44,6 +44,10 @@ python3 -B scripts/spirv_task.py verify "$WORKLOADS" --timing --json "$OUT/verif
 echo "== probes (what the recordings say about the cost model and the device)"
 python3 -B scripts/spirv_task.py probes --json "$OUT/probes.json" | tee "$OUT/probes.txt" || true
 
+echo "== bitfield shift question (70 safe ALU cases, ~1 min)"
+python3 -B scripts/coverage.py record --area alu --match 'bfeil|bfi_|extr|shlhi|shrhi' || true
+python3 -B scripts/bitfield_question.py | tee "$OUT/bitfield-question.txt" || true
+
 if [ $COVERAGE = 1 ]; then
     echo "== coverage catalog (safe cases)"
     python3 -B scripts/coverage.py validate
@@ -67,9 +71,15 @@ fi
     cat "$OUT/probes.txt"
     echo '```'
     echo
+    echo '## bfeil shift question (applications notes 37-40)'
+    echo
+    echo '```'
+    tail -1 "$OUT/bitfield-question.txt"
+    echo '```'
+    echo
     echo "PASS = simulator identical to the GPU word for word; CLOSE = differs, both within the reference tolerance;"
     echo "FAIL = a simulator (or GPU) bug to investigate; PENDING = not recorded."
 } > "$OUT/README.md"
 echo
 echo "Done. Commit the recordings and the report:"
-echo "  git add spirv/expected $OUT && git commit -m 'Asahi verification: SPIR-V workloads recorded on the M2'"
+echo "  git add spirv/expected coverage/expected $OUT && git commit -m 'Asahi verification: SPIR-V workloads recorded on the M2'"

@@ -323,6 +323,10 @@ reference.
         unpacking, `(w >> ((i & 3) * 8)) & 255`, and the driver is Vulkan-conformant.
     - The M2 run decides. A: `viterbi`, the three `shiftfuse` columns and `lz4dec` fail, and `viterbifix` passes.
       B: everything passes, and `AGX_BFEIL_MASKED_SHIFT32` semantics should become the default.
+    - It is also decided at the instruction level. `make asahi-verify` records the coverage catalog's 70 bitfield
+      cases (`bfi` / `bfeil` / `extr` / `shlhi` / `shrhi` with immediate shifts 0-127 and masks 0x1 to 0x7FFFFFFF, about
+      a minute) and runs `scripts/bitfield_question.py`. That script checks each recorded case under both semantics
+      and prints the verdict, which goes into the report.
     - `viterbifix` writes the bit test as `bitfieldExtract` with an explicitly masked offset, which the compiler keeps,
       so it is correct under both hypotheses.
     - Predicted time (`viterbifix`): about 3.6 ms for 8192 frames, dominated by 256 barrier-separated steps per
