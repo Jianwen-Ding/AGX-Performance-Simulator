@@ -1294,7 +1294,12 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
         tg_free: i64,
         at_free: i64,
         tg_group_free: Vec<i64>,
-        last_load: Option<Vec<u64>>,
+        /// (group, index into its memory steps) of the core's previous load: its lines are compared by value
+        last_load: Option<(usize, usize)>,
+        /// bumped whenever the caches change (an issued access touches its lines)
+        epoch: u64,
+        /// per group: (memory step, epoch, segments missing L1 per level, deepest level) for the step being retried
+        lv_cache: Vec<Option<(usize, u64, [f64; 3], usize)>>,
     }
     let mut ms: Option<MemState> = mem.map(|(_, m)| {
         let per_tick = |segs_per_cycle: f64| segs_per_cycle / TICKS as f64;
@@ -1319,6 +1324,8 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
             at_free: 0,
             tg_group_free: vec![0; groups],
             last_load: None,
+            epoch: 0,
+            lv_cache: vec![None; groups],
         }
     });
     let memv: Vec<&[(u32, Vec<u64>)]> = mem.map(|(v, _)| v.to_vec()).unwrap_or_default();
@@ -1752,18 +1759,31 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
                         } else {
                             // the same lines as the core's previous load (every group on one line): 1.22 cycles per
                             // load instead of 1.0 (coalesce-shared vs coalesce-private)
-                            let same = m.last_load.as_ref() == Some(segs);
+                            let same = m.last_load.is_some_and(|(g2, c2)| memv[g2][c2].1 == *segs);
                             need[0] = n.max(m_l1_load_min(mem) * if same { 1.22 } else { 1.0 });
-                            m.last_load = Some(segs.clone());
+                            m.last_load = Some((gi, m.cur[gi]));
                         }
-                        let mut level = 0usize;
-                        for &sg in segs {
-                            let lv = if m.l1.contains(sg) { 0 } else if m.l2.contains(sg) { 1 } else if m.slc.contains(sg) { 2 } else { 3 };
-                            if lv >= 1 {
-                                need[1 + lv] += 1.0;
+                        // each line's level depends only on the cache contents: reused while they are unchanged
+                        let level = match m.lv_cache[gi] {
+                            Some((c, e, nd, lv)) if c == m.cur[gi] && e == m.epoch => {
+                                need[2] = nd[0];
+                                need[3] = nd[1];
+                                need[4] = nd[2];
+                                lv
                             }
-                            level = level.max(lv);
-                        }
+                            _ => {
+                                let mut level = 0usize;
+                                for &sg in segs {
+                                    let lv = if m.l1.contains(sg) { 0 } else if m.l2.contains(sg) { 1 } else if m.slc.contains(sg) { 2 } else { 3 };
+                                    if lv >= 1 {
+                                        need[1 + lv] += 1.0;
+                                    }
+                                    level = level.max(lv);
+                                }
+                                m.lv_cache[gi] = Some((m.cur[gi], m.epoch, [need[2], need[3], need[4]], level));
+                                level
+                            }
+                        };
                         let mut until = 0i64;
                         for i in 2..5 {
                             let want = need[i].min(m.cap[i]);
@@ -1883,6 +1903,7 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
                     m.l2.touch(sg);
                     m.slc.touch(sg);
                 }
+                m.epoch += 1;
             }
             let mem_extra = mem_charge.as_ref().map(|c| c.1).unwrap_or(0) + pipe_extra;
             if r.unit.is_some() {
