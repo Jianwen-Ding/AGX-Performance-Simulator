@@ -1417,6 +1417,15 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
         extra: i64,
     }
     let mut pending: Vec<Vec<Pending>> = (0..g).map(|_| vec![]).collect();
+    /// pending loads already moved by an ALU push: their done is last_push + lat, merged per (slot, instruction)
+    struct Settled {
+        slot: usize,
+        ins: usize,
+        lat: i64,
+        lat_less_extra: i64,
+    }
+    let mut settled: Vec<Vec<Settled>> = (0..g).map(|_| vec![]).collect();
+    let mut last_push = vec![NEG_INF; g];
     let mut last_t: i64 = 0;
     let mut stats: Vec<(u64, i64, i64, i64)> = vec![(0, 0, 0, 0); sim.len()];
     let mut wake: Vec<i64> = Vec::with_capacity(g);
@@ -1992,17 +2001,40 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
                     alu_since_mem[gi] = true;
                     // the load's issue touched its destinations (`present` is never cleared), so they are indexed
                     // directly here
+                    // Settled entries (pushed at least once) always move to t + lat here; they are merged per
+                    // (slot, instruction) with the largest lat, which gives the same maxima as one push each.
                     let (rg, sl) = (&mut ready[gi], &mut slots[gi]);
-                    for p in pending[gi].iter_mut() {
+                    last_push[gi] = t;
+                    for a in settled[gi].iter() {
+                        let newdone = t + a.lat;
+                        for &h in &sim[a.ins].dst {
+                            let x = &mut rg[h as usize];
+                            *x = (*x).max(newdone);
+                        }
+                        let m = &mut sl[a.slot];
+                        *m = Some(m.map_or(newdone, |m| m.max(newdone)));
+                    }
+                    let mut k = 0;
+                    while k < pending[gi].len() {
+                        let p = &pending[gi][k];
                         let newdone = t + p.lat;
                         if newdone > p.done {
-                            p.done = newdone;
                             for &h in &sim[p.ins].dst {
                                 let x = &mut rg[h as usize];
                                 *x = (*x).max(newdone);
                             }
                             let m = &mut sl[p.slot];
                             *m = Some(m.map_or(newdone, |m| m.max(newdone)));
+                            let p = pending[gi].swap_remove(k);
+                            match settled[gi].iter_mut().find(|a| a.slot == p.slot && a.ins == p.ins) {
+                                Some(a) => {
+                                    a.lat = a.lat.max(p.lat);
+                                    a.lat_less_extra = a.lat_less_extra.max(p.lat - p.extra);
+                                }
+                                None => settled[gi].push(Settled { slot: p.slot, ins: p.ins, lat: p.lat, lat_less_extra: p.lat - p.extra }),
+                            }
+                        } else {
+                            k += 1;
                         }
                     }
                 }
@@ -2015,10 +2047,11 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
                         lat = delay + tg_lat0 + mem_extra;
                         iiv = tg_issue0;
                     } else {
-                        if alu_since_mem[gi] && !pending[gi].is_empty() {
+                        if alu_since_mem[gi] && !(pending[gi].is_empty() && settled[gi].is_empty()) {
                             // waits until the pending loads have passed the L1, not until they complete
                             // (ALU-interleaved loads over L2/DRAM windows: ~50 cycles apart, not a full latency)
-                            let m = pending[gi].iter().map(|p| p.done - p.extra).max().unwrap();
+                            let m = pending[gi].iter().map(|p| p.done - p.extra)
+                                .chain(settled[gi].iter().map(|a| last_push[gi] + a.lat_less_extra)).max().unwrap();
                             delay = delay.max(m - t);
                         }
                         lat = (delay + load_fast + mem_extra).max(if inorder_loads { last_load_done[gi] + load_ii - t } else { 0 });
@@ -2079,6 +2112,7 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
                     slots[gi][r.slot] = None;
                     let s = r.slot;
                     pending[gi].retain(|p| p.slot != s);
+                    settled[gi].retain(|a| a.slot != s);
                 }
                 Kind::Control => {
                     ii = ci;
