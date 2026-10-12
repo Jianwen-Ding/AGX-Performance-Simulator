@@ -841,6 +841,43 @@ def w_cellsort(size, rng):
              ds, check, 1024, {'items': n})
 
 
+def w_boruvka(size, rng):
+    nv, extra = (1 << 10, 3 << 10) if size == 'small' else (1 << 18, 3 << 19)
+    rounds = 24
+    # a random spanning tree (connectivity) plus random extra edges; distinct weights, so the MST is unique
+    perm = rng.permutation(nv)
+    tu = perm[1:]; tv = perm[rng.integers(0, np.arange(1, nv))]               # each vertex joins an earlier one
+    eu = np.concatenate([tu, rng.integers(0, nv, extra)]); ev = np.concatenate([tv, rng.integers(0, nv, extra)])
+    keep = eu != ev; eu, ev = eu[keep], ev[keep]
+    ne = len(eu)
+    w = rng.permutation(ne).astype(np.uint32) + 1
+    edges = u32(np.stack([eu, ev, w, np.zeros(ne, np.int64)], 1))
+    def check(o):
+        got = np.nonzero(o[4].view(np.uint32)[:ne])[0]
+        par = list(range(nv))                                                  # Kruskal with union-find
+        def find(x):
+            while par[x] != x:
+                par[x] = par[par[x]]; x = par[x]
+            return x
+        ref = []
+        for e in np.argsort(w, kind='stable').tolist():
+            a, b = find(int(eu[e])), find(int(ev[e]))
+            if a != b:
+                par[a] = b; ref.append(e)
+        ref = np.sort(np.array(ref, np.int64))
+        roots = int(np.sum(o[1].view(np.uint32)[:nv] == np.arange(nv)))
+        ok = np.array_equal(got, ref)
+        return bool(ok), {'mst_edges': int(len(got)), 'expected_edges': int(len(ref)), 'edge_sets_equal': bool(ok),
+                          'roots_left': roots, 'mst_weight': int(w[ref].astype(np.int64).sum())}
+    ng_e, ng_v = (ne + 255) // 256, (nv + 255) // 256
+    ds = []
+    for _ in range(rounds):
+        ds += [(ng_v, 1, 1, push(0, nv, ne)), (ng_e, 1, 1, push(1, nv, ne)), (ng_e, 1, 1, push(2, nv, ne)),
+               (ng_v, 1, 1, push(3, nv, ne)), (ng_v, 1, 1, push(4, nv, ne))]
+    return W('boruvka', {0: (edges, False), 1: (u32(np.arange(nv)), True), 2: (4 * nv, False), 3: (4 * nv, False), 4: (4 * ne, True)},
+             ds, check, 256, {'edges': ne, 'dispatches': len(ds)})
+
+
 def w_spmv(size, rng):
     rows, cols = (512, 512) if size == 'small' else (1 << 18, 1 << 18)
     nnz = rng.integers(0, 64, rows) * (rng.random(rows) < 0.95)    # some empty rows
@@ -3370,7 +3407,7 @@ WORKLOADS = {'reduce': w_reduce, 'scan': w_scan, 'sgemm': w_sgemm, 'conv2d': w_c
              'aluprobe': w_aluprobe, 'ubopalette': w_ubopalette, 'uboparams': w_uboparams,
              'bindless': w_bindless, 'bindlessu': w_bindlessu,
              # appended only: the input seed is the index in this dict
-             'rle': w_rle, 'huffdec': w_huffdec, 'lookback': w_lookback, 'hll': w_hll, 'tricount': w_tricount, 'sha3': w_sha3, 'stereo': w_stereo, 'viterbi': w_viterbi, 'viterbifix': w_viterbifix, 'shiftfuse': w_shiftfuse, 'bc1enc': w_bc1enc, 'lz4dec': w_lz4dec, 'nttmul': w_nttmul, 'topk': w_topk, 'cellsort': w_cellsort}
+             'rle': w_rle, 'huffdec': w_huffdec, 'lookback': w_lookback, 'hll': w_hll, 'tricount': w_tricount, 'sha3': w_sha3, 'stereo': w_stereo, 'viterbi': w_viterbi, 'viterbifix': w_viterbifix, 'shiftfuse': w_shiftfuse, 'bc1enc': w_bc1enc, 'lz4dec': w_lz4dec, 'nttmul': w_nttmul, 'topk': w_topk, 'cellsort': w_cellsort, 'boruvka': w_boruvka}
 
 
 # ---------------------------------------------------------------------------------------------------------------

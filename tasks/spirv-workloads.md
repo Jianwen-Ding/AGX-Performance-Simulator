@@ -54,7 +54,7 @@ The rest of this file is the detailed procedure, for investigating results.
 
 ## Workloads
 
-One hundred and thirty-nine realistic compute kernels, written in GLSL (`spirv/shaders/*.comp`) and compiled to SPIR-V:
+One hundred and forty realistic compute kernels, written in GLSL (`spirv/shaders/*.comp`) and compiled to SPIR-V:
 
 | Workload | Kernel | Stresses |
 |---|---|---|
@@ -197,6 +197,7 @@ One hundred and thirty-nine realistic compute kernels, written in GLSL (`spirv/s
 | `nttmul` | Negacyclic polynomial multiplication mod 7681 (degree 256) by forward / inverse NTT in shared memory | Integer multiply and `%` by a constant (compiler reciprocal multiply), 8 barrier-separated butterfly stages, strided shared-memory access |
 | `topk` | k-th smallest of 1024 keys per workgroup by 4-pass MSB-first radix select | Shared `atomicAdd` histograms with heavy collisions (duplicate-rich keys), `subgroupInclusiveAdd` scans, uniform control flow across 13 barriers |
 | `cellsort` | Particle binning by counting sort: count, one-workgroup scan, scatter by returned atomic | Device `atomicAdd` with and without a returned value, hot cells (same-address contention), a 1024-invocation workgroup scan |
+| `boruvka` | Minimum spanning tree by Borůvka rounds (best edge by `atomicMin`, hooking, pointer jumping), 120 dispatches | Iterative graph algorithm whose per-dispatch work shrinks round by round; device `atomicMin`; pointer chasing |
 
 Each workload has two sizes:
 
