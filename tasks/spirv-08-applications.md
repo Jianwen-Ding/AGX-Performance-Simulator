@@ -330,6 +330,9 @@ reference.
       - B is the more plausible one a priori. `lz4dec` and `bitap` show the fused form arising from the most
         ordinary byte / 2-bit unpacking, `(w >> ((i & 3) * 8)) & 255` (or `& 3`), and the driver is
         Vulkan-conformant.
+    - No existing hardware data covers the masked form. The testsuite's only `bfeil` case is full-width, and the
+      Apple-M2-Playground ALU bit-flip runs (`results/2026-10-11-alu-bitflip`) flipped bits 52, 53 and 62 of
+      `bfeil r5, r6, r7, r8`, all of which decode with `m = 0`.
     - The M2 run decides. A: `viterbi`, the three `shiftfuse` columns and `lz4dec` fail, and `viterbifix` passes.
       B: everything passes, and `AGX_BFEIL_MASKED_SHIFT32` semantics should become the default.
     - It is also decided at the instruction level. `make asahi-verify` records the coverage catalog's 70 bitfield
