@@ -1,0 +1,22 @@
+{
+ "blob": "spirv/compiled/mesa-26.0.3/raster/shader.bin",
+ "code_start": 2244,
+ "code_size": 800,
+ "layout": "agx_shader_info",
+ "programs": [
+  {
+   "label": "main",
+   "file": "main.bin",
+   "offset": 0,
+   "bytes": 522,
+   "instructions": 73
+  },
+  {
+   "label": "preamble",
+   "file": "preamble.bin",
+   "offset": 640,
+   "bytes": 144,
+   "instructions": 23
+  }
+ ]
+}

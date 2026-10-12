@@ -1,7 +1,7 @@
 # Task SPIR-V 8: applications (ray tracer, neural networks, image processing, cellular automaton, graph search,
 # encryption, hashing, text, compression)
 
-**Workloads:** `raytrace`, `mlp`, `sobel`, `life`, `bfs`, `conv_layer`, `hist_eq`, `aes`, `hash_table`, `word_count`, `dct8`, `attention`, `resize`, `median3`, `poisson`, `lbm`, `base64`, `md5`, `gemv`, `levenshtein`, `blur`, `yuv420`, `montecarlo`, `xxhash`, `bloom`, `collatz`, `tridiag`, `merge`, `ccl`, `pagerank`, `skinning`, `strsearch`, `quantize`, `rule110`, `voxel`, `nms`, `sat`, `sssp`, `morton`, `utf8`, `fir`, `composite`, `nqueens`, `lzmatch`, `bitpack`, `perlin`, `adler32`, `sieve`, `gcd`, `dither`, `advect`, `knn`, `csvparse`, `pip`, `lift53`, `chacha20`, `modexp`, `floyd`, `f16pack`. These are recorded and verified by `make asahi-verify` with the others;
+**Workloads:** `raytrace`, `mlp`, `sobel`, `life`, `bfs`, `conv_layer`, `hist_eq`, `aes`, `hash_table`, `word_count`, `dct8`, `attention`, `resize`, `median3`, `poisson`, `lbm`, `base64`, `md5`, `gemv`, `levenshtein`, `blur`, `yuv420`, `montecarlo`, `xxhash`, `bloom`, `collatz`, `tridiag`, `merge`, `ccl`, `pagerank`, `skinning`, `strsearch`, `quantize`, `rule110`, `voxel`, `nms`, `sat`, `sssp`, `morton`, `utf8`, `fir`, `composite`, `nqueens`, `lzmatch`, `bitpack`, `perlin`, `adler32`, `sieve`, `gcd`, `dither`, `advect`, `knn`, `csvparse`, `pip`, `lift53`, `chacha20`, `modexp`, `floyd`, `f16pack`, `raster`, `canny`, `secded`, `bicubic`. These are recorded and verified by `make asahi-verify` with the others;
 they are **PENDING** until then. The detailed procedure is in `tasks/spirv-workloads.md`.
 
 ## Why these
@@ -71,11 +71,15 @@ reference.
 | `modexp` | 2^20 modular exponentiations base^exp mod m with 32-bit operands and 64-bit products | Exact against Python `pow` (mod 1, x^0 and a Fermat identity included); Mesa lowers the 64-bit `%` to ~1800 instructions |
 | `floyd` | Floyd-Warshall all-pairs shortest paths on a 512-vertex sparse graph, 512 dependent dispatches | Exact distances, unreachable pairs stay at the sentinel |
 | `f16pack` | `packHalf2x16` of 2^23 floats from fp16-subnormal to overflow magnitudes, then `unpackHalf2x16` in a second dispatch | Bit-exact against IEEE round-to-nearest-even, fp16 subnormals and infinities included |
+| `raster` | Software rasterization of 131072 small triangles at 1920 × 1080: integer edge functions over each bounding box, `atomicMin` depth / id resolve | Exact frame buffer (degenerate triangles cover only their box, as scanned) |
+| `canny` | Canny edge thinning of a 4K image: integer Sobel, direction sector from exact tan 22.5° comparisons, non-maximum suppression, threshold (2 dispatches) | Exact edge map; `image2.pgm` shows the edges |
+| `secded` | Extended Hamming(8,4) SECDED encode of 2M words, then decode after injected 0 / 1 / 2-bit errors per byte (2 dispatches) | Exact; single errors corrected, every double error flagged |
+| `bicubic` | 2× Catmull-Rom bicubic upscaling of a 1920 × 1080 fp32 image to 4K | Within 64 ulp of the image maximum (float64 reference) |
 
 ## Offline sanity checks (not hardware verification)
 
 - **lavapipe:** all pass at both sizes.
-- **Shim-compiled Mesa 25.2.8 and 26.0.3 code on the functional simulator:** 118 of 118.
+- **Shim-compiled Mesa 25.2.8 and 26.0.3 code on the functional simulator:** 126 of 126.
   - `bfs` found a simulator bug. Mesa aggregates `atomicAdd(found[l], 1)` under divergence: one lane, chosen with SR58
     (`active_thread_index_in_simdgroup`), adds SR59, the number of active lanes. The simulator modelled both from the
     launch shape (lane index, 32), which is only right when every lane is active, so the counts came out as multiples
@@ -131,3 +135,4 @@ reference.
       means the hardware flushes them; record which values differ.
     - Its round trip is split into two dispatches on purpose. In one shader, lavapipe's compiler folded
       `unpackHalf2x16(packHalf2x16(v))` back to `v` for one component, which is not a correct round trip.
+16. `raster`, `canny` and `secded` are exact and must PASS; `bicubic` is fp32 (CLOSE or PASS).

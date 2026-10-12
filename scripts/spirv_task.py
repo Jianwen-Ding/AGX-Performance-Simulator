@@ -2094,6 +2094,134 @@ def w_f16pack(size, rng):
              {'values': 2 * n})
 
 
+def w_raster(size, rng):
+    Wd, H, n = (128, 96, 300) if size == 'small' else (1920, 1080, 1 << 17)
+    cx, cy = rng.integers(-8, Wd + 8, n), rng.integers(-8, H + 8, n)
+    off = rng.integers(-16, 17, (n, 3, 2))
+    vx, vy = cx[:, None] + off[..., 0], cy[:, None] + off[..., 1]
+    depth = rng.integers(0, 4096, n)
+    tris = np.zeros((n, 2, 4), np.int32)
+    tris[:, 0] = np.stack([vx[:, 0], vy[:, 0], vx[:, 1], vy[:, 1]], 1); tris[:, 1, :3] = np.stack([vx[:, 2], vy[:, 2], depth], 1)
+    def check(o):
+        got = o[1].view(np.uint32)[:Wd * H]
+        a, b, c = [np.stack([vx[:, k], vy[:, k]], 1).astype(np.int64) for k in range(3)]
+        e = lambda p_, q_, r_: (q_[..., 0] - p_[..., 0]) * (r_[..., 1] - p_[..., 1]) - (q_[..., 1] - p_[..., 1]) * (r_[..., 0] - p_[..., 0])
+        flip = e(a, b, c) < 0
+        b, c = np.where(flip[:, None], c, b), np.where(flip[:, None], b, c)
+        fb = np.full(Wd * H, 0xffffffff, np.int64)
+        key = (depth.astype(np.int64) << 20) | np.arange(n)
+        oy, ox = np.mgrid[-16:17, -16:17]                                       # every bounding box fits in 33 x 33 around the centre
+        for s0 in range(0, n, 2048):
+            sl = slice(s0, s0 + 2048)
+            qx = cx[sl, None, None] + ox; qy = cy[sl, None, None] + oy
+            q = np.stack([qx, qy], -1).astype(np.int64)
+            A, B, C = a[sl][:, None, None], b[sl][:, None, None], c[sl][:, None, None]
+            lo_x, hi_x = vx[sl].min(1)[:, None, None], vx[sl].max(1)[:, None, None]
+            lo_y, hi_y = vy[sl].min(1)[:, None, None], vy[sl].max(1)[:, None, None]
+            inbox = (qx >= np.maximum(lo_x, 0)) & (qx <= np.minimum(hi_x, Wd - 1)) & (qy >= np.maximum(lo_y, 0)) & (qy <= np.minimum(hi_y, H - 1))
+            # only the bounding box is scanned: a degenerate (collinear) triangle passes all three edge tests along its
+            # whole line, but covers just the part inside its box
+            inside = (e(A, B, q) >= 0) & (e(B, C, q) >= 0) & (e(C, A, q) >= 0) & inbox
+            tri_i, yy, xx = np.nonzero(inside)
+            np.minimum.at(fb, qy[tri_i, yy, xx] * Wd + qx[tri_i, yy, xx], key[sl][tri_i])
+        ok = np.array_equal(got.astype(np.int64), fb)
+        return ok, {'pixel_mismatches': int(np.sum(got.astype(np.int64) != fb)), 'covered_pixels': int(np.sum(fb != 0xffffffff))}
+    return W('raster', {0: (tris, False), 1: (u32(np.full(Wd * H, 0xffffffff, np.uint64)), True)}, [((n + 63) // 64, 1, 1, push(n, Wd, H))],
+             check, 64, {'triangles': n})
+
+
+def w_canny(size, rng):
+    Wd, H = (96, 64) if size == 'small' else (3840, 2160)
+    gy, gx = np.mgrid[0:H, 0:Wd]
+    img = (np.where((gx - Wd / 2) ** 2 + (gy - H / 2) ** 2 < (H / 3) ** 2, 200, 40) + 30 * np.sin(gx / 11.0) * np.cos(gy / 7.0)
+           + rng.integers(-6, 7, (H, Wd))).clip(0, 255).astype(np.uint8)
+    thresh = 120
+    def check(o):
+        got = o[2][:Wd * H].reshape(H, Wd)
+        q = np.pad(img.astype(np.int64), 1, mode='edge')
+        P_ = lambda dx, dy: q[1 + dy:1 + dy + H, 1 + dx:1 + dx + Wd]
+        gxx = P_(1, -1) + 2 * P_(1, 0) + P_(1, 1) - P_(-1, -1) - 2 * P_(-1, 0) - P_(-1, 1)
+        gyy = P_(-1, 1) + 2 * P_(0, 1) + P_(1, 1) - P_(-1, -1) - 2 * P_(0, -1) - P_(1, -1)
+        ax, ay = np.abs(gxx), np.abs(gyy); m = ax + ay
+        sector = np.where(ay * 10000 < ax * 4142, 0, np.where(ay * 4142 > ax * 10000, 2, np.where((gxx > 0) == (gyy > 0), 1, 3)))
+        mp = np.pad(m, 1)                                                       # zero outside the image
+        nb = lambda dx, dy: mp[1 + dy:1 + dy + H, 1 + dx:1 + dx + Wd]
+        dxs, dys = np.choose(sector, [1, 1, 0, 1]), np.choose(sector, [0, 1, 1, -1])
+        before = np.select([sector == k for k in range(4)], [nb(-1, 0), nb(-1, -1), nb(0, -1), nb(-1, 1)])
+        after = np.select([sector == k for k in range(4)], [nb(1, 0), nb(1, 1), nb(0, 1), nb(1, -1)])
+        ref = np.where((m > before) & (m >= after) & (m > thresh), 255, 0).astype(np.uint8)
+        return np.array_equal(got, ref), {'mismatches': int(np.sum(got != ref)), 'edge_pixels': int(np.sum(ref > 0))}
+    ds = [((Wd + 15) // 16, (H + 15) // 16, 1, push(Wd, H, k, thresh)) for k in range(2)]
+    return W('canny', {0: (img, False), 1: (4 * Wd * H, False), 2: (Wd * H, True)}, ds, check, (16, 16, 1), {'pixels': Wd * H},
+             images=[(2, Wd, H, 'gray8')])
+
+
+def secded_enc(d):
+    b = [(d >> k) & 1 for k in range(4)]
+    p1, p2, p3 = b[0] ^ b[1] ^ b[3], b[0] ^ b[2] ^ b[3], b[1] ^ b[2] ^ b[3]
+    c = p1 | p2 << 1 | b[0] << 2 | p3 << 3 | b[1] << 4 | b[2] << 5 | b[3] << 6
+    return c | (bin(c).count('1') & 1) << 7
+
+
+SECDED_TABLE = np.array([secded_enc(d) for d in range(16)], np.uint32)
+
+
+def w_secded(size, rng):
+    n = 4096 if size == 'small' else 1 << 21
+    data = u32(rng.integers(0, 1 << 32, n, dtype=np.uint64))
+    nerr = rng.choice([0, 1, 2], (n, 8), p=[0.6, 0.3, 0.1])                     # flipped bits per code byte
+    errb = np.zeros((n, 8), np.uint32)
+    for k in (1, 2):
+        rows, cols = np.nonzero(nerr == k)
+        bits = np.stack([rng.permutation(8)[:k] for _ in range(len(rows))]) if len(rows) else np.zeros((0, k), int)
+        errb[rows, cols] = (1 << bits).sum(1).astype(np.uint32)
+    errs = u32(np.stack([errb[:, 0] | errb[:, 1] << 8 | errb[:, 2] << 16 | errb[:, 3] << 24,
+                         errb[:, 4] | errb[:, 5] << 8 | errb[:, 6] << 16 | errb[:, 7] << 24], 1))
+    def check(o):
+        code = o[1].view(np.uint32)[:2 * n].reshape(n, 2); outd = o[3].view(np.uint32)[:n]; st = o[4].view(np.uint32)[:n]
+        nib = (data[:, None] >> (4 * np.arange(8, dtype=np.uint32))) & 15
+        cb = SECDED_TABLE[nib]
+        ref_code = np.stack([cb[:, 0] | cb[:, 1] << 8 | cb[:, 2] << 16 | cb[:, 3] << 24, cb[:, 4] | cb[:, 5] << 8 | cb[:, 6] << 16 | cb[:, 7] << 24], 1)
+        c = (cb ^ errb).astype(np.int64)
+        bit = lambda k: (c >> k) & 1
+        syn = (bit(0) ^ bit(2) ^ bit(4) ^ bit(6)) | (bit(1) ^ bit(2) ^ bit(5) ^ bit(6)) << 1 | (bit(3) ^ bit(4) ^ bit(5) ^ bit(6)) << 2
+        par = np.vectorize(lambda v: bin(v).count('1') & 1)(c) if size == 'small' else np.unpackbits(c.astype(np.uint8)[..., None], axis=-1).sum(-1) & 1
+        single = (syn != 0) & (par == 1)
+        c = np.where(single, c ^ (1 << np.maximum(syn - 1, 0)), c)
+        fixed = single | ((syn == 0) & (par == 1)); dbl = (syn != 0) & (par == 0)
+        d = bit(2) | bit(4) << 1 | bit(5) << 2 | bit(6) << 3
+        ref_out = (d << (4 * np.arange(8))).sum(1).astype(np.uint32)
+        ref_st = ((fixed << np.arange(8)).sum(1) | (dbl << np.arange(8)).sum(1) << 8).astype(np.uint32)
+        ok = np.array_equal(code, ref_code) and np.array_equal(outd, ref_out) and np.array_equal(st, ref_st)
+        clean = (nerr <= 1).all(1)
+        semantics = bool(np.array_equal(outd[clean], data[clean]) and np.array_equal(dbl, nerr == 2) and np.array_equal(fixed, nerr == 1))
+        return ok and semantics, {'code_mismatches': int(np.sum(code != ref_code)), 'data_mismatches': int(np.sum(outd != ref_out)),
+                                  'status_mismatches': int(np.sum(st != ref_st)), 'corrects_singles_flags_doubles': semantics}
+    ds = [((n + 255) // 256, 1, 1, push(n, k)) for k in range(2)]
+    return W('secded', {0: (data, False), 1: (8 * n, True), 2: (errs, False), 3: (4 * n, True), 4: (4 * n, True)}, ds, check, 256, {'words': n})
+
+
+def w_bicubic(size, rng):
+    sw, sh = (40, 30) if size == 'small' else (1920, 1080)
+    gy, gx = np.mgrid[0:sh, 0:sw]
+    src = f32(0.5 + 0.4 * np.sin(gx / 6.0) * np.cos(gy / 5.0) + 0.05 * rng.standard_normal((sh, sw)))
+    def check(o):
+        dw, dh = 2 * sw, 2 * sh
+        got = o[1].view(np.float32)[:dw * dh].reshape(dh, dw).astype(np.float64)
+        def axis(nn, src_n):
+            s_ = (np.arange(nn) + 0.5) * 0.5 - 0.5; f = np.floor(s_); t = s_ - f
+            w = np.stack([-0.5 * t ** 3 + t ** 2 - 0.5 * t, 1.5 * t ** 3 - 2.5 * t ** 2 + 1, -1.5 * t ** 3 + 2 * t ** 2 + 0.5 * t, 0.5 * t ** 3 - 0.5 * t ** 2], 1)
+            idx = np.clip(f.astype(int)[:, None] - 1 + np.arange(4), 0, src_n - 1)
+            M = np.zeros((nn, src_n)); np.add.at(M, (np.repeat(np.arange(nn), 4), idx.ravel()), w.ravel())
+            return M
+        ref = axis(dh, sh) @ src.astype(np.float64) @ axis(dw, sw).T
+        err = float(np.max(np.abs(got - ref)))
+        bound = 64 * 2.0 ** -24 * float(np.max(np.abs(src)))                   # 16 weighted terms, |weights| sum <= 1.6^2
+        return err <= bound, {'max_abs_err': err, 'bound': bound}
+    return W('bicubic', {0: (src, False), 1: (16 * sw * sh, True), 2: (4 * sw * sh, True)}, [((2 * sw + 15) // 16, (2 * sh + 15) // 16, 1, push(sw, sh))],
+             check, (16, 16, 1), {'output_pixels': 4 * sw * sh}, images=[(2, 2 * sw, 2 * sh, 'gray8')])
+
+
 WORKLOADS = {'reduce': w_reduce, 'scan': w_scan, 'sgemm': w_sgemm, 'conv2d': w_conv2d, 'histogram': w_histogram,
              'nbody': w_nbody, 'bitonic': w_bitonic, 'sha256': w_sha256, 'fp16': w_fp16, 'int64': w_int64, 'bitops': w_bitops,
              'intdiv': w_intdiv, 'compact': w_compact, 'spmv': w_spmv, 'transpose': w_transpose, 'mandelbrot': w_mandelbrot,
@@ -2113,7 +2241,8 @@ WORKLOADS = {'reduce': w_reduce, 'scan': w_scan, 'sgemm': w_sgemm, 'conv2d': w_c
              'lzmatch': w_lzmatch, 'bitpack': w_bitpack, 'perlin': w_perlin, 'adler32': w_adler32,
              'sieve': w_sieve, 'gcd': w_gcd, 'dither': w_dither, 'advect': w_advect,
              'knn': w_knn, 'csvparse': w_csvparse, 'pip': w_pip, 'lift53': w_lift53,
-             'chacha20': w_chacha20, 'modexp': w_modexp, 'floyd': w_floyd, 'f16pack': w_f16pack}
+             'chacha20': w_chacha20, 'modexp': w_modexp, 'floyd': w_floyd, 'f16pack': w_f16pack,
+             'raster': w_raster, 'canny': w_canny, 'secded': w_secded, 'bicubic': w_bicubic}
 
 
 # ---------------------------------------------------------------------------------------------------------------

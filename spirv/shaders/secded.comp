@@ -1,0 +1,46 @@
+#version 450
+// SECDED error correction (as in ECC memory) on 4-bit nibbles with an extended Hamming(8,4) code, two dispatches:
+// pass 0 encodes each 32-bit data word into 64 code bits; pass 1 reads the stored code words XORed with an error
+// pattern (none, one or two flipped bits per byte), corrects single-bit errors, flags double-bit errors and
+// returns the data with a per-word status. Integer-exact.
+layout(local_size_x = 256) in;
+layout(std430, binding = 0) readonly buffer D { uint data[]; };
+layout(std430, binding = 1) buffer C { uvec2 code[]; };
+layout(std430, binding = 2) readonly buffer E { uvec2 errs[]; };
+layout(std430, binding = 3) writeonly buffer O { uint outd[]; };
+layout(std430, binding = 4) writeonly buffer S { uint status[]; };   // corrected bytes | double-error bytes << 8
+layout(push_constant) uniform P { uint n; uint pass_; } p;
+
+uint enc(uint d) {                                    // bits: p1 p2 d1 p3 d2 d3 d4 | overall parity in bit 7
+    uint d1 = d & 1u, d2 = (d >> 1) & 1u, d3 = (d >> 2) & 1u, d4 = (d >> 3) & 1u;
+    uint p1 = d1 ^ d2 ^ d4, p2 = d1 ^ d3 ^ d4, p3 = d2 ^ d3 ^ d4;
+    uint c = p1 | p2 << 1 | d1 << 2 | p3 << 3 | d2 << 4 | d3 << 5 | d4 << 6;
+    return c | (uint(bitCount(c)) & 1u) << 7;
+}
+
+void main() {
+    uint i = gl_GlobalInvocationID.x;
+    if (i >= p.n) return;
+    if (p.pass_ == 0u) {
+        uint w = data[i], lo = 0u, hi = 0u;
+        for (uint k = 0u; k < 4u; k++) lo |= enc((w >> (4u * k)) & 15u) << (8u * k);
+        for (uint k = 0u; k < 4u; k++) hi |= enc((w >> (16u + 4u * k)) & 15u) << (8u * k);
+        code[i] = uvec2(lo, hi);
+        return;
+    }
+    uvec2 cw = code[i] ^ errs[i];
+    uint w = 0u, fixed_ = 0u, dbl = 0u;
+    for (uint k = 0u; k < 8u; k++) {
+        uint c = ((k < 4u ? cw.x : cw.y) >> (8u * (k & 3u))) & 255u;
+        uint b1 = c & 1u, b2 = (c >> 1) & 1u, b3 = (c >> 2) & 1u, b4 = (c >> 3) & 1u, b5 = (c >> 4) & 1u, b6 = (c >> 5) & 1u, b7 = (c >> 6) & 1u;
+        uint syn = (b1 ^ b3 ^ b5 ^ b7) | (b2 ^ b3 ^ b6 ^ b7) << 1 | (b4 ^ b5 ^ b6 ^ b7) << 2;
+        uint par = uint(bitCount(c)) & 1u;
+        if (syn != 0u && par == 1u) { c ^= 1u << (syn - 1u); fixed_ |= 1u << k; }   // single error in bits 1..7
+        else if (syn == 0u && par == 1u) { fixed_ |= 1u << k; }                       // the overall parity bit itself
+        else if (syn != 0u) { dbl |= 1u << k; }                                       // two errors: detected only
+        uint d = ((c >> 2) & 1u) | ((c >> 4) & 1u) << 1 | ((c >> 5) & 1u) << 2 | ((c >> 6) & 1u) << 3;
+        w |= d << (4u * k);
+    }
+    outd[i] = w;
+    status[i] = fixed_ | dbl << 8;
+}

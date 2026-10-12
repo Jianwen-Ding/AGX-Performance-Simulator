@@ -1,0 +1,35 @@
+#version 450
+// 2x bicubic (Catmull-Rom) upscaling of an fp32 image (photo and video scalers): each output pixel weights a 4 x 4
+// neighbourhood of clamped source pixels with the separable Catmull-Rom kernel at its fractional position.
+// fp32, checked against float64; the output is an image.
+#extension GL_EXT_shader_8bit_storage : require
+#extension GL_EXT_shader_explicit_arithmetic_types_int8 : require
+layout(local_size_x = 16, local_size_y = 16) in;
+layout(std430, binding = 0) readonly buffer S { float src[]; };
+layout(std430, binding = 1) writeonly buffer D { float dst[]; };
+layout(std430, binding = 2) writeonly buffer I { uint8_t img[]; };
+layout(push_constant) uniform P { int sw; int sh; } p;
+
+vec4 cr(float t) {
+    float t2 = t * t, t3 = t2 * t;
+    return vec4(-0.5 * t3 + t2 - 0.5 * t, 1.5 * t3 - 2.5 * t2 + 1.0, -1.5 * t3 + 2.0 * t2 + 0.5 * t, 0.5 * t3 - 0.5 * t2);
+}
+float at(int x, int y) { return src[clamp(y, 0, p.sh - 1) * p.sw + clamp(x, 0, p.sw - 1)]; }
+
+void main() {
+    ivec2 g = ivec2(gl_GlobalInvocationID.xy);
+    int dw = 2 * p.sw, dh = 2 * p.sh;
+    if (g.x >= dw || g.y >= dh) return;
+    vec2 s = (vec2(g) + 0.5) * 0.5 - 0.5;               // output pixel centre in source coordinates
+    vec2 f = floor(s), t = s - f;
+    ivec2 b = ivec2(f) - 1;
+    vec4 wx = cr(t.x), wy = cr(t.y);
+    float acc = 0.0;
+    for (int j = 0; j < 4; j++) {
+        float row = 0.0;
+        for (int k = 0; k < 4; k++) row += wx[k] * at(b.x + k, b.y + j);
+        acc += wy[j] * row;
+    }
+    dst[g.y * dw + g.x] = acc;
+    img[g.y * dw + g.x] = uint8_t(clamp(acc, 0.0, 1.0) * 255.0 + 0.5);
+}

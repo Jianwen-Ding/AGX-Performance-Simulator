@@ -1,0 +1,36 @@
+#version 450
+// Canny edge thinning, two dispatches: pass 0 computes integer Sobel gradients, the L1 magnitude and the gradient
+// direction sector (0, 45, 90, 135 degrees, from exact integer comparisons with tan 22.5 ~ 0.4142); pass 1 keeps a
+// pixel only if its magnitude is a maximum along that direction (> one neighbour, >= the other) and thresholds it.
+// Integer-exact; the edge map is an image.
+#extension GL_EXT_shader_8bit_storage : require
+#extension GL_EXT_shader_explicit_arithmetic_types_int8 : require
+layout(local_size_x = 16, local_size_y = 16) in;
+layout(std430, binding = 0) readonly buffer I { uint8_t img[]; };
+layout(std430, binding = 1) buffer M { uint mag[]; };                 // magnitude << 2 | sector
+layout(std430, binding = 2) writeonly buffer E { uint8_t edges[]; };
+layout(push_constant) uniform P { int width; int height; int pass_; uint thresh; } p;
+
+int px(int x, int y) { return int(img[clamp(y, 0, p.height - 1) * p.width + clamp(x, 0, p.width - 1)]); }
+uint m_at(int x, int y) {
+    if (x < 0 || y < 0 || x >= p.width || y >= p.height) return 0u;
+    return mag[y * p.width + x] >> 2;
+}
+
+void main() {
+    ivec2 g = ivec2(gl_GlobalInvocationID.xy);
+    if (g.x >= p.width || g.y >= p.height) return;
+    int i = g.y * p.width + g.x;
+    if (p.pass_ == 0) {
+        int gx = px(g.x + 1, g.y - 1) + 2 * px(g.x + 1, g.y) + px(g.x + 1, g.y + 1) - px(g.x - 1, g.y - 1) - 2 * px(g.x - 1, g.y) - px(g.x - 1, g.y + 1);
+        int gy = px(g.x - 1, g.y + 1) + 2 * px(g.x, g.y + 1) + px(g.x + 1, g.y + 1) - px(g.x - 1, g.y - 1) - 2 * px(g.x, g.y - 1) - px(g.x + 1, g.y - 1);
+        int ax = abs(gx), ay = abs(gy);
+        uint sector = ay * 10000 < ax * 4142 ? 0u : ay * 4142 > ax * 10000 ? 2u : ((gx > 0) == (gy > 0) ? 1u : 3u);
+        mag[i] = uint(ax + ay) << 2 | sector;
+    } else {
+        uint m = mag[i] >> 2, s = mag[i] & 3u;
+        ivec2 d = s == 0u ? ivec2(1, 0) : s == 2u ? ivec2(0, 1) : s == 1u ? ivec2(1, 1) : ivec2(1, -1);
+        bool keep = m > m_at(g.x - d.x, g.y - d.y) && m >= m_at(g.x + d.x, g.y + d.y);
+        edges[i] = uint8_t(keep && m > p.thresh ? 255u : 0u);
+    }
+}
