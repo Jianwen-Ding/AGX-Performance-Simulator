@@ -32,7 +32,7 @@ verify-memory-model: rust
 	rust/target/release/mem_check --stored --limit 0.1
 
 verify-scaling: rust
-	rust/target/release/scale_check results/2026-10-11-core-scaling/grid.json results/2026-10-11-core-scaling/chains.json results/2026-10-11-core-scaling/idle.json
+	rust/target/release/scale_check results/2026-10-11-core-scaling/grid.json results/2026-10-11-core-scaling/chains.json results/2026-10-11-core-scaling/idle.json results/2026-10-11-core-scaling/dests.json
 
 verify-dispatch: rust
 	rust/target/release/dispatch_check -v

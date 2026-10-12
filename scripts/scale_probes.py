@@ -58,7 +58,16 @@ def op_trips_setup(trips, idle):
     return b
 
 
-def program(op, chains, G, s1, s2, trips, ref_trips, count, warm, idle=(), phase=None):
+def skew_loop(k):
+    """k*SR53 + 1 trips of 8 dependent iadds on r28 (desynchronises the groups before a timed phase)."""
+    if not k: return b''
+    head = mov(28, k)+e(f'imadd r28, r{R_LOCAL}, r28, 0')+e('iadd r28, r28, 1')+mov(3, 0)+e('iadd r4, r28, 0')
+    head += e('if_fcmp r0l, eq, 0.0, 0.0, 1', 'push_exec r0l, 1')
+    body = b''.join(e('iadd r27, r27, 1') for _ in range(8))+e('iadd r3, 1, r3.sx')+e('while_icmp r0l, ult, r3, r4, 1')
+    return head+body+e(f'jmp_exec_any pc-{len(body)}', f'jmp_exec_any pc-{len(body)}')+e('pop_exec r0l, 1')
+
+
+def program(op, chains, G, s1, s2, trips, ref_trips, count, warm, idle=(), phase=None, skew=0):
     """`phase(s)`: optional builder of the timed loop with s steps (trip count from r29); default the bench
     loop of `op` with `chains` chains."""
     phase = phase or (lambda s: loop_reg(op, chains, s, R_OPTRIPS))
@@ -68,7 +77,7 @@ def program(op, chains, G, s1, s2, trips, ref_trips, count, warm, idle=(), phase
     ck = lambda k: B.clock_read(k, count)
     b = group_setup(G, ref_trips)+core+op_trips_setup(trips, idle)+(B.loop('fadd32', 8, 64, warm) if warm else b'')+BAR
     b += ck(0)+loop_reg(B.REF, 1, s1)+ck(1)+loop_reg(B.REF, 1, s2)+ck(2)+BAR
-    b += phase(s1)+BAR+ck(3)+BAR+phase(s2)+BAR+ck(4)
+    b += skew_loop(skew)+phase(s1)+BAR+ck(3)+BAR+skew_loop(skew)+phase(s2)+BAR+ck(4)
     b += loop_reg(B.REF, 1, s1)+ck(5)
     return b
 
@@ -141,6 +150,7 @@ def main():
     ap.add_argument('--ref-trips', type=int, default=2000)
     ap.add_argument('--warm', type=int, default=4000)
     ap.add_argument('--steps', default='32,128', help='body lengths s1,s2')
+    ap.add_argument('--skew', type=int, default=0, help='before each timed phase, group g runs g*SKEW+1 trips of 8 iadds')
     ap.add_argument('--name', default='scale.json')
     ap.add_argument('--output', type=Path, default=Path('/scratch/apple-m2-playground/sim/scale'))
     a = ap.parse_args()
@@ -158,7 +168,7 @@ def main():
             for G, idle in groups_spec(a.groups):
                 trips = a.trips or estimate_trips(op, ch, G, S2)
                 count = CORES*32*G
-                body = program(op, ch, G, S1, S2, trips, a.ref_trips, count, a.warm, idle)
+                body = program(op, ch, G, S1, S2, trips, a.ref_trips, count, a.warm, idle, skew=a.skew)
                 best = None
                 for attempt in range(1, 6):
                     fw, ts = R.run(body, count, 2+attempt, 32*G, gprs=64, clock=True)
@@ -166,7 +176,7 @@ def main():
                     m = analyse(ts, G, trips, a.ref_trips, S1, S2)
                     if m['stable_cores'] >= 10: best = m; break
                     best = best or m
-                row = {'op': op, 'chains': ch, 'groups': G, 'idle': idle, 'trips': trips, 'attempts': attempt, **best}
+                row = {'op': op, 'chains': ch, 'groups': G, 'idle': idle, 'skew': a.skew, 'trips': trips, 'attempts': attempt, **best}
                 out['rows'].append(row)
                 print(json.dumps({k: (round(v, 3) if isinstance(v, float) else v) for k, v in row.items() if k != 'spread'}), flush=True)
                 path.write_text(json.dumps(out, indent=0)+'\n')
@@ -184,23 +194,27 @@ def barrier_loop(steps, code=BAR, filler=b''):
     return head+body+e(f'jmp_exec_any pc-{len(body)}', f'jmp_exec_any pc-{len(body)}')+e('pop_exec r0l, 1')
 
 
-def barriers(groups, trips=200, ref_trips=500, s=(8, 32), out=Path('/scratch/apple-m2-playground/sim/barrier')):
+def barriers(groups, trips=200, ref_trips=500, s=(8, 32), out=Path('/scratch/apple-m2-playground/sim/barrier'), fills=(0, 4),
+             codes=None, name='barrier.json', fill_kind='indep'):
     """Core cycles per barrier (all groups) for 0x68 and 0x78, alone and after 4 independent iadds."""
     R = B.Runner(out)
     rows = []
-    for name, code in (('0x68', BAR), ('0x78', bytes.fromhex('7809'))):
-        for fill in (0, 4):
-            filler = b''.join(e(f'iadd r{5+k}, r{5+k}, 1') for k in range(fill))
+    for bname, code in (codes or (('0x68', BAR), ('0x78', bytes.fromhex('7809')))):
+        for fill in fills:
+            if fill_kind == 'indep':
+                filler = b''.join(e(f'iadd r{5+k % 16}, r{5+k % 16}, 1') for k in range(fill))
+            else:   # one dependent chain
+                filler = b''.join(e('iadd r5, r5, 1') for k in range(fill))
             for G in groups:
-                if name == '0x78' and G > 4: continue      # 0x78 only covers aligned blocks of 4 groups
+                if bname == '0x78' and G > 4: continue      # 0x78 only covers aligned blocks of 4 groups
                 count = CORES*32*G
                 body = program(None, 0, G, s[0], s[1], trips, ref_trips, count, 2000, phase=lambda n: barrier_loop(n, code, filler))
                 for att in range(1, 5):
                     fw, ts = R.run(body, count, 2+att, 32*G, gprs=64, clock=True)
                     m = analyse(ts, G, trips, ref_trips, s[0], s[1])
                     if m['stable_cores'] >= 10: break
-                row = {'barrier': name, 'filler_iadds': fill, 'groups': G, **{k: v for k, v in m.items() if k != 'slots'}}
+                row = {'barrier': bname, 'filler_iadds': fill, 'fill_kind': fill_kind, 'groups': G, **{k: v for k, v in m.items() if k != 'slots'}}
                 rows.append(row)
-                print(json.dumps({'barrier': name, 'fill': fill, 'G': G, 'cycles_per_barrier': round(m.get('core_cycles_per_step', 0), 2),
+                print(json.dumps({'barrier': bname, 'fill': fill, 'kind': fill_kind, 'G': G, 'cycles_per_barrier': round(m.get('core_cycles_per_step', 0), 2),
                                   'stable': m['stable_cores']}), flush=True)
-    (out/'barrier.json').write_text(json.dumps({'steps': list(s), 'rows': rows})+'\n')
+    (out/name).write_text(json.dumps({'steps': list(s), 'rows': rows})+'\n')

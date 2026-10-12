@@ -555,13 +555,19 @@ pub fn mem_loop_kind(steps: u32, kind: &str, s: u32, jstride: u32, w: u32, data:
 /// scale_probes.barrier_loop: counted loop (trips in r29) of `steps` barriers (0x68, or 0x78 when
 /// `four`), each preceded by `fill` independent iadds.
 pub fn barrier_loop(steps: u32, four: bool, fill: u32) -> Vec<u8> {
+    barrier_loop_kind(steps, four, fill, false)
+}
+
+/// `barrier_loop` with the filler as one dependent chain on r5 when `dep`.
+pub fn barrier_loop_kind(steps: u32, four: bool, fill: u32, dep: bool) -> Vec<u8> {
     let mut h = mov(3, 0);
     h.extend(e("iadd r4, r29, 0"));
     h.extend(e2("if_fcmp r0l, eq, 0.0, 0.0, 1", "push_exec r0l, 1"));
     let mut body = vec![];
     for _ in 0..steps {
         for k in 0..fill {
-            body.extend(e(&format!("iadd r{}, r{}, 1", 5 + k, 5 + k)));
+            let r = if dep { 5 } else { 5 + k % 16 };
+            body.extend(e(&format!("iadd r{}, r{}, 1", r, r)));
         }
         body.extend(if four { vec![0x78, 0x09] } else { vec![0x68, 0x00] });
     }

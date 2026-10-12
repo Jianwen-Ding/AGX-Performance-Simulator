@@ -1,6 +1,6 @@
 ok   bench (FIT) latency: median |err| 0.004 (limit 0.03), p90 0.007, max 0.053
 ok   bench (FIT) simd_issue: median |err| 0.007 (limit 0.04), p90 0.044, max 0.046
-ok   bench (FIT) gpu: median |err| 0.053 (limit 0.06), p90 0.137, max 1.002
+ok   bench (FIT) gpu: median |err| 0.040 (limit 0.06), p90 0.185, max 1.044
 ok   rotation (FIT, 32-bit forms): median |err| 0.017, max 0.119
 info rotation (fadd16): median |err| 0.029, max 0.338 (16-bit writeback not modelled beyond D=9)
 info empty loop trip: measured 35.25, predicted 35.27 (reference units)
@@ -16,9 +16,9 @@ info known residuals (store window / store->load overlap / first store of a trip
 ok   wait drain after ALU work (FIT, 4 cases): median |err| 0.054, max 0.094
 ok   exec push/pop and while_icmp chains, before wait / load / store (FIT, 21 cases): median |err| 0.034, max 0.084
 ok   transcendental pairs and mixes, 1 group(s)/core (FIT, 14 cases): median |err| 0.008, max 0.043 (limit 0.08)
-ok   transcendental pairs and mixes, 4 group(s)/core (FIT, 14 cases): median |err| 0.055, max 0.187 (limit 0.27)
+ok   transcendental pairs and mixes, 4 group(s)/core (FIT, 14 cases): median |err| 0.055, max 0.186 (limit 0.27)
 info transcendental + integer-multiply/bit-field/convert pairs, 1 group(s)/core (9 cases): median |err| 0.007, max 0.218 (log2+fadd32: measured 67.8, predicted 82.6)
-info transcendental + integer-multiply/bit-field/convert pairs, 4 group(s)/core (9 cases): median |err| 0.103, max 0.326 (log2+fadd32: measured 74.1, predicted 98.3)
+info transcendental + integer-multiply/bit-field/convert pairs, 4 group(s)/core (9 cases): median |err| 0.095, max 0.326 (log2+fadd32: measured 74.1, predicted 98.3)
 ok   device store after k idle waits (FIT, 14 cases, k = 0..16, both slots): median |err| 0.021, max 0.029
 info store, k iadd (first store of a trip, open residual): store, 0 iadd: measured 3.3, predicted 3.3; store, 2 iadd: measured 34.5, predicted 33.8; store, 4 iadd: measured 36.4, predicted 35.9; store, 8 iadd: measured 44.6, predicted 40.1; store, 16 iadd: measured 52.6, predicted 48.5
 ok   heldout-mem24.json memory kernels (DISCOVERY (revealed the wait drain)), 1 group(s)/core: median |err| 0.055 p90 0.110 max 0.167 bias -0.008 (limit 0.08)
@@ -26,13 +26,13 @@ ok   heldout-mem24.json memory kernels (DISCOVERY (revealed the wait drain)), 4 
 ok   heldout-mem24b.json memory kernels (HELD OUT), 1 group(s)/core: median |err| 0.045 p90 0.081 max 0.120 bias -0.031 (limit 0.07)
 ok   heldout-mem24b.json memory kernels (HELD OUT), 4 group(s)/core: median |err| 0.065 p90 0.124 max 0.198 bias -0.049 (limit 0.12)
 ok   random-kernels.json (SELECTION), 1 group(s)/core: whole trip median 0.051 p90 0.150 max 0.152 bias -0.050 | body only median 0.072 p90 0.204 max 0.241 (limits 0.07/0.1)
-ok   random-kernels.json (SELECTION), 4 group(s)/core: whole trip median 0.067 p90 0.150 max 0.179 bias -0.063 | body only median 0.093 p90 0.213 max 0.239 (limits 0.12/0.17)
+ok   random-kernels.json (SELECTION), 4 group(s)/core: whole trip median 0.064 p90 0.150 max 0.182 bias -0.063 | body only median 0.091 p90 0.199 max 0.243 (limits 0.12/0.17)
 ok   heldout24.json (HELD OUT (used to choose transcendental blocking)), 1 group(s)/core: whole trip median 0.057 p90 0.116 max 0.134 bias -0.047 | body only median 0.088 p90 0.183 max 0.190 (limits 0.06/0.09)
-ok   heldout24.json (HELD OUT (used to choose transcendental blocking)), 4 group(s)/core: whole trip median 0.062 p90 0.110 max 0.208 bias -0.040 | body only median 0.094 p90 0.160 max 0.308 (limits 0.12/0.15)
+ok   heldout24.json (HELD OUT (used to choose transcendental blocking)), 4 group(s)/core: whole trip median 0.077 p90 0.118 max 0.167 bias -0.037 | body only median 0.110 p90 0.203 max 0.246 (limits 0.12/0.15)
 ok   heldout48.json (HELD OUT (used to choose transcendental blocking)), 1 group(s)/core: whole trip median 0.038 p90 0.067 max 0.080 bias -0.028 | body only median 0.045 p90 0.080 max 0.103 (limits 0.045/0.05)
-ok   heldout48.json (HELD OUT (used to choose transcendental blocking)), 4 group(s)/core: whole trip median 0.049 p90 0.069 max 0.079 bias -0.032 | body only median 0.059 p90 0.084 max 0.094 (limits 0.1/0.12)
+ok   heldout48.json (HELD OUT (used to choose transcendental blocking)), 4 group(s)/core: whole trip median 0.045 p90 0.075 max 0.086 bias -0.032 | body only median 0.054 p90 0.092 max 0.101 (limits 0.1/0.12)
 ok   heldout32c.json (HELD OUT (measured after all current rules)), 1 group(s)/core: whole trip median 0.037 p90 0.096 max 0.155 bias -0.032 | body only median 0.051 p90 0.129 max 0.224 (limits 0.05/0.07)
-ok   heldout32c.json (HELD OUT (measured after all current rules)), 4 group(s)/core: whole trip median 0.039 p90 0.085 max 0.093 bias -0.036 | body only median 0.050 p90 0.107 max 0.125 (limits 0.05/0.07)
-ok   core scaling grid.json (FIT: half units, ports, schedulers; 598 rows): median |err| 0.030 p90 0.277 max 3.131 bias -0.005 (limit 0.05); median by groups 1:0.01 2:0.02 3:0.03 4:0.02 5:0.07 6:0.07 8:0.05 10:0.05 12:0.07 16:0.06 20:0.06 24:0.05 32:0.03
-ok   core scaling chains.json (FIT: half units, ports, schedulers; 140 rows): median |err| 0.033 p90 0.236 max 0.914 bias +0.020 (limit 0.05); median by groups 4:0.05 8:0.04 12:0.03 16:0.03 20:0.06 24:0.04 32:0.03
+ok   heldout32c.json (HELD OUT (measured after all current rules)), 4 group(s)/core: whole trip median 0.039 p90 0.086 max 0.091 bias -0.034 | body only median 0.051 p90 0.109 max 0.118 (limits 0.05/0.07)
+ok   core scaling grid.json (FIT: half units, ports, schedulers; 598 rows): median |err| 0.031 p90 0.277 max 3.131 bias -0.005 (limit 0.05); median by groups 1:0.01 2:0.02 3:0.03 4:0.02 5:0.07 6:0.07 8:0.05 10:0.06 12:0.06 16:0.06 20:0.06 24:0.05 32:0.03
+ok   core scaling chains.json (FIT: half units, ports, schedulers; 140 rows): median |err| 0.033 p90 0.236 max 0.914 bias +0.020 (limit 0.05); median by groups 4:0.05 8:0.05 12:0.03 16:0.03 20:0.06 24:0.04 32:0.02
 0 failures

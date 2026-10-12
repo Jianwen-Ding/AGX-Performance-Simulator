@@ -80,6 +80,9 @@ const CORE_SFU_WB_GAP: f64 = 1.0;
 pub const SCHEDULERS: usize = 4;
 const STEAL: bool = true;
 const HALF_READ_PORTS: f64 = 2.0;
+/// register writebacks (result-cache evictions) per real cycle per core: 2.0 per reference cycle
+const WRITEBACK_PER_CYCLE: f64 = 2.0 / REAL_CYCLES_PER_UNIT;
+const WRITEBACK_CAP: f64 = 4.0;
 /// A 32-bit source written by the same SIMD group at most this many real cycles earlier is forwarded and
 /// takes no register-file read port (one dependent chain per group reads fewer ports than eight).
 const FORWARD_WINDOW: f64 = 4.0;
@@ -1318,6 +1321,11 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
     // scheduler 0, slot 2 does not)
     let npass = if STEAL && groups > 4 { 2 } else { 1 };
     let mut issue_tok: i64 = ISSUE_PER_CORE * t_;
+    let wb_rate = WRITEBACK_PER_CYCLE / t_ as f64; // per tick
+    let mut wb_tok = WRITEBACK_CAP;
+    let mut wbc: Vec<Vec<u32>> = vec![Vec::with_capacity(nc + 1); groups];
+    let mut wb_debt = vec![0.0f64; groups];
+    let mut lcg: u64 = 0x2545F4914F6CDD1D;
     let mut last_alu = vec![NEG_INF; g];
     let mut alu_done = vec![NEG_INF; g];
     let mut last_wait = vec![NEG_INF; g];
@@ -1516,6 +1524,28 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
             // barrier: wait until every group of the scope has arrived (after draining its ALU work)
             if r.barrier != 0 {
                 if bar_arrive[gi].is_none() {
+                    // arriving writes back every register in the group's result cache (barrier-fill probe:
+                    // 2 writebacks per cycle per core for F dirty registers per group)
+                    let n = wbc[gi].len() as f64;
+                    if n > 0.0 {
+                        if wb_tok < n.min(WRITEBACK_CAP) {
+                            wake.push(t + (((n.min(WRITEBACK_CAP) - wb_tok) / wb_rate).ceil() as i64).max(1));
+                            continue;
+                        }
+                        wb_tok -= n.min(WRITEBACK_CAP);
+                        wb_debt[gi] = n - n.min(WRITEBACK_CAP);
+                        wbc[gi].clear();
+                    }
+                    if wb_debt[gi] > 0.0 {
+                        // more writebacks than the bucket holds: pay the rest as the bucket refills
+                        let take = wb_debt[gi].min(wb_tok);
+                        wb_tok -= take;
+                        wb_debt[gi] -= take;
+                        if wb_debt[gi] > 0.0 {
+                            wake.push(t + ((wb_debt[gi] / wb_rate).ceil() as i64).max(1));
+                            continue;
+                        }
+                    }
                     bar_arrive[gi] = Some(t.max(alu_done[gi] + bar_drain));
                 }
                 let scope = if r.barrier == 1 { 0 } else { 1 + local[gi] / 4 };
@@ -1600,7 +1630,34 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
                     }
                 }
             }
+            // register-file writeback: a write that evicts a register from the group's result cache needs a
+            // writeback slot (core: ~2 per reference cycle; 9-16 rotating destinations at 32 groups)
+            let mut evict = 0usize;
+            if matches!(r.kind, Kind::Alu | Kind::Load) && !r.dst.is_empty() {
+                // counted on a shadow cache that evicts a random one of its 3 oldest entries (9 / 10 / 12 / 16
+                // rotating destinations evict on 60 / 68 / 87 / 100% of writes; LRU would evict on all)
+                let fresh = r.dst_regs.iter().filter(|reg| !wbc[gi].contains(reg)).count();
+                evict = (wbc[gi].len() + fresh).saturating_sub(nc);
+                if evict > 0 && wb_tok < evict as f64 {
+                    wake.push(t + (((evict as f64 - wb_tok) / wb_rate).ceil() as i64).max(1));
+                    continue;
+                }
+            }
             // ---- issue at tick t
+            wb_tok -= evict as f64;
+            if matches!(r.kind, Kind::Alu | Kind::Load) {
+                for &reg in &r.dst_regs {
+                    // recency order (oldest first); a miss evicts a random one of the 3 oldest entries
+                    if let Some(pos) = wbc[gi].iter().position(|&x| x == reg) {
+                        wbc[gi].remove(pos);
+                    } else if wbc[gi].len() >= nc {
+                        lcg = lcg.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+                        let v = ((lcg >> 33) as usize) % 3.min(wbc[gi].len());
+                        wbc[gi].remove(v);
+                    }
+                    wbc[gi].push(reg);
+                }
+            }
             issue_tok -= t_;
             let mut pipe_extra = 0i64;
             if let (Some(m), Some((_, mm))) = (ms.as_mut(), mem) {
@@ -1885,6 +1942,7 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
             *pt = pymin(*pt + HALF_READ_PORTS * dt, (HALF_READ_PORTS + 2.0) * t_ as f64);
         }
         issue_tok = (issue_tok + ISSUE_PER_CORE * (nt - t)).min(ISSUE_PER_CORE * t_);
+        wb_tok = (wb_tok + wb_rate * dt).min(WRITEBACK_CAP);
         let mut i = 0;
         while i < refilling.len() {
             let b = refilling[i];
