@@ -102,6 +102,12 @@ fn plain_format(fmt: u64) -> bool {
     matches!(fmt, 0 | 1 | 2)
 }
 
+/// u8norm (format 4) load: v / 255 rounded to the destination register's precision (fp16 for 16-bit halves).
+fn unorm8(v: u64, rt: bool) -> i128 {
+    let x = v as f64 / 255.0;
+    if rt { (x as f32).to_bits() as i128 } else { crate::isa::fma::f64_to_f16(x.to_bits(), false) as i128 }
+}
+
 pub fn run(d: &Dispatch, mem: &mut Memory) -> Result<RunStats, String> {
     let code = &d.code;
     let mut cache: Vec<Option<Info>> = (0..code.len()).map(|_| None).collect();
@@ -234,6 +240,13 @@ fn step_group(g: &mut Group, code: &[u8], cache: &mut [Option<Info>], mem: &mut 
                 fsem::mask_ctl(kind, desc.name.ends_with("fcmp"), f, &vals(&info.ops), &mut g.st)?
             }
             "threadgroup_atomic" => tg_atomic(g, f, tg)?,
+            "floor" | "ceil" | "trunc" | "rint" => fsem::round_op(desc.name, &vals(&info.ops), &mut g.st)?,
+            "intl" => fsem::intl(&vals(&info.ops), &mut g.st)?,
+            "convert" => fsem::convert(f, &vals(&info.ops), &mut g.st)?,
+            n if n.starts_with("quad_shuffle") => fsem::quad_shuffle(n, &vals(&info.ops), &mut g.st)?,
+            n if (n.starts_with("simd_") || n.starts_with("quad_")) && !n.starts_with("simd_shuffle") && !n.starts_with("simd_matrix") => {
+                fsem::cross_lane(n, &vals(&info.ops), &mut g.st)?
+            }
             _ => {
                 info.op.as_ref().unwrap().exec(&mut g.st).map_err(|e| format!("{} ({}): {}", desc.name, isa::disassemble_normalized(desc, 0).unwrap_or_default(), e))?;
             }
@@ -255,7 +268,7 @@ fn get(st: &CoreState, rt: bool, r: usize, k: usize, t: usize) -> Result<i128, S
 fn device_mem(g: &mut Group, f: &Fields, mem: &mut Memory, load: bool) -> Result<(), String> {
     let x = |k: &str| fget(f, k).unwrap_or(0);
     let fmt = x("F") | x("Fx") << 3;
-    if !plain_format(fmt) {
+    if !plain_format(fmt) && !(fmt == 4 && load) {
         return Err(format!("device memory format {} not implemented", fmt));
     }
     let item = item_size(fmt);
@@ -290,7 +303,8 @@ fn device_mem(g: &mut Group, f: &Fields, mem: &mut Memory, load: bool) -> Result
             }
             let va = (addr[t] + c as i128 * item as i128) as u64;
             if load {
-                let v = mem.read(va, item as usize)? as i128;
+                let v = mem.read(va, item as usize)?;
+                let v = if fmt == 4 { unorm8(v, rt) } else { v as i128 };
                 put(&mut g.st, rt, r, k, t, v)?;
             } else {
                 let v = get(&g.st, rt, r, k, t)?;
