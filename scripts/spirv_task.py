@@ -1936,6 +1936,59 @@ def w_swalignpad(size, rng):
     return w
 
 
+def jp_ref(rowptr, colidx, prio):
+    """jpcolor.comp: Jones-Plassmann rounds; the colours (1-63) and the colours after each round"""
+    n = len(rowptr) - 1
+    src = np.repeat(np.arange(n), np.diff(rowptr.astype(np.int64)))
+    c = np.zeros(n, np.int64); hist = []
+    pr = prio.astype(np.int64)
+    while (c == 0).any():
+        unc = c == 0
+        mx = np.full(n, -1, np.int64)
+        np.maximum.at(mx, src, np.where(unc[colidx], pr[colidx], -1))
+        best = unc & (pr > mx)
+        used = np.zeros(n, np.uint64)
+        cn = c[colidx]
+        np.bitwise_or.at(used, src, np.where(cn > 0, np.left_shift(np.uint64(1), cn.astype(np.uint64)), np.uint64(0)))
+        m = used | np.uint64(1)
+        low = ~m & (m + np.uint64(1))                                          # lowest clear bit
+        newc = np.log2(low.astype(np.float64)).astype(np.int64)
+        c = np.where(best, newc, c)
+        hist.append(c.copy())
+    return c, hist
+
+
+def w_jpcolor(size, rng):
+    from scipy.spatial import cKDTree
+    n = 2048 if size == 'small' else 1 << 20
+    pts = rng.random((n, 2))
+    pairs = cKDTree(pts).query_pairs(np.sqrt(8 / (np.pi * n)), output_type='ndarray')   # ~8 neighbours each
+    a = np.concatenate([pairs[:, 0], pairs[:, 1]]); b = np.concatenate([pairs[:, 1], pairs[:, 0]])
+    o = np.lexsort((b, a)); a, b = a[o], b[o]
+    rowptr = u32(np.concatenate([[0], np.cumsum(np.bincount(a, minlength=n))]))
+    colidx = u32(b)
+    prio = u32(rng.permutation(n).astype(np.uint64) * 2654435761 % (1 << 32))   # distinct
+    assert len(np.unique(prio)) == n
+    cref, hist = jp_ref(rowptr, colidx, prio)
+    R = len(hist)
+    assert cref.max() < 64
+    if size == 'small':                       # JP's colouring is sequential greedy colouring in decreasing priority
+        g = np.zeros(n, np.int64)
+        for v in np.argsort(-prio.astype(np.int64)):
+            taken = set(g[colidx[rowptr[v]:rowptr[v + 1]]].tolist())
+            g[v] = next(k for k in range(1, 64) if k not in taken)
+        assert np.array_equal(g, cref), 'JP rounds disagree with greedy colouring in priority order'
+    def check(o):
+        got = o[3].view(np.uint32)[:2 * n].reshape(2, n)[R % 2].astype(np.int64)
+        bad = int(np.count_nonzero(got != cref))
+        proper = bool((got > 0).all() and not (got[a] == got[b]).any())
+        return bad == 0 and proper, {'bad_vertices': bad, 'proper': proper, 'rounds': R, 'colors': int(cref.max()),
+                                     'max_degree': int(np.diff(rowptr.astype(np.int64)).max()), 'edges': len(a) // 2}
+    ds = [((n + 255) // 256, 1, 1, push(n, k % 2)) for k in range(R)]
+    return W('jpcolor', {0: (rowptr, False), 1: (colidx, False), 2: (prio, False), 3: (u32(np.zeros(2 * n)), True)}, ds, check, 256,
+             {'edges': len(a)})
+
+
 def w_spmv(size, rng):
     rows, cols = (512, 512) if size == 'small' else (1 << 18, 1 << 18)
     nnz = rng.integers(0, 64, rows) * (rng.random(rows) < 0.95)    # some empty rows
@@ -4465,7 +4518,7 @@ WORKLOADS = {'reduce': w_reduce, 'scan': w_scan, 'sgemm': w_sgemm, 'conv2d': w_c
              'aluprobe': w_aluprobe, 'ubopalette': w_ubopalette, 'uboparams': w_uboparams,
              'bindless': w_bindless, 'bindlessu': w_bindlessu,
              # appended only: the input seed is the index in this dict
-             'rle': w_rle, 'huffdec': w_huffdec, 'lookback': w_lookback, 'hll': w_hll, 'tricount': w_tricount, 'sha3': w_sha3, 'stereo': w_stereo, 'viterbi': w_viterbi, 'viterbifix': w_viterbifix, 'shiftfuse': w_shiftfuse, 'bc1enc': w_bc1enc, 'lz4dec': w_lz4dec, 'nttmul': w_nttmul, 'topk': w_topk, 'cellsort': w_cellsort, 'boruvka': w_boruvka, 'biquad': w_biquad, 'edt': w_edt, 'mt19937': w_mt19937, 'bitap': w_bitap, 'cholesky': w_cholesky, 'rsshash': w_rsshash, 'poly1305': w_poly1305, 'crc32c': w_crc32c, 'siphash': w_siphash, 'blake2s': w_blake2s, 'blake2sfast': w_blake2sfast, 'q4gemv': w_q4gemv, 'attndec': w_attndec, 'attndecsplit': w_attndecsplit, 'rmsrope': w_rmsrope, 'q8dot': w_q8dot, 'isp': w_isp, 'contour': w_contour, 'hough': w_hough, 'spmvsg': w_spmvsg, 'varint': w_varint, 'bvhrays': w_bvhrays, 'adamw': w_adamw, 'stream': w_stream, 'motionest': w_motionest, 'jsonidx': w_jsonidx, 'cdc': w_cdc, 'swalign': w_swalign, 'swalignfit': w_swalignfit, 'swalignpad': w_swalignpad}
+             'rle': w_rle, 'huffdec': w_huffdec, 'lookback': w_lookback, 'hll': w_hll, 'tricount': w_tricount, 'sha3': w_sha3, 'stereo': w_stereo, 'viterbi': w_viterbi, 'viterbifix': w_viterbifix, 'shiftfuse': w_shiftfuse, 'bc1enc': w_bc1enc, 'lz4dec': w_lz4dec, 'nttmul': w_nttmul, 'topk': w_topk, 'cellsort': w_cellsort, 'boruvka': w_boruvka, 'biquad': w_biquad, 'edt': w_edt, 'mt19937': w_mt19937, 'bitap': w_bitap, 'cholesky': w_cholesky, 'rsshash': w_rsshash, 'poly1305': w_poly1305, 'crc32c': w_crc32c, 'siphash': w_siphash, 'blake2s': w_blake2s, 'blake2sfast': w_blake2sfast, 'q4gemv': w_q4gemv, 'attndec': w_attndec, 'attndecsplit': w_attndecsplit, 'rmsrope': w_rmsrope, 'q8dot': w_q8dot, 'isp': w_isp, 'contour': w_contour, 'hough': w_hough, 'spmvsg': w_spmvsg, 'varint': w_varint, 'bvhrays': w_bvhrays, 'adamw': w_adamw, 'stream': w_stream, 'motionest': w_motionest, 'jsonidx': w_jsonidx, 'cdc': w_cdc, 'swalign': w_swalign, 'swalignfit': w_swalignfit, 'swalignpad': w_swalignpad, 'jpcolor': w_jpcolor}
 
 
 # ---------------------------------------------------------------------------------------------------------------
@@ -5211,7 +5264,7 @@ def verify_one(name, exp, layout, timing):
 
 # multi-pass workloads whose later dispatches depend on earlier results: verify --timing also predicts them with
 # predict --stateful (each dispatch from the buffers the previous ones left)
-STATEFUL = ('bfs', 'sssp', 'ccl', 'pagerank', 'boruvka', 'lookback', 'cellsort')
+STATEFUL = ('bfs', 'sssp', 'ccl', 'pagerank', 'boruvka', 'lookback', 'cellsort', 'jpcolor')
 
 
 def timing_summary(rows):

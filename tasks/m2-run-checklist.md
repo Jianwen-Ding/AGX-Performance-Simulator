@@ -38,6 +38,7 @@ where each answer appears, and what to change for each outcome. The details are 
 | `cdc` (note 70) | a parallel hash pass, then a serial greedy pass with one invocation per 1 MiB region | 1.84 ms + 4.12 ms |
 | `swalignpad` vs `swalignfit` (note 71) | the shared-memory occupancy cliff: 33280 against 32768 bytes per workgroup, same compiled code | 56.8 ms vs 33.5 ms |
 | `swalign` (note 71) | the same alignment with the query in shared memory | 72.2 ms |
+| `jpcolor` (note 72) | a converging multi-round workload: default (every round from the start) against stateful prediction | 28.8 / 9.1 ms |
 | `nms` (note 10) | a known under-prediction: work grows with the workgroup index | low |
 
 ## Results that must hold whatever the timings

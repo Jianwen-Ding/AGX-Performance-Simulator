@@ -57,7 +57,7 @@ The rest of this file is the detailed procedure, for investigating results.
 
 ## Workloads
 
-One hundred and seventy realistic compute kernels, written in GLSL (`spirv/shaders/*.comp`) and compiled to SPIR-V:
+One hundred and seventy-one realistic compute kernels, written in GLSL (`spirv/shaders/*.comp`) and compiled to SPIR-V:
 
 | Workload | Kernel | Stresses |
 |---|---|---|
@@ -231,6 +231,7 @@ One hundred and seventy realistic compute kernels, written in GLSL (`spirv/shade
 | `swalign` | Smith-Waterman local alignment with affine gaps (Gotoh): a 128-base read against 16384 reference windows of 256 bases, one window per invocation | A serial 32768-cell DP per invocation, the query column in 32 KiB of shared memory per workgroup plus the query (32.5 KiB): one workgroup per core |
 | `swalignfit` | `swalign` with the query in a uniform buffer (read a word at a time) | Shared memory exactly 32 KiB: two workgroups per core, the occupancy cliff at half of the 64 KiB per core |
 | `swalignpad` | `swalignfit`'s code (the same main program) with 512 bytes of unused shared memory, by a specialization constant | 33280 bytes, one workgroup per core: occupancy alone, at identical code |
+| `jpcolor` | Graph colouring by Jones-Plassmann rounds on a random geometric graph (1M vertices, ~8 neighbours each) | One dispatch per round (25), CSR neighbour scans with an early exit, colours ping-ponged between two copies, a shrinking set of uncoloured vertices |
 
 Each workload has two sizes:
 

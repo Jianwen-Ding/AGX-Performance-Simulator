@@ -1,0 +1,40 @@
+#version 450
+// Graph colouring by Jones-Plassmann rounds (parallel register allocation, scheduling, mesh partitioning): in each
+// round, an uncoloured vertex whose priority beats every uncoloured neighbour's takes the smallest colour no
+// coloured neighbour has. The vertices coloured in one round are independent, so the result is a proper colouring,
+// and it is deterministic for given priorities. Colours are read from the previous round's copy and written to the
+// other (two halves of one buffer, by parity), so no invocation sees a neighbour coloured in the same round.
+// One invocation per vertex; CSR adjacency; colour 0 = uncoloured, colours 1-63.
+layout(local_size_x = 256) in;
+layout(std430, binding = 0) readonly buffer RP { uint rowptr[]; };
+layout(std430, binding = 1) readonly buffer CI { uint col[]; };
+layout(std430, binding = 2) readonly buffer PR { uint prio[]; };   // distinct
+layout(std430, binding = 3) buffer CO { uint color[]; };           // 2 n: the two copies
+layout(push_constant) uniform P { uint n; uint parity; } p;
+
+void main() {
+    uint v = gl_GlobalInvocationID.x;
+    if (v >= p.n) return;
+    uint src = p.parity * p.n, dst = (1u - p.parity) * p.n;
+    uint c = color[src + v];
+    if (c == 0u) {
+        uint pv = prio[v];
+        bool best = true;
+        uint used0 = 0u, used1 = 0u;                                  // colours 0-31, 32-63 taken by neighbours
+        for (uint e = rowptr[v]; e < rowptr[v + 1u]; e++) {
+            uint u = col[e], cu = color[src + u];
+            if (cu == 0u) {
+                if (prio[u] > pv) { best = false; break; }
+            } else if (cu < 32u) {
+                used0 |= 1u << cu;
+            } else {
+                used1 |= 1u << (cu - 32u);
+            }
+        }
+        if (best) {
+            uint f0 = ~(used0 | 1u);                                   // colour 0 is not a colour
+            c = f0 != 0u ? uint(findLSB(f0)) : 32u + uint(findLSB(~used1));
+        }
+    }
+    color[dst + v] = c;
+}

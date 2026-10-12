@@ -1,7 +1,7 @@
 # Task SPIR-V 8: applications (ray tracer, neural networks, image processing, cellular automaton, graph search,
 # encryption, hashing, text, compression)
 
-**Workloads:** `raytrace`, `mlp`, `sobel`, `life`, `bfs`, `conv_layer`, `hist_eq`, `aes`, `hash_table`, `word_count`, `dct8`, `attention`, `resize`, `median3`, `poisson`, `lbm`, `base64`, `md5`, `gemv`, `levenshtein`, `blur`, `yuv420`, `montecarlo`, `xxhash`, `bloom`, `collatz`, `tridiag`, `merge`, `ccl`, `pagerank`, `skinning`, `strsearch`, `quantize`, `rule110`, `voxel`, `nms`, `sat`, `sssp`, `morton`, `utf8`, `fir`, `composite`, `nqueens`, `lzmatch`, `bitpack`, `perlin`, `adler32`, `sieve`, `gcd`, `dither`, `advect`, `knn`, `csvparse`, `pip`, `lift53`, `chacha20`, `modexp`, `floyd`, `f16pack`, `raster`, `canny`, `secded`, `bicubic`, `dfa`, `b64decode`, `cordic`, `rsenc`, `texfetch`, `texfilter`, `imgerode`, `imgtonemap`, `argmax64`, `minmax64`, `dsum`, `quadmip`, `clustered`, `specblur`, `cullindirect`, `bigsort`, `pushmat`, `mplitmus`, `splat`, `splatfix`, `smembank`, `coalesce`, `atomcontend`, `barriercost`, `aluprobe`, `ubopalette`, `uboparams`, `bindless`, `bindlessu`, `rle`, `huffdec`, `lookback`, `hll`, `tricount`, `sha3`, `stereo`, `viterbi`, `viterbifix`, `shiftfuse`, `bc1enc`, `lz4dec`, `nttmul`, `topk`, `cellsort`, `boruvka`, `biquad`, `edt`, `mt19937`, `bitap`, `cholesky`, `rsshash`, `poly1305`, `crc32c`, `siphash`, `blake2s`, `blake2sfast`, `q4gemv`, `attndec`, `attndecsplit`, `rmsrope`, `q8dot`, `isp`, `contour`, `hough`, `spmvsg`, `varint`, `bvhrays`, `adamw`, `stream`, `motionest`, `jsonidx`, `cdc`, `swalign`, `swalignfit`, `swalignpad`. These are recorded and verified by `make asahi-verify` with the others;
+**Workloads:** `raytrace`, `mlp`, `sobel`, `life`, `bfs`, `conv_layer`, `hist_eq`, `aes`, `hash_table`, `word_count`, `dct8`, `attention`, `resize`, `median3`, `poisson`, `lbm`, `base64`, `md5`, `gemv`, `levenshtein`, `blur`, `yuv420`, `montecarlo`, `xxhash`, `bloom`, `collatz`, `tridiag`, `merge`, `ccl`, `pagerank`, `skinning`, `strsearch`, `quantize`, `rule110`, `voxel`, `nms`, `sat`, `sssp`, `morton`, `utf8`, `fir`, `composite`, `nqueens`, `lzmatch`, `bitpack`, `perlin`, `adler32`, `sieve`, `gcd`, `dither`, `advect`, `knn`, `csvparse`, `pip`, `lift53`, `chacha20`, `modexp`, `floyd`, `f16pack`, `raster`, `canny`, `secded`, `bicubic`, `dfa`, `b64decode`, `cordic`, `rsenc`, `texfetch`, `texfilter`, `imgerode`, `imgtonemap`, `argmax64`, `minmax64`, `dsum`, `quadmip`, `clustered`, `specblur`, `cullindirect`, `bigsort`, `pushmat`, `mplitmus`, `splat`, `splatfix`, `smembank`, `coalesce`, `atomcontend`, `barriercost`, `aluprobe`, `ubopalette`, `uboparams`, `bindless`, `bindlessu`, `rle`, `huffdec`, `lookback`, `hll`, `tricount`, `sha3`, `stereo`, `viterbi`, `viterbifix`, `shiftfuse`, `bc1enc`, `lz4dec`, `nttmul`, `topk`, `cellsort`, `boruvka`, `biquad`, `edt`, `mt19937`, `bitap`, `cholesky`, `rsshash`, `poly1305`, `crc32c`, `siphash`, `blake2s`, `blake2sfast`, `q4gemv`, `attndec`, `attndecsplit`, `rmsrope`, `q8dot`, `isp`, `contour`, `hough`, `spmvsg`, `varint`, `bvhrays`, `adamw`, `stream`, `motionest`, `jsonidx`, `cdc`, `swalign`, `swalignfit`, `swalignpad`, `jpcolor`. These are recorded and verified by `make asahi-verify` with the others;
 they are **PENDING** until then. The detailed procedure is in `tasks/spirv-workloads.md`.
 
 ## Why these
@@ -148,6 +148,7 @@ reference.
 | `jsonidx` | 4096 documents of 8 KiB (32 MiB) of JSON lines, strings full of escaped quotes, backslash runs and structural characters | Every chunk's mask equal to a vectorised numpy reference, itself checked against a byte-at-a-time state machine at the small size |
 | `cdc` | 64 regions of 1 MiB (64 MiB): versions of six files, each with a few insertions, deletions and overwrites | Candidate masks and every region's chunk ends equal to the reference, whose gear hash is checked against a byte-at-a-time loop at the small size |
 | `swalign`, `swalignfit`, `swalignpad` | A random 128-base read; 16384 random windows of 256 bases, 1 in 16 holding a copy with ~6% substitutions and an indel | Every window's best score equal to a vectorised numpy Gotoh (clamped E / F), itself checked against the textbook recursion at the small size; every planted copy scores at least half the perfect score, no random window does |
+| `jpcolor` | 2^20 random points in the unit square, edges within the radius that gives ~8 neighbours (4.19M edges), distinct random priorities | Every vertex's colour equal to the reference rounds, which at the small size equal sequential greedy colouring in priority order; the colouring proper |
 
 ## Offline sanity checks (not hardware verification)
 
@@ -692,3 +693,18 @@ reference.
       identical code. That tests the 64 KiB-per-core rule (`tg_capacity`, `rust/src/dispatch.rs`) at its cliff.
     - All three use `bitfieldExtract` with an explicitly masked offset, or constant shifts, so none depends on
       question 1. All pass on the simulator at both Mesa versions under both semantics, and on lavapipe.
+72. **`jpcolor`: Jones-Plassmann graph colouring.**
+    - Each round, an uncoloured vertex whose priority beats every uncoloured neighbour's takes the smallest colour
+      no coloured neighbour has. Vertices coloured in the same round are never adjacent, so the colouring is proper.
+      For given priorities it equals sequential greedy colouring in decreasing priority order; the small size
+      checks that.
+    - Rounds read the previous round's colours and write the other copy (by a push-constant parity). Reading and
+      writing one copy would race: a vertex could see a neighbour coloured in the same round and wrongly take it as
+      settled.
+    - At the large size: 25 rounds, 15 colours (maximum degree 24).
+    - Predicted 28.8 ms by default: every round is timed from the initial, all-uncoloured buffers, 1151 µs each.
+      `--stateful` predicts 9.1 ms, falling from 1151 µs in round 1 to 17 µs by the last rounds, as nearly every
+      vertex is coloured and only copies its colour. It is in `STATEFUL`, so `verify --timing` reports both
+      (question 3 of `tasks/m2-run-checklist.md`).
+    - The check is exact and the colouring independently checked, so it must PASS whatever the timings. It passes
+      on the simulator at both Mesa versions under both `bfeil` semantics.
