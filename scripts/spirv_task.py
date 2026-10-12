@@ -2561,6 +2561,22 @@ def verify_one(name, exp, layout, timing):
     return res
 
 
+def timing_summary(rows):
+    """model accuracy over the workloads with a measured and a predicted time: predicted / measured per workload,
+    the median and p90 of |log2 ratio| (as a factor), how many fall within +-10% / +-25% / 2x, and the worst ones"""
+    pts = [(r['workload'], r['timing']['ratio']) for r in rows if r.get('timing', {}).get('ratio')]
+    if not pts:
+        return None
+    err = sorted(abs(np.log2(x)) for _, x in pts)
+    q = lambda f: round(float(2 ** err[int((len(err) - 1) * f)]), 3)
+    within = lambda lo: sum(1 for _, x in pts if lo <= x <= 1 / lo)
+    order = sorted(pts, key=lambda p: p[1])
+    return {'workloads': len(pts), 'median_factor': q(0.5), 'p90_factor': q(0.9),
+            'within_10pct': within(1 / 1.1), 'within_25pct': within(1 / 1.25), 'within_2x': within(0.5),
+            'most_under_predicted': [(w, x) for w, x in order[:5] if x < 1],
+            'most_over_predicted': [(w, x) for w, x in order[::-1][:5] if x > 1]}
+
+
 def cmd_verify(a):
     """Simulator vs the recorded hardware results (spirv/expected); PENDING where nothing is recorded yet."""
     names = list(WORKLOADS) if a.workload == 'all' else a.workload.split(',')
@@ -2574,7 +2590,11 @@ def cmd_verify(a):
         print(line, flush=True)
     from collections import Counter
     c = Counter(r['status'] for r in rows)
-    print(json.dumps({'summary': dict(c)}))
+    summary = {'summary': dict(c)}
+    t = timing_summary(rows)
+    if t:
+        summary['timing'] = t
+    print(json.dumps(summary))
     if a.json:
         Path(a.json).write_text(json.dumps(rows, indent=1) + '\n')
     return 1 if c.get('FAIL') or c.get('STALE') or (a.strict and c.get('PENDING')) else 0

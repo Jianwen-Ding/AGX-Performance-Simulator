@@ -24,7 +24,14 @@ and the reference agree; that is a sanity check, not hardware verification.
    | FAIL | A difference to investigate |
    | STALE | The recording no longer matches the workload's inputs |
 
-3. Also compares the large-size GPU time with the cost model's prediction.
+3. Also compares the large-size GPU time with the cost model's prediction. The last line of `verify.txt` sums this
+   up as `"timing"`:
+   - the median and p90 error factor (predicted / measured, either direction);
+   - how many workloads fall within ±10%, ±25% and 2×;
+   - the five most under-predicted and the five most over-predicted workloads.
+
+   That one line is the model's accuracy on real kernels. `nms` is expected near the top of the under-predicted
+   list (see `spirv-08-applications.md`).
 
 After the recordings are committed, `make spirv-verify` repeats the comparison offline on any machine.
 The rest of this file is the detailed procedure, for investigating results.
