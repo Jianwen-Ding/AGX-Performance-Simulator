@@ -1171,6 +1171,45 @@ def w_crc32c(size, rng):
              ds, check, 64, {'bytes': len(data)})
 
 
+def siphash24_ref(k, m):
+    """SipHash-2-4 (Aumasson and Bernstein) with Python integers"""
+    M = (1 << 64) - 1
+    rotl = lambda x, b: ((x << b) | (x >> (64 - b))) & M
+    k0, k1 = int.from_bytes(k[:8], 'little'), int.from_bytes(k[8:], 'little')
+    v = [k0 ^ 0x736f6d6570736575, k1 ^ 0x646f72616e646f6d, k0 ^ 0x6c7967656e657261, k1 ^ 0x7465646279746573]
+    def rnd():
+        v[0] = (v[0] + v[1]) & M; v[1] = rotl(v[1], 13) ^ v[0]; v[0] = rotl(v[0], 32)
+        v[2] = (v[2] + v[3]) & M; v[3] = rotl(v[3], 16) ^ v[2]
+        v[0] = (v[0] + v[3]) & M; v[3] = rotl(v[3], 21) ^ v[0]
+        v[2] = (v[2] + v[1]) & M; v[1] = rotl(v[1], 17) ^ v[2]; v[2] = rotl(v[2], 32)
+    n = len(m)
+    words = [int.from_bytes(m[i:i + 8], 'little') for i in range(0, n - n % 8, 8)]
+    words.append(((n & 255) << 56) | int.from_bytes(m[n - n % 8:], 'little'))
+    for w in words:
+        v[3] ^= w; rnd(); rnd(); v[0] ^= w
+    v[2] ^= 0xff
+    for _ in range(4):
+        rnd()
+    return v[0] ^ v[1] ^ v[2] ^ v[3]
+
+
+def w_siphash(size, rng):
+    n = 1024 if size == 'small' else 1 << 18
+    key = bytes(range(16))                                                     # the paper's test key
+    lens = rng.integers(0, 256, n); lens[:64] = np.arange(64)                  # first 64: the paper's vector set
+    msgs = rng.integers(0, 256, (n, 256), dtype=np.uint8); msgs[:64] = np.arange(256, dtype=np.uint8)
+    for j in range(n):
+        msgs[j, lens[j]:] = 0
+    def check(o):
+        got = o[3].view(np.uint64)[:n]
+        bad = sum(int(got[j]) != siphash24_ref(key, msgs[j, :lens[j]].tobytes()) for j in range(n))
+        paper = int(got[0]) == 0x726fdb47dd0e0e31 and int(got[15]) == 0xa129ca6149be45e5
+        return bad == 0 and paper, {'bad_hashes': int(bad), 'paper_vectors_ok': bool(paper)}
+    return W('siphash', {0: (np.ascontiguousarray(msgs).view(np.uint64), False), 1: (u32(lens), False),
+                         2: (np.frombuffer(key, np.uint64).copy(), False), 3: (8 * n, True)},
+             [((n + 63) // 64, 1, 1, push(n))], check, 64, {'bytes': int(lens.sum())})
+
+
 def w_spmv(size, rng):
     rows, cols = (512, 512) if size == 'small' else (1 << 18, 1 << 18)
     nnz = rng.integers(0, 64, rows) * (rng.random(rows) < 0.95)    # some empty rows
@@ -3700,7 +3739,7 @@ WORKLOADS = {'reduce': w_reduce, 'scan': w_scan, 'sgemm': w_sgemm, 'conv2d': w_c
              'aluprobe': w_aluprobe, 'ubopalette': w_ubopalette, 'uboparams': w_uboparams,
              'bindless': w_bindless, 'bindlessu': w_bindlessu,
              # appended only: the input seed is the index in this dict
-             'rle': w_rle, 'huffdec': w_huffdec, 'lookback': w_lookback, 'hll': w_hll, 'tricount': w_tricount, 'sha3': w_sha3, 'stereo': w_stereo, 'viterbi': w_viterbi, 'viterbifix': w_viterbifix, 'shiftfuse': w_shiftfuse, 'bc1enc': w_bc1enc, 'lz4dec': w_lz4dec, 'nttmul': w_nttmul, 'topk': w_topk, 'cellsort': w_cellsort, 'boruvka': w_boruvka, 'biquad': w_biquad, 'edt': w_edt, 'mt19937': w_mt19937, 'bitap': w_bitap, 'cholesky': w_cholesky, 'rsshash': w_rsshash, 'poly1305': w_poly1305, 'crc32c': w_crc32c}
+             'rle': w_rle, 'huffdec': w_huffdec, 'lookback': w_lookback, 'hll': w_hll, 'tricount': w_tricount, 'sha3': w_sha3, 'stereo': w_stereo, 'viterbi': w_viterbi, 'viterbifix': w_viterbifix, 'shiftfuse': w_shiftfuse, 'bc1enc': w_bc1enc, 'lz4dec': w_lz4dec, 'nttmul': w_nttmul, 'topk': w_topk, 'cellsort': w_cellsort, 'boruvka': w_boruvka, 'biquad': w_biquad, 'edt': w_edt, 'mt19937': w_mt19937, 'bitap': w_bitap, 'cholesky': w_cholesky, 'rsshash': w_rsshash, 'poly1305': w_poly1305, 'crc32c': w_crc32c, 'siphash': w_siphash}
 
 
 # ---------------------------------------------------------------------------------------------------------------
