@@ -31,6 +31,7 @@ and the reference agree; that is a sanity check, not hardware verification.
    - the median and p90 error factor (predicted / measured, either direction);
    - how many workloads fall within ±10%, ±25% and 2×;
    - the five most under-predicted and the five most over-predicted workloads.
+   Workloads with 2 to 16 dispatches also list `per_dispatch_us` (measured, predicted) per dispatch.
 
    That one line is the model's accuracy on real kernels. `nms` is expected near the top of the under-predicted
    list (see `spirv-08-applications.md`).
@@ -40,7 +41,7 @@ The rest of this file is the detailed procedure, for investigating results.
 
 ## Workloads
 
-One hundred and fifteen realistic compute kernels, written in GLSL (`spirv/shaders/*.comp`) and compiled to SPIR-V:
+One hundred and seventeen realistic compute kernels, written in GLSL (`spirv/shaders/*.comp`) and compiled to SPIR-V:
 
 | Workload | Kernel | Stresses |
 |---|---|---|
@@ -159,6 +160,8 @@ One hundred and fifteen realistic compute kernels, written in GLSL (`spirv/shade
 | `mplitmus` | Message-passing litmus test, release / acquire and relaxed | Vulkan memory model atomics (`device_store` / `device_load` coherence variants, `memory_barrier`) |
 | `splat` | Bilinear point splatting with fp32 `atomicAdd` | `VK_EXT_shader_atomic_float`; requires `buffer_float32_atomic_add` (NODEV on the offline Asahi driver) |
 | `splatfix` | The same splat with 16.16 fixed-point integer atomics | The portable technique where float atomics are missing |
+| `smembank` | Shared-memory stride sweep (1 .. 33), one dispatch per stride | Bank conflicts; a timing probe for the cost model |
+| `coalesce` | Device-memory stride sweep (1 .. 64), one dispatch per stride | Coalescing / cache lines; a timing probe for the memory model |
 
 Each workload has two sizes:
 

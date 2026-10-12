@@ -2699,6 +2699,39 @@ def w_splatfix(size, rng):
     return W('splatfix', {0: (pts, False), 1: (4 * g * g, True)}, [((n + 255) // 256, 1, 1, push(n, g))], check, 256, {'points': n})
 
 
+SMEM_STRIDES = [1, 2, 4, 8, 16, 32, 33]
+
+
+def w_smembank(size, rng):
+    groups = 4 if size == 'small' else 512
+    n = groups * 256
+    def check(o):
+        got = o[0].view(np.uint32)[:len(SMEM_STRIDES) * n].reshape(len(SMEM_STRIDES), n)
+        sm = (np.arange(8192, dtype=np.uint64) * 2654435761) & 0xffffffff
+        t = np.arange(256, dtype=np.uint64)
+        ref = np.stack([np.tile(sum(sm[(t * st + k) & 8191] for k in range(64)) & 0xffffffff, groups) for st in SMEM_STRIDES]).astype(np.uint32)
+        return np.array_equal(got, ref), {'mismatches': int(np.sum(got != ref)), 'strides': SMEM_STRIDES}
+    ds = [(groups, 1, 1, push(st, k)) for k, st in enumerate(SMEM_STRIDES)]
+    return W('smembank', {0: (4 * len(SMEM_STRIDES) * n, True)}, ds, check, 256, {'shared_reads': 64 * n * len(SMEM_STRIDES)})
+
+
+COALESCE_STRIDES = [1, 2, 4, 8, 16, 32, 64]
+
+
+def w_coalesce(size, rng):
+    groups, nwords = (4, 1 << 16) if size == 'small' else (1024, 1 << 24)
+    n = groups * 256
+    data = u32(rng.integers(0, 1 << 32, nwords, dtype=np.uint64))
+    def check(o):
+        got = o[1].view(np.uint32)[:len(COALESCE_STRIDES) * n].reshape(len(COALESCE_STRIDES), n)
+        i = np.arange(n, dtype=np.uint64); d = data.astype(np.uint64)
+        ref = np.stack([sum(d[(i * st + k * 4096) & (nwords - 1)] for k in range(16)) & 0xffffffff for st in COALESCE_STRIDES]).astype(np.uint32)
+        return np.array_equal(got, ref), {'mismatches': int(np.sum(got != ref)), 'strides': COALESCE_STRIDES}
+    ds = [(groups, 1, 1, push(st, k, nwords - 1)) for k, st in enumerate(COALESCE_STRIDES)]
+    return W('coalesce', {0: (data, False), 1: (4 * len(COALESCE_STRIDES) * n, True)}, ds, check, 256,
+             {'bytes': 4 * 16 * n * len(COALESCE_STRIDES)})
+
+
 WORKLOADS = {'reduce': w_reduce, 'scan': w_scan, 'sgemm': w_sgemm, 'conv2d': w_conv2d, 'histogram': w_histogram,
              'nbody': w_nbody, 'bitonic': w_bitonic, 'sha256': w_sha256, 'fp16': w_fp16, 'int64': w_int64, 'bitops': w_bitops,
              'intdiv': w_intdiv, 'compact': w_compact, 'spmv': w_spmv, 'transpose': w_transpose, 'mandelbrot': w_mandelbrot,
@@ -2727,7 +2760,8 @@ WORKLOADS = {'reduce': w_reduce, 'scan': w_scan, 'sgemm': w_sgemm, 'conv2d': w_c
              'dsum': w_dsum, 'quadmip': w_quadmip, 'clustered': w_clustered,
              'specblur': w_specblur, 'cullindirect': w_cullindirect,
              'bigsort': w_bigsort, 'pushmat': w_pushmat, 'mplitmus': w_mplitmus,
-             'splat': w_splat, 'splatfix': w_splatfix}
+             'splat': w_splat, 'splatfix': w_splatfix,
+             'smembank': w_smembank, 'coalesce': w_coalesce}
 
 
 # ---------------------------------------------------------------------------------------------------------------
@@ -3409,6 +3443,8 @@ def verify_one(name, exp, layout, timing):
             meas = [x / 1e3 for x in rec['large']['dispatch_ns_median']]
             res['timing'] = {'measured_us': round(sum(meas), 1), 'predicted_us': round(sum(pred), 1),
                              'ratio': round(sum(pred) / sum(meas), 3) if sum(meas) else None}
+            if 1 < len(meas) <= 16:                                              # sweeps / short pipelines: each dispatch
+                res['timing']['per_dispatch_us'] = [[round(m, 2), round(q, 2)] for m, q in zip(meas, pred)]
         else:
             res['timing'] = {'error': (r.stdout + r.stderr).strip()[-200:]}
     return res

@@ -1,0 +1,14 @@
+#version 450
+// Device-memory coalescing sweep (a timing probe): invocation i reads 16 words at ((i * stride + k * 4096) mod N)
+// for one stride per dispatch (1 = fully coalesced .. 64 = one cache line per lane), sums them and writes the sum;
+// the per-dispatch GPU times on the M2 calibrate the memory model. Exact sums.
+layout(local_size_x = 256) in;
+layout(std430, binding = 0) readonly buffer D { uint data[]; };
+layout(std430, binding = 1) writeonly buffer O { uint sums[]; };
+layout(push_constant) uniform P { uint stride; uint slot; uint mask; } p;
+
+void main() {
+    uint i = gl_GlobalInvocationID.x, acc = 0u;
+    for (uint k = 0u; k < 16u; k++) acc += data[(i * p.stride + k * 4096u) & p.mask];
+    sums[p.slot * gl_NumWorkGroups.x * 256u + i] = acc;
+}

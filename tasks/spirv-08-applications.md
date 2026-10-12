@@ -1,7 +1,7 @@
 # Task SPIR-V 8: applications (ray tracer, neural networks, image processing, cellular automaton, graph search,
 # encryption, hashing, text, compression)
 
-**Workloads:** `raytrace`, `mlp`, `sobel`, `life`, `bfs`, `conv_layer`, `hist_eq`, `aes`, `hash_table`, `word_count`, `dct8`, `attention`, `resize`, `median3`, `poisson`, `lbm`, `base64`, `md5`, `gemv`, `levenshtein`, `blur`, `yuv420`, `montecarlo`, `xxhash`, `bloom`, `collatz`, `tridiag`, `merge`, `ccl`, `pagerank`, `skinning`, `strsearch`, `quantize`, `rule110`, `voxel`, `nms`, `sat`, `sssp`, `morton`, `utf8`, `fir`, `composite`, `nqueens`, `lzmatch`, `bitpack`, `perlin`, `adler32`, `sieve`, `gcd`, `dither`, `advect`, `knn`, `csvparse`, `pip`, `lift53`, `chacha20`, `modexp`, `floyd`, `f16pack`, `raster`, `canny`, `secded`, `bicubic`, `dfa`, `b64decode`, `cordic`, `rsenc`, `texfetch`, `texfilter`, `imgerode`, `imgtonemap`, `argmax64`, `minmax64`, `dsum`, `quadmip`, `clustered`, `specblur`, `cullindirect`, `bigsort`, `pushmat`, `mplitmus`, `splat`, `splatfix`. These are recorded and verified by `make asahi-verify` with the others;
+**Workloads:** `raytrace`, `mlp`, `sobel`, `life`, `bfs`, `conv_layer`, `hist_eq`, `aes`, `hash_table`, `word_count`, `dct8`, `attention`, `resize`, `median3`, `poisson`, `lbm`, `base64`, `md5`, `gemv`, `levenshtein`, `blur`, `yuv420`, `montecarlo`, `xxhash`, `bloom`, `collatz`, `tridiag`, `merge`, `ccl`, `pagerank`, `skinning`, `strsearch`, `quantize`, `rule110`, `voxel`, `nms`, `sat`, `sssp`, `morton`, `utf8`, `fir`, `composite`, `nqueens`, `lzmatch`, `bitpack`, `perlin`, `adler32`, `sieve`, `gcd`, `dither`, `advect`, `knn`, `csvparse`, `pip`, `lift53`, `chacha20`, `modexp`, `floyd`, `f16pack`, `raster`, `canny`, `secded`, `bicubic`, `dfa`, `b64decode`, `cordic`, `rsenc`, `texfetch`, `texfilter`, `imgerode`, `imgtonemap`, `argmax64`, `minmax64`, `dsum`, `quadmip`, `clustered`, `specblur`, `cullindirect`, `bigsort`, `pushmat`, `mplitmus`, `splat`, `splatfix`, `smembank`, `coalesce`. These are recorded and verified by `make asahi-verify` with the others;
 they are **PENDING** until then. The detailed procedure is in `tasks/spirv-workloads.md`.
 
 ## Why these
@@ -95,6 +95,8 @@ reference.
 | `mplitmus` | 4096 writer / reader workgroup pairs race on data + flag: release / acquire atomics, and relaxed for comparison, with no waiting | Zero stale reads after an acquire; relaxed stale reads are reported, not judged |
 | `splat` | Splat 4M weighted points bilinearly into a 512² grid with fp32 `atomicAdd` (half the points in a dense blob) | Within a per-cell summation bound (any addition order) |
 | `splatfix` | The same points with weights in 16.16 fixed point and `atomicAdd` on uint | Exact; the fixed-point grid is within half a unit per term of the exact sums |
+| `smembank` | 64 shared-memory reads per lane at stride 1, 2, 4, 8, 16, 32, 33, one dispatch each | Exact sums; per-stride times |
+| `coalesce` | 16 device reads per lane at stride 1 .. 64 words over 64 MiB, one dispatch each | Exact sums; per-stride times |
 
 ## Offline sanity checks (not hardware verification)
 
@@ -203,3 +205,9 @@ reference.
       expected NODEV on the M2, unless its Mesa adds them.
     - `splatfix` is the workaround real code uses on such GPUs. It must PASS, and runs on the simulator.
     - Both read the same points (a shared seed), so their grids can be compared directly.
+25. **Timing probes `smembank` and `coalesce`.** Their value is the per-dispatch time. `verify --timing` lists
+    measured and predicted per stride as `per_dispatch_us`, set against the model's predictions:
+    - shared memory, µs per stride 1, 2, 4, 8, 16, 32, 33: 76, 77, 77, 79, 106, 192, 76 (bank conflicts from
+      stride 16; stride 33 is conflict-free);
+    - device memory, µs per stride 1 .. 64: 24, 104, 197, 383, 756, 406, 230. Strides 32 and 64 wrap the 64 MiB
+      buffer and reuse lines; whether the M2 shows that drop too is part of the check.
