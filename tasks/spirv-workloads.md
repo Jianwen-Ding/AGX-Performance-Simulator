@@ -31,7 +31,7 @@ The rest of this file is the detailed procedure, for investigating results.
 
 ## Workloads
 
-Twenty-four realistic compute kernels, written in GLSL (`spirv/shaders/*.comp`) and compiled to SPIR-V:
+Thirty-two realistic compute kernels, written in GLSL (`spirv/shaders/*.comp`) and compiled to SPIR-V:
 
 | Workload | Kernel | Stresses |
 |---|---|---|
@@ -59,13 +59,21 @@ Twenty-four realistic compute kernels, written in GLSL (`spirv/shaders/*.comp`) 
 | `control` | 10-way switch, nested break / continue, early returns, a called function | Branch-heavy integer control flow |
 | `shuffle` | subgroupShuffle / Xor / Up / Down / Broadcast | Cross-lane shuffles (reference follows the reported subgroup size) |
 | `floatops` | min / max / clamp / abs / sign / floor / ceil / fract / round / trunc / step / compares on special values | Exact float semantics (±0, ±inf, ties) |
+| `radix_sort` | 4-bit LSD radix sort of (key, value) pairs, 8 passes × 3 dispatches, stable | Histograms, a single-group scan, stable scatter |
+| `fft` | 1024-point complex radix-2 FFT per workgroup in shared memory | sin / cos twiddles (`sin_pt`), unrolled butterflies |
+| `crc32` | CRC-32 of 64-byte messages through a shared-memory table | Data-dependent threadgroup loads, byte extraction |
+| `kmeans` | Nearest-centroid assignment (k centroids in shared memory) | Float distance argmin, shared-memory broadcast |
+| `int8dot` | int8 × int8 → int32 matrix product through 8-bit storage | Sign-extending byte loads, integer multiply-add |
+| `stencil3d` | 7-point Jacobi step on a 3-D grid, 8×8×4 workgroups | 3-D addressing, clamped neighbours |
+| `int16` | int16 / uint16 wrapping arithmetic, shifts, min / max, widening | 16-bit integer ALU and storage |
+| `trig` | sin, cos, asin, acos, atan, atan2, exp, exp2, log, log2, sqrt, inversesqrt | Transcendental lowerings, against Vulkan's precision bounds |
 
 Each workload has two sizes:
 
 - **small:** for the simulator.
 - **large:** for timing. 3–470 ms per run on lavapipe (CPU).
 
-The six task files group them:
+The seven task files group them:
 
 - `spirv-01-reduce-scan.md`
 - `spirv-02-sgemm-conv2d.md`
@@ -73,6 +81,7 @@ The six task files group them:
 - `spirv-04-nbody-sha256.md`
 - `spirv-05-isa-coverage.md` (integer, fp16, 64-bit, 8-bit and subgroup features the first eight do not reach)
 - `spirv-06-semantics.md` (atomics, 3-D geometry, spills, control flow, shuffles, exact float operations)
+- `spirv-07-algorithms.md` (radix sort, FFT, CRC-32, k-means, int8 GEMM, 3-D stencil, int16, transcendentals)
 
 Every workload passes its numpy reference on Mesa lavapipe (CPU Vulkan), at both sizes. That only shows the shaders and
 references are right; a wrong result on the M2 is therefore a GPU, driver or runner finding, not a shader bug.
@@ -143,10 +152,11 @@ references are right; a wrong result on the M2 is therefore a GPU, driver or run
    python3 -B scripts/spirv_task.py sim sgemm --code-dir spirv/out/sgemm-small/code --hardware spirv/out/sgemm-small
    ```
 
-   - Offline, all twenty-four workloads pass their numpy references with shim-compiled Mesa 25.2.8 and 26.0.3 code
+   - Offline, all thirty-two workloads pass their numpy references with shim-compiled Mesa 25.2.8 and 26.0.3 code
      (`make spirv-sim`). That is a sanity check; verification is `make spirv-verify` against the M2 recordings.
    - Integer workloads (`scan`, `histogram`, `bitonic`, `sha256`, `int64`, `bitops`, `intdiv`, `compact`, `transpose`,
-     `mandelbrot`, `atomics`, `geom3d`, `spill`, `control`, `shuffle`, `floatops`, and reduce's uint half) must match the hardware word for word.
+     `mandelbrot`, `atomics`, `geom3d`, `spill`, `control`, `shuffle`, `floatops`, `radix_sort`, `crc32`, `int8dot`, `int16`, and
+     reduce's uint half) must match the hardware word for word.
    - Float workloads only need to be close: within the workload's reference tolerance. Last-bit float differences
      (fp32 transcendentals, summation order) are not worth chasing.
    - When `agx_run` stops on an unimplemented instruction or format, that is the finding: report it, and implement it

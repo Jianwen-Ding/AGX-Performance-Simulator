@@ -1,0 +1,31 @@
+{
+ "stage": 5,
+ "binary_size": 440,
+ "push_count": 40,
+ "local_size": 0,
+ "scratch_size": 0,
+ "main_size": 218,
+ "has_preamble": 1,
+ "preamble_offset": 256,
+ "main_offset": 0,
+ "workgroup_size": [
+  16,
+  16,
+  1
+ ],
+ "rodata_offset": 0,
+ "rodata_base_uniform": 0,
+ "rodata_size_16": 0,
+ "stats_instructions": 32,
+ "stats_gprs": 13,
+ "stats_uniforms": 40,
+ "stats_threads": 1024,
+ "info_layout": "26.0",
+ "nr_gprs": 14,
+ "code_size": 440,
+ "data_size": 0,
+ "header_bytes": 80,
+ "code_at": 2244,
+ "uniform_init": {},
+ "root_layout": "26.0"
+}

@@ -550,11 +550,146 @@ def w_floatops(size, rng):
     return W('floatops', {0: (inp, False), 1: (64 * n, True)}, [((n + 63) // 64, 1, 1, push(n))], check, 64, {'items': n})
 
 
+
+def w_radix_sort(size, rng):
+    n = 4096 if size == 'small' else 1 << 20
+    groups = n // 1024
+    keys = u32(rng.integers(0, 1 << 32, n, dtype=np.uint64))
+    keys[rng.random(n) < 0.2] = 12345                          # duplicates: stability matters
+    vals = u32(np.arange(n))
+    ds = []
+    for k in range(8):
+        for mode in range(3):
+            ds.append((groups if mode != 1 else 1, 1, 1, push(mode, 4 * k, groups, n, k & 1)))
+    def check(o):
+        gk, gv = o[0].view(np.uint32)[:n], o[1].view(np.uint32)[:n]     # 8 passes end in the first half
+        order = np.argsort(keys, kind='stable')
+        ok_k, ok_v = np.array_equal(gk, keys[order]), np.array_equal(gv, order.astype(np.uint32))
+        return ok_k and ok_v, {'keys_sorted': ok_k, 'stable_payload': ok_v}
+    return W('radix_sort', {0: (np.concatenate([keys, np.zeros(n, np.uint32)]), True), 1: (np.concatenate([vals, np.zeros(n, np.uint32)]), True),
+                            2: (4 * 16 * groups, False)}, ds, check, 256, {'keys': n, 'dispatches': len(ds)})
+
+
+def w_fft(size, rng):
+    batches = 4 if size == 'small' else 4096
+    x = (rng.standard_normal((batches, 1024)) + 1j * rng.standard_normal((batches, 1024))).astype(np.complex64)
+    inp = f32(np.stack([x.real, x.imag], -1))
+    def check(o):
+        g = o[1].view(np.float32)[:batches * 2048].reshape(batches, 1024, 2)
+        got = g[..., 0].astype(np.float64) + 1j * g[..., 1]
+        ref = np.fft.fft(x.astype(np.complex128), axis=1)
+        err = float(np.max(np.linalg.norm(got - ref, axis=1) / np.linalg.norm(ref, axis=1)))
+        # Vulkan allows sin / cos an absolute error of 2^-11 on [-pi, pi]: ten stages of that bound the relative error
+        return err < 10 * 2.0 ** -11, {'rel_l2_err': err}
+    return W('fft', {0: (inp, False), 1: (8 * 1024 * batches, True)}, [(batches, 1, 1, b'')], check, 256,
+             {'flops': 5 * 1024 * 10 * batches})
+
+
+def w_crc32(size, rng):
+    n = 512 if size == 'small' else 1 << 18
+    msgs = rng.integers(0, 256, (n, 64), dtype=np.uint8)
+    def check(o):
+        import zlib
+        got = o[1].view(np.uint32)[:n]
+        rows = range(n) if size == 'small' else rng.choice(n, 4096, replace=False)
+        bad = sum(int(got[i]) != zlib.crc32(bytes(msgs[i])) for i in rows)
+        return bad == 0, {'bad_crcs': int(bad)}
+    return W('crc32', {0: (msgs, False), 1: (4 * n, True)}, [((n + 255) // 256, 1, 1, push(n))], check, 256, {'bytes': 64 * n})
+
+
+def w_kmeans(size, rng):
+    n, k = (2048, 16) if size == 'small' else (1 << 20, 64)
+    cent = f32(rng.uniform(-10, 10, (k, 4)))
+    pts = f32(cent[rng.integers(0, k, n)] + rng.standard_normal((n, 4)) * 3)
+    def check(o):
+        ga, gd = o[2].view(np.uint32)[:n], o[3].view(np.float32)[:n]
+        d = ((pts[:, None, :].astype(np.float64) - cent[None, :, :]) ** 2).sum(-1)
+        ref = d.argmin(1); best = d.min(1)
+        # a different index is only acceptable where the two distances tie within float rounding
+        alt = d[np.arange(n), ga]
+        bad_idx = int(np.sum((ga != ref) & (alt - best > 1e-5 * (best + 1))))
+        derr = float(np.max(np.abs(gd - best) / (best + 1)))
+        return bad_idx == 0 and derr < 1e-5, {'wrong_assignments': bad_idx, 'max_dist_err': derr}
+    return W('kmeans', {0: (pts, False), 1: (cent, False), 2: (4 * n, True), 3: (4 * n, True)}, [((n + 127) // 128, 1, 1, push(n, k))],
+             check, 128, {'flops': 12 * n * k})
+
+
+def w_int8dot(size, rng):
+    M, N, K = (64, 48, 256) if size == 'small' else (1024, 1024, 1024)
+    a = rng.integers(-128, 128, (M, K), dtype=np.int64).astype(np.int8); b = rng.integers(-128, 128, (K, N), dtype=np.int64).astype(np.int8)
+    def check(o):
+        got = o[2].view(np.int32)[:M * N].reshape(M, N)
+        ref = a.astype(np.int64) @ b.astype(np.int64)
+        return np.array_equal(got, ref), {'mismatches': int(np.sum(got != ref))}
+    return W('int8dot', {0: (a, False), 1: (b, False), 2: (4 * M * N, True)}, [((N + 15) // 16, (M + 15) // 16, 1, push(M, N, K))],
+             check, (16, 16, 1), {'ops': 2 * M * N * K})
+
+
+def w_stencil3d(size, rng):
+    nx, ny, nz = (20, 18, 10) if size == 'small' else (256, 256, 128)
+    u = f32(rng.uniform(-1, 1, (nz, ny, nx)))
+    c0, c1 = 0.4, 0.1
+    def check(o):
+        got = o[1].view(np.float32)[:nx * ny * nz].reshape(nz, ny, nx)
+        q = np.pad(u.astype(np.float64), 1, mode='edge')
+        nb = q[1:-1, 1:-1, :-2] + q[1:-1, 1:-1, 2:] + q[1:-1, :-2, 1:-1] + q[1:-1, 2:, 1:-1] + q[:-2, 1:-1, 1:-1] + q[2:, 1:-1, 1:-1]
+        ref = c0 * u + c1 * nb
+        err = float(np.max(np.abs(got - ref)))
+        return err < 1e-6, {'max_abs_err': err}
+    return W('stencil3d', {0: (u, False), 1: (4 * nx * ny * nz, True)},
+             [((nx + 7) // 8, (ny + 7) // 8, (nz + 3) // 4, push(nx, ny, nz, c0, c1))], check, (8, 8, 4), {'bytes': 8 * nx * ny * nz})
+
+
+def w_int16(size, rng):
+    n = 2048 if size == 'small' else 1 << 20
+    inp = rng.integers(0, 1 << 16, (n, 4), dtype=np.uint64).astype(np.uint16)
+    def check(o):
+        got = o[1].view(np.uint16)[:10 * n].reshape(n, 10).astype(np.int64)
+        wide = o[2].view(np.uint32)[:2 * n].reshape(n, 2).astype(np.int64)
+        a, b, c, d = (inp[:, k].astype(np.int64) for k in range(4))
+        sa, sb = inp[:, 0].view(np.int16).astype(np.int64), inp[:, 1].view(np.int16).astype(np.int64)
+        m = 0xffff
+        acc = np.zeros(n, np.int64)
+        for k in range(8):
+            acc = (acc + (((a + k) & m) * ((b ^ k) & m))) & m
+        ref = np.stack([(a + b) & m, (a - b) & m, (a * b) & m, a >> (c & 15), (a << (d & 15)) & m, (sa >> (c & 15)) & m,
+                        np.maximum(a, b), np.minimum(sa, sb) & m, (a < b) * 1 | (sa < sb) * 2 | (a == c) * 4, acc], 1)
+        refw = np.stack([a * b, (sa * sb) & 0xffffffff], 1)
+        bad = got != ref
+        return not bad.any() and np.array_equal(wide, refw), {'mismatches': int(bad.sum()), 'wide_mismatches': int(np.sum(wide != refw)),
+                                                               'by_output': {str(k): int(v) for k, v in enumerate(bad.sum(0)) if v}}
+    return W('int16', {0: (inp, False), 1: (20 * n, True), 2: (8 * n, True)}, [((n + 63) // 64, 1, 1, push(n))], check, 64, {'items': n})
+
+
+def w_trig(size, rng):
+    n = 4096 if size == 'small' else 1 << 20
+    inp = f32(np.stack([rng.uniform(-np.pi, np.pi, n), rng.uniform(-1, 1, n), rng.uniform(-60, 60, n),
+                        np.exp2(rng.uniform(-100, 100, n))], 1))
+    def check(o):
+        got = o[1].view(np.float32)[:12 * n].reshape(n, 12).astype(np.float64)
+        x, u, e, l = (inp[:, k].astype(np.float64) for k in range(4))
+        ref = [np.sin(x), np.cos(x), np.arcsin(u), np.arccos(u), np.arctan(e), np.arctan2(u, x), np.exp(np.float32(e * 0.25).astype(np.float64)),
+               np.exp2(e), np.log(l), np.log2(l), np.sqrt(l), 1 / np.sqrt(l)]
+        ulp = lambda v: np.spacing(np.abs(v).astype(np.float32)).astype(np.float64)
+        # Vulkan precision: sin / cos absolute 2^-11; asin / acos / atan / atan2 4096 ulp; exp / exp2 3 + 2|x| ulp;
+        # log / log2 3 ulp (absolute 2^-21 on [0.5, 2]); sqrt as 1 / inversesqrt; inversesqrt 2 ulp
+        tol = [np.full(n, 2.0 ** -11), np.full(n, 2.0 ** -11), 4096 * ulp(ref[2]), 4096 * ulp(ref[3]), 4096 * ulp(ref[4]), 4096 * ulp(ref[5]),
+               (3 + 2 * np.abs(e * 0.25)) * ulp(ref[6]), (3 + 2 * np.abs(e)) * ulp(ref[7]),
+               np.where((l >= 0.5) & (l <= 2), 2.0 ** -21, 3 * ulp(ref[8])), np.where((l >= 0.5) & (l <= 2), 2.0 ** -21, 3 * ulp(ref[9])),
+               5 * ulp(ref[10]), 2 * ulp(ref[11])]
+        names = ['sin', 'cos', 'asin', 'acos', 'atan', 'atan2', 'exp', 'exp2', 'log', 'log2', 'sqrt', 'inversesqrt']
+        worst = {nm: float(np.max(np.abs(got[:, k] - ref[k]) / tol[k])) for k, nm in enumerate(names)}
+        # the verdict allows twice Vulkan's bound (lavapipe's exp reaches 1.04x on a million inputs); the ratios are the data
+        return all(v <= 2 for v in worst.values()), {'worst_err_over_vulkan_bound': {k: round(v, 4) for k, v in worst.items()}}
+    return W('trig', {0: (inp, False), 1: (48 * n, True)}, [((n + 63) // 64, 1, 1, push(n))], check, 64, {'items': n})
+
+
 WORKLOADS = {'reduce': w_reduce, 'scan': w_scan, 'sgemm': w_sgemm, 'conv2d': w_conv2d, 'histogram': w_histogram,
              'nbody': w_nbody, 'bitonic': w_bitonic, 'sha256': w_sha256, 'fp16': w_fp16, 'int64': w_int64, 'bitops': w_bitops,
              'intdiv': w_intdiv, 'compact': w_compact, 'spmv': w_spmv, 'transpose': w_transpose, 'mandelbrot': w_mandelbrot,
              'softmax': w_softmax, 'rgba8': w_rgba8, 'atomics': w_atomics, 'geom3d': w_geom3d, 'spill': w_spill,
-             'control': w_control, 'shuffle': w_shuffle, 'floatops': w_floatops}
+             'control': w_control, 'shuffle': w_shuffle, 'floatops': w_floatops, 'radix_sort': w_radix_sort, 'fft': w_fft,
+             'crc32': w_crc32, 'kmeans': w_kmeans, 'int8dot': w_int8dot, 'stencil3d': w_stencil3d, 'int16': w_int16, 'trig': w_trig}
 
 
 # ---------------------------------------------------------------------------------------------------------------

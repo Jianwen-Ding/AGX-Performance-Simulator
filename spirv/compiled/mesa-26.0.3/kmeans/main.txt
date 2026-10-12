@@ -1,0 +1,40 @@
+0x0080  72053000                 get_sr r1, sr48 (thread_position_in_threadgroup.x)
+0x0084  62000000                 mov_imm r0l, 0
+0x0088  522842821800             if_icmp r0l, ult, r1, u4, 1
+0x008e  0e09002064002000         iadd r2, 0, r1.sx, lsl 4
+0x0096  05212c0e00c8f200         device_load 0, i32, xyzw, r4_r5_r6_r7, u6_u7, r1, unsigned, lsl 2
+0x009e  3800                     wait 0
+0x00a0  29910402f4000000         threadgroup_store i32, xyzw, r4_r5_r6_r7, r2l, 0
+0x00a8  520e00000000             pop_exec r0l, 1
+0x00ae  6800                     threadgroup_barrier
+0x00b0  f2051004                 get_sr r1.cache, sr80 (thread_position_in_grid.x)
+0x00b4  0e05420659000000         iadd r1, r1.sx, u8.sx
+0x00bc  522842221900             if_icmp r0l, ult, r1, u9, 1
+0x00c2  0521240e10c8f200         device_load 0, i32, xyzw, r4_r5_r6_r7, u10_u11, r1, unsigned, lsl 2
+0x00ca  620900000000             mov_imm r2, 0, 0b0
+0x00d0  620d00000000             mov_imm r3, 0, 0b0
+0x00d6  7e21a0098000             mov r8, u16
+0x00dc  3800                     wait 0
+0x00de  420800000000             push_exec r0l, 1
+0x00e4  522c84821800             while_icmp r0l, ult, r2.cache, u4, 1
+0x00ea  0e25004068002000         iadd r9, 0, r2.cache.sx, lsl 4
+0x00f2  69b11202f4000000         threadgroup_load i32, xyzw, r12_r13_r14_r15, r9l, 0
+0x00fa  aaa54882a500             fadd32 r9.cache, r4, r12.neg
+0x0100  aaa94aa2a500             fadd32 r10.cache, r5, r13.neg
+0x0106  aaad4cc2a500             fadd32 r11.cache, r6, r14.neg
+0x010c  aab14ee2a500             fadd32 r12.cache, r7, r15.neg
+0x0112  9ab158822500             fmul32 r12.cache, r12, r12
+0x0118  baad566225580200         fmadd32 r11.cache, r11, r11, r12
+0x0120  baa9544225560200         fmadd32 r10.cache, r10, r10, r11
+0x0128  baa5522225540200         fmadd32 r9.cache, r9, r9, r10
+0x0130  020d920229846024         fcmpsel lt, r3, r9.cache, r8.cache, r2.cache, r3
+0x0138  0221520225520025         fcmpsel lt, r8, r9, r8, r9, r8
+0x0140  0e09441600000000         iadd r2, r2.sx, 1
+0x0148  00c09cffffff             jmp_exec_any pc-100
+0x014e  520e00000000             pop_exec r0l, 1
+0x0154  4519280e10c01200         device_store 0, i32, x, r3, u12_u13, r1, unsigned, 0
+0x015c  45412c4e10c01200         device_store 1, i32, x, r8, u14_u15, r1, unsigned, 0
+0x0164  3800                     wait 0
+0x0166  3801                     wait 1
+0x0168  520e00000000             pop_exec r0l, 1
+0x016e  8800                     stop

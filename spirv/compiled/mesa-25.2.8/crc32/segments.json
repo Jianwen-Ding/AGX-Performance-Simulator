@@ -1,0 +1,22 @@
+{
+ "blob": "spirv/compiled/mesa-25.2.8/crc32/shader.bin",
+ "code_start": 2236,
+ "code_size": 3948,
+ "layout": "agx_shader_info",
+ "programs": [
+  {
+   "label": "main",
+   "file": "main.bin",
+   "offset": 128,
+   "bytes": 3606,
+   "instructions": 523
+  },
+  {
+   "label": "preamble",
+   "file": "preamble.bin",
+   "offset": 3840,
+   "bytes": 92,
+   "instructions": 16
+  }
+ ]
+}

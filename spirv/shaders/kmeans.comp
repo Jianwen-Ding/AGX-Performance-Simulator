@@ -1,0 +1,27 @@
+#version 450
+// k-means assignment step: every point (vec4) finds its nearest of k centroids (k <= 64, in shared memory);
+// writes the index and the squared distance.
+layout(local_size_x = 128) in;
+layout(std430, binding = 0) readonly buffer Pt { vec4 pts[]; };
+layout(std430, binding = 1) readonly buffer Ce { vec4 cent[]; };
+layout(std430, binding = 2) writeonly buffer A { uint assign[]; };
+layout(std430, binding = 3) writeonly buffer D { float dist[]; };
+layout(push_constant) uniform P { uint n; uint k; } p;
+shared vec4 sc[64];
+
+void main() {
+    uint t = gl_LocalInvocationID.x;
+    if (t < p.k) sc[t] = cent[t];
+    barrier();
+    uint i = gl_GlobalInvocationID.x;
+    if (i >= p.n) return;
+    vec4 x = pts[i];
+    float best = 3.4e38;
+    uint bi = 0u;
+    for (uint c = 0u; c < p.k; c++) {
+        vec4 d = x - sc[c];
+        float dd = dot(d, d);
+        if (dd < best) { best = dd; bi = c; }
+    }
+    assign[i] = bi; dist[i] = best;
+}
