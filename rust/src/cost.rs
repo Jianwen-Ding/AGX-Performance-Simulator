@@ -1400,15 +1400,50 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
     let mut t: i64 = 0;
     let mut done = 0usize;
     let npcs: Vec<usize> = seqs.iter().map(Vec::len).collect();
+    // Groups busy until free[gi] > t wait in a min-heap; the tick visits only the others (`elig`, a bitset), in the
+    // same rotated order. free[gi] changes only when the group issues, so a busy group's only effect on the tick was
+    // to offer free[gi] as a wake time: the heap's minimum gives the same min(wake).
+    let words = g.div_ceil(64).max(1);
+    let mut elig: Vec<u64> = vec![0; words];
+    for gi in 0..g {
+        if nxt[gi] < npcs[gi] {
+            elig[gi / 64] |= 1 << (gi % 64);
+        }
+    }
+    let mut busy: std::collections::BinaryHeap<std::cmp::Reverse<(i64, usize)>> = std::collections::BinaryHeap::new();
+    let mut issued_now: Vec<usize> = Vec::with_capacity(g);
     while done < g {
         let mut issued = 0;
+        while let Some(&std::cmp::Reverse((f, gi))) = busy.peek() {
+            if f > t {
+                break;
+            }
+            busy.pop();
+            elig[gi / 64] |= 1 << (gi % 64);
+        }
         order.clear();
         let k0 = if g == 1 { 0 } else { (((t / t_) as u64).wrapping_mul(2654435761) >> 7) as usize % g };
-        order.extend((k0..g).chain(0..k0));
-        wake.clear();
-        for flag in tick_issued.iter_mut() {
-            *flag = false;
+        // eligible groups in the order k0..g, 0..k0
+        for (lo, hi) in [(k0, g), (0, k0)] {
+            let mut i = lo;
+            while i < hi {
+                let w = elig[i / 64] >> (i % 64);
+                if w == 0 {
+                    i = (i / 64 + 1) * 64;
+                    continue;
+                }
+                i += w.trailing_zeros() as usize;
+                if i < hi {
+                    order.push(i);
+                }
+                i += 1;
+            }
         }
+        wake.clear();
+        for &gi in &issued_now {
+            tick_issued[gi] = false;
+        }
+        issued_now.clear();
         for pass in 0..npass {
         for oi in 0..order.len() {
             let gi = order[oi];
@@ -1994,15 +2029,26 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
             fresh_cache[gi] = None;
             issued += 1;
             tick_issued[gi] = true;
+            issued_now.push(gi);
+            elig[gi / 64] &= !(1 << (gi % 64));
             if nxt[gi] >= npcs[gi] {
                 done += 1;
+            } else {
+                busy.push(std::cmp::Reverse((free[gi], gi)));
             }
         }
         }
         if done >= g {
             break;
         }
-        let nt = if issued > 0 || wake.is_empty() { t + 1 } else { (t + 1).max(*wake.iter().min().unwrap()) };
+        let wmin = match (wake.iter().min().copied(), busy.peek().map(|r| r.0 .0)) {
+            (Some(a), Some(b)) => Some(a.min(b)),
+            (a, b) => a.or(b),
+        };
+        let nt = match wmin {
+            Some(m) if issued == 0 => (t + 1).max(m),
+            _ => t + 1,
+        };
         // refill(nt - t). Python min(a, b) is `b if b < a else a`; a bucket already at its cap stays
         // there (cap + non-negative refill, clamped), so only buckets below their cap are visited.
         let dt = (nt - t) as f64;
