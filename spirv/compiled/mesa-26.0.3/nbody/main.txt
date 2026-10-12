@@ -1,0 +1,60 @@
+0x0080  f2051004                 get_sr r1.cache, sr80 (thread_position_in_grid.x)
+0x0084  0e05c28658000000         iadd r1, r1.discard.sx, u4.sx
+0x008c  05212c0e00c8f200         device_load 0, i32, xyzw, r4_r5_r6_r7, u6_u7, r1, unsigned, lsl 2
+0x0094  62000000                 mov_imm r0l, 0
+0x0098  620900000000             mov_imm r2, 0, 0b0
+0x009e  620d00000000             mov_imm r3, 0, 0b0
+0x00a4  622100000000             mov_imm r8, 0, 0b0
+0x00aa  622500000000             mov_imm r9, 0, 0b0
+0x00b0  3800                     wait 0
+0x00b2  522c84021900             while_icmp r0l, ult, r2.cache, u8, 1
+0x00b8  f2293000                 get_sr r10.cache, sr48 (thread_position_in_threadgroup.x)
+0x00bc  0e2d004069002000         iadd r11, 0, r10.cache.sx, lsl 4
+0x00c4  0e29444665000000         iadd r10, r2.sx, r10.sx
+0x00cc  05614c0e01c8f200         device_load 0, i32, xyzw, r12_r13_r14_r15, u6_u7, r10, unsigned, lsl 2
+0x00d4  3800                     wait 0
+0x00d6  29b11602f4000000         threadgroup_store i32, xyzw, r12_r13_r14_r15, r11l, 0
+0x00de  6800                     threadgroup_barrier
+0x00e0  7e29520a8000             mov r10, r9
+0x00e6  7e25500a8000             mov r9, r8
+0x00ec  7e21460a8000             mov r8, r3
+0x00f2  620d00000000             mov_imm r3, 0, 0b0
+0x00f8  420800000000             push_exec r0l, 1
+0x00fe  522c86421a00             while_icmp r0l, ult, r3.cache, u18, 1
+0x0104  0e2d006068002000         iadd r11, 0, r3.cache.sx, lsl 4
+0x010c  69b11602f4000000         threadgroup_load i32, xyzw, r12_r13_r14_r15, r11l, 0
+0x0114  aaad5882a400             fadd32 r11.cache, r12, r4.neg
+0x011a  aab15aa2a400             fadd32 r12.cache, r13, r5.neg
+0x0120  aab55cc2a400             fadd32 r13.cache, r14, r6.neg
+0x0126  bab99aa229920100         fmadd32 r14.cache, r13.cache, r13.cache, u9
+0x012e  bab99882295c0200         fmadd32 r14.cache, r12.cache, r12.cache, r14
+0x0136  bab99662295c0200         fmadd32 r14.cache, r11.cache, r11.cache, r14
+0x013e  8a395c92                 rsqrt r14.cache, r14
+0x0142  9ac19cc22900             fmul32 r16.cache, r14.cache, r14.cache
+0x0148  9abd5e022600             fmul32 r15.cache, r15, r16
+0x014e  9ab95ce22500             fmul32 r14.cache, r14, r15
+0x0154  3aa156c229500200         fmadd32 r8, r11, r14.cache, r8
+0x015c  3aa558c229520200         fmadd32 r9, r12, r14.cache, r9
+0x0164  3aa95ac225540200         fmadd32 r10, r13, r14, r10
+0x016c  0e0d461600000000         iadd r3, r3.sx, 1
+0x0174  00c08affffff             jmp_exec_any pc-118
+0x017a  520e00000000             pop_exec r0l, 1
+0x0180  6800                     threadgroup_barrier
+0x0182  0e0944465a000000         iadd r2, r2.sx, u18.sx
+0x018a  7e0d500a8000             mov r3, r8
+0x0190  7e21520a8000             mov r8, r9
+0x0196  7e25540a8000             mov r9, r10
+0x019c  00c016ffffff             jmp_exec_any pc-234
+0x01a2  520e00000000             pop_exec r0l, 1
+0x01a8  0561240e10c8f200         device_load 0, i32, xyzw, r12_r13_r14_r15, u10_u11, r1, unsigned, lsl 2
+0x01b0  3800                     wait 0
+0x01b2  bac1468219580200         fmadd32 r16.cache, r3, u12, r12
+0x01ba  bac55082195a0200         fmadd32 r17.cache, r8, u12, r13
+0x01c2  bac95282195c0200         fmadd32 r18.cache, r9, u12, r14
+0x01ca  3a91608219480200         fmadd32 r4, r16, u12, r4
+0x01d2  3a956282194a0200         fmadd32 r5, r17, u12, r5
+0x01da  3a996482194c0200         fmadd32 r6, r18, u12, r6
+0x01e2  45212c0e10c8f200         device_store 0, i32, xyzw, r4_r5_r6_r7, u14_u15, r1, unsigned, lsl 2, 0
+0x01ea  7e4da6098000             mov r19, u19
+0x01f0  4581204e20c8f200         device_store 1, i32, xyzw, r16_r17_r18_r19, u16_u17, r1, unsigned, lsl 2, 0
+0x01f8  8800                     stop

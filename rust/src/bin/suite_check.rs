@@ -1,10 +1,12 @@
 //! Offline check of the functional simulator against the hardware-recorded test suite (testsuite/).
 //!
-//! suite_check [DIR] [-v] [--only CATEGORY] [--case NAME]
+//! suite_check [DIR] [-v] [--only CATEGORY] [--case NAME] [--traces]
 //! For every case: map the out buffer (harness initial pattern) and the input table at their recorded VAs, set the
 //! uniforms (u4 = 0, u5 = count, u6_u7 = out VA, u8_u9 = table VA), run every SIMD group of the grid and compare the
 //! deterministic parts word for word. Prints per-category pass counts and, with -v, each failure's first mismatch
 //! or the instruction the simulator could not run.
+//! --traces instead compares the first workgroup's paths and memory accesses from the functional simulator with the
+//! cost model's emulation (`cost::trace_group`, memory read as zero): "mismatch" there means the path depends on data.
 
 use agx_sim::func::{self, Dispatch, Memory};
 use serde_json::Value;
@@ -49,6 +51,26 @@ fn load(p: &std::path::Path) -> Value {
 }
 
 /// Ok(None) = pass; Ok(Some(msg)) = mismatch; Err = simulator error
+static TRACES: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+/// --traces: the first workgroup's SIMD-group paths from the functional simulator (real memory) against the cost
+/// model's own emulation (memory read as zero); they agree wherever control flow and addresses do not depend on data.
+fn compare_traces(d: &Dispatch, mem: &Memory) -> Result<Option<String>, String> {
+    let f = func::trace_workgroups(d, mem, &[[0, 0, 0]])?.remove(0);
+    for (g, ft) in f.iter().enumerate() {
+        let ctx = agx_sim::cost::GroupCtx { wg_size: d.wg, wg_id: [0, 0, 0], group: g as u32, core: 0, slot: g as u32, uniforms: d.uniforms.clone() };
+        let ct = agx_sim::cost::trace_group(&d.code, &ctx, 5_000_000)?;
+        if let Some(i) = ft.pcs.iter().zip(&ct.pcs).position(|(a, b)| a != b).or((ft.pcs.len() != ct.pcs.len()).then_some(ft.pcs.len().min(ct.pcs.len()))) {
+            return Ok(Some(format!("group {} path differs at step {} ({} vs {} steps)", g, i, ft.pcs.len(), ct.pcs.len())));
+        }
+        if ft.mem != ct.mem {
+            let i = ft.mem.iter().zip(&ct.mem).position(|(a, b)| a != b).unwrap_or(ft.mem.len().min(ct.mem.len()));
+            return Ok(Some(format!("group {} accesses differ at access {} (pc {:?})", g, i, ft.mem.get(i).map(|m| ft.pcs[m.0 as usize]))));
+        }
+    }
+    Ok(None)
+}
+
 pub fn check(c: &Value) -> Result<Option<String>, String> {
     let u = |v: &Value| v.as_u64().unwrap();
     let launch = &c["launch"];
@@ -78,6 +100,9 @@ pub fn check(c: &Value) -> Result<Option<String>, String> {
         num_registers: 128,
         max_steps: 50_000_000,
     };
+    if TRACES.load(std::sync::atomic::Ordering::Relaxed) {
+        return compare_traces(&d, &mem);
+    }
     func::run(&d, &mut mem)?;
     let got_out = mem.words(out_va, out_words)?;
     let got_tab = mem.words(table_va, tlen / 4)?;
@@ -115,6 +140,7 @@ pub fn check(c: &Value) -> Result<Option<String>, String> {
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let verbose = args.iter().any(|a| a == "-v");
+    TRACES.store(args.iter().any(|a| a == "--traces"), std::sync::atomic::Ordering::Relaxed);
     let opt = |k: &str| args.iter().position(|a| a == k).map(|i| args[i + 1].clone());
     let only = opt("--only");
     let one = opt("--case");

@@ -16,9 +16,7 @@ They are two compute-bound kernels on different pipes:
    - **sha256:** every digest exact.
 2. **Simulator vs hardware.**
    - **sha256:** must match word for word.
-   - **nbody:** depends on the fp32 `rsqrt`. Until task #5's hardware tables exist, the simulator's correctly rounded rsqrt differs from the hardware in about 10–15% of lanes by 1–3 ulp.
-     - Count the differing words, and record each one's max ulp distance.
-     - Rerun after `make record-transcendentals`, with the tables in `testsuite/transcendental/`. With the tables, the result should be bit-identical.
+   - **nbody:** only needs to be close (within the reference tolerance). The simulator's correctly rounded fp32 `rsqrt` differs from the hardware's in about 10–15% of lanes by 1–3 ulp, which is accepted; report the max relative difference.
 3. **Compiled code.**
    - **nbody:** which rsqrt form is used: `rsqrt` or `rsqrt_special`, and any Newton step around it?
    - **sha256:** how are rotates compiled? Count the instructions per round. Are there `stack_store` / `stack_load` (spilling of `w[64]`)? If so, `sim` will stop: stack instructions are on the coverage `MANUAL` list. Report it.

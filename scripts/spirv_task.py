@@ -5,8 +5,11 @@ driver's compiled AGX code to the simulator.
     spirv_task.py build                                    compile spirv/shaders/*.comp -> spirv/build/*.spv (glslangValidator, spirv-val)
     spirv_task.py run  WORKLOAD|all [--size small|large] [--repeat N] [--out DIR] [--no-export]
     spirv_task.py extract BLOB [--out DIR]                 split an exported shader-object binary into code segments (agx_asm)
-    spirv_task.py sim  WORKLOAD --code-dir DIR [--layout spirv/root_layout.json] [--hardware RUN_DIR]   functional simulator
-    spirv_task.py predict WORKLOAD --code main.bin [--size S] [--regs H] [--uniform I=V ...]   agx_dispatch for the launch
+    spirv_task.py sim  WORKLOAD --code-dir DIR [--layout L] [--hardware RUN_DIR]   functional simulator
+    spirv_task.py compile WORKLOAD|all --out DIR [--mesa SRC]   compile with Mesa's AGX compiler (also via drm-shim, no GPU)
+    spirv_task.py simall DIR / predictall DIR              sim / predict every workload compile wrote under DIR
+    spirv_task.py predict WORKLOAD --code-dir DIR [--size S]   agx_dispatch per dispatch, paths from the functional simulator
+    spirv_task.py predict WORKLOAD --code main.bin [--size S] [--regs H] [--uniform I=V ...]   ... from the cost model's emulation
     spirv_task.py list
 
 `run` writes DIR/<workload>-<size>/ with the spec, inputs, read-back outputs and result.json: functional verdict
@@ -253,6 +256,58 @@ def cmd_run(a):
     return 1 if bad else 0
 
 
+def cmd_compile(a):
+    """Compile every workload with Mesa's AGX compiler and keep only the driver's binaries: on a machine without the
+    GPU, through the no-op drm-shim (scripts/build_mesa_shim.sh; --mesa SRC selects it). Writes OUT/<workload>/
+    shader.bin, props.json and the extract output. Dispatch results are ignored (the shim does not execute)."""
+    env = dict(os.environ)
+    if a.mesa:
+        b = Path(a.mesa) / 'build/src/asahi'
+        env['VK_ICD_FILENAMES'] = str(b / f'vulkan/asahi_devenv_icd.{os.uname().machine}.json')
+        env['LD_PRELOAD'] = str(b / 'drm-shim/libasahi_noop_drm_shim.so')
+    if not VK_RUN.exists() or not list(BUILD.glob('*.spv')):
+        cmd_build()
+    names = list(WORKLOADS) if a.workload == 'all' else a.workload.split(',')
+    tmp = a.out / '.run'
+    bad = 0
+    for name in names:
+        rng = np.random.default_rng([1, list(WORKLOADS).index(name)])
+        w = WORKLOADS[name](a.size, rng)
+        run = tmp / name; run.mkdir(parents=True, exist_ok=True)
+        spec = [f'shader {BUILD / (w.shader + ".spv")}']
+        for binding, (init, _) in sorted(w.buffers.items()):
+            spec.append(f'buffer {binding} {init if isinstance(init, int) else init.nbytes} - -')
+        gx, gy, gz, pc = w.dispatches[0]
+        spec += [f'dispatch {gx} {gy} {gz} {pc.hex() or "-"}', 'repeat 1', f'export {run / "shader.bin"}', f'props {run / "props.json"}']
+        (run / 'spec.txt').write_text('\n'.join(spec) + '\n')
+        r = subprocess.run([str(VK_RUN), str(run / 'spec.txt')], capture_output=True, text=True, timeout=600, env=env)
+        dev = next((json.loads(l) for l in r.stdout.splitlines() if l.startswith('{"device"')), {})
+        if not (run / 'shader.bin').exists():
+            bad += 1; print(json.dumps({'workload': name, 'error': (r.stdout + r.stderr)[-400:]})); continue
+        if 'AGX' not in dev.get('device', '') and 'Apple' not in dev.get('device', ''):
+            sys.exit(f'vk_run used {dev.get("device")!r}, not the Asahi driver (pass --mesa or set VK_ICD_FILENAMES)')
+        out = a.out / name; out.mkdir(parents=True, exist_ok=True)
+        shutil.copy(run / 'shader.bin', out / 'shader.bin')
+        if (run / 'props.json').exists():
+            shutil.copy(run / 'props.json', out / 'props.json')
+        (out / 'device.json').write_text(json.dumps(dev) + '\n')
+        bad += cmd_extract(argparse.Namespace(blob=str(out / 'shader.bin'), out=str(out))) or 0
+    shutil.rmtree(tmp, ignore_errors=True)
+    return 1 if bad else 0
+
+
+def cmd_simall(a):
+    """sim every workload compiled under DIR (compile's output; one subdirectory per workload); exit 1 if any fails"""
+    bad = 0
+    for d in sorted(p for p in Path(a.dir).iterdir() if (p / 'main.bin').exists()):
+        r = subprocess.run([sys.executable, '-B', __file__, 'sim', d.name, '--code-dir', str(d), '--size', a.size,
+                            '--out', str(Path(a.work) / d.name)], capture_output=True, text=True)
+        line = (r.stdout.strip().splitlines() or [r.stderr.strip()])[-1]
+        print(line, flush=True)
+        bad += r.returncode != 0
+    return 1 if bad else 0
+
+
 # ---------------------------------------------------------------------------------------------------------------
 # The driver's binary (Mesa honeykrisp, VK_EXT_shader_object): code segments for the simulator
 
@@ -282,21 +337,99 @@ def decode_program(p, code, off):
     return None
 
 
+# hk_api_shader_serialize (Mesa 25.2-26.0): vk_shader_bin_header (72 bytes up to 25.3, 80 from 26.0), stage byte,
+# hk_shader_info (976 bytes), agx_shader_info (1176 bytes, unaligned), then aligned u32 code_size, data_size and the
+# code (at 0x8bc with the 72-byte header, as in the M2's 25.3.6 blobs; 0x8c4 with 80).
+# Field offsets inside agx_shader_info, from offsetof() on the built drivers (25.2.8 and 26.0.3 agree except nr_gprs,
+# 1094 in 25.2 and 1096 in 26.0, after a new sampler_state_count byte); stats is struct agx2_stats.
+HEADER_SIZES, HK_INFO_BYTES, AGX_INFO_BYTES = (72, 80), 976, 1176
+AGX_INFO = {'stage': (0, '<I'), 'binary_size': (4, '<I'), 'push_count': (1044, '<H'), 'local_size': (1046, '<H'),
+            'scratch_size': (1052, '<I'), 'main_size': (1060, '<I'), 'has_preamble': (1064, '<B'),
+            'preamble_offset': (1068, '<I'), 'main_offset': (1072, '<I'), 'workgroup_size': (1112, '<3H'),
+            'rodata_offset': (1120, '<I'), 'rodata_base_uniform': (1124, '<H'), 'rodata_size_16': (1126, '<H'),
+            'stats_instructions': (1128, '<I'), 'stats_gprs': (1148, '<H'), 'stats_uniforms': (1150, '<H'),
+            'stats_threads': (1156, '<H')}
+NR_GPRS_AT = {'25.2': 1094, '26.0': 1096}
+
+
+def shader_info(b):
+    """agx_shader_info of a MesaVkShaderBin blob, or None when the blob has none of the known layouts"""
+    for header in HEADER_SIZES:
+        at = header + 1 + HK_INFO_BYTES
+        code_at = (at + AGX_INFO_BYTES + 3) // 4 * 4 + 8
+        info = shader_info_at(b, at, code_at) if len(b) >= code_at else None
+        if info:
+            info['header_bytes'], info['code_at'] = header, code_at
+            return info
+    return None
+
+
+def shader_info_at(b, info_at, code_at):
+    cs, ds = struct.unpack_from('<II', b, code_at - 8)
+    info = {}
+    for k, (off, fmt) in AGX_INFO.items():
+        v = struct.unpack_from(fmt, b, info_at + off)
+        info[k] = list(v) if len(v) > 1 else v[0]
+    ok = (info['binary_size'] == cs and code_at + cs + ds <= len(b) and info['main_offset'] + info['main_size'] <= cs
+          and (not info['has_preamble'] or info['preamble_offset'] < cs) and info['rodata_offset'] + 2 * info['rodata_size_16'] <= cs
+          and 0 < info['workgroup_size'][0] <= 1024)
+    if not ok:
+        return None
+    # nr_gprs (16-bit registers allocated) is the driver's register count rounded up: the candidate offset whose value
+    # is the smallest one >= the statistic identifies the layout
+    cands = sorted((v - info['stats_gprs'], ver, v) for ver, off in NR_GPRS_AT.items()
+                   for v in [struct.unpack_from('<H', b, info_at + off)[0]] if info['stats_gprs'] <= v <= 256)
+    if not cands:
+        return None
+    _, info['info_layout'], info['nr_gprs'] = cands[0]
+    info['code_size'], info['data_size'] = cs, ds
+    return info
+
+
 def cmd_extract(a):
-    """MesaVkShaderBin wrapper (scripts/patch_agx_shader.py: Mesa 25.3.6 keeps the (code, data) length pair at
-    0x8b4 and the code region at 0x8bc). The code region holds a constant pool and the programs at aligned offsets
-    (the stored control: pool at 0, main at 0x80, preamble at 0x100). Every aligned offset that decodes cleanly to a
-    `stop` is a program; one with uniform_store is labelled preamble (it loads the root table into uniforms)."""
+    """Split a MesaVkShaderBin into main.bin, preamble.bin, rodata.bin and info.json (the driver's agx_shader_info:
+    program offsets, constants that the driver loads into uniforms, workgroup size, threadgroup memory, registers).
+    Without the known layout it falls back to a scan: the code region holds a constant pool and the programs at
+    aligned offsets (the stored control: pool at 0, main at 0x80, preamble at 0x100); every aligned offset that decodes
+    cleanly to a `stop` is a program, and one with uniform_store is labelled preamble."""
     b = Path(a.blob).read_bytes()
     if b[:16] != b'MesaVkShaderBin\0':
         sys.exit('not a MesaVkShaderBin blob')
+    out = Path(a.out or Path(a.blob).with_suffix(''))
+    p = subprocess.Popen([str(asm())], stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True)
+    info = shader_info(b)
+    if info:
+        code = b[info['code_at']:info['code_at'] + info['code_size']]
+        progs = [('main', info['main_offset'])] + ([('preamble', info['preamble_offset'])] if info['has_preamble'] else [])
+        segs = []
+        out.mkdir(parents=True, exist_ok=True)
+        for label, off in progs:
+            prog = decode_program(p, code, off)
+            if not prog:
+                sys.exit(f'{label} at {off:#x}: undecodable instruction before the first stop (a decoder gap; '
+                         f'bytes from there: {code[off:off + 64].hex()})')
+            end = prog[-1][0] + len(prog[-1][1])
+            (out / f'{label}.bin').write_bytes(code[off:end])
+            (out / f'{label}.txt').write_text(''.join(f'{o:#06x}  {bb.hex():<24} {dis}\n' for o, bb, _, dis in prog))
+            segs.append({'label': label, 'file': f'{label}.bin', 'offset': off, 'bytes': end - off, 'instructions': len(prog)})
+        ro = code[info['rodata_offset']:info['rodata_offset'] + 2 * info['rodata_size_16']]
+        (out / 'rodata.bin').write_bytes(ro)
+        (out / 'code_region.bin').write_bytes(code)
+        info['uniform_init'] = rodata_uniforms(info, ro)
+        # root-table layout: from Mesa 25.3 (the M2's stored control shader) the driver preloads the set addresses into
+        # u2_u3.., and the preamble reads descriptors through them; up to 25.2 it loads sets[0] from root word 156
+        pre = (out / 'preamble.txt').read_text() if info['has_preamble'] else ''
+        info['root_layout'] = '26.0' if 'u2_u3' in pre else '25.2'
+        (out / 'info.json').write_text(json.dumps(info, indent=1) + '\n')
+        res = {'blob': a.blob, 'code_start': info['code_at'], 'code_size': info['code_size'], 'layout': 'agx_shader_info', 'programs': segs}
+        (out / 'segments.json').write_text(json.dumps(res, indent=1) + '\n')
+        print(json.dumps(res))
+        return 0
     cands = []
     for start in range(72, len(b) - 8, 4):
         cs, ds = struct.unpack_from('<II', b, start - 8)
         if 16 <= cs <= len(b) - start and cs % 2 == 0 and start + cs + ds <= len(b):
-            cands.append((start != 0x8bc, start, cs))
-    out = Path(a.out or Path(a.blob).with_suffix(''))
-    p = subprocess.Popen([str(asm())], stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True)
+            cands.append((start not in (0x8bc, 0x8c4), start, cs))
     for _, start, cs in sorted(cands):
         code = b[start:start + cs]
         progs = []
@@ -321,21 +454,35 @@ def cmd_extract(a):
             (out / name.replace('.bin', '.txt')).write_text(''.join(f'{o:#06x}  {bb.hex():<24} {dis}\n' for o, bb, _, dis in prog))
             segs.append({'label': label, 'file': name, 'offset': s0, 'bytes': e0 - s0, 'instructions': len(prog)})
         (out / 'code_region.bin').write_bytes(code)
-        info = {'blob': a.blob, 'code_start': start, 'code_size': cs, 'layout_as_mesa_25_3_6': start == 0x8bc, 'programs': segs}
-        (out / 'segments.json').write_text(json.dumps(info, indent=1) + '\n')
-        print(json.dumps(info))
+        res = {'blob': a.blob, 'code_start': start, 'code_size': cs, 'layout': 'scan', 'programs': segs}
+        (out / 'segments.json').write_text(json.dumps(res, indent=1) + '\n')
+        print(json.dumps(res))
         return 0
     sys.exit('no decodable program found; inspect the blob by hand (see tasks/spirv-workloads.md)')
 
 
+def rodata_uniforms(info, ro):
+    """{32-bit uniform index: value} the driver preloads from the binary's constants (agx_usc_immediates: size_16
+    halves from rodata_offset into the uniforms from base_uniform, counted in 16-bit halves)"""
+    base, n = info['rodata_base_uniform'], info['rodata_size_16']
+    halves = struct.unpack(f'<{n}H', ro[:2 * n])
+    out = {}
+    for k, h in enumerate(halves):
+        u, hi = divmod(base + k, 2)
+        out[u] = out.get(u, 0) | h << (16 * hi)
+    return {str(u): v for u, v in sorted(out.items())}
+
+
 def root_value(kind, ctx):
-    """value of one root-table / descriptor field (see spirv/root_layout.example.json)"""
+    """value of one root-table / descriptor field (see spirv/root_layout.mesa-*.json)"""
     k, _, arg = kind.partition(':')
     if k == 'const': return int(arg, 0)
     if k in ('groups', 'grid', 'wg', 'base'):
         axis = 'xyz'.index(arg)
         return {'groups': ctx['groups'], 'grid': [g * w for g, w in zip(ctx['groups'], ctx['wg'])], 'wg': ctx['wg'], 'base': [0, 0, 0]}[k][axis]
     if k == 'set': return ctx['set_va']
+    if k == 'self': return ctx['root_va']
+    if k == 'group_count_addr': return ctx['gc_va']
     if k == 'buffer': return ctx['va'][int(arg)]
     if k == 'buffer_size': return ctx['size'][int(arg)]
     raise ValueError(f'unknown root field kind {kind!r}')
@@ -345,57 +492,92 @@ def put_field(mem, word, value, nbytes=4):
     mem[4 * word:4 * word + nbytes] = int(value & ((1 << 8 * nbytes) - 1)).to_bytes(nbytes, 'little')
 
 
-def cmd_sim(a):
-    """Functional simulation of a workload with the driver's compiled code (extract) on agx_run, buffer state carried
-    across dispatches; outputs checked with the workload's reference and compared word for word with a hardware run."""
-    layout = json.loads(Path(a.layout).read_text())
-    seg = Path(a.code_dir)
-    main_bin, pre_bin = seg / 'main.bin', seg / 'preamble.bin'
-    rng = np.random.default_rng([1, list(WORKLOADS).index(a.workload)])
-    w = WORKLOADS[a.workload](a.size, rng)
-    work = Path(a.out or seg / f'sim-{a.workload}-{a.size}')
-    work.mkdir(parents=True, exist_ok=True)
-    va, size, files = {}, {}, {}
-    nxt = 0x10000000
-    for binding, (init, _) in sorted(w.buffers.items()):
-        data = bytes(init) if isinstance(init, int) else init.tobytes()
-        va[binding], size[binding] = nxt, len(data)
-        files[binding] = work / f'buf{binding}.bin'; files[binding].write_bytes(data)
-        nxt += (len(data) + 0xffff) // 0x10000 * 0x10000 + 0x10000
-    set_va, root_va = nxt, nxt + 0x10000
-    d = layout['descriptor']
-    setmem = bytearray(d['stride'] * (max(w.buffers) + 1))
-    for binding in w.buffers:
-        for fld in d['fields']:
-            put_field(setmem, binding * d['stride'] // 4 + fld['word'], root_value(fld['value'].replace(':B', f':{binding}'), {'va': va, 'size': size, 'set_va': set_va}), fld.get('bytes', 4))
-    (work / 'set.bin').write_bytes(setmem)
-    exe = ROOT / 'rust/target/release/agx_run'
-    wg = [w.wg, 1, 1] if a.workload not in ('sgemm', 'conv2d') else [16, 16, 1]
-    total = 0
-    for k, (gx, gy, gz, pc) in enumerate(w.dispatches):
-        ctx = {'groups': [gx, gy, gz], 'wg': wg, 'va': va, 'size': size, 'set_va': set_va}
-        root = bytearray(layout['root_bytes'])
-        for fld in layout['root']:
+class DriverLaunch:
+    """Memory and launch arguments for running a workload's driver-compiled code (extract output) on agx_run /
+    agx_dispatch: buffers, descriptor set and root table at fixed VAs, the driver's preloaded uniforms (root table,
+    set addresses, the binary's constants), the preamble, and the workgroup size / threadgroup memory / registers
+    from info.json."""
+    def __init__(self, workload, size, code_dir, layout, work, shared=None):
+        seg = self.seg = Path(code_dir)
+        self.main_bin, self.pre_bin = seg / 'main.bin', seg / 'preamble.bin'
+        self.info = info = json.loads((seg / 'info.json').read_text()) if (seg / 'info.json').exists() else None
+        if not layout:
+            if not info:
+                sys.exit('no info.json in the code directory (extract could not read the shader info): pass --layout')
+            layout = ROOT / f'spirv/root_layout.mesa-{info["root_layout"]}.json'
+        self.layout = json.loads(Path(layout).read_text())
+        rng = np.random.default_rng([1, list(WORKLOADS).index(workload)])
+        self.w = w = WORKLOADS[workload](size, rng)
+        self.work = work = Path(work)
+        work.mkdir(parents=True, exist_ok=True)
+        self.va, self.size, self.files = {}, {}, {}
+        nxt = 0x10000000
+        for binding, (init, _) in sorted(w.buffers.items()):
+            data = bytes(init) if isinstance(init, int) else init.tobytes()
+            self.va[binding], self.size[binding] = nxt, len(data)
+            self.files[binding] = work / f'buf{binding}.bin'; self.files[binding].write_bytes(data)
+            nxt += (len(data) + 0xffff) // 0x10000 * 0x10000 + 0x10000
+        self.set_va, self.root_va, self.gc_va = nxt, nxt + 0x10000, nxt + 0x20000
+        d = self.layout['descriptor']
+        setmem = bytearray(d['stride'] * (max(w.buffers) + 1))
+        for binding in w.buffers:
+            for fld in d['fields']:
+                put_field(setmem, binding * d['stride'] // 4 + fld['word'],
+                          root_value(fld['value'].replace(':B', f':{binding}'), {'va': self.va, 'size': self.size, 'set_va': self.set_va}), fld.get('bytes', 4))
+        (work / 'set.bin').write_bytes(setmem)
+        if info:
+            self.wg, self.shared, self.regs = info['workgroup_size'], info['local_size'], info['nr_gprs']
+        else:
+            self.wg, self.shared, self.regs = ([w.wg, 1, 1] if workload not in ('sgemm', 'conv2d') else [16, 16, 1]), shared or 0, None
+
+    def args(self, k):
+        """(grid, launch arguments) of dispatch k; writes its root table and group count into the work directory"""
+        gx, gy, gz, pc = self.w.dispatches[k]
+        ctx = {'groups': [gx, gy, gz], 'wg': self.wg, 'va': self.va, 'size': self.size, 'set_va': self.set_va,
+               'root_va': self.root_va, 'gc_va': self.gc_va}
+        root = bytearray(self.layout['root_bytes'])
+        for fld in self.layout['root']:
             if fld['value'] == 'push':
                 root[4 * fld['word']:4 * fld['word'] + len(pc)] = pc
             else:
                 put_field(root, fld['word'], root_value(fld['value'], ctx), fld.get('bytes', 4))
-        (work / 'root.bin').write_bytes(root)
-        cmd = [str(exe), str(main_bin), '--grid', ','.join(str(g * x) for g, x in zip(ctx['groups'], wg)), '--wg', ','.join(map(str, wg)),
-               '--shared', str(a.shared), '--map', f'{root_va:#x}=' + str(work / 'root.bin'), '--map', f'{set_va:#x}=' + str(work / 'set.bin')]
-        if pre_bin.exists():
-            cmd += ['--preamble', str(pre_bin)]
-        for u, kind in layout['uniforms'].items():
-            v = root_va if kind == 'root' else set_va if kind == 'set' else int(kind, 0)
-            cmd += ['--uniform', f'{int(u)}={v & 0xffffffff:#x}', '--uniform', f'{int(u) + 1}={v >> 32:#x}']
-        for b in w.buffers:
-            cmd += ['--map', f'{va[b]:#x}={files[b]}', '--dump', f'{va[b]:#x}={size[b]}:{files[b]}']
+        (self.work / f'root{k}.bin').write_bytes(root)
+        (self.work / f'group_count{k}.bin').write_bytes(struct.pack('<4I', gx, gy, gz, 0))
+        grid = [g * x for g, x in zip(ctx['groups'], self.wg)]
+        args = ['--wg', ','.join(map(str, self.wg)), '--map', f'{self.root_va:#x}={self.work / f"root{k}.bin"}',
+                '--map', f'{self.set_va:#x}={self.work / "set.bin"}', '--map', f'{self.gc_va:#x}={self.work / f"group_count{k}.bin"}']
+        if self.pre_bin.exists():
+            args += ['--preamble', str(self.pre_bin)]
+        # the driver's uniform loads in its order: root table (and set addresses), then the binary's constants
+        for u, kind in self.layout['uniforms'].items():
+            v = self.root_va if kind == 'root' else self.set_va if kind == 'set' else int(kind, 0)
+            args += ['--uniform', f'{int(u)}={v & 0xffffffff:#x}', '--uniform', f'{int(u) + 1}={v >> 32:#x}']
+        for u, v in (self.info or {}).get('uniform_init', {}).items():
+            args += ['--uniform', f'{u}={v:#x}']
+        for b in self.w.buffers:
+            args += ['--map', f'{self.va[b]:#x}={self.files[b]}']
+        return grid, args
+
+
+def cmd_sim(a):
+    """Functional simulation of a workload with the driver's compiled code (extract) on agx_run, buffer state carried
+    across dispatches; outputs checked with the workload's reference and compared word for word with a hardware run.
+    With the extract's info.json, the workgroup size, threadgroup memory, registers and the constants the driver
+    preloads into uniforms come from the driver's own shader info."""
+    L = DriverLaunch(a.workload, a.size, a.code_dir, a.layout, a.out or Path(a.code_dir) / f'sim-{a.workload}-{a.size}', a.shared)
+    exe = ROOT / 'rust/target/release/agx_run'
+    total = 0
+    for k in range(len(L.w.dispatches[:a.dispatches])):
+        grid, args = L.args(k)
+        cmd = [str(exe), str(L.main_bin), '--grid', ','.join(map(str, grid)), '--shared', str(L.shared)] + args
+        for b in L.w.buffers:
+            cmd += ['--dump', f'{L.va[b]:#x}={L.size[b]}:{L.files[b]}']
         r = subprocess.run(cmd, capture_output=True, text=True)
         if r.returncode:
-            sys.exit(f'dispatch {k}: {r.stdout.strip()} {r.stderr.strip()}')
+            sys.exit(f'{a.workload} dispatch {k}: {r.stdout.strip()} {r.stderr.strip()}')
         total += json.loads(r.stdout)['instructions']
-    outs = {b: np.fromfile(files[b], dtype=np.uint8) for b, (_, rb) in w.buffers.items() if rb}
-    ok, detail = w.check(outs)
+    outs = {b: np.fromfile(L.files[b], dtype=np.uint8) for b, (_, rb) in L.w.buffers.items() if rb}
+    ok, detail = L.w.check(outs)
     res = {'workload': a.workload, 'size': a.size, 'simulated_ok': bool(ok), 'functional': detail, 'simulated_instructions': total}
     if a.hardware:
         hw = Path(a.hardware)
@@ -405,31 +587,66 @@ def cmd_sim(a):
             n = min(len(h), len(s_))
             diff[b] = int(np.sum(h[:n] != s_[:n]))
         res['words_differing_from_hardware'] = diff
-    (work / 'sim.json').write_text(json.dumps(res, indent=1) + '\n')
+    (L.work / 'sim.json').write_text(json.dumps(res, indent=1) + '\n')
     print(json.dumps(res))
     return 0 if ok else 1
 
 
 def cmd_predict(a):
-    rng = np.random.default_rng([1, list(WORKLOADS).index(a.workload)])
-    w = WORKLOADS[a.workload](a.size, rng)
+    """Whole-dispatch time of every dispatch of a workload (agx_dispatch). With --code-dir (extract output) the
+    launch comes from the driver's info and the SIMD groups' paths from the functional simulator over the workload's
+    real inputs (each dispatch from the initial buffers: later dispatches do not see earlier ones' writes, which only
+    matters where control flow or addresses depend on them). With --code alone: the cost model's own emulation."""
     exe = ROOT / 'rust/target/release/agx_dispatch'
-    total = 0.0
-    rows = []
-    for gx, gy, gz, pc in w.dispatches:
-        wg = [w.wg, 1, 1] if a.workload not in ('sgemm', 'conv2d') else [16, 16, 1]
-        grid = [gx * wg[0], gy * wg[1], gz * wg[2]]
-        cmd = [str(exe), a.code, '--grid', ','.join(map(str, grid)), '--wg', ','.join(map(str, wg))]
-        if a.regs: cmd += ['--regs', str(a.regs)]
-        if a.tg_bytes: cmd += ['--tg-bytes', str(a.tg_bytes)]
-        for u in a.uniform or []: cmd += ['--uniform', u]
-        if a.no_mem: cmd.append('--no-mem')
-        r = subprocess.run(cmd, capture_output=True, text=True)
+    rows, total = [], 0.0
+    if a.code_dir:
+        L = DriverLaunch(a.workload, a.size, a.code_dir, a.layout, a.out or Path(a.code_dir) / f'predict-{a.workload}-{a.size}')
+        for k in range(len(L.w.dispatches)):
+            grid, args = L.args(k)
+            cmd = [str(exe), str(L.main_bin), '--grid', ','.join(map(str, grid)), '--regs', str(a.regs or L.regs),
+                   '--tg-bytes', str(a.tg_bytes if a.tg_bytes is not None else L.shared)] + args
+            if a.no_mem: cmd.append('--no-mem')
+            rows.append(run_dispatch(cmd))
+    else:
+        if not a.code:
+            sys.exit('predict needs --code-dir (extract output) or --code main.bin')
+        rng = np.random.default_rng([1, list(WORKLOADS).index(a.workload)])
+        w = WORKLOADS[a.workload](a.size, rng)
+        for gx, gy, gz, pc in w.dispatches:
+            wg = [w.wg, 1, 1] if a.workload not in ('sgemm', 'conv2d') else [16, 16, 1]
+            grid = [gx * wg[0], gy * wg[1], gz * wg[2]]
+            cmd = [str(exe), a.code, '--grid', ','.join(map(str, grid)), '--wg', ','.join(map(str, wg))]
+            if a.regs: cmd += ['--regs', str(a.regs)]
+            if a.tg_bytes: cmd += ['--tg-bytes', str(a.tg_bytes)]
+            for u in a.uniform or []: cmd += ['--uniform', u]
+            if a.no_mem: cmd.append('--no-mem')
+            rows.append(run_dispatch(cmd))
+    total = sum(r['time_us'] for r in rows)
+    print(json.dumps({'workload': a.workload, 'size': a.size, 'predicted_us': total,
+                      'dispatch_us': [r['time_us'] for r in rows], 'dispatches': rows}))
+
+
+def cmd_predictall(a):
+    """predict every workload compiled under DIR (functional paths); one line each, JSON per workload in --work"""
+    work = Path(a.work); work.mkdir(parents=True, exist_ok=True)
+    for d in sorted(p for p in Path(a.dir).iterdir() if (p / 'main.bin').exists()):
+        r = subprocess.run([sys.executable, '-B', __file__, 'predict', d.name, '--code-dir', str(d), '--size', a.size,
+                            '--out', str(work / d.name)], capture_output=True, text=True)
         if r.returncode:
-            sys.exit(f'agx_dispatch failed: {r.stderr.strip()}')
-        j = json.loads(r.stdout); rows.append(j)
-        total += j.get('us', 0.0)
-    print(json.dumps({'workload': a.workload, 'size': a.size, 'predicted_us': total, 'dispatches': rows}))
+            print(f'{d.name:10} error: {(r.stdout + r.stderr).strip()[-300:]}'); continue
+        (work / f'{d.name}.json').write_text(r.stdout)
+        j = json.loads(r.stdout)
+        disp = j['dispatch_us']
+        print(f'{d.name:10} {j["predicted_us"]:10.1f} us  {len(disp)} dispatch{"es" if len(disp) > 1 else ""}'
+              + (f' (first {disp[0]:.1f} us)' if len(disp) > 1 else ''), flush=True)
+    return 0
+
+
+def run_dispatch(cmd):
+    r = subprocess.run(cmd, capture_output=True, text=True)
+    if r.returncode:
+        sys.exit(f'agx_dispatch failed: {r.stderr.strip()}')
+    return json.loads(r.stdout)
 
 
 def main():
@@ -440,11 +657,24 @@ def main():
     p.add_argument('--repeat', type=int, default=10); p.add_argument('--out', type=Path, default=ROOT / 'spirv/out')
     p.add_argument('--no-export', action='store_true')
     p = sub.add_parser('extract'); p.add_argument('blob'); p.add_argument('--out')
+    p = sub.add_parser('compile'); p.add_argument('workload'); p.add_argument('--out', type=Path, required=True)
+    p.add_argument('--mesa', help='Mesa source tree built by scripts/build_mesa_shim.sh (selects its driver and drm-shim)')
+    p.add_argument('--size', choices=['small', 'large'], default='small')
+    p = sub.add_parser('predictall'); p.add_argument('dir'); p.add_argument('--size', choices=['small', 'large'], default='large')
+    p.add_argument('--work', default='/tmp/agx-spirv-predict')
+    p = sub.add_parser('simall'); p.add_argument('dir'); p.add_argument('--size', choices=['small', 'large'], default='small')
+    p.add_argument('--work', default='/tmp/agx-spirv-sim', help='scratch directory for buffers')
     p = sub.add_parser('sim'); p.add_argument('workload'); p.add_argument('--code-dir', required=True, help='extract output (main.bin, preamble.bin)')
-    p.add_argument('--layout', default=str(ROOT / 'spirv/root_layout.json')); p.add_argument('--size', choices=['small', 'large'], default='small')
-    p.add_argument('--shared', type=int, default=32768); p.add_argument('--hardware', help='run output directory to compare with word for word')
+    p.add_argument('--layout', help='root-table layout (default: spirv/root_layout.mesa-<info_layout>.json from info.json)')
+    p.add_argument('--size', choices=['small', 'large'], default='small')
+    p.add_argument('--shared', type=int, default=32768, help='threadgroup bytes when there is no info.json')
+    p.add_argument('--hardware', help='run output directory to compare with word for word')
+    p.add_argument('--dispatches', type=int, help='run only the first N dispatches (debugging; buffers stay in the work directory)')
     p.add_argument('--out')
-    p = sub.add_parser('predict'); p.add_argument('workload'); p.add_argument('--code', required=True)
+    p = sub.add_parser('predict'); p.add_argument('workload')
+    p.add_argument('--code-dir', help='extract output: launch from info.json, paths from the functional simulator')
+    p.add_argument('--code', help='main.bin alone: paths from the cost model\'s emulation'); p.add_argument('--layout')
+    p.add_argument('--out', help='work directory for buffers')
     p.add_argument('--size', choices=['small', 'large'], default='large'); p.add_argument('--regs', type=int)
     p.add_argument('--tg-bytes', type=int); p.add_argument('--uniform', action='append'); p.add_argument('--no-mem', action='store_true')
     a = ap.parse_args()
@@ -452,7 +682,8 @@ def main():
         for k, f in WORKLOADS.items():
             print(k, '-', (SHADERS / f'{k}.comp').read_text().splitlines()[1].lstrip('/ '))
         return
-    sys.exit({'build': cmd_build, 'run': cmd_run, 'extract': cmd_extract, 'sim': cmd_sim, 'predict': cmd_predict}[a.cmd](a) or 0)
+    sys.exit({'build': cmd_build, 'run': cmd_run, 'compile': cmd_compile, 'extract': cmd_extract, 'sim': cmd_sim, 'simall': cmd_simall, 'predictall': cmd_predictall,
+              'predict': cmd_predict}[a.cmd](a) or 0)
 
 
 if __name__ == '__main__':

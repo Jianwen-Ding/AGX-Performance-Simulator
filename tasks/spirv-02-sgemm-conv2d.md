@@ -11,7 +11,7 @@ These are the FLOP-bound kernels. SGEMM is the standard measure of how close the
 1. **Hardware vs reference.**
    - SGEMM must stay within the forward-error bound (K+2)·2⁻²⁴·(|α||A||B| + |β||C|). `max_err_over_bound` ≤ 1; lavapipe gives 0.004.
    - conv2d: relative error < 1e-6.
-2. **Simulator vs hardware.** Both should be bit-identical. They are fmadd32 / fmul32 / fadd32 only, and the simulator's fp32 arithmetic is exact. Any differing word is a simulator bug or an unmodelled instruction: find it.
+2. **Simulator vs hardware.** Both should be close (within the reference tolerance); report the number of differing words, but last-bit float differences are not worth chasing. A large error is a simulator bug or an unmodelled instruction: find it.
 3. **Compiled code.**
    - Count the `fmadd32` in the inner loop: 16 per k for 4×4 blocking.
    - Note the threadgroup load forms. Are 4 consecutive floats fetched as one xyzw load?

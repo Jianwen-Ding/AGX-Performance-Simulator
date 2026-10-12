@@ -632,9 +632,22 @@ impl GroupCtx {
     }
 }
 
+/// Threadgroup memory base address (bytes) of lane t, as applegpu decodes the base operand: At = 0 a 16-bit
+/// register, 2 zero, 1 / 3 a 16-bit uniform (A | (At >> 1) << 8; Mesa keeps constant offsets such as part[1] there).
+pub fn tg_base(st: &exec::CoreState, at: u64, a: u64, t: usize) -> Result<usize, String> {
+    Ok(match at {
+        0 => st.get_reg16(a as usize, t)? as usize,
+        2 => 0,
+        _ => {
+            let u = (a | (at >> 1) << 8) as usize;
+            *st.uniforms.get(u).ok_or_else(|| format!("threadgroup base: uniform half {} out of range", u))? as usize
+        }
+    })
+}
+
 /// Word addresses (byte / 4) of a threadgroup load / store / atomic for every active lane and component:
 /// byte = base + 4 * size * index + size * component (playground threadgroup-addressing finding).
-fn tg_words(f: &isa::Fields, st: &exec::CoreState) -> Option<Vec<u64>> {
+pub fn tg_words(f: &isa::Fields, st: &exec::CoreState) -> Option<Vec<u64>> {
     let g = |k: &str| fget(f, k);
     let item: i128 = match g("F") {
         Some(1 | 3 | 6 | 7) => 2,
@@ -647,7 +660,7 @@ fn tg_words(f: &isa::Fields, st: &exec::CoreState) -> Option<Vec<u64>> {
         if !st.exec[t] {
             continue;
         }
-        let base = if g("At")? == 0 { st.get_reg16(g("A")? as usize, t).ok()? } else { 0 };
+        let base = tg_base(st, g("At")?, g("A")?, t).ok()? as i128;
         let idx = if g("Ot")? != 0 { g("O")? as i128 } else { st.get_reg16(g("O")? as usize, t).ok()? };
         for c in 0..4 {
             if mask & (1 << c) != 0 {
@@ -659,7 +672,7 @@ fn tg_words(f: &isa::Fields, st: &exec::CoreState) -> Option<Vec<u64>> {
 }
 
 /// Word addresses of a device `atomic` (32-bit) for every active lane.
-fn atomic_words(f: &isa::Fields, st: &exec::CoreState) -> Option<Vec<u64>> {
+pub fn atomic_words(f: &isa::Fields, st: &exec::CoreState) -> Option<Vec<u64>> {
     let g = |k: &str| fget(f, k);
     let mut w = vec![];
     for t in 0..exec::SIMD_WIDTH {
@@ -680,7 +693,7 @@ fn atomic_words(f: &isa::Fields, st: &exec::CoreState) -> Option<Vec<u64>> {
 
 /// Per-lane byte addresses of a device_load / device_store (same formula as the emulator's
 /// device_load), for the active lanes; None if an operand cannot be read.
-fn mem_segments(f: &isa::Fields, st: &exec::CoreState) -> Option<Vec<u64>> {
+pub fn mem_segments(f: &isa::Fields, st: &exec::CoreState) -> Option<Vec<u64>> {
     let g = |k: &str| fget(f, k);
     let mut segs = vec![];
     let fmt = g("F")?;

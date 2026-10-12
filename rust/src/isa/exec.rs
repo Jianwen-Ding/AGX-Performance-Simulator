@@ -28,7 +28,7 @@ impl Memory {
 pub struct CoreState {
     pub reg16s: Vec<[u16; SIMD_WIDTH]>,
     pub exec: [bool; SIMD_WIDTH],
-    /// applegpu `Uniforms`: 256 16-bit values; `get_reg64` takes no thread argument.
+    /// 512 16-bit values (u0..u255 are 32-bit; applegpu keeps 256 halves, Mesa uses up to u255); `get_reg64` takes no thread argument.
     pub uniforms: Vec<u16>,
     pub device_memory: Option<Memory>,
 }
@@ -40,7 +40,7 @@ impl CoreState {
         CoreState {
             reg16s: vec![[0; SIMD_WIDTH]; num_registers * 2],
             exec: [true; SIMD_WIDTH],
-            uniforms: vec![0; 256],
+            uniforms: vec![0; 512],
             device_memory,
         }
     }

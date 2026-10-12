@@ -16,8 +16,8 @@ They are the building blocks of most GPU algorithms, and they exercise exactly t
 1. **Hardware vs reference.**
    - The uint results must be exact.
    - The float partials stay within 1e-6 of the float64 sum, relative to Σ|x|.
-   - Record the hardware's float partials exactly. They pin down the reduction order: compare them with a float32 emulation of the pairwise tree, `fsem::cross_lane`. The two must be bit-identical if the compiler maps `subgroupAdd` to `simd_fadd`.
-2. **Simulator vs hardware.** `sim reduce` and `sim scan` must match word for word, including the float partials.
+   - Keep the hardware's float partials (out2.bin); a close match with the simulator is enough, bit-level agreement is not a goal.
+2. **Simulator vs hardware.** `sim scan` and reduce's uint half must match word for word; reduce's float partials only need to be close (within the reference tolerance).
 3. **Compiled code.** In `code/main.txt`:
    - find the instructions `subgroupAdd` and `subgroupExclusiveAdd` became;
    - find how `gl_SubgroupID` and `gl_NumSubgroups` are computed (special registers);

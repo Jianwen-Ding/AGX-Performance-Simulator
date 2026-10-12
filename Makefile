@@ -2,9 +2,11 @@ PYTHON ?= python3
 SCRATCH_ROOT ?= /scratch/apple-m2-playground
 DEVICE ?= /dev/dri/renderD128
 PROBE_INCLUDE ?= /save/workspace/AGX_Probe/mesa/include
+MESA_VERSION ?= 26.0.3
+MESA_SHIM_DIR ?= $(CURDIR)/../mesa-src
 export CC PROBE_INCLUDE
 
-.PHONY: help check rust test verify-cost-model verify-memory-model bench verify-bench cost-calibrate cost-validate suite-check record-suite record-transcendentals coverage-validate coverage-record coverage-check coverage-status spirv-build spirv-run spirv-lavapipe
+.PHONY: help check rust test verify-cost-model verify-memory-model bench verify-bench cost-calibrate cost-validate suite-check record-suite record-transcendentals coverage-validate coverage-record coverage-check coverage-status spirv-build spirv-run spirv-lavapipe spirv-sim spirv-compile spirv-predict verify-traces
 
 help:
 	@echo 'make rust               Build the model (rust/target/release: agx_cost, agx_predict, verify_cost_model, agx_bench)'
@@ -21,6 +23,10 @@ help:
 	@echo 'make spirv-build        Compile spirv/shaders (glslangValidator, spirv-val) and the vk_run runner'
 	@echo 'make spirv-run          Hardware (Vulkan): all SPIR-V workloads, both sizes, checked and timed (tasks/spirv-*.md)'
 	@echo 'make spirv-lavapipe     Offline: all SPIR-V workloads on Mesa lavapipe (CPU Vulkan) against their references'
+	@echo 'make spirv-sim          Offline: functional simulator on the driver-compiled workloads (spirv/compiled) vs references'
+	@echo 'make spirv-compile      Offline: build Mesa $$(MESA_VERSION) with a no-op drm-shim and compile the workloads with it'
+	@echo 'make spirv-predict      Offline: predicted time of every workload (large) from the driver-compiled code'
+	@echo 'make verify-traces      Offline: functional-simulator paths vs the cost model emulation on the test suite'
 	@echo 'make verify-dispatch    Offline: whole-dispatch model against 25 stored dispatches'
 	@echo 'make test               Offline: Rust unit and equivalence tests'
 	@echo 'make check              Offline: Python syntax check of the hardware scripts'
@@ -92,3 +98,16 @@ spirv-run: rust spirv-build
 
 spirv-lavapipe: spirv-build
 	VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/lvp_icd.json $(PYTHON) -B scripts/spirv_task.py run all --size small --repeat 2 --out build/spirv-lavapipe
+
+spirv-sim: rust
+	@set -e; for d in spirv/compiled/mesa-*; do echo "== $$d"; $(PYTHON) -B scripts/spirv_task.py simall $$d --work build/spirv-sim/$$(basename $$d); done
+
+spirv-compile: rust spirv-build
+	scripts/build_mesa_shim.sh $(MESA_VERSION) $(MESA_SHIM_DIR)
+	$(PYTHON) -B scripts/spirv_task.py compile all --mesa $(MESA_SHIM_DIR)/mesa-$(MESA_VERSION) --out spirv/compiled/mesa-$(MESA_VERSION)
+
+spirv-predict: rust
+	$(PYTHON) -B scripts/spirv_task.py predictall spirv/compiled/mesa-$(MESA_VERSION) --size large --work build/spirv-predict
+
+verify-traces: rust
+	rust/target/release/suite_check --traces

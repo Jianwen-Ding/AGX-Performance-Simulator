@@ -8,7 +8,7 @@
 //! elements; 8/16-bit loads write the low half; threadgroup byte = base + 4*size*index + size*component; atomics
 //! return the old value; cmpxchg's source holds the new value, source+1 the compare value).
 
-use crate::cost::{is_barrier78, GroupCtx};
+use crate::cost::{self, is_barrier78, GroupCtx, Trace};
 use crate::fsem;
 use crate::isa::{self, compiled::Compiled, exec::CoreState, fget, Desc, Fields, Operand};
 
@@ -81,6 +81,8 @@ struct Group {
     ctx: GroupCtx,
     pc: usize,
     done: bool,
+    /// recorded dynamic path in the cost model's format (pcs, memory segments / threadgroup words per access)
+    trace: Option<Trace>,
 }
 
 fn ext(v: i128, bits: u32, signed: bool) -> i128 {
@@ -109,61 +111,79 @@ fn unorm8(v: u64, rt: bool) -> i128 {
 }
 
 pub fn run(d: &Dispatch, mem: &mut Memory) -> Result<RunStats, String> {
-    let code = &d.code;
-    let mut cache: Vec<Option<Info>> = (0..code.len()).map(|_| None).collect();
+    let mut cache: Vec<Option<Info>> = (0..d.code.len()).map(|_| None).collect();
     let dims: Vec<u32> = (0..3).map(|i| d.grid[i].div_ceil(d.wg[i])).collect();
-    let threads = d.wg[0] * d.wg[1] * d.wg[2];
-    let gpw = threads.div_ceil(32);
     let mut stats = RunStats::default();
     for wz in 0..dims[2] {
         for wy in 0..dims[1] {
             for wx in 0..dims[0] {
-                let mut tg = vec![0u8; d.shared_bytes.max(16) as usize];
-                let mut groups: Vec<Group> = (0..gpw)
-                    .map(|g| {
-                        let ctx = GroupCtx { wg_size: d.wg, wg_id: [wx, wy, wz], group: g, core: 0, slot: g, uniforms: d.uniforms.clone() };
-                        let mut st = CoreState::new(d.num_registers, None);
-                        let lanes = ctx.lanes();
-                        for t in 0..32 {
-                            // lanes beyond the grid (partial workgroups at the edge) do not exist
-                            let gx = wx * d.wg[0] + ((32 * g + t as u32) % d.wg[0]);
-                            let exists = t < lanes && gx < d.grid[0];
-                            st.exec[t] = exists;
-                            let _ = st.set_reg16(0, t, if exists { 0 } else { 1 });
-                        }
-                        for &(u, v) in &d.uniforms {
-                            st.uniforms[2 * u] = (v & 0xffff) as u16;
-                            st.uniforms[2 * u + 1] = (v >> 16) as u16;
-                        }
-                        Group { st, ctx, pc: 0, done: false }
-                    })
-                    .collect();
-                stats.groups += groups.len() as u64;
-                // run groups to their next barrier; release when every live group of the scope is there
-                loop {
-                    let mut at_barrier: Vec<Option<u8>> = vec![None; groups.len()];
-                    for (gi, g) in groups.iter_mut().enumerate() {
-                        if g.done {
-                            continue;
-                        }
-                        match step_group(g, code, &mut cache, mem, &mut tg, d.max_steps, &mut stats)? {
-                            Stop::Done => g.done = true,
-                            Stop::Barrier(k) => at_barrier[gi] = Some(k),
-                        }
-                    }
-                    if groups.iter().all(|g| g.done) {
-                        break;
-                    }
-                    // every group is either done or waiting at a barrier: release all (0x68 and 0x78 alike, since a
-                    // sequential run cannot reorder within a block)
-                    if at_barrier.iter().zip(&groups).any(|(b, g)| b.is_none() && !g.done) {
-                        return Err("internal: group neither done nor at a barrier".into());
-                    }
-                }
+                run_workgroup(d, &mut cache, mem, [wx, wy, wz], false, &mut stats)?;
             }
         }
     }
     Ok(stats)
+}
+
+/// Dynamic path of every SIMD group of the given workgroups (each run alone from `mem` as it is, with its own copy),
+/// for the cost model: exact control flow and addresses, whatever the data.
+pub fn trace_workgroups(d: &Dispatch, mem: &Memory, wgs: &[[u32; 3]]) -> Result<Vec<Vec<Trace>>, String> {
+    crate::par::map(wgs, |&wg| {
+        let mut cache: Vec<Option<Info>> = (0..d.code.len()).map(|_| None).collect();
+        let mut m = mem.clone();
+        run_workgroup(d, &mut cache, &mut m, wg, true, &mut RunStats::default())
+    })
+    .into_iter()
+    .collect()
+}
+
+fn run_workgroup(d: &Dispatch, cache: &mut [Option<Info>], mem: &mut Memory, [wx, wy, wz]: [u32; 3], record: bool,
+                 stats: &mut RunStats) -> Result<Vec<Trace>, String> {
+    let code = &d.code;
+    let threads = d.wg[0] * d.wg[1] * d.wg[2];
+    let gpw = threads.div_ceil(32);
+    let mut tg = vec![0u8; d.shared_bytes.max(16) as usize];
+    let mut groups: Vec<Group> = (0..gpw)
+        .map(|g| {
+            let ctx = GroupCtx { wg_size: d.wg, wg_id: [wx, wy, wz], group: g, core: 0, slot: g, uniforms: d.uniforms.clone() };
+            let mut st = CoreState::new(d.num_registers, None);
+            let lanes = ctx.lanes();
+            for t in 0..32 {
+                // lanes beyond the grid (partial workgroups at the edge) do not exist
+                let gx = wx * d.wg[0] + ((32 * g + t as u32) % d.wg[0]);
+                let exists = t < lanes && gx < d.grid[0];
+                st.exec[t] = exists;
+                let _ = st.set_reg16(0, t, if exists { 0 } else { 1 });
+            }
+            for &(u, v) in &d.uniforms {
+                st.uniforms[2 * u] = (v & 0xffff) as u16;
+                st.uniforms[2 * u + 1] = (v >> 16) as u16;
+            }
+            Group { st, ctx, pc: 0, done: false, trace: if record { Some(Trace::default()) } else { None } }
+        })
+        .collect();
+    stats.groups += groups.len() as u64;
+    // run groups to their next barrier; release when every live group of the scope is there
+    loop {
+        let mut at_barrier: Vec<Option<u8>> = vec![None; groups.len()];
+        for (gi, g) in groups.iter_mut().enumerate() {
+            if g.done {
+                continue;
+            }
+            match step_group(g, code, cache, mem, &mut tg, d.max_steps, stats)? {
+                Stop::Done => g.done = true,
+                Stop::Barrier(k) => at_barrier[gi] = Some(k),
+            }
+        }
+        if groups.iter().all(|g| g.done) {
+            break;
+        }
+        // every group is either done or waiting at a barrier: release all (0x68 and 0x78 alike, since a
+        // sequential run cannot reorder within a block)
+        if at_barrier.iter().zip(&groups).any(|(b, g)| b.is_none() && !g.done) {
+            return Err("internal: group neither done nor at a barrier".into());
+        }
+    }
+    Ok(groups.into_iter().filter_map(|g| g.trace).collect())
 }
 
 fn decode_at(code: &[u8], pc: usize, nregs: usize) -> Result<Info, String> {
@@ -182,7 +202,7 @@ fn decode_at(code: &[u8], pc: usize, nregs: usize) -> Result<Info, String> {
 
 fn step_group(g: &mut Group, code: &[u8], cache: &mut [Option<Info>], mem: &mut Memory, tg: &mut [u8], max_steps: u64,
               stats: &mut RunStats) -> Result<Stop, String> {
-    let nregs = g.st.reg16s.len() / 2;
+    let nregs = g.st.reg16s.len(); // 16-bit registers, as Compiled::new expects
     let mut steps = 0u64;
     while g.pc < code.len() {
         steps += 1;
@@ -194,6 +214,21 @@ fn step_group(g: &mut Group, code: &[u8], cache: &mut [Option<Info>], mem: &mut 
             cache[g.pc] = Some(decode_at(code, g.pc, nregs)?);
         }
         let info = cache[g.pc].as_ref().unwrap();
+        if let Some(tr) = g.trace.as_mut() {
+            // as cost::trace_group records it: every pc (barriers, jumps and the stop included) and, before the
+            // access executes, the device segments / threadgroup words / atomic words of the active lanes
+            tr.pcs.push(g.pc);
+            let at = (tr.pcs.len() - 1) as u32;
+            let touched = match info.desc.map(|d| d.name) {
+                Some("device_load" | "device_store") => cost::mem_segments(&info.fields, &g.st),
+                Some(n) if n.starts_with("threadgroup_") && n != "threadgroup_barrier" => cost::tg_words(&info.fields, &g.st),
+                Some("atomic") => cost::atomic_words(&info.fields, &g.st),
+                _ => None,
+            };
+            if let Some(w) = touched {
+                tr.mem.push((at, w));
+            }
+        }
         let Some(desc) = info.desc else {
             g.pc += 2; // 0x78 barrier
             return Ok(Stop::Barrier(2));
@@ -219,11 +254,16 @@ fn step_group(g: &mut Group, code: &[u8], cache: &mut [Option<Info>], mem: &mut 
             "wait" | "memory_barrier" => {}
             "get_sr" => {
                 let sr = x("SR") as u32;
-                let Some(Operand::Reg32(dr, _)) = info.ops.first() else { return Err("get_sr: unexpected destination".into()) };
+                // 32-bit or 16-bit destination (Mesa writes e.g. sr58 to a half register); a half takes the low 16 bits
+                let (dr, half) = match info.ops.first() {
+                    Some(Operand::Reg32(r, _)) => (*r as usize, false),
+                    Some(Operand::Reg16(r, _)) => (*r as usize, true),
+                    _ => return Err("get_sr: unexpected destination".into()),
+                };
                 for t in 0..32 {
                     if g.st.exec[t] {
                         let v = g.ctx.sr(sr, t).ok_or_else(|| format!("get_sr: special register {} not modelled", sr))?;
-                        g.st.set_reg32(*dr as usize, t, v as i128)?;
+                        if half { g.st.set_reg16(dr, t, v as i128)? } else { g.st.set_reg32(dr, t, v as i128)? }
                     }
                 }
             }
@@ -252,7 +292,11 @@ fn step_group(g: &mut Group, code: &[u8], cache: &mut [Option<Info>], mem: &mut 
                 fsem::cross_lane(n, &vals(&info.ops), &mut g.st)?
             }
             _ => {
-                info.op.as_ref().unwrap().exec(&mut g.st).map_err(|e| format!("{} ({}): {}", desc.name, isa::disassemble_normalized(desc, 0).unwrap_or_default(), e))?;
+                let pc = g.pc;
+                info.op.as_ref().unwrap().exec(&mut g.st).map_err(|e| {
+                    let bytes: String = code[pc..pc + info.size].iter().map(|b| format!("{:02x}", b)).collect();
+                    format!("{} at {:#x} ({}): {}", desc.name, pc, bytes, e)
+                })?;
             }
         }
         g.pc += info.size;
@@ -303,7 +347,7 @@ pub fn run_preamble(code: &[u8], uniforms: &[(usize, u32)], mem: &mut Memory, nu
         st.uniforms[2 * u] = (v & 0xffff) as u16;
         st.uniforms[2 * u + 1] = (v >> 16) as u16;
     }
-    let mut g = Group { st, ctx, pc: 0, done: false };
+    let mut g = Group { st, ctx, pc: 0, done: false, trace: None };
     let mut cache: Vec<Option<Info>> = (0..code.len()).map(|_| None).collect();
     let mut tg = vec![0u8; 16];
     let mut stats = RunStats::default();
@@ -382,7 +426,7 @@ fn tg_mem(g: &mut Group, f: &Fields, tg: &mut [u8], load: bool) -> Result<(), St
     let mut addr = [0usize; 32];
     for t in 0..32 {
         if g.st.exec[t] {
-            let base = if x("At") == 0 { g.st.get_reg16(x("A") as usize, t)? as usize } else { 0 };
+            let base = crate::cost::tg_base(&g.st, x("At"), x("A"), t)?;
             let idx = if x("Ot") != 0 { x("O") as usize } else { g.st.get_reg16(x("O") as usize, t)? as usize };
             addr[t] = base + 4 * item * idx;
         }
@@ -471,7 +515,7 @@ fn tg_atomic(g: &mut Group, f: &Fields, tg: &mut [u8]) -> Result<(), String> {
         if !g.st.exec[t] {
             continue;
         }
-        let base = if x("At") == 0 { g.st.get_reg16(x("A") as usize, t)? as usize } else { 0 };
+        let base = crate::cost::tg_base(&g.st, x("At"), x("A"), t)?;
         let idx = if x("Ot") != 0 { x("O") as usize } else { g.st.get_reg16(x("O") as usize, t)? as usize };
         let b = base + 16 * idx;
         if b + 4 > tg.len() {
