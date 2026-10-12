@@ -1,5 +1,36 @@
 # SPIR-V workloads on AGX: shared procedure
 
+## Quick start on the M2 (Asahi Linux)
+
+```sh
+make asahi-verify            # = scripts/asahi_verify.sh: preflight, build, record every workload on the GPU, verify
+git add spirv/expected results/*-asahi-verify && git commit -m 'Asahi verification: SPIR-V workloads recorded on the M2'
+```
+
+None of these tests counts as verified yet. Until the M2 has run them, `make spirv-verify` reports every workload as
+**PENDING**. Passing the numpy reference (lavapipe, or the simulator on shim-compiled code) only shows that the shader
+and the reference agree; that is a sanity check, not hardware verification.
+
+`asahi-verify` does the following:
+
+1. Runs each workload on the GPU and stores what it produced in `spirv/expected/<workload>/` (format:
+   `spirv/expected/README.md`). That includes the driver's own compiled code from that machine.
+2. Runs the simulator on that exact code and compares it with the GPU word for word. Each workload is one of:
+
+   | Status | Meaning |
+   |---|---|
+   | PASS | Identical to the GPU |
+   | CLOSE | Differs, but both are within the reference tolerance |
+   | FAIL | A difference to investigate |
+   | STALE | The recording no longer matches the workload's inputs |
+
+3. Also compares the large-size GPU time with the cost model's prediction.
+
+After the recordings are committed, `make spirv-verify` repeats the comparison offline on any machine.
+The rest of this file is the detailed procedure, for investigating results.
+
+## Workloads
+
 Twenty-four realistic compute kernels, written in GLSL (`spirv/shaders/*.comp`) and compiled to SPIR-V:
 
 | Workload | Kernel | Stresses |
@@ -43,8 +74,8 @@ The six task files group them:
 - `spirv-05-isa-coverage.md` (integer, fp16, 64-bit, 8-bit and subgroup features the first eight do not reach)
 - `spirv-06-semantics.md` (atomics, 3-D geometry, spills, control flow, shuffles, exact float operations)
 
-Every workload already passes its numpy reference on Mesa lavapipe (CPU Vulkan), at both sizes. A wrong result on the
-M2 is therefore a GPU, driver or runner finding, not a shader bug.
+Every workload passes its numpy reference on Mesa lavapipe (CPU Vulkan), at both sizes. That only shows the shaders and
+references are right; a wrong result on the M2 is therefore a GPU, driver or runner finding, not a shader bug.
 
 ## Tools
 
@@ -112,7 +143,8 @@ M2 is therefore a GPU, driver or runner finding, not a shader bug.
    python3 -B scripts/spirv_task.py sim sgemm --code-dir spirv/out/sgemm-small/code --hardware spirv/out/sgemm-small
    ```
 
-   - Offline, all twenty-four workloads already pass their references with Mesa 25.2.8 and 26.0.3 code (`make spirv-sim`).
+   - Offline, all twenty-four workloads pass their numpy references with shim-compiled Mesa 25.2.8 and 26.0.3 code
+     (`make spirv-sim`). That is a sanity check; verification is `make spirv-verify` against the M2 recordings.
    - Integer workloads (`scan`, `histogram`, `bitonic`, `sha256`, `int64`, `bitops`, `intdiv`, `compact`, `transpose`,
      `mandelbrot`, `atomics`, `geom3d`, `spill`, `control`, `shuffle`, `floatops`, and reduce's uint half) must match the hardware word for word.
    - Float workloads only need to be close: within the workload's reference tolerance. Last-bit float differences

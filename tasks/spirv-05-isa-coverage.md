@@ -26,7 +26,7 @@ What Mesa 26.0.3 actually emits for each (`spirv/compiled/mesa-26.0.3/<w>/main.t
 The integer workloads are exact by construction (`mandelbrot` uses fixed point), so any difference between the
 hardware, the simulator and the reference is a finding.
 
-## Already verified offline
+## Offline sanity checks (not hardware verification; `make spirv-verify` shows these as PENDING until recorded)
 
 - **lavapipe:** all ten pass their references at both sizes.
 - **Real driver code:** compiled by Mesa 25.2.8 and 26.0.3 through the drm-shim (`spirv/compiled/mesa-*/<workload>/`).

@@ -20,7 +20,7 @@ lavapipe: VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/lvp_icd.json.
 
 Workloads (tasks/spirv-*.md): reduce, scan, sgemm, conv2d, histogram, nbody, bitonic, sha256.
 """
-import argparse, hashlib, json, os, shutil, statistics, struct, subprocess, sys
+import argparse, gzip, hashlib, json, os, shutil, statistics, struct, subprocess, sys, tempfile, time
 from pathlib import Path
 import numpy as np
 
@@ -1018,6 +1018,167 @@ def cmd_predictall(a):
     return 0
 
 
+
+# ---------------------------------------------------------------------------------------------------------------
+# Hardware verification. The workloads' numpy references only show that a result is plausible; they are not
+# hardware data. `record` (on the M2) stores what the GPU actually produced, with the driver's own compiled code;
+# `verify` (anywhere) runs the simulator on that code and compares it with the recording word for word. A workload
+# without a recording is PENDING, never PASS.
+
+EXPECTED = ROOT / 'spirv/expected'
+
+
+def input_hashes(w):
+    return {str(b): hashlib.sha256(init.tobytes()).hexdigest() for b, (init, _) in sorted(w.buffers.items()) if not isinstance(init, int)}
+
+
+def is_agx(dev):
+    name = dev.get('device', '')
+    return 'AGX' in name or 'Apple' in name
+
+
+def real_gpu_problem(dev):
+    """None when vk_run really executed on the M2's GPU; else why not. The drm-shim build reports the same AGX
+    device but executes nothing, so the device name alone is not enough."""
+    if not is_agx(dev):
+        return f'device {dev.get("device")!r} is not the AGX GPU'
+    if 'drm_shim' in os.environ.get('LD_PRELOAD', '') or 'drm-shim' in os.environ.get('LD_PRELOAD', ''):
+        return 'LD_PRELOAD has the drm-shim (no GPU execution)'
+    try:
+        compat = Path('/proc/device-tree/compatible').read_bytes()
+    except OSError:
+        compat = b''
+    if b'apple' not in compat:
+        return 'not an Apple machine (/proc/device-tree/compatible)'
+    return None
+
+
+def cmd_record(a):
+    """On Asahi Linux: run every workload on the GPU and store the expected values (see the section comment)."""
+    if not VK_RUN.exists() or not list(BUILD.glob('*.spv')):
+        cmd_build()
+    names = list(WORKLOADS) if a.workload == 'all' else a.workload.split(',')
+    exp = Path(a.expected)
+    scratch = Path(a.scratch)
+    bad = 0
+    for name in names:
+        try:
+            r = run_one(name, 'small', a.repeat_small, scratch)
+            why = real_gpu_problem(r['device'])
+            if why and not a.any_device:
+                sys.exit(f'refusing to record hardware data: {why} (--any-device only for testing this script)')
+            run = scratch / f'{name}-small'
+            dest = exp / name
+            if dest.exists():
+                shutil.rmtree(dest)
+            (dest / 'code').mkdir(parents=True)
+            rng = np.random.default_rng([1, list(WORKLOADS).index(name)])
+            w = WORKLOADS[name]('small', rng)
+            for b, (_, rb) in w.buffers.items():
+                if rb:
+                    with gzip.open(dest / f'out{b}.bin.gz', 'wb') as f:
+                        f.write((run / f'out{b}.bin').read_bytes())
+            shutil.copy(run / 'shader.bin', dest / 'code/shader.bin')
+            if (run / 'props.json').exists():
+                shutil.copy(run / 'props.json', dest / 'code/props.json')
+            ext = cmd_extract(argparse.Namespace(blob=str(dest / 'code/shader.bin'), out=str(dest / 'code')))
+            rec = {'workload': name, 'device': r['device'], 'test_recording_not_hardware': bool(why), 'recorded_utc': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()),
+                   'inputs_sha256': input_hashes(w), 'numpy': np.__version__, 'small': {k: r.get(k) for k in
+                   ('functional_ok', 'functional', 'gpu_ns', 'dispatch_ns_median', 'repeat')}, 'code_extracted': not ext}
+            if not a.no_large:
+                rl = run_one(name, 'large', a.repeat_large, scratch, export=False)
+                runl = scratch / f'{name}-large'
+                wl = WORKLOADS[name]('large', np.random.default_rng([1, list(WORKLOADS).index(name)]))
+                rec['large'] = {k: rl.get(k) for k in ('functional_ok', 'functional', 'gpu_ns', 'dispatch_ns_median', 'repeat', 'gflops',
+                                                        'gbytes_per_s', 'work')}
+                rec['large']['out_sha256'] = {str(b): hashlib.sha256((runl / f'out{b}.bin').read_bytes()).hexdigest()
+                                              for b, (_, rb) in wl.buffers.items() if rb}
+                rec['large']['inputs_sha256'] = input_hashes(wl)
+                shutil.rmtree(runl, ignore_errors=True)
+            (dest / 'hardware.json').write_text(json.dumps(rec, indent=1) + '\n')
+            shutil.rmtree(run, ignore_errors=True)
+            bad += not r['functional_ok']
+            print(json.dumps({'workload': name, 'recorded': str(dest), 'hardware_matches_reference': r['functional_ok'],
+                              'small_gpu_us': (r.get('gpu_ns') or {}).get('median', 0) / 1e3,
+                              'large_gpu_us': ((rec.get('large') or {}).get('gpu_ns') or {}).get('median', 0) / 1e3}), flush=True)
+        except SystemExit:
+            raise
+        except Exception as ex:
+            bad += 1
+            print(json.dumps({'workload': name, 'error': str(ex)[:500]}), flush=True)
+    return 1 if bad else 0
+
+
+def verify_one(name, exp, layout, timing):
+    d = exp / name
+    if not (d / 'hardware.json').exists():
+        return {'workload': name, 'status': 'PENDING', 'why': 'no hardware recording (run `make asahi-verify` on the M2)'}
+    rec = json.loads((d / 'hardware.json').read_text())
+    if rec.get('test_recording_not_hardware') and not os.environ.get('AGX_VERIFY_ALLOW_TEST_RECORDINGS'):
+        return {'workload': name, 'status': 'PENDING', 'why': 'only a test recording (--any-device), not hardware data'}
+    w = WORKLOADS[name]('small', np.random.default_rng([1, list(WORKLOADS).index(name)]))
+    if input_hashes(w) != rec['inputs_sha256']:
+        return {'workload': name, 'status': 'STALE', 'why': 'inputs differ from the recording (workload or numpy changed): re-record'}
+    if not (d / 'code/main.bin').exists():
+        return {'workload': name, 'status': 'FAIL', 'why': "the recording's driver code could not be extracted (see code/)"}
+    work = Path(tempfile.mkdtemp(prefix=f'agx-verify-{name}-'))
+    lay = ['--layout', layout] if layout else []
+    r = subprocess.run([sys.executable, '-B', __file__, 'sim', name, '--code-dir', str(d / 'code'), '--size', 'small', '--out', str(work)] + lay,
+                       capture_output=True, text=True)
+    res = {'workload': name, 'device': rec['device'].get('device'), 'hardware_matches_reference': rec['small']['functional_ok']}
+    if r.returncode and not (work / 'sim.json').exists():
+        shutil.rmtree(work, ignore_errors=True)
+        return {**res, 'status': 'FAIL', 'why': 'simulator error: ' + (r.stdout + r.stderr).strip()[-300:]}
+    sim = json.loads((work / 'sim.json').read_text())
+    diff, words = {}, 0
+    for b, (_, rb) in w.buffers.items():
+        if not rb:
+            continue
+        hw = np.frombuffer(gzip.open(d / f'out{b}.bin.gz').read(), dtype=np.uint8)
+        sw = np.fromfile(work / f'buf{b}.bin', dtype=np.uint8) if (work / f'buf{b}.bin').exists() else np.zeros(0, np.uint8)
+        n = min(len(hw), len(sw)) // 4 * 4
+        dw = int(np.sum(hw[:n].view(np.uint32) != sw[:n].view(np.uint32))) + (len(hw) != len(sw))
+        diff[str(b)] = dw; words += dw
+    shutil.rmtree(work, ignore_errors=True)
+    res.update({'words_differing': diff, 'simulator_matches_reference': sim['simulated_ok']})
+    if words == 0:
+        res['status'] = 'PASS'
+    elif sim['simulated_ok'] and rec['small']['functional_ok']:
+        res['status'] = 'CLOSE'; res['why'] = f'{words} words differ, both within the reference tolerance'
+    else:
+        res['status'] = 'FAIL'; res['why'] = f'{words} words differ' + ('' if sim['simulated_ok'] else '; simulator outside the reference')
+    if timing and rec.get('large', {}).get('dispatch_ns_median'):
+        r = subprocess.run([sys.executable, '-B', __file__, 'predict', name, '--code-dir', str(d / 'code'), '--size', 'large'] + lay,
+                           capture_output=True, text=True)
+        if r.returncode == 0:
+            pred = json.loads(r.stdout)['dispatch_us']
+            meas = [x / 1e3 for x in rec['large']['dispatch_ns_median']]
+            res['timing'] = {'measured_us': round(sum(meas), 1), 'predicted_us': round(sum(pred), 1),
+                             'ratio': round(sum(pred) / sum(meas), 3) if sum(meas) else None}
+        else:
+            res['timing'] = {'error': (r.stdout + r.stderr).strip()[-200:]}
+    return res
+
+
+def cmd_verify(a):
+    """Simulator vs the recorded hardware results (spirv/expected); PENDING where nothing is recorded yet."""
+    names = list(WORKLOADS) if a.workload == 'all' else a.workload.split(',')
+    rows = [verify_one(n, Path(a.expected), a.layout, a.timing) for n in names]
+    for r in rows:
+        line = f'{r["status"]:8} {r["workload"]:11}'
+        if 'words_differing' in r: line += f' differing words {sum(r["words_differing"].values()):6}'
+        if r.get('hardware_matches_reference') is False: line += '  [hardware does not match the numpy reference]'
+        if 'timing' in r: line += f'  time measured {r["timing"].get("measured_us")} us predicted {r["timing"].get("predicted_us")} us'
+        if r.get('why'): line += f'  ({r["why"]})'
+        print(line, flush=True)
+    from collections import Counter
+    c = Counter(r['status'] for r in rows)
+    print(json.dumps({'summary': dict(c)}))
+    if a.json:
+        Path(a.json).write_text(json.dumps(rows, indent=1) + '\n')
+    return 1 if c.get('FAIL') or c.get('STALE') or (a.strict and c.get('PENDING')) else 0
+
+
 def run_dispatch(cmd):
     r = subprocess.run(cmd, capture_output=True, text=True)
     if r.returncode:
@@ -1047,6 +1208,14 @@ def main():
     p.add_argument('--hardware', help='run output directory to compare with word for word')
     p.add_argument('--dispatches', type=int, help='run only the first N dispatches (debugging; buffers stay in the work directory)')
     p.add_argument('--out')
+    p = sub.add_parser('record'); p.add_argument('workload', nargs='?', default='all')
+    p.add_argument('--expected', default=str(EXPECTED)); p.add_argument('--scratch', default='/tmp/agx-spirv-record')
+    p.add_argument('--repeat-small', type=int, default=5); p.add_argument('--repeat-large', type=int, default=20)
+    p.add_argument('--no-large', action='store_true'); p.add_argument('--any-device', action='store_true', help='testing only')
+    p = sub.add_parser('verify'); p.add_argument('workload', nargs='?', default='all')
+    p.add_argument('--expected', default=str(EXPECTED)); p.add_argument('--layout', help='root-table layout (default: from the recorded code\'s info.json)')
+    p.add_argument('--timing', action='store_true', help='also predict the large size and compare with the recorded time')
+    p.add_argument('--strict', action='store_true', help='exit 1 while any workload is PENDING'); p.add_argument('--json')
     p = sub.add_parser('predict'); p.add_argument('workload')
     p.add_argument('--code-dir', help='extract output: launch from info.json, paths from the functional simulator')
     p.add_argument('--code', help='main.bin alone: paths from the cost model\'s emulation'); p.add_argument('--layout')
@@ -1059,7 +1228,7 @@ def main():
             print(k, '-', (SHADERS / f'{k}.comp').read_text().splitlines()[1].lstrip('/ '))
         return
     sys.exit({'build': cmd_build, 'run': cmd_run, 'compile': cmd_compile, 'extract': cmd_extract, 'sim': cmd_sim, 'simall': cmd_simall, 'predictall': cmd_predictall,
-              'predict': cmd_predict}[a.cmd](a) or 0)
+              'predict': cmd_predict, 'record': cmd_record, 'verify': cmd_verify}[a.cmd](a) or 0)
 
 
 if __name__ == '__main__':

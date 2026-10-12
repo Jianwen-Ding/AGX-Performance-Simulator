@@ -6,7 +6,7 @@ MESA_VERSION ?= 26.0.3
 MESA_SHIM_DIR ?= $(CURDIR)/../mesa-src
 export CC PROBE_INCLUDE
 
-.PHONY: help check rust test verify-cost-model verify-memory-model bench verify-bench cost-calibrate cost-validate suite-check record-suite record-transcendentals coverage-validate coverage-record coverage-check coverage-status spirv-build spirv-run spirv-lavapipe spirv-sim spirv-compile spirv-predict verify-traces
+.PHONY: help check rust test verify-cost-model verify-memory-model bench verify-bench cost-calibrate cost-validate suite-check record-suite record-transcendentals coverage-validate coverage-record coverage-check coverage-status spirv-build spirv-run spirv-lavapipe spirv-sim spirv-compile spirv-predict verify-traces spirv-verify asahi-verify
 
 help:
 	@echo 'make rust               Build the model (rust/target/release: agx_cost, agx_predict, verify_cost_model, agx_bench)'
@@ -23,7 +23,9 @@ help:
 	@echo 'make spirv-build        Compile spirv/shaders (glslangValidator, spirv-val) and the vk_run runner'
 	@echo 'make spirv-run          Hardware (Vulkan): all SPIR-V workloads, both sizes, checked and timed (tasks/spirv-*.md)'
 	@echo 'make spirv-lavapipe     Offline: all SPIR-V workloads on Mesa lavapipe (CPU Vulkan) against their references'
-	@echo 'make spirv-sim          Offline: functional simulator on the driver-compiled workloads (spirv/compiled) vs references'
+	@echo 'make spirv-sim          Offline: functional simulator on the shim-compiled workloads vs numpy references (a sanity check, not hardware verification)'
+	@echo 'make spirv-verify       Offline: simulator vs the GPU recordings in spirv/expected (PENDING until recorded on the M2)'
+	@echo 'make asahi-verify       Hardware (Asahi, M2): record every SPIR-V workload on the GPU, then verify the simulator against it'
 	@echo 'make spirv-compile      Offline: build Mesa $$(MESA_VERSION) with a no-op drm-shim and compile the workloads with it'
 	@echo 'make spirv-predict      Offline: predicted time of every workload (large) from the driver-compiled code'
 	@echo 'make verify-traces      Offline: functional-simulator paths vs the cost model emulation on the test suite'
@@ -111,3 +113,9 @@ spirv-predict: rust
 
 verify-traces: rust
 	rust/target/release/suite_check --traces
+
+spirv-verify: rust
+	$(PYTHON) -B scripts/spirv_task.py verify
+
+asahi-verify:
+	scripts/asahi_verify.sh

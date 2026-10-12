@@ -18,7 +18,7 @@ answers: the sign of a zero from min/max/sign/clamp, and `round` on exact .5 tie
 | `shuffle` | 37 `simd_shuffle` (the shuffle-relative and xor forms all lower to it, with computed lanes), xor butterflies, up / down with edge lanes, broadcast; the shader writes the subgroup size and the reference follows it (32 on AGX, 8 on lavapipe) |
 | `floatops` | min, max, clamp, abs, sign, floor, ceil, fract, round, roundEven, trunc, step, negation, all six compares, add with ±inf, on ±0, ±inf, ties, the largest finite and smallest normal values |
 
-## Already verified offline
+## Offline sanity checks (not hardware verification; `make spirv-verify` shows these as PENDING until recorded)
 
 - **lavapipe:** all six pass at both sizes.
 - **Real driver code (Mesa 25.2.8 and 26.0.3, drm-shim):** all six decode and pass on the functional simulator: 12 of 12.
