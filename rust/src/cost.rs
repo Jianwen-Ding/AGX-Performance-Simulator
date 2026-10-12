@@ -1428,6 +1428,8 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
         Port(usize, f64),
     }
     let mut retest: Vec<Retest> = Vec::new();
+    let mut bar_ver: u64 = 0;
+    let mut bar_none_at: Vec<u64> = vec![u64::MAX; g];
     let mut unblocked = vec![false; g];
     let mut fresh_cache: Vec<Option<(usize, i64)>> = vec![None; g];
     let mut blk_cache: Vec<Option<i64>> = vec![None; g];
@@ -1676,8 +1678,8 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
             }
             // barrier: wait until every group of the scope has arrived (after draining its ALU work)
             if r.barrier != 0 {
-                ff_ok = false; // arrival spends writeback tokens without issuing
                 if bar_arrive[gi].is_none() {
+                    ff_ok = false; // arrival spends writeback tokens without issuing
                     // arriving writes back every register in the group's result cache (barrier-fill probe:
                     // 2 writebacks per cycle per core for F dirty registers per group)
                     let n = wbc[gi].len() as f64;
@@ -1701,6 +1703,12 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
                         }
                     }
                     bar_arrive[gi] = Some(t.max(alu_done[gi] + bar_drain));
+                    bar_ver += 1;
+                }
+                // still waiting with nothing arrived or issued since the last look: still waiting (the scan below
+                // depends only on arrivals, barrier counts and finished groups)
+                if bar_none_at[gi] == bar_ver {
+                    continue;
                 }
                 let scope = if r.barrier == 1 { 0 } else { 1 + local[gi] / 4 };
                 let key = (wg[gi], scope, bar_count[gi]);
@@ -1734,9 +1742,13 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
                     }
                 };
                 match rel {
-                    None => continue,
+                    None => {
+                        bar_none_at[gi] = bar_ver;
+                        continue;
+                    }
                     Some(x) if x > t => {
                         wake.push(x);
+                        wmin_time = wmin_time.min(x);
                         continue;
                     }
                     _ => {}
@@ -2111,6 +2123,7 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
             blk_cache[gi] = None;
             fresh_cache[gi] = None;
             issued += 1;
+            bar_ver += 1;
             tick_issued[gi] = true;
             issued_now.push(gi);
             elig[gi / 64] &= !(1 << (gi % 64));
