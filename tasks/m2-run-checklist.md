@@ -34,6 +34,7 @@ where each answer appears, and what to change for each outcome. The details are 
 | `adamw` (note 66) | whether dirty-line write-back costs DRAM bandwidth: the model charges reads only | 202 µs; ≈ 325 µs if write-back counts |
 | `stream` (note 67) | measured GB/s per access kind (`probes`): read, fill, copy, scale, add, triad | 316, 213, 357, 318, 308, 291 GB/s |
 | `motionest` (note 68) | shared-memory load throughput in a real encoder kernel, with an idle-lane tail | 4.92 ms |
+| `jsonidx` (note 69) | per-byte bit manipulation plus shared-memory scans: a compute-bound text-processing kernel | 333 µs (≈ 100 GB/s) |
 | `nms` (note 10) | a known under-prediction: work grows with the workgroup index | low |
 
 ## Results that must hold whatever the timings

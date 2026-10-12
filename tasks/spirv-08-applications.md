@@ -1,7 +1,7 @@
 # Task SPIR-V 8: applications (ray tracer, neural networks, image processing, cellular automaton, graph search,
 # encryption, hashing, text, compression)
 
-**Workloads:** `raytrace`, `mlp`, `sobel`, `life`, `bfs`, `conv_layer`, `hist_eq`, `aes`, `hash_table`, `word_count`, `dct8`, `attention`, `resize`, `median3`, `poisson`, `lbm`, `base64`, `md5`, `gemv`, `levenshtein`, `blur`, `yuv420`, `montecarlo`, `xxhash`, `bloom`, `collatz`, `tridiag`, `merge`, `ccl`, `pagerank`, `skinning`, `strsearch`, `quantize`, `rule110`, `voxel`, `nms`, `sat`, `sssp`, `morton`, `utf8`, `fir`, `composite`, `nqueens`, `lzmatch`, `bitpack`, `perlin`, `adler32`, `sieve`, `gcd`, `dither`, `advect`, `knn`, `csvparse`, `pip`, `lift53`, `chacha20`, `modexp`, `floyd`, `f16pack`, `raster`, `canny`, `secded`, `bicubic`, `dfa`, `b64decode`, `cordic`, `rsenc`, `texfetch`, `texfilter`, `imgerode`, `imgtonemap`, `argmax64`, `minmax64`, `dsum`, `quadmip`, `clustered`, `specblur`, `cullindirect`, `bigsort`, `pushmat`, `mplitmus`, `splat`, `splatfix`, `smembank`, `coalesce`, `atomcontend`, `barriercost`, `aluprobe`, `ubopalette`, `uboparams`, `bindless`, `bindlessu`, `rle`, `huffdec`, `lookback`, `hll`, `tricount`, `sha3`, `stereo`, `viterbi`, `viterbifix`, `shiftfuse`, `bc1enc`, `lz4dec`, `nttmul`, `topk`, `cellsort`, `boruvka`, `biquad`, `edt`, `mt19937`, `bitap`, `cholesky`, `rsshash`, `poly1305`, `crc32c`, `siphash`, `blake2s`, `blake2sfast`, `q4gemv`, `attndec`, `attndecsplit`, `rmsrope`, `q8dot`, `isp`, `contour`, `hough`, `spmvsg`, `varint`, `bvhrays`, `adamw`, `stream`, `motionest`. These are recorded and verified by `make asahi-verify` with the others;
+**Workloads:** `raytrace`, `mlp`, `sobel`, `life`, `bfs`, `conv_layer`, `hist_eq`, `aes`, `hash_table`, `word_count`, `dct8`, `attention`, `resize`, `median3`, `poisson`, `lbm`, `base64`, `md5`, `gemv`, `levenshtein`, `blur`, `yuv420`, `montecarlo`, `xxhash`, `bloom`, `collatz`, `tridiag`, `merge`, `ccl`, `pagerank`, `skinning`, `strsearch`, `quantize`, `rule110`, `voxel`, `nms`, `sat`, `sssp`, `morton`, `utf8`, `fir`, `composite`, `nqueens`, `lzmatch`, `bitpack`, `perlin`, `adler32`, `sieve`, `gcd`, `dither`, `advect`, `knn`, `csvparse`, `pip`, `lift53`, `chacha20`, `modexp`, `floyd`, `f16pack`, `raster`, `canny`, `secded`, `bicubic`, `dfa`, `b64decode`, `cordic`, `rsenc`, `texfetch`, `texfilter`, `imgerode`, `imgtonemap`, `argmax64`, `minmax64`, `dsum`, `quadmip`, `clustered`, `specblur`, `cullindirect`, `bigsort`, `pushmat`, `mplitmus`, `splat`, `splatfix`, `smembank`, `coalesce`, `atomcontend`, `barriercost`, `aluprobe`, `ubopalette`, `uboparams`, `bindless`, `bindlessu`, `rle`, `huffdec`, `lookback`, `hll`, `tricount`, `sha3`, `stereo`, `viterbi`, `viterbifix`, `shiftfuse`, `bc1enc`, `lz4dec`, `nttmul`, `topk`, `cellsort`, `boruvka`, `biquad`, `edt`, `mt19937`, `bitap`, `cholesky`, `rsshash`, `poly1305`, `crc32c`, `siphash`, `blake2s`, `blake2sfast`, `q4gemv`, `attndec`, `attndecsplit`, `rmsrope`, `q8dot`, `isp`, `contour`, `hough`, `spmvsg`, `varint`, `bvhrays`, `adamw`, `stream`, `motionest`, `jsonidx`. These are recorded and verified by `make asahi-verify` with the others;
 they are **PENDING** until then. The detailed procedure is in `tasks/spirv-workloads.md`.
 
 ## Why these
@@ -145,6 +145,7 @@ reference.
 | `adamw` | 4M parameters, log-normal gradient scales, step 100 (zero, tiny and large gradients included) | p, m, v within 16 ulps of a float64 step on the same fp32 inputs (≤ 4.3 offline) |
 | `stream` | 3 arrays of 2^24 fp32 + a fill target (64 MiB each) | Each STREAM kernel within 2 ulps of float64 applied in sequence; per-workgroup read sums within the fp32 bound; the fill exact |
 | `motionest` | 1280×720 frames (3600 blocks), the second panned by (5, -3) with noise | Every block's (offset, SAD) equal to a numpy full search with the same tie order; `true_motion_found` (the fraction of blocks whose answer is the pan) is 1.0 at both sizes on lavapipe and the simulator |
+| `jsonidx` | 4096 documents of 8 KiB (32 MiB) of JSON lines, strings full of escaped quotes, backslash runs and structural characters | Every chunk's mask equal to a vectorised numpy reference, itself checked against a byte-at-a-time state machine at the small size |
 
 ## Offline sanity checks (not hardware verification)
 
@@ -621,3 +622,18 @@ reference.
       depend on question 1.
     - On the M2, the time against the prediction tests the model's shared-memory load throughput on a realistic
       kernel: the existing probes (`smembank`) measure it in isolation.
+69. **`jsonidx`: JSON structural indexing.**
+    - The masks of simdjson's first stage, for one 8 KiB document per workgroup. A byte is structural if it is one
+      of `{ } [ ] : ,` and is not inside a string. A quote is real unless an odd run of backslashes precedes it.
+    - Two carries cross the 32-byte chunks: whether the chunk starts escaped, and whether it starts inside a string.
+      - The escape carry is a function of the carry in: an all-backslash chunk passes it on unchanged. Each
+        invocation computes its escapes for both carries in, and a workgroup scan composes the functions.
+      - The in-string carry is an xor scan of real-quote parities.
+      - Both are Hillis-Steele scans in shared memory, 8 steps, 2 barriers each.
+    - The test data exercises both carries. At the small size, 64 chunks end inside a backslash run, and 631 of
+      1024 chunks change if escapes are ignored.
+    - Mesa unrolls every loop, the scans included: the main program is 1141 instructions with no backward branch,
+      447 of them `icmpsel` (the byte compares). Its 70 `bfeil` give the same result under both semantics of
+      question 1.
+    - Predicted 333 µs for 32 MiB, about 100 GB/s, well under the modelled DRAM rate.
+    - The check is exact, so it must PASS whatever the timings.

@@ -1712,6 +1712,83 @@ def w_motionest(size, rng):
              check, 256, {'ops': nb * 1089 * 256})
 
 
+def json_struct_ref(b, doc):
+    """jsonidx.comp's structural masks, vectorised: b uint8 bytes, documents of `doc` bytes, each starting unescaped
+    and outside a string"""
+    n = len(b); idx = np.arange(n)
+    bs = b == 92
+    last = np.where(~bs, idx, -1)
+    last = np.maximum(last, (idx // doc) * doc - 1)                       # runs do not cross a document start
+    last = np.maximum.accumulate(last)
+    run = np.zeros(n, np.int64)
+    run[1:] = (idx[:-1] - last[:-1])                                       # backslashes just before byte i
+    run[idx % doc == 0] = 0
+    q = (b == 34) & (run % 2 == 0)
+    cq = np.cumsum(q.astype(np.int64))
+    start = cq[(idx // doc) * doc] - q[(idx // doc) * doc]                 # real quotes before the document
+    inside = (cq - q - start) % 2 == 1
+    st = np.isin(b, np.frombuffer(b'{}[]:,', np.uint8)) & ~inside
+    return np.packbits(st, bitorder='little').view(np.uint32)
+
+
+def json_struct_loop(data, doc):
+    """the same, one byte at a time (cross-check of the vectorised version)"""
+    out = []
+    for d0 in range(0, len(data), doc):
+        run, ins = 0, False
+        for ch in data[d0:d0 + doc]:
+            esc = run % 2 == 1
+            out.append(ch in b'{}[]:,' and not ins)
+            if ch == 34 and not esc:
+                ins = not ins
+            run = run + 1 if ch == 92 else 0
+    return np.packbits(np.array(out, bool), bitorder='little').view(np.uint32)
+
+
+def w_jsonidx(size, rng):
+    DOC = 8192
+    ndoc = 4 if size == 'small' else 4096                                   # 32 MiB at the large size
+    words = ['id', 'name', 'tags', 'path', 'note', 'x', 'y', 'meta', 'q"uote', 'back\\slash']
+    nasty = ['{', '}', '[', ']', ':', ',', '"', '\\', '\\"', ' ', 'a', 'b', '\u00e9', '\n']
+    def sval():                                                             # strings full of escapes and structurals
+        return ''.join(rng.choice(nasty) if rng.random() < 0.3 else chr(97 + int(rng.integers(26)))
+                       for _ in range(int(rng.integers(0, 24))))
+    def val(depth):
+        r = rng.random()
+        if depth < 3 and r < 0.15:
+            return [val(depth + 1) for _ in range(int(rng.integers(0, 5)))]
+        if depth < 3 and r < 0.3:
+            return {str(rng.choice(words)) + str(int(rng.integers(9))): val(depth + 1) for _ in range(int(rng.integers(0, 5)))}
+        if r < 0.65:
+            return sval()
+        if r < 0.85:
+            return int(rng.integers(-10 ** 6, 10 ** 6))
+        return [True, False, None][int(rng.integers(3))]
+    pool = [json.dumps({str(rng.choice(words)): val(0) for _ in range(int(rng.integers(1, 6)))}).encode() + b'\n'
+            for _ in range(min(20000, 80 * ndoc))]                          # records, drawn at random into documents
+    pick = rng.integers(0, len(pool), 200 * ndoc)
+    docs, k = [], 0
+    for _ in range(ndoc):
+        d = b''
+        while len(d) + len(pool[pick[k]]) <= DOC:
+            d += pool[pick[k]]; k += 1
+        k += 1
+        docs.append(d + b' ' * (DOC - len(d)))
+    data = b''.join(docs)
+    b = np.frombuffer(data, np.uint8)
+    ref = json_struct_ref(b, DOC)
+    if size == 'small':
+        assert np.array_equal(ref, json_struct_loop(data, DOC)), 'vectorised reference disagrees with the byte loop'
+    nstruct = int(sum(bin(int(x)).count('1') for x in ref)) if size == 'small' else int(np.unpackbits(ref.view(np.uint8)).sum())
+    def check(o):
+        got = o[1].view(np.uint32)[:len(ref)]
+        bad = int(np.count_nonzero(got != ref))
+        return bad == 0, {'bad_chunks': bad, 'chunks': len(ref), 'structurals': nstruct,
+                          'in_string_structurals': int(np.isin(b, np.frombuffer(b'{}[]:,', np.uint8)).sum()) - nstruct}
+    return W('jsonidx', {0: (b.view(np.uint32).copy(), False), 1: (4 * len(ref), True)}, [(ndoc, 1, 1, b'')], check, 256,
+             {'bytes': len(data)})
+
+
 def w_spmv(size, rng):
     rows, cols = (512, 512) if size == 'small' else (1 << 18, 1 << 18)
     nnz = rng.integers(0, 64, rows) * (rng.random(rows) < 0.95)    # some empty rows
@@ -4241,7 +4318,7 @@ WORKLOADS = {'reduce': w_reduce, 'scan': w_scan, 'sgemm': w_sgemm, 'conv2d': w_c
              'aluprobe': w_aluprobe, 'ubopalette': w_ubopalette, 'uboparams': w_uboparams,
              'bindless': w_bindless, 'bindlessu': w_bindlessu,
              # appended only: the input seed is the index in this dict
-             'rle': w_rle, 'huffdec': w_huffdec, 'lookback': w_lookback, 'hll': w_hll, 'tricount': w_tricount, 'sha3': w_sha3, 'stereo': w_stereo, 'viterbi': w_viterbi, 'viterbifix': w_viterbifix, 'shiftfuse': w_shiftfuse, 'bc1enc': w_bc1enc, 'lz4dec': w_lz4dec, 'nttmul': w_nttmul, 'topk': w_topk, 'cellsort': w_cellsort, 'boruvka': w_boruvka, 'biquad': w_biquad, 'edt': w_edt, 'mt19937': w_mt19937, 'bitap': w_bitap, 'cholesky': w_cholesky, 'rsshash': w_rsshash, 'poly1305': w_poly1305, 'crc32c': w_crc32c, 'siphash': w_siphash, 'blake2s': w_blake2s, 'blake2sfast': w_blake2sfast, 'q4gemv': w_q4gemv, 'attndec': w_attndec, 'attndecsplit': w_attndecsplit, 'rmsrope': w_rmsrope, 'q8dot': w_q8dot, 'isp': w_isp, 'contour': w_contour, 'hough': w_hough, 'spmvsg': w_spmvsg, 'varint': w_varint, 'bvhrays': w_bvhrays, 'adamw': w_adamw, 'stream': w_stream, 'motionest': w_motionest}
+             'rle': w_rle, 'huffdec': w_huffdec, 'lookback': w_lookback, 'hll': w_hll, 'tricount': w_tricount, 'sha3': w_sha3, 'stereo': w_stereo, 'viterbi': w_viterbi, 'viterbifix': w_viterbifix, 'shiftfuse': w_shiftfuse, 'bc1enc': w_bc1enc, 'lz4dec': w_lz4dec, 'nttmul': w_nttmul, 'topk': w_topk, 'cellsort': w_cellsort, 'boruvka': w_boruvka, 'biquad': w_biquad, 'edt': w_edt, 'mt19937': w_mt19937, 'bitap': w_bitap, 'cholesky': w_cholesky, 'rsshash': w_rsshash, 'poly1305': w_poly1305, 'crc32c': w_crc32c, 'siphash': w_siphash, 'blake2s': w_blake2s, 'blake2sfast': w_blake2sfast, 'q4gemv': w_q4gemv, 'attndec': w_attndec, 'attndecsplit': w_attndecsplit, 'rmsrope': w_rmsrope, 'q8dot': w_q8dot, 'isp': w_isp, 'contour': w_contour, 'hough': w_hough, 'spmvsg': w_spmvsg, 'varint': w_varint, 'bvhrays': w_bvhrays, 'adamw': w_adamw, 'stream': w_stream, 'motionest': w_motionest, 'jsonidx': w_jsonidx}
 
 
 # ---------------------------------------------------------------------------------------------------------------
