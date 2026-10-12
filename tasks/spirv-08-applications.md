@@ -394,3 +394,15 @@ reference.
       `verify --timing` therefore also predicts the multi-pass workloads (`bfs`, `sssp`, `ccl`, `pagerank`,
       `boruvka`, `lookback`, `cellsort`) with `--stateful`. Their rows carry `predicted_stateful_us` and
       `ratio_stateful`, and the summary's `stateful_vs_default` says which prediction each recording favours.
+45. **Default vs stateful predictions of the multi-pass workloads** (large size, Mesa 26.0.3 code).
+
+    | workload | default (µs) | `--stateful` (µs) | stateful / default | why |
+    |---|---|---|---|---|
+    | `bfs` | 919 | 2947 | 3.21 | from the initial buffers only the source is on the frontier, at every level |
+    | `sssp` | 858 | 1929 | 2.25 | the same: relaxation work grows as distances settle in |
+    | `cellsort` | 639 | 1154 | 1.81 | the scatter pass costed with zero cursors (all particles on few slots) vs real offsets |
+    | `boruvka` | 42947 | 32230 | 0.75 | later rounds return early for most edges |
+    | `ccl`, `pagerank`, `lookback` | equal | equal | 1.00 | control flow and addresses do not depend on the evolving data |
+
+    - The default under-predicts frontier-driven algorithms by 2-3x and over-predicts converging ones. `verify --timing`
+      reports both for these workloads (about 4.5 minutes extra on the M2), and the recording says which is right.
