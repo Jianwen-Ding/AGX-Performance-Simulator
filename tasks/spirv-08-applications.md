@@ -1,7 +1,7 @@
 # Task SPIR-V 8: applications (ray tracer, neural networks, image processing, cellular automaton, graph search,
 # encryption, hashing, text, compression)
 
-**Workloads:** `raytrace`, `mlp`, `sobel`, `life`, `bfs`, `conv_layer`, `hist_eq`, `aes`, `hash_table`, `word_count`, `dct8`, `attention`, `resize`, `median3`, `poisson`, `lbm`, `base64`, `md5`, `gemv`, `levenshtein`, `blur`, `yuv420`, `montecarlo`, `xxhash`, `bloom`, `collatz`, `tridiag`, `merge`, `ccl`, `pagerank`, `skinning`, `strsearch`, `quantize`, `rule110`, `voxel`, `nms`, `sat`, `sssp`, `morton`, `utf8`, `fir`, `composite`, `nqueens`, `lzmatch`, `bitpack`, `perlin`, `adler32`, `sieve`, `gcd`, `dither`, `advect`, `knn`, `csvparse`, `pip`, `lift53`, `chacha20`, `modexp`, `floyd`, `f16pack`, `raster`, `canny`, `secded`, `bicubic`, `dfa`, `b64decode`, `cordic`, `rsenc`, `texfetch`, `texfilter`, `imgerode`, `imgtonemap`, `argmax64`, `minmax64`, `dsum`, `quadmip`, `clustered`, `specblur`, `cullindirect`, `bigsort`, `pushmat`, `mplitmus`, `splat`, `splatfix`, `smembank`, `coalesce`, `atomcontend`, `barriercost`, `aluprobe`, `ubopalette`, `uboparams`, `bindless`, `bindlessu`, `rle`, `huffdec`, `lookback`, `hll`, `tricount`, `sha3`, `stereo`, `viterbi`, `viterbifix`, `shiftfuse`, `bc1enc`, `lz4dec`, `nttmul`, `topk`, `cellsort`, `boruvka`, `biquad`, `edt`, `mt19937`, `bitap`, `cholesky`, `rsshash`, `poly1305`, `crc32c`, `siphash`, `blake2s`, `blake2sfast`, `q4gemv`, `attndec`, `attndecsplit`, `rmsrope`, `q8dot`, `isp`, `contour`, `hough`, `spmvsg`, `varint`, `bvhrays`, `adamw`, `stream`, `motionest`, `jsonidx`, `cdc`, `swalign`, `swalignfit`, `swalignpad`, `jpcolor`. These are recorded and verified by `make asahi-verify` with the others;
+**Workloads:** `raytrace`, `mlp`, `sobel`, `life`, `bfs`, `conv_layer`, `hist_eq`, `aes`, `hash_table`, `word_count`, `dct8`, `attention`, `resize`, `median3`, `poisson`, `lbm`, `base64`, `md5`, `gemv`, `levenshtein`, `blur`, `yuv420`, `montecarlo`, `xxhash`, `bloom`, `collatz`, `tridiag`, `merge`, `ccl`, `pagerank`, `skinning`, `strsearch`, `quantize`, `rule110`, `voxel`, `nms`, `sat`, `sssp`, `morton`, `utf8`, `fir`, `composite`, `nqueens`, `lzmatch`, `bitpack`, `perlin`, `adler32`, `sieve`, `gcd`, `dither`, `advect`, `knn`, `csvparse`, `pip`, `lift53`, `chacha20`, `modexp`, `floyd`, `f16pack`, `raster`, `canny`, `secded`, `bicubic`, `dfa`, `b64decode`, `cordic`, `rsenc`, `texfetch`, `texfilter`, `imgerode`, `imgtonemap`, `argmax64`, `minmax64`, `dsum`, `quadmip`, `clustered`, `specblur`, `cullindirect`, `bigsort`, `pushmat`, `mplitmus`, `splat`, `splatfix`, `smembank`, `coalesce`, `atomcontend`, `barriercost`, `aluprobe`, `ubopalette`, `uboparams`, `bindless`, `bindlessu`, `rle`, `huffdec`, `lookback`, `hll`, `tricount`, `sha3`, `stereo`, `viterbi`, `viterbifix`, `shiftfuse`, `bc1enc`, `lz4dec`, `nttmul`, `topk`, `cellsort`, `boruvka`, `biquad`, `edt`, `mt19937`, `bitap`, `cholesky`, `rsshash`, `poly1305`, `crc32c`, `siphash`, `blake2s`, `blake2sfast`, `q4gemv`, `attndec`, `attndecsplit`, `rmsrope`, `q8dot`, `isp`, `contour`, `hough`, `spmvsg`, `varint`, `bvhrays`, `adamw`, `stream`, `motionest`, `jsonidx`, `cdc`, `swalign`, `swalignfit`, `swalignpad`, `jpcolor`, `postings`. These are recorded and verified by `make asahi-verify` with the others;
 they are **PENDING** until then. The detailed procedure is in `tasks/spirv-workloads.md`.
 
 ## Why these
@@ -149,6 +149,7 @@ reference.
 | `cdc` | 64 regions of 1 MiB (64 MiB): versions of six files, each with a few insertions, deletions and overwrites | Candidate masks and every region's chunk ends equal to the reference, whose gear hash is checked against a byte-at-a-time loop at the small size |
 | `swalign`, `swalignfit`, `swalignpad` | A random 128-base read; 16384 random windows of 256 bases, 1 in 16 holding a copy with ~6% substitutions and an indel | Every window's best score equal to a vectorised numpy Gotoh (clamped E / F), itself checked against the textbook recursion at the small size; every planted copy scores at least half the perfect score, no random window does |
 | `jpcolor` | 2^20 random points in the unit square, edges within the radius that gives ~8 neighbours (4.19M edges), distinct random priorities | Every vertex's colour equal to the reference rounds, which at the small size equal sequential greedy colouring in priority order; the colouring proper |
+| `postings` | 4096 sorted lists of distinct document ids below 2^20, lengths max(16, 65536 / k^0.8) (1.43M postings), ids skewed toward popular documents; 65536 random pairs of different terms | Every query's (count, xor of id * 0x9E3779B1) equal to numpy's `intersect1d` |
 
 ## Offline sanity checks (not hardware verification)
 
@@ -708,3 +709,15 @@ reference.
       (question 3 of `tasks/m2-run-checklist.md`).
     - The check is exact and the colouring independently checked, so it must PASS whatever the timings. It passes
       on the simulator at both Mesa versions under both `bfeil` semantics.
+73. **`postings`: posting-list intersection.**
+    - One invocation per query walks the shorter list and gallops through the longer one from the last match: an
+      exponential probe, then a binary search. This is how inverted-index engines answer AND queries.
+    - The work per query is the shorter list's length (at most), which runs from 16 to over 10000. Lanes of a SIMD
+      group wait for the longest, so only 27.9% of lane slots in the outer loop do work
+      (`outer_loop_lane_utilisation`, from the list lengths).
+    - Document ids are drawn skewed toward popular documents, so results are realistic: 291834 matches, 6.7% of
+      queries empty.
+    - Predicted 2.11 ms. All 1024 workgroups fit in one wave.
+    - On the M2 the time tests the model on divergent, data-dependent device loads, a binary search's dependent
+      chain. The check is exact against numpy, independently of the shader's algorithm. It passes on lavapipe, and on
+      the simulator at both Mesa versions under both `bfeil` semantics.

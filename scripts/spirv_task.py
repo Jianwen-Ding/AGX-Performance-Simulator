@@ -2016,6 +2016,38 @@ def w_jpcolor(size, rng):
              {'edges': len(a)})
 
 
+def w_postings(size, rng):
+    L, top, nq = (64, 1024, 256) if size == 'small' else (4096, 65536, 65536)
+    U = 1 << 20                                                              # document ids
+    lens = np.maximum(16, (top / np.arange(1, L + 1) ** 0.8).astype(np.int64))   # Zipf-like list lengths
+    lists = []
+    for k in range(L):                                                       # popular documents are in many lists
+        d = np.unique((rng.random(int(lens[k] * 1.3) + 8) ** 4 * U).astype(np.int64))
+        lists.append(np.sort(rng.choice(d, min(len(d), int(lens[k])), replace=False)))
+    off = u32(np.concatenate([[0], np.cumsum([len(x) for x in lists])]))
+    docs = u32(np.concatenate(lists))
+    qa = rng.integers(0, L, nq); qb = (qa + rng.integers(1, L, nq)) % L        # two different terms
+    def reference():
+        r = np.zeros((nq, 2), np.uint64)
+        for i, (x, y) in enumerate(zip(qa, qb)):
+            m = np.intersect1d(lists[x], lists[y], assume_unique=True).astype(np.uint64)
+            r[i] = (len(m), np.bitwise_xor.reduce((m * np.uint64(0x9E3779B1)) & np.uint64(0xFFFFFFFF)) if len(m) else 0)
+        return r
+    reference = lazy(reference)
+    short = np.minimum(lens[qa], lens[qb]).astype(np.float64)                 # outer iterations per query (at most)
+    pad = np.concatenate([short, np.zeros(-nq % 32)]).reshape(-1, 32)
+    util = float(short.sum() / (32 * pad.max(1)).sum())                      # SIMD lanes busy in the outer loop
+    def check(o):
+        ref = reference()
+        got = o[3].view(np.uint32)[:2 * nq].reshape(nq, 2).astype(np.uint64)
+        bad = int(np.count_nonzero((got != ref).any(1)))
+        return bad == 0, {'bad_queries': bad, 'queries': nq, 'postings': int(off[-1]),
+                          'matches': int(ref[:, 0].sum()), 'empty_results': int(np.sum(ref[:, 0] == 0)),
+                          'outer_loop_lane_utilisation': round(util, 3)}
+    return W('postings', {0: (off, False), 1: (docs, False), 2: (u32(np.stack([qa, qb], 1).ravel()), False), 3: (8 * nq, True)},
+             [((nq + 63) // 64, 1, 1, push(nq))], check, 64, {'queries': nq})
+
+
 def w_spmv(size, rng):
     rows, cols = (512, 512) if size == 'small' else (1 << 18, 1 << 18)
     nnz = rng.integers(0, 64, rows) * (rng.random(rows) < 0.95)    # some empty rows
@@ -4545,7 +4577,7 @@ WORKLOADS = {'reduce': w_reduce, 'scan': w_scan, 'sgemm': w_sgemm, 'conv2d': w_c
              'aluprobe': w_aluprobe, 'ubopalette': w_ubopalette, 'uboparams': w_uboparams,
              'bindless': w_bindless, 'bindlessu': w_bindlessu,
              # appended only: the input seed is the index in this dict
-             'rle': w_rle, 'huffdec': w_huffdec, 'lookback': w_lookback, 'hll': w_hll, 'tricount': w_tricount, 'sha3': w_sha3, 'stereo': w_stereo, 'viterbi': w_viterbi, 'viterbifix': w_viterbifix, 'shiftfuse': w_shiftfuse, 'bc1enc': w_bc1enc, 'lz4dec': w_lz4dec, 'nttmul': w_nttmul, 'topk': w_topk, 'cellsort': w_cellsort, 'boruvka': w_boruvka, 'biquad': w_biquad, 'edt': w_edt, 'mt19937': w_mt19937, 'bitap': w_bitap, 'cholesky': w_cholesky, 'rsshash': w_rsshash, 'poly1305': w_poly1305, 'crc32c': w_crc32c, 'siphash': w_siphash, 'blake2s': w_blake2s, 'blake2sfast': w_blake2sfast, 'q4gemv': w_q4gemv, 'attndec': w_attndec, 'attndecsplit': w_attndecsplit, 'rmsrope': w_rmsrope, 'q8dot': w_q8dot, 'isp': w_isp, 'contour': w_contour, 'hough': w_hough, 'spmvsg': w_spmvsg, 'varint': w_varint, 'bvhrays': w_bvhrays, 'adamw': w_adamw, 'stream': w_stream, 'motionest': w_motionest, 'jsonidx': w_jsonidx, 'cdc': w_cdc, 'swalign': w_swalign, 'swalignfit': w_swalignfit, 'swalignpad': w_swalignpad, 'jpcolor': w_jpcolor}
+             'rle': w_rle, 'huffdec': w_huffdec, 'lookback': w_lookback, 'hll': w_hll, 'tricount': w_tricount, 'sha3': w_sha3, 'stereo': w_stereo, 'viterbi': w_viterbi, 'viterbifix': w_viterbifix, 'shiftfuse': w_shiftfuse, 'bc1enc': w_bc1enc, 'lz4dec': w_lz4dec, 'nttmul': w_nttmul, 'topk': w_topk, 'cellsort': w_cellsort, 'boruvka': w_boruvka, 'biquad': w_biquad, 'edt': w_edt, 'mt19937': w_mt19937, 'bitap': w_bitap, 'cholesky': w_cholesky, 'rsshash': w_rsshash, 'poly1305': w_poly1305, 'crc32c': w_crc32c, 'siphash': w_siphash, 'blake2s': w_blake2s, 'blake2sfast': w_blake2sfast, 'q4gemv': w_q4gemv, 'attndec': w_attndec, 'attndecsplit': w_attndecsplit, 'rmsrope': w_rmsrope, 'q8dot': w_q8dot, 'isp': w_isp, 'contour': w_contour, 'hough': w_hough, 'spmvsg': w_spmvsg, 'varint': w_varint, 'bvhrays': w_bvhrays, 'adamw': w_adamw, 'stream': w_stream, 'motionest': w_motionest, 'jsonidx': w_jsonidx, 'cdc': w_cdc, 'swalign': w_swalign, 'swalignfit': w_swalignfit, 'swalignpad': w_swalignpad, 'jpcolor': w_jpcolor, 'postings': w_postings}
 
 
 # ---------------------------------------------------------------------------------------------------------------

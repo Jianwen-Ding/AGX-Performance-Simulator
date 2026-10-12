@@ -57,7 +57,7 @@ The rest of this file is the detailed procedure, for investigating results.
 
 ## Workloads
 
-One hundred and seventy-one realistic compute kernels, written in GLSL (`spirv/shaders/*.comp`) and compiled to SPIR-V:
+One hundred and seventy-two realistic compute kernels, written in GLSL (`spirv/shaders/*.comp`) and compiled to SPIR-V:
 
 | Workload | Kernel | Stresses |
 |---|---|---|
@@ -232,6 +232,7 @@ One hundred and seventy-one realistic compute kernels, written in GLSL (`spirv/s
 | `swalignfit` | `swalign` with the query in a uniform buffer (read a word at a time) | Shared memory exactly 32 KiB: two workgroups per core, the occupancy cliff at half of the 64 KiB per core |
 | `swalignpad` | `swalignfit`'s code (the same main program) with 512 bytes of unused shared memory, by a specialization constant | 33280 bytes, one workgroup per core: occupancy alone, at identical code |
 | `jpcolor` | Graph colouring by Jones-Plassmann rounds on a random geometric graph (1M vertices, ~8 neighbours each) | One dispatch per round (25), CSR neighbour scans with an early exit, colours ping-ponged between two copies, a shrinking set of uncoloured vertices |
+| `postings` | Posting-list intersection for AND queries (a search engine's core): 65536 term pairs over 4096 Zipf-length sorted lists, galloping search | Data-dependent loads (exponential probe, then binary search), per-query work varying by orders of magnitude within a SIMD group |
 
 Each workload has two sizes:
 

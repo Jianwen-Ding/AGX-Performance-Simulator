@@ -39,6 +39,7 @@ where each answer appears, and what to change for each outcome. The details are 
 | `swalignpad` vs `swalignfit` (note 71) | the shared-memory occupancy cliff: 33280 against 32768 bytes per workgroup, same compiled code | 56.8 ms vs 33.5 ms |
 | `swalign` (note 71) | the same alignment with the query in shared memory | 72.2 ms |
 | `jpcolor` (note 72) | a converging multi-round workload: default (every round from the start) against stateful prediction | 28.8 / 9.1 ms |
+| `postings` (note 73) | divergent galloping search: dependent, data-dependent loads with 28% lane utilisation | 2.11 ms |
 | `nms` (note 10) | a known under-prediction: work grows with the workgroup index | low |
 
 ## Results that must hold whatever the timings
