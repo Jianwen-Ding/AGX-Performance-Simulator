@@ -1,0 +1,24 @@
+#version 450
+// 63-tap FIR low-pass filter of an audio signal (windowed-sinc taps): each workgroup stages 256 + 62 samples in
+// shared memory and every thread forms one output sample as a 63-term fp32 dot product (zero history before
+// sample 0). Checked against float64; the stop-band tone's attenuation is reported.
+layout(local_size_x = 256) in;
+layout(std430, binding = 0) readonly buffer X { float x[]; };
+layout(std430, binding = 1) readonly buffer H { float h[64]; };
+layout(std430, binding = 2) writeonly buffer Y { float y[]; };
+layout(push_constant) uniform P { uint n; } p;
+shared float s[256 + 62];
+
+void main() {
+    uint l = gl_LocalInvocationID.x, base = gl_WorkGroupID.x * 256u;
+    for (uint k = l; k < 256u + 62u; k += 256u) {
+        int src = int(base + k) - 62;
+        s[k] = (src >= 0 && uint(src) < p.n) ? x[src] : 0.0;
+    }
+    barrier();
+    uint i = base + l;
+    if (i >= p.n) return;
+    float acc = 0.0;
+    for (uint k = 0u; k < 63u; k++) acc = fma(h[k], s[l + 62u - k], acc);   // y[i] = sum h[k] x[i - k]
+    y[i] = acc;
+}

@@ -1,0 +1,53 @@
+0x0c80  0501100d00c87200         device_load 0, i32, xyz, r0_r1_r2, u0_u1, 1, signed, lsl 2
+0x0c88  3800                     wait 0
+0x0c8a  2e01000024060000         bfi r0, 0, r0, 6
+0x0c92  c500803d00803000         uniform_store 2, i16, xy, 0, r0l_r0h, 8
+0x0c9a  0501700d01c81200         device_load 0, i32, x, r0, u0_u1, 23, signed, lsl 2
+0x0ca2  3800                     wait 0
+0x0ca4  c500a03d00803000         uniform_store 2, i16, xy, 0, r0l_r0h, 10
+0x0cac  1e05400664000000         imadd r1, r0.sx, r0.sx, 0
+0x0cb4  c508c03d00803000         uniform_store 2, i16, xy, 0, r1l_r1h, 12
+0x0cbc  1e09420664000000         imadd r2, r1.sx, r0.sx, 0
+0x0cc4  c510e03d00803000         uniform_store 2, i16, xy, 0, r2l_r2h, 14
+0x0ccc  3e890a042400             convert u32_to_f, r2, r0, rte
+0x0cd2  0a0d4482                 rcp r3, r2
+0x0cd6  3a09446a2430             fmadd32 r2, r2.neg, r3, 1.0
+0x0cdc  3a89446224460200         fmadd32 r2, r2, r3, r3
+0x0ce4  0209444224446004         fcmpsel eq, r2, r2, r2, r2, r3
+0x0cec  620dfeff7f4f             mov_imm r3, 1333788670, 0b0
+0x0cf2  1a8944622400             fmul32 r2, r2, r3
+0x0cf8  3e8908402400             convert f_to_u32, r2, r2, rtz
+0x0cfe  1e11404664000000         imadd r4, r0.sx, r2.sx, 0
+0x0d06  0e11008864000000         isub r4, 0, r4.sx
+0x0d0e  1e13448224000000         imadd r4_r5, r2, r4, 0
+0x0d16  0e0944a664000000         iadd r2, r2.sx, r5.sx
+0x0d1e  c510003d01803000         uniform_store 2, i16, xy, 0, r2l_r2h, 16
+0x0d26  0e09000864000000         isub r2, 0, r0.sx
+0x0d2e  c510203d01803000         uniform_store 2, i16, xy, 0, r2l_r2h, 18
+0x0d36  7e0140f28100             and r0, r0, 31
+0x0d3c  2e01001000400200         bfi r0, 0, 1, r0
+0x0d44  0e01401e00000000         isub r0, r0.sx, 1
+0x0d4c  c500403d01803000         uniform_store 2, i16, xy, 0, r0l_r0h, 20
+0x0d54  3e810a242400             convert u32_to_f, r0, r1, rte
+0x0d5a  0a094082                 rcp r2, r0
+0x0d5e  3a01404a2430             fmadd32 r0, r0.neg, r2, 1.0
+0x0d64  3a81404224440200         fmadd32 r0, r0, r2, r2
+0x0d6c  0201400224404004         fcmpsel eq, r0, r0, r0, r0, r2
+0x0d74  1a8140622400             fmul32 r0, r0, r3
+0x0d7a  3e8108002400             convert f_to_u32, r0, r0, rtz
+0x0d80  1e09420664000000         imadd r2, r1.sx, r0.sx, 0
+0x0d88  0e09004864000000         isub r2, 0, r2.sx
+0x0d90  1e0b404224000000         imadd r2_r3, r0, r2, 0
+0x0d98  0e01406664000000         iadd r0, r0.sx, r3.sx
+0x0da0  c500603d01803000         uniform_store 2, i16, xy, 0, r0l_r0h, 22
+0x0da8  0e01002864000000         isub r0, 0, r1.sx
+0x0db0  c500803d01803000         uniform_store 2, i16, xy, 0, r0l_r0h, 24
+0x0db8  0501700d02c83200         device_load 0, i32, xy, r0_r1, u0_u1, 39, signed, lsl 2
+0x0dc0  3800                     wait 0
+0x0dc2  0521004500c0f200         device_load 1, i32, xyzw, r4_r5_r6_r7, r0_r1, 0, signed
+0x0dca  3801                     wait 1
+0x0dcc  c520c03d0180f000         uniform_store 2, i16, xyzw, 0, r4l_r4h_r5l_r5h, 28
+0x0dd4  0501100500c8f200         device_load 0, i32, xyzw, r0_r1_r2_r3, r0_r1, 1, signed, lsl 2
+0x0ddc  3800                     wait 0
+0x0dde  c500003d0280f000         uniform_store 2, i16, xyzw, 0, r0l_r0h_r1l_r1h, 32
+0x0de6  8800                     stop

@@ -1,7 +1,7 @@
 # Task SPIR-V 8: applications (ray tracer, neural networks, image processing, cellular automaton, graph search,
 # encryption, hashing, text, compression)
 
-**Workloads:** `raytrace`, `mlp`, `sobel`, `life`, `bfs`, `conv_layer`, `hist_eq`, `aes`, `hash_table`, `word_count`, `dct8`, `attention`, `resize`, `median3`, `poisson`, `lbm`, `base64`, `md5`, `gemv`, `levenshtein`, `blur`, `yuv420`, `montecarlo`, `xxhash`, `bloom`, `collatz`, `tridiag`, `merge`, `ccl`, `pagerank`, `skinning`, `strsearch`, `quantize`, `rule110`, `voxel`, `nms`, `sat`, `sssp`, `morton`. These are recorded and verified by `make asahi-verify` with the others;
+**Workloads:** `raytrace`, `mlp`, `sobel`, `life`, `bfs`, `conv_layer`, `hist_eq`, `aes`, `hash_table`, `word_count`, `dct8`, `attention`, `resize`, `median3`, `poisson`, `lbm`, `base64`, `md5`, `gemv`, `levenshtein`, `blur`, `yuv420`, `montecarlo`, `xxhash`, `bloom`, `collatz`, `tridiag`, `merge`, `ccl`, `pagerank`, `skinning`, `strsearch`, `quantize`, `rule110`, `voxel`, `nms`, `sat`, `sssp`, `morton`, `utf8`, `fir`, `composite`, `nqueens`. These are recorded and verified by `make asahi-verify` with the others;
 they are **PENDING** until then. The detailed procedure is in `tasks/spirv-workloads.md`.
 
 ## Why these
@@ -51,11 +51,15 @@ reference.
 | `sat` | Summed-area table of a 3840 × 2160 8-bit image: row scans, then column scans in place, shared-memory Hillis-Steele with carry | Exact; a box sum from four lookups is checked too |
 | `sssp` | Bellman-Ford shortest paths on a 512 × 512 road grid with highways, `atomicMin` relaxation, 78 dispatches | Exact distances (the dispatch count covers synchronous rounds; in-place updates only converge faster) |
 | `morton` | 32-bit and 64-bit Morton (Z-order) codes of 2^22 points | Exact (mask-and-shift bit spreading, 64-bit integers) |
+| `utf8` | Validate and decode 16 MiB of UTF-8 (1- to 4-byte characters, half the text with planted bad bytes) | Exact code points, U+FFFD for every invalid sequence; the valid half also matches Python's decoder |
+| `fir` | 63-tap windowed-sinc low-pass FIR over 8M audio samples through a shared-memory window | Within the dot-product error bound; the stop-band tone drops ~100 dB |
+| `composite` | Premultiplied RGBA8 "over" onto a 4K background with exact /255 rounding | Exact; `sim_image2.ppm` / `image2.ppm` show the composite |
+| `nqueens` | Count all 13-queens solutions: 2197 three-row prefixes, bitmask DFS with an explicit stack per thread | Exact per prefix and 73712 in total; Mesa keeps the stack in registers (180 `icmpsel`) |
 
 ## Offline sanity checks (not hardware verification)
 
 - **lavapipe:** all pass at both sizes.
-- **Shim-compiled Mesa 25.2.8 and 26.0.3 code on the functional simulator:** 78 of 78.
+- **Shim-compiled Mesa 25.2.8 and 26.0.3 code on the functional simulator:** 86 of 86.
   - `bfs` found a simulator bug. Mesa aggregates `atomicAdd(found[l], 1)` under divergence: one lane, chosen with SR58
     (`active_thread_index_in_simdgroup`), adds SR59, the number of active lanes. The simulator modelled both from the
     launch shape (lane index, 32), which is only right when every lane is active, so the counts came out as multiples
@@ -99,3 +103,5 @@ reference.
       The model simulates workgroup 0 as the representative, the lightest, so it predicts 78 µs.
     - Expect the M2 to take far longer, roughly 32 × the work of workgroup 0 on its busiest core.
     - The measured time decides how the model should pick representative workgroups when work is uneven.
+11. `utf8`, `composite` and `nqueens` are exact and must PASS. `fir` is fp32 dot products, so expect CLOSE or PASS.
+    `nqueens` is all divergent integer control flow: compare its time with `predict`.

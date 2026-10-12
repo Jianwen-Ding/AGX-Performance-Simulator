@@ -1621,6 +1621,119 @@ def w_morton(size, rng):
     return W('morton', {0: (pts4, False), 1: (4 * n, True), 2: (8 * n, True)}, [((n + 255) // 256, 1, 1, push(n))], check, 256, {'points': n})
 
 
+def utf8_ref(t):
+    """per byte: 0xffffffff for continuation bytes, else the decoded code point or U+FFFD (the shader's rules)"""
+    n = len(t); b = t.astype(np.int64)
+    pad = np.concatenate([b, np.zeros(3, np.int64)])
+    cont = (b & 0xc0) == 0x80
+    ln = np.select([b < 0x80, (b & 0xe0) == 0xc0, (b & 0xf0) == 0xe0, (b & 0xf8) == 0xf0], [1, 2, 3, 4], 0)
+    v = np.select([ln == 1, ln == 2, ln == 3, ln == 4], [b, b & 0x1f, b & 0x0f, b & 0x07], 0)
+    ok = (ln != 0) & (np.arange(n) + ln <= n)
+    for k in (1, 2, 3):
+        c = pad[k:k + n]; use = ln > k
+        ok &= ~use | ((c & 0xc0) == 0x80)
+        v = np.where(use, (v << 6) | (c & 0x3f), v)
+    lo = np.select([ln == 2, ln == 3, ln == 4], [0x80, 0x800, 0x10000], 0)
+    ok &= (v >= lo) & (v <= 0x10ffff) & ~((v >= 0xd800) & (v <= 0xdfff))
+    return np.where(cont, 0xffffffff, np.where(ok, v, 0xfffd)).astype(np.uint32)
+
+
+def w_utf8(size, rng):
+    n = 4096 if size == 'small' else 1 << 24
+    alphabet = 'abc xyz,.ÄéßñΩЖשش漢字かな한글€🙂🚀𝄞'                       # 1- to 4-byte characters
+    chars = np.array(list(alphabet))[rng.integers(0, len(alphabet), n // 2)]
+    good = ''.join(chars).encode()[:n // 2]
+    good = good[:len(good.decode('utf-8', 'ignore').encode())]                 # whole characters only
+    bad = bytearray(''.join(np.array(list(alphabet))[rng.integers(0, len(alphabet), n)]).encode()[:n - len(good)])
+    for k in rng.integers(0, len(bad), max(8, len(bad) // 500)):               # stray continuation / lead / overlong bytes
+        bad[k] = int(rng.choice([0x80, 0xbf, 0xc0, 0xc1, 0xe0, 0xed, 0xf5, 0xff]))
+    text = np.frombuffer(good + bytes(bad), np.uint8).copy()
+    def check(o):
+        got = o[1].view(np.uint32)[:n]; chars_, invalid = (int(v) for v in o[2].view(np.uint32)[:2])
+        ref = utf8_ref(text)
+        lead = ref != 0xffffffff
+        valid_part = got[:len(good)][ref[:len(good)] != 0xffffffff]
+        decoded_ok = [chr(c) for c in valid_part] == list(good.decode())         # Python's decoder agrees on the valid half
+        ok = np.array_equal(got, ref) and chars_ == int(lead.sum()) and invalid == int(np.sum(ref == 0xfffd)) and decoded_ok
+        return ok, {'mismatches': int(np.sum(got != ref)), 'chars': chars_, 'invalid': invalid, 'valid_half_matches_python': decoded_ok}
+    return W('utf8', {0: (text, False), 1: (4 * n, True), 2: (u32([0, 0]), True)}, [((n + 255) // 256, 1, 1, push(n))], check, 256,
+             {'bytes': n})
+
+
+def w_fir(size, rng):
+    n = 4096 if size == 'small' else 1 << 23
+    taps = 63
+    m = np.arange(taps) - (taps - 1) / 2
+    h = np.sinc(0.25 * m) * 0.25 * np.blackman(taps); h /= h.sum()              # low-pass, cutoff fs / 8
+    hf = f32(np.concatenate([h, [0]]))
+    tt = np.arange(n)
+    x = f32(np.sin(2 * np.pi * 0.01 * tt) + 0.5 * np.sin(2 * np.pi * 0.35 * tt) + 0.01 * rng.standard_normal(n))
+    def check(o):
+        y = o[2].view(np.float32)[:n].astype(np.float64)
+        hd, xd = hf[:taps].astype(np.float64), x.astype(np.float64)
+        ref = np.convolve(xd, hd)[:n]
+        bound = (taps + 2) * 2.0 ** -24 * np.convolve(np.abs(xd), np.abs(hd))[:n]
+        excess = float(np.max(np.abs(y - ref) / np.maximum(bound, 1e-30)))
+        spec_in, spec_out = np.abs(np.fft.rfft(xd[taps:])), np.abs(np.fft.rfft(y[taps:]))
+        k = int(round(0.35 * (n - taps)))
+        atten = float(20 * np.log10(spec_out[k - 2:k + 3].max() / spec_in[k - 2:k + 3].max()))
+        return excess <= 1.0, {'max_err_over_bound': excess, 'stopband_tone_db': atten}
+    return W('fir', {0: (x, False), 1: (hf, False), 2: (4 * n, True)}, [((n + 255) // 256, 1, 1, push(n))], check, 256,
+             {'samples': n, 'flops': 2 * taps * n})
+
+
+def div255(x): x = x + 128; return (x + (x >> 8)) >> 8
+
+
+def w_composite(size, rng):
+    Wd, H = (64, 48) if size == 'small' else (3840, 2160)
+    gy, gx = np.mgrid[0:H, 0:Wd]
+    bg = np.stack([gx * 255 // max(Wd - 1, 1), gy * 255 // max(H - 1, 1), np.full_like(gx, 96), np.full_like(gx, 255)], -1)
+    a = np.clip(255 * (0.5 + 0.5 * np.sin(gx / 13.0) * np.cos(gy / 9.0)) + rng.integers(-10, 11, (H, Wd)), 0, 255).astype(np.int64)
+    a[:, :Wd // 8] = 0; a[:, -Wd // 8:] = 255                                     # fully clear and fully opaque bands
+    col = np.stack([np.full_like(gx, 250), np.full_like(gx, 40), (gx + gy) % 256], -1)
+    src = np.concatenate([col * a[..., None] // 255, a[..., None]], -1)           # premultiplied: channel <= alpha
+    pack = lambda c: u32(c[..., 0] | c[..., 1] << 8 | c[..., 2] << 16 | c[..., 3] << 24)
+    def check(o):
+        got = o[2].view(np.uint32)[:Wd * H].reshape(H, Wd)
+        ref = pack(src + div255(bg * (255 - a)[..., None]))
+        exact = np.round(src + bg * (255 - a)[..., None] / 255.0)                # div255 is exact rounding of x / 255
+        return np.array_equal(got, ref), {'mismatches': int(np.sum(got != ref)), 'div255_is_round': bool(np.array_equal(src + div255(bg * (255 - a)[..., None]), exact))}
+    return W('composite', {0: (pack(src), False), 1: (pack(bg), False), 2: (4 * Wd * H, True)},
+             [((Wd + 15) // 16, (H + 15) // 16, 1, push(Wd, H))], check, (16, 16, 1), {'pixels': Wd * H}, images=[(2, Wd, H, 'rgba8')])
+
+
+def nqueens_count(n, c, a, b, row):
+    full = (1 << n) - 1
+    if row == n:
+        return 1
+    tot, avail = 0, full & ~(c | a | b)
+    while avail:
+        bit = avail & -avail; avail ^= bit
+        tot += nqueens_count(n, c | bit, ((a | bit) << 1) & full, (b | bit) >> 1, row + 1)
+    return tot
+
+
+def w_nqueens(size, rng):
+    n = 8 if size == 'small' else 13
+    def check(o):
+        got = o[0].view(np.uint32)[:n ** 3]; total = int(o[1].view(np.uint32)[0])
+        full = (1 << n) - 1
+        ref = np.zeros(n ** 3, np.uint32)
+        for t in range(n ** 3):
+            c = a = b = 0; ok = True
+            for col in (t % n, t // n % n, t // (n * n) % n):
+                bit = 1 << col
+                ok = ok and not ((c | a | b) & bit)
+                c |= bit; a = ((a | bit) << 1) & full; b = (b | bit) >> 1
+            ref[t] = nqueens_count(n, c, a, b, 3) if ok else 0
+        known = {8: 92, 13: 73712}[n]
+        ok = np.array_equal(got, ref) and total == int(ref.sum()) == known
+        return ok, {'count_mismatches': int(np.sum(got != ref)), 'total': total, 'known_total': known}
+    return W('nqueens', {0: (4 * n ** 3, True), 1: (u32([0]), True)}, [((n ** 3 + 63) // 64, 1, 1, push(n))], check, 64,
+             {'prefixes': n ** 3})
+
+
 WORKLOADS = {'reduce': w_reduce, 'scan': w_scan, 'sgemm': w_sgemm, 'conv2d': w_conv2d, 'histogram': w_histogram,
              'nbody': w_nbody, 'bitonic': w_bitonic, 'sha256': w_sha256, 'fp16': w_fp16, 'int64': w_int64, 'bitops': w_bitops,
              'intdiv': w_intdiv, 'compact': w_compact, 'spmv': w_spmv, 'transpose': w_transpose, 'mandelbrot': w_mandelbrot,
@@ -1635,7 +1748,8 @@ WORKLOADS = {'reduce': w_reduce, 'scan': w_scan, 'sgemm': w_sgemm, 'conv2d': w_c
              'xxhash': w_xxhash, 'bloom': w_bloom, 'collatz': w_collatz, 'tridiag': w_tridiag,
              'merge': w_merge, 'ccl': w_ccl, 'pagerank': w_pagerank, 'skinning': w_skinning,
              'strsearch': w_strsearch, 'quantize': w_quantize, 'rule110': w_rule110, 'voxel': w_voxel,
-             'nms': w_nms, 'sat': w_sat, 'sssp': w_sssp, 'morton': w_morton}
+             'nms': w_nms, 'sat': w_sat, 'sssp': w_sssp, 'morton': w_morton,
+             'utf8': w_utf8, 'fir': w_fir, 'composite': w_composite, 'nqueens': w_nqueens}
 
 
 # ---------------------------------------------------------------------------------------------------------------
