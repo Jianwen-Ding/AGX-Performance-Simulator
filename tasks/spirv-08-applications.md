@@ -572,7 +572,17 @@ reference.
 66. **AdamW, and a streaming kernel above the DRAM rate.**
     - 4M elements × 28 bytes is 117 MB, predicted in 202 µs: about 580 GB/s, above the 360 GB/s DRAM rate the model
       uses for this machine (the recorded suite's device is an M2 Max).
-    - A pass over 117 MB with no reuse should be DRAM-bound, so the M2 time checks how the memory model treats a
-      working set far larger than the SLC.
+    - The cause is in the memory model. A load is charged L1 throughput plus the bandwidth of the level its lines
+      come from. A store is charged L1 store throughput only, and its lines' level comes from the cache contents.
+      `adamw` stores to the lines it just loaded, so its stores count as hits, and the write-back of the 50 MB of
+      dirty lines to DRAM is never charged.
+      - Per wave, each core touches 768 distinct lines: exactly the four read streams, 49 KB. At the per-core DRAM
+        rate (360 GB/s over 38 cores) that is about 7250 cycles, against the 7630 simulated.
+      - So the prediction is read-bandwidth bound: 67 MB / 360 GB/s ≈ 186 µs.
+    - Read the M2 time against two numbers:
+      - ≈ 190-200 µs: the model is right that write-back overlaps or is cheap.
+      - ≈ 325 µs, 117 MB at 360 GB/s: write-back costs DRAM bandwidth like reads. Then dirty-line write-back should
+        be charged to the DRAM bucket. That affects every store-heavy streaming workload, so check the change against
+        `dispatch_check`'s recorded dispatches.
     - The driver turns the four divisions into one `rcp` and one `rsqrt_special`, folding the uniform bias
       corrections.

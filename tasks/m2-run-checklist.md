@@ -30,7 +30,7 @@ where each answer appears, and what to change for each outcome. The details are 
 | `biquad`, `poly1305`, `siphash` (notes 46, 52, 54) | latency / throughput of 64-bit `imadd` and 64-bit ARX on 32-bit ALUs | 4.5 ms, 0.32 ms, 0.26 ms |
 | `edt` pass 0, `crc32c` pass 0 (notes 47, 53) | under-filled dispatches: latency at low occupancy | 295 µs, 534 µs |
 | `boruvka` (note 44) | per-round dispatch times, default (43 ms) vs stateful (32 ms) prediction | 43 / 32 ms |
-| `adamw` (note 66) | a 117 MB streaming pass: DRAM-bound, against a prediction above the DRAM rate | 202 µs (≈ 580 GB/s) |
+| `adamw` (note 66) | whether dirty-line write-back costs DRAM bandwidth: the model charges reads only | 202 µs; ≈ 325 µs if write-back counts |
 | `nms` (note 10) | a known under-prediction: work grows with the workgroup index | low |
 
 ## Results that must hold whatever the timings
