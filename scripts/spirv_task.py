@@ -395,6 +395,65 @@ def w_rle(size, rng):
              ds, check, 256, {'bytes': 4 * n + 8 * len(ref) + 4 * n})
 
 
+def huffman_lengths(freq, maxlen):
+    """Code lengths of a Huffman code for freq (all > 0), limited to maxlen by halving frequencies and retrying"""
+    import heapq
+    f = np.asarray(freq, dtype=np.int64)
+    while True:
+        heap = [(int(w), i, (i,)) for i, w in enumerate(f)]
+        heapq.heapify(heap)
+        lens = np.zeros(len(f), dtype=np.int64)
+        tag = len(f)
+        while len(heap) > 1:
+            w1, _, a = heapq.heappop(heap); w2, _, b = heapq.heappop(heap)
+            for i in a + b:
+                lens[i] += 1
+            heapq.heappush(heap, (w1 + w2, tag, a + b)); tag += 1
+        if lens.max() <= maxlen:
+            return lens
+        f = (f + 1) // 2
+
+
+def w_huffdec(size, rng):
+    nblocks = 512 if size == 'small' else 16384
+    nsym = 64                                                  # 6-bit alphabet, Zipf-like frequencies
+    freq = np.maximum(1, (100000 / np.arange(1, nsym + 1) ** 1.1).astype(np.int64))
+    lens = huffman_lengths(freq, 12)
+    # canonical codes: by (length, symbol)
+    order = sorted(range(nsym), key=lambda i: (lens[i], i))
+    codes = np.zeros(nsym, dtype=np.int64); code, prev = 0, int(lens[order[0]])
+    for k, i in enumerate(order):
+        if k:
+            code = (code + 1) << (int(lens[i]) - prev)
+        codes[i] = code; prev = int(lens[i])
+    table = np.zeros(4096, dtype=np.uint32)
+    for i in range(nsym):
+        sh = 12 - int(lens[i])
+        table[int(codes[i]) << sh:(int(codes[i]) + 1) << sh] = (i << 4) | int(lens[i])
+    syms = rng.choice(nsym, (nblocks, 256), p=freq / freq.sum())
+    # encode: per block, MSB-first, blocks back to back at arbitrary bit offsets
+    nbits = lens[syms].sum(1)
+    start = np.concatenate([[0], np.cumsum(nbits)[:-1]])
+    total = int(nbits.sum())
+    bitarr = np.zeros(total + 64, dtype=np.uint8)
+    flat_len = lens[syms].ravel(); flat_code = codes[syms].ravel()
+    pos = np.concatenate([[0], np.cumsum(flat_len)[:-1]])
+    for b in range(12):                                        # bit b of each code, counted from its MSB
+        m = flat_len > b
+        bitarr[pos[m] + b] = (flat_code[m] >> (flat_len[m] - 1 - b)) & 1
+    pad = (-len(bitarr)) % 32
+    words = u32(np.packbits(np.concatenate([bitarr, np.zeros(pad + 32, np.uint8)])).view('>u4').astype(np.uint32))
+    ref = u32(syms.astype(np.uint32).reshape(nblocks, 64, 4) @ np.array([1, 1 << 8, 1 << 16, 1 << 24], dtype=np.uint32))
+    def check(o):
+        got = o[3].view(np.uint32)[:nblocks * 64].reshape(nblocks, 64)
+        bad = got != ref
+        return not bad.any(), {'bad_words': int(bad.sum()), 'bad_blocks': int(bad.any(1).sum()),
+                               'bits_per_symbol': round(total / syms.size, 3), 'max_code_len': int(lens.max())}
+    return W('huffdec', {0: (words, False), 1: (u32(start), False), 2: (table, False), 3: (1024 * nblocks, True)},
+             [((nblocks + 127) // 128, 1, 1, push(nblocks))], check, 128,
+             {'bytes': 4 * len(words) + 1024 * nblocks, 'items': syms.size})
+
+
 def w_spmv(size, rng):
     rows, cols = (512, 512) if size == 'small' else (1 << 18, 1 << 18)
     nnz = rng.integers(0, 64, rows) * (rng.random(rows) < 0.95)    # some empty rows
@@ -2892,7 +2951,7 @@ def w_bindlessu(size, rng):
 
 WORKLOADS = {'reduce': w_reduce, 'scan': w_scan, 'sgemm': w_sgemm, 'conv2d': w_conv2d, 'histogram': w_histogram,
              'nbody': w_nbody, 'bitonic': w_bitonic, 'sha256': w_sha256, 'fp16': w_fp16, 'int64': w_int64, 'bitops': w_bitops,
-             'intdiv': w_intdiv, 'compact': w_compact, 'rle': w_rle, 'spmv': w_spmv, 'transpose': w_transpose, 'mandelbrot': w_mandelbrot,
+             'intdiv': w_intdiv, 'compact': w_compact, 'rle': w_rle, 'huffdec': w_huffdec, 'spmv': w_spmv, 'transpose': w_transpose, 'mandelbrot': w_mandelbrot,
              'softmax': w_softmax, 'rgba8': w_rgba8, 'atomics': w_atomics, 'geom3d': w_geom3d, 'spill': w_spill,
              'control': w_control, 'shuffle': w_shuffle, 'floatops': w_floatops, 'radix_sort': w_radix_sort, 'fft': w_fft,
              'crc32': w_crc32, 'kmeans': w_kmeans, 'int8dot': w_int8dot, 'stencil3d': w_stencil3d, 'int16': w_int16, 'trig': w_trig,
