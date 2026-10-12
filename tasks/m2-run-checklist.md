@@ -47,6 +47,7 @@ where each answer appears, and what to change for each outcome. The details are 
 | `inflate` vs `inflateshm` (note 78) | 131 KiB of select-chain code against 20.5 KiB for the same decoder: instruction-cache and ALU cost the model does not see | 19.5 ms both |
 | `csrbuild` (note 79) | contended degree atomics, a two-level scan and an atomic-cursor scatter, default against stateful prediction | 386 / 905 µs |
 | `blackscholes` (note 80) | a memory-bound kernel with `log2` / `exp2` / `rcp` / `rsqrt` per element | 338 µs |
+| `warphash` (note 81) | subgroup ballot / shuffle / vote with compare-and-swap: a cooperative hash table | 6.76 ms |
 | `nms` (note 10) | a known under-prediction: work grows with the workgroup index | low |
 
 ## Results that must hold whatever the timings

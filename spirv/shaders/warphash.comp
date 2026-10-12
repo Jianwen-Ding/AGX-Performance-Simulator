@@ -1,0 +1,67 @@
+#version 450
+// A warp-cooperative hash table, as GPU hash maps (cuCollections, WarpCore) do it: a bucket is one slot per lane
+// of a subgroup, and the whole subgroup probes a bucket at once. Each subgroup takes its lanes' keys in turn
+// (shuffled to every lane):
+//   insert (pass 0): ballot the empty slots of the bucket; the lowest one (subgroupBallotFindLSB) claims its slot
+//     with atomicCompSwap, and the subgroup retries if another subgroup took it first; a full bucket sends the
+//     probe to the next (linear probing by buckets).
+//   lookup (pass 1): ballot the slots holding the key - the first one's value is shuffled out - or stop at a bucket
+//     with an empty slot (subgroupAny): the key is absent.
+// Buckets are gl_SubgroupSize slots, so the layout differs between devices but the lookups do not.
+#extension GL_KHR_shader_subgroup_ballot : require
+#extension GL_KHR_shader_subgroup_shuffle : require
+#extension GL_KHR_shader_subgroup_vote : require
+layout(local_size_x = 256) in;
+layout(std430, binding = 0) readonly buffer KE { uint key_in[]; };    // keys to insert (distinct, not EMPTY)
+layout(std430, binding = 1) readonly buffer VA { uint val_in[]; };
+layout(std430, binding = 2) coherent buffer TK { uint tkey[]; };      // p.slots, EMPTY at the start; coherent: re-read after a lost CAS
+layout(std430, binding = 3) buffer TV { uint tval[]; };
+layout(std430, binding = 4) readonly buffer QU { uint query[]; };
+layout(std430, binding = 5) writeonly buffer RE { uint result[]; };   // the value, or MISSING
+layout(push_constant) uniform P { uint pass_; uint n; uint slots; } p;
+
+const uint EMPTY = 0xFFFFFFFFu, MISSING = 0xFFFFFFFFu;
+
+uint hash(uint x) {                                                    // murmur3's finaliser
+    x ^= x >> 16; x *= 0x85ebca6bu; x ^= x >> 13; x *= 0xc2b2ae35u; x ^= x >> 16;
+    return x;
+}
+
+void main() {
+    uint g = gl_GlobalInvocationID.x, lane = gl_SubgroupInvocationID, S = gl_SubgroupSize;
+    uint nb = p.slots / S;                                             // buckets (a power of two)
+    bool valid = g < p.n;
+    uint mine = valid ? (p.pass_ == 0u ? key_in[g] : query[g]) : 0u;
+    uint myval = valid && p.pass_ == 0u ? val_in[g] : 0u;
+    uint res = MISSING;
+    for (uint j = 0u; j < S; j++) {
+        uint k = subgroupShuffle(mine, j);
+        if (!subgroupShuffle(valid, j)) continue;                       // the same for the whole subgroup
+        uint b = hash(k) & (nb - 1u);
+        if (p.pass_ == 0u) {
+            uint v = subgroupShuffle(myval, j);
+            while (true) {
+                uint slot = b * S + lane;
+                uvec4 em = subgroupBallot(tkey[slot] == EMPTY);
+                if (subgroupBallotBitCount(em) == 0u) { b = (b + 1u) & (nb - 1u); continue; }
+                bool won = false;
+                if (lane == subgroupBallotFindLSB(em)) {
+                    won = atomicCompSwap(tkey[slot], EMPTY, k) == EMPTY;
+                    if (won) tval[slot] = v;
+                }
+                if (subgroupAny(won)) break;                           // else another subgroup took it: look again
+            }
+        } else {
+            uint r = MISSING;
+            while (true) {
+                uint slot = b * S + lane, cur = tkey[slot];
+                uvec4 hit = subgroupBallot(cur == k);
+                if (subgroupBallotBitCount(hit) != 0u) { r = subgroupShuffle(tval[slot], subgroupBallotFindLSB(hit)); break; }
+                if (subgroupAny(cur == EMPTY)) break;
+                b = (b + 1u) & (nb - 1u);
+            }
+            if (lane == j) res = r;
+        }
+    }
+    if (p.pass_ == 1u && valid) result[g] = res;
+}

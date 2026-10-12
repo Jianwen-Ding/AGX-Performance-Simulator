@@ -57,7 +57,7 @@ The rest of this file is the detailed procedure, for investigating results.
 
 ## Workloads
 
-One hundred and eighty realistic compute kernels, written in GLSL (`spirv/shaders/*.comp`) and compiled to SPIR-V:
+One hundred and eighty-one realistic compute kernels, written in GLSL (`spirv/shaders/*.comp`) and compiled to SPIR-V:
 
 | Workload | Kernel | Stresses |
 |---|---|---|
@@ -241,6 +241,7 @@ One hundred and eighty realistic compute kernels, written in GLSL (`spirv/shader
 | `inflateshm` | `inflate` with the per-length code counts and offsets in shared memory | The same decoder in 2987 instructions (20.5 KiB): code size and dynamic instruction count against latency |
 | `csrbuild` | Graph construction: a Graph500 Kronecker edge list (2^18 vertices, 4.2M edges) into CSR adjacency | Five passes: degree counting with contended device atomics (hubs of 30000 edges), a two-level shared-memory scan, a scatter through atomic cursors |
 | `blackscholes` | Black-Scholes call and put prices for 4M European options (the CUDA sample's kernel, Abramowitz-Stegun CND) | `log2` / `exp2` / `rcp` / `rsqrt_special` per option, 28 bytes of traffic each: memory bound |
+| `warphash` | A warp-cooperative hash table (as in cuCollections / WarpCore): 4M inserts, then 4M lookups (half absent), a bucket of `gl_SubgroupSize` slots probed by a whole subgroup | `subgroupBallot` / `subgroupBallotFindLSB` / `subgroupAny` / `subgroupShuffle` with a data-dependent index, `atomicCompSwap` on a `coherent` buffer, random bucket loads |
 
 Each workload has two sizes:
 

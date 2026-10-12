@@ -2280,6 +2280,32 @@ def w_blackscholes(size, rng):
              {'bytes': 28 * n, 'options': n})
 
 
+def w_warphash(size, rng):
+    n = 1 << 12 if size == 'small' else 1 << 22
+    slots = 1 << int(np.ceil(np.log2(n / 0.5)))                              # load factor 0.5
+    ids = rng.permutation(2 * n).astype(np.uint64)
+    allkeys = u32((ids * 2654435761 + 12345) % (1 << 32))                    # a bijection: distinct
+    assert not (allkeys == 0xFFFFFFFF).any()
+    keys, absent = allkeys[:n], allkeys[n:]
+    vals = u32(rng.integers(0, 0xFFFFFFFF, n, dtype=np.uint64))             # never MISSING
+    present = rng.random(n) < 0.5
+    q = np.where(present, keys[rng.integers(0, n, n)], absent)
+    def check(o):
+        got = o[5].view(np.uint32)[:n]
+        d = dict(zip(keys.tolist(), vals.tolist()))
+        want = np.array([d.get(x, 0xFFFFFFFF) for x in q.tolist()], np.uint32)
+        tk = o[2].view(np.uint32)[:slots]
+        stored = int(np.sum(tk != 0xFFFFFFFF))
+        bad = int(np.count_nonzero(got != want))
+        return bad == 0 and stored == n, {'bad_lookups': bad, 'stored_keys': stored, 'keys': n, 'queries': n,
+                                          'hits': int(np.sum(want != 0xFFFFFFFF)), 'load_factor': round(n / slots, 3)}
+    nwg = (n + 255) // 256
+    return W('warphash', {0: (keys, False), 1: (vals, False), 2: (u32(np.full(slots, 0xFFFFFFFF)), True), 3: (4 * slots, False),
+                          4: (u32(q), False), 5: (4 * n, True)},
+             [(nwg, 1, 1, push(0, n, slots)), (nwg, 1, 1, push(1, n, slots))], check, 256, {'ops': 2 * n},
+             requires=['subgroup_ballot', 'subgroup_shuffle', 'subgroup_vote'])
+
+
 def w_spmv(size, rng):
     rows, cols = (512, 512) if size == 'small' else (1 << 18, 1 << 18)
     nnz = rng.integers(0, 64, rows) * (rng.random(rows) < 0.95)    # some empty rows
@@ -4809,7 +4835,7 @@ WORKLOADS = {'reduce': w_reduce, 'scan': w_scan, 'sgemm': w_sgemm, 'conv2d': w_c
              'aluprobe': w_aluprobe, 'ubopalette': w_ubopalette, 'uboparams': w_uboparams,
              'bindless': w_bindless, 'bindlessu': w_bindlessu,
              # appended only: the input seed is the index in this dict
-             'rle': w_rle, 'huffdec': w_huffdec, 'lookback': w_lookback, 'hll': w_hll, 'tricount': w_tricount, 'sha3': w_sha3, 'stereo': w_stereo, 'viterbi': w_viterbi, 'viterbifix': w_viterbifix, 'shiftfuse': w_shiftfuse, 'bc1enc': w_bc1enc, 'lz4dec': w_lz4dec, 'nttmul': w_nttmul, 'topk': w_topk, 'cellsort': w_cellsort, 'boruvka': w_boruvka, 'biquad': w_biquad, 'edt': w_edt, 'mt19937': w_mt19937, 'bitap': w_bitap, 'cholesky': w_cholesky, 'rsshash': w_rsshash, 'poly1305': w_poly1305, 'crc32c': w_crc32c, 'siphash': w_siphash, 'blake2s': w_blake2s, 'blake2sfast': w_blake2sfast, 'q4gemv': w_q4gemv, 'attndec': w_attndec, 'attndecsplit': w_attndecsplit, 'rmsrope': w_rmsrope, 'q8dot': w_q8dot, 'isp': w_isp, 'contour': w_contour, 'hough': w_hough, 'spmvsg': w_spmvsg, 'varint': w_varint, 'bvhrays': w_bvhrays, 'adamw': w_adamw, 'stream': w_stream, 'motionest': w_motionest, 'jsonidx': w_jsonidx, 'cdc': w_cdc, 'swalign': w_swalign, 'swalignfit': w_swalignfit, 'swalignpad': w_swalignpad, 'jpcolor': w_jpcolor, 'postings': w_postings, 'tpchq6': w_tpchq6, 'ghash': w_ghash, 'scrypt': w_scrypt, 'pngunfilter': w_pngunfilter, 'inflate': w_inflate, 'inflateshm': w_inflateshm, 'csrbuild': w_csrbuild, 'blackscholes': w_blackscholes}
+             'rle': w_rle, 'huffdec': w_huffdec, 'lookback': w_lookback, 'hll': w_hll, 'tricount': w_tricount, 'sha3': w_sha3, 'stereo': w_stereo, 'viterbi': w_viterbi, 'viterbifix': w_viterbifix, 'shiftfuse': w_shiftfuse, 'bc1enc': w_bc1enc, 'lz4dec': w_lz4dec, 'nttmul': w_nttmul, 'topk': w_topk, 'cellsort': w_cellsort, 'boruvka': w_boruvka, 'biquad': w_biquad, 'edt': w_edt, 'mt19937': w_mt19937, 'bitap': w_bitap, 'cholesky': w_cholesky, 'rsshash': w_rsshash, 'poly1305': w_poly1305, 'crc32c': w_crc32c, 'siphash': w_siphash, 'blake2s': w_blake2s, 'blake2sfast': w_blake2sfast, 'q4gemv': w_q4gemv, 'attndec': w_attndec, 'attndecsplit': w_attndecsplit, 'rmsrope': w_rmsrope, 'q8dot': w_q8dot, 'isp': w_isp, 'contour': w_contour, 'hough': w_hough, 'spmvsg': w_spmvsg, 'varint': w_varint, 'bvhrays': w_bvhrays, 'adamw': w_adamw, 'stream': w_stream, 'motionest': w_motionest, 'jsonidx': w_jsonidx, 'cdc': w_cdc, 'swalign': w_swalign, 'swalignfit': w_swalignfit, 'swalignpad': w_swalignpad, 'jpcolor': w_jpcolor, 'postings': w_postings, 'tpchq6': w_tpchq6, 'ghash': w_ghash, 'scrypt': w_scrypt, 'pngunfilter': w_pngunfilter, 'inflate': w_inflate, 'inflateshm': w_inflateshm, 'csrbuild': w_csrbuild, 'blackscholes': w_blackscholes, 'warphash': w_warphash}
 
 
 # ---------------------------------------------------------------------------------------------------------------
@@ -5555,7 +5581,7 @@ def verify_one(name, exp, layout, timing):
 
 # multi-pass workloads whose later dispatches depend on earlier results: verify --timing also predicts them with
 # predict --stateful (each dispatch from the buffers the previous ones left)
-STATEFUL = ('bfs', 'sssp', 'ccl', 'pagerank', 'boruvka', 'lookback', 'cellsort', 'jpcolor', 'csrbuild')
+STATEFUL = ('bfs', 'sssp', 'ccl', 'pagerank', 'boruvka', 'lookback', 'cellsort', 'jpcolor', 'csrbuild', 'warphash')
 
 
 def timing_summary(rows):
