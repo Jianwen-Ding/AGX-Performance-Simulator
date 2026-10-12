@@ -1,7 +1,7 @@
 # Task SPIR-V 8: applications (ray tracer, neural networks, image processing, cellular automaton, graph search,
 # encryption, hashing, text, compression)
 
-**Workloads:** `raytrace`, `mlp`, `sobel`, `life`, `bfs`, `conv_layer`, `hist_eq`, `aes`, `hash_table`, `word_count`, `dct8`, `attention`, `resize`, `median3`, `poisson`, `lbm`, `base64`, `md5`, `gemv`, `levenshtein`, `blur`, `yuv420`, `montecarlo`, `xxhash`, `bloom`, `collatz`, `tridiag`, `merge`, `ccl`, `pagerank`, `skinning`, `strsearch`, `quantize`, `rule110`, `voxel`, `nms`, `sat`, `sssp`, `morton`, `utf8`, `fir`, `composite`, `nqueens`, `lzmatch`, `bitpack`, `perlin`, `adler32`, `sieve`, `gcd`, `dither`, `advect`, `knn`, `csvparse`, `pip`, `lift53`, `chacha20`, `modexp`, `floyd`, `f16pack`, `raster`, `canny`, `secded`, `bicubic`, `dfa`, `b64decode`, `cordic`, `rsenc`, `texfetch`, `texfilter`, `imgerode`, `imgtonemap`, `argmax64`, `minmax64`, `dsum`, `quadmip`, `clustered`, `specblur`, `cullindirect`, `bigsort`, `pushmat`, `mplitmus`, `splat`, `splatfix`, `smembank`, `coalesce`, `atomcontend`, `barriercost`, `aluprobe`, `ubopalette`, `uboparams`, `bindless`, `bindlessu`, `rle`, `huffdec`, `lookback`, `hll`, `tricount`, `sha3`, `stereo`, `viterbi`, `viterbifix`, `shiftfuse`, `bc1enc`, `lz4dec`, `nttmul`, `topk`, `cellsort`, `boruvka`, `biquad`, `edt`, `mt19937`, `bitap`, `cholesky`, `rsshash`, `poly1305`, `crc32c`, `siphash`, `blake2s`, `blake2sfast`, `q4gemv`, `attndec`, `attndecsplit`, `rmsrope`, `q8dot`, `isp`, `contour`, `hough`, `spmvsg`, `varint`, `bvhrays`, `adamw`, `stream`, `motionest`, `jsonidx`, `cdc`. These are recorded and verified by `make asahi-verify` with the others;
+**Workloads:** `raytrace`, `mlp`, `sobel`, `life`, `bfs`, `conv_layer`, `hist_eq`, `aes`, `hash_table`, `word_count`, `dct8`, `attention`, `resize`, `median3`, `poisson`, `lbm`, `base64`, `md5`, `gemv`, `levenshtein`, `blur`, `yuv420`, `montecarlo`, `xxhash`, `bloom`, `collatz`, `tridiag`, `merge`, `ccl`, `pagerank`, `skinning`, `strsearch`, `quantize`, `rule110`, `voxel`, `nms`, `sat`, `sssp`, `morton`, `utf8`, `fir`, `composite`, `nqueens`, `lzmatch`, `bitpack`, `perlin`, `adler32`, `sieve`, `gcd`, `dither`, `advect`, `knn`, `csvparse`, `pip`, `lift53`, `chacha20`, `modexp`, `floyd`, `f16pack`, `raster`, `canny`, `secded`, `bicubic`, `dfa`, `b64decode`, `cordic`, `rsenc`, `texfetch`, `texfilter`, `imgerode`, `imgtonemap`, `argmax64`, `minmax64`, `dsum`, `quadmip`, `clustered`, `specblur`, `cullindirect`, `bigsort`, `pushmat`, `mplitmus`, `splat`, `splatfix`, `smembank`, `coalesce`, `atomcontend`, `barriercost`, `aluprobe`, `ubopalette`, `uboparams`, `bindless`, `bindlessu`, `rle`, `huffdec`, `lookback`, `hll`, `tricount`, `sha3`, `stereo`, `viterbi`, `viterbifix`, `shiftfuse`, `bc1enc`, `lz4dec`, `nttmul`, `topk`, `cellsort`, `boruvka`, `biquad`, `edt`, `mt19937`, `bitap`, `cholesky`, `rsshash`, `poly1305`, `crc32c`, `siphash`, `blake2s`, `blake2sfast`, `q4gemv`, `attndec`, `attndecsplit`, `rmsrope`, `q8dot`, `isp`, `contour`, `hough`, `spmvsg`, `varint`, `bvhrays`, `adamw`, `stream`, `motionest`, `jsonidx`, `cdc`, `swalign`, `swalignfit`, `swalignpad`. These are recorded and verified by `make asahi-verify` with the others;
 they are **PENDING** until then. The detailed procedure is in `tasks/spirv-workloads.md`.
 
 ## Why these
@@ -147,6 +147,7 @@ reference.
 | `motionest` | 1280×720 frames (3600 blocks), the second panned by (5, -3) with noise | Every block's (offset, SAD) equal to a numpy full search with the same tie order; `true_motion_found` (the fraction of blocks whose answer is the pan) is 1.0 at both sizes on lavapipe and the simulator |
 | `jsonidx` | 4096 documents of 8 KiB (32 MiB) of JSON lines, strings full of escaped quotes, backslash runs and structural characters | Every chunk's mask equal to a vectorised numpy reference, itself checked against a byte-at-a-time state machine at the small size |
 | `cdc` | 64 regions of 1 MiB (64 MiB): versions of six files, each with a few insertions, deletions and overwrites | Candidate masks and every region's chunk ends equal to the reference, whose gear hash is checked against a byte-at-a-time loop at the small size |
+| `swalign`, `swalignfit`, `swalignpad` | A random 128-base read; 16384 random windows of 256 bases, 1 in 16 holding a copy with ~6% substitutions and an indel | Every window's best score equal to a vectorised numpy Gotoh (clamped E / F), itself checked against the textbook recursion at the small size; every planted copy scores at least half the perfect score, no random window does |
 
 ## Offline sanity checks (not hardware verification)
 
@@ -660,3 +661,34 @@ reference.
         gets 120 of 4096 candidate words wrong, at both Mesa versions.
       - Under `AGX_BFEIL_MASKED_SHIFT32=1` everything passes.
       - This is the most ordinary byte-unpacking idiom there is, which adds to the case for B.
+71. **`swalign`, `swalignfit`, `swalignpad`: Smith-Waterman alignment and the shared-memory occupancy cliff.**
+    - Local alignment with affine gaps (match +2, mismatch -3, gap of k bases -(5 + 2k)), one reference window per
+      invocation, as GPU aligners do for short sequences. Each cell is a handful of integer max / add operations
+      and one shared-memory load and store of the packed H / E column.
+    - E and F are stored clamped at 0: H only ever uses max(0, E), and the clamped recursion gives the same H. The
+      reference uses the same form, and the small size checks it against the textbook recursion.
+    - At the large size every planted read is found (score at least 128 of a perfect 256). No random window gets
+      there: the best scores 27-33.
+    - The three:
+      - `swalign` keeps the query in shared memory: 32768 + 512 = 33280 bytes per workgroup. The model's 64 KiB per
+        core then holds one workgroup, two SIMD groups.
+      - `swalignfit` reads the query from a uniform buffer, a word of 4 bases at a time (constant shifts, the inner
+        loop unrolled by 4): exactly 32768 bytes, two workgroups per core.
+      - `swalignpad` is `swalignfit` with 128 unused words added to the shared array by a specialization constant:
+        33280 bytes. Its compiled main program is byte for byte `swalignfit`'s.
+    - Predicted (busiest core, cycles per wave):
+
+      | | shared bytes | workgroups per core | waves | Mcycles per wave | ms |
+      |---|---|---|---|---|---|
+      | `swalign` | 33280 | 1 | 7 | 14.4 | 72.2 |
+      | `swalignpad` | 33280 | 1 | 7 | 11.3 | 56.8 |
+      | `swalignfit` | 32768 | 2 | 4 | 11.7 | 33.5 |
+
+      - `swalignpad` against `swalignfit` is occupancy alone. A second workgroup costs almost nothing per wave, so
+        the model sees each core latency bound with two SIMD groups.
+      - `swalign` against `swalignpad` is the code: per-cell shared-memory query loads against an unrolled
+        uniform-buffer word.
+    - On the M2, `swalignpad` / `swalignfit` measures whether 512 bytes of shared memory halve the occupancy, at
+      identical code. That tests the 64 KiB-per-core rule (`tg_capacity`, `rust/src/dispatch.rs`) at its cliff.
+    - All three use `bitfieldExtract` with an explicitly masked offset, or constant shifts, so none depends on
+      question 1. All pass on the simulator at both Mesa versions under both semantics, and on lavapipe.

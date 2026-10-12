@@ -1,0 +1,45 @@
+#version 450
+// Smith-Waterman local alignment with affine gaps (Gotoh), the kernel of DNA read mapping and sequence search:
+// the best local alignment score of one query read against every reference window, one window per invocation
+// (inter-task parallelism, as CUDASW++ does for short sequences). Scores: match +2, mismatch -3, a gap of k bases
+// -(5 + 2 k). The window is the outer loop; the query column of H and E (horizontal gap) lives in shared memory,
+// packed as two 16-bit values, both clamped at 0 (H only ever uses max(0, E), and a clamped E gives the same).
+// swalignfit.comp is the same alignment with the query in a uniform buffer, so that the shared memory is exactly
+// 32 KiB instead of 32.5 KiB: two workgroups per core instead of one (64 KiB per core).
+layout(local_size_x = 64) in;
+layout(std430, binding = 0) readonly buffer Q { uint qry[]; };     // query bases (0-3), 4 per word
+layout(std430, binding = 1) readonly buffer R { uint ref_[]; };    // windows of p.len bases, 4 per word
+layout(std430, binding = 2) writeonly buffer S { uint best[]; };
+layout(push_constant) uniform P { uint m; uint len; uint nwin; } p;
+shared uint q[128];
+shared uint col[64 * 128];                                          // per invocation: H | E << 16, for each query base
+
+const int MATCH = 2, MISMATCH = -3, OPEN = 7, EXT = 2;
+
+void main() {
+    uint l = gl_LocalInvocationID.x, w = gl_GlobalInvocationID.x;
+    for (uint i = l; i < p.m; i += 64u)
+        q[i] = bitfieldExtract(qry[i >> 2], int((i & 3u) << 3), 8);   // a masked offset Mesa keeps (note 37)
+    for (uint i = 0u; i < p.m; i++)
+        col[l * 128u + i] = 0u;
+    barrier();
+    if (w >= p.nwin) return;
+    int top = 0;
+    for (uint j = 0u; j < p.len; j++) {
+        uint idx = w * p.len + j;
+        uint d = bitfieldExtract(ref_[idx >> 2], int((idx & 3u) << 3), 8);
+        int diag = 0, F = 0, up = 0;                                 // H(i-1, j-1), F(i-1, j), H(i-1, j)
+        for (uint i = 0u; i < p.m; i++) {
+            uint c = col[l * 128u + i];
+            int hl = int(c & 0xffffu), el = int(c >> 16);            // H(i, j-1), E(i, j-1)
+            int E = max(max(el - EXT, hl - OPEN), 0);
+            F = max(max(F - EXT, up - OPEN), 0);
+            int H = max(max(diag + (q[i] == d ? MATCH : MISMATCH), 0), max(E, F));
+            col[l * 128u + i] = uint(H) | (uint(E) << 16);
+            top = max(top, H);
+            diag = hl;
+            up = H;
+        }
+    }
+    best[w] = uint(top);
+}

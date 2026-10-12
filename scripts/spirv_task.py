@@ -1864,6 +1864,78 @@ def w_cdc(size, rng):
              {'bytes': n})
 
 
+def sw_ref(q, R):
+    """swalign.comp: best Smith-Waterman (Gotoh) score of query q against each row of R, vectorised over rows"""
+    m, (nw, L) = len(q), R.shape
+    H = np.zeros((m, nw), np.int32); E = np.zeros((m, nw), np.int32); top = np.zeros(nw, np.int32)
+    for j in range(L):
+        d = R[:, j]; diag = np.zeros(nw, np.int32); F = np.zeros(nw, np.int32); up = np.zeros(nw, np.int32)
+        for i in range(m):
+            hl = H[i].copy()
+            E[i] = np.maximum(np.maximum(E[i] - 2, hl - 7), 0)
+            F = np.maximum(np.maximum(F - 2, up - 7), 0)
+            h = np.maximum(np.maximum(diag + np.where(d == q[i], 2, -3), 0), np.maximum(E[i], F))
+            H[i] = h; top = np.maximum(top, h); diag = hl; up = h
+    return top
+
+
+def sw_slow(q, r):
+    """textbook Gotoh with unclamped E / F and -inf borders, for one pair (cross-check of the clamped version)"""
+    m, n, NEG = len(q), len(r), -10 ** 9
+    H = [[0] * (n + 1) for _ in range(m + 1)]; E = [[NEG] * (n + 1) for _ in range(m + 1)]; F = [[NEG] * (n + 1) for _ in range(m + 1)]
+    best = 0
+    for i in range(1, m + 1):
+        for j in range(1, n + 1):
+            E[i][j] = max(E[i][j - 1] - 2, H[i][j - 1] - 7)
+            F[i][j] = max(F[i - 1][j] - 2, H[i - 1][j] - 7)
+            H[i][j] = max(0, H[i - 1][j - 1] + (2 if q[i - 1] == r[j - 1] else -3), E[i][j], F[i][j])
+            best = max(best, H[i][j])
+    return best
+
+
+def w_swalign(size, rng, fit=False):
+    m, L, nw = (32, 64, 128) if size == 'small' else (128, 256, 16384)
+    q = rng.integers(0, 4, m).astype(np.uint8)
+    R = rng.integers(0, 4, (nw, L)).astype(np.uint8)
+    planted = rng.random(nw) < 1 / 16                                       # windows holding a mutated copy of the read
+    for w in np.flatnonzero(planted):
+        r = q.copy()
+        sub = rng.random(m) < 0.06
+        r[sub] = (r[sub] + rng.integers(1, 4, int(sub.sum()))) % 4            # ~6% substitutions
+        k = int(rng.integers(4, m - 4))
+        r = np.concatenate([r[:k], rng.integers(0, 4, int(rng.integers(0, 3))).astype(np.uint8), r[k + int(rng.integers(0, 3)):]])
+        at = int(rng.integers(0, L - len(r)))                                # plus an indel of up to 2 bases each way
+        R[w, at:at + len(r)] = r
+    ref = sw_ref(q, R)
+    if size == 'small':
+        for w in range(8):
+            assert sw_slow(list(q), list(R[w])) == ref[w], 'clamped Gotoh disagrees with the textbook recursion'
+    def check(o):
+        got = o[2].view(np.uint32)[:nw].astype(np.int64)
+        bad = int(np.count_nonzero(got != ref))
+        thr = m                                                              # half the perfect score 2 m
+        return bad == 0, {'bad_windows': bad, 'windows': nw, 'planted': int(planted.sum()),
+                          'planted_found': round(float(np.mean(ref[planted] >= thr)), 4),
+                          'false_hits': int(np.sum(ref[~planted] >= thr)), 'max_random_score': int(ref[~planted].max())}
+    pk = lambda a: u32(np.concatenate([a, np.zeros(-len(a) % 4, np.uint8)]).view(np.uint32))
+    if fit:                                                                  # the query as a 128-byte uniform buffer
+        return W('swalignfit', {0: (u32(np.resize(np.concatenate([pk(q), np.zeros(32, np.uint32)]), 32)), False), 1: (pk(R.ravel()), False),
+                                2: (4 * nw, True)}, [((nw + 63) // 64, 1, 1, push(m, L, nw))], check, 64, {'cells': m * L * nw}, uniform=[0])
+    return W('swalign', {0: (pk(q), False), 1: (pk(R.ravel()), False), 2: (4 * nw, True)}, [((nw + 63) // 64, 1, 1, push(m, L, nw))],
+             check, 64, {'cells': m * L * nw})
+
+
+def w_swalignfit(size, rng):
+    return w_swalign(size, rng, fit=True)
+
+
+def w_swalignpad(size, rng):
+    """swalignfit's code with 512 bytes of unused shared memory (33280 bytes, as swalign): occupancy alone"""
+    w = w_swalign(size, rng, fit=True)
+    w.specs = {0: 128}
+    return w
+
+
 def w_spmv(size, rng):
     rows, cols = (512, 512) if size == 'small' else (1 << 18, 1 << 18)
     nnz = rng.integers(0, 64, rows) * (rng.random(rows) < 0.95)    # some empty rows
@@ -4393,7 +4465,7 @@ WORKLOADS = {'reduce': w_reduce, 'scan': w_scan, 'sgemm': w_sgemm, 'conv2d': w_c
              'aluprobe': w_aluprobe, 'ubopalette': w_ubopalette, 'uboparams': w_uboparams,
              'bindless': w_bindless, 'bindlessu': w_bindlessu,
              # appended only: the input seed is the index in this dict
-             'rle': w_rle, 'huffdec': w_huffdec, 'lookback': w_lookback, 'hll': w_hll, 'tricount': w_tricount, 'sha3': w_sha3, 'stereo': w_stereo, 'viterbi': w_viterbi, 'viterbifix': w_viterbifix, 'shiftfuse': w_shiftfuse, 'bc1enc': w_bc1enc, 'lz4dec': w_lz4dec, 'nttmul': w_nttmul, 'topk': w_topk, 'cellsort': w_cellsort, 'boruvka': w_boruvka, 'biquad': w_biquad, 'edt': w_edt, 'mt19937': w_mt19937, 'bitap': w_bitap, 'cholesky': w_cholesky, 'rsshash': w_rsshash, 'poly1305': w_poly1305, 'crc32c': w_crc32c, 'siphash': w_siphash, 'blake2s': w_blake2s, 'blake2sfast': w_blake2sfast, 'q4gemv': w_q4gemv, 'attndec': w_attndec, 'attndecsplit': w_attndecsplit, 'rmsrope': w_rmsrope, 'q8dot': w_q8dot, 'isp': w_isp, 'contour': w_contour, 'hough': w_hough, 'spmvsg': w_spmvsg, 'varint': w_varint, 'bvhrays': w_bvhrays, 'adamw': w_adamw, 'stream': w_stream, 'motionest': w_motionest, 'jsonidx': w_jsonidx, 'cdc': w_cdc}
+             'rle': w_rle, 'huffdec': w_huffdec, 'lookback': w_lookback, 'hll': w_hll, 'tricount': w_tricount, 'sha3': w_sha3, 'stereo': w_stereo, 'viterbi': w_viterbi, 'viterbifix': w_viterbifix, 'shiftfuse': w_shiftfuse, 'bc1enc': w_bc1enc, 'lz4dec': w_lz4dec, 'nttmul': w_nttmul, 'topk': w_topk, 'cellsort': w_cellsort, 'boruvka': w_boruvka, 'biquad': w_biquad, 'edt': w_edt, 'mt19937': w_mt19937, 'bitap': w_bitap, 'cholesky': w_cholesky, 'rsshash': w_rsshash, 'poly1305': w_poly1305, 'crc32c': w_crc32c, 'siphash': w_siphash, 'blake2s': w_blake2s, 'blake2sfast': w_blake2sfast, 'q4gemv': w_q4gemv, 'attndec': w_attndec, 'attndecsplit': w_attndecsplit, 'rmsrope': w_rmsrope, 'q8dot': w_q8dot, 'isp': w_isp, 'contour': w_contour, 'hough': w_hough, 'spmvsg': w_spmvsg, 'varint': w_varint, 'bvhrays': w_bvhrays, 'adamw': w_adamw, 'stream': w_stream, 'motionest': w_motionest, 'jsonidx': w_jsonidx, 'cdc': w_cdc, 'swalign': w_swalign, 'swalignfit': w_swalignfit, 'swalignpad': w_swalignpad}
 
 
 # ---------------------------------------------------------------------------------------------------------------

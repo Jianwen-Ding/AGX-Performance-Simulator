@@ -57,7 +57,7 @@ The rest of this file is the detailed procedure, for investigating results.
 
 ## Workloads
 
-One hundred and sixty-seven realistic compute kernels, written in GLSL (`spirv/shaders/*.comp`) and compiled to SPIR-V:
+One hundred and seventy realistic compute kernels, written in GLSL (`spirv/shaders/*.comp`) and compiled to SPIR-V:
 
 | Workload | Kernel | Stresses |
 |---|---|---|
@@ -228,6 +228,9 @@ One hundred and sixty-seven realistic compute kernels, written in GLSL (`spirv/s
 | `motionest` | Full-search block motion estimation (an H.264 / HEVC encoder's costliest stage): 16×16 blocks, ±16 pixel window in shared memory, best SAD with a unique tie order | Two shared-memory loads per absolute difference, 1089 candidates over 256 invocations (the fifth round has 65 lanes busy), tree min-reduction |
 | `jsonidx` | JSON structural indexing (stage 1 of simdjson-style parsers): `{ } [ ] : ,` outside strings, escaped quotes and backslash runs handled, one 8 KiB document per workgroup | Bit masks per 32-byte chunk, two workgroup scans for the carries between chunks (a scan of carry functions, then an xor scan), 32-step loops unrolled to straight-line code |
 | `cdc` | Content-defined chunking for deduplication (FastCDC's gear rolling hash, greedy 2-64 KiB chunks per 1 MiB region) | A parallel hash pass with 31 bytes of history per 32-byte word, then a serial data-dependent pass (one invocation per region); depends on the `bfeil` question (note 37) |
+| `swalign` | Smith-Waterman local alignment with affine gaps (Gotoh): a 128-base read against 16384 reference windows of 256 bases, one window per invocation | A serial 32768-cell DP per invocation, the query column in 32 KiB of shared memory per workgroup plus the query (32.5 KiB): one workgroup per core |
+| `swalignfit` | `swalign` with the query in a uniform buffer (read a word at a time) | Shared memory exactly 32 KiB: two workgroups per core, the occupancy cliff at half of the 64 KiB per core |
+| `swalignpad` | `swalignfit`'s code (the same main program) with 512 bytes of unused shared memory, by a specialization constant | 33280 bytes, one workgroup per core: occupancy alone, at identical code |
 
 Each workload has two sizes:
 

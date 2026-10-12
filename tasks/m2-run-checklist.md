@@ -36,6 +36,8 @@ where each answer appears, and what to change for each outcome. The details are 
 | `motionest` (note 68) | shared-memory load throughput in a real encoder kernel, with an idle-lane tail | 4.92 ms |
 | `jsonidx` (note 69) | per-byte bit manipulation plus shared-memory scans: a compute-bound text-processing kernel | 333 µs (≈ 100 GB/s) |
 | `cdc` (note 70) | a parallel hash pass, then a serial greedy pass with one invocation per 1 MiB region | 1.84 ms + 4.12 ms |
+| `swalignpad` vs `swalignfit` (note 71) | the shared-memory occupancy cliff: 33280 against 32768 bytes per workgroup, same compiled code | 56.8 ms vs 33.5 ms |
+| `swalign` (note 71) | the same alignment with the query in shared memory | 72.2 ms |
 | `nms` (note 10) | a known under-prediction: work grows with the workgroup index | low |
 
 ## Results that must hold whatever the timings
