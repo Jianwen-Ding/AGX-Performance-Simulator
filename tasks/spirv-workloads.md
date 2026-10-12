@@ -54,7 +54,7 @@ The rest of this file is the detailed procedure, for investigating results.
 
 ## Workloads
 
-One hundred and fifty-seven realistic compute kernels, written in GLSL (`spirv/shaders/*.comp`) and compiled to SPIR-V:
+One hundred and fifty-eight realistic compute kernels, written in GLSL (`spirv/shaders/*.comp`) and compiled to SPIR-V:
 
 | Workload | Kernel | Stresses |
 |---|---|---|
@@ -215,6 +215,7 @@ One hundred and fifty-seven realistic compute kernels, written in GLSL (`spirv/s
 | `rmsrope` | Fused RMSNorm and rotary position embedding of 2048 tokens' 4096-element hidden vectors | `subgroupAdd` reduction, `inversesqrt`, `pow`, `sin` / `cos` of angles up to 4095 rad (outside the range where Vulkan specifies their precision) |
 | `q8dot` | int8 GEMV with packed dot products (`OpSDotKHR` on 4×8-bit words; llama.cpp's Q8 integer path), per-block fp32 scales | `VK_KHR_shader_integer_dot_product`, which AGX lowers to byte sign-extension (`bfi` / `asr`) and `imadd`; requires `integer_dot_product` |
 | `isp` | Camera ISP: 12-bit RGGB raw → black level, white balance, bilinear demosaic, 3×3 colour matrix, gamma LUT → RGBA8 (12 MP) | 16-bit storage loads, 13 overlapping neighbour reads per pixel, CFA-position branching, a 4096-entry shared-memory table; all integer, bit-exact |
+| `contour` | Marching-squares isolines of an integer height map, saddles resolved by the cell centre, 16.16 fixed-point endpoints | Branchy 16-case classification, 64-bit integer division, sparse output appended with `atomicAdd`, per-workgroup shared-memory histogram |
 
 Each workload has two sizes:
 

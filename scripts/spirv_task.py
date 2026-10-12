@@ -1398,6 +1398,56 @@ def w_isp(size, rng):
              requires=['storage_buffer_16bit'])
 
 
+def contour_ref(hgt, iso):
+    """contour.comp in numpy: (sorted segment rows [n, 4] uint32, per-case cell counts [16])"""
+    H, Wd = hgt.shape
+    c0 = hgt[:-1, :-1].astype(np.int64); c1 = hgt[:-1, 1:].astype(np.int64)
+    c3 = hgt[1:, :-1].astype(np.int64); c2 = hgt[1:, 1:].astype(np.int64)
+    cs = (c0 >= iso) * 1 + (c1 >= iso) * 2 + (c2 >= iso) * 4 + (c3 >= iso) * 8
+    yy, xx = np.mgrid[0:H - 1, 0:Wd - 1].astype(np.int64)
+    centre = ((c0 + c1 + c2 + c3) >> 2) >= iso
+    def tdiv(num, den):                                                   # C-style truncation (both positive here)
+        return np.sign(num) * np.sign(den) * (np.abs(num) // np.maximum(np.abs(den), 1))
+    def pt(e):
+        a, b = [(c0, c1), (c1, c2), (c3, c2), (c0, c3)][e]
+        bx = xx + (1 if e == 1 else 0); by = yy + (1 if e == 2 else 0)
+        t = tdiv((iso - a) * 65536, b - a)
+        horiz = e in (0, 2)
+        return (np.where(horiz, (bx << 16) + t, bx << 16), np.where(horiz, by << 16, (by << 16) + t))
+    P = [pt(e) for e in range(4)]
+    crossed = [((cs ^ (cs >> 1)) & 1) == 1, (((cs >> 1) ^ (cs >> 2)) & 1) == 1, (((cs >> 3) ^ (cs >> 2)) & 1) == 1, ((cs ^ (cs >> 3)) & 1) == 1]
+    segs = []
+    saddle = (cs == 5) | (cs == 10)
+    pairA = (cs == 5) == centre
+    for (ea, eb), sel in (((0, 1), saddle & pairA), ((2, 3), saddle & pairA), ((0, 3), saddle & ~pairA), ((1, 2), saddle & ~pairA)):
+        segs.append(np.stack([P[ea][0][sel], P[ea][1][sel], P[eb][0][sel], P[eb][1][sel]], 1))
+    simple = ~saddle & (cs != 0) & (cs != 15)
+    for ea in range(4):
+        for eb in range(ea + 1, 4):
+            sel = simple & crossed[ea] & crossed[eb]
+            segs.append(np.stack([P[ea][0][sel], P[ea][1][sel], P[eb][0][sel], P[eb][1][sel]], 1))
+    allseg = np.concatenate(segs).astype(np.uint32)
+    return allseg[np.lexsort(allseg.T[::-1])], np.bincount(cs.ravel(), minlength=16)
+
+
+def w_contour(size, rng):
+    Wd, H = (64, 48) if size == 'small' else (2048, 2048)
+    ys, xs = np.mgrid[0:H, 0:Wd].astype(np.float64)
+    hgt = 1000 * np.sin(xs / 37) * np.cos(ys / 53) + 600 * np.sin((xs + 2 * ys) / 91)    # terrain, millimetres
+    hgt = np.rint(hgt + rng.normal(0, 20 if size == 'large' else 300, hgt.shape)).astype(np.int32)   # small: rough enough for saddles
+    iso = 250
+    cap = 4 * (Wd - 1) * (H - 1)
+    def check(o):
+        n = int(o[1].view(np.uint32)[0]); cases = o[1].view(np.uint32)[1:17].astype(np.int64)
+        got = o[2].view(np.uint32)[:4 * min(n, cap)].reshape(-1, 4)
+        got = got[np.lexsort(got.T[::-1])]
+        ref, rc = contour_ref(hgt, iso)
+        ok = n == len(ref) and np.array_equal(got, ref) and np.array_equal(cases, rc)
+        return bool(ok), {'segments': n, 'expected': int(len(ref)), 'saddles': int(rc[5] + rc[10]), 'cases_ok': bool(np.array_equal(cases, rc))}
+    return W('contour', {0: (hgt, False), 1: (4 * 17, True), 2: (16 * cap, True)},
+             [((Wd + 15) // 16, (H + 15) // 16, 1, push(Wd, H, iso, cap))], check, (16, 16, 1), {'items': Wd * H})
+
+
 def w_spmv(size, rng):
     rows, cols = (512, 512) if size == 'small' else (1 << 18, 1 << 18)
     nnz = rng.integers(0, 64, rows) * (rng.random(rows) < 0.95)    # some empty rows
@@ -3927,7 +3977,7 @@ WORKLOADS = {'reduce': w_reduce, 'scan': w_scan, 'sgemm': w_sgemm, 'conv2d': w_c
              'aluprobe': w_aluprobe, 'ubopalette': w_ubopalette, 'uboparams': w_uboparams,
              'bindless': w_bindless, 'bindlessu': w_bindlessu,
              # appended only: the input seed is the index in this dict
-             'rle': w_rle, 'huffdec': w_huffdec, 'lookback': w_lookback, 'hll': w_hll, 'tricount': w_tricount, 'sha3': w_sha3, 'stereo': w_stereo, 'viterbi': w_viterbi, 'viterbifix': w_viterbifix, 'shiftfuse': w_shiftfuse, 'bc1enc': w_bc1enc, 'lz4dec': w_lz4dec, 'nttmul': w_nttmul, 'topk': w_topk, 'cellsort': w_cellsort, 'boruvka': w_boruvka, 'biquad': w_biquad, 'edt': w_edt, 'mt19937': w_mt19937, 'bitap': w_bitap, 'cholesky': w_cholesky, 'rsshash': w_rsshash, 'poly1305': w_poly1305, 'crc32c': w_crc32c, 'siphash': w_siphash, 'blake2s': w_blake2s, 'blake2sfast': w_blake2sfast, 'q4gemv': w_q4gemv, 'attndec': w_attndec, 'attndecsplit': w_attndecsplit, 'rmsrope': w_rmsrope, 'q8dot': w_q8dot, 'isp': w_isp}
+             'rle': w_rle, 'huffdec': w_huffdec, 'lookback': w_lookback, 'hll': w_hll, 'tricount': w_tricount, 'sha3': w_sha3, 'stereo': w_stereo, 'viterbi': w_viterbi, 'viterbifix': w_viterbifix, 'shiftfuse': w_shiftfuse, 'bc1enc': w_bc1enc, 'lz4dec': w_lz4dec, 'nttmul': w_nttmul, 'topk': w_topk, 'cellsort': w_cellsort, 'boruvka': w_boruvka, 'biquad': w_biquad, 'edt': w_edt, 'mt19937': w_mt19937, 'bitap': w_bitap, 'cholesky': w_cholesky, 'rsshash': w_rsshash, 'poly1305': w_poly1305, 'crc32c': w_crc32c, 'siphash': w_siphash, 'blake2s': w_blake2s, 'blake2sfast': w_blake2sfast, 'q4gemv': w_q4gemv, 'attndec': w_attndec, 'attndecsplit': w_attndecsplit, 'rmsrope': w_rmsrope, 'q8dot': w_q8dot, 'isp': w_isp, 'contour': w_contour}
 
 
 # ---------------------------------------------------------------------------------------------------------------
