@@ -1,7 +1,7 @@
 # Task SPIR-V 8: applications (ray tracer, neural networks, image processing, cellular automaton, graph search,
 # encryption, hashing, text, compression)
 
-**Workloads:** `raytrace`, `mlp`, `sobel`, `life`, `bfs`, `conv_layer`, `hist_eq`, `aes`, `hash_table`, `word_count`, `dct8`, `attention`, `resize`, `median3`, `poisson`, `lbm`, `base64`, `md5`, `gemv`, `levenshtein`, `blur`, `yuv420`, `montecarlo`, `xxhash`, `bloom`, `collatz`, `tridiag`, `merge`, `ccl`, `pagerank`, `skinning`, `strsearch`, `quantize`, `rule110`, `voxel`, `nms`, `sat`, `sssp`, `morton`, `utf8`, `fir`, `composite`, `nqueens`, `lzmatch`, `bitpack`, `perlin`, `adler32`, `sieve`, `gcd`, `dither`, `advect`, `knn`, `csvparse`, `pip`, `lift53`, `chacha20`, `modexp`, `floyd`, `f16pack`, `raster`, `canny`, `secded`, `bicubic`, `dfa`, `b64decode`, `cordic`, `rsenc`. These are recorded and verified by `make asahi-verify` with the others;
+**Workloads:** `raytrace`, `mlp`, `sobel`, `life`, `bfs`, `conv_layer`, `hist_eq`, `aes`, `hash_table`, `word_count`, `dct8`, `attention`, `resize`, `median3`, `poisson`, `lbm`, `base64`, `md5`, `gemv`, `levenshtein`, `blur`, `yuv420`, `montecarlo`, `xxhash`, `bloom`, `collatz`, `tridiag`, `merge`, `ccl`, `pagerank`, `skinning`, `strsearch`, `quantize`, `rule110`, `voxel`, `nms`, `sat`, `sssp`, `morton`, `utf8`, `fir`, `composite`, `nqueens`, `lzmatch`, `bitpack`, `perlin`, `adler32`, `sieve`, `gcd`, `dither`, `advect`, `knn`, `csvparse`, `pip`, `lift53`, `chacha20`, `modexp`, `floyd`, `f16pack`, `raster`, `canny`, `secded`, `bicubic`, `dfa`, `b64decode`, `cordic`, `rsenc`, `texfetch`, `texfilter`. These are recorded and verified by `make asahi-verify` with the others;
 they are **PENDING** until then. The detailed procedure is in `tasks/spirv-workloads.md`.
 
 ## Why these
@@ -79,6 +79,8 @@ reference.
 | `b64decode` | Base64 decoding of 8 MiB of text with corrupted characters, padding at the end | Exact bytes and per-quantum validity flags (against Python's `base64`) |
 | `cordic` | Q2.30 fixed-point CORDIC sine / cosine of 2^22 angles over [-π, π], 30 shift-and-add steps | Exact against the same integer steps in numpy; within 2e-8 of `sin` / `cos` |
 | `rsenc` | RS(255, 223) Reed-Solomon parity of 32768 codewords over GF(2^8), log / antilog tables in shared memory | Exact parity; sampled codewords have zero syndromes |
+| `texfetch` | 4M `texelFetch` reads of a 2048² r32f texture through the texture unit (`texture_sample` / `texture_load` in the AGX code) | Bit-exact, signed zero and extreme values included |
+| `texfilter` | 4M bilinear samples of a 1024² RGBA8 texture (ramps, checker, noise) with clamp-to-edge borders | Within 2/255 of the Vulkan definition at the sub-texel precision that fits best; that precision is reported |
 
 ## Offline sanity checks (not hardware verification)
 
@@ -141,3 +143,10 @@ reference.
       `unpackHalf2x16(packHalf2x16(v))` back to `v` for one component, which is not a correct round trip.
 16. `raster`, `canny` and `secded` are exact and must PASS; `bicubic` is fp32 (CLOSE or PASS).
 17. `dfa`, `b64decode`, `cordic` and `rsenc` are exact and must PASS.
+18. **`texfetch` and `texfilter` are the first workloads that use the texture unit.**
+    - `vk_run` binds them as combined image samplers, uploaded through a staging buffer.
+    - The simulator does not execute `texture_sample`, so verification can only compare the GPU with the reference.
+      Their status is UNSIM when that matches, and FAIL when it does not. `sim` and `predict` report them as
+      unsupported.
+    - Record `texfilter`'s `best_subtexel_bits` (lavapipe: 8). It is the M2 texture unit's interpolation precision,
+      and the first measured fact for a future texture model.

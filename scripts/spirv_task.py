@@ -41,8 +41,11 @@ def u32(a): return np.ascontiguousarray(a, dtype=np.uint32)
 class W:
     """a workload instance: buffers {binding: (init array or byte size, read back?)}, dispatches [(gx, gy, gz, push)],
     check(outputs) -> (ok, detail), metrics for throughput"""
-    def __init__(self, shader, buffers, dispatches, check, wg, work=None, images=None):
+    def __init__(self, shader, buffers, dispatches, check, wg, work=None, images=None, textures=None):
         self.shader, self.buffers, self.dispatches, self.check, self.wg, self.work = shader, buffers, dispatches, check, wg, work or {}
+        # sampled textures {binding: (texels, width, height, 'rgba8' | 'r32f', 'nearest' | 'linear')}: read through the
+        # GPU's texture unit, which the simulator does not model (sim / predict report such workloads as unsupported)
+        self.textures = textures or {}
         self.images = images or []       # [(binding, width, height, 'rgba8' | 'gray8' | 'bits')]: written as .ppm / .pgm for viewing
 
 
@@ -60,6 +63,18 @@ def write_images(w, outs, out_dir, tag):
             (Path(out_dir) / f'{tag}{b}.pgm').write_bytes(f'P5 {wd} {ht} 255\n'.encode() + px.tobytes())
         else:
             (Path(out_dir) / f'{tag}{b}.pgm').write_bytes(f'P5 {wd} {ht} 255\n'.encode() + raw[:wd * ht].tobytes())
+
+
+def texture_spec(w, d):
+    """spec lines for the workload's textures, their texels written to d/tex<binding>.bin"""
+    lines = []
+    for b, (texels, wd, ht, fmt, filt) in sorted(w.textures.items()):
+        p = Path(d) / f'tex{b}.bin'; p.write_bytes(np.ascontiguousarray(texels).tobytes())
+        lines.append(f'texture {b} {wd} {ht} {fmt} {filt} {p}')
+    return lines
+
+
+NO_TEXTURE_UNIT = 'texture sampling is not modelled by the simulator (hardware verification only)'
 
 
 def wg_of(w, name):
@@ -2375,6 +2390,51 @@ def w_rsenc(size, rng):
     return W('rsenc', {0: (msg, False), 1: (tabs, False), 2: (32 * n, True)}, [((n + 63) // 64, 1, 1, push(n))], check, 64, {'codewords': n})
 
 
+def w_texfetch(size, rng):
+    tw, th, n = (64, 32, 4096) if size == 'small' else (2048, 2048, 1 << 22)
+    texels = f32(rng.standard_normal((th, tw)) * 100)
+    texels[0, :4] = [0.0, -0.0, 3.4e38, 1.1754944e-38]                             # signed zero, near-max, smallest normal
+    coords = np.stack([rng.integers(0, tw, n), rng.integers(0, th, n)], 1).astype(np.int32)
+    def check(o):
+        got = o[2].view(np.uint32)[:n]
+        ref = texels[coords[:, 1], coords[:, 0]].view(np.uint32)
+        return np.array_equal(got, ref), {'mismatches': int(np.sum(got != ref))}
+    return W('texfetch', {1: (coords, False), 2: (4 * n, True)}, [((n + 255) // 256, 1, 1, push(n))], check, 256, {'fetches': n},
+             textures={0: (texels, tw, th, 'r32f', 'nearest')})
+
+
+def bilinear_ref(tex, uv, bits):
+    """Vulkan linear filtering with clamp-to-edge; weights quantized to `bits` of sub-texel precision (None: exact)"""
+    th, tw = tex.shape[:2]
+    x, y = uv[:, 0].astype(np.float64) * tw - 0.5, uv[:, 1].astype(np.float64) * th - 0.5
+    x0, y0 = np.floor(x), np.floor(y)
+    a, b = x - x0, y - y0
+    if bits is not None:
+        a, b = np.round(a * 2 ** bits) / 2 ** bits, np.round(b * 2 ** bits) / 2 ** bits
+    xi, yi = x0.astype(np.int64), y0.astype(np.int64)
+    at = lambda xx, yy: tex[np.clip(yy, 0, th - 1), np.clip(xx, 0, tw - 1)].astype(np.float64) / 255.0
+    return ((1 - a)[:, None] * (1 - b)[:, None] * at(xi, yi) + a[:, None] * (1 - b)[:, None] * at(xi + 1, yi)
+            + (1 - a)[:, None] * b[:, None] * at(xi, yi + 1) + a[:, None] * b[:, None] * at(xi + 1, yi + 1))
+
+
+def w_texfilter(size, rng):
+    tw, th, n = (32, 32, 4096) if size == 'small' else (1024, 1024, 1 << 22)
+    gy, gx = np.mgrid[0:th, 0:tw]
+    tex = np.stack([(gx * 255 // (tw - 1)), (gy * 255 // (th - 1)), ((gx // 4 + gy // 4) % 2) * 255,
+                    rng.integers(0, 256, (th, tw))], -1).astype(np.uint8)                # ramps, a checker and noise
+    uv = f32(rng.uniform(-0.05, 1.05, (n, 2)))                                           # including clamped borders
+    def check(o):
+        got = o[2].view(np.float32)[:4 * n].reshape(n, 4).astype(np.float64)
+        errs = {bits: float(np.max(np.abs(got - bilinear_ref(tex, uv, bits)))) for bits in range(4, 11)}
+        best = min(errs, key=errs.get)
+        exact = float(np.max(np.abs(got - bilinear_ref(tex, uv, None))))
+        # any sub-texel precision Vulkan allows (>= 4 bits), plus the unorm conversion and the filter's own rounding
+        ok = errs[best] <= 2.0 / 255
+        return ok, {'best_subtexel_bits': best, 'max_err_at_best_bits': errs[best], 'max_err_vs_exact_weights': exact}
+    return W('texfilter', {1: (uv, False), 2: (16 * n, True)}, [((n + 255) // 256, 1, 1, push(n))], check, 256, {'samples': n},
+             textures={0: (tex, tw, th, 'rgba8', 'linear')})
+
+
 WORKLOADS = {'reduce': w_reduce, 'scan': w_scan, 'sgemm': w_sgemm, 'conv2d': w_conv2d, 'histogram': w_histogram,
              'nbody': w_nbody, 'bitonic': w_bitonic, 'sha256': w_sha256, 'fp16': w_fp16, 'int64': w_int64, 'bitops': w_bitops,
              'intdiv': w_intdiv, 'compact': w_compact, 'spmv': w_spmv, 'transpose': w_transpose, 'mandelbrot': w_mandelbrot,
@@ -2396,7 +2456,8 @@ WORKLOADS = {'reduce': w_reduce, 'scan': w_scan, 'sgemm': w_sgemm, 'conv2d': w_c
              'knn': w_knn, 'csvparse': w_csvparse, 'pip': w_pip, 'lift53': w_lift53,
              'chacha20': w_chacha20, 'modexp': w_modexp, 'floyd': w_floyd, 'f16pack': w_f16pack,
              'raster': w_raster, 'canny': w_canny, 'secded': w_secded, 'bicubic': w_bicubic,
-             'dfa': w_dfa, 'b64decode': w_b64decode, 'cordic': w_cordic, 'rsenc': w_rsenc}
+             'dfa': w_dfa, 'b64decode': w_b64decode, 'cordic': w_cordic, 'rsenc': w_rsenc,
+             'texfetch': w_texfetch, 'texfilter': w_texfilter}
 
 
 # ---------------------------------------------------------------------------------------------------------------
@@ -2429,6 +2490,7 @@ def run_one(name, size, repeat, out_root, export=True, seed=1):
         else:
             initp = out / f'in{binding}.bin'; initp.write_bytes(init.tobytes()); nbytes = init.nbytes
         spec.append(f'buffer {binding} {nbytes} {initp} {out / f"out{binding}.bin" if readback else "-"}')
+    spec += texture_spec(w, out)
     for gx, gy, gz, pc in w.dispatches:
         spec.append(f'dispatch {gx} {gy} {gz} {pc.hex() or "-"}')
     spec.append(f'repeat {repeat}')
@@ -2496,6 +2558,7 @@ def cmd_compile(a):
         spec = [f'shader {BUILD / (w.shader + ".spv")}']
         for binding, (init, _) in sorted(w.buffers.items()):
             spec.append(f'buffer {binding} {init if isinstance(init, int) else init.nbytes} - -')
+        spec += texture_spec(w, run)
         gx, gy, gz, pc = w.dispatches[0]
         spec += [f'dispatch {gx} {gy} {gz} {pc.hex() or "-"}', 'repeat 1', f'export {run / "shader.bin"}', f'props {run / "props.json"}']
         (run / 'spec.txt').write_text('\n'.join(spec) + '\n')
@@ -2793,6 +2856,9 @@ def cmd_sim(a):
     across dispatches; outputs checked with the workload's reference and compared word for word with a hardware run.
     With the extract's info.json, the workgroup size, threadgroup memory, registers and the constants the driver
     preloads into uniforms come from the driver's own shader info."""
+    if WORKLOADS[a.workload](a.size, np.random.default_rng([1, list(WORKLOADS).index(a.workload)])).textures:
+        print(json.dumps({'workload': a.workload, 'size': a.size, 'simulated_ok': None, 'unsupported': NO_TEXTURE_UNIT}))
+        return 0
     L = DriverLaunch(a.workload, a.size, a.code_dir, a.layout, a.out or Path(a.code_dir) / f'sim-{a.workload}-{a.size}', a.shared)
     exe = ROOT / 'rust/target/release/agx_run'
     total = 0
@@ -2829,6 +2895,9 @@ def cmd_predict(a):
     matters where control flow or addresses depend on them). With --code alone: the cost model's own emulation."""
     exe = ROOT / 'rust/target/release/agx_dispatch'
     rows, total = [], 0.0
+    if WORKLOADS[a.workload](a.size, np.random.default_rng([1, list(WORKLOADS).index(a.workload)])).textures:
+        print(json.dumps({'workload': a.workload, 'size': a.size, 'unsupported': NO_TEXTURE_UNIT}))
+        return 0
     if a.code_dir:
         L = DriverLaunch(a.workload, a.size, a.code_dir, a.layout, a.out or Path(a.code_dir) / f'predict-{a.workload}-{a.size}')
         for k in range(len(L.w.dispatches)):
@@ -2878,8 +2947,10 @@ def cmd_predictall(a):
     for d, r in zip(dirs, runs):
         if r.returncode:
             print(f'{d.name:10} error: {(r.stdout + r.stderr).strip()[-300:]}'); continue
-        (work / f'{d.name}.json').write_text(r.stdout)
         j = json.loads(r.stdout)
+        if 'unsupported' in j:
+            print(f'{d.name:10} unsupported: {j["unsupported"]}'); continue
+        (work / f'{d.name}.json').write_text(r.stdout)
         disp = j['dispatch_us']
         print(f'{d.name:10} {j["predicted_us"]:10.1f} us  {len(disp)} dispatch{"es" if len(disp) > 1 else ""}'
               + (f' (first {disp[0]:.1f} us)' if len(disp) > 1 else ''), flush=True)
@@ -2897,7 +2968,9 @@ EXPECTED = ROOT / 'spirv/expected'
 
 
 def input_hashes(w):
-    return {str(b): hashlib.sha256(init.tobytes()).hexdigest() for b, (init, _) in sorted(w.buffers.items()) if not isinstance(init, int)}
+    h = {str(b): hashlib.sha256(init.tobytes()).hexdigest() for b, (init, _) in sorted(w.buffers.items()) if not isinstance(init, int)}
+    h.update({f't{b}': hashlib.sha256(np.ascontiguousarray(t[0]).tobytes()).hexdigest() for b, t in sorted(w.textures.items())})
+    return h
 
 
 def is_agx(dev):
@@ -2987,6 +3060,10 @@ def verify_one(name, exp, layout, timing):
     w = WORKLOADS[name]('small', np.random.default_rng([1, list(WORKLOADS).index(name)]))
     if input_hashes(w) != rec['inputs_sha256']:
         return {'workload': name, 'status': 'STALE', 'why': 'inputs differ from the recording (workload or numpy changed): re-record'}
+    if w.textures:
+        ok = rec['small']['functional_ok']
+        return {'workload': name, 'device': rec['device'].get('device'), 'hardware_matches_reference': ok,
+                'status': 'UNSIM' if ok else 'FAIL', 'why': NO_TEXTURE_UNIT if ok else 'the hardware result is outside the reference'}
     if not (d / 'code/main.bin').exists():
         return {'workload': name, 'status': 'FAIL', 'why': "the recording's driver code could not be extracted (see code/)"}
     work = Path(tempfile.mkdtemp(prefix=f'agx-verify-{name}-'))

@@ -1,0 +1,28 @@
+0x0000  72051004                 get_sr r1, sr80 (thread_position_in_grid.x)
+0x0004  0e05428658000000         iadd r1, r1.sx, u4.sx
+0x000c  62000000                 mov_imm r0l, 0
+0x0010  522842621900             if_icmp r0l, ult, r1, u11, 1
+0x0016  20c084000000             jmp_exec_none pc+132
+0x001c  05112c0e00c43200         device_load 0, i32, xy, r2_r3, u6_u7, r1, unsigned, lsl 1
+0x0024  7e0219098000             mov r0h, u12h
+0x002a  3800                     wait 0
+0x002c  3111041400622fc1         texture_sample 0, 0b1100, 0b1, none, xyzw, 0b00, r4_r5_r6_r7, None, ts0, r0h, tex_2d, r2_r3, lod_min, u10l
+0x0034  3801                     wait 1
+0x0036  520922010000             if_icmp r0l, nueq, u17l, 0, 1
+0x003c  20c04e000000             jmp_exec_none pc+78
+0x0042  7e0218098000             mov r0h, u12l
+0x0048  3121041400622f41         texture_sample 0, 0b1100, 0b0, none, xyzw, 0b00, r8_r9_r10_r11, None, ts0, r0h, tex_2d, r2_r3, lod_min, u10l
+0x0050  3800                     wait 0
+0x0052  2a894802a500             fadd32 r2, r4, r8.neg
+0x0058  3a919a4124500200         fmadd32 r4, u13, r2, r8
+0x0060  2a894a22a500             fadd32 r2, r5, r9.neg
+0x0066  3a959c4124520200         fmadd32 r5, u14, r2, r9
+0x006e  2a894c42a500             fadd32 r2, r6, r10.neg
+0x0074  3a999e4124540200         fmadd32 r6, u15, r2, r10
+0x007c  2a894e62a500             fadd32 r2, r7, r11.neg
+0x0082  3a9da04124560200         fmadd32 r7, u16, r2, r11
+0x008a  520e00000000             pop_exec r0l, 1
+0x0090  4521200e10c8f200         device_store 0, i32, xyzw, r4_r5_r6_r7, u8_u9, r1, unsigned, lsl 2, 0
+0x0098  3800                     wait 0
+0x009a  520e00000000             pop_exec r0l, 1
+0x00a0  8800                     stop

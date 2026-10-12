@@ -1,0 +1,15 @@
+#version 450
+// Texel fetches through the texture unit (lookup tables, G-buffer reads): texelFetch of an r32f texture at
+// arbitrary in-range integer coordinates, no filtering, so bit-exact. The simulator does not model the texture
+// unit: this workload is verified on the hardware against its reference only.
+layout(local_size_x = 256) in;
+layout(binding = 0) uniform sampler2D tex;
+layout(std430, binding = 1) readonly buffer Q { ivec2 coords[]; };
+layout(std430, binding = 2) writeonly buffer O { float vals[]; };
+layout(push_constant) uniform P { uint n; } p;
+
+void main() {
+    uint i = gl_GlobalInvocationID.x;
+    if (i >= p.n) return;
+    vals[i] = texelFetch(tex, coords[i], 0).r;
+}

@@ -23,6 +23,7 @@ and the reference agree; that is a sanity check, not hardware verification.
    | CLOSE | Differs, but both are within the reference tolerance |
    | FAIL | A difference to investigate |
    | STALE | The recording no longer matches the workload's inputs |
+   | UNSIM | Texture workloads only: the GPU's result matches the reference; the simulator has no texture unit to compare |
 
 3. Also compares the large-size GPU time with the cost model's prediction. The last line of `verify.txt` sums this
    up as `"timing"`:
@@ -38,7 +39,7 @@ The rest of this file is the detailed procedure, for investigating results.
 
 ## Workloads
 
-Ninety-nine realistic compute kernels, written in GLSL (`spirv/shaders/*.comp`) and compiled to SPIR-V:
+One hundred and one realistic compute kernels, written in GLSL (`spirv/shaders/*.comp`) and compiled to SPIR-V:
 
 | Workload | Kernel | Stresses |
 |---|---|---|
@@ -141,6 +142,8 @@ Ninety-nine realistic compute kernels, written in GLSL (`spirv/shaders/*.comp`) 
 | `b64decode` | Base64 decoding with validation | Character classification, partial byte stores |
 | `cordic` | Fixed-point CORDIC sin / cos | Arithmetic shifts, sign-dependent add / subtract |
 | `rsenc` | Reed-Solomon RS(255,223) encoder | GF(2^8) log / exp lookups, 32-register LFSR |
+| `texfetch` | `texelFetch` from an r32f texture | The texture unit (unfiltered), bit-exact; hardware-only (UNSIM) |
+| `texfilter` | Hardware bilinear filtering of an RGBA8 texture | The texture unit's filtering and sub-texel precision; hardware-only (UNSIM) |
 
 Each workload has two sizes:
 
@@ -227,7 +230,7 @@ references are right; a wrong result on the M2 is therefore a GPU, driver or run
    python3 -B scripts/spirv_task.py sim sgemm --code-dir spirv/out/sgemm-small/code --hardware spirv/out/sgemm-small
    ```
 
-   - Offline, all ninety-nine workloads pass their numpy references with shim-compiled Mesa 25.2.8 and 26.0.3 code
+   - Offline, all ninety-nine buffer workloads pass their numpy references with shim-compiled Mesa 25.2.8 and 26.0.3 code
      (`make spirv-sim`). That is a sanity check; verification is `make spirv-verify` against the M2 recordings.
    - Integer workloads (`scan`, `histogram`, `bitonic`, `sha256`, `int64`, `bitops`, `intdiv`, `compact`, `transpose`,
      `mandelbrot`, `atomics`, `geom3d`, `spill`, `control`, `shuffle`, `floatops`, `radix_sort`, `crc32`, `int8dot`, `int16`, `sobel`,
