@@ -1018,6 +1018,24 @@ def w_bitap(size, rng):
                        2: (n // 8, True)}, [((n // 1024 + 63) // 64, 1, 1, push(n, m))], check, 64, {'bytes': n})
 
 
+def w_cholesky(size, rng):
+    nb, n = (64 if size == 'small' else 16384), 16
+    B = rng.normal(0, 1, (nb, n, n))
+    A = f32(B @ B.transpose(0, 2, 1) / n + np.eye(n))                     # SPD, condition number ~ 10-100
+    def check(o):
+        L = o[1].view(np.float32)[:nb * n * n].reshape(nb, n, n).astype(np.float64)
+        A64 = A.astype(np.float64)
+        res = np.linalg.norm(A64 - L @ L.transpose(0, 2, 1), axis=(1, 2)) / np.linalg.norm(A64, axis=(1, 2))
+        bound = 4 * n * 2.0 ** -24                                           # backward error of fp32 Cholesky
+        tri = bool(np.all(np.triu(L, 1) == 0)) and bool(np.all(np.diagonal(L, axis1=1, axis2=2) > 0))
+        ref = np.linalg.cholesky(A64)
+        rel = float(np.max(np.abs(L - ref)) / np.max(np.abs(ref)))
+        return bool(tri and res.max() <= bound), {'max_backward_error': float(res.max()), 'bound': bound,
+                                                  'max_rel_diff_vs_float64': rel, 'structure_ok': tri}
+    return W('cholesky', {0: (A, False), 1: (4 * n * n * nb, True)}, [(nb, 1, 1, b'')], check, (16, 16, 1),
+             {'flops': nb * n ** 3 // 3})
+
+
 def w_spmv(size, rng):
     rows, cols = (512, 512) if size == 'small' else (1 << 18, 1 << 18)
     nnz = rng.integers(0, 64, rows) * (rng.random(rows) < 0.95)    # some empty rows
@@ -3547,7 +3565,7 @@ WORKLOADS = {'reduce': w_reduce, 'scan': w_scan, 'sgemm': w_sgemm, 'conv2d': w_c
              'aluprobe': w_aluprobe, 'ubopalette': w_ubopalette, 'uboparams': w_uboparams,
              'bindless': w_bindless, 'bindlessu': w_bindlessu,
              # appended only: the input seed is the index in this dict
-             'rle': w_rle, 'huffdec': w_huffdec, 'lookback': w_lookback, 'hll': w_hll, 'tricount': w_tricount, 'sha3': w_sha3, 'stereo': w_stereo, 'viterbi': w_viterbi, 'viterbifix': w_viterbifix, 'shiftfuse': w_shiftfuse, 'bc1enc': w_bc1enc, 'lz4dec': w_lz4dec, 'nttmul': w_nttmul, 'topk': w_topk, 'cellsort': w_cellsort, 'boruvka': w_boruvka, 'biquad': w_biquad, 'edt': w_edt, 'mt19937': w_mt19937, 'bitap': w_bitap}
+             'rle': w_rle, 'huffdec': w_huffdec, 'lookback': w_lookback, 'hll': w_hll, 'tricount': w_tricount, 'sha3': w_sha3, 'stereo': w_stereo, 'viterbi': w_viterbi, 'viterbifix': w_viterbifix, 'shiftfuse': w_shiftfuse, 'bc1enc': w_bc1enc, 'lz4dec': w_lz4dec, 'nttmul': w_nttmul, 'topk': w_topk, 'cellsort': w_cellsort, 'boruvka': w_boruvka, 'biquad': w_biquad, 'edt': w_edt, 'mt19937': w_mt19937, 'bitap': w_bitap, 'cholesky': w_cholesky}
 
 
 # ---------------------------------------------------------------------------------------------------------------
