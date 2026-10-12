@@ -1596,19 +1596,19 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
         // reaches them: the mask is recomputed after each steal, and a home made busy by a steal brings in its
         // groups ahead of the cursor, as the full order would.
         let mut mask = if pass == 0 { free_mask } else { 0 };
-        let mut mask_t = None;
+        let mut mask_stale = true; // sched_free changed since `mask` was computed
         let segs = [(k0, g), (0, k0)];
         let mut seg = 0;
         let mut cur = k0;
         loop {
-            if pass == 1 && mask_t != Some(sched_free) {
+            if pass == 1 && mask_stale {
                 mask = 0;
                 for s in 0..SCHEDULERS {
                     if sched_free[s] > t {
                         mask |= 0x1111_1111_1111_1111u64 << s;
                     }
                 }
-                mask_t = Some(sched_free);
+                mask_stale = false;
             }
             let mut gi = usize::MAX;
             while seg < 2 {
@@ -2227,6 +2227,7 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
             }
             let occ = t_.max(ii) + branch;
             if r.barrier == 0 {
+                mask_stale = true;
                 sched_free[sch] = t + if r.kind == Kind::Alu && !r.reduce {
                     t_.max(ii)
                 } else if r.exec_stack && g > 1 {
