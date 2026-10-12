@@ -781,6 +781,26 @@ def w_lz4dec(size, rng):
              [((nb + 63) // 64, 1, 1, push(nb))], check, 64, {'bytes': 4096 * nb + pos})
 
 
+def w_nttmul(size, rng):
+    q, n = 7681, 256
+    pairs = 64 if size == 'small' else 8192
+    psi = 62                                                                   # primitive 512th root of unity mod q
+    br = lambda k: int(format(k, '08b')[::-1], 2)
+    zeta = np.array([pow(psi, br(k), q) for k in range(256)], np.uint32)
+    zinv = np.array([pow(int(z), q - 2, q) for z in zeta], np.uint32)
+    a = u32(rng.integers(0, q, (pairs, n))); b = u32(rng.integers(0, q, (pairs, n)))
+    def check(o):
+        got = o[3].view(np.uint32)[:pairs * n].reshape(pairs, n).astype(np.int64)
+        bad = 0
+        for k in range(pairs):                                                 # schoolbook negacyclic product
+            c = np.convolve(a[k].astype(np.int64), b[k].astype(np.int64))
+            ref = (c[:n] - np.concatenate([c[n:], [0]])) % q
+            bad += int(np.any(got[k] != ref))
+        return bad == 0, {'bad_products': bad, 'pairs': pairs}
+    return W('nttmul', {0: (a, False), 1: (b, False), 2: (u32(np.concatenate([zeta, zinv])), False), 3: (4 * n * pairs, True)},
+             [(pairs, 1, 1, b'')], check, 128, {'items': pairs})
+
+
 def w_spmv(size, rng):
     rows, cols = (512, 512) if size == 'small' else (1 << 18, 1 << 18)
     nnz = rng.integers(0, 64, rows) * (rng.random(rows) < 0.95)    # some empty rows
@@ -3310,7 +3330,7 @@ WORKLOADS = {'reduce': w_reduce, 'scan': w_scan, 'sgemm': w_sgemm, 'conv2d': w_c
              'aluprobe': w_aluprobe, 'ubopalette': w_ubopalette, 'uboparams': w_uboparams,
              'bindless': w_bindless, 'bindlessu': w_bindlessu,
              # appended only: the input seed is the index in this dict
-             'rle': w_rle, 'huffdec': w_huffdec, 'lookback': w_lookback, 'hll': w_hll, 'tricount': w_tricount, 'sha3': w_sha3, 'stereo': w_stereo, 'viterbi': w_viterbi, 'viterbifix': w_viterbifix, 'shiftfuse': w_shiftfuse, 'bc1enc': w_bc1enc, 'lz4dec': w_lz4dec}
+             'rle': w_rle, 'huffdec': w_huffdec, 'lookback': w_lookback, 'hll': w_hll, 'tricount': w_tricount, 'sha3': w_sha3, 'stereo': w_stereo, 'viterbi': w_viterbi, 'viterbifix': w_viterbifix, 'shiftfuse': w_shiftfuse, 'bc1enc': w_bc1enc, 'lz4dec': w_lz4dec, 'nttmul': w_nttmul}
 
 
 # ---------------------------------------------------------------------------------------------------------------

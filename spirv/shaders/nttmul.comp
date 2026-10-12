@@ -1,0 +1,36 @@
+#version 450
+// Polynomial multiplication in Z_q[x] / (x^256 + 1), q = 7681, by the number-theoretic transform (the core of lattice
+// post-quantum cryptography such as Kyber / Dilithium): one workgroup multiplies one pair. Forward Cooley-Tukey NTT
+// of both operands in shared memory (8 stages of 128 butterflies, zeta = psi^bitrev8(k), psi a primitive 512th
+// root of unity), pointwise product, Gentleman-Sande inverse with the inverse zetas, then a scale by 256^-1.
+// Exact integer arithmetic: products below q^2 fit 32 bits; reductions are % q by a constant.
+layout(local_size_x = 128) in;
+layout(std430, binding = 0) readonly buffer A { uint pa[]; };
+layout(std430, binding = 1) readonly buffer B { uint pb[]; };
+layout(std430, binding = 2) readonly buffer Z { uint zeta[256]; uint zinv[256]; };
+layout(std430, binding = 3) writeonly buffer C { uint pc[]; };
+shared uint sa[256], sb[256];
+const uint Q = 7681u, NINV = 7651u;                                 // 256 * 7651 = 1 (mod 7681)
+
+void main() {
+    uint i = gl_LocalInvocationID.x, base = 256u * gl_WorkGroupID.x;
+    sa[i] = pa[base + i]; sa[i + 128u] = pa[base + i + 128u];
+    sb[i] = pb[base + i]; sb[i + 128u] = pb[base + i + 128u];
+    barrier();
+    for (uint len = 128u; len >= 1u; len >>= 1) {
+        uint g = i / len, j = g * 2u * len + i % len;
+        uint z = zeta[128u / len + g];
+        uint t = z * sa[j + len] % Q; sa[j + len] = (sa[j] + Q - t) % Q; sa[j] = (sa[j] + t) % Q;
+        t = z * sb[j + len] % Q; sb[j + len] = (sb[j] + Q - t) % Q; sb[j] = (sb[j] + t) % Q;
+        barrier();
+    }
+    sa[i] = sa[i] * sb[i] % Q; sa[i + 128u] = sa[i + 128u] * sb[i + 128u] % Q;
+    barrier();
+    for (uint len = 1u; len <= 128u; len <<= 1) {
+        uint g = i / len, j = g * 2u * len + i % len;
+        uint u = sa[j], v = sa[j + len];
+        sa[j] = (u + v) % Q; sa[j + len] = (u + Q - v) * zinv[128u / len + g] % Q;
+        barrier();
+    }
+    pc[base + i] = sa[i] * NINV % Q; pc[base + i + 128u] = sa[i + 128u] * NINV % Q;
+}

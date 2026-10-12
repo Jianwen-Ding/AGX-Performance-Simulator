@@ -1,0 +1,644 @@
+0x0080  72013000                 get_sr r0, sr48 (thread_position_in_threadgroup.x)
+0x0084  72050000                 get_sr r1, sr0 (threadgroup_position_in_grid.x)
+0x0088  0e05428658000000         iadd r1, r1.sx, u4.sx
+0x0090  1e0542665a400600         imadd r1, r1.sx, u19.sx, r0.sx
+0x0098  0511200e10c01200         device_load 0, i32, x, r2, u8_u9, r1, unsigned
+0x00a0  0e0d000064001000         iadd r3, 0, r0.sx, lsl 2
+0x00a8  7e1046088000             mov r4l, r3l
+0x00ae  3800                     wait 0
+0x00b0  2989080214000000         threadgroup_store i32, x, r2, r4l, 0
+0x00b8  0e09420600020000         iadd r2, r1.sx, 128
+0x00c0  0529400e10c01200         device_load 0, i32, x, r5, u8_u9, r2, unsigned
+0x00c8  0e1946865a000000         iadd r6, r3.sx, u20.sx
+0x00d0  3800                     wait 0
+0x00d2  29950c0214000000         threadgroup_store i32, x, r5, r6l, 0
+0x00da  0529240e10c01200         device_load 0, i32, x, r5, u10_u11, r1, unsigned
+0x00e2  0e1da46564000000         iadd r7, u18.sx, r3.sx
+0x00ea  3800                     wait 0
+0x00ec  29950e0214000000         threadgroup_store i32, x, r5, r7l, 0
+0x00f4  0529440e10c01200         device_load 0, i32, x, r5, u10_u11, r2, unsigned
+0x00fc  0e0daa6564000000         iadd r3, u21.sx, r3.sx
+0x0104  3800                     wait 0
+0x0106  2995060214000000         threadgroup_store i32, x, r5, r3l, 0
+0x010e  6800                     threadgroup_barrier
+0x0110  7e1540f28301             and r5, r0, 127
+0x0116  2ea1000024070000         bfeil r8, 0, r0, 7
+0x011e  1e1550665a4a0600         imadd r5, r8.sx, u19.sx, r5.sx
+0x0126  0e25010065000000         iadd r9, 1, r8.sx
+0x012e  0549280e11c01200         device_load 0, i32, x, r9, u12_u13, r9, unsigned
+0x0136  0e1500a064001000         iadd r5, 0, r5.sx, lsl 2
+0x013e  0e294a865a000000         iadd r10, r5.sx, u20.sx
+0x0146  69ad140214000000         threadgroup_load i32, x, r11, r10l, 0
+0x014e  3800                     wait 0
+0x0150  1e2d526665000000         imadd r11, r9.sx, r11.sx, 0
+0x0158  1e3356221a000000         imadd r12_r13, r11, u17, 0
+0x0160  2eb100a0250b0000         bfeil r12, 0, r13, 11
+0x0168  1e3158065a000000         imadd r12, r12.sx, u16.sx, 0
+0x0170  0e2d568e65000000         isub r11, r11.sx, r12.sx
+0x0178  7e0e4a088000             mov r3h, r5l
+0x017e  69b1070214000000         threadgroup_load i32, x, r12, r3h, 0
+0x0186  0e3158065a000000         iadd r12, r12.sx, u16.sx
+0x018e  0e31586e65000000         isub r12, r12.sx, r11.sx
+0x0196  1e3b58221a000000         imadd r14_r15, r12, u17, 0
+0x019e  2eb500e0250b0000         bfeil r13, 0, r15, 11
+0x01a6  1e355a065a000000         imadd r13, r13.sx, u16.sx, 0
+0x01ae  0e3158ae65000000         isub r12, r12.sx, r13.sx
+0x01b6  29b1140214000000         threadgroup_store i32, x, r12, r10l, 0
+0x01be  69b1070214000000         threadgroup_load i32, x, r12, r3h, 0
+0x01c6  0e2d586665000000         iadd r11, r12.sx, r11.sx
+0x01ce  1e3356221a000000         imadd r12_r13, r11, u17, 0
+0x01d6  2eb100a0250b0000         bfeil r12, 0, r13, 11
+0x01de  1e3158065a000000         imadd r12, r12.sx, u16.sx, 0
+0x01e6  0e2d568e65000000         isub r11, r11.sx, r12.sx
+0x01ee  29ad070214000000         threadgroup_store i32, x, r11, r3h, 0
+0x01f6  0e2daaa564000000         iadd r11, u21.sx, r5.sx
+0x01fe  69b1160214000000         threadgroup_load i32, x, r12, r11l, 0
+0x0206  1e25528665000000         imadd r9, r9.sx, r12.sx, 0
+0x020e  1e3352221a000000         imadd r12_r13, r9, u17, 0
+0x0216  2eb100a0250b0000         bfeil r12, 0, r13, 11
+0x021e  1e3158065a000000         imadd r12, r12.sx, u16.sx, 0
+0x0226  0e25528e65000000         isub r9, r9.sx, r12.sx
+0x022e  0e15a4a564000000         iadd r5, u18.sx, r5.sx
+0x0236  69b10a0214000000         threadgroup_load i32, x, r12, r5l, 0
+0x023e  0e3158065a000000         iadd r12, r12.sx, u16.sx
+0x0246  0e31582e65000000         isub r12, r12.sx, r9.sx
+0x024e  1e3b58221a000000         imadd r14_r15, r12, u17, 0
+0x0256  2eb500e0250b0000         bfeil r13, 0, r15, 11
+0x025e  1e355a065a000000         imadd r13, r13.sx, u16.sx, 0
+0x0266  0e3158ae65000000         isub r12, r12.sx, r13.sx
+0x026e  29b1160214000000         threadgroup_store i32, x, r12, r11l, 0
+0x0276  69ad0a0214000000         threadgroup_load i32, x, r11, r5l, 0
+0x027e  0e25562665000000         iadd r9, r11.sx, r9.sx
+0x0286  1e3352221a000000         imadd r12_r13, r9, u17, 0
+0x028e  2ead00a0250b0000         bfeil r11, 0, r13, 11
+0x0296  1e2d56065a000000         imadd r11, r11.sx, u16.sx, 0
+0x029e  0e25526e65000000         isub r9, r9.sx, r11.sx
+0x02a6  29a50a0214000000         threadgroup_store i32, x, r9, r5l, 0
+0x02ae  6800                     threadgroup_barrier
+0x02b0  7e1540f28300             and r5, r0, 63
+0x02b6  2ea5000024060000         bfeil r9, 0, r0, 6
+0x02be  1e155206004a0602         imadd r5, r9.sx, 128, r5.sx
+0x02c6  0e2d022065000000         iadd r11, 2, r9.sx
+0x02ce  0559680e11c01200         device_load 0, i32, x, r11, u12_u13, r11, unsigned
+0x02d6  0e1500a064001000         iadd r5, 0, r5.sx, lsl 2
+0x02de  0e314a665a000000         iadd r12, r5.sx, u19.sx
+0x02e6  69b5180214000000         threadgroup_load i32, x, r13, r12l, 0
+0x02ee  3800                     wait 0
+0x02f0  1e3556a665000000         imadd r13, r11.sx, r13.sx, 0
+0x02f8  1e3b5a221a000000         imadd r14_r15, r13, u17, 0
+0x0300  2eb900e0250b0000         bfeil r14, 0, r15, 11
+0x0308  1e395c065a000000         imadd r14, r14.sx, u16.sx, 0
+0x0310  0e355ace65000000         isub r13, r13.sx, r14.sx
+0x0318  7e124a088000             mov r4h, r5l
+0x031e  69b9090214000000         threadgroup_load i32, x, r14, r4h, 0
+0x0326  0e395c065a000000         iadd r14, r14.sx, u16.sx
+0x032e  0e395cae65000000         isub r14, r14.sx, r13.sx
+0x0336  1e435c221a000000         imadd r16_r17, r14, u17, 0
+0x033e  2ebd0020260b0000         bfeil r15, 0, r17, 11
+0x0346  1e3d5e065a000000         imadd r15, r15.sx, u16.sx, 0
+0x034e  0e395cee65000000         isub r14, r14.sx, r15.sx
+0x0356  29b9180214000000         threadgroup_store i32, x, r14, r12l, 0
+0x035e  69b9090214000000         threadgroup_load i32, x, r14, r4h, 0
+0x0366  0e355ca665000000         iadd r13, r14.sx, r13.sx
+0x036e  1e3b5a221a000000         imadd r14_r15, r13, u17, 0
+0x0376  2eb900e0250b0000         bfeil r14, 0, r15, 11
+0x037e  1e395c065a000000         imadd r14, r14.sx, u16.sx, 0
+0x0386  0e355ace65000000         isub r13, r13.sx, r14.sx
+0x038e  29b5090214000000         threadgroup_store i32, x, r13, r4h, 0
+0x0396  0e3586a564040000         iadd r13, u35.sx, r5.sx
+0x039e  69b91a0214000000         threadgroup_load i32, x, r14, r13l, 0
+0x03a6  1e2d56c665000000         imadd r11, r11.sx, r14.sx, 0
+0x03ae  1e3b56221a000000         imadd r14_r15, r11, u17, 0
+0x03b6  2eb900e0250b0000         bfeil r14, 0, r15, 11
+0x03be  1e395c065a000000         imadd r14, r14.sx, u16.sx, 0
+0x03c6  0e2d56ce65000000         isub r11, r11.sx, r14.sx
+0x03ce  0e15a4a564000000         iadd r5, u18.sx, r5.sx
+0x03d6  69b90a0214000000         threadgroup_load i32, x, r14, r5l, 0
+0x03de  0e395c065a000000         iadd r14, r14.sx, u16.sx
+0x03e6  0e395c6e65000000         isub r14, r14.sx, r11.sx
+0x03ee  1e435c221a000000         imadd r16_r17, r14, u17, 0
+0x03f6  2ebd0020260b0000         bfeil r15, 0, r17, 11
+0x03fe  1e3d5e065a000000         imadd r15, r15.sx, u16.sx, 0
+0x0406  0e395cee65000000         isub r14, r14.sx, r15.sx
+0x040e  29b91a0214000000         threadgroup_store i32, x, r14, r13l, 0
+0x0416  69b50a0214000000         threadgroup_load i32, x, r13, r5l, 0
+0x041e  0e2d5a6665000000         iadd r11, r13.sx, r11.sx
+0x0426  1e3b56221a000000         imadd r14_r15, r11, u17, 0
+0x042e  2eb500e0250b0000         bfeil r13, 0, r15, 11
+0x0436  1e355a065a000000         imadd r13, r13.sx, u16.sx, 0
+0x043e  0e2d56ae65000000         isub r11, r11.sx, r13.sx
+0x0446  29ad0a0214000000         threadgroup_store i32, x, r11, r5l, 0
+0x044e  6800                     threadgroup_barrier
+0x0450  7e1540f28100             and r5, r0, 31
+0x0456  2ead000024050000         bfeil r11, 0, r0, 5
+0x045e  1e155606004a0601         imadd r5, r11.sx, 64, r5.sx
+0x0466  0e35046065000000         iadd r13, 4, r11.sx
+0x046e  0569a80e11c01200         device_load 0, i32, x, r13, u12_u13, r13, unsigned
+0x0476  0e1500a064001000         iadd r5, 0, r5.sx, lsl 2
+0x047e  0e394a0600020000         iadd r14, r5.sx, 128
+0x0486  69bd1c0214000000         threadgroup_load i32, x, r15, r14l, 0
+0x048e  3800                     wait 0
+0x0490  1e3d5ae665000000         imadd r15, r13.sx, r15.sx, 0
+0x0498  1e435e221a000000         imadd r16_r17, r15, u17, 0
+0x04a0  2ec10020260b0000         bfeil r16, 0, r17, 11
+0x04a8  1e4160065a000000         imadd r16, r16.sx, u16.sx, 0
+0x04b0  0e3d5e0e66000000         isub r15, r15.sx, r16.sx
+0x04b8  7e1a4a088000             mov r6h, r5l
+0x04be  69c10d0214000000         threadgroup_load i32, x, r16, r6h, 0
+0x04c6  0e4160065a000000         iadd r16, r16.sx, u16.sx
+0x04ce  0e4160ee65000000         isub r16, r16.sx, r15.sx
+0x04d6  1e4b60221a000000         imadd r18_r19, r16, u17, 0
+0x04de  2ec50060260b0000         bfeil r17, 0, r19, 11
+0x04e6  1e4562065a000000         imadd r17, r17.sx, u16.sx, 0
+0x04ee  0e41602e66000000         isub r16, r16.sx, r17.sx
+0x04f6  29c11c0214000000         threadgroup_store i32, x, r16, r14l, 0
+0x04fe  69c10d0214000000         threadgroup_load i32, x, r16, r6h, 0
+0x0506  0e3d60e665000000         iadd r15, r16.sx, r15.sx
+0x050e  1e435e221a000000         imadd r16_r17, r15, u17, 0
+0x0516  2ec10020260b0000         bfeil r16, 0, r17, 11
+0x051e  1e4160065a000000         imadd r16, r16.sx, u16.sx, 0
+0x0526  0e3d5e0e66000000         isub r15, r15.sx, r16.sx
+0x052e  29bd0d0214000000         threadgroup_store i32, x, r15, r6h, 0
+0x0536  0e3daea564000000         iadd r15, u23.sx, r5.sx
+0x053e  69c11e0214000000         threadgroup_load i32, x, r16, r15l, 0
+0x0546  1e355a0666000000         imadd r13, r13.sx, r16.sx, 0
+0x054e  1e435a221a000000         imadd r16_r17, r13, u17, 0
+0x0556  2ec10020260b0000         bfeil r16, 0, r17, 11
+0x055e  1e4160065a000000         imadd r16, r16.sx, u16.sx, 0
+0x0566  0e355a0e66000000         isub r13, r13.sx, r16.sx
+0x056e  0e15a4a564000000         iadd r5, u18.sx, r5.sx
+0x0576  69c10a0214000000         threadgroup_load i32, x, r16, r5l, 0
+0x057e  0e4160065a000000         iadd r16, r16.sx, u16.sx
+0x0586  0e4160ae65000000         isub r16, r16.sx, r13.sx
+0x058e  1e4b60221a000000         imadd r18_r19, r16, u17, 0
+0x0596  2ec50060260b0000         bfeil r17, 0, r19, 11
+0x059e  1e4562065a000000         imadd r17, r17.sx, u16.sx, 0
+0x05a6  0e41602e66000000         isub r16, r16.sx, r17.sx
+0x05ae  29c11e0214000000         threadgroup_store i32, x, r16, r15l, 0
+0x05b6  69bd0a0214000000         threadgroup_load i32, x, r15, r5l, 0
+0x05be  0e355ea665000000         iadd r13, r15.sx, r13.sx
+0x05c6  1e435a221a000000         imadd r16_r17, r13, u17, 0
+0x05ce  2ebd0020260b0000         bfeil r15, 0, r17, 11
+0x05d6  1e3d5e065a000000         imadd r15, r15.sx, u16.sx, 0
+0x05de  0e355aee65000000         isub r13, r13.sx, r15.sx
+0x05e6  29b50a0214000000         threadgroup_store i32, x, r13, r5l, 0
+0x05ee  6800                     threadgroup_barrier
+0x05f0  7e1540f28000             and r5, r0, 15
+0x05f6  2eb5000024040000         bfeil r13, 0, r0, 4
+0x05fe  1e155a06024a0600         imadd r5, r13.sx, 32, r5.sx
+0x0606  0e3d08a065000000         iadd r15, 8, r13.sx
+0x060e  0579e80e11c01200         device_load 0, i32, x, r15, u12_u13, r15, unsigned
+0x0616  0e1500a064001000         iadd r5, 0, r5.sx, lsl 2
+0x061e  0e414a0600010000         iadd r16, r5.sx, 64
+0x0626  69c5200214000000         threadgroup_load i32, x, r17, r16l, 0
+0x062e  3800                     wait 0
+0x0630  1e455e2666000000         imadd r17, r15.sx, r17.sx, 0
+0x0638  1e4b62221a000000         imadd r18_r19, r17, u17, 0
+0x0640  2ec90060260b0000         bfeil r18, 0, r19, 11
+0x0648  1e4964065a000000         imadd r18, r18.sx, u16.sx, 0
+0x0650  0e45624e66000000         isub r17, r17.sx, r18.sx
+0x0658  7e1e4a088000             mov r7h, r5l
+0x065e  69c90f0214000000         threadgroup_load i32, x, r18, r7h, 0
+0x0666  0e4964065a000000         iadd r18, r18.sx, u16.sx
+0x066e  0e49642e66000000         isub r18, r18.sx, r17.sx
+0x0676  1e5364221a000000         imadd r20_r21, r18, u17, 0
+0x067e  2ecd00a0260b0000         bfeil r19, 0, r21, 11
+0x0686  1e4d66065a000000         imadd r19, r19.sx, u16.sx, 0
+0x068e  0e49646e66000000         isub r18, r18.sx, r19.sx
+0x0696  29c9200214000000         threadgroup_store i32, x, r18, r16l, 0
+0x069e  69c90f0214000000         threadgroup_load i32, x, r18, r7h, 0
+0x06a6  0e45642666000000         iadd r17, r18.sx, r17.sx
+0x06ae  1e4b62221a000000         imadd r18_r19, r17, u17, 0
+0x06b6  2ec90060260b0000         bfeil r18, 0, r19, 11
+0x06be  1e4964065a000000         imadd r18, r18.sx, u16.sx, 0
+0x06c6  0e45624e66000000         isub r17, r17.sx, r18.sx
+0x06ce  29c50f0214000000         threadgroup_store i32, x, r17, r7h, 0
+0x06d6  0e4588a564040000         iadd r17, u36.sx, r5.sx
+0x06de  69c9220214000000         threadgroup_load i32, x, r18, r17l, 0
+0x06e6  1e3d5e4666000000         imadd r15, r15.sx, r18.sx, 0
+0x06ee  1e4b5e221a000000         imadd r18_r19, r15, u17, 0
+0x06f6  2ec90060260b0000         bfeil r18, 0, r19, 11
+0x06fe  1e4964065a000000         imadd r18, r18.sx, u16.sx, 0
+0x0706  0e3d5e4e66000000         isub r15, r15.sx, r18.sx
+0x070e  0e15a4a564000000         iadd r5, u18.sx, r5.sx
+0x0716  69c90a0214000000         threadgroup_load i32, x, r18, r5l, 0
+0x071e  0e4964065a000000         iadd r18, r18.sx, u16.sx
+0x0726  0e4964ee65000000         isub r18, r18.sx, r15.sx
+0x072e  1e5364221a000000         imadd r20_r21, r18, u17, 0
+0x0736  2ecd00a0260b0000         bfeil r19, 0, r21, 11
+0x073e  1e4d66065a000000         imadd r19, r19.sx, u16.sx, 0
+0x0746  0e49646e66000000         isub r18, r18.sx, r19.sx
+0x074e  29c9220214000000         threadgroup_store i32, x, r18, r17l, 0
+0x0756  69c50a0214000000         threadgroup_load i32, x, r17, r5l, 0
+0x075e  0e3d62e665000000         iadd r15, r17.sx, r15.sx
+0x0766  1e4b5e221a000000         imadd r18_r19, r15, u17, 0
+0x076e  2ec50060260b0000         bfeil r17, 0, r19, 11
+0x0776  1e4562065a000000         imadd r17, r17.sx, u16.sx, 0
+0x077e  0e3d5e2e66000000         isub r15, r15.sx, r17.sx
+0x0786  29bd0a0214000000         threadgroup_store i32, x, r15, r5l, 0
+0x078e  6800                     threadgroup_barrier
+0x0790  7e1540728000             and r5, r0, 7
+0x0796  2ebd000024030000         bfeil r15, 0, r0, 3
+0x079e  0e154ae665002000         iadd r5, r5.sx, r15.sx, lsl 4
+0x07a6  0e4510e065000000         iadd r17, 16, r15.sx
+0x07ae  0589280e12c01200         device_load 0, i32, x, r17, u12_u13, r17, unsigned
+0x07b6  0e1500a064001000         iadd r5, 0, r5.sx, lsl 2
+0x07be  0e494a0602000000         iadd r18, r5.sx, 32
+0x07c6  69cd240214000000         threadgroup_load i32, x, r19, r18l, 0
+0x07ce  3800                     wait 0
+0x07d0  1e4d626666000000         imadd r19, r17.sx, r19.sx, 0
+0x07d8  1e5366221a000000         imadd r20_r21, r19, u17, 0
+0x07e0  2ed100a0260b0000         bfeil r20, 0, r21, 11
+0x07e8  1e5168065a000000         imadd r20, r20.sx, u16.sx, 0
+0x07f0  0e4d668e66000000         isub r19, r19.sx, r20.sx
+0x07f8  7e2a4a088000             mov r10h, r5l
+0x07fe  69d1150214000000         threadgroup_load i32, x, r20, r10h, 0
+0x0806  0e5168065a000000         iadd r20, r20.sx, u16.sx
+0x080e  0e51686e66000000         isub r20, r20.sx, r19.sx
+0x0816  1e5b68221a000000         imadd r22_r23, r20, u17, 0
+0x081e  2ed500e0260b0000         bfeil r21, 0, r23, 11
+0x0826  1e556a065a000000         imadd r21, r21.sx, u16.sx, 0
+0x082e  0e5168ae66000000         isub r20, r20.sx, r21.sx
+0x0836  29d1240214000000         threadgroup_store i32, x, r20, r18l, 0
+0x083e  69d1150214000000         threadgroup_load i32, x, r20, r10h, 0
+0x0846  0e4d686666000000         iadd r19, r20.sx, r19.sx
+0x084e  1e5366221a000000         imadd r20_r21, r19, u17, 0
+0x0856  2ed100a0260b0000         bfeil r20, 0, r21, 11
+0x085e  1e5168065a000000         imadd r20, r20.sx, u16.sx, 0
+0x0866  0e4d668e66000000         isub r19, r19.sx, r20.sx
+0x086e  29cd150214000000         threadgroup_store i32, x, r19, r10h, 0
+0x0876  0e4dbea564000000         iadd r19, u31.sx, r5.sx
+0x087e  69d1260214000000         threadgroup_load i32, x, r20, r19l, 0
+0x0886  1e45628666000000         imadd r17, r17.sx, r20.sx, 0
+0x088e  1e5362221a000000         imadd r20_r21, r17, u17, 0
+0x0896  2ed100a0260b0000         bfeil r20, 0, r21, 11
+0x089e  1e5168065a000000         imadd r20, r20.sx, u16.sx, 0
+0x08a6  0e45628e66000000         isub r17, r17.sx, r20.sx
+0x08ae  0e15a4a564000000         iadd r5, u18.sx, r5.sx
+0x08b6  69d10a0214000000         threadgroup_load i32, x, r20, r5l, 0
+0x08be  0e5168065a000000         iadd r20, r20.sx, u16.sx
+0x08c6  0e51682e66000000         isub r20, r20.sx, r17.sx
+0x08ce  1e5b68221a000000         imadd r22_r23, r20, u17, 0
+0x08d6  2ed500e0260b0000         bfeil r21, 0, r23, 11
+0x08de  1e556a065a000000         imadd r21, r21.sx, u16.sx, 0
+0x08e6  0e5168ae66000000         isub r20, r20.sx, r21.sx
+0x08ee  29d1260214000000         threadgroup_store i32, x, r20, r19l, 0
+0x08f6  69cd0a0214000000         threadgroup_load i32, x, r19, r5l, 0
+0x08fe  0e45662666000000         iadd r17, r19.sx, r17.sx
+0x0906  1e5362221a000000         imadd r20_r21, r17, u17, 0
+0x090e  2ecd00a0260b0000         bfeil r19, 0, r21, 11
+0x0916  1e4d66065a000000         imadd r19, r19.sx, u16.sx, 0
+0x091e  0e45626e66000000         isub r17, r17.sx, r19.sx
+0x0926  29c50a0214000000         threadgroup_store i32, x, r17, r5l, 0
+0x092e  6800                     threadgroup_barrier
+0x0930  7e1540328000             and r5, r0, 3
+0x0936  2ec5000024020000         bfeil r17, 0, r0, 2
+0x093e  0e154a26e6001000         iadd r5, r5.sx, r17.sx, lsl 3
+0x0946  0e4d202066000000         iadd r19, 32, r17.sx
+0x094e  0599680e12c01200         device_load 0, i32, x, r19, u12_u13, r19, unsigned
+0x0956  0e1500a064001000         iadd r5, 0, r5.sx, lsl 2
+0x095e  0e514a0601000000         iadd r20, r5.sx, 16
+0x0966  69d5280214000000         threadgroup_load i32, x, r21, r20l, 0
+0x096e  3800                     wait 0
+0x0970  1e5566a666000000         imadd r21, r19.sx, r21.sx, 0
+0x0978  1e5b6a221a000000         imadd r22_r23, r21, u17, 0
+0x0980  2ed900e0260b0000         bfeil r22, 0, r23, 11
+0x0988  1e596c065a000000         imadd r22, r22.sx, u16.sx, 0
+0x0990  0e556ace66000000         isub r21, r21.sx, r22.sx
+0x0998  7e324a088000             mov r12h, r5l
+0x099e  69d9190214000000         threadgroup_load i32, x, r22, r12h, 0
+0x09a6  0e596c065a000000         iadd r22, r22.sx, u16.sx
+0x09ae  0e596cae66000000         isub r22, r22.sx, r21.sx
+0x09b6  1e636c221a000000         imadd r24_r25, r22, u17, 0
+0x09be  2edd0020270b0000         bfeil r23, 0, r25, 11
+0x09c6  1e5d6e065a000000         imadd r23, r23.sx, u16.sx, 0
+0x09ce  0e596cee66000000         isub r22, r22.sx, r23.sx
+0x09d6  29d9280214000000         threadgroup_store i32, x, r22, r20l, 0
+0x09de  69d9190214000000         threadgroup_load i32, x, r22, r12h, 0
+0x09e6  0e556ca666000000         iadd r21, r22.sx, r21.sx
+0x09ee  1e5b6a221a000000         imadd r22_r23, r21, u17, 0
+0x09f6  2ed900e0260b0000         bfeil r22, 0, r23, 11
+0x09fe  1e596c065a000000         imadd r22, r22.sx, u16.sx, 0
+0x0a06  0e556ace66000000         isub r21, r21.sx, r22.sx
+0x0a0e  29d5190214000000         threadgroup_store i32, x, r21, r12h, 0
+0x0a16  0e55baa564000000         iadd r21, u29.sx, r5.sx
+0x0a1e  69d92a0214000000         threadgroup_load i32, x, r22, r21l, 0
+0x0a26  1e4d66c666000000         imadd r19, r19.sx, r22.sx, 0
+0x0a2e  1e5b66221a000000         imadd r22_r23, r19, u17, 0
+0x0a36  2ed900e0260b0000         bfeil r22, 0, r23, 11
+0x0a3e  1e596c065a000000         imadd r22, r22.sx, u16.sx, 0
+0x0a46  0e4d66ce66000000         isub r19, r19.sx, r22.sx
+0x0a4e  0e15a4a564000000         iadd r5, u18.sx, r5.sx
+0x0a56  69d90a0214000000         threadgroup_load i32, x, r22, r5l, 0
+0x0a5e  0e596c065a000000         iadd r22, r22.sx, u16.sx
+0x0a66  0e596c6e66000000         isub r22, r22.sx, r19.sx
+0x0a6e  1e636c221a000000         imadd r24_r25, r22, u17, 0
+0x0a76  2edd0020270b0000         bfeil r23, 0, r25, 11
+0x0a7e  1e5d6e065a000000         imadd r23, r23.sx, u16.sx, 0
+0x0a86  0e596cee66000000         isub r22, r22.sx, r23.sx
+0x0a8e  29d92a0214000000         threadgroup_store i32, x, r22, r21l, 0
+0x0a96  69d50a0214000000         threadgroup_load i32, x, r21, r5l, 0
+0x0a9e  0e4d6a6666000000         iadd r19, r21.sx, r19.sx
+0x0aa6  1e5b66221a000000         imadd r22_r23, r19, u17, 0
+0x0aae  2ed500e0260b0000         bfeil r21, 0, r23, 11
+0x0ab6  1e556a065a000000         imadd r21, r21.sx, u16.sx, 0
+0x0abe  0e4d66ae66000000         isub r19, r19.sx, r21.sx
+0x0ac6  29cd0a0214000000         threadgroup_store i32, x, r19, r5l, 0
+0x0ace  6800                     threadgroup_barrier
+0x0ad0  7e1540128000             and r5, r0, 1
+0x0ad6  2ecd000024010000         bfeil r19, 0, r0, 1
+0x0ade  0e154a6666001000         iadd r5, r5.sx, r19.sx, lsl 2
+0x0ae6  0e55006066040000         iadd r21, 64, r19.sx
+0x0aee  05a9a80e12c01200         device_load 0, i32, x, r21, u12_u13, r21, unsigned
+0x0af6  0e1500a064001000         iadd r5, 0, r5.sx, lsl 2
+0x0afe  0e594a8600000000         iadd r22, r5.sx, 8
+0x0b06  69dd2c0214000000         threadgroup_load i32, x, r23, r22l, 0
+0x0b0e  3800                     wait 0
+0x0b10  1e5d6ae666000000         imadd r23, r21.sx, r23.sx, 0
+0x0b18  1e636e221a000000         imadd r24_r25, r23, u17, 0
+0x0b20  2ee10020270b0000         bfeil r24, 0, r25, 11
+0x0b28  1e6170065a000000         imadd r24, r24.sx, u16.sx, 0
+0x0b30  0e5d6e0e67000000         isub r23, r23.sx, r24.sx
+0x0b38  7e3a4a088000             mov r14h, r5l
+0x0b3e  69e11d0214000000         threadgroup_load i32, x, r24, r14h, 0
+0x0b46  0e6170065a000000         iadd r24, r24.sx, u16.sx
+0x0b4e  0e6170ee66000000         isub r24, r24.sx, r23.sx
+0x0b56  1e6b70221a000000         imadd r26_r27, r24, u17, 0
+0x0b5e  2ee50060270b0000         bfeil r25, 0, r27, 11
+0x0b66  1e6572065a000000         imadd r25, r25.sx, u16.sx, 0
+0x0b6e  0e61702e67000000         isub r24, r24.sx, r25.sx
+0x0b76  29e12c0214000000         threadgroup_store i32, x, r24, r22l, 0
+0x0b7e  69e11d0214000000         threadgroup_load i32, x, r24, r14h, 0
+0x0b86  0e5d70e666000000         iadd r23, r24.sx, r23.sx
+0x0b8e  1e636e221a000000         imadd r24_r25, r23, u17, 0
+0x0b96  2ee10020270b0000         bfeil r24, 0, r25, 11
+0x0b9e  1e6170065a000000         imadd r24, r24.sx, u16.sx, 0
+0x0ba6  0e5d6e0e67000000         isub r23, r23.sx, r24.sx
+0x0bae  29dd1d0214000000         threadgroup_store i32, x, r23, r14h, 0
+0x0bb6  0e5db8a564000000         iadd r23, u28.sx, r5.sx
+0x0bbe  69e12e0214000000         threadgroup_load i32, x, r24, r23l, 0
+0x0bc6  1e556a0667000000         imadd r21, r21.sx, r24.sx, 0
+0x0bce  1e636a221a000000         imadd r24_r25, r21, u17, 0
+0x0bd6  2ee10020270b0000         bfeil r24, 0, r25, 11
+0x0bde  1e6170065a000000         imadd r24, r24.sx, u16.sx, 0
+0x0be6  0e556a0e67000000         isub r21, r21.sx, r24.sx
+0x0bee  0e15a4a564000000         iadd r5, u18.sx, r5.sx
+0x0bf6  69e10a0214000000         threadgroup_load i32, x, r24, r5l, 0
+0x0bfe  0e6170065a000000         iadd r24, r24.sx, u16.sx
+0x0c06  0e6170ae66000000         isub r24, r24.sx, r21.sx
+0x0c0e  1e6b70221a000000         imadd r26_r27, r24, u17, 0
+0x0c16  2ee50060270b0000         bfeil r25, 0, r27, 11
+0x0c1e  1e6572065a000000         imadd r25, r25.sx, u16.sx, 0
+0x0c26  0e61702e67000000         isub r24, r24.sx, r25.sx
+0x0c2e  29e12e0214000000         threadgroup_store i32, x, r24, r23l, 0
+0x0c36  69dd0a0214000000         threadgroup_load i32, x, r23, r5l, 0
+0x0c3e  0e556ea666000000         iadd r21, r23.sx, r21.sx
+0x0c46  1e636a221a000000         imadd r24_r25, r21, u17, 0
+0x0c4e  2edd0020270b0000         bfeil r23, 0, r25, 11
+0x0c56  1e5d6e065a000000         imadd r23, r23.sx, u16.sx, 0
+0x0c5e  0e556aee66000000         isub r21, r21.sx, r23.sx
+0x0c66  29d50a0214000000         threadgroup_store i32, x, r21, r5l, 0
+0x0c6e  6800                     threadgroup_barrier
+0x0c70  0e15400600020000         iadd r5, r0.sx, 128
+0x0c78  0529a80e10c01200         device_load 0, i32, x, r5, u12_u13, r5, unsigned
+0x0c80  0e550000e4001000         iadd r21, 0, r0.sx, lsl 3
+0x0c88  0e5d6a4600000000         iadd r23, r21.sx, 4
+0x0c90  69e12e0214000000         threadgroup_load i32, x, r24, r23l, 0
+0x0c98  3800                     wait 0
+0x0c9a  1e614a0667000000         imadd r24, r5.sx, r24.sx, 0
+0x0ca2  1e6b70221a000000         imadd r26_r27, r24, u17, 0
+0x0caa  2ee50060270b0000         bfeil r25, 0, r27, 11
+0x0cb2  1e6572065a000000         imadd r25, r25.sx, u16.sx, 0
+0x0cba  0e61702e67000000         isub r24, r24.sx, r25.sx
+0x0cc2  7e426a088000             mov r16h, r21l
+0x0cc8  69e5210214000000         threadgroup_load i32, x, r25, r16h, 0
+0x0cd0  0e6572065a000000         iadd r25, r25.sx, u16.sx
+0x0cd8  0e65720e67000000         isub r25, r25.sx, r24.sx
+0x0ce0  1e6b72221a000000         imadd r26_r27, r25, u17, 0
+0x0ce8  2ee90060270b0000         bfeil r26, 0, r27, 11
+0x0cf0  1e6974065a000000         imadd r26, r26.sx, u16.sx, 0
+0x0cf8  0e65724e67000000         isub r25, r25.sx, r26.sx
+0x0d00  29e52e0214000000         threadgroup_store i32, x, r25, r23l, 0
+0x0d08  69e5210214000000         threadgroup_load i32, x, r25, r16h, 0
+0x0d10  0e61720667000000         iadd r24, r25.sx, r24.sx
+0x0d18  1e6b70221a000000         imadd r26_r27, r24, u17, 0
+0x0d20  2ee50060270b0000         bfeil r25, 0, r27, 11
+0x0d28  1e6572065a000000         imadd r25, r25.sx, u16.sx, 0
+0x0d30  0e61702e67000000         isub r24, r24.sx, r25.sx
+0x0d38  29e1210214000000         threadgroup_store i32, x, r24, r16h, 0
+0x0d40  0e61b4a566000000         iadd r24, u26.sx, r21.sx
+0x0d48  69e5300214000000         threadgroup_load i32, x, r25, r24l, 0
+0x0d50  1e154a2667000000         imadd r5, r5.sx, r25.sx, 0
+0x0d58  1e6b4a221a000000         imadd r26_r27, r5, u17, 0
+0x0d60  2ee50060270b0000         bfeil r25, 0, r27, 11
+0x0d68  1e6572065a000000         imadd r25, r25.sx, u16.sx, 0
+0x0d70  0e154a2e67000000         isub r5, r5.sx, r25.sx
+0x0d78  0e55a4a566000000         iadd r21, u18.sx, r21.sx
+0x0d80  69e52a0214000000         threadgroup_load i32, x, r25, r21l, 0
+0x0d88  0e6572065a000000         iadd r25, r25.sx, u16.sx
+0x0d90  0e6572ae64000000         isub r25, r25.sx, r5.sx
+0x0d98  1e6b72221a000000         imadd r26_r27, r25, u17, 0
+0x0da0  2ee90060270b0000         bfeil r26, 0, r27, 11
+0x0da8  1e6974065a000000         imadd r26, r26.sx, u16.sx, 0
+0x0db0  0e65724e67000000         isub r25, r25.sx, r26.sx
+0x0db8  29e5300214000000         threadgroup_store i32, x, r25, r24l, 0
+0x0dc0  69e12a0214000000         threadgroup_load i32, x, r24, r21l, 0
+0x0dc8  0e1570a664000000         iadd r5, r24.sx, r5.sx
+0x0dd0  1e634a221a000000         imadd r24_r25, r5, u17, 0
+0x0dd8  2ee10020270b0000         bfeil r24, 0, r25, 11
+0x0de0  1e6170065a000000         imadd r24, r24.sx, u16.sx, 0
+0x0de8  0e154a0e67000000         isub r5, r5.sx, r24.sx
+0x0df0  29952a0214000000         threadgroup_store i32, x, r5, r21l, 0
+0x0df8  6800                     threadgroup_barrier
+0x0dfa  6995080214000000         threadgroup_load i32, x, r5, r4l, 0
+0x0e02  69d50e0214000000         threadgroup_load i32, x, r21, r7l, 0
+0x0e0a  1e154aa666000000         imadd r5, r5.sx, r21.sx, 0
+0x0e12  1e634a221a000000         imadd r24_r25, r5, u17, 0
+0x0e1a  2ed50020270b0000         bfeil r21, 0, r25, 11
+0x0e22  1e556a065a000000         imadd r21, r21.sx, u16.sx, 0
+0x0e2a  0e154aae66000000         isub r5, r5.sx, r21.sx
+0x0e32  2995080214000000         threadgroup_store i32, x, r5, r4l, 0
+0x0e3a  69950c0214000000         threadgroup_load i32, x, r5, r6l, 0
+0x0e42  69d5060214000000         threadgroup_load i32, x, r21, r3l, 0
+0x0e4a  1e154aa666000000         imadd r5, r5.sx, r21.sx, 0
+0x0e52  1e634a221a000000         imadd r24_r25, r5, u17, 0
+0x0e5a  2ed50020270b0000         bfeil r21, 0, r25, 11
+0x0e62  1e556a065a000000         imadd r21, r21.sx, u16.sx, 0
+0x0e6a  0e154aae66000000         isub r5, r5.sx, r21.sx
+0x0e72  29950c0214000000         threadgroup_store i32, x, r5, r6l, 0
+0x0e7a  6800                     threadgroup_barrier
+0x0e7c  6995210214000000         threadgroup_load i32, x, r5, r16h, 0
+0x0e84  69d52e0214000000         threadgroup_load i32, x, r21, r23l, 0
+0x0e8c  0e614aa666000000         iadd r24, r5.sx, r21.sx
+0x0e94  1e6b70221a000000         imadd r26_r27, r24, u17, 0
+0x0e9c  2ee50060270b0000         bfeil r25, 0, r27, 11
+0x0ea4  1e6572065a000000         imadd r25, r25.sx, u16.sx, 0
+0x0eac  0e61702e67000000         isub r24, r24.sx, r25.sx
+0x0eb4  29e1210214000000         threadgroup_store i32, x, r24, r16h, 0
+0x0ebc  0e154a065a000000         iadd r5, r5.sx, u16.sx
+0x0ec4  0e154aae66000000         isub r5, r5.sx, r21.sx
+0x0ecc  0e01b60564000000         iadd r0, u27.sx, r0.sx
+0x0ed4  0501080e10c01200         device_load 0, i32, x, r0, u12_u13, r0, unsigned
+0x0edc  3800                     wait 0
+0x0ede  1e014a0664000000         imadd r0, r5.sx, r0.sx, 0
+0x0ee6  1e6340221a000000         imadd r24_r25, r0, u17, 0
+0x0eee  2e950020270b0000         bfeil r5, 0, r25, 11
+0x0ef6  1e154a065a000000         imadd r5, r5.sx, u16.sx, 0
+0x0efe  0e0140ae64000000         isub r0, r0.sx, r5.sx
+0x0f06  29812e0214000000         threadgroup_store i32, x, r0, r23l, 0
+0x0f0e  6800                     threadgroup_barrier
+0x0f10  69811d0214000000         threadgroup_load i32, x, r0, r14h, 0
+0x0f18  69952c0214000000         threadgroup_load i32, x, r5, r22l, 0
+0x0f20  0e5540a664000000         iadd r21, r0.sx, r5.sx
+0x0f28  1e636a221a000000         imadd r24_r25, r21, u17, 0
+0x0f30  2edd0020270b0000         bfeil r23, 0, r25, 11
+0x0f38  1e5d6e065a000000         imadd r23, r23.sx, u16.sx, 0
+0x0f40  0e556aee66000000         isub r21, r21.sx, r23.sx
+0x0f48  29d51d0214000000         threadgroup_store i32, x, r21, r14h, 0
+0x0f50  0e0140065a000000         iadd r0, r0.sx, u16.sx
+0x0f58  0e0140ae64000000         isub r0, r0.sx, r5.sx
+0x0f60  0e158a6566040000         iadd r5, u37.sx, r19.sx
+0x0f68  0529a80e10c01200         device_load 0, i32, x, r5, u12_u13, r5, unsigned
+0x0f70  3800                     wait 0
+0x0f72  1e0140a664000000         imadd r0, r0.sx, r5.sx, 0
+0x0f7a  1e6340221a000000         imadd r24_r25, r0, u17, 0
+0x0f82  2e950020270b0000         bfeil r5, 0, r25, 11
+0x0f8a  1e154a065a000000         imadd r5, r5.sx, u16.sx, 0
+0x0f92  0e0140ae64000000         isub r0, r0.sx, r5.sx
+0x0f9a  29812c0214000000         threadgroup_store i32, x, r0, r22l, 0
+0x0fa2  6800                     threadgroup_barrier
+0x0fa4  6981190214000000         threadgroup_load i32, x, r0, r12h, 0
+0x0fac  6995280214000000         threadgroup_load i32, x, r5, r20l, 0
+0x0fb4  0e4d40a664000000         iadd r19, r0.sx, r5.sx
+0x0fbc  1e5b66221a000000         imadd r22_r23, r19, u17, 0
+0x0fc4  2ed500e0260b0000         bfeil r21, 0, r23, 11
+0x0fcc  1e556a065a000000         imadd r21, r21.sx, u16.sx, 0
+0x0fd4  0e4d66ae66000000         isub r19, r19.sx, r21.sx
+0x0fdc  29cd190214000000         threadgroup_store i32, x, r19, r12h, 0
+0x0fe4  0e0140065a000000         iadd r0, r0.sx, u16.sx
+0x0fec  0e0140ae64000000         isub r0, r0.sx, r5.sx
+0x0ff4  0e15822566040000         iadd r5, u33.sx, r17.sx
+0x0ffc  0529a80e10c01200         device_load 0, i32, x, r5, u12_u13, r5, unsigned
+0x1004  3800                     wait 0
+0x1006  1e0140a664000000         imadd r0, r0.sx, r5.sx, 0
+0x100e  1e5b40221a000000         imadd r22_r23, r0, u17, 0
+0x1016  2e9500e0260b0000         bfeil r5, 0, r23, 11
+0x101e  1e154a065a000000         imadd r5, r5.sx, u16.sx, 0
+0x1026  0e0140ae64000000         isub r0, r0.sx, r5.sx
+0x102e  2981280214000000         threadgroup_store i32, x, r0, r20l, 0
+0x1036  6800                     threadgroup_barrier
+0x1038  6981150214000000         threadgroup_load i32, x, r0, r10h, 0
+0x1040  6995240214000000         threadgroup_load i32, x, r5, r18l, 0
+0x1048  0e4540a664000000         iadd r17, r0.sx, r5.sx
+0x1050  1e5362221a000000         imadd r20_r21, r17, u17, 0
+0x1058  2ecd00a0260b0000         bfeil r19, 0, r21, 11
+0x1060  1e4d66065a000000         imadd r19, r19.sx, u16.sx, 0
+0x1068  0e45626e66000000         isub r17, r17.sx, r19.sx
+0x1070  29c5150214000000         threadgroup_store i32, x, r17, r10h, 0
+0x1078  0e0140065a000000         iadd r0, r0.sx, u16.sx
+0x1080  0e0140ae64000000         isub r0, r0.sx, r5.sx
+0x1088  0e15bce565000000         iadd r5, u30.sx, r15.sx
+0x1090  0529a80e10c01200         device_load 0, i32, x, r5, u12_u13, r5, unsigned
+0x1098  3800                     wait 0
+0x109a  1e0140a664000000         imadd r0, r0.sx, r5.sx, 0
+0x10a2  1e5340221a000000         imadd r20_r21, r0, u17, 0
+0x10aa  2e9500a0260b0000         bfeil r5, 0, r21, 11
+0x10b2  1e154a065a000000         imadd r5, r5.sx, u16.sx, 0
+0x10ba  0e0140ae64000000         isub r0, r0.sx, r5.sx
+0x10c2  2981240214000000         threadgroup_store i32, x, r0, r18l, 0
+0x10ca  6800                     threadgroup_barrier
+0x10cc  69810f0214000000         threadgroup_load i32, x, r0, r7h, 0
+0x10d4  6995200214000000         threadgroup_load i32, x, r5, r16l, 0
+0x10dc  0e3d40a664000000         iadd r15, r0.sx, r5.sx
+0x10e4  1e4b5e221a000000         imadd r18_r19, r15, u17, 0
+0x10ec  2ec50060260b0000         bfeil r17, 0, r19, 11
+0x10f4  1e4562065a000000         imadd r17, r17.sx, u16.sx, 0
+0x10fc  0e3d5e2e66000000         isub r15, r15.sx, r17.sx
+0x1104  29bd0f0214000000         threadgroup_store i32, x, r15, r7h, 0
+0x110c  0e0140065a000000         iadd r0, r0.sx, u16.sx
+0x1114  0e0140ae64000000         isub r0, r0.sx, r5.sx
+0x111c  0e1580a565040000         iadd r5, u32.sx, r13.sx
+0x1124  0529a80e10c01200         device_load 0, i32, x, r5, u12_u13, r5, unsigned
+0x112c  3800                     wait 0
+0x112e  1e0140a664000000         imadd r0, r0.sx, r5.sx, 0
+0x1136  1e4b40221a000000         imadd r18_r19, r0, u17, 0
+0x113e  2e950060260b0000         bfeil r5, 0, r19, 11
+0x1146  1e154a065a000000         imadd r5, r5.sx, u16.sx, 0
+0x114e  0e0140ae64000000         isub r0, r0.sx, r5.sx
+0x1156  2981200214000000         threadgroup_store i32, x, r0, r16l, 0
+0x115e  6800                     threadgroup_barrier
+0x1160  69810d0214000000         threadgroup_load i32, x, r0, r6h, 0
+0x1168  69951c0214000000         threadgroup_load i32, x, r5, r14l, 0
+0x1170  0e1d40a664000000         iadd r7, r0.sx, r5.sx
+0x1178  1e434e221a000000         imadd r16_r17, r7, u17, 0
+0x1180  2eb50020260b0000         bfeil r13, 0, r17, 11
+0x1188  1e355a065a000000         imadd r13, r13.sx, u16.sx, 0
+0x1190  0e1d4eae65000000         isub r7, r7.sx, r13.sx
+0x1198  299d0d0214000000         threadgroup_store i32, x, r7, r6h, 0
+0x11a0  0e0140065a000000         iadd r0, r0.sx, u16.sx
+0x11a8  0e0140ae64000000         isub r0, r0.sx, r5.sx
+0x11b0  0e15b26565000000         iadd r5, u25.sx, r11.sx
+0x11b8  0529a80e10c01200         device_load 0, i32, x, r5, u12_u13, r5, unsigned
+0x11c0  3800                     wait 0
+0x11c2  1e0140a664000000         imadd r0, r0.sx, r5.sx, 0
+0x11ca  1e4340221a000000         imadd r16_r17, r0, u17, 0
+0x11d2  2e950020260b0000         bfeil r5, 0, r17, 11
+0x11da  1e154a065a000000         imadd r5, r5.sx, u16.sx, 0
+0x11e2  0e0140ae64000000         isub r0, r0.sx, r5.sx
+0x11ea  29811c0214000000         threadgroup_store i32, x, r0, r14l, 0
+0x11f2  6800                     threadgroup_barrier
+0x11f4  6981090214000000         threadgroup_load i32, x, r0, r4h, 0
+0x11fc  6995180214000000         threadgroup_load i32, x, r5, r12l, 0
+0x1204  0e1d40a664000000         iadd r7, r0.sx, r5.sx
+0x120c  1e3b4e221a000000         imadd r14_r15, r7, u17, 0
+0x1214  2ead00e0250b0000         bfeil r11, 0, r15, 11
+0x121c  1e2d56065a000000         imadd r11, r11.sx, u16.sx, 0
+0x1224  0e1d4e6e65000000         isub r7, r7.sx, r11.sx
+0x122c  299d090214000000         threadgroup_store i32, x, r7, r4h, 0
+0x1234  0e0140065a000000         iadd r0, r0.sx, u16.sx
+0x123c  0e0140ae64000000         isub r0, r0.sx, r5.sx
+0x1244  0e15b02565000000         iadd r5, u24.sx, r9.sx
+0x124c  0529a80e10c01200         device_load 0, i32, x, r5, u12_u13, r5, unsigned
+0x1254  3800                     wait 0
+0x1256  1e0140a664000000         imadd r0, r0.sx, r5.sx, 0
+0x125e  1e3b40221a000000         imadd r14_r15, r0, u17, 0
+0x1266  2e9500e0250b0000         bfeil r5, 0, r15, 11
+0x126e  1e154a065a000000         imadd r5, r5.sx, u16.sx, 0
+0x1276  0e0140ae64000000         isub r0, r0.sx, r5.sx
+0x127e  2981180214000000         threadgroup_store i32, x, r0, r12l, 0
+0x1286  6800                     threadgroup_barrier
+0x1288  6981070214000000         threadgroup_load i32, x, r0, r3h, 0
+0x1290  6995140214000000         threadgroup_load i32, x, r5, r10l, 0
+0x1298  0e1d40a664000000         iadd r7, r0.sx, r5.sx
+0x12a0  1e334e221a000000         imadd r12_r13, r7, u17, 0
+0x12a8  2ea500a0250b0000         bfeil r9, 0, r13, 11
+0x12b0  1e2552065a000000         imadd r9, r9.sx, u16.sx, 0
+0x12b8  0e1d4e2e65000000         isub r7, r7.sx, r9.sx
+0x12c0  299d070214000000         threadgroup_store i32, x, r7, r3h, 0
+0x12c8  0e0140065a000000         iadd r0, r0.sx, u16.sx
+0x12d0  0e0140ae64000000         isub r0, r0.sx, r5.sx
+0x12d8  0e0d840565040000         iadd r3, u34.sx, r8.sx
+0x12e0  0519680e10c01200         device_load 0, i32, x, r3, u12_u13, r3, unsigned
+0x12e8  3800                     wait 0
+0x12ea  1e01406664000000         imadd r0, r0.sx, r3.sx, 0
+0x12f2  1e2340221a000000         imadd r8_r9, r0, u17, 0
+0x12fa  2e8d0020250b0000         bfeil r3, 0, r9, 11
+0x1302  1e0d46065a000000         imadd r3, r3.sx, u16.sx, 0
+0x130a  0e01406e64000000         isub r0, r0.sx, r3.sx
+0x1312  2981140214000000         threadgroup_store i32, x, r0, r10l, 0
+0x131a  6800                     threadgroup_barrier
+0x131c  6981080214000000         threadgroup_load i32, x, r0, r4l, 0
+0x1324  1e0140c65a000000         imadd r0, r0.sx, u22.sx, 0
+0x132c  1e1340221a000000         imadd r4_r5, r0, u17, 0
+0x1334  2e8d00a0240b0000         bfeil r3, 0, r5, 11
+0x133c  1e0d46065a000000         imadd r3, r3.sx, u16.sx, 0
+0x1344  0e01406e64000000         isub r0, r0.sx, r3.sx
+0x134c  45012c0e10c01200         device_store 0, i32, x, r0, u14_u15, r1, unsigned, 0
+0x1354  69810c0214000000         threadgroup_load i32, x, r0, r6l, 0
+0x135c  1e0140c65a000000         imadd r0, r0.sx, u22.sx, 0
+0x1364  1e1340221a000000         imadd r4_r5, r0, u17, 0
+0x136c  2e8500a0240b0000         bfeil r1, 0, r5, 11
+0x1374  1e0542065a000000         imadd r1, r1.sx, u16.sx, 0
+0x137c  0e01402e64000000         isub r0, r0.sx, r1.sx
+0x1384  45014c4e10c01200         device_store 1, i32, x, r0, u14_u15, r2, unsigned, 0
+0x138c  8800                     stop

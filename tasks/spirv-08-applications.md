@@ -1,7 +1,7 @@
 # Task SPIR-V 8: applications (ray tracer, neural networks, image processing, cellular automaton, graph search,
 # encryption, hashing, text, compression)
 
-**Workloads:** `raytrace`, `mlp`, `sobel`, `life`, `bfs`, `conv_layer`, `hist_eq`, `aes`, `hash_table`, `word_count`, `dct8`, `attention`, `resize`, `median3`, `poisson`, `lbm`, `base64`, `md5`, `gemv`, `levenshtein`, `blur`, `yuv420`, `montecarlo`, `xxhash`, `bloom`, `collatz`, `tridiag`, `merge`, `ccl`, `pagerank`, `skinning`, `strsearch`, `quantize`, `rule110`, `voxel`, `nms`, `sat`, `sssp`, `morton`, `utf8`, `fir`, `composite`, `nqueens`, `lzmatch`, `bitpack`, `perlin`, `adler32`, `sieve`, `gcd`, `dither`, `advect`, `knn`, `csvparse`, `pip`, `lift53`, `chacha20`, `modexp`, `floyd`, `f16pack`, `raster`, `canny`, `secded`, `bicubic`, `dfa`, `b64decode`, `cordic`, `rsenc`, `texfetch`, `texfilter`, `imgerode`, `imgtonemap`, `argmax64`, `minmax64`, `dsum`, `quadmip`, `clustered`, `specblur`, `cullindirect`, `bigsort`, `pushmat`, `mplitmus`, `splat`, `splatfix`, `smembank`, `coalesce`, `atomcontend`, `barriercost`, `aluprobe`, `ubopalette`, `uboparams`, `bindless`, `bindlessu`, `rle`, `huffdec`, `lookback`, `hll`, `tricount`, `sha3`, `stereo`, `viterbi`, `viterbifix`, `shiftfuse`, `bc1enc`, `lz4dec`. These are recorded and verified by `make asahi-verify` with the others;
+**Workloads:** `raytrace`, `mlp`, `sobel`, `life`, `bfs`, `conv_layer`, `hist_eq`, `aes`, `hash_table`, `word_count`, `dct8`, `attention`, `resize`, `median3`, `poisson`, `lbm`, `base64`, `md5`, `gemv`, `levenshtein`, `blur`, `yuv420`, `montecarlo`, `xxhash`, `bloom`, `collatz`, `tridiag`, `merge`, `ccl`, `pagerank`, `skinning`, `strsearch`, `quantize`, `rule110`, `voxel`, `nms`, `sat`, `sssp`, `morton`, `utf8`, `fir`, `composite`, `nqueens`, `lzmatch`, `bitpack`, `perlin`, `adler32`, `sieve`, `gcd`, `dither`, `advect`, `knn`, `csvparse`, `pip`, `lift53`, `chacha20`, `modexp`, `floyd`, `f16pack`, `raster`, `canny`, `secded`, `bicubic`, `dfa`, `b64decode`, `cordic`, `rsenc`, `texfetch`, `texfilter`, `imgerode`, `imgtonemap`, `argmax64`, `minmax64`, `dsum`, `quadmip`, `clustered`, `specblur`, `cullindirect`, `bigsort`, `pushmat`, `mplitmus`, `splat`, `splatfix`, `smembank`, `coalesce`, `atomcontend`, `barriercost`, `aluprobe`, `ubopalette`, `uboparams`, `bindless`, `bindlessu`, `rle`, `huffdec`, `lookback`, `hll`, `tricount`, `sha3`, `stereo`, `viterbi`, `viterbifix`, `shiftfuse`, `bc1enc`, `lz4dec`, `nttmul`. These are recorded and verified by `make asahi-verify` with the others;
 they are **PENDING** until then. The detailed procedure is in `tasks/spirv-workloads.md`.
 
 ## Why these
@@ -116,6 +116,7 @@ reference.
 | `shiftfuse` | 1M random (x, y, s) triples, 10 idioms | Exact per column; 3 columns depend on the open `bfeil` question (notes 37-38) |
 | `bc1enc` | 2048 × 2048 synthetic RGB image (gradients, flat rectangles, noise): 262144 blocks | Bit-exact blocks; decoded PSNR reported (32.2 dB offline) |
 | `lz4dec` | 512 blocks of 4 KiB of request-log-like text (ratio 1.79) | Every block decodes to the original bytes; the streams also decode with the reference `lz4` library |
+| `nttmul` | 8192 pairs of random polynomials mod 7681 | Every product equals the schoolbook negacyclic convolution |
 
 ## Offline sanity checks (not hardware verification)
 
@@ -354,3 +355,9 @@ reference.
       `(i & 3) * 8` to `i * 8` under `ushr`'s modulo-32 shift. So it decodes only under hypothesis B of note 37: the
       simulator fails every block by default and passes with `AGX_BFEIL_MASKED_SHIFT32=1`.
     - Predicted (under B) 4.1 ms: byte-serial, with a device read-modify-write per output byte.
+41. **NTT polynomial multiplication.**
+    - The arithmetic of lattice post-quantum schemes (Kyber / Dilithium use the same transform with other moduli).
+      Each butterfly does a 32-bit multiply and three reductions modulo a constant, which the compiler turns into
+      multiply-high sequences. The stage structure puts 8 + 8 barriers per workgroup.
+    - Predicted 0.25 ms for 8192 products. The M2 time checks integer multiply-high throughput and the barrier cost
+      that `barriercost` measures on its own.
