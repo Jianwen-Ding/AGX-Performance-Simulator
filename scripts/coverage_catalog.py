@@ -264,6 +264,10 @@ GEOMETRIES = [  # (gx, gy, gz, lx, ly, lz)
     (96, 1, 1, 96, 1, 1), (33, 1, 1, 33, 1, 1), (64, 64, 1, 8, 8, 1), (30, 17, 1, 16, 4, 1), (16, 16, 16, 4, 4, 4),
     (10, 9, 7, 4, 3, 2), (2048, 2, 1, 128, 2, 1), (32, 32, 4, 32, 1, 1),
 ]
+# tests/drm_compute.c launches whole workgroups only (global % local == 0): it rejects the partial-group geometries
+# (1000 / 256, 30x17 / 16x4, 10x9x7 / 4x3x2) before submitting. They stay listed for when the harness grows a
+# partial-group launch, but are not generated.
+GEOMETRIES_DRM = [g for g in GEOMETRIES if all(g[i] % g[i + 3] == 0 for i in range(3))]
 
 
 # ---------------------------------------------------------------------------------------------------------------
@@ -440,7 +444,8 @@ def barrier_cases():
                 b += RS.mov(27, 32) + RS.e('iadd r25, r23, r27') + RS.mov(27, wg - 1) + RS.e('and r25, r25, r27') + RS.mov(27, 16)
                 b += RS.e('imadd r25, r25, r27, 0') + RS.mov(15, 0xdeadbeef) + tg(True, 'i32', 15, base=25, index=0) + RS.e('wait 0')
                 b += RS.mov(27, 8192) + RS.e('iadd r26, r1, r27') + RS.agx_loop.store(15, 8, 26) + RS.e('wait 0') + RS.e('iadd r2, r15, 0')
-                return ('threadgroup', name, f'barrier {opc} then cross-SIMD-group threadgroup read, workgroup {wg}', b, N, wg, 64, 16 * wg, [0] * (8192 + N))
+                n = N // wg * wg                     # whole workgroups only (drm_compute): 960 threads for wg 96
+                return ('threadgroup', name, f'barrier {opc} then cross-SIMD-group threadgroup read, workgroup {wg}', b, n, wg, 64, 16 * wg, [0] * (8192 + n))
             out.append(Case(f'threadgroup/{name}', 'threadgroup', 'barrier-0x68-vs-0x78', 'safe', 'functional',
                             f'barrier {barrier} with workgroup size {wg}', build, []))
     for a in range(4):
@@ -599,7 +604,7 @@ def build_catalog():
             if c.id not in seen:
                 seen.add(c.id); cases.append(c)
     for n in range(256):
-        for geom in (GEOMETRIES if n in _sr_known() else GEOMETRIES[:1]):
+        for geom in (GEOMETRIES_DRM if n in _sr_known() else GEOMETRIES_DRM[:1]):
             cases.append(sr_case(n, geom))
     cases += control_cases() + barrier_cases() + atomic_cases() + tg_format_cases()
     cases += timing_cases(alu)

@@ -49,7 +49,9 @@ def run(R, code, count, local_x, table, regs=64, shared=0, dims=None):
     lines = [json.loads(l) for l in r.stdout.decode().splitlines() if l.startswith('{')]
     smp = [x for x in lines if 'rep' in x]
     if r.returncode or len(smp) != 1 or not all(smp[0]['fw_ts']):
-        gpu_safety.record('record_suite fault'); raise RuntimeError('dispatch failed: '+r.stdout.decode()[-300:])
+        if smp:   # only a submitted dispatch can time out or fault; a host-side rejection does not touch the GPU
+            gpu_safety.record('record_suite fault')
+        raise RuntimeError('dispatch failed: '+r.stdout.decode()[-300:])
     va = next(x['table']['va'] for x in lines if 'table' in x)
     rounded = (count+31)//32*32
     words = 8+rounded+8+16
