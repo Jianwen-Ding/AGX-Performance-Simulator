@@ -66,6 +66,9 @@ known gaps: [novel-results/2026-10-11-cost-model](novel-results/2026-10-11-cost-
 | `scripts/scale_probes.py`, `scripts/mem_probes.py`, `scripts/wg_placement.py`, `scripts/dispatch_probes.py` | 1–32 groups per core, memory hierarchy, workgroup placement, whole-dispatch validation |
 | other `scripts/*.py` | Direct-DRM / Vulkan dispatch, assembly and patching helpers the hardware scripts import |
 | `tests/*.c` | C harnesses the hardware runners compile (`drm_compute.c`, Vulkan, cache-layout) |
+| `testsuite/`, `coverage/` | Hardware-recorded functional test suite (721 cases); coverage catalog of every known behaviour, to be recorded ([coverage/README.md](coverage/README.md)) |
+| `spirv/`, `tests/vk_run.c` | Realistic SPIR-V compute workloads with numpy references, a generic Vulkan runner, and the path from the driver's compiled code to the simulator |
+| `tasks/` | Self-contained tasks for an agent on Asahi Linux: [coverage recording](tasks/agx-coverage.md), [SPIR-V workloads](tasks/spirv-workloads.md) |
 | `results/` | Calibration data and every validation measurement |
 | `novel-results/` | The cost-model finding and the hardware findings its rules come from |
 
@@ -89,7 +92,15 @@ make verify-bench       # offline: retained instruction-bench evidence
 make bench              # hardware: instruction bench
 make cost-calibrate     # hardware: loop / get_sr calibration
 make cost-validate      # hardware: random kernels measured vs predicted
+make coverage-validate  # offline: every coverage case builds, assembles and decodes
+make coverage-record    # hardware: record the coverage catalog (tasks/agx-coverage.md)
+make coverage-check     # offline: simulator and cost model against the coverage recordings
+make spirv-lavapipe     # offline: SPIR-V workloads on Mesa lavapipe (glslang, spirv-tools, Vulkan headers)
+make spirv-run          # hardware: SPIR-V workloads on the GPU (tasks/spirv-*.md)
 ```
+
+Other offline tools: `agx_asm` (assembler / decoder / raw field edits on stdin), `agx_run` (functional simulation of a
+dispatch over arbitrary memory, including a driver preamble that fills the uniforms).
 
 Some findings link to experiments, notes and results that stayed in Apple-M2-Playground; those
 links resolve in that repository. Shader capture (`agx_capture.py`) also stays there.

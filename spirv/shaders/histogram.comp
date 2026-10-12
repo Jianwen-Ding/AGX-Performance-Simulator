@@ -1,0 +1,27 @@
+#version 450
+// 256-bin byte histogram: per-workgroup counts in shared memory (atomicAdd), then one global atomicAdd per bin.
+// Each thread reads `per_thread` words (4 bytes each), coalesced across the workgroup.
+layout(local_size_x = 256) in;
+layout(std430, binding = 0) readonly buffer D { uint words[]; };
+layout(std430, binding = 1) buffer H { uint bins[256]; };
+layout(push_constant) uniform P { uint nwords; uint per_thread; } p;
+shared uint local_bins[256];
+
+void main() {
+    uint t = gl_LocalInvocationID.x;
+    local_bins[t] = 0u;
+    barrier();
+    uint base = gl_WorkGroupID.x * 256u * p.per_thread + t;
+    for (uint k = 0u; k < p.per_thread; k++) {
+        uint i = base + 256u * k;
+        if (i < p.nwords) {
+            uint w = words[i];
+            atomicAdd(local_bins[w & 0xffu], 1u);
+            atomicAdd(local_bins[(w >> 8) & 0xffu], 1u);
+            atomicAdd(local_bins[(w >> 16) & 0xffu], 1u);
+            atomicAdd(local_bins[w >> 24], 1u);
+        }
+    }
+    barrier();
+    if (local_bins[t] != 0u) atomicAdd(bins[t], local_bins[t]);
+}

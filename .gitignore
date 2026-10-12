@@ -4,3 +4,6 @@ __pycache__/
 /runs/
 
 /rust/target/
+/spirv/build/
+/spirv/out/
+/coverage/.scratch/

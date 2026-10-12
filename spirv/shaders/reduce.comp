@@ -1,0 +1,49 @@
+#version 450
+// Two-stage sum reduction (float and uint at once), the classic subgroup + shared-memory tree.
+// stage 0: every workgroup reduces 1024 elements (256 threads x 4) to one partial per type: out[1 + wg].
+// stage 1: one workgroup reduces the `n` partials to out[0].
+#extension GL_KHR_shader_subgroup_arithmetic : require
+layout(local_size_x = 256) in;
+layout(std430, binding = 0) readonly buffer F { vec4 fdata[]; };
+layout(std430, binding = 1) readonly buffer U { uvec4 udata[]; };
+layout(std430, binding = 2) buffer FO { float fout[]; };
+layout(std430, binding = 3) buffer UO { uint uout[]; };
+layout(push_constant) uniform P { uint n; uint stage; } p;
+shared float fs[64];
+shared uint us[64];
+
+void main() {
+    uint t = gl_LocalInvocationID.x;
+    float f = 0.0;
+    uint u = 0u;
+    if (p.stage == 0u) {
+        uint i = gl_GlobalInvocationID.x;
+        vec4 a = fdata[i];
+        uvec4 b = udata[i];
+        f = (a.x + a.y) + (a.z + a.w);
+        u = (b.x + b.y) + (b.z + b.w);
+    } else {
+        for (uint i = t; i < p.n; i += 256u) {
+            f += fout[1u + i];
+            u += uout[1u + i];
+        }
+    }
+    f = subgroupAdd(f);
+    u = subgroupAdd(u);
+    if (subgroupElect()) {
+        fs[gl_SubgroupID] = f;
+        us[gl_SubgroupID] = u;
+    }
+    barrier();
+    if (t == 0u) {
+        float fa = 0.0;
+        uint ua = 0u;
+        for (uint s = 0u; s < gl_NumSubgroups; s++) {
+            fa += fs[s];
+            ua += us[s];
+        }
+        uint o = p.stage == 0u ? 1u + gl_WorkGroupID.x : 0u;
+        fout[o] = fa;
+        uout[o] = ua;
+    }
+}

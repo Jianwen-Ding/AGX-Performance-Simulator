@@ -1,0 +1,50 @@
+#version 450
+// Exclusive prefix sum of uint over 1024-element blocks (three-pass scan-then-propagate).
+// pass 0: scan each block (256 threads x 4 elements) in place, block total -> sums[block]
+// pass 1: one workgroup scans sums[0 .. nblocks) in place (nblocks <= 1024)
+// pass 2: data[i] += sums[block(i)]
+#extension GL_KHR_shader_subgroup_arithmetic : require
+layout(local_size_x = 256) in;
+layout(std430, binding = 0) buffer D { uint data[]; };
+layout(std430, binding = 1) buffer S { uint sums[]; };
+layout(push_constant) uniform P { uint pass; uint nblocks; } p;
+shared uint part[64];
+
+// exclusive scan of v over the workgroup; returns the workgroup total in `total`
+uint wg_scan(uint v, out uint total) {
+    uint x = subgroupExclusiveAdd(v);
+    if (gl_SubgroupInvocationID == gl_SubgroupSize - 1u) part[gl_SubgroupID] = x + v;
+    barrier();
+    if (gl_LocalInvocationID.x == 0u) {
+        uint acc = 0u;
+        for (uint s = 0u; s < gl_NumSubgroups; s++) { uint t = part[s]; part[s] = acc; acc += t; }
+        part[gl_NumSubgroups] = acc;
+    }
+    barrier();
+    total = part[gl_NumSubgroups];
+    return x + part[gl_SubgroupID];
+}
+
+void main() {
+    uint t = gl_LocalInvocationID.x;
+    if (p.pass == 0u || p.pass == 1u) {
+        uint base = p.pass == 0u ? gl_WorkGroupID.x * 1024u + 4u * t : 4u * t;
+        uvec4 v = uvec4(0u);
+        bool live = p.pass == 0u || 4u * t < p.nblocks;
+        if (live) v = p.pass == 0u ? uvec4(data[base], data[base + 1u], data[base + 2u], data[base + 3u])
+                                   : uvec4(sums[base], sums[base + 1u], sums[base + 2u], sums[base + 3u]);
+        uint s1 = v.x, s2 = s1 + v.y, s3 = s2 + v.z, s4 = s3 + v.w;
+        uint total;
+        uint pre = wg_scan(s4, total);
+        uvec4 r = uvec4(pre, pre + s1, pre + s2, pre + s3);
+        if (p.pass == 0u) {
+            data[base] = r.x; data[base + 1u] = r.y; data[base + 2u] = r.z; data[base + 3u] = r.w;
+            if (t == 0u) sums[gl_WorkGroupID.x] = total;
+        } else if (live) {
+            sums[base] = r.x; sums[base + 1u] = r.y; sums[base + 2u] = r.z; sums[base + 3u] = r.w;
+        }
+    } else {
+        uint i = gl_GlobalInvocationID.x;
+        data[i] += sums[i / 1024u];
+    }
+}

@@ -4,7 +4,7 @@ DEVICE ?= /dev/dri/renderD128
 PROBE_INCLUDE ?= /save/workspace/AGX_Probe/mesa/include
 export CC PROBE_INCLUDE
 
-.PHONY: help check rust test verify-cost-model verify-memory-model bench verify-bench cost-calibrate cost-validate suite-check record-suite record-transcendentals coverage-validate coverage-record coverage-check coverage-status
+.PHONY: help check rust test verify-cost-model verify-memory-model bench verify-bench cost-calibrate cost-validate suite-check record-suite record-transcendentals coverage-validate coverage-record coverage-check coverage-status spirv-build spirv-run spirv-lavapipe
 
 help:
 	@echo 'make rust               Build the model (rust/target/release: agx_cost, agx_predict, verify_cost_model, agx_bench)'
@@ -18,6 +18,9 @@ help:
 	@echo 'make coverage-record    Hardware: record the safe coverage cases (resumable; tasks/agx-coverage.md)'
 	@echo 'make coverage-check     Offline: simulator and cost model against coverage/expected and coverage/timing'
 	@echo 'make coverage-status    Recorded / pending / faulted coverage cases per area'
+	@echo 'make spirv-build        Compile spirv/shaders (glslangValidator, spirv-val) and the vk_run runner'
+	@echo 'make spirv-run          Hardware (Vulkan): all SPIR-V workloads, both sizes, checked and timed (tasks/spirv-*.md)'
+	@echo 'make spirv-lavapipe     Offline: all SPIR-V workloads on Mesa lavapipe (CPU Vulkan) against their references'
 	@echo 'make verify-dispatch    Offline: whole-dispatch model against 25 stored dispatches'
 	@echo 'make test               Offline: Rust unit and equivalence tests'
 	@echo 'make check              Offline: Python syntax check of the hardware scripts'
@@ -79,3 +82,13 @@ coverage-check: rust
 
 coverage-status:
 	$(PYTHON) -B scripts/coverage.py status
+
+spirv-build:
+	$(PYTHON) -B scripts/spirv_task.py build
+
+spirv-run: rust spirv-build
+	$(PYTHON) -B scripts/spirv_task.py run all --size small --repeat 5
+	$(PYTHON) -B scripts/spirv_task.py run all --size large --repeat 20
+
+spirv-lavapipe: spirv-build
+	VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/lvp_icd.json $(PYTHON) -B scripts/spirv_task.py run all --size small --repeat 2 --out build/spirv-lavapipe

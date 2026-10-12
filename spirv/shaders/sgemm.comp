@@ -1,0 +1,39 @@
+#version 450
+// C = alpha * A * B + beta * C, row-major fp32 (M x K) * (K x N). 64x64 output tile per workgroup, 16x16 threads,
+// 4x4 register block per thread, K in steps of 16 through shared memory. M, N multiples of 64; K multiple of 16.
+layout(local_size_x = 16, local_size_y = 16) in;
+layout(std430, binding = 0) readonly buffer A { float a[]; };
+layout(std430, binding = 1) readonly buffer B { float b[]; };
+layout(std430, binding = 2) buffer C { float c[]; };
+layout(push_constant) uniform P { uint M; uint N; uint K; float alpha; float beta; } p;
+shared float As[16][64 + 1];
+shared float Bs[16][64 + 1];
+
+void main() {
+    uint tx = gl_LocalInvocationID.x, ty = gl_LocalInvocationID.y;
+    uint row0 = gl_WorkGroupID.y * 64u, col0 = gl_WorkGroupID.x * 64u;
+    uint lin = ty * 16u + tx;
+    float acc[4][4];
+    for (int i = 0; i < 4; i++) for (int j = 0; j < 4; j++) acc[i][j] = 0.0;
+    for (uint k0 = 0u; k0 < p.K; k0 += 16u) {
+        // 64x16 of A and 16x64 of B: 1024 values each, 4 per thread
+        for (uint e = 0u; e < 4u; e++) {
+            uint idx = lin + 256u * e;
+            uint ar = idx / 16u, ak = idx % 16u;
+            As[ak][ar] = a[(row0 + ar) * p.K + k0 + ak];
+            uint bk = idx / 64u, bc = idx % 64u;
+            Bs[bk][bc] = b[(k0 + bk) * p.N + col0 + bc];
+        }
+        barrier();
+        for (uint k = 0u; k < 16u; k++) {
+            float av[4], bv[4];
+            for (uint i = 0u; i < 4u; i++) { av[i] = As[k][ty * 4u + i]; bv[i] = Bs[k][tx * 4u + i]; }
+            for (uint i = 0u; i < 4u; i++) for (uint j = 0u; j < 4u; j++) acc[i][j] = fma(av[i], bv[j], acc[i][j]);
+        }
+        barrier();
+    }
+    for (uint i = 0u; i < 4u; i++) for (uint j = 0u; j < 4u; j++) {
+        uint o = (row0 + ty * 4u + i) * p.N + col0 + tx * 4u + j;
+        c[o] = p.alpha * acc[i][j] + p.beta * c[o];
+    }
+}

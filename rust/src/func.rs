@@ -228,6 +228,7 @@ fn step_group(g: &mut Group, code: &[u8], cache: &mut [Option<Info>], mem: &mut 
                 }
             }
             "device_load" | "device_store" => device_mem(g, f, mem, desc.name == "device_load")?,
+            "uniform_store" => uniform_store(g, f)?,
             "threadgroup_load" | "threadgroup_store" => tg_mem(g, f, tg, desc.name == "threadgroup_load")?,
             "atomic" => device_atomic(g, f, mem)?,
             "fadd32" | "fmul32" | "fmadd32" | "fadd16" | "fmul16" | "fmadd16" => fsem::float_arith(desc.name, f, &vals(&info.ops), &mut g.st)?,
@@ -257,6 +258,60 @@ fn step_group(g: &mut Group, code: &[u8], cache: &mut [Option<Info>], mem: &mut 
         g.pc += info.size;
     }
     Ok(Stop::Done)
+}
+
+/// uniform_store (the driver preamble's way of filling the uniforms from the root table): components of R from the
+/// first active lane into uniform halves O<<s + c*(1 or 2), for i16 / i32 formats.
+fn uniform_store(g: &mut Group, f: &Fields) -> Result<(), String> {
+    let x = |k: &str| fget(f, k).unwrap_or(0);
+    let fmt = x("F");
+    if fmt != 1 && fmt != 2 {
+        return Err(format!("uniform_store format {} not implemented", fmt));
+    }
+    let Some(t) = (0..32).find(|&t| g.st.exec[t]) else { return Ok(()) };
+    let idx = if x("Ot") != 0 { x("O") as usize } else { g.st.get_reg32((x("O") >> 1) as usize, t)? as u32 as usize } << x("s");
+    let (r, rt) = (x("R") as usize, x("Rt") != 0);
+    let halves = if fmt == 2 { 2 } else { 1 };
+    let mut k = 0;
+    for c in 0..4 {
+        if x("mask") & (1 << c) == 0 {
+            continue;
+        }
+        let v = get(&g.st, rt, r, k, t)?;
+        k += 1;
+        for h in 0..halves {
+            let u = idx + c * halves + h;
+            if u >= g.st.uniforms.len() {
+                return Err(format!("uniform_store beyond the uniform file ({})", u));
+            }
+            g.st.uniforms[u] = (v >> (16 * h)) as u16;
+        }
+    }
+    Ok(())
+}
+
+/// Run a driver preamble (Mesa's once-per-dispatch program that loads the root table into uniforms) as a single
+/// lane with the given 32-bit uniforms; returns every 32-bit uniform afterwards, for the main shader's Dispatch.
+pub fn run_preamble(code: &[u8], uniforms: &[(usize, u32)], mem: &mut Memory, num_registers: usize) -> Result<Vec<(usize, u32)>, String> {
+    let ctx = GroupCtx { wg_size: [1, 1, 1], wg_id: [0, 0, 0], group: 0, core: 0, slot: 0, uniforms: uniforms.to_vec() };
+    let mut st = CoreState::new(num_registers, None);
+    for t in 0..32 {
+        st.exec[t] = t == 0;
+        let _ = st.set_reg16(0, t, if t == 0 { 0 } else { 1 });
+    }
+    for &(u, v) in uniforms {
+        st.uniforms[2 * u] = (v & 0xffff) as u16;
+        st.uniforms[2 * u + 1] = (v >> 16) as u16;
+    }
+    let mut g = Group { st, ctx, pc: 0, done: false };
+    let mut cache: Vec<Option<Info>> = (0..code.len()).map(|_| None).collect();
+    let mut tg = vec![0u8; 16];
+    let mut stats = RunStats::default();
+    match step_group(&mut g, code, &mut cache, mem, &mut tg, 1_000_000, &mut stats)? {
+        Stop::Done => {}
+        Stop::Barrier(_) => return Err("barrier in a preamble".into()),
+    }
+    Ok((0..g.st.uniforms.len() / 2).map(|u| (u, g.st.uniforms[2 * u] as u32 | (g.st.uniforms[2 * u + 1] as u32) << 16)).collect())
 }
 
 /// register for component k of a memory operand: 32-bit (rt) registers or 16-bit halves from half index r
