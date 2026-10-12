@@ -11,6 +11,8 @@ help:
 	@echo 'make verify-cost-model  Offline: model accuracy against all stored measurements, diffed against verify-output.txt'
 	@echo 'make verify-memory-model  Offline: memory-hierarchy model against the stored memory measurements (~2 min)'
 	@echo 'make verify-scaling     Offline: 1-32 groups per core incl. idle-slot rows (scale_check)'
+	@echo 'make suite-check        Offline: functional simulator against the hardware-recorded test suite (testsuite/)'
+	@echo 'make record-suite       Hardware: re-record the test suite (~15 min)'
 	@echo 'make verify-dispatch    Offline: whole-dispatch model against 25 stored dispatches'
 	@echo 'make test               Offline: Rust unit and equivalence tests'
 	@echo 'make check              Offline: Python syntax check of the hardware scripts'
@@ -33,6 +35,12 @@ verify-memory-model: rust
 
 verify-scaling: rust
 	rust/target/release/scale_check results/2026-10-11-core-scaling/grid.json results/2026-10-11-core-scaling/chains.json results/2026-10-11-core-scaling/idle.json results/2026-10-11-core-scaling/dests.json
+
+suite-check: rust
+	rust/target/release/suite_check testsuite
+
+record-suite:
+	$(PYTHON) -B scripts/record_suite.py
 
 verify-dispatch: rust
 	rust/target/release/dispatch_check -v

@@ -253,7 +253,7 @@ class _Memory:
         return self.words[i]
 
 
-def emulate(body, active, max_steps=2_000_000, table=None, lane_ids=False, num_registers=24):
+def emulate(body, active, max_steps=2_000_000, table=None, lane_ids=False, num_registers=24, init=None):
     """Run body on one 32-lane SIMD group; lanes < active start at r0l=0, others 1."""
     _, g = _tools()
     class Uniforms(g.Uniforms):
@@ -266,6 +266,7 @@ def emulate(body, active, max_steps=2_000_000, table=None, lane_ids=False, num_r
         st.set_reg32(2, t, 0xdeadbeef)  # stale; the body must overwrite r2
         if lane_ids: st.set_reg32(1, t, t)  # control prefix leaves the global thread index in r1
     st.exec = [t < active for t in range(g.SIMD_WIDTH)]
+    if init: init(st)
     pc = 0; executed = 0; trace = {}
     while pc < len(body):
         n = g.opcode_to_number(body[pc:]); d = g.get_instruction_descriptor(n)
