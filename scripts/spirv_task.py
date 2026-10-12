@@ -801,6 +801,23 @@ def w_nttmul(size, rng):
              [(pairs, 1, 1, b'')], check, 128, {'items': pairs})
 
 
+def w_topk(size, rng):
+    arrays = 64 if size == 'small' else 16384
+    # keys with many duplicates and shared high bytes (the cases radix select must get right), plus uniform ones
+    keys = rng.integers(0, 1 << 32, (arrays, 1024), dtype=np.uint64)
+    dup = rng.random(arrays) < 0.5
+    keys[dup] = (keys[dup] & np.uint64(0xFFFF00FF)) | (rng.integers(0, 4, (int(dup.sum()), 1024), dtype=np.uint64) << np.uint64(8))
+    keys = u32(keys)
+    k = u32(rng.integers(0, 1024, arrays))
+    def check(o):
+        got = o[2].view(np.uint32)[:arrays]
+        ref = np.array([np.partition(keys[i], int(k[i]))[int(k[i])] for i in range(arrays)], np.uint32)
+        bad = int(np.sum(got != ref))
+        return bad == 0, {'bad_arrays': bad, 'arrays': arrays}
+    return W('topk', {0: (keys, False), 1: (k, False), 2: (4 * arrays, True)}, [(arrays, 1, 1, b'')], check, 256,
+             {'items': arrays * 1024, 'bytes': 4096 * arrays})
+
+
 def w_spmv(size, rng):
     rows, cols = (512, 512) if size == 'small' else (1 << 18, 1 << 18)
     nnz = rng.integers(0, 64, rows) * (rng.random(rows) < 0.95)    # some empty rows
@@ -3330,7 +3347,7 @@ WORKLOADS = {'reduce': w_reduce, 'scan': w_scan, 'sgemm': w_sgemm, 'conv2d': w_c
              'aluprobe': w_aluprobe, 'ubopalette': w_ubopalette, 'uboparams': w_uboparams,
              'bindless': w_bindless, 'bindlessu': w_bindlessu,
              # appended only: the input seed is the index in this dict
-             'rle': w_rle, 'huffdec': w_huffdec, 'lookback': w_lookback, 'hll': w_hll, 'tricount': w_tricount, 'sha3': w_sha3, 'stereo': w_stereo, 'viterbi': w_viterbi, 'viterbifix': w_viterbifix, 'shiftfuse': w_shiftfuse, 'bc1enc': w_bc1enc, 'lz4dec': w_lz4dec, 'nttmul': w_nttmul}
+             'rle': w_rle, 'huffdec': w_huffdec, 'lookback': w_lookback, 'hll': w_hll, 'tricount': w_tricount, 'sha3': w_sha3, 'stereo': w_stereo, 'viterbi': w_viterbi, 'viterbifix': w_viterbifix, 'shiftfuse': w_shiftfuse, 'bc1enc': w_bc1enc, 'lz4dec': w_lz4dec, 'nttmul': w_nttmul, 'topk': w_topk}
 
 
 # ---------------------------------------------------------------------------------------------------------------

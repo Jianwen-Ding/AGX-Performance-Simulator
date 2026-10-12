@@ -1,0 +1,1 @@
+[{"name":"compute","description":"compute shader","subgroup_size":32,"statistics":{"Instructions":96,"ALU":66,"FSCIB":66,"IC":20,"Code size":758,"GPRs":29,"Uniforms":38,"Scratch":0,"Threads":1024,"Loops":3,"Spills":0,"Fills":0,"Preamble instructions":14},"representations":{}}]

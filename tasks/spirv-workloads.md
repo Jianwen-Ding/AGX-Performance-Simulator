@@ -54,7 +54,7 @@ The rest of this file is the detailed procedure, for investigating results.
 
 ## Workloads
 
-One hundred and thirty-seven realistic compute kernels, written in GLSL (`spirv/shaders/*.comp`) and compiled to SPIR-V:
+One hundred and thirty-eight realistic compute kernels, written in GLSL (`spirv/shaders/*.comp`) and compiled to SPIR-V:
 
 | Workload | Kernel | Stresses |
 |---|---|---|
@@ -195,6 +195,7 @@ One hundred and thirty-seven realistic compute kernels, written in GLSL (`spirv/
 | `bc1enc` | BC1 (DXT1) texture compression of 4×4 blocks: bounding-box endpoints in RGB565, nearest of 4 palette entries per texel | Integer divides by 255 and 3, a 16-texel block held in registers (140 GPRs, low occupancy), unrolled distance search |
 | `lz4dec` | LZ4 block decompression, one 4 KiB block per invocation, safe decoding | Byte-serial parsing with data-dependent lengths, overlapping back-reference copies, device read-modify-write per byte |
 | `nttmul` | Negacyclic polynomial multiplication mod 7681 (degree 256) by forward / inverse NTT in shared memory | Integer multiply and `%` by a constant (compiler reciprocal multiply), 8 barrier-separated butterfly stages, strided shared-memory access |
+| `topk` | k-th smallest of 1024 keys per workgroup by 4-pass MSB-first radix select | Shared `atomicAdd` histograms with heavy collisions (duplicate-rich keys), `subgroupInclusiveAdd` scans, uniform control flow across 13 barriers |
 
 Each workload has two sizes:
 
