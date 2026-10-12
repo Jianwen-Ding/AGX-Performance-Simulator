@@ -4127,8 +4127,10 @@ def verify_one(name, exp, layout, timing):
     else:
         res['status'] = 'FAIL'; res['why'] = f'{words} words differ' + ('' if sim['simulated_ok'] else '; simulator outside the reference')
     if timing and rec.get('large', {}).get('dispatch_ns_median'):
-        r = subprocess.run([sys.executable, '-B', __file__, 'predict', name, '--code-dir', str(d / 'code'), '--size', 'large'] + lay,
-                           capture_output=True, text=True)
+        # prediction buffers go to a temporary directory: never next to the recordings, which get committed
+        with tempfile.TemporaryDirectory() as tmp:
+            r = subprocess.run([sys.executable, '-B', __file__, 'predict', name, '--code-dir', str(d / 'code'), '--size', 'large',
+                                '--out', tmp] + lay, capture_output=True, text=True)
         if r.returncode == 0:
             pred = json.loads(r.stdout)['dispatch_us']
             meas = [x / 1e3 for x in rec['large']['dispatch_ns_median']]
@@ -4136,9 +4138,22 @@ def verify_one(name, exp, layout, timing):
                              'ratio': round(sum(pred) / sum(meas), 3) if sum(meas) else None}
             if 1 < len(meas) <= 16:                                              # sweeps / short pipelines: each dispatch
                 res['timing']['per_dispatch_us'] = [[round(m, 2), round(q, 2)] for m, q in zip(meas, pred)]
+            if name in STATEFUL:                                                 # multi-pass: also from the evolving state
+                with tempfile.TemporaryDirectory() as tmp:
+                    r2 = subprocess.run([sys.executable, '-B', __file__, 'predict', name, '--code-dir', str(d / 'code'), '--size', 'large',
+                                         '--out', tmp, '--stateful'] + lay, capture_output=True, text=True)
+                if r2.returncode == 0:
+                    ps = json.loads(r2.stdout)['dispatch_us']
+                    res['timing'].update({'predicted_stateful_us': round(sum(ps), 1),
+                                          'ratio_stateful': round(sum(ps) / sum(meas), 3) if sum(meas) else None})
         else:
             res['timing'] = {'error': (r.stdout + r.stderr).strip()[-200:]}
     return res
+
+
+# multi-pass workloads whose later dispatches depend on earlier results: verify --timing also predicts them with
+# predict --stateful (each dispatch from the buffers the previous ones left)
+STATEFUL = ('bfs', 'sssp', 'ccl', 'pagerank', 'boruvka', 'lookback', 'cellsort')
 
 
 def timing_summary(rows):
@@ -4174,6 +4189,11 @@ def cmd_verify(a):
     t = timing_summary(rows)
     if t:
         summary['timing'] = t
+    st = [(r['workload'], r['timing']['ratio'], r['timing']['ratio_stateful']) for r in rows
+          if r.get('timing', {}).get('ratio') and r['timing'].get('ratio_stateful')]
+    if st:                                       # which prediction the hardware favours for the multi-pass workloads
+        summary['stateful_vs_default'] = [{'workload': w, 'ratio_default': x, 'ratio_stateful': y,
+                                           'closer': 'stateful' if abs(np.log2(y)) < abs(np.log2(x)) else 'default'} for w, x, y in st]
     print(json.dumps(summary))
     if a.json:
         Path(a.json).write_text(json.dumps(rows, indent=1) + '\n')
@@ -4196,8 +4216,9 @@ def cmd_probes(a):
         meas = [x / 1e3 for x in (r.get('large') or {}).get('dispatch_ns_median') or []]
         pred = None
         if a.predict and (exp / name / 'code/main.bin').exists():
-            q = subprocess.run([sys.executable, '-B', __file__, 'predict', name, '--code-dir', str(exp / name / 'code'), '--size', 'large'],
-                               capture_output=True, text=True)
+            with tempfile.TemporaryDirectory() as tmp:
+                q = subprocess.run([sys.executable, '-B', __file__, 'predict', name, '--code-dir', str(exp / name / 'code'), '--size', 'large',
+                                    '--out', tmp], capture_output=True, text=True)
             if q.returncode == 0 and 'dispatch_us' in q.stdout:
                 pred = json.loads(q.stdout)['dispatch_us']
         return meas, pred

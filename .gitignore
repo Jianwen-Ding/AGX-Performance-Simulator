@@ -9,3 +9,5 @@ __pycache__/
 /coverage/.scratch/
 spirv/compiled/**/predict-*/
 spirv/compiled/**/sim-*/
+spirv/expected/**/predict-*/
+spirv/expected/**/sim-*/

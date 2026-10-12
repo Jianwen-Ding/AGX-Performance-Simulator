@@ -390,6 +390,7 @@ reference.
       - The winning-edge pass falls from 1176 to 617 µs.
       - The `atomicMin` pass stays at about 617 µs in every round: each edge still loads its 16 bytes and two random
         `parent` words before it can return early, so the pass is bound by those loads whatever the state.
-    - The M2's per-dispatch times say which of the two predictions to trust for multi-pass algorithms. Use
-      `--stateful` for workloads whose later dispatches depend on earlier results (`bfs`, `sssp`, `ccl`, `pagerank`,
-      `boruvka`).
+    - The M2's per-dispatch times say which of the two predictions to trust for multi-pass algorithms.
+      `verify --timing` therefore also predicts the multi-pass workloads (`bfs`, `sssp`, `ccl`, `pagerank`,
+      `boruvka`, `lookback`, `cellsort`) with `--stateful`. Their rows carry `predicted_stateful_us` and
+      `ratio_stateful`, and the summary's `stateful_vs_default` says which prediction each recording favours.
