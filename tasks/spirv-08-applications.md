@@ -1,7 +1,7 @@
 # Task SPIR-V 8: applications (ray tracer, neural networks, image processing, cellular automaton, graph search,
 # encryption, hashing, text, compression)
 
-**Workloads:** `raytrace`, `mlp`, `sobel`, `life`, `bfs`, `conv_layer`, `hist_eq`, `aes`, `hash_table`, `word_count`, `dct8`, `attention`, `resize`, `median3`, `poisson`, `lbm`, `base64`, `md5`, `gemv`, `levenshtein`, `blur`, `yuv420`, `montecarlo`, `xxhash`, `bloom`, `collatz`, `tridiag`, `merge`, `ccl`, `pagerank`, `skinning`, `strsearch`, `quantize`, `rule110`, `voxel`, `nms`, `sat`, `sssp`, `morton`, `utf8`, `fir`, `composite`, `nqueens`, `lzmatch`, `bitpack`, `perlin`, `adler32`, `sieve`, `gcd`, `dither`, `advect`, `knn`, `csvparse`, `pip`, `lift53`, `chacha20`, `modexp`, `floyd`, `f16pack`, `raster`, `canny`, `secded`, `bicubic`, `dfa`, `b64decode`, `cordic`, `rsenc`, `texfetch`, `texfilter`, `imgerode`, `imgtonemap`, `argmax64`, `minmax64`, `dsum`, `quadmip`, `clustered`, `specblur`, `cullindirect`, `bigsort`, `pushmat`, `mplitmus`, `splat`, `splatfix`, `smembank`, `coalesce`, `atomcontend`, `barriercost`, `aluprobe`, `ubopalette`, `uboparams`, `bindless`, `bindlessu`, `rle`, `huffdec`, `lookback`, `hll`, `tricount`, `sha3`, `stereo`, `viterbi`, `viterbifix`. These are recorded and verified by `make asahi-verify` with the others;
+**Workloads:** `raytrace`, `mlp`, `sobel`, `life`, `bfs`, `conv_layer`, `hist_eq`, `aes`, `hash_table`, `word_count`, `dct8`, `attention`, `resize`, `median3`, `poisson`, `lbm`, `base64`, `md5`, `gemv`, `levenshtein`, `blur`, `yuv420`, `montecarlo`, `xxhash`, `bloom`, `collatz`, `tridiag`, `merge`, `ccl`, `pagerank`, `skinning`, `strsearch`, `quantize`, `rule110`, `voxel`, `nms`, `sat`, `sssp`, `morton`, `utf8`, `fir`, `composite`, `nqueens`, `lzmatch`, `bitpack`, `perlin`, `adler32`, `sieve`, `gcd`, `dither`, `advect`, `knn`, `csvparse`, `pip`, `lift53`, `chacha20`, `modexp`, `floyd`, `f16pack`, `raster`, `canny`, `secded`, `bicubic`, `dfa`, `b64decode`, `cordic`, `rsenc`, `texfetch`, `texfilter`, `imgerode`, `imgtonemap`, `argmax64`, `minmax64`, `dsum`, `quadmip`, `clustered`, `specblur`, `cullindirect`, `bigsort`, `pushmat`, `mplitmus`, `splat`, `splatfix`, `smembank`, `coalesce`, `atomcontend`, `barriercost`, `aluprobe`, `ubopalette`, `uboparams`, `bindless`, `bindlessu`, `rle`, `huffdec`, `lookback`, `hll`, `tricount`, `sha3`, `stereo`, `viterbi`, `viterbifix`, `shiftfuse`. These are recorded and verified by `make asahi-verify` with the others;
 they are **PENDING** until then. The detailed procedure is in `tasks/spirv-workloads.md`.
 
 ## Why these
@@ -113,6 +113,7 @@ reference.
 | `stereo` | 1024 × 512 synthetic layered scene (disparities 4-59), 64 disparities | Exact disparity map; fraction within 1 px of the true disparity reported (0.90 offline) |
 | `viterbi` | 8192 frames of 256 steps through a 3% bit-flip channel | Exact decoded bits (residual bit error rate about 1e-4 offline). Expected to FAIL on the M2: see note 37 |
 | `viterbifix` | The same frames | Exact decoded bits |
+| `shiftfuse` | 1M random (x, y, s) triples, 10 idioms | Exact per column; expected on the M2: 3 columns fail (note 38) |
 
 ## Offline sanity checks (not hardware verification)
 
@@ -309,3 +310,13 @@ reference.
       recorded case, and the simulator needs that distinction.
     - Predicted time (viterbifix): about 3.6 ms for 8192 frames, dominated by 256 barrier-separated steps per
       workgroup.
+38. **Shift-mask fusion probe.**
+    - `shiftfuse` isolates the `viterbi` miscompilation. On code from Mesa 25.2.8 and 26.0.3 the functional simulator
+      fails exactly the three columns where a shift right by `s & 31` is followed by a constant low mask:
+      `bit_test` (`& 1`), `byte_extract` (`& 0xFF`) and `double_and_mask` (`s & 63 & 31`, then `& 0x7FFF`). Each
+      becomes `bfeil ..., s, mask K` with the unmasked shift.
+    - The other seven columns pass. In the funnel shift, rotate, byte insert, shift-left-then-mask,
+      arithmetic-shift-then-mask and signed `bitfieldExtract` columns the compiler keeps the `& 31`. A
+      variable-width mask is not fused at all.
+    - lavapipe passes all ten. On the M2, `probes` lists the failing columns. The expectation is the same three; any
+      difference refines the simulator's `bfeil` shift semantics, which are fitted to the one recorded case.

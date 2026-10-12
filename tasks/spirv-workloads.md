@@ -54,7 +54,7 @@ The rest of this file is the detailed procedure, for investigating results.
 
 ## Workloads
 
-One hundred and thirty-three realistic compute kernels, written in GLSL (`spirv/shaders/*.comp`) and compiled to SPIR-V:
+One hundred and thirty-four realistic compute kernels, written in GLSL (`spirv/shaders/*.comp`) and compiled to SPIR-V:
 
 | Workload | Kernel | Stresses |
 |---|---|---|
@@ -191,6 +191,7 @@ One hundred and thirty-three realistic compute kernels, written in GLSL (`spirv/
 | `stereo` | Stereo depth: 5×5 census transform, then per pixel the best of 64 disparities by windowed Hamming cost | `bitCount`, 3200 independent loads per pixel (1600 census pairs) from L1-resident rows, an argmin loop |
 | `viterbi` | Viterbi decoding of the K = 7 rate-1/2 convolutional code, one frame per workgroup, one state per invocation | Shared-memory add-compare-select with a barrier per step, shared `atomicOr`, a single-thread traceback; exposes a compiler fusion that drops a shift mask (expected FAIL, see the applications notes) |
 | `viterbifix` | The same decoder with the traceback bit test written as `bitfieldExtract` with a masked offset | The workaround: expected PASS |
+| `shiftfuse` | Ten bit-manipulation idioms with variable, explicitly masked shifts, one output column each | Which shift / mask / or fusions (`bfeil`, `bfi`, `extr`) keep the shift mask; per-column mismatch counts |
 
 Each workload has two sizes:
 

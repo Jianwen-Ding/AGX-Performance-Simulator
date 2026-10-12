@@ -645,6 +645,36 @@ def w_viterbifix(size, rng):
     return w
 
 
+SHIFTFUSE_COLS = ['bit_test', 'byte_extract', 'double_and_mask', 'signed_field', 'funnel_shift', 'rotate',
+                  'byte_insert', 'shl_mask', 'ashr_mask', 'var_width']
+
+
+def w_shiftfuse(size, rng):
+    n = 4096 if size == 'small' else 1 << 20
+    inp = u32(rng.integers(0, 1 << 32, (n, 4), dtype=np.uint64))
+    x, y, s = (inp[:, k].astype(np.uint64) for k in range(3))
+    M = np.uint64(0xffffffff); r = s & np.uint64(31); q = s & np.uint64(15)
+    shl = lambda a, k: (a << k) & M
+    xi = x.astype(np.int64) - ((x >> np.uint64(31)) << np.uint64(32)).astype(np.int64)   # x as int32
+    field = ((xi >> q.astype(np.int64)) & 0xFF); field = np.where(field >= 128, field - 256, field) & 0xffffffff
+    ref = np.stack([
+        (x >> r) & np.uint64(1), (x >> r) & np.uint64(0xFF), (x >> r) & np.uint64(0x7FFF),
+        field.astype(np.uint64),
+        (x >> r) | shl(shl(y, np.uint64(1)), np.uint64(31) - r),
+        shl(x, r) | (x >> ((np.uint64(32) - r) & np.uint64(31))),
+        (x & (~shl(np.uint64(0xFF), r) & M)) | shl(y & np.uint64(0xFF), r),
+        shl(x, r) & np.uint64(0xFFFF),
+        ((xi >> r.astype(np.int64)) & 0x3FF).astype(np.uint64),
+        (x >> (y & np.uint64(31))) & (shl(np.uint64(1), q) - np.uint64(1)),
+    ], 1).astype(np.uint32)
+    def check(o):
+        got = o[1].view(np.uint32)[:10 * n].reshape(n, 10)
+        bad = (got != ref).sum(0)
+        return not bad.any(), {'mismatches': {c: int(b) for c, b in zip(SHIFTFUSE_COLS, bad) if b},
+                               'columns_ok': int((bad == 0).sum())}
+    return W('shiftfuse', {0: (inp, False), 1: (40 * n, True)}, [((n + 63) // 64, 1, 1, push(n))], check, 64, {'items': n})
+
+
 def w_spmv(size, rng):
     rows, cols = (512, 512) if size == 'small' else (1 << 18, 1 << 18)
     nnz = rng.integers(0, 64, rows) * (rng.random(rows) < 0.95)    # some empty rows
@@ -3174,7 +3204,7 @@ WORKLOADS = {'reduce': w_reduce, 'scan': w_scan, 'sgemm': w_sgemm, 'conv2d': w_c
              'aluprobe': w_aluprobe, 'ubopalette': w_ubopalette, 'uboparams': w_uboparams,
              'bindless': w_bindless, 'bindlessu': w_bindlessu,
              # appended only: the input seed is the index in this dict
-             'rle': w_rle, 'huffdec': w_huffdec, 'lookback': w_lookback, 'hll': w_hll, 'tricount': w_tricount, 'sha3': w_sha3, 'stereo': w_stereo, 'viterbi': w_viterbi, 'viterbifix': w_viterbifix}
+             'rle': w_rle, 'huffdec': w_huffdec, 'lookback': w_lookback, 'hll': w_hll, 'tricount': w_tricount, 'sha3': w_sha3, 'stereo': w_stereo, 'viterbi': w_viterbi, 'viterbifix': w_viterbifix, 'shiftfuse': w_shiftfuse}
 
 
 # ---------------------------------------------------------------------------------------------------------------
@@ -3970,7 +4000,7 @@ def cmd_probes(a):
         rows.append({'probe': name, 'measured_us': show(m), 'predicted_us': show(p_), **derive(m, p_)})
     functional = {'texfilter': 'best_subtexel_bits', 'imgtonemap': 'round_to_nearest_fraction', 'mplitmus': 'relaxed_stale_reads',
                   'f16pack': 'half_mismatches', 'lookback': 'mean_lookback_steps',
-                  'viterbi': 'mismatched_bits', 'viterbifix': 'mismatched_bits'}
+                  'viterbi': 'mismatched_bits', 'viterbifix': 'mismatched_bits', 'shiftfuse': 'mismatches'}
     for name, key in functional.items():
         r = rec_of(name)
         if r is None:
