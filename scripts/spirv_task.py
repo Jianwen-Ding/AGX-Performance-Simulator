@@ -814,7 +814,7 @@ def w_bfs(size, rng):
     src = np.concatenate([np.arange(n), rng.integers(0, n, n * deg // 2)])
     dst = np.concatenate([(np.arange(n) + 1) % n, rng.integers(0, n, n * deg // 2)])
     u_, v_ = np.concatenate([src, dst]), np.concatenate([dst, src])
-    order = np.lexsort((v_, u_)); u_, v_ = u_[order], v_[order]
+    order = np.argsort(u_, kind='stable'); u_, v_ = u_[order], v_[order]      # CSR rows (neighbour order irrelevant)
     rowptr = u32(np.searchsorted(u_, np.arange(n + 1))); col = u32(v_)
     INF = 0xffffffff
     dist0 = np.full(n, INF, np.uint32); dist0[0] = 0
@@ -1452,7 +1452,8 @@ def cmd_predict(a):
             cmd = [str(exe), str(L.main_bin), '--grid', ','.join(map(str, grid)), '--regs', str(a.regs or L.regs),
                    '--tg-bytes', str(a.tg_bytes if a.tg_bytes is not None else L.shared)] + args
             if a.no_mem: cmd.append('--no-mem')
-            rows.append(run_dispatch(cmd))
+            rows.append(cmd)
+        rows = pmap(run_dispatch, rows)        # each dispatch starts from the initial buffers: independent
     else:
         if not a.code:
             sys.exit('predict needs --code-dir (extract output) or --code main.bin')
@@ -1466,7 +1467,8 @@ def cmd_predict(a):
             if a.tg_bytes: cmd += ['--tg-bytes', str(a.tg_bytes)]
             for u in a.uniform or []: cmd += ['--uniform', u]
             if a.no_mem: cmd.append('--no-mem')
-            rows.append(run_dispatch(cmd))
+            rows.append(cmd)
+        rows = pmap(run_dispatch, rows)
     total = sum(r['time_us'] for r in rows)
     print(json.dumps({'workload': a.workload, 'size': a.size, 'predicted_us': total,
                       'dispatch_us': [r['time_us'] for r in rows], 'dispatches': rows}))
