@@ -31,11 +31,16 @@ def b64(words):
     return base64.b64encode(struct.pack(f'<{len(words)}I', *words)).decode()
 
 
-def run(R, code, count, local_x, table, regs=64, shared=0):
-    """One dispatch; returns (out words, table words after, fw_ns, table_va)."""
+def run(R, code, count, local_x, table, regs=64, shared=0, dims=None):
+    """One dispatch; returns (out words, table words after, fw_ns, table_va). dims = (gx, gy, gz, lx, ly, lz) for a
+    multi-dimensional launch (count still sets the out buffer and u5)."""
     (R.out/'c.bin').write_bytes(code+bytes(16))
     (R.out/'t.bin').write_bytes(struct.pack(f'<{len(table)}I', *table))
     env = {'PATH': '/usr/bin', 'AGX_LOCAL_X': str(local_x), 'AGX_TABLE_OUT': str(R.out/'t.out')}
+    if dims:
+        gx, gy, gz, lx, ly, lz = dims
+        env.update({'AGX_GLOBAL_X': str(gx), 'AGX_GLOBAL_Y': str(gy), 'AGX_GLOBAL_Z': str(gz), 'AGX_LOCAL_X': str(lx),
+                    'AGX_LOCAL_Y': str(ly), 'AGX_LOCAL_Z': str(lz)})
     if shared:
         from run_drm_tg_layout import shared_word
         env['AGX_SHARED_WORD'] = str(shared_word(shared))
@@ -450,14 +455,34 @@ def gen_kernels():
            lambda out, tab, w=want: tab[n:2*n] == w)
 
 
+SR_GEOM = [0, 1, 2, 4, 5, 6, 7, 8, 9, 10, 48, 49, 50, 51, 52, 53, 56, 57, 58, 59, 80, 81, 82]
+
+
+def gen_geometry():
+    """Every thread of a 1-D/2-D/3-D launch stores the geometry special registers at table[linear * 24 + k]
+    (linear = x + gx*(y + gy*z) from SR80..82). count = gx (the harness's u5 / out size)."""
+    shapes = [(64, 1, 1, 32, 1, 1), (96, 4, 1, 32, 2, 1), (48, 6, 4, 16, 3, 2), (42, 3, 2, 7, 3, 2), (256, 2, 2, 64, 2, 2),
+              (24, 24, 1, 8, 8, 1), (33, 1, 1, 33, 1, 1), (100, 3, 1, 10, 3, 1)]
+    for gx, gy, gz, lx, ly, lz in shapes:
+        total = gx*gy*gz
+        b = B.get_sr(80, 20)+B.get_sr(81, 21)+B.get_sr(82, 22)+mov(27, gy)+e('imadd r23, r22, r27, r21')
+        b += mov(27, gx)+e('imadd r23, r23, r27, r20')+mov(27, len(SR_GEOM))+e('imadd r26, r23, r27, 0')
+        for k, sr in enumerate(SR_GEOM):
+            b += B.get_sr(sr, 14)+agx_loop.store(14, 8, 26)+e('iadd r26, r26, 1')
+        b += e('wait 0')+e('iadd r2, r23, 0')
+        name = f'geom_{gx}x{gy}x{gz}_wg{lx}x{ly}x{lz}'
+        yield ('geometry', name, f'special registers {SR_GEOM} per thread, grid {gx}x{gy}x{gz}, workgroup {lx}x{ly}x{lz}',
+               b, gx, lx, 64, 0, [0]*(total*len(SR_GEOM)), None, (gx, gy, gz, lx, ly, lz))
+
+
 GENERATORS = {'alu': lambda: gen_alu(False), 'alu_masked': lambda: gen_alu(True), 'mem_load': gen_mem_load,
               'mem_store': gen_mem_store, 'threadgroup': gen_tg, 'atomic': gen_atomic, 'tg_atomic': gen_tgatomic,
-              'control': gen_control, 'kernel': gen_kernels}
+              'control': gen_control, 'kernel': gen_kernels, 'geometry': gen_geometry}
 
 
-def record(R, out_dir, cat, name, desc, body, n, wg, regs, shared, table, oracle=None):
+def record(R, out_dir, cat, name, desc, body, n, wg, regs, shared, table, oracle=None, dims=None):
     code = drm.build_main(body)
-    res = [run(R, code, n, wg, table, regs, shared) for _ in range(2)]
+    res = [run(R, code, n, wg, table, regs, shared, dims) for _ in range(2)]
     if oracle and not oracle(res[0][0], res[0][1]):
         raise RuntimeError(f'{name}: hardware result differs from the host oracle (kernel bug?); not recorded')
     det_out, det_table = res[0][0] == res[1][0], res[0][1] == res[1][1]
@@ -467,7 +492,8 @@ def record(R, out_dir, cat, name, desc, body, n, wg, regs, shared, table, oracle
     words = 8+rounded+8+16
     table_off = max(1 << 20, (0x8000+words*4+16383)//16384*16384)
     case = {'name': name, 'category': cat, 'description': desc, 'device': 'M2 Max G14C B1 (direct DRM)',
-            'code': code.hex(), 'launch': {'grid': [n, 1, 1], 'wg': [wg, 1, 1], 'regs': regs, 'shared_bytes': shared},
+            'code': code.hex(), 'launch': {'grid': list(dims[:3]) if dims else [n, 1, 1], 'wg': list(dims[3:]) if dims else [wg, 1, 1],
+                                          'count': n, 'regs': regs, 'shared_bytes': shared},
             'layout': {'table_va': va, 'out_va': va-table_off+0x8000, 'out_words': words,
                        'uniforms': {'u4': 0, 'u5': n, 'u6_u7': 'out_va', 'u8_u9': 'table_va'},
                        'out_init': 'words 0..words-16 = 0xcdcdcdcd, last 16 = 0xa5a50000 + i'},
@@ -505,9 +531,10 @@ def main():
         for k, item in enumerate(GENERATORS[cat]()):
             c, name, desc, body, n, wg, regs, shared, table = item[:9]
             oracle = item[9] if len(item) > 9 else None
+            dims = item[10] if len(item) > 10 else None
             if a.limit and k >= a.limit: break
             gate(body)
-            det = record(R, a.out, c, name, desc, body, n, wg, regs, shared, table, oracle)
+            det = record(R, a.out, c, name, desc, body, n, wg, regs, shared, table, oracle, dims)
             total += 1; nondet += not det
             print(json.dumps({'category': c, 'case': name, 'deterministic': det}), flush=True)
     print(json.dumps({'cases': total, 'nondeterministic': nondet}))
