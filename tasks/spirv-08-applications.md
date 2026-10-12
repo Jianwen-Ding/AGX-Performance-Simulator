@@ -1,7 +1,7 @@
 # Task SPIR-V 8: applications (ray tracer, neural networks, image processing, cellular automaton, graph search,
 # encryption, hashing, text, compression)
 
-**Workloads:** `raytrace`, `mlp`, `sobel`, `life`, `bfs`, `conv_layer`, `hist_eq`, `aes`, `hash_table`, `word_count`, `dct8`, `attention`, `resize`, `median3`, `poisson`, `lbm`, `base64`, `md5`, `gemv`, `levenshtein`, `blur`, `yuv420`, `montecarlo`, `xxhash`, `bloom`, `collatz`, `tridiag`, `merge`, `ccl`, `pagerank`, `skinning`, `strsearch`, `quantize`, `rule110`, `voxel`, `nms`, `sat`, `sssp`, `morton`, `utf8`, `fir`, `composite`, `nqueens`, `lzmatch`, `bitpack`, `perlin`, `adler32`, `sieve`, `gcd`, `dither`, `advect`, `knn`, `csvparse`, `pip`, `lift53`, `chacha20`, `modexp`, `floyd`, `f16pack`, `raster`, `canny`, `secded`, `bicubic`, `dfa`, `b64decode`, `cordic`, `rsenc`, `texfetch`, `texfilter`, `imgerode`, `imgtonemap`, `argmax64`, `minmax64`, `dsum`, `quadmip`, `clustered`, `specblur`, `cullindirect`, `bigsort`, `pushmat`, `mplitmus`, `splat`, `splatfix`, `smembank`, `coalesce`, `atomcontend`, `barriercost`, `aluprobe`, `ubopalette`, `uboparams`, `bindless`, `bindlessu`, `rle`, `huffdec`, `lookback`, `hll`, `tricount`, `sha3`, `stereo`, `viterbi`, `viterbifix`, `shiftfuse`, `bc1enc`, `lz4dec`, `nttmul`, `topk`, `cellsort`, `boruvka`, `biquad`, `edt`, `mt19937`, `bitap`, `cholesky`, `rsshash`, `poly1305`, `crc32c`, `siphash`. These are recorded and verified by `make asahi-verify` with the others;
+**Workloads:** `raytrace`, `mlp`, `sobel`, `life`, `bfs`, `conv_layer`, `hist_eq`, `aes`, `hash_table`, `word_count`, `dct8`, `attention`, `resize`, `median3`, `poisson`, `lbm`, `base64`, `md5`, `gemv`, `levenshtein`, `blur`, `yuv420`, `montecarlo`, `xxhash`, `bloom`, `collatz`, `tridiag`, `merge`, `ccl`, `pagerank`, `skinning`, `strsearch`, `quantize`, `rule110`, `voxel`, `nms`, `sat`, `sssp`, `morton`, `utf8`, `fir`, `composite`, `nqueens`, `lzmatch`, `bitpack`, `perlin`, `adler32`, `sieve`, `gcd`, `dither`, `advect`, `knn`, `csvparse`, `pip`, `lift53`, `chacha20`, `modexp`, `floyd`, `f16pack`, `raster`, `canny`, `secded`, `bicubic`, `dfa`, `b64decode`, `cordic`, `rsenc`, `texfetch`, `texfilter`, `imgerode`, `imgtonemap`, `argmax64`, `minmax64`, `dsum`, `quadmip`, `clustered`, `specblur`, `cullindirect`, `bigsort`, `pushmat`, `mplitmus`, `splat`, `splatfix`, `smembank`, `coalesce`, `atomcontend`, `barriercost`, `aluprobe`, `ubopalette`, `uboparams`, `bindless`, `bindlessu`, `rle`, `huffdec`, `lookback`, `hll`, `tricount`, `sha3`, `stereo`, `viterbi`, `viterbifix`, `shiftfuse`, `bc1enc`, `lz4dec`, `nttmul`, `topk`, `cellsort`, `boruvka`, `biquad`, `edt`, `mt19937`, `bitap`, `cholesky`, `rsshash`, `poly1305`, `crc32c`, `siphash`, `blake2s`, `blake2sfast`. These are recorded and verified by `make asahi-verify` with the others;
 they are **PENDING** until then. The detailed procedure is in `tasks/spirv-workloads.md`.
 
 ## Why these
@@ -129,6 +129,8 @@ reference.
 | `poly1305` | 65536 messages of 0-1023 bytes with their own keys; message 0 is RFC 8439's 2.5.2 vector | Every tag equals a Python big-integer Poly1305; the RFC's published tag |
 | `crc32c` | 16 MiB of random bytes (4096 chunks of 4 KiB) | Equals a plain byte-at-a-time CRC-32C of the whole buffer (no chunking, no combining); the check value crc32c("123456789") = 0xE3069283 |
 | `siphash` | 262144 messages; the first 64 are the paper's vector set (key 00..0f, message 00..i-1) | Every hash equals a Python SipHash-2-4; the paper's published outputs for the empty and the 15-byte message |
+| `blake2s` | 131072 messages of 0-255 bytes (message 0 is "abc") | Every digest equals Python's `hashlib.blake2s`; RFC 7693 Appendix B's BLAKE2s-256("abc") |
+| `blake2sfast` | The same messages | The same checks |
 
 ## Offline sanity checks (not hardware verification)
 
@@ -476,3 +478,11 @@ reference.
       swap of the halves, and 13 / 16 / 17 / 21 are two funnel shifts each. Lengths of 0-255 bytes give lanes 1-32
       words.
     - Correct under both hypotheses of note 37. Predicted 0.26 ms for 33 MB.
+55. **BLAKE2s, and what scratch memory costs.**
+    - `blake2s` is the straightforward GLSL: loops over the 8 G mixes with the state index and the SIGMA-permuted
+      message index computed at run time. The driver cannot keep dynamically indexed arrays in registers. It puts
+      them in 416 bytes of scratch per invocation and still uses all 256 GPRs.
+    - `blake2sfast` is the same function with every G call written out (generated from SIGMA): about 90 GPRs and no
+      scratch.
+    - Predicted 13.3 ms against 0.15-0.18 ms, about 80x; lavapipe shows 36x. The M2 ratio measures scratch
+      bandwidth and latency and register-limited occupancy together. The `spill` workload measures that in isolation.

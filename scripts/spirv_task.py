@@ -1210,6 +1210,28 @@ def w_siphash(size, rng):
              [((n + 63) // 64, 1, 1, push(n))], check, 64, {'bytes': int(lens.sum())})
 
 
+def w_blake2s(size, rng):
+    import hashlib
+    n = 1024 if size == 'small' else 1 << 17
+    lens = rng.integers(0, 256, n); lens[0] = 3; lens[1] = 0; lens[2] = 64; lens[3] = 65    # 'abc', block edges
+    msgs = rng.integers(0, 256, (n, 256), dtype=np.uint8); msgs[0, :3] = np.frombuffer(b'abc', np.uint8)
+    for j in range(n):
+        msgs[j, lens[j]:] = 0
+    def check(o):
+        got = o[2].view(np.uint8)[:32 * n].reshape(n, 32)
+        bad = sum(got[j].tobytes() != hashlib.blake2s(msgs[j, :lens[j]].tobytes()).digest() for j in range(n))
+        rfc = got[0].tobytes().hex() == '508c5e8c327c14e2e1a72ba34eeb452f37458b209ed63a294d999b4c86675982'   # RFC 7693 B
+        return bad == 0 and rfc, {'bad_digests': int(bad), 'rfc7693_vector_ok': bool(rfc)}
+    return W('blake2s', {0: (u32(np.frombuffer(msgs.tobytes(), np.uint32)), False), 1: (u32(lens), False), 2: (32 * n, True)},
+             [((n + 63) // 64, 1, 1, push(n))], check, 64, {'bytes': int(lens.sum())})
+
+
+def w_blake2sfast(size, rng):
+    w = w_blake2s(size, rng)
+    w.shader = 'blake2sfast'
+    return w
+
+
 def w_spmv(size, rng):
     rows, cols = (512, 512) if size == 'small' else (1 << 18, 1 << 18)
     nnz = rng.integers(0, 64, rows) * (rng.random(rows) < 0.95)    # some empty rows
@@ -3739,7 +3761,7 @@ WORKLOADS = {'reduce': w_reduce, 'scan': w_scan, 'sgemm': w_sgemm, 'conv2d': w_c
              'aluprobe': w_aluprobe, 'ubopalette': w_ubopalette, 'uboparams': w_uboparams,
              'bindless': w_bindless, 'bindlessu': w_bindlessu,
              # appended only: the input seed is the index in this dict
-             'rle': w_rle, 'huffdec': w_huffdec, 'lookback': w_lookback, 'hll': w_hll, 'tricount': w_tricount, 'sha3': w_sha3, 'stereo': w_stereo, 'viterbi': w_viterbi, 'viterbifix': w_viterbifix, 'shiftfuse': w_shiftfuse, 'bc1enc': w_bc1enc, 'lz4dec': w_lz4dec, 'nttmul': w_nttmul, 'topk': w_topk, 'cellsort': w_cellsort, 'boruvka': w_boruvka, 'biquad': w_biquad, 'edt': w_edt, 'mt19937': w_mt19937, 'bitap': w_bitap, 'cholesky': w_cholesky, 'rsshash': w_rsshash, 'poly1305': w_poly1305, 'crc32c': w_crc32c, 'siphash': w_siphash}
+             'rle': w_rle, 'huffdec': w_huffdec, 'lookback': w_lookback, 'hll': w_hll, 'tricount': w_tricount, 'sha3': w_sha3, 'stereo': w_stereo, 'viterbi': w_viterbi, 'viterbifix': w_viterbifix, 'shiftfuse': w_shiftfuse, 'bc1enc': w_bc1enc, 'lz4dec': w_lz4dec, 'nttmul': w_nttmul, 'topk': w_topk, 'cellsort': w_cellsort, 'boruvka': w_boruvka, 'biquad': w_biquad, 'edt': w_edt, 'mt19937': w_mt19937, 'bitap': w_bitap, 'cholesky': w_cholesky, 'rsshash': w_rsshash, 'poly1305': w_poly1305, 'crc32c': w_crc32c, 'siphash': w_siphash, 'blake2s': w_blake2s, 'blake2sfast': w_blake2sfast}
 
 
 # ---------------------------------------------------------------------------------------------------------------
