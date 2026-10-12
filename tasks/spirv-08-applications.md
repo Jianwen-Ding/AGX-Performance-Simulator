@@ -140,10 +140,10 @@ reference.
 
 ## Offline sanity checks (not hardware verification)
 
-- **lavapipe:** all pass at both sizes. Last whole-suite rerun at the small size: 145 of 145 functionally correct.
+- **lavapipe:** all pass at both sizes. Last whole-suite rerun at the small size: 157 of 157 functionally correct.
 - **Shim-compiled Mesa 25.2.8 and 26.0.3 code on the functional simulator:** 138 of 138 buffer workloads (plus quadmip and clustered).
-  - Last whole-suite rerun (`simall`, Mesa 26.0.3): 141 compiled workloads.
-    - 132 pass.
+  - Last whole-suite rerun (`simall`, Mesa 26.0.3): 153 compiled workloads.
+    - 144 pass.
     - 5 are hardware-only (texture, image and indirect workloads, UNSIM).
     - 4 fail by design under the default `bfeil` semantics: `viterbi`, `shiftfuse`, `lz4dec` and `bitap` (note 37).
       All 4 pass with `AGX_BFEIL_MASKED_SHIFT32=1`.
