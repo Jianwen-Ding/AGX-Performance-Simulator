@@ -395,8 +395,8 @@ def control_cases():
             return ('control', name, f'{if_t or else_t}', b, N, WG, 64, 0, table)
         texts = [(t, None) for t in (if_t, else_t) if t]
         # while_* is not bounded for every condition: with r3 counting up from 1 and r20 in 1..8, `while_icmp ugte`
-        # never exits (r3 >= r20 stays true). It hung the M2 on 2026-10-12 and wedged the GPU (display froze, reboot
-        # needed); every later dispatch that boot timed out. Until each condition's loop is proven to terminate, all
+        # never exits (r3 >= r20 stays true). It hung the M2 on 2026-10-12: the display froze until the GPU recovered
+        # (no reboot), and the 11 dispatches sent meanwhile timed out. Until each condition's loop is proven to terminate, all
         # while_* cases are may_fault.
         risk = 'may_fault' if name.startswith('while_') else 'safe'
         out.append(Case(f'control/{name}', 'control', 'cf-float / exec-control-cost', risk, 'functional', name, build, texts))

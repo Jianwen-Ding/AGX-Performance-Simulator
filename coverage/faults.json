@@ -3,72 +3,72 @@
   "error": "dispatch failed: 14d9000000d0c002000008d0800018800\"}\n{\"cdm_hex\":\"02000000001000000000000000000040000400000100000001000000000100000100000001000000ffff0f600000004000000000\"}\n{\"rep\":0,\"wait\":-1,\"errno\":62,\"host_ns\":3054176296,\"fw_ts\":[0,0],\"drm_time\":[3739055490416,3742109667541]}\n{\"failure\":\"syncobj-wait\",\"errno\":62}\n",
   "risk": "safe",
   "utc": "2026-10-12T23:10:22Z",
-  "note": "collateral: timed out after control/while_icmp_ugte wedged the GPU (2026-10-12); not evidence against this case"
+  "note": "collateral: timed out while the GPU recovered from control/while_icmp_ugte (2026-10-12); not evidence against this case"
  },
  "control/if_fcmp_lt": {
   "error": "dispatch failed: 14d9000000d0c002000008d0800018800\"}\n{\"cdm_hex\":\"02000000001000000000000000000040000400000100000001000000000100000100000001000000ffff0f600000004000000000\"}\n{\"rep\":0,\"wait\":-1,\"errno\":62,\"host_ns\":3059683735,\"fw_ts\":[0,0],\"drm_time\":[3745193968666,3748253649291]}\n{\"failure\":\"syncobj-wait\",\"errno\":62}\n",
   "risk": "safe",
   "utc": "2026-10-12T23:10:28Z",
-  "note": "collateral: timed out after control/while_icmp_ugte wedged the GPU (2026-10-12); not evidence against this case"
+  "note": "collateral: timed out while the GPU recovered from control/while_icmp_ugte (2026-10-12); not evidence against this case"
  },
  "control/if_icmp_nseq": {
   "error": "dispatch failed: 14d9000000d0c002000008d0800018800\"}\n{\"cdm_hex\":\"02000000001000000000000000000040000400000100000001000000000100000100000001000000ffff0f600000004000000000\"}\n{\"rep\":0,\"wait\":-1,\"errno\":62,\"host_ns\":3053438211,\"fw_ts\":[0,0],\"drm_time\":[3720624319500,3723677758833]}\n{\"failure\":\"syncobj-wait\",\"errno\":62}\n",
   "risk": "safe",
   "utc": "2026-10-12T23:10:04Z",
-  "note": "collateral: timed out after control/while_icmp_ugte wedged the GPU (2026-10-12); not evidence against this case"
+  "note": "collateral: timed out while the GPU recovered from control/while_icmp_ugte (2026-10-12); not evidence against this case"
  },
  "control/if_icmp_sgte": {
   "error": "dispatch failed: 14d9000000d0c002000008d0800018800\"}\n{\"cdm_hex\":\"02000000001000000000000000000040000400000100000001000000000100000100000001000000ffff0f600000004000000000\"}\n{\"rep\":0,\"wait\":-1,\"errno\":62,\"host_ns\":3057303267,\"fw_ts\":[0,0],\"drm_time\":[3726764414625,3729821715416]}\n{\"failure\":\"syncobj-wait\",\"errno\":62}\n",
   "risk": "safe",
   "utc": "2026-10-12T23:10:10Z",
-  "note": "collateral: timed out after control/while_icmp_ugte wedged the GPU (2026-10-12); not evidence against this case"
+  "note": "collateral: timed out while the GPU recovered from control/while_icmp_ugte (2026-10-12); not evidence against this case"
  },
  "control/if_icmp_slte": {
   "error": "dispatch failed: 14d9000000d0c002000008d0800018800\"}\n{\"cdm_hex\":\"02000000001000000000000000000040000400000100000001000000000100000100000001000000ffff0f600000004000000000\"}\n{\"rep\":0,\"wait\":-1,\"errno\":62,\"host_ns\":3058752272,\"fw_ts\":[0,0],\"drm_time\":[3732906960750,3735965713333]}\n{\"failure\":\"syncobj-wait\",\"errno\":62}\n",
   "risk": "safe",
   "utc": "2026-10-12T23:10:16Z",
-  "note": "collateral: timed out after control/while_icmp_ugte wedged the GPU (2026-10-12); not evidence against this case"
+  "note": "collateral: timed out while the GPU recovered from control/while_icmp_ugte (2026-10-12); not evidence against this case"
  },
  "control/if_icmp_ulte": {
   "error": "dispatch failed: 14d9000000d0c002000008d0800018800\"}\n{\"cdm_hex\":\"02000000001000000000000000000040000400000100000001000000000100000100000001000000ffff0f600000004000000000\"}\n{\"rep\":0,\"wait\":-1,\"errno\":62,\"host_ns\":3062740454,\"fw_ts\":[0,0],\"drm_time\":[3714471026458,3717533769041]}\n{\"failure\":\"syncobj-wait\",\"errno\":62}\n",
   "risk": "safe",
   "utc": "2026-10-12T23:09:57Z",
-  "note": "collateral: timed out after control/while_icmp_ugte wedged the GPU (2026-10-12); not evidence against this case"
+  "note": "collateral: timed out while the GPU recovered from control/while_icmp_ugte (2026-10-12); not evidence against this case"
  },
  "control/while_fcmp_eq": {
   "error": "dispatch failed: 14d9000000d0c002000008d0800018800\"}\n{\"cdm_hex\":\"02000000001000000000000000000040000400000100000001000000000100000100000001000000ffff0f600000004000000000\"}\n{\"rep\":0,\"wait\":-1,\"errno\":62,\"host_ns\":3056510431,\"fw_ts\":[0,0],\"drm_time\":[3742125150375,3745181661625]}\n{\"failure\":\"syncobj-wait\",\"errno\":62}\n",
   "risk": "safe",
   "utc": "2026-10-12T23:10:25Z",
-  "note": "collateral: timed out after control/while_icmp_ugte wedged the GPU (2026-10-12); not evidence against this case"
+  "note": "collateral: timed out while the GPU recovered from control/while_icmp_ugte (2026-10-12); not evidence against this case"
  },
  "control/while_icmp_nseq": {
   "error": "dispatch failed: 14d9000000d0c002000008d0800018800\"}\n{\"cdm_hex\":\"02000000001000000000000000000040000400000100000001000000000100000100000001000000ffff0f600000004000000000\"}\n{\"rep\":0,\"wait\":-1,\"errno\":62,\"host_ns\":3054232131,\"fw_ts\":[0,0],\"drm_time\":[3723695504041,3726749744500]}\n{\"failure\":\"syncobj-wait\",\"errno\":62}\n",
   "risk": "safe",
   "utc": "2026-10-12T23:10:07Z",
-  "note": "collateral: timed out after control/while_icmp_ugte wedged the GPU (2026-10-12); not evidence against this case"
+  "note": "collateral: timed out while the GPU recovered from control/while_icmp_ugte (2026-10-12); not evidence against this case"
  },
  "control/while_icmp_sgte": {
   "error": "dispatch failed: 14d9000000d0c002000008d0800018800\"}\n{\"cdm_hex\":\"02000000001000000000000000000040000400000100000001000000000100000100000001000000ffff0f600000004000000000\"}\n{\"rep\":0,\"wait\":-1,\"errno\":62,\"host_ns\":3055890845,\"fw_ts\":[0,0],\"drm_time\":[3729837820000,3732893709791]}\n{\"failure\":\"syncobj-wait\",\"errno\":62}\n",
   "risk": "safe",
   "utc": "2026-10-12T23:10:13Z",
-  "note": "collateral: timed out after control/while_icmp_ugte wedged the GPU (2026-10-12); not evidence against this case"
+  "note": "collateral: timed out while the GPU recovered from control/while_icmp_ugte (2026-10-12); not evidence against this case"
  },
  "control/while_icmp_slte": {
   "error": "dispatch failed: 14d9000000d0c002000008d0800018800\"}\n{\"cdm_hex\":\"02000000001000000000000000000040000400000100000001000000000100000100000001000000ffff0f600000004000000000\"}\n{\"rep\":0,\"wait\":-1,\"errno\":62,\"host_ns\":3056735473,\"fw_ts\":[0,0],\"drm_time\":[3735980944833,3739037681416]}\n{\"failure\":\"syncobj-wait\",\"errno\":62}\n",
   "risk": "safe",
   "utc": "2026-10-12T23:10:19Z",
-  "note": "collateral: timed out after control/while_icmp_ugte wedged the GPU (2026-10-12); not evidence against this case"
+  "note": "collateral: timed out while the GPU recovered from control/while_icmp_ugte (2026-10-12); not evidence against this case"
  },
  "control/while_icmp_ugte": {
   "error": "dispatch failed: 14d9000000d0c002000008d0800018800\"}\n{\"cdm_hex\":\"02000000001000000000000000000040000400000100000001000000000100000100000001000000ffff0f600000004000000000\"}\n{\"rep\":0,\"wait\":-1,\"errno\":62,\"host_ns\":3004182065,\"fw_ts\":[0,0],\"drm_time\":[3711457579666,3714461759625]}\n{\"failure\":\"syncobj-wait\",\"errno\":62}\n",
   "risk": "safe",
   "utc": "2026-10-12T23:09:54Z",
-  "note": "genuine: infinite loop (r3 >= r20 never becomes false); wedged the GPU, display froze, reboot needed"
+  "note": "genuine: infinite loop (r3 >= r20 never becomes false); display froze until the GPU recovered on its own (no reboot)"
  },
  "control/while_icmp_ulte": {
   "error": "dispatch failed: 14d9000000d0c002000008d0800018800\"}\n{\"cdm_hex\":\"02000000001000000000000000000040000400000100000001000000000100000100000001000000ffff0f600000004000000000\"}\n{\"rep\":0,\"wait\":-1,\"errno\":62,\"host_ns\":3054602882,\"fw_ts\":[0,0],\"drm_time\":[3717551148958,3720605752833]}\n{\"failure\":\"syncobj-wait\",\"errno\":62}\n",
   "risk": "safe",
   "utc": "2026-10-12T23:10:00Z",
-  "note": "collateral: timed out after control/while_icmp_ugte wedged the GPU (2026-10-12); not evidence against this case"
+  "note": "collateral: timed out while the GPU recovered from control/while_icmp_ugte (2026-10-12); not evidence against this case"
  }
 }
