@@ -1,0 +1,22 @@
+{
+ "blob": "spirv/compiled/mesa-26.0.3/varint/shader.bin",
+ "code_start": 2244,
+ "code_size": 1372,
+ "layout": "agx_shader_info",
+ "programs": [
+  {
+   "label": "main",
+   "file": "main.bin",
+   "offset": 128,
+   "bytes": 978,
+   "instructions": 158
+  },
+  {
+   "label": "preamble",
+   "file": "preamble.bin",
+   "offset": 1152,
+   "bytes": 204,
+   "instructions": 32
+  }
+ ]
+}

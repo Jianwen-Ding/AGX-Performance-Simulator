@@ -54,7 +54,7 @@ The rest of this file is the detailed procedure, for investigating results.
 
 ## Workloads
 
-One hundred and sixty realistic compute kernels, written in GLSL (`spirv/shaders/*.comp`) and compiled to SPIR-V:
+One hundred and sixty-one realistic compute kernels, written in GLSL (`spirv/shaders/*.comp`) and compiled to SPIR-V:
 
 | Workload | Kernel | Stresses |
 |---|---|---|
@@ -218,6 +218,7 @@ One hundred and sixty realistic compute kernels, written in GLSL (`spirv/shaders
 | `contour` | Marching-squares isolines of an integer height map, saddles resolved by the cell centre, 16.16 fixed-point endpoints | Branchy 16-case classification, 64-bit integer division, sparse output appended with `atomicAdd`, per-workgroup shared-memory histogram |
 | `hough` | Hough line transform: every edge point votes for 180 angles with Q14 fixed-point trig, `atomicAdd` into a θ × ρ accumulator | 6.8M device atomics spread over 1M counters, with hot bins at the line peaks |
 | `spmvsg` | CSR SpMV, vector kernel: one subgroup per row, `subgroupAdd` row sums, power-law row lengths (up to 2047 nonzeros) | Lanes striding over a row's gathers, subgroup reduction; with `spmv` (one invocation per row), scalar vs vector SpMV |
+| `varint` | Protobuf sint32 serialisation: zigzag + LEB128 varints packed back to back (count, scan, scatter) | 8-bit storage-buffer stores at unaligned byte offsets, a shared-memory scan per workgroup, a serial one-invocation offsets pass; requires `storage_buffer_8bit` |
 
 Each workload has two sizes:
 

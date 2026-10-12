@@ -1507,6 +1507,38 @@ def w_spmvsg(size, rng):
              requires=['subgroup_arithmetic'])
 
 
+def varint_encode(vals):
+    """protobuf sint32 encoding (zigzag + LEB128) of an int array, with Python integers"""
+    out = bytearray()
+    for v in vals.tolist():
+        z = ((v << 1) ^ (v >> 31)) & 0xffffffff
+        while True:
+            b = z & 0x7f; z >>= 7
+            out.append(b | (0x80 if z else 0))
+            if not z:
+                break
+    return bytes(out)
+
+
+def w_varint(size, rng):
+    n = 1 << 14 if size == 'small' else 1 << 22
+    groups = n // 256
+    # mostly small magnitudes (as in real messages: counts, deltas, enum values), some up to the full 32-bit range
+    mag = np.where(rng.random(n) < 0.8, rng.integers(0, 200, n), rng.integers(0, 1 << 31, n))
+    vals = (mag * np.where(rng.random(n) < 0.5, 1, -1)).astype(np.int64)
+    vals[:4] = [0, -1, 2147483647, -2147483648]                               # zigzag / length edge cases
+    vals = vals.astype(np.int32)
+    def check(o):
+        ref = varint_encode(vals)
+        tot = int(o[3].view(np.uint32)[0])
+        got = o[2][:tot].tobytes()
+        return tot == len(ref) and got == ref, {'bytes': tot, 'expected_bytes': len(ref),
+                                                'bytes_per_value': round(len(ref) / n, 3)}
+    ds = [(groups, 1, 1, push(0, groups)), (1, 1, 1, push(1, groups)), (groups, 1, 1, push(2, groups))]
+    return W('varint', {0: (vals, False), 1: (4 * groups, False), 2: (5 * n, True), 3: (4, True)}, ds, check, 256,
+             {'items': n}, requires=['storage_buffer_8bit'])
+
+
 def w_spmv(size, rng):
     rows, cols = (512, 512) if size == 'small' else (1 << 18, 1 << 18)
     nnz = rng.integers(0, 64, rows) * (rng.random(rows) < 0.95)    # some empty rows
@@ -4036,7 +4068,7 @@ WORKLOADS = {'reduce': w_reduce, 'scan': w_scan, 'sgemm': w_sgemm, 'conv2d': w_c
              'aluprobe': w_aluprobe, 'ubopalette': w_ubopalette, 'uboparams': w_uboparams,
              'bindless': w_bindless, 'bindlessu': w_bindlessu,
              # appended only: the input seed is the index in this dict
-             'rle': w_rle, 'huffdec': w_huffdec, 'lookback': w_lookback, 'hll': w_hll, 'tricount': w_tricount, 'sha3': w_sha3, 'stereo': w_stereo, 'viterbi': w_viterbi, 'viterbifix': w_viterbifix, 'shiftfuse': w_shiftfuse, 'bc1enc': w_bc1enc, 'lz4dec': w_lz4dec, 'nttmul': w_nttmul, 'topk': w_topk, 'cellsort': w_cellsort, 'boruvka': w_boruvka, 'biquad': w_biquad, 'edt': w_edt, 'mt19937': w_mt19937, 'bitap': w_bitap, 'cholesky': w_cholesky, 'rsshash': w_rsshash, 'poly1305': w_poly1305, 'crc32c': w_crc32c, 'siphash': w_siphash, 'blake2s': w_blake2s, 'blake2sfast': w_blake2sfast, 'q4gemv': w_q4gemv, 'attndec': w_attndec, 'attndecsplit': w_attndecsplit, 'rmsrope': w_rmsrope, 'q8dot': w_q8dot, 'isp': w_isp, 'contour': w_contour, 'hough': w_hough, 'spmvsg': w_spmvsg}
+             'rle': w_rle, 'huffdec': w_huffdec, 'lookback': w_lookback, 'hll': w_hll, 'tricount': w_tricount, 'sha3': w_sha3, 'stereo': w_stereo, 'viterbi': w_viterbi, 'viterbifix': w_viterbifix, 'shiftfuse': w_shiftfuse, 'bc1enc': w_bc1enc, 'lz4dec': w_lz4dec, 'nttmul': w_nttmul, 'topk': w_topk, 'cellsort': w_cellsort, 'boruvka': w_boruvka, 'biquad': w_biquad, 'edt': w_edt, 'mt19937': w_mt19937, 'bitap': w_bitap, 'cholesky': w_cholesky, 'rsshash': w_rsshash, 'poly1305': w_poly1305, 'crc32c': w_crc32c, 'siphash': w_siphash, 'blake2s': w_blake2s, 'blake2sfast': w_blake2sfast, 'q4gemv': w_q4gemv, 'attndec': w_attndec, 'attndecsplit': w_attndecsplit, 'rmsrope': w_rmsrope, 'q8dot': w_q8dot, 'isp': w_isp, 'contour': w_contour, 'hough': w_hough, 'spmvsg': w_spmvsg, 'varint': w_varint}
 
 
 # ---------------------------------------------------------------------------------------------------------------
