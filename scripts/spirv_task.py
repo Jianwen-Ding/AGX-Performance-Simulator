@@ -2172,6 +2172,47 @@ def w_pngunfilter(size, rng):
              requires=['storage_buffer_8bit'])
 
 
+def w_inflate(size, rng, shm=False):
+    import zlib
+    ns, maxout = (8, 4096) if size == 'small' else (2048, 8192)
+    vocab = [''.join(chr(97 + int(c)) for c in rng.integers(0, 26, int(rng.integers(1, 10)))) for _ in range(2000)]
+    zipf = 1 / np.arange(1, len(vocab) + 1); zipf /= zipf.sum()
+    raws, comps, kinds = [], [], []
+    for k in range(ns):
+        n = int(rng.integers(maxout // 4, maxout + 1))
+        words = rng.choice(len(vocab), n // 3, p=zipf)
+        text = ' '.join(vocab[w] for w in words).encode()
+        if rng.random() < 0.2:                                               # some binary-ish records
+            text = bytes(rng.integers(0, 256, n // 8, dtype=np.uint8)) + text
+        raw = text[:n]
+        r = rng.random()
+        kind, level, strat = ('stored', 0, zlib.Z_DEFAULT_STRATEGY) if r < 0.125 else ('fixed', 6, zlib.Z_FIXED) if r < 0.375 \
+            else ('dynamic', int(rng.choice([1, 6, 9])), zlib.Z_DEFAULT_STRATEGY)
+        co = zlib.compressobj(level, zlib.DEFLATED, -15, 8, strat)
+        comp = co.compress(raw) + co.flush()
+        assert zlib.decompress(comp, -15) == raw
+        raws.append(raw); comps.append(comp); kinds.append(kind)
+    off = np.concatenate([[0], np.cumsum([len(c) for c in comps])]).astype(np.uint32)
+    src = np.frombuffer(b''.join(comps) + bytes(16), np.uint8)              # padding: the bit reader may look ahead
+    idx = u32(np.stack([off[:-1], np.diff(off)], 1).ravel())
+    def check(o):
+        out = o[2][:ns * maxout].view(np.uint8).reshape(ns, maxout)
+        ln = o[3][:4 * ns].view(np.uint32)
+        bad = sum(int(ln[k]) != len(raws[k]) or out[k, :len(raws[k])].tobytes() != raws[k] for k in range(ns))
+        errs = int(np.sum(ln >= 0x80000000))
+        return bad == 0, {'bad_streams': int(bad), 'decoder_errors': errs, 'streams': ns,
+                          'bytes_out': sum(map(len, raws)), 'ratio': round(sum(map(len, raws)) / int(off[-1]), 2),
+                          'blocks': {k: kinds.count(k) for k in ('stored', 'fixed', 'dynamic')}}
+    pad4 = lambda a: np.concatenate([a, np.zeros(-len(a) % 4, np.uint8)]).view(np.uint32)
+    return W('inflateshm' if shm else 'inflate', {0: (idx, False), 1: (pad4(src), False), 2: (ns * maxout, True), 3: (4 * ns, True)},
+             [((ns + 63) // 64, 1, 1, push(ns, maxout))], check, 64, {'bytes': sum(map(len, raws))},
+             requires=['storage_buffer_8bit'])
+
+
+def w_inflateshm(size, rng):
+    return w_inflate(size, rng, shm=True)
+
+
 def w_spmv(size, rng):
     rows, cols = (512, 512) if size == 'small' else (1 << 18, 1 << 18)
     nnz = rng.integers(0, 64, rows) * (rng.random(rows) < 0.95)    # some empty rows
@@ -4701,7 +4742,7 @@ WORKLOADS = {'reduce': w_reduce, 'scan': w_scan, 'sgemm': w_sgemm, 'conv2d': w_c
              'aluprobe': w_aluprobe, 'ubopalette': w_ubopalette, 'uboparams': w_uboparams,
              'bindless': w_bindless, 'bindlessu': w_bindlessu,
              # appended only: the input seed is the index in this dict
-             'rle': w_rle, 'huffdec': w_huffdec, 'lookback': w_lookback, 'hll': w_hll, 'tricount': w_tricount, 'sha3': w_sha3, 'stereo': w_stereo, 'viterbi': w_viterbi, 'viterbifix': w_viterbifix, 'shiftfuse': w_shiftfuse, 'bc1enc': w_bc1enc, 'lz4dec': w_lz4dec, 'nttmul': w_nttmul, 'topk': w_topk, 'cellsort': w_cellsort, 'boruvka': w_boruvka, 'biquad': w_biquad, 'edt': w_edt, 'mt19937': w_mt19937, 'bitap': w_bitap, 'cholesky': w_cholesky, 'rsshash': w_rsshash, 'poly1305': w_poly1305, 'crc32c': w_crc32c, 'siphash': w_siphash, 'blake2s': w_blake2s, 'blake2sfast': w_blake2sfast, 'q4gemv': w_q4gemv, 'attndec': w_attndec, 'attndecsplit': w_attndecsplit, 'rmsrope': w_rmsrope, 'q8dot': w_q8dot, 'isp': w_isp, 'contour': w_contour, 'hough': w_hough, 'spmvsg': w_spmvsg, 'varint': w_varint, 'bvhrays': w_bvhrays, 'adamw': w_adamw, 'stream': w_stream, 'motionest': w_motionest, 'jsonidx': w_jsonidx, 'cdc': w_cdc, 'swalign': w_swalign, 'swalignfit': w_swalignfit, 'swalignpad': w_swalignpad, 'jpcolor': w_jpcolor, 'postings': w_postings, 'tpchq6': w_tpchq6, 'ghash': w_ghash, 'scrypt': w_scrypt, 'pngunfilter': w_pngunfilter}
+             'rle': w_rle, 'huffdec': w_huffdec, 'lookback': w_lookback, 'hll': w_hll, 'tricount': w_tricount, 'sha3': w_sha3, 'stereo': w_stereo, 'viterbi': w_viterbi, 'viterbifix': w_viterbifix, 'shiftfuse': w_shiftfuse, 'bc1enc': w_bc1enc, 'lz4dec': w_lz4dec, 'nttmul': w_nttmul, 'topk': w_topk, 'cellsort': w_cellsort, 'boruvka': w_boruvka, 'biquad': w_biquad, 'edt': w_edt, 'mt19937': w_mt19937, 'bitap': w_bitap, 'cholesky': w_cholesky, 'rsshash': w_rsshash, 'poly1305': w_poly1305, 'crc32c': w_crc32c, 'siphash': w_siphash, 'blake2s': w_blake2s, 'blake2sfast': w_blake2sfast, 'q4gemv': w_q4gemv, 'attndec': w_attndec, 'attndecsplit': w_attndecsplit, 'rmsrope': w_rmsrope, 'q8dot': w_q8dot, 'isp': w_isp, 'contour': w_contour, 'hough': w_hough, 'spmvsg': w_spmvsg, 'varint': w_varint, 'bvhrays': w_bvhrays, 'adamw': w_adamw, 'stream': w_stream, 'motionest': w_motionest, 'jsonidx': w_jsonidx, 'cdc': w_cdc, 'swalign': w_swalign, 'swalignfit': w_swalignfit, 'swalignpad': w_swalignpad, 'jpcolor': w_jpcolor, 'postings': w_postings, 'tpchq6': w_tpchq6, 'ghash': w_ghash, 'scrypt': w_scrypt, 'pngunfilter': w_pngunfilter, 'inflate': w_inflate, 'inflateshm': w_inflateshm}
 
 
 # ---------------------------------------------------------------------------------------------------------------

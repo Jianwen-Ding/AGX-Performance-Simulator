@@ -1,7 +1,7 @@
 # Task SPIR-V 8: applications (ray tracer, neural networks, image processing, cellular automaton, graph search,
 # encryption, hashing, text, compression)
 
-**Workloads:** `raytrace`, `mlp`, `sobel`, `life`, `bfs`, `conv_layer`, `hist_eq`, `aes`, `hash_table`, `word_count`, `dct8`, `attention`, `resize`, `median3`, `poisson`, `lbm`, `base64`, `md5`, `gemv`, `levenshtein`, `blur`, `yuv420`, `montecarlo`, `xxhash`, `bloom`, `collatz`, `tridiag`, `merge`, `ccl`, `pagerank`, `skinning`, `strsearch`, `quantize`, `rule110`, `voxel`, `nms`, `sat`, `sssp`, `morton`, `utf8`, `fir`, `composite`, `nqueens`, `lzmatch`, `bitpack`, `perlin`, `adler32`, `sieve`, `gcd`, `dither`, `advect`, `knn`, `csvparse`, `pip`, `lift53`, `chacha20`, `modexp`, `floyd`, `f16pack`, `raster`, `canny`, `secded`, `bicubic`, `dfa`, `b64decode`, `cordic`, `rsenc`, `texfetch`, `texfilter`, `imgerode`, `imgtonemap`, `argmax64`, `minmax64`, `dsum`, `quadmip`, `clustered`, `specblur`, `cullindirect`, `bigsort`, `pushmat`, `mplitmus`, `splat`, `splatfix`, `smembank`, `coalesce`, `atomcontend`, `barriercost`, `aluprobe`, `ubopalette`, `uboparams`, `bindless`, `bindlessu`, `rle`, `huffdec`, `lookback`, `hll`, `tricount`, `sha3`, `stereo`, `viterbi`, `viterbifix`, `shiftfuse`, `bc1enc`, `lz4dec`, `nttmul`, `topk`, `cellsort`, `boruvka`, `biquad`, `edt`, `mt19937`, `bitap`, `cholesky`, `rsshash`, `poly1305`, `crc32c`, `siphash`, `blake2s`, `blake2sfast`, `q4gemv`, `attndec`, `attndecsplit`, `rmsrope`, `q8dot`, `isp`, `contour`, `hough`, `spmvsg`, `varint`, `bvhrays`, `adamw`, `stream`, `motionest`, `jsonidx`, `cdc`, `swalign`, `swalignfit`, `swalignpad`, `jpcolor`, `postings`, `tpchq6`, `ghash`, `scrypt`, `pngunfilter`. These are recorded and verified by `make asahi-verify` with the others;
+**Workloads:** `raytrace`, `mlp`, `sobel`, `life`, `bfs`, `conv_layer`, `hist_eq`, `aes`, `hash_table`, `word_count`, `dct8`, `attention`, `resize`, `median3`, `poisson`, `lbm`, `base64`, `md5`, `gemv`, `levenshtein`, `blur`, `yuv420`, `montecarlo`, `xxhash`, `bloom`, `collatz`, `tridiag`, `merge`, `ccl`, `pagerank`, `skinning`, `strsearch`, `quantize`, `rule110`, `voxel`, `nms`, `sat`, `sssp`, `morton`, `utf8`, `fir`, `composite`, `nqueens`, `lzmatch`, `bitpack`, `perlin`, `adler32`, `sieve`, `gcd`, `dither`, `advect`, `knn`, `csvparse`, `pip`, `lift53`, `chacha20`, `modexp`, `floyd`, `f16pack`, `raster`, `canny`, `secded`, `bicubic`, `dfa`, `b64decode`, `cordic`, `rsenc`, `texfetch`, `texfilter`, `imgerode`, `imgtonemap`, `argmax64`, `minmax64`, `dsum`, `quadmip`, `clustered`, `specblur`, `cullindirect`, `bigsort`, `pushmat`, `mplitmus`, `splat`, `splatfix`, `smembank`, `coalesce`, `atomcontend`, `barriercost`, `aluprobe`, `ubopalette`, `uboparams`, `bindless`, `bindlessu`, `rle`, `huffdec`, `lookback`, `hll`, `tricount`, `sha3`, `stereo`, `viterbi`, `viterbifix`, `shiftfuse`, `bc1enc`, `lz4dec`, `nttmul`, `topk`, `cellsort`, `boruvka`, `biquad`, `edt`, `mt19937`, `bitap`, `cholesky`, `rsshash`, `poly1305`, `crc32c`, `siphash`, `blake2s`, `blake2sfast`, `q4gemv`, `attndec`, `attndecsplit`, `rmsrope`, `q8dot`, `isp`, `contour`, `hough`, `spmvsg`, `varint`, `bvhrays`, `adamw`, `stream`, `motionest`, `jsonidx`, `cdc`, `swalign`, `swalignfit`, `swalignpad`, `jpcolor`, `postings`, `tpchq6`, `ghash`, `scrypt`, `pngunfilter`, `inflate`, `inflateshm`. These are recorded and verified by `make asahi-verify` with the others;
 they are **PENDING** until then. The detailed procedure is in `tasks/spirv-workloads.md`.
 
 ## Why these
@@ -154,11 +154,12 @@ reference.
 | `ghash` | 65536 random keys, IVs and 256-byte plaintexts, encrypted with the `cryptography` library's AES-GCM | For every message, the GPU's GHASH xor AES_K(J0) equals the library's authentication tag; NIST GCM test case 2 is asserted first |
 | `scrypt` | 2048 random passwords (8-16 printable bytes) and 16-byte salts; the host runs PBKDF2-HMAC-SHA256 before and after the GPU's ROMix | Every derived key (64 bytes) equal to `hashlib.scrypt` (OpenSSL) with N = 1024, r = 1, p = 1; RFC 7914's first vector is asserted first |
 | `pngunfilter` | 2048 RGBA8 images of 128×128 (separable gradients, texture, integer noise; half opaque), filtered with libpng's default heuristic (least sum of absolute signed bytes) | Every reconstructed row equal to the image; the filtered streams of the first 8 images, wrapped as PNG files, decode to the same pixels with Pillow |
+| `inflate`, `inflateshm` | 2048 raw-deflate streams of 2-8 KiB from Python's `zlib` (pseudo-English over a Zipf vocabulary, some with a binary prefix): 1 in 8 stored, 1 in 4 `Z_FIXED`, the rest dynamic at levels 1 / 6 / 9 | Every stream's output equal to the original bytes (and its length), with no decoder error; every block type is exercised |
 
 ## Offline sanity checks (not hardware verification)
 
 - **lavapipe:** all pass at both sizes. Last whole-suite rerun at the small size: 174 of 174 functionally correct
-  (`scrypt` and `pngunfilter`, added since, pass at both sizes).
+  (`scrypt`, `pngunfilter`, `inflate` and `inflateshm`, added since, pass at both sizes).
 - **Shim-compiled Mesa 25.2.8 and 26.0.3 code on the functional simulator:** every workload the simulator can run, under
   `bfeil` semantics B; under the default, all but the five of question 1 (below).
   - Last whole-suite rerun (`simall`, Mesa 26.0.3): 170 compiled workloads.
@@ -782,3 +783,24 @@ reference.
     - Predicted 5.92 ms: only 8192 invocations (128 workgroups, about 4 per core), so the time is the serial chain's
       latency, with a store-to-load reuse each step.
     - It passes on lavapipe, and on the simulator at both Mesa versions under both `bfeil` semantics.
+78. **`inflate` / `inflateshm`: DEFLATE decompression, and what Mesa does with small private arrays.**
+    - One raw DEFLATE stream per invocation, decoded like Mark Adler's puff: stored, fixed and dynamic Huffman blocks,
+      codes decoded a bit at a time from per-length counts, LZ77 copies from the output just written.
+    - The reference is the data itself: Python's `zlib` compresses it with a mix of levels and strategies, and every
+      stream must decode to its original bytes. At the large size: 2048 streams, 10.4 MB out.
+    - In `inflate` the per-length counts (`cnt[32]`) and offsets (`offs[16]`) are private arrays indexed by data.
+      - Mesa turns those accesses into chains of selects. The main program is 13897 instructions, 11753 of them
+        `icmpsel`: 131 KiB of code (15147 instructions at 25.2.8).
+      - The larger arrays (`sym`, `lens`, the code lengths) go to scratch, 972 bytes per invocation.
+      - Moving the constant tables (`LBASE`, ...) to a uniform buffer changes almost nothing (11642 `icmpsel`), so
+        they are not the cause.
+    - `inflateshm` keeps the counts and offsets in shared memory, one slice per invocation; nothing else changes.
+      Its main program is 2987 instructions (20.5 KiB, 12 KiB of shared memory).
+    - On the small size the simulator executes 87 against 56 SIMD-group instructions per output byte. That is 35%
+      fewer for `inflateshm` (its streams are different draws of the same distribution).
+    - Both are predicted at 19.5 ms, though. With only 64 SIMD groups on 38 cores, the model's time is the latency of
+      one invocation's dependent chain, and the extra selects fit in it. The model also has no instruction-cache
+      cost, so 131 KiB against 20.5 KiB of code is invisible to it.
+    - On the M2 the pair measures both: if `inflate` is clearly slower, the select chains or the instruction-cache
+      misses of 131 KiB of code cost more than the model allows.
+    - Both pass on lavapipe, and on the simulator at both Mesa versions under both `bfeil` semantics.

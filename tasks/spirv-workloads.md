@@ -57,7 +57,7 @@ The rest of this file is the detailed procedure, for investigating results.
 
 ## Workloads
 
-One hundred and seventy-six realistic compute kernels, written in GLSL (`spirv/shaders/*.comp`) and compiled to SPIR-V:
+One hundred and seventy-eight realistic compute kernels, written in GLSL (`spirv/shaders/*.comp`) and compiled to SPIR-V:
 
 | Workload | Kernel | Stresses |
 |---|---|---|
@@ -237,6 +237,8 @@ One hundred and seventy-six realistic compute kernels, written in GLSL (`spirv/s
 | `ghash` | GHASH, the authentication half of AES-GCM: 65536 TLS-record-sized messages (256 bytes), each with its own key, one per invocation | GF(2^128) multiplication by 128 shift-and-conditional-xor steps on four words; 17 dependent multiplies per message; byte swaps |
 | `scrypt` | scrypt's ROMix (N = 1024, r = 1), the memory-hard core of the password hash: 2048 hashes, 128 KiB of scratchpad each in device memory | A sequential fill of the scratchpad, then 1024 data-dependent random 128-byte reads per hash; Salsa20/8 rounds on a 32-word state in registers |
 | `pngunfilter` | PNG scanline un-filtering (None / Sub / Up / Average / Paeth) of 2048 RGBA thumbnails, one invocation per image channel | Serial byte chains along rows and down the image (16384 steps per invocation), each reading the row it wrote before; 8-bit loads and stores; low occupancy |
+| `inflate` | DEFLATE decompression (zlib / gzip / PNG / ZIP), one raw stream per invocation, puff-style: stored, fixed- and dynamic-Huffman blocks, LZ77 copies | Bit-serial canonical Huffman decoding, data-indexed private tables (Mesa turns the small ones into select chains: 13897 instructions, 131 KiB of code) and scratch, copies reading back device memory |
+| `inflateshm` | `inflate` with the per-length code counts and offsets in shared memory | The same decoder in 2987 instructions (20.5 KiB): code size and dynamic instruction count against latency |
 
 Each workload has two sizes:
 

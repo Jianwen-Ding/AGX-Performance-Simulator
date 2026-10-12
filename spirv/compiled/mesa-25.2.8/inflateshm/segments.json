@@ -1,0 +1,22 @@
+{
+ "blob": "spirv/compiled/mesa-25.2.8/inflateshm/shader.bin",
+ "code_start": 2236,
+ "code_size": 21282,
+ "layout": "agx_shader_info",
+ "programs": [
+  {
+   "label": "main",
+   "file": "main.bin",
+   "offset": 256,
+   "bytes": 20658,
+   "instructions": 3004
+  },
+  {
+   "label": "preamble",
+   "file": "preamble.bin",
+   "offset": 20992,
+   "bytes": 274,
+   "instructions": 41
+  }
+ ]
+}
