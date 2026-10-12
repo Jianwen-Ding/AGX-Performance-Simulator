@@ -973,6 +973,51 @@ def w_mt19937(size, rng):
              {'items': streams * 624 * twists})
 
 
+def sellers_ends(text, pat, k, chunks):
+    """match ends with edit distance <= k (Sellers' semi-global DP), vectorised over `chunks` equal pieces of the text,
+    each scanned from m + k characters before its start (as the shader): bool [len(text)]"""
+    n, m = len(text), len(pat)
+    L = n // chunks; warm = m + k
+    starts = np.arange(chunks) * L - warm
+    D = np.tile(np.arange(m + 1, dtype=np.int64), (chunks, 1))
+    out = np.zeros((chunks, L), bool)
+    for step in range(L + warm):
+        pos = starts + step
+        valid = pos >= 0
+        t = text[np.clip(pos, 0, n - 1)]
+        Dn = np.empty_like(D); Dn[:, 0] = 0
+        for i in range(1, m + 1):
+            Dn[:, i] = np.minimum(np.minimum(D[:, i - 1] + (pat[i - 1] != t), D[:, i] + 1), Dn[:, i - 1] + 1)
+        D = np.where(valid[:, None], Dn, D)
+        if step >= warm:
+            out[:, step - warm] = D[:, m] <= k
+    return out.reshape(-1)
+
+
+def w_bitap(size, rng):
+    n = 1 << 16 if size == 'small' else 1 << 22
+    m, k = 24, 2
+    pat = rng.integers(0, 4, m)
+    text = rng.integers(0, 4, n)
+    for _ in range(n // 2000):                                                 # planted copies with 0-3 edits
+        at = int(rng.integers(0, n - 40)); cp = list(pat)
+        for _ in range(int(rng.integers(0, 4))):
+            op, j = int(rng.integers(0, 3)), int(rng.integers(0, len(cp)))
+            if op == 0: cp[j] = int(rng.integers(0, 4))
+            elif op == 1: cp.insert(j, int(rng.integers(0, 4)))
+            elif len(cp) > 1: cp.pop(j)
+        text[at:at + len(cp)] = cp
+    bmask = u32([sum(1 << i for i in range(m) if pat[i] == c) for c in range(4)])
+    def check(o):
+        got = o[2].view(np.uint32)[:n // 32]
+        gbits = ((got[:, None] >> np.arange(32, dtype=np.uint32)) & 1).reshape(-1).astype(bool)
+        ref = sellers_ends(text, pat, k, n // 1024)
+        bad = int(np.sum(gbits != ref))
+        return bad == 0, {'mismatched_positions': bad, 'match_ends': int(ref.sum())}
+    return W('bitap', {0: (u32(np.frombuffer(text.astype(np.uint8).tobytes(), np.uint32)), False), 1: (bmask, False),
+                       2: (n // 8, True)}, [((n // 1024 + 63) // 64, 1, 1, push(n, m))], check, 64, {'bytes': n})
+
+
 def w_spmv(size, rng):
     rows, cols = (512, 512) if size == 'small' else (1 << 18, 1 << 18)
     nnz = rng.integers(0, 64, rows) * (rng.random(rows) < 0.95)    # some empty rows
@@ -3502,7 +3547,7 @@ WORKLOADS = {'reduce': w_reduce, 'scan': w_scan, 'sgemm': w_sgemm, 'conv2d': w_c
              'aluprobe': w_aluprobe, 'ubopalette': w_ubopalette, 'uboparams': w_uboparams,
              'bindless': w_bindless, 'bindlessu': w_bindlessu,
              # appended only: the input seed is the index in this dict
-             'rle': w_rle, 'huffdec': w_huffdec, 'lookback': w_lookback, 'hll': w_hll, 'tricount': w_tricount, 'sha3': w_sha3, 'stereo': w_stereo, 'viterbi': w_viterbi, 'viterbifix': w_viterbifix, 'shiftfuse': w_shiftfuse, 'bc1enc': w_bc1enc, 'lz4dec': w_lz4dec, 'nttmul': w_nttmul, 'topk': w_topk, 'cellsort': w_cellsort, 'boruvka': w_boruvka, 'biquad': w_biquad, 'edt': w_edt, 'mt19937': w_mt19937}
+             'rle': w_rle, 'huffdec': w_huffdec, 'lookback': w_lookback, 'hll': w_hll, 'tricount': w_tricount, 'sha3': w_sha3, 'stereo': w_stereo, 'viterbi': w_viterbi, 'viterbifix': w_viterbifix, 'shiftfuse': w_shiftfuse, 'bc1enc': w_bc1enc, 'lz4dec': w_lz4dec, 'nttmul': w_nttmul, 'topk': w_topk, 'cellsort': w_cellsort, 'boruvka': w_boruvka, 'biquad': w_biquad, 'edt': w_edt, 'mt19937': w_mt19937, 'bitap': w_bitap}
 
 
 # ---------------------------------------------------------------------------------------------------------------

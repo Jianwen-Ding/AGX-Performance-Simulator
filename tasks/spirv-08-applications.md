@@ -1,7 +1,7 @@
 # Task SPIR-V 8: applications (ray tracer, neural networks, image processing, cellular automaton, graph search,
 # encryption, hashing, text, compression)
 
-**Workloads:** `raytrace`, `mlp`, `sobel`, `life`, `bfs`, `conv_layer`, `hist_eq`, `aes`, `hash_table`, `word_count`, `dct8`, `attention`, `resize`, `median3`, `poisson`, `lbm`, `base64`, `md5`, `gemv`, `levenshtein`, `blur`, `yuv420`, `montecarlo`, `xxhash`, `bloom`, `collatz`, `tridiag`, `merge`, `ccl`, `pagerank`, `skinning`, `strsearch`, `quantize`, `rule110`, `voxel`, `nms`, `sat`, `sssp`, `morton`, `utf8`, `fir`, `composite`, `nqueens`, `lzmatch`, `bitpack`, `perlin`, `adler32`, `sieve`, `gcd`, `dither`, `advect`, `knn`, `csvparse`, `pip`, `lift53`, `chacha20`, `modexp`, `floyd`, `f16pack`, `raster`, `canny`, `secded`, `bicubic`, `dfa`, `b64decode`, `cordic`, `rsenc`, `texfetch`, `texfilter`, `imgerode`, `imgtonemap`, `argmax64`, `minmax64`, `dsum`, `quadmip`, `clustered`, `specblur`, `cullindirect`, `bigsort`, `pushmat`, `mplitmus`, `splat`, `splatfix`, `smembank`, `coalesce`, `atomcontend`, `barriercost`, `aluprobe`, `ubopalette`, `uboparams`, `bindless`, `bindlessu`, `rle`, `huffdec`, `lookback`, `hll`, `tricount`, `sha3`, `stereo`, `viterbi`, `viterbifix`, `shiftfuse`, `bc1enc`, `lz4dec`, `nttmul`, `topk`, `cellsort`, `boruvka`, `biquad`, `edt`, `mt19937`. These are recorded and verified by `make asahi-verify` with the others;
+**Workloads:** `raytrace`, `mlp`, `sobel`, `life`, `bfs`, `conv_layer`, `hist_eq`, `aes`, `hash_table`, `word_count`, `dct8`, `attention`, `resize`, `median3`, `poisson`, `lbm`, `base64`, `md5`, `gemv`, `levenshtein`, `blur`, `yuv420`, `montecarlo`, `xxhash`, `bloom`, `collatz`, `tridiag`, `merge`, `ccl`, `pagerank`, `skinning`, `strsearch`, `quantize`, `rule110`, `voxel`, `nms`, `sat`, `sssp`, `morton`, `utf8`, `fir`, `composite`, `nqueens`, `lzmatch`, `bitpack`, `perlin`, `adler32`, `sieve`, `gcd`, `dither`, `advect`, `knn`, `csvparse`, `pip`, `lift53`, `chacha20`, `modexp`, `floyd`, `f16pack`, `raster`, `canny`, `secded`, `bicubic`, `dfa`, `b64decode`, `cordic`, `rsenc`, `texfetch`, `texfilter`, `imgerode`, `imgtonemap`, `argmax64`, `minmax64`, `dsum`, `quadmip`, `clustered`, `specblur`, `cullindirect`, `bigsort`, `pushmat`, `mplitmus`, `splat`, `splatfix`, `smembank`, `coalesce`, `atomcontend`, `barriercost`, `aluprobe`, `ubopalette`, `uboparams`, `bindless`, `bindlessu`, `rle`, `huffdec`, `lookback`, `hll`, `tricount`, `sha3`, `stereo`, `viterbi`, `viterbifix`, `shiftfuse`, `bc1enc`, `lz4dec`, `nttmul`, `topk`, `cellsort`, `boruvka`, `biquad`, `edt`, `mt19937`, `bitap`. These are recorded and verified by `make asahi-verify` with the others;
 they are **PENDING** until then. The detailed procedure is in `tasks/spirv-workloads.md`.
 
 ## Why these
@@ -123,6 +123,7 @@ reference.
 | `biquad` | 4096 channels × 4096 samples of tone plus noise | Bit-exact against the same fixed-point arithmetic in numpy; the fixed-point filter is 44.8 dB SNR against scipy's floating-point `sosfilt` |
 | `edt` | 768 × 512 binary image of discs and lines | Exact against `scipy.ndimage.distance_transform_edt` (squared, an independent algorithm) |
 | `mt19937` | 1024 streams × 10608 outputs, stream 0 seeded 5489 | Exact against a numpy MT19937; the published known answers for seed 5489 (first output 3499211612, 10000th 4123659995) |
+| `bitap` | 4M random bases with planted pattern copies (0-3 edits), pattern of 24, k = 2 | Exact match-end bitmap against Sellers' edit-distance DP (5539 ends); decodes under hypothesis B of note 37 only |
 
 ## Offline sanity checks (not hardware verification)
 
@@ -326,8 +327,9 @@ reference.
     - **Hypothesis B**: the masked form takes its shift modulo 32.
       - Then the compiler is right and the simulator must change. Set `AGX_BFEIL_MASKED_SHIFT32=1` to simulate it:
         all of these workloads then pass, and the 721-case suite is unchanged (691 / 721 either way).
-      - B is the more plausible one a priori. `lz4dec` shows the fused form arising from the most ordinary byte
-        unpacking, `(w >> ((i & 3) * 8)) & 255`, and the driver is Vulkan-conformant.
+      - B is the more plausible one a priori. `lz4dec` and `bitap` show the fused form arising from the most
+        ordinary byte / 2-bit unpacking, `(w >> ((i & 3) * 8)) & 255` (or `& 3`), and the driver is
+        Vulkan-conformant.
     - The M2 run decides. A: `viterbi`, the three `shiftfuse` columns and `lz4dec` fail, and `viterbifix` passes.
       B: everything passes, and `AGX_BFEIL_MASKED_SHIFT32` semantics should become the default.
     - It is also decided at the instruction level. `make asahi-verify` records the coverage catalog's 70 bitfield
@@ -425,3 +427,8 @@ reference.
       and parallel tempering.
     - Predicted 0.48 ms. The serial seeding and the phases with 29-89 idle invocations of 256 make it sensitive to
       how the model charges barriers and partly idle workgroups.
+49. **Bitap approximate matching.**
+    - Each text position is a dependent chain of about 15 shift / and / or operations across the three error levels;
+      1024 + 26 positions per invocation.
+    - The base read `(text[i >> 2] >> ((i & 3) * 8)) & 3` compiles to `bfeil ..., i * 8, mask 0x3`, so the
+      simulator finds no matches under hypothesis A and every match under B (note 37). Predicted 0.31 ms (under B).

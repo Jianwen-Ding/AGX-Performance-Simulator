@@ -54,7 +54,7 @@ The rest of this file is the detailed procedure, for investigating results.
 
 ## Workloads
 
-One hundred and forty-three realistic compute kernels, written in GLSL (`spirv/shaders/*.comp`) and compiled to SPIR-V:
+One hundred and forty-four realistic compute kernels, written in GLSL (`spirv/shaders/*.comp`) and compiled to SPIR-V:
 
 | Workload | Kernel | Stresses |
 |---|---|---|
@@ -201,6 +201,7 @@ One hundred and forty-three realistic compute kernels, written in GLSL (`spirv/s
 | `biquad` | Fixed-point audio filter bank: 4 cascaded Q14 biquads (8th-order low-pass), 64-bit accumulator, 16-bit saturation | 32×32→64 integer multiply-add (`imadd` to a register pair), a long serial recurrence per channel, coalesced interleaved channels |
 | `edt` | Exact squared Euclidean distance transform: row scans, then a per-pixel column minimum of g² + Δy² | A dispatch of only 8 workgroups with long serial scans (latency-bound, most of the GPU idle), then a coalesced O(H) inner loop per pixel |
 | `mt19937` | Mersenne Twister streams, one per workgroup, 624-word state in shared memory, twist in three parallel phases | A 623-step serial seeding loop on one invocation, 4 barriers per twist with partly idle workgroups, xor-shift tempering |
+| `bitap` | Approximate DNA pattern matching (Wu-Manber bitap, ≤ 2 edits), one 1024-position chunk per invocation | Long serial chains of 32-bit shift / and / or, 2-bit unpacking of packed bases (the masked-`bfeil` form, note 37) |
 
 Each workload has two sizes:
 
