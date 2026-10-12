@@ -44,18 +44,21 @@ impl CoreState {
             device_memory,
         }
     }
+    #[inline(always)]
     fn idx(&self, r: usize) -> R<usize> {
         if r < self.reg16s.len() { Ok(r) } else { Err("IndexError: register".into()) }
     }
+    #[inline(always)]
     pub fn get_reg16(&self, r: usize, t: usize) -> R<i128> {
         Ok(self.reg16s[self.idx(r)?][t] as i128)
     }
+    #[inline(always)]
     pub fn set_reg16(&mut self, r: usize, t: usize, v: i128) -> R<()> {
         let i = self.idx(r)?;
         self.reg16s[i][t] = (v & 0xFFFF) as u16;
         Ok(())
     }
-    #[inline]
+    #[inline(always)]
     pub fn get_reg32(&self, r: usize, t: usize) -> R<i128> {
         if 2 * r + 1 < self.reg16s.len() {
             // both halves in range: one check (the general path below reports the same errors otherwise)
@@ -63,7 +66,7 @@ impl CoreState {
         }
         Ok(self.get_reg16(2 * r, t)? | (self.get_reg16(2 * r + 1, t)? << 16))
     }
-    #[inline]
+    #[inline(always)]
     pub fn set_reg32(&mut self, r: usize, t: usize, v: i128) -> R<()> {
         if 2 * r + 1 < self.reg16s.len() {
             self.reg16s[2 * r][t] = (v & 0xFFFF) as u16;

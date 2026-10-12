@@ -289,7 +289,7 @@ fn src_of(st: &CoreState, o: &Operand) -> R<Option<Src>> {
     })
 }
 
-#[inline]
+#[inline(always)]
 fn src_get(st: &CoreState, s: Src, t: usize) -> R<(u64, u32)> {
     Ok(match s {
         Src::L16(n) => (st.get_reg16(n, t)? as u64, 16),
@@ -322,6 +322,55 @@ fn icmpsel_fast(cc: u64, ops: &[Operand], st: &mut CoreState) -> R<bool> {
     // a constant operand is extended once
     let ka = if let Src::K(v, sz) = a { Some(ext(v, sz, signed)) } else { None };
     let kb = if let Src::K(v, sz) = b { Some(ext(v, sz, signed)) } else { None };
+    // Every register in range (checked once): lanes read and write the halves directly, with no per-lane checks.
+    // Otherwise the general loop below, which reports an out-of-range register at the lane that first touches it.
+    let n16 = st.reg16s.len();
+    let fits = |s: Src| match s { Src::L16(n) => n < n16, Src::L32(n) => 2 * n + 1 < n16, Src::K(..) => true };
+    if fits(a) && fits(b) && fits(x) && fits(y) && if d16 { dn < n16 } else { 2 * dn + 1 < n16 } {
+        #[inline(always)]
+        fn get(r: &[[u16; SIMD_WIDTH]], s: Src, t: usize) -> (u64, u32) {
+            match s {
+                Src::L16(n) => (r[n][t] as u64, 16),
+                Src::L32(n) => (r[2 * n][t] as u64 | (r[2 * n + 1][t] as u64) << 16, 32),
+                Src::K(v, sz) => (v, sz),
+            }
+        }
+        // operands gathered for every lane first (a lane only reads and writes its own registers)
+        let r = &st.reg16s;
+        let mut c = [inv; SIMD_WIDTH];
+        if op != 3 {
+            let ext_all = |s: Src, k: Option<i64>| -> [i64; SIMD_WIDTH] {
+                let mut o = [0i64; SIMD_WIDTH];
+                match k {
+                    Some(k) => o.fill(k),
+                    None => {
+                        for (t, x) in o.iter_mut().enumerate() {
+                            let (v, sz) = get(r, s, t);
+                            *x = ext(v, sz, signed);
+                        }
+                    }
+                }
+                o
+            };
+            let (av, bv) = (ext_all(a, ka), ext_all(b, kb));
+            for t in 0..SIMD_WIDTH {
+                c[t] = (match op { 0 => av[t] == bv[t], 1 => av[t] < bv[t], _ => av[t] > bv[t] }) != inv;
+            }
+        }
+        for t in 0..SIMD_WIDTH {
+            if !st.exec[t] {
+                continue;
+            }
+            let (v, _) = get(&st.reg16s, if c[t] { x } else { y }, t);
+            if d16 {
+                st.reg16s[dn][t] = v as u16;
+            } else {
+                st.reg16s[2 * dn][t] = v as u16;
+                st.reg16s[2 * dn + 1][t] = (v >> 16) as u16;
+            }
+        }
+        return Ok(true);
+    }
     for t in 0..SIMD_WIDTH {
         if !st.exec[t] {
             continue;
