@@ -1065,17 +1065,41 @@ impl Default for MemModel {
     }
 }
 
+/// Hasher for segment numbers: the splitmix64 finalizer (SipHash dominated memory-bound runs). Only lookups use
+/// it; nothing iterates the maps it serves, so results do not depend on it.
+#[derive(Default, Clone, Copy)]
+struct SegHash(u64);
+
+impl std::hash::Hasher for SegHash {
+    fn finish(&self) -> u64 {
+        let mut z = self.0.wrapping_add(0x9e37_79b9_7f4a_7c15);
+        z = (z ^ (z >> 30)).wrapping_mul(0xbf58_476d_1ce4_e5b9);
+        z = (z ^ (z >> 27)).wrapping_mul(0x94d0_49bb_1331_11eb);
+        z ^ (z >> 31)
+    }
+    fn write(&mut self, bytes: &[u8]) {
+        for &b in bytes {
+            self.0 = (self.0 << 8 | self.0 >> 56) ^ b as u64;
+        }
+    }
+    fn write_u64(&mut self, x: u64) {
+        self.0 ^= x;
+    }
+}
+
+type SegBuild = std::hash::BuildHasherDefault<SegHash>;
+
 /// Least-recently-used set of 64-byte segments.
 struct Lru {
     cap: usize,
     stamp: u64,
-    at: HashMap<u64, u64>,
+    at: HashMap<u64, u64, SegBuild>,
     order: std::collections::BTreeMap<u64, u64>,
 }
 
 impl Lru {
     fn new(bytes: usize) -> Self {
-        Lru { cap: (bytes / 64).max(1), stamp: 0, at: HashMap::new(), order: Default::default() }
+        Lru { cap: (bytes / 64).max(1), stamp: 0, at: HashMap::default(), order: Default::default() }
     }
     fn contains(&self, s: u64) -> bool {
         self.at.contains_key(&s)
@@ -1245,8 +1269,13 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
         });
     }
     let mut seqs: Vec<Vec<usize>> = vec![];
+    // pc -> index into `sim`, as `by_pc` (later entries win), without hashing every dynamic pc
+    let mut pc_index: Vec<Option<usize>> = vec![None; by_pc.keys().max().map_or(0, |&m| m + 1)];
+    for (&pc, &i) in &by_pc {
+        pc_index[pc] = Some(i);
+    }
     for pcs in seqs_pcs {
-        seqs.push(pcs.iter().map(|pc| by_pc.get(pc).copied().ok_or_else(|| format!("KeyError: pc {}", pc))).collect::<Result<_, _>>()?);
+        seqs.push(pcs.iter().map(|&pc| pc_index.get(pc).copied().flatten().ok_or_else(|| format!("KeyError: pc {}", pc))).collect::<Result<_, _>>()?);
     }
     // ---- memory hierarchy state (one core)
     struct MemState {
