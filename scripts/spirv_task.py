@@ -1638,13 +1638,22 @@ def utf8_ref(t):
     return np.where(cont, 0xffffffff, np.where(ok, v, 0xfffd)).astype(np.uint32)
 
 
+def utf8_join(alphabet, idx):
+    """''.join(alphabet[i] for i in idx).encode(), from a padded table of each character's bytes"""
+    enc = [c.encode() for c in alphabet]
+    table = np.zeros((len(enc), 4), np.uint8); lens = np.array([len(e) for e in enc])
+    for k, e in enumerate(enc):
+        table[k, :len(e)] = np.frombuffer(e, np.uint8)
+    rows = table[idx]
+    return rows[np.arange(4)[None, :] < lens[idx][:, None]].tobytes()          # row-major: characters in order
+
+
 def w_utf8(size, rng):
     n = 4096 if size == 'small' else 1 << 24
     alphabet = 'abc xyz,.ÄéßñΩЖשش漢字かな한글€🙂🚀𝄞'                       # 1- to 4-byte characters
-    chars = np.array(list(alphabet))[rng.integers(0, len(alphabet), n // 2)]
-    good = ''.join(chars).encode()[:n // 2]
+    good = utf8_join(alphabet, rng.integers(0, len(alphabet), n // 2))[:n // 2]
     good = good[:len(good.decode('utf-8', 'ignore').encode())]                 # whole characters only
-    bad = bytearray(''.join(np.array(list(alphabet))[rng.integers(0, len(alphabet), n)]).encode()[:n - len(good)])
+    bad = bytearray(utf8_join(alphabet, rng.integers(0, len(alphabet), n))[:n - len(good)])
     for k in rng.integers(0, len(bad), max(8, len(bad) // 500)):               # stray continuation / lead / overlong bytes
         bad[k] = int(rng.choice([0x80, 0xbf, 0xc0, 0xc1, 0xe0, 0xed, 0xf5, 0xff]))
     text = np.frombuffer(good + bytes(bad), np.uint8).copy()
@@ -1687,18 +1696,20 @@ def div255(x): x = x + 128; return (x + (x >> 8)) >> 8
 
 def w_composite(size, rng):
     Wd, H = (64, 48) if size == 'small' else (3840, 2160)
-    gy, gx = np.mgrid[0:H, 0:Wd]
-    bg = np.stack([gx * 255 // max(Wd - 1, 1), gy * 255 // max(H - 1, 1), np.full_like(gx, 96), np.full_like(gx, 255)], -1)
+    gx, gy = np.arange(Wd)[None, :], np.arange(H)[:, None]                      # broadcast instead of full grids
+    full = lambda v: np.broadcast_to(v, (H, Wd))
+    bg = [full(gx * 255 // max(Wd - 1, 1)), full(gy * 255 // max(H - 1, 1)), full(np.int64(96)), full(np.int64(255))]
     a = np.clip(255 * (0.5 + 0.5 * np.sin(gx / 13.0) * np.cos(gy / 9.0)) + rng.integers(-10, 11, (H, Wd)), 0, 255).astype(np.int64)
     a[:, :Wd // 8] = 0; a[:, -Wd // 8:] = 255                                     # fully clear and fully opaque bands
-    col = np.stack([np.full_like(gx, 250), np.full_like(gx, 40), (gx + gy) % 256], -1)
-    src = np.concatenate([col * a[..., None] // 255, a[..., None]], -1)           # premultiplied: channel <= alpha
-    pack = lambda c: u32(c[..., 0] | c[..., 1] << 8 | c[..., 2] << 16 | c[..., 3] << 24)
+    col = [np.int64(250), np.int64(40), (gx + gy) % 256]
+    src = [c * a // 255 for c in col] + [a]                                      # premultiplied: channel <= alpha
+    pack = lambda c: u32(c[0] | c[1] << 8 | c[2] << 16 | c[3] << 24)
     def check(o):
         got = o[2].view(np.uint32)[:Wd * H].reshape(H, Wd)
-        ref = pack(src + div255(bg * (255 - a)[..., None]))
-        exact = np.round(src + bg * (255 - a)[..., None] / 255.0)                # div255 is exact rounding of x / 255
-        return np.array_equal(got, ref), {'mismatches': int(np.sum(got != ref)), 'div255_is_round': bool(np.array_equal(src + div255(bg * (255 - a)[..., None]), exact))}
+        out = [src[k] + div255(bg[k] * (255 - a)) for k in range(4)]
+        ref = pack(out)
+        exact = all(np.array_equal(out[k], np.round(src[k] + bg[k] * (255 - a) / 255.0)) for k in range(4))   # div255 rounds x / 255
+        return np.array_equal(got, ref), {'mismatches': int(np.sum(got != ref)), 'div255_is_round': exact}
     return W('composite', {0: (pack(src), False), 1: (pack(bg), False), 2: (4 * Wd * H, True)},
              [((Wd + 15) // 16, (H + 15) // 16, 1, push(Wd, H))], check, (16, 16, 1), {'pixels': Wd * H}, images=[(2, Wd, H, 'rgba8')])
 
