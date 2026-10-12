@@ -242,6 +242,9 @@ fn step_group(g: &mut Group, code: &[u8], cache: &mut [Option<Info>], mem: &mut 
             "threadgroup_atomic" => tg_atomic(g, f, tg)?,
             "floor" | "ceil" | "trunc" | "rint" => fsem::round_op(desc.name, &vals(&info.ops), &mut g.st)?,
             "intl" => fsem::intl(&vals(&info.ops), &mut g.st)?,
+            "rcp" | "rsqrt" | "rsqrt_special" | "log2" | "exp2" | "sin_pt_1" | "sin_pt_2" => {
+                fsem::transcendental(desc.name, &vals(&info.ops), &mut g.st)?
+            }
             "convert" => fsem::convert(f, &vals(&info.ops), &mut g.st)?,
             n if n.starts_with("quad_shuffle") => fsem::quad_shuffle(n, &vals(&info.ops), &mut g.st)?,
             n if (n.starts_with("simd_") || n.starts_with("quad_")) && !n.starts_with("simd_shuffle") && !n.starts_with("simd_matrix") => {

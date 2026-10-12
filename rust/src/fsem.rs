@@ -412,7 +412,8 @@ fn xapply(op: XOp, x: u32, y: u32) -> u32 {
         XOp::MinF | XOp::MaxF => {
             let (fx, fy) = (daz_bits(x), daz_bits(y));
             if fx.is_nan() {
-                return y;
+                // NaN loses; of two NaNs the left one is kept
+                return if fy.is_nan() { x } else { y };
             }
             if fy.is_nan() || fx == fy {
                 return x;
@@ -470,6 +471,10 @@ pub fn cross_lane(name: &str, ops: &[Operand], st: &mut CoreState) -> R<()> {
             // fadd / fmul read denormals as signed zero (also when a lane's value passes through unchanged)
             let flush = matches!(op, XOp::FAdd | XOp::FMul) && (b >> 23) & 0xff == 0;
             x[t] = Some(if flush { b & 0x8000_0000 } else { b });
+        } else if matches!(op, XOp::MinF | XOp::MaxF) {
+            // inactive lanes take part as the canonical NaN (random/prog_106: a lone active NaN comes out canonical,
+            // while four active NaNs keep their raw bits, prog_077)
+            x[t] = Some(NAN32);
         }
     }
     let w = if quad { 4 } else { 32 };
@@ -549,6 +554,92 @@ pub fn quad_shuffle(name: &str, ops: &[Operand], st: &mut CoreState) -> R<()> {
         .ok_or_else(|| format!("{} not modelled", name))?;
         let v = if (0..4).contains(&j) { a[q + j as usize] } else { a[t] };
         put(st, &ops[0], t, v)?;
+    }
+    Ok(())
+}
+
+// ---- transcendentals --------------------------------------------------------------------------------------
+//
+// fp16 forms are correctly rounded (every sampled lane of the suite). fp32 forms are the hardware's ~26-bit
+// approximation, which the suite does not pin down (10-15% of lanes differ by 1-3 ulp from correct rounding);
+// they are modelled as correctly rounded unless a recorded table (`transcendental_table`) supplies the exact
+// mantissa mapping. Special values, the denormal rules (fp32 inputs flushed to zero, fp16 denormals kept) and
+// sin_pt_1 are exact.
+
+/// Exact value (in f64) of the function, before rounding to the destination format.
+fn trans_f64(name: &str, x: f64) -> f64 {
+    match name {
+        "rcp" => 1.0 / x,
+        "rsqrt" | "rsqrt_special" => {
+            if x < 0.0 {
+                f64::NAN
+            } else if x == 0.0 {
+                // rsqrt(±0) = ±inf; rsqrt_special(±0) = 1
+                if name == "rsqrt" { f64::INFINITY.copysign(x) } else { 1.0 }
+            } else if x.is_infinite() {
+                if name == "rsqrt" { 0.0 } else { 1.0 }
+            } else {
+                1.0 / x.sqrt()
+            }
+        }
+        "log2" => {
+            if x == 0.0 {
+                f64::NEG_INFINITY
+            } else if x < 0.0 {
+                f64::NAN
+            } else {
+                x.log2()
+            }
+        }
+        "exp2" => x.exp2(),
+        "sin_pt_1" => {
+            let ax = x.abs();
+            if x.is_nan() || ax > 4.0 {
+                f64::NAN
+            } else if x == 0.0 {
+                0.0
+            } else if ax <= 1.0 {
+                x
+            } else if ax <= 3.0 {
+                (2.0 - ax) * x.signum()
+            } else {
+                (ax - 4.0) * x.signum()
+            }
+        }
+        "sin_pt_2" => {
+            if x.is_nan() || x.abs() > 1.0 {
+                f64::NAN
+            } else if x == 0.0 {
+                std::f64::consts::FRAC_PI_2
+            } else {
+                (std::f64::consts::FRAC_PI_2 * x).sin() / x
+            }
+        }
+        _ => f64::NAN,
+    }
+}
+
+pub fn transcendental(name: &str, ops: &[Operand], st: &mut CoreState) -> R<()> {
+    let d16 = dsize(&ops[0]) == 16;
+    for t in 0..SIMD_WIDTH {
+        if !st.exec[t] {
+            continue;
+        }
+        let (bits, sz) = raw(st, &ops[1], t)?;
+        // fp32 sources: denormals read as zero; fp16 sources keep denormals
+        let x = float(st, &ops[1], t, true)?;
+        let y = if !d16 && sz == 32 {
+            match crate::transtab::lookup(name, bits as u32, &ops[1]) {
+                Some(b) => {
+                    put(st, &ops[0], t, b as u64)?;
+                    continue;
+                }
+                None => trans_f64(name, x),
+            }
+        } else {
+            trans_f64(name, x)
+        };
+        put(st, &ops[0], t, if d16 { to_f16(y) } else { to_f32(y) } as u64)?;
     }
     Ok(())
 }

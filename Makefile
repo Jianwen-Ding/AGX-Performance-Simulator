@@ -4,7 +4,7 @@ DEVICE ?= /dev/dri/renderD128
 PROBE_INCLUDE ?= /save/workspace/AGX_Probe/mesa/include
 export CC PROBE_INCLUDE
 
-.PHONY: help check rust test verify-cost-model verify-memory-model bench verify-bench cost-calibrate cost-validate
+.PHONY: help check rust test verify-cost-model verify-memory-model bench verify-bench cost-calibrate cost-validate suite-check record-suite record-transcendentals
 
 help:
 	@echo 'make rust               Build the model (rust/target/release: agx_cost, agx_predict, verify_cost_model, agx_bench)'
@@ -13,6 +13,7 @@ help:
 	@echo 'make verify-scaling     Offline: 1-32 groups per core incl. idle-slot rows (scale_check)'
 	@echo 'make suite-check        Offline: functional simulator against the hardware-recorded test suite (testsuite/)'
 	@echo 'make record-suite       Hardware: re-record the test suite (~15 min)'
+	@echo 'make record-transcendentals Hardware: exact fp32 rcp/rsqrt tables and log2/exp2/sin samples (testsuite/transcendental)'
 	@echo 'make verify-dispatch    Offline: whole-dispatch model against 25 stored dispatches'
 	@echo 'make test               Offline: Rust unit and equivalence tests'
 	@echo 'make check              Offline: Python syntax check of the hardware scripts'
@@ -41,6 +42,9 @@ suite-check: rust
 
 record-suite:
 	$(PYTHON) -B scripts/record_suite.py
+
+record-transcendentals:
+	$(PYTHON) -B scripts/record_transcendentals.py
 
 verify-dispatch: rust
 	rust/target/release/dispatch_check -v

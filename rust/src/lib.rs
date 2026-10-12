@@ -8,6 +8,7 @@ pub mod fsem;
 pub mod isa;
 pub mod kernels;
 pub mod pyrandom;
+pub mod transtab;
 
 /// Python `round(x, nd)` followed by `repr` (as `json.dumps` prints it).
 pub fn py_round_repr(x: f64, nd: usize) -> String {
