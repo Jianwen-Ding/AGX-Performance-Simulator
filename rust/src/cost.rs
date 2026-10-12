@@ -655,13 +655,16 @@ pub fn tg_words(f: &isa::Fields, st: &exec::CoreState) -> Option<Vec<u64>> {
         _ => 1,
     };
     let mask = g("mask").unwrap_or(1);
-    let mut w = vec![];
+    let mut w = Vec::with_capacity(4 * exec::SIMD_WIDTH);
+    // field lookups once per instruction (applied with `?` per lane as before: a missing field matters only
+    // when a lane is active)
+    let (f_at, f_a, f_ot, f_o) = (g("At"), g("A"), g("Ot"), g("O"));
     for t in 0..exec::SIMD_WIDTH {
         if !st.exec[t] {
             continue;
         }
-        let base = tg_base(st, g("At")?, g("A")?, t).ok()? as i128;
-        let idx = if g("Ot")? != 0 { g("O")? as i128 } else { st.get_reg16(g("O")? as usize, t).ok()? };
+        let base = tg_base(st, f_at?, f_a?, t).ok()? as i128;
+        let idx = if f_ot? != 0 { f_o? as i128 } else { st.get_reg16(f_o? as usize, t).ok()? };
         for c in 0..4 {
             if mask & (1 << c) != 0 {
                 w.push(((base + 4 * item * idx + item * c) / 4) as u64);
@@ -674,17 +677,18 @@ pub fn tg_words(f: &isa::Fields, st: &exec::CoreState) -> Option<Vec<u64>> {
 /// Word addresses of a device `atomic` (32-bit) for every active lane.
 pub fn atomic_words(f: &isa::Fields, st: &exec::CoreState) -> Option<Vec<u64>> {
     let g = |k: &str| fget(f, k);
-    let mut w = vec![];
+    let mut w = Vec::with_capacity(exec::SIMD_WIDTH);
+    let (f_at, f_a, f_ot, f_o, f_ou) = (g("At"), g("A"), g("Ot"), g("O"), g("Ou"));
     for t in 0..exec::SIMD_WIDTH {
         if !st.exec[t] {
             continue;
         }
-        let base = if g("At")? != 0 { st.ureg64((g("A")? >> 1) as usize).ok()? } else { st.get_reg64((g("A")? >> 1) as usize, t).ok()? };
-        let off: i128 = if g("Ot")? != 0 {
-            isa::desc::sign_extend(g("O")? as i128, 16)
+        let base = if f_at? != 0 { st.ureg64((f_a? >> 1) as usize).ok()? } else { st.get_reg64((f_a? >> 1) as usize, t).ok()? };
+        let off: i128 = if f_ot? != 0 {
+            isa::desc::sign_extend(f_o? as i128, 16)
         } else {
-            let o = st.get_reg32((g("O")? >> 1) as usize, t).ok()?;
-            if g("Ou")? == 0 { isa::desc::sign_extend(o, 32) } else { o }
+            let o = st.get_reg32((f_o? >> 1) as usize, t).ok()?;
+            if f_ou? == 0 { isa::desc::sign_extend(o, 32) } else { o }
         };
         w.push(((base + 4 * off) >> 2) as u64);
     }

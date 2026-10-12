@@ -339,11 +339,22 @@ fn icmpsel_fast(cc: u64, ops: &[Operand], st: &mut CoreState) -> R<bool> {
         let r = &st.reg16s;
         let mut c = [inv; SIMD_WIDTH];
         if op != 3 {
+            // the operand kind decided once, each loop with a fixed size
             let ext_all = |s: Src, k: Option<i64>| -> [i64; SIMD_WIDTH] {
                 let mut o = [0i64; SIMD_WIDTH];
-                match k {
-                    Some(k) => o.fill(k),
-                    None => {
+                match (k, s) {
+                    (Some(k), _) => o.fill(k),
+                    (None, Src::L16(n)) => {
+                        for (t, x) in o.iter_mut().enumerate() {
+                            *x = ext(r[n][t] as u64, 16, signed);
+                        }
+                    }
+                    (None, Src::L32(n)) => {
+                        for (t, x) in o.iter_mut().enumerate() {
+                            *x = ext(r[2 * n][t] as u64 | (r[2 * n + 1][t] as u64) << 16, 32, signed);
+                        }
+                    }
+                    (None, s) => {
                         for (t, x) in o.iter_mut().enumerate() {
                             let (v, sz) = get(r, s, t);
                             *x = ext(v, sz, signed);

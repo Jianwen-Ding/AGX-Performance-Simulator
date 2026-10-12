@@ -564,12 +564,14 @@ impl Compiled {
                 d.set(st, t, x >> ((bv & 0x7F) as u32).min(127))
             }),
             K::Bitop { a, b, d, tt } => {
-                // the truth table as all-ones / all-zero masks: the same r as or-ing the selected terms
-                let k = |i: usize| if tt[i] != 0 { -1i128 } else { 0 };
+                // the truth table as all-ones / all-zero masks: the same r as or-ing the selected terms. In 64 bits:
+                // every destination keeps at most the low 64, and bitwise operations do not carry between bits.
+                let k = |i: usize| if tt[i] != 0 { u64::MAX } else { 0 };
                 let (k0, k1, k2, k3) = (k(0), k(1), k(2), k(3));
                 let pass = *tt == [0, 0, 1, 1] || *tt == [1, 1, 0, 0];
                 Self::lanes2(st, a, b, |st, t, av, bv| {
-                    let r = if pass { av } else { (!av & !bv & k0) | (av & !bv & k1) | (!av & bv & k2) | (av & bv & k3) };
+                    let (x, y) = (av as u64, bv as u64);
+                    let r = if pass { av } else { ((!x & !y & k0) | (x & !y & k1) | (!x & y & k2) | (x & y & k3)) as i128 };
                     d.set(st, t, r)
                 })
             }
