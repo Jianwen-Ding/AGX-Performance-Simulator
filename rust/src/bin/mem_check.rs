@@ -28,8 +28,8 @@ pub fn predict(p: &Params, row: &serde_json::Value, steps: [u32; 2], mm: &MemMod
         if let Some(bar) = row["barrier"].as_str() {
             code.extend(kernels::barrier_loop_kind(s, bar == "0x78", row["filler_iadds"].as_u64().unwrap_or(0) as u32,
                 row["fill_kind"].as_str() == Some("dep")));
-        } else if matches!(kind, "tgload" | "tgstore" | "atomic" | "load_v4" | "load_v2" | "load_i16" | "load_i8") {
-            let (st, d) = if kind == "atomic" || kind.starts_with("load_") { (g("stride"), data) } else { (4 * g("stride"), 0) };
+        } else if matches!(kind, "tgload" | "tgstore" | "atomic" | "atomic_ret" | "tgatomic" | "tgatomic_ret" | "load_v4" | "load_v2" | "load_i16" | "load_i8") {
+            let (st, d) = if kind.starts_with("atomic") || kind.starts_with("load_") { (g("stride"), data) } else { (4 * g("stride"), 0) };
             code.extend(kernels::mem_loop_kind(s, kind, st, g("j"), g("w"), d, glob));
         } else {
         let private = row["private"].as_bool().unwrap_or(false);
@@ -48,6 +48,26 @@ pub fn predict(p: &Params, row: &serde_json::Value, steps: [u32; 2], mm: &MemMod
                 cost::trace_group(&code, &ctx, 10_000_000).unwrap()
             })
             .collect();
+        // another core's workgroup: how many of this core's lines do other cores also use?
+        let mut mm = mm.clone();
+        if glob {
+            let dev: std::collections::HashSet<usize> = ins.iter().filter(|i| i.name == "device_load" || i.name == "device_store").map(|i| i.pc).collect();
+            let ovs: Vec<f64> = [1u32, 2, 18, 19]
+                .iter()
+                .map(|&w| {
+                    let other: Vec<cost::Trace> = (0..groups)
+                        .map(|k| {
+                            let ctx = GroupCtx { wg_size: [32 * groups, 1, 1], wg_id: [w, 0, 0], group: k, core: 1, slot: k, uniforms: vec![] };
+                            cost::trace_group(&code, &ctx, 10_000_000).unwrap()
+                        })
+                        .collect();
+                    cost::segment_overlap(&traces, &other, &dev)
+                })
+                .collect();
+            mm.sharing = ovs.iter().sum::<f64>() / ovs.len() as f64;
+            if std::env::var("AGX_DEBUG").is_ok() { eprintln!("sharing {:.3} window {} groups {}", mm.sharing, wb, groups); }
+        }
+        let mm = &mm;
         let seqs: Vec<&[usize]> = traces.iter().map(|t| t.pcs.as_slice()).collect();
         let mems: Vec<&[(u32, Vec<u64>)]> = traces.iter().map(|t| t.mem.as_slice()).collect();
         cyc[i] = cost::simulate_groups(&ins, &seqs, Some((&mems, mm)), p, false, None).unwrap().0;
@@ -66,7 +86,7 @@ fn main() {
     if args.iter().any(|a| a == "--stored") {
         let r = cost::repo_root().join("results/2026-10-11-memory-hierarchy");
         for f in ["coalesce-shared.json", "coalesce-private.json", "store.json", "pad.json", "private.json", "stream-dram.json", "tg.json",
-            "tgstore.json", "atomic-global.json", "barrier.json", "inter.json", "barrier-fill.json", "barrier-dep.json", "vec.json"] {
+            "tgstore.json", "atomic-global.json", "barrier.json", "inter.json", "barrier-fill.json", "barrier-dep.json", "vec.json", "atomic-ret.json", "tgatomic.json", "stream.json"] {
             files.push(r.join(f).display().to_string());
         }
     }

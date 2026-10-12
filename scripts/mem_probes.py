@@ -76,6 +76,12 @@ def mem_loop(steps, kind, s, j, w, data, advance=0, mask=0, glob=False, private=
             body += e(f'device_load 0, {fmt}, {mask}, {names}, u8_u9, r{r}, unsigned')
         elif kind == 'atomic':          # device atomic add without return: [u8_u9 + idx*4] += value
             body += agx_loop.atomic_add(8, r, DST[k % 8])
+        elif kind == 'atomic_ret':      # device atomic add returning the old value (Mesa encoding, atomics finding)
+            import run_drm_atomic as DA
+            body += DA.atomic(0, DST[k % 8], r, 21, True)
+        elif kind in ('tgatomic', 'tgatomic_ret'):   # threadgroup atomic add at the byte address in r<idx>l
+            import run_drm_tg_atomic as TA
+            body += TA.local_atomic(0, DST[k % 8], r, 21, kind == 'tgatomic_ret')
         else:                           # threadgroup load/store: byte address in the 16-bit base register
             from run_drm_tg_layout import tg
             body += tg(kind == 'tgload', 'i32', DST[k % 8], base=r, index=0)
@@ -156,7 +162,7 @@ def gate_private():
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument('what', choices=['run', 'gate'])
-    ap.add_argument('--kind', default='load', choices=['load', 'store', 'atomic', 'tgload', 'tgstore', 'load_v4', 'load_v2', 'load_i16', 'load_i8'])
+    ap.add_argument('--kind', default='load', choices=['load', 'store', 'atomic', 'atomic_ret', 'tgatomic', 'tgatomic_ret', 'tgload', 'tgstore', 'load_v4', 'load_v2', 'load_i16', 'load_i8'])
     ap.add_argument('--shared-bytes', type=int, default=32768, help='threadgroup memory declared for tg kinds')
     ap.add_argument('--groups', default='1,4,8,16,32')
     ap.add_argument('--stride', default='0,1,2,4,8,16,32', help='S: words between lanes')
@@ -205,6 +211,7 @@ def main():
                 if a.private:
                     words = data+CORES*2*(mask+1)+4096     # room for up to 2 workgroups per core
                 if words > (1 << 27): raise SystemExit('table too large')
+                if a.kind.startswith('tg') and False: pass
                 if a.kind.startswith('tg'):   # byte offsets: lane*4*S + j*J + warp*W (J, W in bytes); must fit the declaration
                     top = 31*4*st+7*jj+(G-1)*a.w+4
                     if top > a.shared_bytes: raise SystemExit(f'threadgroup offsets reach {top} > {a.shared_bytes}')

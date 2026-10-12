@@ -161,7 +161,26 @@ pub fn simulate(code: &[u8], l: &Launch, p: &Params) -> Result<Report, String> {
             }
         }
         let footprint = distinct.len() as f64 * 64.0 * (m as f64 / count.max(1) as f64) * cores.min(n) as f64;
-        let mm = MemModel { resident_slc: footprint <= mm.slc_bytes as f64, ..mm.clone() };
+        // data shared between cores: mean overlap of this core's lines with workgroups on other cores
+        let mut sharing = 0.0;
+        if l.mem && n > 1 {
+            let others: Vec<u64> = [1u64, 2, cores / 2, cores - 1].iter().copied().filter(|&k| k < n && k > 0).collect();
+            let mut ovs = vec![];
+            for &k in &others {
+                let mut tr = vec![];
+                for g in 0..gpw {
+                    let ctx = GroupCtx { wg_size: l.wg, wg_id: wg_coords(k), group: g, core: 1, slot: g, uniforms: l.uniforms.clone() };
+                    tr.push(cost::trace_group(code, &ctx, l.max_steps)?);
+                }
+                ovs.push(cost::segment_overlap(&traces, &tr, &device_pcs));
+            }
+            if !ovs.is_empty() {
+                sharing = ovs.iter().sum::<f64>() / ovs.len() as f64;
+            }
+        }
+        // with sharing, the GPU-wide footprint is smaller than this core's x active cores
+        let footprint = footprint / (1.0 + (cores.min(n) as f64 - 1.0) * sharing);
+        let mm = MemModel { resident_slc: footprint <= mm.slc_bytes as f64, sharing, ..mm.clone() };
         let mem = if l.mem { Some((mems.as_slice(), &mm)) } else { None };
         let c = cost::simulate_groups(&ins, &seqs, mem, p, false, Some(&wg_of))?.0;
         Ok((count, c, warn))

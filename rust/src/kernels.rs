@@ -541,6 +541,9 @@ pub fn mem_loop_kind(steps: u32, kind: &str, s: u32, jstride: u32, w: u32, data:
             "load_i16" => e(&format!("device_load 0, i16, x, r{}l, u8_u9, r{}, unsigned", d0, ri)),
             "load_i8" => e(&format!("device_load 0, i8, x, r{}l, u8_u9, r{}, unsigned", d0, ri)),
             "atomic" => atomic_add(8, ri, rd),
+            "atomic_ret" => atomic_add_ret(rd, ri, 21),
+            "tgatomic" => tg_atomic_add(rd, ri, 21, false),
+            "tgatomic_ret" => tg_atomic_add(rd, ri, 21, true),
             "tgload" => tg(true, "i32", rd, Some(ri), 0, 1),
             _ => tg(false, "i32", rd, Some(ri), 0, 1),
         });
@@ -583,4 +586,29 @@ pub fn barrier_loop_kind(steps: u32, four: bool, fill: u32, dep: bool) -> Vec<u8
     h.extend(body);
     h.extend(e("pop_exec r0l, 1"));
     h
+}
+
+/// run_drm_atomic.atomic(op 0 = add, dst, idx, src, ret): device atomic with the index in r<idx> and base u8_u9.
+pub fn atomic_add_ret(dst: u32, index_reg: u32, src_reg: u32) -> Vec<u8> {
+    // Mesa agx_pack.c formula (run_drm_atomic.mesa_atomic) with Rt = 1, uniform base u8, unsigned index
+    let (r, a, o, sx) = (2 * dst as u64, 16u64, 2 * index_reg as u64, 2 * src_reg as u64);
+    let mut raw: u64 = 0x15 | (1 << 26) | (1 << 31) | (5 << 44);
+    raw |= (r & 63) << 10 | (a & 15) << 16 | (o & 15) << 20 | 1 << 25 | 1 << 27;
+    raw |= ((o >> 4) & 15) << 32 | ((a >> 4) & 15) << 36 | (r >> 6) << 40 | 1 << 47 | sx << 48 | (o >> 8) << 56;
+    let b = raw.to_le_bytes().to_vec();
+    let d = isa::get_instruction_descriptor(opcode_to_number(&b)).expect("atomic decodes");
+    assert!(d.name == "atomic", "atomic_add_ret decodes as {}", d.name);
+    b
+}
+
+/// run_drm_tg_atomic.local_atomic(op 0 = add, dst, base, src, ret): threadgroup atomic, byte address in r<base>l.
+pub fn tg_atomic_add(dst: u32, base: u32, src: u32, ret: bool) -> Vec<u8> {
+    let (r, a, sx) = (if ret { 2 * dst as u128 } else { 0 }, 2 * base as u128, 2 * src as u128);
+    let mut raw: u128 = 0x19 | (1 << 15) | (1 << 36) | (1 << 47);
+    raw |= (if ret { 1 << 8 } else { 0 }) | (r & 63) << 9 | (a & 63) << 16 | 1 << 34 | (if ret { 1 << 38 } else { 0 });
+    raw |= (a >> 6) << 58 | (r >> 6) << 60 | sx << 64;
+    let b: Vec<u8> = (0..10).map(|i| (raw >> (8 * i)) as u8).collect();
+    let d = isa::get_instruction_descriptor(opcode_to_number(&b)).expect("tg atomic decodes");
+    assert!(d.name == "threadgroup_atomic" && d.decode_size(opcode_to_number(&b)) == 10, "tg atomic decode");
+    b
 }

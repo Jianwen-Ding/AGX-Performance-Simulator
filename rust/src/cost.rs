@@ -996,6 +996,8 @@ pub struct MemModel {
     pub dram_gbps: f64,
     /// replay every group's accesses once before timing (steady state of a long-running loop)
     pub warm: bool,
+    /// mean fraction (0..1) of this core's device lines that another core also touches (shared data)
+    pub sharing: f64,
     /// the dispatch's device data already sits in the system-level cache (written by the CPU or a previous
     /// dispatch just before, and small enough): first touches hit the SLC instead of DRAM. agx_dispatch sets it
     /// when the estimated GPU-wide footprint fits `slc_bytes`.
@@ -1009,6 +1011,11 @@ pub struct MemModel {
     /// bank-conflict way (core: max(1, conflict degree) per instruction)
     pub tg_group_load: f64,
     pub tg_group_store: f64,
+    /// threadgroup atomics, one group back to back (no return / return)
+    pub tg_group_atomic: f64,
+    pub tg_group_atomic_ret: f64,
+    /// device atomic with return: latency beyond a device load (executed past L1)
+    pub atomic_ret_extra: f64,
 }
 
 impl Default for MemModel {
@@ -1031,12 +1038,16 @@ impl Default for MemModel {
             slc_rate: 0.5 / k,
             dram_gbps: 410.0,
             warm: true,
+            sharing: 0.0,
             resident_slc: false,
             atomic_min: 6.9,
             atomic_per_seg: 1.7,
             atomic_same_word_rate: 2.0,
             tg_group_load: 31.0,
             tg_group_store: 24.0,
+            tg_group_atomic: 4.8,
+            tg_group_atomic_ret: 5.75,
+            atomic_ret_extra: 85.0,
         }
     }
 }
@@ -1251,8 +1262,11 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
         let ns = |x: f64| tk((x * m.clock_mhz / 1000.0 - 50.0).max(0.0));
         MemState {
             l1: Lru::new(m.l1_bytes),
-            l2: Lru::new(m.l2_bytes),
-            slc: Lru::new((m.slc_bytes as f64 / m.active_cores) as usize),
+            // L2 (38 x l2_bytes in all) and SLC are shared GPU-wide: a core's share is total / (cores that use
+            // distinct data); with `sharing` = fraction of this core's lines that other cores also use, cores
+            // reading the same lines all see the whole cache
+            l2: Lru::new((m.l2_bytes as f64 * m.active_cores / eff_sharers(m)) as usize),
+            slc: Lru::new((m.slc_bytes as f64 / eff_sharers(m)) as usize),
             tok: cap,
             rate,
             cap,
@@ -1675,6 +1689,7 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
                     if m.cur[gi] < mv.len() && mv[m.cur[gi]].0 as usize == nxt[gi] {
                         let words = &mv[m.cur[gi]].1;
                         let k = REAL_CYCLES_PER_UNIT;
+                        let ret_extra = if r.atomic && r.kind == Kind::Load { tk(mm.atomic_ret_extra * k) } else { 0 };
                         let (occ, occ_min, free) = if r.atomic {
                             let mut ws = words.clone();
                             ws.sort_unstable();
@@ -1691,17 +1706,26 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
                             let c = (mm.atomic_min).max(mm.atomic_per_seg * secs.len() as f64).max(contention);
                             (tk(c * k), tk(mm.atomic_min * k), &mut m.at_free)
                         } else {
-                            // bank conflicts: 32 banks of 4 bytes; lanes on the same word share one access
+                            // bank conflicts: 32 banks of 4 bytes; lanes on the same word share one access, except
+                            // for threadgroup atomics, which serialise per lane (one word for all lanes: 32 cycles)
+                            let tga = r.kind == Kind::TgAtomic;
                             let mut per_bank: HashMap<u64, Vec<u64>> = HashMap::new();
                             for &w in words {
                                 let e = per_bank.entry(w % 32).or_default();
-                                if !e.contains(&w) {
+                                if tga || !e.contains(&w) {
                                     e.push(w);
                                 }
                             }
                             let degree = per_bank.values().map(Vec::len).max().unwrap_or(1).max(1);
                             // the group's own threadgroup accesses are serial
-                            let own = if r.kind == Kind::Store { mm.tg_group_store } else { mm.tg_group_load } + (degree - 1) as f64;
+                            let base = if tga {
+                                if r.dst.is_empty() { mm.tg_group_atomic } else { mm.tg_group_atomic_ret }
+                            } else if r.kind == Kind::Store {
+                                mm.tg_group_store
+                            } else {
+                                mm.tg_group_load
+                            };
+                            let own = base + (degree - 1) as f64;
                             let gstart = t.max(m.tg_group_free[gi]);
                             m.tg_group_free[gi] = gstart + tk(own * k);
                             let gextra = m.tg_group_free[gi] - t - tk(own * k);
@@ -1709,7 +1733,7 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
                         };
                         let start = t.max(*free);
                         *free = start + occ;
-                        pipe_extra = (*free - t - occ_min).max(0);
+                        pipe_extra = (*free - t - occ_min).max(0) + ret_extra;
                     }
                 }
             }
@@ -1842,9 +1866,14 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
                 }
                 Kind::TgAtomic => {
                     ii = t_;
+                    // completes through the scoreboard like a load (a `wait` waits for it)
+                    let done = t + if ms.is_some() { tg_lat0 } else { load_latency } + mem_extra;
                     for &h in &r.dst {
                         let i = touch(&mut ready[gi], &mut present[gi], &mut present_list[gi], h);
-                        ready[gi][i] = t + load_latency + mem_extra;
+                        ready[gi][i] = done;
+                    }
+                    if ms.is_some() {
+                        slots[gi][r.slot] = Some(slots[gi][r.slot].map_or(done, |m| m.max(done)));
                     }
                 }
                 Kind::Wait => {
@@ -1997,4 +2026,31 @@ fn m_l1_store_min(mem: Option<(&[&[(u32, Vec<u64>)]], &MemModel)>) -> f64 {
 
 fn m_l1_load_min(mem: Option<(&[&[(u32, Vec<u64>)]], &MemModel)>) -> f64 {
     mem.map(|m| m.1.l1_load_min).unwrap_or(1.0)
+}
+
+/// cores competing for distinct L2/SLC capacity: active cores when data is private, 1 when all share it
+fn eff_sharers(m: &MemModel) -> f64 {
+    // GPU-wide footprint = |this core| x active / (1 + (active - 1) x overlap); a core's share of a shared
+    // cache scales with |this core| / footprint
+    (m.active_cores / (1.0 + (m.active_cores - 1.0) * m.sharing)).max(1.0)
+}
+
+/// Fraction of the device segments in `a` (one core's traces) that also appear in `b` (another core's).
+pub fn segment_overlap(a: &[Trace], b: &[Trace], device_pcs: &std::collections::HashSet<usize>) -> f64 {
+    let set = |ts: &[Trace]| {
+        let mut s: std::collections::HashSet<u64> = Default::default();
+        for t in ts {
+            for (step, segs) in &t.mem {
+                if device_pcs.contains(&t.pcs[*step as usize]) {
+                    s.extend(segs.iter().copied());
+                }
+            }
+        }
+        s
+    };
+    let (sa, sb) = (set(a), set(b));
+    if sa.is_empty() {
+        return 0.0;
+    }
+    sa.iter().filter(|x| sb.contains(x)).count() as f64 / sa.len() as f64
 }
