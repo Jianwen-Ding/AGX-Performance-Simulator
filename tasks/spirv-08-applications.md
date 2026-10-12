@@ -320,3 +320,17 @@ reference.
       variable-width mask is not fused at all.
     - lavapipe passes all ten. On the M2, `probes` lists the failing columns. The expectation is the same three; any
       difference refines the simulator's `bfeil` shift semantics, which are fitted to the one recorded case.
+    - **Root cause (Mesa 25.2.8 and 26.0.3 source).**
+      - AGX shifts use more than 5 bits of the shift amount. `agx_nir_lower_algebraic_late` therefore re-adds `& 31`
+        to every shift (`lower_sm5_shift`, whose comment says so), and runs late on purpose: after
+        `agx_nir_fuse_algebraic_late`, "since this inserts &s for shifts so we want to do it after fusing constant
+        shifts" (`agx_compile.c`).
+      - In that earlier fusion pass, `fuse_ubfe` (`agx_nir_algebraic.py`) rewrites
+        `iand(ushr(a, b), (1 << bits) - 1)` into `ubitfield_extract(a, b, bits)` for *any* `b`, not only constants.
+        A variable shift is therefore absorbed into a `bfeil` before its `& 31` is restored.
+      - The other fusions in the pass only match constant shifts: `fuse_extr` 0-31, and the shift fusions in
+        `fuse_imad` 1-4.
+      - A minimal fix would match only constant shifts in `fuse_ubfe` (`'#b'`), or emit
+        `ubitfield_extract(a, iand(b, 31), bits)`.
+      - Confirm on the M2 before reporting it: `viterbi` and the three `shiftfuse` columns failing, with `viterbifix`
+        and the other columns passing.
