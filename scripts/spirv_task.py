@@ -1448,6 +1448,43 @@ def w_contour(size, rng):
              [((Wd + 15) // 16, (H + 15) // 16, 1, push(Wd, H, iso, cap))], check, (16, 16, 1), {'items': Wd * H})
 
 
+def w_hough(size, rng):
+    Wd, H, nlines = (128, 96, 3) if size == 'small' else (2048, 2048, 12)
+    th = np.arange(180) * np.pi / 180
+    cs = np.stack([np.rint(np.cos(th) * 16384), np.rint(np.sin(th) * 16384)], 1).astype(np.int32)
+    rmax = int(np.ceil(np.hypot(Wd, H))) + 1; nrho = 2 * rmax + 1
+    pts, planted = [], []
+    for _ in range(nlines):                                                    # lines given as (theta, rho), sampled
+        t = int(rng.integers(0, 180))                                          # through a point in the middle 60%
+        c, s_ = np.cos(th[t]), np.sin(th[t])
+        px, py = rng.uniform(0.2, 0.8) * Wd, rng.uniform(0.2, 0.8) * H
+        r = int(np.rint(px * c + py * s_))
+        planted.append((t, r))
+        u = np.arange(-2 * rmax, 2 * rmax, 0.7)
+        xy = np.rint(np.stack([r * c - u * s_, r * s_ + u * c], 1)).astype(np.int64)
+        xy = xy[(xy[:, 0] >= 0) & (xy[:, 0] < Wd) & (xy[:, 1] >= 0) & (xy[:, 1] < H)]
+        pts.append(np.unique(xy, axis=0))
+    noise = np.stack([rng.integers(0, Wd, (Wd * H) // 400), rng.integers(0, H, (Wd * H) // 400)], 1)
+    P = np.unique(np.concatenate(pts + [noise]), axis=0)
+    P = P[rng.permutation(len(P))]
+    n = len(P)
+    def check(o):
+        got = o[2].view(np.uint32)[:180 * nrho].reshape(180, nrho).astype(np.int64)
+        rho = (P[:, 0:1] * cs[None, :, 0].astype(np.int64) + P[:, 1:2] * cs[None, :, 1].astype(np.int64) + 8192) >> 14
+        ref = np.zeros((180, nrho), np.int64)
+        np.add.at(ref, (np.broadcast_to(np.arange(180), rho.shape), rho + rmax), 1)
+        bad = int(np.sum(got != ref))
+        # the strongest peaks (after suppressing each found peak's neighbourhood) should be the planted lines
+        a = ref.copy(); found = []
+        for _ in range(nlines):
+            t, r = np.unravel_index(int(np.argmax(a)), a.shape); found.append((int(t), int(r) - rmax))
+            a[max(0, t - 3):t + 4, max(0, r - 6):r + 7] = 0
+        hit = sum(any(abs(t - pt) <= 1 and abs(r - pr) <= 2 for t, r in found) for pt, pr in planted)
+        return bad == 0, {'mismatched_counters': bad, 'votes': int(ref.sum()), 'planted_lines_found': f'{hit}/{nlines}'}
+    return W('hough', {0: (u32(P), False), 1: (cs, False), 2: (4 * 180 * nrho, True)},
+             [((n + 63) // 64, 1, 1, push(n, nrho, rmax))], check, 64, {'items': n * 180})
+
+
 def w_spmv(size, rng):
     rows, cols = (512, 512) if size == 'small' else (1 << 18, 1 << 18)
     nnz = rng.integers(0, 64, rows) * (rng.random(rows) < 0.95)    # some empty rows
@@ -3977,7 +4014,7 @@ WORKLOADS = {'reduce': w_reduce, 'scan': w_scan, 'sgemm': w_sgemm, 'conv2d': w_c
              'aluprobe': w_aluprobe, 'ubopalette': w_ubopalette, 'uboparams': w_uboparams,
              'bindless': w_bindless, 'bindlessu': w_bindlessu,
              # appended only: the input seed is the index in this dict
-             'rle': w_rle, 'huffdec': w_huffdec, 'lookback': w_lookback, 'hll': w_hll, 'tricount': w_tricount, 'sha3': w_sha3, 'stereo': w_stereo, 'viterbi': w_viterbi, 'viterbifix': w_viterbifix, 'shiftfuse': w_shiftfuse, 'bc1enc': w_bc1enc, 'lz4dec': w_lz4dec, 'nttmul': w_nttmul, 'topk': w_topk, 'cellsort': w_cellsort, 'boruvka': w_boruvka, 'biquad': w_biquad, 'edt': w_edt, 'mt19937': w_mt19937, 'bitap': w_bitap, 'cholesky': w_cholesky, 'rsshash': w_rsshash, 'poly1305': w_poly1305, 'crc32c': w_crc32c, 'siphash': w_siphash, 'blake2s': w_blake2s, 'blake2sfast': w_blake2sfast, 'q4gemv': w_q4gemv, 'attndec': w_attndec, 'attndecsplit': w_attndecsplit, 'rmsrope': w_rmsrope, 'q8dot': w_q8dot, 'isp': w_isp, 'contour': w_contour}
+             'rle': w_rle, 'huffdec': w_huffdec, 'lookback': w_lookback, 'hll': w_hll, 'tricount': w_tricount, 'sha3': w_sha3, 'stereo': w_stereo, 'viterbi': w_viterbi, 'viterbifix': w_viterbifix, 'shiftfuse': w_shiftfuse, 'bc1enc': w_bc1enc, 'lz4dec': w_lz4dec, 'nttmul': w_nttmul, 'topk': w_topk, 'cellsort': w_cellsort, 'boruvka': w_boruvka, 'biquad': w_biquad, 'edt': w_edt, 'mt19937': w_mt19937, 'bitap': w_bitap, 'cholesky': w_cholesky, 'rsshash': w_rsshash, 'poly1305': w_poly1305, 'crc32c': w_crc32c, 'siphash': w_siphash, 'blake2s': w_blake2s, 'blake2sfast': w_blake2sfast, 'q4gemv': w_q4gemv, 'attndec': w_attndec, 'attndecsplit': w_attndecsplit, 'rmsrope': w_rmsrope, 'q8dot': w_q8dot, 'isp': w_isp, 'contour': w_contour, 'hough': w_hough}
 
 
 # ---------------------------------------------------------------------------------------------------------------

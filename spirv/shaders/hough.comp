@@ -1,0 +1,20 @@
+#version 450
+// Hough transform for straight lines (lane / document / industrial line detection): each edge point votes, for each
+// of 180 angles, for the line rho = x cos(theta) + y sin(theta), computed exactly from Q14 fixed-point cos / sin tables
+// with rounding (arithmetic shift), by atomicAdd into the accumulator [theta][rho + RMAX]. One invocation per edge
+// point; the 180 votes of neighbouring points land on nearby counters.
+layout(local_size_x = 64) in;
+layout(std430, binding = 0) readonly buffer E { uvec2 pts[]; };
+layout(std430, binding = 1) readonly buffer T { ivec2 cs[180]; };     // Q14 (cos, sin)
+layout(std430, binding = 2) buffer A { uint acc[]; };
+layout(push_constant) uniform P { uint n; uint nrho; int rmax; } p;
+
+void main() {
+    uint i = gl_GlobalInvocationID.x;
+    if (i >= p.n) return;
+    ivec2 q = ivec2(pts[i]);
+    for (uint t = 0u; t < 180u; t++) {
+        int rho = (q.x * cs[t].x + q.y * cs[t].y + 8192) >> 14;
+        atomicAdd(acc[t * p.nrho + uint(rho + p.rmax)], 1u);
+    }
+}

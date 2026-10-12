@@ -1,7 +1,7 @@
 # Task SPIR-V 8: applications (ray tracer, neural networks, image processing, cellular automaton, graph search,
 # encryption, hashing, text, compression)
 
-**Workloads:** `raytrace`, `mlp`, `sobel`, `life`, `bfs`, `conv_layer`, `hist_eq`, `aes`, `hash_table`, `word_count`, `dct8`, `attention`, `resize`, `median3`, `poisson`, `lbm`, `base64`, `md5`, `gemv`, `levenshtein`, `blur`, `yuv420`, `montecarlo`, `xxhash`, `bloom`, `collatz`, `tridiag`, `merge`, `ccl`, `pagerank`, `skinning`, `strsearch`, `quantize`, `rule110`, `voxel`, `nms`, `sat`, `sssp`, `morton`, `utf8`, `fir`, `composite`, `nqueens`, `lzmatch`, `bitpack`, `perlin`, `adler32`, `sieve`, `gcd`, `dither`, `advect`, `knn`, `csvparse`, `pip`, `lift53`, `chacha20`, `modexp`, `floyd`, `f16pack`, `raster`, `canny`, `secded`, `bicubic`, `dfa`, `b64decode`, `cordic`, `rsenc`, `texfetch`, `texfilter`, `imgerode`, `imgtonemap`, `argmax64`, `minmax64`, `dsum`, `quadmip`, `clustered`, `specblur`, `cullindirect`, `bigsort`, `pushmat`, `mplitmus`, `splat`, `splatfix`, `smembank`, `coalesce`, `atomcontend`, `barriercost`, `aluprobe`, `ubopalette`, `uboparams`, `bindless`, `bindlessu`, `rle`, `huffdec`, `lookback`, `hll`, `tricount`, `sha3`, `stereo`, `viterbi`, `viterbifix`, `shiftfuse`, `bc1enc`, `lz4dec`, `nttmul`, `topk`, `cellsort`, `boruvka`, `biquad`, `edt`, `mt19937`, `bitap`, `cholesky`, `rsshash`, `poly1305`, `crc32c`, `siphash`, `blake2s`, `blake2sfast`, `q4gemv`, `attndec`, `attndecsplit`, `rmsrope`, `q8dot`, `isp`, `contour`. These are recorded and verified by `make asahi-verify` with the others;
+**Workloads:** `raytrace`, `mlp`, `sobel`, `life`, `bfs`, `conv_layer`, `hist_eq`, `aes`, `hash_table`, `word_count`, `dct8`, `attention`, `resize`, `median3`, `poisson`, `lbm`, `base64`, `md5`, `gemv`, `levenshtein`, `blur`, `yuv420`, `montecarlo`, `xxhash`, `bloom`, `collatz`, `tridiag`, `merge`, `ccl`, `pagerank`, `skinning`, `strsearch`, `quantize`, `rule110`, `voxel`, `nms`, `sat`, `sssp`, `morton`, `utf8`, `fir`, `composite`, `nqueens`, `lzmatch`, `bitpack`, `perlin`, `adler32`, `sieve`, `gcd`, `dither`, `advect`, `knn`, `csvparse`, `pip`, `lift53`, `chacha20`, `modexp`, `floyd`, `f16pack`, `raster`, `canny`, `secded`, `bicubic`, `dfa`, `b64decode`, `cordic`, `rsenc`, `texfetch`, `texfilter`, `imgerode`, `imgtonemap`, `argmax64`, `minmax64`, `dsum`, `quadmip`, `clustered`, `specblur`, `cullindirect`, `bigsort`, `pushmat`, `mplitmus`, `splat`, `splatfix`, `smembank`, `coalesce`, `atomcontend`, `barriercost`, `aluprobe`, `ubopalette`, `uboparams`, `bindless`, `bindlessu`, `rle`, `huffdec`, `lookback`, `hll`, `tricount`, `sha3`, `stereo`, `viterbi`, `viterbifix`, `shiftfuse`, `bc1enc`, `lz4dec`, `nttmul`, `topk`, `cellsort`, `boruvka`, `biquad`, `edt`, `mt19937`, `bitap`, `cholesky`, `rsshash`, `poly1305`, `crc32c`, `siphash`, `blake2s`, `blake2sfast`, `q4gemv`, `attndec`, `attndecsplit`, `rmsrope`, `q8dot`, `isp`, `contour`, `hough`. These are recorded and verified by `make asahi-verify` with the others;
 they are **PENDING** until then. The detailed procedure is in `tasks/spirv-workloads.md`.
 
 ## Why these
@@ -138,6 +138,7 @@ reference.
 | `q8dot` | 4096 × 4096 Q8_0 weights times a Q8 vector, int8 extremes (127, -128) included | Within the fp32 bound of the exact integer block dots combined with the scales; quantisation error against fp32 reported (0.8%) |
 | `isp` | 4032 × 3024 synthetic sensor frame (scene, white-balance cast, noise) | Bit-exact against the same integer pipeline in numpy; in flat regions within about 0.5 display levels of the ideal floating-point development |
 | `contour` | 2048 × 2048 synthetic terrain (mm), iso level 250: 113335 segments, 6506 saddle cells | The sorted segment set and the 16 case counts equal numpy's exactly (append order is up to atomic arbitration) |
+| `hough` | 2048 × 2048 edge image: 12 planted lines through the interior plus noise (37622 points) | Exact accumulator against numpy; the 12 strongest peaks recover all 12 planted lines |
 
 ## Offline sanity checks (not hardware verification)
 
@@ -540,3 +541,8 @@ reference.
     - A first version counted cases with one global `atomicAdd` per cell (4M updates on 16 words). The model
       charged most of the time to those, at 1.6 ms. Counting per workgroup in shared memory first, as real code
       does, gives 0.47 ms.
+62. **Hough transform.**
+    - The kernel is 168 bytes: 180 iterations of two multiply-adds, a shift and a device `atomicAdd`. Its time is the
+      device atomic rate: 6.8M atomics predicted at 239 µs.
+    - Points are shuffled, so a SIMD group's lanes usually hit different counters. Peaks are hot because every
+      point on a line votes into the same bin at that line's θ.
