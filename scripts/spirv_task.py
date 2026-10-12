@@ -454,6 +454,22 @@ def w_huffdec(size, rng):
              {'bytes': 4 * len(words) + 1024 * nblocks, 'items': syms.size})
 
 
+def w_lookback(size, rng):
+    ntiles = 16 if size == 'small' else 4096                   # 1024 elements per tile
+    n = 1024 * ntiles
+    data = u32(rng.integers(0, 1 << 32, n, dtype=np.uint64))
+    ref = u32(np.cumsum(data.astype(np.uint64)) & 0xffffffff)
+    def check(o):
+        got = o[1].view(np.uint32)[:n]
+        nxt, timeouts, steps = (int(x) for x in o[2].view(np.uint32)[:3])
+        bad = int(np.sum(got != ref))
+        return bad == 0 and timeouts == 0 and nxt == ntiles, {
+            'mismatches': bad, 'timeouts': timeouts, 'tiles': nxt,
+            'mean_lookback_steps': round(steps / max(1, ntiles - 1), 3)}
+    return W('lookback', {0: (data, False), 1: (4 * n, True), 2: (16, True), 3: (4 * ntiles, False), 4: (8 * ntiles, False)},
+             [(ntiles, 1, 1, push(ntiles))], check, 256, {'bytes': 8 * n}, requires=['vulkan_memory_model'])
+
+
 def w_spmv(size, rng):
     rows, cols = (512, 512) if size == 'small' else (1 << 18, 1 << 18)
     nnz = rng.integers(0, 64, rows) * (rng.random(rows) < 0.95)    # some empty rows
@@ -2983,7 +2999,7 @@ WORKLOADS = {'reduce': w_reduce, 'scan': w_scan, 'sgemm': w_sgemm, 'conv2d': w_c
              'aluprobe': w_aluprobe, 'ubopalette': w_ubopalette, 'uboparams': w_uboparams,
              'bindless': w_bindless, 'bindlessu': w_bindlessu,
              # appended only: the input seed is the index in this dict
-             'rle': w_rle, 'huffdec': w_huffdec}
+             'rle': w_rle, 'huffdec': w_huffdec, 'lookback': w_lookback}
 
 
 # ---------------------------------------------------------------------------------------------------------------
@@ -3778,7 +3794,7 @@ def cmd_probes(a):
                                              {'dispatches': len(v), 'median': round(float(np.median(v)), 2), 'min': round(min(v), 2), 'max': round(max(v), 2)})
         rows.append({'probe': name, 'measured_us': show(m), 'predicted_us': show(p_), **derive(m, p_)})
     functional = {'texfilter': 'best_subtexel_bits', 'imgtonemap': 'round_to_nearest_fraction', 'mplitmus': 'relaxed_stale_reads',
-                  'f16pack': 'half_mismatches'}
+                  'f16pack': 'half_mismatches', 'lookback': 'mean_lookback_steps'}
     for name, key in functional.items():
         r = rec_of(name)
         if r is None:

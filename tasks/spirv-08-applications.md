@@ -1,7 +1,7 @@
 # Task SPIR-V 8: applications (ray tracer, neural networks, image processing, cellular automaton, graph search,
 # encryption, hashing, text, compression)
 
-**Workloads:** `raytrace`, `mlp`, `sobel`, `life`, `bfs`, `conv_layer`, `hist_eq`, `aes`, `hash_table`, `word_count`, `dct8`, `attention`, `resize`, `median3`, `poisson`, `lbm`, `base64`, `md5`, `gemv`, `levenshtein`, `blur`, `yuv420`, `montecarlo`, `xxhash`, `bloom`, `collatz`, `tridiag`, `merge`, `ccl`, `pagerank`, `skinning`, `strsearch`, `quantize`, `rule110`, `voxel`, `nms`, `sat`, `sssp`, `morton`, `utf8`, `fir`, `composite`, `nqueens`, `lzmatch`, `bitpack`, `perlin`, `adler32`, `sieve`, `gcd`, `dither`, `advect`, `knn`, `csvparse`, `pip`, `lift53`, `chacha20`, `modexp`, `floyd`, `f16pack`, `raster`, `canny`, `secded`, `bicubic`, `dfa`, `b64decode`, `cordic`, `rsenc`, `texfetch`, `texfilter`, `imgerode`, `imgtonemap`, `argmax64`, `minmax64`, `dsum`, `quadmip`, `clustered`, `specblur`, `cullindirect`, `bigsort`, `pushmat`, `mplitmus`, `splat`, `splatfix`, `smembank`, `coalesce`, `atomcontend`, `barriercost`, `aluprobe`, `ubopalette`, `uboparams`, `bindless`, `bindlessu`, `rle`, `huffdec`. These are recorded and verified by `make asahi-verify` with the others;
+**Workloads:** `raytrace`, `mlp`, `sobel`, `life`, `bfs`, `conv_layer`, `hist_eq`, `aes`, `hash_table`, `word_count`, `dct8`, `attention`, `resize`, `median3`, `poisson`, `lbm`, `base64`, `md5`, `gemv`, `levenshtein`, `blur`, `yuv420`, `montecarlo`, `xxhash`, `bloom`, `collatz`, `tridiag`, `merge`, `ccl`, `pagerank`, `skinning`, `strsearch`, `quantize`, `rule110`, `voxel`, `nms`, `sat`, `sssp`, `morton`, `utf8`, `fir`, `composite`, `nqueens`, `lzmatch`, `bitpack`, `perlin`, `adler32`, `sieve`, `gcd`, `dither`, `advect`, `knn`, `csvparse`, `pip`, `lift53`, `chacha20`, `modexp`, `floyd`, `f16pack`, `raster`, `canny`, `secded`, `bicubic`, `dfa`, `b64decode`, `cordic`, `rsenc`, `texfetch`, `texfilter`, `imgerode`, `imgtonemap`, `argmax64`, `minmax64`, `dsum`, `quadmip`, `clustered`, `specblur`, `cullindirect`, `bigsort`, `pushmat`, `mplitmus`, `splat`, `splatfix`, `smembank`, `coalesce`, `atomcontend`, `barriercost`, `aluprobe`, `ubopalette`, `uboparams`, `bindless`, `bindlessu`, `rle`, `huffdec`, `lookback`. These are recorded and verified by `make asahi-verify` with the others;
 they are **PENDING** until then. The detailed procedure is in `tasks/spirv-workloads.md`.
 
 ## Why these
@@ -106,6 +106,7 @@ reference.
 | `bindlessu` | 4M lookups, workgroup g reading table g mod 8 | Exact |
 | `rle` | 4M symbols (16-symbol alphabet, mean run 12) encoded per 256-element tile, then decoded | Exact runs and round trip; per-pass times |
 | `huffdec` | 16384 blocks × 256 symbols (64-symbol Zipf alphabet, about 4.6 bits per symbol) | Exact |
+| `lookback` | 4M uint32 (4096 tiles of 1024) scanned in one dispatch | Exact (mod 2^32), no spin timeouts, every tile claimed; mean look-back steps reported |
 
 ## Offline sanity checks (not hardware verification)
 
@@ -257,3 +258,13 @@ reference.
       number of resident threads.
     - Predicted 257 µs for 4M symbols. A much larger M2 time would mean the shared-memory lookup latency, or the
       two unaligned word loads per peek, cost more in a dependent chain than the model assumes.
+32. **Decoupled look-back scan.**
+    - The only workload whose workgroups wait on each other inside one dispatch. It relies on workgroups that took
+      an earlier tile id making progress while later ones spin; a bounded spin turns a missing guarantee into a
+      `timeouts` count instead of a GPU hang.
+    - `probes` reports `mean_lookback_steps`. The simulator runs workgroups one after another, so every look-back
+      ends at the previous tile (1.0); lavapipe gave about 1.3. The M2 number shows how far ahead tiles get of the
+      inclusive prefix.
+    - Predicted 55 µs, which is faster than the M2's DRAM bandwidth allows for 32 MB of traffic, and does not include
+      the serial chain of flag publications. A much larger M2 time is expected. Its size shows how much each
+      release / acquire round trip between cores costs.

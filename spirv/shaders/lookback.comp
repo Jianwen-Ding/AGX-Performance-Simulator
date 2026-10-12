@@ -1,0 +1,66 @@
+#version 450
+// Single-pass prefix sum with decoupled look-back (the scheme of CUB's DeviceScan / Onesweep): workgroups take tile
+// ids from an atomic counter in launch order. Each publishes its tile aggregate (flag 1), walks back over earlier
+// tiles adding aggregates until it finds an inclusive prefix (flag 2), then publishes its own inclusive prefix.
+// Values are published before their flag with release / acquire atomics (Vulkan memory model). Waiting on an
+// earlier tile relies on earlier-started workgroups making progress; a spin limit counts any wait that never ends
+// instead of hanging the GPU. Sums wrap modulo 2^32.
+#extension GL_KHR_memory_scope_semantics : require
+layout(local_size_x = 256) in;
+layout(std430, binding = 0) readonly buffer D { uint data[]; };
+layout(std430, binding = 1) writeonly buffer O { uint outp[]; };
+layout(std430, binding = 2) buffer C { uint next_tile; uint timeouts; uint lookback_steps; };
+layout(std430, binding = 3) queuefamilycoherent buffer F { uint flag[]; };
+layout(std430, binding = 4) queuefamilycoherent buffer V { uint agg[]; };    // [0, n): aggregate, [n, 2n): inclusive
+layout(push_constant) uniform P { uint ntiles; } p;
+shared uint sums[256];
+shared uint tile_s, excl_s;
+
+void main() {
+    uint l = gl_LocalInvocationID.x;
+    if (l == 0u) tile_s = atomicAdd(next_tile, 1u, gl_ScopeQueueFamily, gl_StorageSemanticsBuffer, gl_SemanticsRelaxed);
+    barrier();
+    uint tile = tile_s;
+    uvec4 v = uvec4(data[1024u * tile + 4u * l], data[1024u * tile + 4u * l + 1u],
+                    data[1024u * tile + 4u * l + 2u], data[1024u * tile + 4u * l + 3u]);
+    v.y += v.x; v.z += v.y; v.w += v.z;
+    sums[l] = v.w;
+    barrier();
+    for (uint d = 1u; d < 256u; d <<= 1) {                      // Hillis-Steele inclusive scan of the thread sums
+        uint x = l >= d ? sums[l - d] : 0u;
+        barrier();
+        sums[l] += x;
+        barrier();
+    }
+    if (l == 0u) {
+        uint total = sums[255];
+        uint excl = 0u;
+        if (tile == 0u) {
+            agg[p.ntiles] = total;
+            atomicStore(flag[0], 2u, gl_ScopeQueueFamily, gl_StorageSemanticsBuffer, gl_SemanticsRelease);
+        } else {
+            agg[tile] = total;
+            atomicStore(flag[tile], 1u, gl_ScopeQueueFamily, gl_StorageSemanticsBuffer, gl_SemanticsRelease);
+            uint j = tile - 1u, spins = 0u, steps = 0u;
+            for (;;) {
+                uint f = atomicLoad(flag[j], gl_ScopeQueueFamily, gl_StorageSemanticsBuffer, gl_SemanticsAcquire);
+                if (f == 0u) {
+                    if (++spins > (1u << 22)) { atomicAdd(timeouts, 1u, gl_ScopeQueueFamily, gl_StorageSemanticsBuffer, gl_SemanticsRelaxed); break; }
+                    continue;
+                }
+                steps++;
+                if (f == 2u) { excl += agg[p.ntiles + j]; break; }
+                excl += agg[j];
+                j--;
+            }
+            atomicAdd(lookback_steps, steps, gl_ScopeQueueFamily, gl_StorageSemanticsBuffer, gl_SemanticsRelaxed);
+            agg[p.ntiles + tile] = excl + total;
+            atomicStore(flag[tile], 2u, gl_ScopeQueueFamily, gl_StorageSemanticsBuffer, gl_SemanticsRelease);
+        }
+        excl_s = excl;
+    }
+    barrier();
+    uint base = excl_s + (l > 0u ? sums[l - 1u] : 0u);
+    uint o = 1024u * tile + 4u * l;
+    outp[o] = base + v.x; outp[o + 1u] = base + v.y; outp[o + 2u] = base + v.z; outp[o + 3u] = base + v.w;
+}
