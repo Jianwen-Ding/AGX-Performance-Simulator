@@ -40,6 +40,18 @@ the [core-scaling finding](../2026-10-11-core-scaling/README.md).
 * 32 words shared by all cores (no global index): 72–76 cycles per instruction; contention across cores on the
   same lines dominates.
 
+**Added 2026-10-12.**
+
+* **A barrier writes back the group's cached registers.** With F independent iadds (F distinct registers) before
+  each barrier, 32 groups cost 52, 66, 105, 170 and 292 cycles per barrier for F = 1, 2, 4, 8 and 16: 2 writebacks per
+  cycle per core for F registers per group (the core-scaling writeback limit), plus the 13-cycle release
+  (`barrier-fill.json`, `barrier-dep.json`).
+* **Device atomics with return**: same throughput as without (7.5 cycles per coalesced instruction at 32 groups),
+  ~130–145 cycles of latency for one group (`atomic-ret.json`).
+* **Threadgroup atomics** (`local_atomic` add): 1 per cycle per core on distinct words, 32 cycles when all lanes hit
+  one word (serialised per lane) or a 32-way bank conflict; one group alone ~4.8 (no return) / 5.75 (return)
+  cycles per instruction (`tgatomic.json`).
+
 ## Not established
 
 Threadgroup-memory capacity per core and its effect on occupancy; vector and 8/16-bit threadgroup accesses;

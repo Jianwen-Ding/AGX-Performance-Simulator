@@ -41,8 +41,8 @@ Findings: [core scaling](novel-results/2026-10-11-core-scaling/README.md),
 [dispatch and launch](novel-results/2026-10-11-dispatch-launch/README.md),
 [cost model](novel-results/2026-10-11-cost-model/README.md).
 
-Known gaps: latency-bound chains at 10–20 groups per core (20–60% slow on hardware, cause unknown); the
-group→scheduler mapping when some groups idle; reuse of lines fetched by other cores; threadgroup-memory
+Known gaps: simple-ALU chains with 1-3 dependency chains at 9-24 groups per core (hardware up to 4.95 instructions
+per cycle at 10-12 groups and 20-60% slower at 15-20; not lockstep, not writeback; cause unknown); threadgroup-memory
 textures and divergence are not measured; barriers after ALU work at 8-32 groups are 13-31% low;
 predictions assume the top clock (1398 MHz) unless `--clock` is given.
 

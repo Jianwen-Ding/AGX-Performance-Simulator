@@ -61,6 +61,14 @@ group of a ring neighbour (scheduler s ± 1). With 5 busy groups every scheduler
 0 and 4) takes 2 cycles; idling slot 1 or 3 (neighbours of scheduler 0) or 4 frees it, idling slot 2 (opposite) does
 not. The simulator implements this rule: the idle-slot rows go from p90 96% to 28% error, the other sets are unchanged.
 
+**Register writeback (added 2026-10-12).** With 32 groups, independent immediate-form instructions writing D
+distinct destination registers in rotation run at 4.0, 3.3, 3.0, 2.3 and 2.0 instructions per cycle for D = 8, 9, 10,
+12 and 16 (`dests.json`; `mov_imm`, which reads nothing, behaves the same). Each SIMD group's result cache holds 8
+registers; a write that evicts a register costs a register-file writeback, and the core completes about **2
+writebacks per cycle**. The eviction rates (60 / 68 / 87 / 100%) fit a replacement that evicts a random one of the
+3 oldest entries, not LRU. One group alone is limited earlier, by reading an evicted register before its ~17-cycle
+writeback (the result-cache finding).
+
 ## Not established (open)
 
 * **The group→scheduler assignment is not a static function of the slot.** With 5 groups working
@@ -69,7 +77,9 @@ not. The simulator implements this rule: the idle-slot rows go from p90 96% to 2
 * **More than 4 instructions per cycle?** One dependent `iadd` chain per group at 10 and 12 groups takes 2.18 and
   2.63 cycles per step (4.6 instructions per cycle), and `mov_imm` writing one register 2.24 at 10 groups, while
   throughput-bound code never exceeds 4.0. Either the core sometimes issues more than 4 per cycle, or this
-  configuration has a measurement artifact; not resolved.
+  configuration has a measurement artifact; not resolved. Desynchronising the groups (`--skew`, `skew.json`) leaves
+  it (4.3–4.4 per cycle), so it is not lockstep issue; single-register chains cause no writebacks, so it is not the
+  writeback limit either.
 * **Latency-bound chains between 10 and 20 groups**: one dependent `iadd` chain per group takes 5.6
   cycles per step at 16 groups (8 chains: 4.3; 12 groups: 2.6), and similar 20–60% excesses appear for
   shuffles, ballots and fp32/fp16 forms. The cause is unknown.
@@ -82,7 +92,7 @@ not. The simulator implements this rule: the idle-slot rows go from p90 96% to 2
   --trips 500 --ref-trips 500 --name grid.json` (~10 min); idle slots: `--groups 5,5/1,5/2,...`.
   The probe also lives in [AGX-Performance-Simulator](https://github.com/Jianwen-Ding/AGX-Performance-Simulator)
   (`scripts/scale_probes.py`), whose cost model now implements this structure.
-* Offline: `make verify-core-scaling` (in Apple-M2-Playground) (18 checks over [the evidence](https://github.com/Jianwen-Ding/Apple-M2-Playground/tree/main/results/2026-10-11-core-scaling/README.md)).
+* Offline: `make verify-core-scaling` (18 checks over [the evidence](https://github.com/Jianwen-Ding/Apple-M2-Playground/tree/main/results/2026-10-11-core-scaling/README.md)).
 
 ## Relationship to existing knowledge
 

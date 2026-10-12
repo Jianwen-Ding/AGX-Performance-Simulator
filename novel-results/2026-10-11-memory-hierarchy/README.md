@@ -45,6 +45,14 @@ so one instruction touches 1–32 distinct 64-byte segments.
   after every load (private windows, one group) costs 50.5 cycles per load at L1, 57 at L2 and 75 at DRAM. A full
   wait for completion would cost 135–500. So the earlier "load after ALU waits for the pending load" rule (measured
   on L1 hits) is a wait for the pending load to pass the L1, plus any completion deferral by ALU work.
+* **Vector and narrow loads** (`vec_probe.py`, `vec-semantics.json`): the index counts format elements (4, 2 or 1
+  bytes), `xy`/`xyzw` load consecutive elements into consecutive registers, and 8/16-bit loads write the low 16-bit
+  half only (8-bit zero-extended). Their cost follows the same 64-byte segments: a coalesced vec4 (512 bytes)
+  costs 4.0 core cycles at 32 groups, vec2 2.0, 16- and 8-bit 1.2 (`vec.json`).
+* **L2 and the system-level cache are shared by all cores.** Private per-core windows give L2 rate up to 256 KiB
+  per core (38 × 256 KiB ≈ 9.5 MiB in all) and DRAM rate from 512 KiB; a 4 MiB window read by every core runs
+  at L2 rate. A core's effective share is total / (active / (1 + (active − 1) × overlap)), overlap being the
+  fraction of its lines other cores also touch (`stream.json`: 8% median error with this rule, 29% without).
 * **CPU load does not disturb these measurements**: with 10 CPU cores busy, L1 and DRAM-bandwidth rows moved < 2%.
   L2 rows vary ±10% between runs either way, and latency-bound DRAM rows with 1 group vary with the GPU clock
   (latency is fixed in ns). Use medians of repeats.
