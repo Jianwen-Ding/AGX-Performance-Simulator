@@ -4,7 +4,7 @@ DEVICE ?= /dev/dri/renderD128
 PROBE_INCLUDE ?= /save/workspace/AGX_Probe/mesa/include
 export CC PROBE_INCLUDE
 
-.PHONY: help check rust test verify-cost-model verify-memory-model bench verify-bench cost-calibrate cost-validate suite-check record-suite record-transcendentals
+.PHONY: help check rust test verify-cost-model verify-memory-model bench verify-bench cost-calibrate cost-validate suite-check record-suite record-transcendentals coverage-validate coverage-record coverage-check coverage-status
 
 help:
 	@echo 'make rust               Build the model (rust/target/release: agx_cost, agx_predict, verify_cost_model, agx_bench)'
@@ -14,6 +14,10 @@ help:
 	@echo 'make suite-check        Offline: functional simulator against the hardware-recorded test suite (testsuite/)'
 	@echo 'make record-suite       Hardware: re-record the test suite (~15 min)'
 	@echo 'make record-transcendentals Hardware: exact fp32 rcp/rsqrt tables and log2/exp2/sin samples (testsuite/transcendental)'
+	@echo 'make coverage-validate  Offline: build, assemble and gate every coverage case (scripts/coverage_catalog.py)'
+	@echo 'make coverage-record    Hardware: record the safe coverage cases (resumable; tasks/agx-coverage.md)'
+	@echo 'make coverage-check     Offline: simulator and cost model against coverage/expected and coverage/timing'
+	@echo 'make coverage-status    Recorded / pending / faulted coverage cases per area'
 	@echo 'make verify-dispatch    Offline: whole-dispatch model against 25 stored dispatches'
 	@echo 'make test               Offline: Rust unit and equivalence tests'
 	@echo 'make check              Offline: Python syntax check of the hardware scripts'
@@ -63,3 +67,15 @@ cost-calibrate:
 
 cost-validate: rust
 	$(PYTHON) -B scripts/cost_hw.py validate
+
+coverage-validate: rust
+	$(PYTHON) -B scripts/coverage.py validate
+
+coverage-record: rust
+	$(PYTHON) -B scripts/coverage.py record
+
+coverage-check: rust
+	$(PYTHON) -B scripts/coverage.py check --timing
+
+coverage-status:
+	$(PYTHON) -B scripts/coverage.py status
