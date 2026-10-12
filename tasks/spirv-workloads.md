@@ -54,7 +54,7 @@ The rest of this file is the detailed procedure, for investigating results.
 
 ## Workloads
 
-One hundred and forty-one realistic compute kernels, written in GLSL (`spirv/shaders/*.comp`) and compiled to SPIR-V:
+One hundred and forty-two realistic compute kernels, written in GLSL (`spirv/shaders/*.comp`) and compiled to SPIR-V:
 
 | Workload | Kernel | Stresses |
 |---|---|---|
@@ -199,6 +199,7 @@ One hundred and forty-one realistic compute kernels, written in GLSL (`spirv/sha
 | `cellsort` | Particle binning by counting sort: count, one-workgroup scan, scatter by returned atomic | Device `atomicAdd` with and without a returned value, hot cells (same-address contention), a 1024-invocation workgroup scan |
 | `boruvka` | Minimum spanning tree by Borůvka rounds (best edge by `atomicMin`, hooking, pointer jumping), 120 dispatches | Iterative graph algorithm whose per-dispatch work shrinks round by round; device `atomicMin`; pointer chasing |
 | `biquad` | Fixed-point audio filter bank: 4 cascaded Q14 biquads (8th-order low-pass), 64-bit accumulator, 16-bit saturation | 32×32→64 integer multiply-add (`imadd` to a register pair), a long serial recurrence per channel, coalesced interleaved channels |
+| `edt` | Exact squared Euclidean distance transform: row scans, then a per-pixel column minimum of g² + Δy² | A dispatch of only 8 workgroups with long serial scans (latency-bound, most of the GPU idle), then a coalesced O(H) inner loop per pixel |
 
 Each workload has two sizes:
 

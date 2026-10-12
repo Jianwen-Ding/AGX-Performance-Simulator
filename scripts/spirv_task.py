@@ -919,6 +919,27 @@ def w_biquad(size, rng):
              [((ch + 63) // 64, 1, 1, push(ch, ns))], check, 64, {'items': ch * ns})
 
 
+def w_edt(size, rng):
+    from scipy import ndimage
+    Wd, H = (64, 48) if size == 'small' else (768, 512)
+    img = np.zeros((H, Wd), np.uint32)
+    for _ in range(6 if size == 'small' else 40):                             # feature shapes: discs and lines
+        cy, cx, r = rng.integers(0, H), rng.integers(0, Wd), rng.integers(1, max(2, H // 10))
+        yy, xx = np.ogrid[:H, :Wd]
+        img[(yy - cy) ** 2 + (xx - cx) ** 2 <= r * r] = 1
+    for _ in range(4 if size == 'small' else 20):
+        y0 = rng.integers(0, H); x0, x1 = sorted(rng.integers(0, Wd, 2)); img[y0, x0:x1 + 1] = 1
+    img[rng.integers(0, H), rng.integers(0, Wd)] = 1
+    def check(o):
+        got = o[2].view(np.uint32)[:Wd * H].reshape(H, Wd).astype(np.int64)
+        ref = np.rint(ndimage.distance_transform_edt(img == 0) ** 2).astype(np.int64)  # independent algorithm
+        bad = int(np.sum(got != ref))
+        return bad == 0, {'mismatches': bad, 'max_dist': round(float(np.sqrt(ref.max())), 2), 'feature_px': int(img.sum())}
+    ds = [((H + 63) // 64, 1, 1, push(0, Wd, H)), ((Wd * H + 63) // 64, 1, 1, push(1, Wd, H))]
+    return W('edt', {0: (u32(img), False), 1: (4 * Wd * H, False), 2: (4 * Wd * H, True)}, ds, check, 64,
+             {'items': Wd * H, 'ops': Wd * H * H})
+
+
 def w_spmv(size, rng):
     rows, cols = (512, 512) if size == 'small' else (1 << 18, 1 << 18)
     nnz = rng.integers(0, 64, rows) * (rng.random(rows) < 0.95)    # some empty rows
@@ -3448,7 +3469,7 @@ WORKLOADS = {'reduce': w_reduce, 'scan': w_scan, 'sgemm': w_sgemm, 'conv2d': w_c
              'aluprobe': w_aluprobe, 'ubopalette': w_ubopalette, 'uboparams': w_uboparams,
              'bindless': w_bindless, 'bindlessu': w_bindlessu,
              # appended only: the input seed is the index in this dict
-             'rle': w_rle, 'huffdec': w_huffdec, 'lookback': w_lookback, 'hll': w_hll, 'tricount': w_tricount, 'sha3': w_sha3, 'stereo': w_stereo, 'viterbi': w_viterbi, 'viterbifix': w_viterbifix, 'shiftfuse': w_shiftfuse, 'bc1enc': w_bc1enc, 'lz4dec': w_lz4dec, 'nttmul': w_nttmul, 'topk': w_topk, 'cellsort': w_cellsort, 'boruvka': w_boruvka, 'biquad': w_biquad}
+             'rle': w_rle, 'huffdec': w_huffdec, 'lookback': w_lookback, 'hll': w_hll, 'tricount': w_tricount, 'sha3': w_sha3, 'stereo': w_stereo, 'viterbi': w_viterbi, 'viterbifix': w_viterbifix, 'shiftfuse': w_shiftfuse, 'bc1enc': w_bc1enc, 'lz4dec': w_lz4dec, 'nttmul': w_nttmul, 'topk': w_topk, 'cellsort': w_cellsort, 'boruvka': w_boruvka, 'biquad': w_biquad, 'edt': w_edt}
 
 
 # ---------------------------------------------------------------------------------------------------------------
