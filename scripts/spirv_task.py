@@ -1083,6 +1083,39 @@ def w_rsshash(size, rng):
              [((n + 63) // 64, 1, 1, push(n))], check, 64, {'items': n, 'bytes': 24 * n})
 
 
+POLY_RFC = (bytes.fromhex('85d6be7857556d337f4452fe42d506a80103808afb0db2fd4abff6af4149f51b'),
+            b'Cryptographic Forum Research Group', bytes.fromhex('a8061dc1305136c6c22b8baf0c0127a9'))     # RFC 8439 2.5.2
+
+
+def poly1305_ref(key, msg):
+    """RFC 8439 Poly1305 tag with Python integers"""
+    p = (1 << 130) - 5
+    r = int.from_bytes(key[:16], 'little') & 0x0ffffffc0ffffffc0ffffffc0fffffff
+    acc = 0
+    for i in range(0, len(msg), 16):
+        acc = (acc + int.from_bytes(msg[i:i + 16] + b'\x01', 'little')) * r % p
+    return ((acc + int.from_bytes(key[16:], 'little')) % (1 << 128)).to_bytes(16, 'little')
+
+
+def w_poly1305(size, rng):
+    n = 256 if size == 'small' else 1 << 16
+    keys = rng.integers(0, 256, (n, 32), dtype=np.uint8)
+    lens = rng.integers(0, 1024, n); lens[1] = 0; lens[2] = 16; lens[3] = 1023          # edge lengths
+    msgs = rng.integers(0, 256, (n, 1024), dtype=np.uint8)
+    k0, m0, _ = POLY_RFC
+    keys[0] = np.frombuffer(k0, np.uint8); lens[0] = len(m0); msgs[0, :len(m0)] = np.frombuffer(m0, np.uint8)
+    for j in range(n):
+        msgs[j, lens[j]:] = 0
+    def check(o):
+        got = o[3].view(np.uint8)[:16 * n].reshape(n, 16)
+        bad = sum(got[j].tobytes() != poly1305_ref(keys[j].tobytes(), msgs[j, :lens[j]].tobytes()) for j in range(n))
+        rfc = got[0].tobytes() == POLY_RFC[2]
+        return bad == 0 and rfc, {'bad_tags': int(bad), 'rfc8439_vector_ok': bool(rfc)}
+    return W('poly1305', {0: (u32(np.frombuffer(msgs.tobytes(), np.uint32)), False), 1: (u32(lens), False),
+                          2: (u32(np.frombuffer(keys.tobytes(), np.uint32)), False), 3: (16 * n, True)},
+             [((n + 63) // 64, 1, 1, push(n))], check, 64, {'bytes': int(lens.sum())})
+
+
 def w_spmv(size, rng):
     rows, cols = (512, 512) if size == 'small' else (1 << 18, 1 << 18)
     nnz = rng.integers(0, 64, rows) * (rng.random(rows) < 0.95)    # some empty rows
@@ -3612,7 +3645,7 @@ WORKLOADS = {'reduce': w_reduce, 'scan': w_scan, 'sgemm': w_sgemm, 'conv2d': w_c
              'aluprobe': w_aluprobe, 'ubopalette': w_ubopalette, 'uboparams': w_uboparams,
              'bindless': w_bindless, 'bindlessu': w_bindlessu,
              # appended only: the input seed is the index in this dict
-             'rle': w_rle, 'huffdec': w_huffdec, 'lookback': w_lookback, 'hll': w_hll, 'tricount': w_tricount, 'sha3': w_sha3, 'stereo': w_stereo, 'viterbi': w_viterbi, 'viterbifix': w_viterbifix, 'shiftfuse': w_shiftfuse, 'bc1enc': w_bc1enc, 'lz4dec': w_lz4dec, 'nttmul': w_nttmul, 'topk': w_topk, 'cellsort': w_cellsort, 'boruvka': w_boruvka, 'biquad': w_biquad, 'edt': w_edt, 'mt19937': w_mt19937, 'bitap': w_bitap, 'cholesky': w_cholesky, 'rsshash': w_rsshash}
+             'rle': w_rle, 'huffdec': w_huffdec, 'lookback': w_lookback, 'hll': w_hll, 'tricount': w_tricount, 'sha3': w_sha3, 'stereo': w_stereo, 'viterbi': w_viterbi, 'viterbifix': w_viterbifix, 'shiftfuse': w_shiftfuse, 'bc1enc': w_bc1enc, 'lz4dec': w_lz4dec, 'nttmul': w_nttmul, 'topk': w_topk, 'cellsort': w_cellsort, 'boruvka': w_boruvka, 'biquad': w_biquad, 'edt': w_edt, 'mt19937': w_mt19937, 'bitap': w_bitap, 'cholesky': w_cholesky, 'rsshash': w_rsshash, 'poly1305': w_poly1305}
 
 
 # ---------------------------------------------------------------------------------------------------------------
