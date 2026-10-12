@@ -1,0 +1,22 @@
+{
+ "blob": "spirv/compiled/mesa-26.0.3/floyd/shader.bin",
+ "code_start": 2244,
+ "code_size": 386,
+ "layout": "agx_shader_info",
+ "programs": [
+  {
+   "label": "main",
+   "file": "main.bin",
+   "offset": 0,
+   "bytes": 148,
+   "instructions": 25
+  },
+  {
+   "label": "preamble",
+   "file": "preamble.bin",
+   "offset": 256,
+   "bytes": 114,
+   "instructions": 18
+  }
+ ]
+}

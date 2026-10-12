@@ -2006,6 +2006,94 @@ def w_lift53(size, rng):
     return W('lift53', {0: (x, False), 1: (4 * rows * ln, True)}, [(rows, 1, 1, push(ln))], check, 256, {'samples': rows * ln})
 
 
+def chacha20_ref(key, nonce, counter0, blocks):
+    """RFC 8439 keystream (uint32 words, blocks x 16), vectorised over blocks"""
+    rot = lambda x, r: (x << np.uint32(r)) | (x >> np.uint32(32 - r))
+    s0 = np.zeros((blocks, 16), np.uint32)
+    s0[:, :4] = [0x61707865, 0x3320646e, 0x79622d32, 0x6b206574]; s0[:, 4:12] = key; s0[:, 13:16] = nonce
+    s0[:, 12] = (np.uint64(counter0) + np.arange(blocks, dtype=np.uint64)).astype(np.uint32)
+    x = [s0[:, k].copy() for k in range(16)]
+    def qr(a, b, c, d):
+        x[a] += x[b]; x[d] = rot(x[d] ^ x[a], 16); x[c] += x[d]; x[b] = rot(x[b] ^ x[c], 12)
+        x[a] += x[b]; x[d] = rot(x[d] ^ x[a], 8); x[c] += x[d]; x[b] = rot(x[b] ^ x[c], 7)
+    for _ in range(10):
+        qr(0, 4, 8, 12); qr(1, 5, 9, 13); qr(2, 6, 10, 14); qr(3, 7, 11, 15)
+        qr(0, 5, 10, 15); qr(1, 6, 11, 12); qr(2, 7, 8, 13); qr(3, 4, 9, 14)
+    return np.stack(x, 1) + s0
+
+
+def w_chacha20(size, rng):
+    blocks = 64 if size == 'small' else 1 << 18
+    key = u32(rng.integers(0, 1 << 32, 8, dtype=np.uint64)); nonce = u32(rng.integers(0, 1 << 32, 3, dtype=np.uint64)); counter0 = 1
+    msg = u32(rng.integers(0, 1 << 32, 16 * blocks, dtype=np.uint64))
+    def check(o):
+        ct = o[2].view(np.uint32)[:16 * blocks]
+        ref = msg ^ chacha20_ref(key, nonce, counter0, blocks).ravel()
+        lib = None
+        try:                                                                      # the cryptography package, where installed
+            from cryptography.hazmat.primitives.ciphers import Cipher, algorithms
+            enc = Cipher(algorithms.ChaCha20(key.tobytes(), struct.pack('<I', counter0) + nonce.tobytes()), mode=None).encryptor()
+            lib = bool(np.array_equal(np.frombuffer(enc.update(msg.tobytes()), np.uint32), ref))
+        except ImportError:
+            pass
+        return np.array_equal(ct, ref) and lib is not False, {'word_mismatches': int(np.sum(ct != ref)), 'reference_matches_cryptography': lib}
+    params = np.concatenate([key, nonce, u32([counter0])])
+    return W('chacha20', {0: (params, False), 1: (msg, False), 2: (64 * blocks, True)}, [((blocks + 63) // 64, 1, 1, push(blocks))], check, 64,
+             {'bytes': 64 * blocks})
+
+
+def w_modexp(size, rng):
+    n = 2048 if size == 'small' else 1 << 20
+    base = rng.integers(0, 1 << 32, n, dtype=np.uint64); exp = rng.integers(0, 1 << 32, n, dtype=np.uint64)
+    mod = rng.integers(1, 1 << 32, n, dtype=np.uint64) | 1
+    mod[:3] = [1, 2, 0xfffffffb]; exp[:3] = [5, 0, 0xfffffffa]                    # mod 1, x^0, Fermat: a^(p-1) = 1 mod p
+    args = u32(np.stack([base, exp, mod, np.zeros(n, np.uint64)], 1))
+    def check(o):
+        got = o[1].view(np.uint32)[:n]
+        rows = range(n) if size == 'small' else rng.choice(n, 20000, replace=False)
+        bad = [int(i) for i in rows if int(got[i]) != pow(int(base[i]), int(exp[i]), int(mod[i]))]
+        bad += [i for i in range(3) if int(got[i]) != pow(int(base[i]), int(exp[i]), int(mod[i])) and i not in bad]
+        return not bad, {'bad': len(bad), 'first_bad': bad[:5], 'fermat_check': int(got[2])}
+    return W('modexp', {0: (args, False), 1: (4 * n, True)}, [((n + 255) // 256, 1, 1, push(n))], check, 256, {'exponentiations': n})
+
+
+def w_floyd(size, rng):
+    v = 48 if size == 'small' else 512
+    INF = 0x3fffffff                                                             # INF + INF still fits in 32 bits
+    d = np.full((v, v), INF, np.int64); np.fill_diagonal(d, 0)
+    e = rng.integers(0, v, (2, v * 4))
+    np.minimum.at(d, (e[0], e[1]), rng.integers(1, 1000, v * 4))
+    d0 = u32(d)
+    def check(o):
+        got = o[0].view(np.uint32)[:v * v].reshape(v, v).astype(np.int64)
+        ref = d.copy()
+        for k in range(v):
+            ref = np.minimum(ref, ref[:, k:k + 1] + ref[k:k + 1, :])
+        return np.array_equal(got, ref), {'mismatches': int(np.sum(got != ref)), 'unreachable_pairs': int(np.sum(ref >= INF)),
+                                          'max_finite': int(ref[ref < INF].max())}
+    ds = [((v + 15) // 16, (v + 15) // 16, 1, push(v, k)) for k in range(v)]
+    return W('floyd', {0: (d0, True)}, ds, check, (16, 16, 1), {'relaxations': v ** 3})
+
+
+def w_f16pack(size, rng):
+    n = 4096 if size == 'small' else 1 << 22
+    mag = np.exp2(rng.uniform(-30, 18, (n, 2)))                                  # fp16 subnormals to overflow
+    vals = f32(mag * rng.choice([-1, 1], (n, 2)))
+    vals[0] = [65504, 65520]; vals[1] = [-65536, 1.0 + 2.0 ** -11]               # largest finite, overflow, a tie
+    vals[2] = [2.0 ** -24, 2.0 ** -25 * 1.5]; vals[3] = [0.0, -0.0]               # smallest subnormal, rounding up to it
+    def check(o):
+        h = o[1].view(np.uint32)[:n]; back = o[2].view(np.float32)[:2 * n].reshape(n, 2)
+        ref16 = vals.astype(np.float16)                                          # IEEE round to nearest even
+        refh = ref16.view(np.uint16).astype(np.uint32); refh = refh[:, 0] | refh[:, 1] << 16
+        refb = ref16.astype(np.float32)
+        sub = np.abs(ref16) < np.float16(2.0 ** -14)
+        ok = np.array_equal(h, refh) and np.array_equal(back.view(np.uint32), refb.view(np.uint32))
+        return ok, {'half_mismatches': int(np.sum(h != refh)), 'widen_mismatches': int(np.sum(back.view(np.uint32) != refb.view(np.uint32))),
+                    'subnormal_results': int(np.sum(sub & (ref16 != 0))), 'overflows': int(np.sum(np.isinf(ref16)))}
+    return W('f16pack', {0: (vals, False), 1: (4 * n, True), 2: (8 * n, True)}, [((n + 255) // 256, 1, 1, push(n, k)) for k in range(2)], check, 256,
+             {'values': 2 * n})
+
+
 WORKLOADS = {'reduce': w_reduce, 'scan': w_scan, 'sgemm': w_sgemm, 'conv2d': w_conv2d, 'histogram': w_histogram,
              'nbody': w_nbody, 'bitonic': w_bitonic, 'sha256': w_sha256, 'fp16': w_fp16, 'int64': w_int64, 'bitops': w_bitops,
              'intdiv': w_intdiv, 'compact': w_compact, 'spmv': w_spmv, 'transpose': w_transpose, 'mandelbrot': w_mandelbrot,
@@ -2024,7 +2112,8 @@ WORKLOADS = {'reduce': w_reduce, 'scan': w_scan, 'sgemm': w_sgemm, 'conv2d': w_c
              'utf8': w_utf8, 'fir': w_fir, 'composite': w_composite, 'nqueens': w_nqueens,
              'lzmatch': w_lzmatch, 'bitpack': w_bitpack, 'perlin': w_perlin, 'adler32': w_adler32,
              'sieve': w_sieve, 'gcd': w_gcd, 'dither': w_dither, 'advect': w_advect,
-             'knn': w_knn, 'csvparse': w_csvparse, 'pip': w_pip, 'lift53': w_lift53}
+             'knn': w_knn, 'csvparse': w_csvparse, 'pip': w_pip, 'lift53': w_lift53,
+             'chacha20': w_chacha20, 'modexp': w_modexp, 'floyd': w_floyd, 'f16pack': w_f16pack}
 
 
 # ---------------------------------------------------------------------------------------------------------------

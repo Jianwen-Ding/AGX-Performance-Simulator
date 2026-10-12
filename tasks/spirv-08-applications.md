@@ -1,7 +1,7 @@
 # Task SPIR-V 8: applications (ray tracer, neural networks, image processing, cellular automaton, graph search,
 # encryption, hashing, text, compression)
 
-**Workloads:** `raytrace`, `mlp`, `sobel`, `life`, `bfs`, `conv_layer`, `hist_eq`, `aes`, `hash_table`, `word_count`, `dct8`, `attention`, `resize`, `median3`, `poisson`, `lbm`, `base64`, `md5`, `gemv`, `levenshtein`, `blur`, `yuv420`, `montecarlo`, `xxhash`, `bloom`, `collatz`, `tridiag`, `merge`, `ccl`, `pagerank`, `skinning`, `strsearch`, `quantize`, `rule110`, `voxel`, `nms`, `sat`, `sssp`, `morton`, `utf8`, `fir`, `composite`, `nqueens`, `lzmatch`, `bitpack`, `perlin`, `adler32`, `sieve`, `gcd`, `dither`, `advect`, `knn`, `csvparse`, `pip`, `lift53`. These are recorded and verified by `make asahi-verify` with the others;
+**Workloads:** `raytrace`, `mlp`, `sobel`, `life`, `bfs`, `conv_layer`, `hist_eq`, `aes`, `hash_table`, `word_count`, `dct8`, `attention`, `resize`, `median3`, `poisson`, `lbm`, `base64`, `md5`, `gemv`, `levenshtein`, `blur`, `yuv420`, `montecarlo`, `xxhash`, `bloom`, `collatz`, `tridiag`, `merge`, `ccl`, `pagerank`, `skinning`, `strsearch`, `quantize`, `rule110`, `voxel`, `nms`, `sat`, `sssp`, `morton`, `utf8`, `fir`, `composite`, `nqueens`, `lzmatch`, `bitpack`, `perlin`, `adler32`, `sieve`, `gcd`, `dither`, `advect`, `knn`, `csvparse`, `pip`, `lift53`, `chacha20`, `modexp`, `floyd`, `f16pack`. These are recorded and verified by `make asahi-verify` with the others;
 they are **PENDING** until then. The detailed procedure is in `tasks/spirv-workloads.md`.
 
 ## Why these
@@ -67,11 +67,15 @@ reference.
 | `csvparse` | Parse 4M fixed-width CSV integer fields, flagging malformed ones (letters, stray signs, decimals, blanks) | Exact values and validity (reference: the regular expression ` *-?[0-9]+`) |
 | `pip` | Winding number of 2^20 points against a 500-vertex concave polygon with 64-bit cross products | Exact, vertices themselves included |
 | `lift53` | JPEG 2000 lossless LeGall 5/3 forward wavelet of 4096 rows of 2048 samples by integer lifting | Exact, and the inverse transform reconstructs the input |
+| `chacha20` | ChaCha20 (RFC 8439) encryption of 16 MiB, one 64-byte keystream block per thread | Exact; the numpy reference is cross-checked with the `cryptography` package where installed |
+| `modexp` | 2^20 modular exponentiations base^exp mod m with 32-bit operands and 64-bit products | Exact against Python `pow` (mod 1, x^0 and a Fermat identity included); Mesa lowers the 64-bit `%` to ~1800 instructions |
+| `floyd` | Floyd-Warshall all-pairs shortest paths on a 512-vertex sparse graph, 512 dependent dispatches | Exact distances, unreachable pairs stay at the sentinel |
+| `f16pack` | `packHalf2x16` of 2^23 floats from fp16-subnormal to overflow magnitudes, then `unpackHalf2x16` in a second dispatch | Bit-exact against IEEE round-to-nearest-even, fp16 subnormals and infinities included |
 
 ## Offline sanity checks (not hardware verification)
 
 - **lavapipe:** all pass at both sizes.
-- **Shim-compiled Mesa 25.2.8 and 26.0.3 code on the functional simulator:** 110 of 110.
+- **Shim-compiled Mesa 25.2.8 and 26.0.3 code on the functional simulator:** 118 of 118.
   - `bfs` found a simulator bug. Mesa aggregates `atomicAdd(found[l], 1)` under divergence: one lane, chosen with SR58
     (`active_thread_index_in_simdgroup`), adds SR59, the number of active lanes. The simulator modelled both from the
     launch shape (lane index, 32), which is only right when every lane is active, so the counts came out as multiples
@@ -122,3 +126,8 @@ reference.
 13. `sieve`, `gcd` and `dither` are exact and must PASS; `advect` is fp32 interpolation over 40 dispatches, so expect
     CLOSE. Its bound is derived (positions rounded to fp32, dye slope at most 1 per cell, non-expansive sampling).
 14. `knn`, `csvparse`, `pip` and `lift53` are exact and must PASS.
+15. `chacha20`, `modexp`, `floyd` and `f16pack` are exact and must PASS.
+    - `f16pack` is the first workload that checks fp16 subnormal *results* of a conversion on the GPU. A FAIL there
+      means the hardware flushes them; record which values differ.
+    - Its round trip is split into two dispatches on purpose. In one shader, lavapipe's compiler folded
+      `unpackHalf2x16(packHalf2x16(v))` back to `v` for one component, which is not a correct round trip.
