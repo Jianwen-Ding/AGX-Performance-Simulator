@@ -12,6 +12,7 @@ where each answer appears, and what to change for each outcome. The details are 
 | | | | verdict A: 7 bits, as the full-width form | Mesa's `fuse_ubfe` is unsound for variable shifts; `viterbi` / `shiftfuse` (3 columns) / `lz4dec` / `bitap` FAIL on the GPU too; report upstream with note 37's root cause and `viterbifix` as the workaround |
 | 2 | Do SR58 / SR59 count active lanes? (offline checks: `bfs`) | `bfs` status | PASS | confirmed; nothing to do |
 | | | | FAIL with counts in multiples of 32 | the simulator's active-lane reading is wrong for this case |
+| 2b | Does store write-back cost DRAM bandwidth? (notes 66-67) | `adamw` time; `stream` per-dispatch times (`probes` GB/s) | they follow the `AGX_CHARGE_WRITEBACK=1` column of note 67 | make write-back charging the default (`charge_writeback` in `rust/src/cost.rs`) and recheck `dispatch_check` |
 | 3 | Should multi-pass workloads be timed from the evolving state? (notes 44-45) | the `stateful_vs_default` list in the verify summary | `stateful` is closer for the frontier / converging workloads | make `--stateful` the default for them in `predictall` |
 | 4 | Are the 30 transcendental suite failures 1-ulp table differences? | `cholesky` (CLOSE expected), `rmsrope` `max_rel_error` in probes; `make record-transcendentals` records the exact fp32 `rcp` / `rsqrt` tables | words differ only in the last bit | the simulator's `rcp` / `rsqrt_special` / `sin_pt` need the recorded tables |
 

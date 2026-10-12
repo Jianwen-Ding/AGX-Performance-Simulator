@@ -1304,6 +1304,11 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
         /// per group: (memory step, epoch, segments missing L1 per level, deepest level) for the step being retried
         lv_cache: Vec<Option<(usize, u64, [f64; 3], usize)>>,
     }
+    // AGX_CHARGE_WRITEBACK=1: a store also takes DRAM bandwidth for its lines when the working set does not fit the
+    // SLC, even if they were just loaded (the dirty lines must be written back). Off by default: no hardware data
+    // yet (applications notes 66-67: adamw, stream).
+    let charge_writeback = std::env::var("AGX_CHARGE_WRITEBACK").map_or(false, |v| v == "1")
+        && mem.is_some_and(|(_, m)| !m.resident_slc);
     let mut ms: Option<MemState> = mem.map(|(_, m)| {
         let per_tick = |segs_per_cycle: f64| segs_per_cycle / TICKS as f64;
         let dram = m.dram_gbps * 1e9 / m.active_cores / (m.clock_mhz * 1e6) / 64.0;
@@ -1827,6 +1832,9 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
                                 level
                             }
                         };
+                        if store && charge_writeback {
+                            need[4] = need[4].max(n.max(1.0)); // every written line goes back to DRAM
+                        }
                         let mut until = 0i64;
                         for i in 2..5 {
                             let want = need[i].min(m.cap[i]);

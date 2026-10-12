@@ -576,8 +576,7 @@ reference.
     - The cause is in the memory model. A load is charged L1 throughput plus the bandwidth of the level its lines
       come from. A store is charged L1 store throughput only, and its lines' level comes from the cache contents.
       `adamw` stores to the lines it just loaded, so its stores count as hits, and the write-back of the 50 MB of
-      dirty lines to DRAM is never charged. Stores to lines not in the caches are charged DRAM, so `stream`'s Fill and
-      Copy pay for their writes: it is stores to just-loaded lines that write back for free.
+      dirty lines to DRAM is never charged.
       - Per wave, each core touches 768 distinct lines: exactly the four read streams, 49 KB. At the per-core DRAM
         rate (360 GB/s over 38 cores) that is about 7250 cycles, against the 7630 simulated.
       - So the prediction is read-bandwidth bound: 67 MB / 360 GB/s ≈ 186 µs.
@@ -593,5 +592,15 @@ reference.
     - `probes` puts the M2's measured GB/s next to these per kind. Read against fill shows the read / write asymmetry.
       Copy and triad against read show what write-back costs, the question `adamw` (note 66) raises for
       read-modify-write streams.
-    - If writes cost DRAM bandwidth that the model does not charge, `adamw` (in-place) will be off while `stream`'s
-      copy and fill (to other arrays) will not.
+    - `AGX_CHARGE_WRITEBACK=1` makes every store take DRAM bandwidth for its lines when the working set does not fit
+      the SLC (off by default). The two predictions (µs):
+
+      | | default | `AGX_CHARGE_WRITEBACK=1` |
+      |---|---|---|
+      | `adamw` | 202 | 328 |
+      | `stream` copy / scale / add / triad / read / fill | 377 / 422 / 654 / 693 / 212 / 315 | 377 / 481 / 993 / 969 / 212 / 571 |
+
+    - Copy and read do not change. Fill rises most, so the default under-charges even stores to lines never loaded,
+      not only `adamw`'s read-modify-write.
+    - Whichever column the M2 times follow is the setting to keep. If neither, the right charge lies in between, and
+      the per-kind GB/s from `probes` give it.
