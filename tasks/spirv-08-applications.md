@@ -1,7 +1,7 @@
 # Task SPIR-V 8: applications (ray tracer, neural networks, image processing, cellular automaton, graph search,
 # encryption, hashing, text, compression)
 
-**Workloads:** `raytrace`, `mlp`, `sobel`, `life`, `bfs`, `conv_layer`, `hist_eq`, `aes`, `hash_table`, `word_count`, `dct8`, `attention`, `resize`, `median3`, `poisson`, `lbm`, `base64`, `md5`, `gemv`, `levenshtein`, `blur`, `yuv420`, `montecarlo`, `xxhash`, `bloom`, `collatz`, `tridiag`, `merge`, `ccl`, `pagerank`, `skinning`, `strsearch`, `quantize`, `rule110`, `voxel`, `nms`, `sat`, `sssp`, `morton`, `utf8`, `fir`, `composite`, `nqueens`, `lzmatch`, `bitpack`, `perlin`, `adler32`, `sieve`, `gcd`, `dither`, `advect`, `knn`, `csvparse`, `pip`, `lift53`, `chacha20`, `modexp`, `floyd`, `f16pack`, `raster`, `canny`, `secded`, `bicubic`, `dfa`, `b64decode`, `cordic`, `rsenc`, `texfetch`, `texfilter`, `imgerode`, `imgtonemap`, `argmax64`, `minmax64`, `dsum`, `quadmip`, `clustered`, `specblur`, `cullindirect`, `bigsort`, `pushmat`, `mplitmus`, `splat`, `splatfix`, `smembank`, `coalesce`, `atomcontend`, `barriercost`, `aluprobe`, `ubopalette`, `uboparams`. These are recorded and verified by `make asahi-verify` with the others;
+**Workloads:** `raytrace`, `mlp`, `sobel`, `life`, `bfs`, `conv_layer`, `hist_eq`, `aes`, `hash_table`, `word_count`, `dct8`, `attention`, `resize`, `median3`, `poisson`, `lbm`, `base64`, `md5`, `gemv`, `levenshtein`, `blur`, `yuv420`, `montecarlo`, `xxhash`, `bloom`, `collatz`, `tridiag`, `merge`, `ccl`, `pagerank`, `skinning`, `strsearch`, `quantize`, `rule110`, `voxel`, `nms`, `sat`, `sssp`, `morton`, `utf8`, `fir`, `composite`, `nqueens`, `lzmatch`, `bitpack`, `perlin`, `adler32`, `sieve`, `gcd`, `dither`, `advect`, `knn`, `csvparse`, `pip`, `lift53`, `chacha20`, `modexp`, `floyd`, `f16pack`, `raster`, `canny`, `secded`, `bicubic`, `dfa`, `b64decode`, `cordic`, `rsenc`, `texfetch`, `texfilter`, `imgerode`, `imgtonemap`, `argmax64`, `minmax64`, `dsum`, `quadmip`, `clustered`, `specblur`, `cullindirect`, `bigsort`, `pushmat`, `mplitmus`, `splat`, `splatfix`, `smembank`, `coalesce`, `atomcontend`, `barriercost`, `aluprobe`, `ubopalette`, `uboparams`, `bindless`, `bindlessu`. These are recorded and verified by `make asahi-verify` with the others;
 they are **PENDING** until then. The detailed procedure is in `tasks/spirv-workloads.md`.
 
 ## Why these
@@ -102,6 +102,8 @@ reference.
 | `aluprobe` | 6 dispatches × 524288 invocations × 256 steps: fp32 fma, fp16 fma, imad, each as one dependent chain and as 8 independent chains | Bit-exact (integer-valued floats, wrapping integers); per-kind times |
 | `ubopalette` | 4M vertices × one of 64 mat4 from a std140 UBO (integer-valued, exact in fp32) | Bit-exact |
 | `uboparams` | 4M RGBA pixels through gains, offsets, a 3 × 3 mix and clamps read from a UBO | Exact |
+| `bindless` | 4M lookups, each lane picking one of 8 storage-buffer tables (1-8 K entries) by `nonuniformEXT` index | Exact |
+| `bindlessu` | 4M lookups, workgroup g reading table g mod 8 | Exact |
 
 ## Offline sanity checks (not hardware verification)
 
@@ -233,3 +235,10 @@ reference.
     - The preamble loads the descriptor addresses (`uniform_store`). The UBO *contents*, however, are loaded per
       invocation in the main code, even `uboparams`' six parameter vectors, which are the same for every invocation.
     - Compare their M2 times with `predict`. A large gap would point at that per-invocation load.
+29. **Descriptor arrays.**
+    - `vk_run` builds them from `buffer` lines that share a binding (element index as the fifth field). The
+      offline driver offers both dynamic and non-uniform storage-buffer indexing.
+    - On AGX a descriptor array is plain memory: each lookup is a `device_load` of the descriptor, then of the
+      data, with no waterfall loop even for the non-uniform index.
+    - The simulator's descriptor set now follows honeykrisp's layout rule: bindings in order, each `count × stride`
+      after the previous ones. Both workloads simulate, and every earlier prediction is unchanged.

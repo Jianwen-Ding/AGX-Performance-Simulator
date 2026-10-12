@@ -1,0 +1,32 @@
+0x0080  f2011004                 get_sr r0.cache, sr80 (thread_position_in_grid.x)
+0x0084  f2050000                 get_sr r1.cache, sr0 (threadgroup_position_in_grid.x)
+0x0088  0e01c0e658000000         iadd r0, r0.discard.sx, u7.sx
+0x0090  0511000e10c01200         device_load 0, i32, x, r2, u8_u9, r0, unsigned
+0x0098  8e05c28658000000         iadd r1.cache, r1.discard.sx, u4.sx
+0x00a0  7e05c2728000             and r1, r1.discard, 7
+0x00a6  0521244e00c8f200         device_load 1, i32, xyzw, r4_r5_r6_r7, u2_u3, r1, unsigned, lsl 2
+0x00ae  3801                     wait 1
+0x00b0  ae8500c02c020000         bfeil r1.cache, 0, r6.discard, 2
+0x00b8  be8d0a242800             convert u32_to_f, r3.cache, r1.cache, rte
+0x00be  8a198682                 rcp r6.cache, r3.cache
+0x00c2  ba0dc6ca2830             fmadd32 r3.cache, r3.discard.neg, r6.cache, 1.0
+0x00c8  ba8dc6c2288c0200         fmadd32 r3.cache, r3.discard, r6.cache, r6.cache
+0x00d0  820dc6622cc6c00c         fcmpsel eq, r3.cache, r3.discard, r3.discard, r3.discard, r6.discard
+0x00d8  1a8dc6821900             fmul32 r3, r3.discard, u12
+0x00de  be8d08602c00             convert f_to_u32, r3.cache, r3.discard, rtz
+0x00e4  9e19826668000000         imadd r6.cache, r1.cache.sx, r3.cache.sx, 0
+0x00ec  8e1900c86c000000         isub r6.cache, 0, r6.discard.sx
+0x00f4  1e1b86c22c000000         imadd r6_r7, r3.cache, r6.discard, 0
+0x00fc  8e0dc6e66c000000         iadd r3.cache, r3.discard.sx, r7.discard.sx
+0x0104  3800                     wait 0
+0x0106  1e1b84622c000000         imadd r6_r7, r2.cache, r3.discard, 0
+0x010e  9e0dce2668000000         imadd r3.cache, r7.discard.sx, r1.cache.sx, 0
+0x0116  8e09c46e6c000000         isub r2.cache, r2.discard.sx, r3.discard.sx
+0x011e  8e0d842e68000000         isub r3.cache, r2.cache.sx, r1.cache.sx
+0x0126  9209c42228c4602c         icmpsel ult, r2.cache, r2.discard, r1.cache, r2.discard, r3.discard
+0x012e  8e0d842e68000000         isub r3.cache, r2.cache.sx, r1.cache.sx
+0x0136  1205c4222cc4602c         icmpsel ult, r1, r2.discard, r1.discard, r2.discard, r3.discard
+0x013e  0509280600c01200         device_load 0, i32, x, r1, r4_r5, r1, unsigned
+0x0146  3800                     wait 0
+0x0148  4509044e10c01200         device_store 1, i32, x, r1, u10_u11, r0, unsigned, 0
+0x0150  8800                     stop

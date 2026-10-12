@@ -1,0 +1,17 @@
+#version 450
+// Bindless lookups through a descriptor array of 8 storage buffers indexed per lane (nonuniformEXT), as material /
+// mesh tables are read in modern renderers: every invocation picks its own table and entry. Integer-exact; needs
+// shaderStorageBufferArrayNonUniformIndexing.
+#extension GL_EXT_nonuniform_qualifier : require
+layout(local_size_x = 256) in;
+layout(std430, binding = 0) readonly buffer T { uint v[]; } tabs[8];
+layout(std430, binding = 1) readonly buffer Q { uvec2 q[]; };
+layout(std430, binding = 2) writeonly buffer O { uint outv[]; };
+layout(push_constant) uniform P { uint n; } p;
+
+void main() {
+    uint i = gl_GlobalInvocationID.x;
+    if (i >= p.n) return;
+    uvec2 x = q[i];
+    outv[i] = tabs[nonuniformEXT(x.x)].v[x.y];
+}

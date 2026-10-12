@@ -4,8 +4,10 @@
  *
  * SPEC is text, one directive per line ('#' comments):
  *   shader PATH.spv               compute shader, entry point "main", descriptor set 0
- *   buffer BINDING SIZE INIT OUT  storage buffer: INIT = file of initial bytes (zero-padded) or '-',
- *                                 OUT = file the buffer is read back to after the functional run, or '-'
+ *   buffer BINDING SIZE INIT OUT [ELEMENT]
+ *                                 storage buffer: INIT = file of initial bytes (zero-padded) or '-', OUT = file the buffer
+ *                                 is read back to after the functional run, or '-'; buffers with the same BINDING and
+ *                                 ELEMENT 0, 1, .. form a descriptor array
  *   ubuffer BINDING SIZE INIT      uniform buffer (read-only), INIT as for buffer
  *   texture BINDING W H FMT FILTER INIT
  *                                 sampled image + sampler (combined image sampler, read-only): FMT rgba8 (UNORM) or r32f,
@@ -84,7 +86,7 @@ static void jstr(FILE *f, const char *s) {
 }
 
 struct buf { int binding; VkDeviceSize size; char init[512], out[512]; VkBuffer b; VkDeviceMemory m; void *map; void *initdata; size_t initlen;
-             int uniform; };
+             int uniform, elem; };
 struct disp { uint32_t g[3]; uint8_t push[256]; uint32_t npush; int indirect, ibinding; uint32_t ioffset; };
 struct tex { int binding; uint32_t w, h; VkFormat fmt; uint32_t texel; VkFilter filter; char init[512]; VkImage img; VkDeviceMemory m;
              VkImageView view; VkSampler smp; };
@@ -117,7 +119,9 @@ int main(int argc, char **argv) {
         else if (!strcmp(kw, "buffer")) {
             if (nb == MAXB) die("too many buffers", 0);
             unsigned long long sz; struct buf *b = &B[nb++]; memset(b, 0, sizeof *b);
-            if (sscanf(line, "%*s %d %llu %511s %511s", &b->binding, &sz, b->init, b->out) != 4) die("spec buffer", 0);
+            int got = sscanf(line, "%*s %d %llu %511s %511s %d", &b->binding, &sz, b->init, b->out, &b->elem);
+            if (got < 4) die("spec buffer", 0);
+            if (got < 5) b->elem = 0;
             b->size = sz;
         } else if (!strcmp(kw, "ubuffer")) {
             if (nb == MAXB) die("too many buffers", 0);
@@ -218,7 +222,8 @@ int main(int argc, char **argv) {
     VkPhysicalDeviceVulkan12Features e12 = {.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES,
         .shaderFloat16 = f12.shaderFloat16, .shaderInt8 = f12.shaderInt8, .storageBuffer8BitAccess = f12.storageBuffer8BitAccess,
         .uniformAndStorageBuffer8BitAccess = f12.uniformAndStorageBuffer8BitAccess, .shaderBufferInt64Atomics = f12.shaderBufferInt64Atomics,
-        .shaderSharedInt64Atomics = f12.shaderSharedInt64Atomics, .scalarBlockLayout = f12.scalarBlockLayout, .vulkanMemoryModel = f12.vulkanMemoryModel};
+        .shaderSharedInt64Atomics = f12.shaderSharedInt64Atomics, .scalarBlockLayout = f12.scalarBlockLayout, .vulkanMemoryModel = f12.vulkanMemoryModel,
+        .shaderStorageBufferArrayNonUniformIndexing = f12.shaderStorageBufferArrayNonUniformIndexing};
     VkPhysicalDeviceVulkan11Features e11 = {.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES, .pNext = &e12,
         .storageBuffer16BitAccess = f11.storageBuffer16BitAccess};
     VkPhysicalDevicePipelineExecutablePropertiesFeaturesKHR epe = {.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PIPELINE_EXECUTABLE_PROPERTIES_FEATURES_KHR,
@@ -232,7 +237,8 @@ int main(int argc, char **argv) {
         .shaderBufferFloat32Atomics = aff.shaderBufferFloat32Atomics, .shaderSharedFloat32Atomics = aff.shaderSharedFloat32Atomics};
     if (has_af) { *tail = &eaf; tail = &eaf.pNext; }
     VkPhysicalDeviceFeatures2 e2 = {.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2, .pNext = &e11,
-        .features = {.shaderInt64 = f2.features.shaderInt64, .shaderInt16 = f2.features.shaderInt16, .shaderFloat64 = f2.features.shaderFloat64}};
+        .features = {.shaderInt64 = f2.features.shaderInt64, .shaderInt16 = f2.features.shaderInt16, .shaderFloat64 = f2.features.shaderFloat64,
+                     .shaderStorageBufferArrayDynamicIndexing = f2.features.shaderStorageBufferArrayDynamicIndexing}};
     const char *exts[3]; uint32_t nexts = 0;
     if (has_af) exts[nexts++] = VK_EXT_SHADER_ATOMIC_FLOAT_EXTENSION_NAME;
     if (use_pe) exts[nexts++] = VK_KHR_PIPELINE_EXECUTABLE_PROPERTIES_EXTENSION_NAME;
@@ -255,7 +261,8 @@ int main(int argc, char **argv) {
         const char *names[] = {"int64", "float64", "float16", "int8", "buffer_int64_atomics", "shared_int64_atomics",
                                "subgroup_vote", "subgroup_arithmetic", "subgroup_ballot", "subgroup_shuffle",
                                "subgroup_shuffle_relative", "subgroup_clustered", "subgroup_quad", "vulkan_memory_model", "buffer_float32_atomic_add",
-                               "shared_float32_atomic_add"};
+                               "shared_float32_atomic_add", "storage_buffer_array_dynamic",
+                               "storage_buffer_array_nonuniform"};
         VkSubgroupFeatureFlags ops = sg_compute ? sgp.supportedOperations : 0;
         int have[] = {f2.features.shaderInt64, f2.features.shaderFloat64, f12.shaderFloat16, f12.shaderInt8,
                       f12.shaderBufferInt64Atomics, f12.shaderSharedInt64Atomics,
@@ -263,9 +270,10 @@ int main(int argc, char **argv) {
                       !!(ops & VK_SUBGROUP_FEATURE_BALLOT_BIT), !!(ops & VK_SUBGROUP_FEATURE_SHUFFLE_BIT),
                       !!(ops & VK_SUBGROUP_FEATURE_SHUFFLE_RELATIVE_BIT), !!(ops & VK_SUBGROUP_FEATURE_CLUSTERED_BIT),
                       !!(ops & VK_SUBGROUP_FEATURE_QUAD_BIT), f12.vulkanMemoryModel,
-                      aff.shaderBufferFloat32AtomicAdd, aff.shaderSharedFloat32AtomicAdd};
+                      aff.shaderBufferFloat32AtomicAdd, aff.shaderSharedFloat32AtomicAdd,
+                      f2.features.shaderStorageBufferArrayDynamicIndexing, f12.shaderStorageBufferArrayNonUniformIndexing};
         int known = 0, ok = 0;
-        for (int k = 0; k < 16; k++) if (!strcmp(req[i], names[k])) { known = 1; ok = have[k]; }
+        for (int k = 0; k < 18; k++) if (!strcmp(req[i], names[k])) { known = 1; ok = have[k]; }
         unsigned need;   /* minimum limits: shared_bytes=N, invocations=N, push_bytes=N */
         if (sscanf(req[i], "shared_bytes=%u", &need) == 1) { known = 1; ok = props.limits.maxComputeSharedMemorySize >= need; }
         if (sscanf(req[i], "invocations=%u", &need) == 1) { known = 1; ok = props.limits.maxComputeWorkGroupInvocations >= need; }
@@ -412,17 +420,24 @@ int main(int argc, char **argv) {
     VkShaderModuleCreateInfo smci = {.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO, .codeSize = spvlen, .pCode = spv};
     VkShaderModule sm; CK(vkCreateShaderModule(dev, &smci, NULL, &sm));
     VkDescriptorSetLayoutBinding lb[MAXB + 2 * MAXT];
-    for (int i = 0; i < nb; i++)
-        lb[i] = (VkDescriptorSetLayoutBinding){.binding = B[i].binding,
-                                               .descriptorType = B[i].uniform ? VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER : VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
-                                               .descriptorCount = 1, .stageFlags = VK_SHADER_STAGE_COMPUTE_BIT};
+    int nlb = 0;   /* one layout entry per binding; array elements share it */
+    for (int i = 0; i < nb; i++) {
+        int k = 0;
+        while (k < nlb && lb[k].binding != (uint32_t)B[i].binding) k++;
+        if (k == nlb) {
+            lb[nlb++] = (VkDescriptorSetLayoutBinding){.binding = B[i].binding,
+                .descriptorType = B[i].uniform ? VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER : VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+                .descriptorCount = 0, .stageFlags = VK_SHADER_STAGE_COMPUTE_BIT};
+        }
+        if ((uint32_t)B[i].elem + 1 > lb[k].descriptorCount) lb[k].descriptorCount = B[i].elem + 1;
+    }
     for (int i = 0; i < nt; i++)
-        lb[nb + i] = (VkDescriptorSetLayoutBinding){.binding = T[i].binding, .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+        lb[nlb + i] = (VkDescriptorSetLayoutBinding){.binding = T[i].binding, .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
                                                     .descriptorCount = 1, .stageFlags = VK_SHADER_STAGE_COMPUTE_BIT};
     for (int i = 0; i < ni; i++)
-        lb[nb + nt + i] = (VkDescriptorSetLayoutBinding){.binding = I[i].binding, .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
+        lb[nlb + nt + i] = (VkDescriptorSetLayoutBinding){.binding = I[i].binding, .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
                                                          .descriptorCount = 1, .stageFlags = VK_SHADER_STAGE_COMPUTE_BIT};
-    VkDescriptorSetLayoutCreateInfo dslci = {.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO, .bindingCount = nb + nt + ni, .pBindings = lb};
+    VkDescriptorSetLayoutCreateInfo dslci = {.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO, .bindingCount = nlb + nt + ni, .pBindings = lb};
     VkDescriptorSetLayout dsl; CK(vkCreateDescriptorSetLayout(dev, &dslci, NULL, &dsl));
     VkPushConstantRange pcr = {.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT, .offset = 0, .size = maxpush ? maxpush : 4};
     VkPipelineLayoutCreateInfo plci = {.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO, .setLayoutCount = 1, .pSetLayouts = &dsl,
@@ -504,7 +519,7 @@ int main(int argc, char **argv) {
     for (int i = 0; i < nb; i++) {
         dbi[i] = (VkDescriptorBufferInfo){.buffer = B[i].b, .offset = 0, .range = VK_WHOLE_SIZE};
         w[i] = (VkWriteDescriptorSet){.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET, .dstSet = ds, .dstBinding = B[i].binding,
-                                      .descriptorCount = 1, .pBufferInfo = &dbi[i],
+                                      .dstArrayElement = B[i].elem, .descriptorCount = 1, .pBufferInfo = &dbi[i],
                                       .descriptorType = B[i].uniform ? VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER : VK_DESCRIPTOR_TYPE_STORAGE_BUFFER};
     }
     for (int i = 0; i < nt; i++) {

@@ -42,7 +42,7 @@ class W:
     """a workload instance: buffers {binding: (init array or byte size, read back?)}, dispatches [(gx, gy, gz, push)],
     check(outputs) -> (ok, detail), metrics for throughput"""
     def __init__(self, shader, buffers, dispatches, check, wg, work=None, images=None, textures=None, simages=None, requires=None,
-                 specs=None, uniform=None):
+                 specs=None, uniform=None, barrays=None):
         self.shader, self.buffers, self.dispatches, self.check, self.wg, self.work = shader, buffers, dispatches, check, wg, work or {}
         # sampled textures {binding: (texels, width, height, 'rgba8' | 'r32f', 'nearest' | 'linear')}: read through the
         # GPU's texture unit, which the simulator does not model (sim / predict report such workloads as unsupported)
@@ -57,6 +57,8 @@ class W:
         self.specs = specs or {}
         # bindings of w.buffers that are uniform buffers (read-only UBOs) rather than storage buffers
         self.uniform = set(uniform or [])
+        # read-only storage-buffer descriptor arrays {binding: [initial array of element 0, 1, ..]} (bindless tables)
+        self.barrays = barrays or {}
         self.images = images or []       # [(binding, width, height, 'rgba8' | 'gray8' | 'bits')]: written as .ppm / .pgm for viewing
 
 
@@ -79,6 +81,10 @@ def write_images(w, outs, out_dir, tag):
 def texture_spec(w, d):
     """spec lines for the workload's textures, their texels written to d/tex<binding>.bin"""
     lines = []
+    for b, arrs in sorted(w.barrays.items()):
+        for e, arr in enumerate(arrs):
+            p = Path(d) / f'arr{b}_{e}.bin'; p.write_bytes(np.ascontiguousarray(arr).tobytes())
+            lines.append(f'buffer {b} {arr.nbytes} {p} - {e}')
     for b, (texels, wd, ht, fmt, filt) in sorted(w.textures.items()):
         p = Path(d) / f'tex{b}.bin'; p.write_bytes(np.ascontiguousarray(texels).tobytes())
         lines.append(f'texture {b} {wd} {ht} {fmt} {filt} {p}')
@@ -2831,6 +2837,37 @@ def w_uboparams(size, rng):
              {'pixels': n}, uniform=[0])
 
 
+def bindless_tables(rng):
+    return [u32(rng.integers(0, 1 << 32, 1024 * (k + 1), dtype=np.uint64)) for k in range(8)]   # 8 tables of different sizes
+
+
+def w_bindless(size, rng):
+    n = 4096 if size == 'small' else 1 << 22
+    tabs = bindless_tables(rng)
+    t = rng.integers(0, 8, n)                                                   # a different table per lane: non-uniform
+    q = u32(np.stack([t, rng.integers(0, 1 << 30, n) % (1024 * (t + 1))], 1))
+    def check(o):
+        got = o[2].view(np.uint32)[:n]
+        ref = np.choose(q[:, 0], [np.take(tb, np.minimum(q[:, 1], len(tb) - 1)) for tb in tabs]).astype(np.uint32)   # q[:, 1] is in range of its table
+        return np.array_equal(got, ref), {'mismatches': int(np.sum(got != ref))}
+    return W('bindless', {1: (q, False), 2: (4 * n, True)}, [((n + 255) // 256, 1, 1, push(n))], check, 256, {'lookups': n},
+             barrays={0: tabs}, requires=['storage_buffer_array_nonuniform'])
+
+
+def w_bindlessu(size, rng):
+    groups = 16 if size == 'small' else 16384
+    n = groups * 256
+    tabs = bindless_tables(rng)
+    idx = u32(rng.integers(0, 1 << 30, n))
+    def check(o):
+        got = o[2].view(np.uint32)[:n]
+        t = (np.arange(n) // 256) % 8
+        ref = np.choose(t, [np.take(tb, idx % len(tb)) for tb in tabs]).astype(np.uint32)
+        return np.array_equal(got, ref), {'mismatches': int(np.sum(got != ref))}
+    return W('bindlessu', {1: (idx, False), 2: (4 * n, True)}, [(groups, 1, 1, b'')], check, 256, {'lookups': n},
+             barrays={0: tabs}, requires=['storage_buffer_array_dynamic'])
+
+
 WORKLOADS = {'reduce': w_reduce, 'scan': w_scan, 'sgemm': w_sgemm, 'conv2d': w_conv2d, 'histogram': w_histogram,
              'nbody': w_nbody, 'bitonic': w_bitonic, 'sha256': w_sha256, 'fp16': w_fp16, 'int64': w_int64, 'bitops': w_bitops,
              'intdiv': w_intdiv, 'compact': w_compact, 'spmv': w_spmv, 'transpose': w_transpose, 'mandelbrot': w_mandelbrot,
@@ -2862,7 +2899,8 @@ WORKLOADS = {'reduce': w_reduce, 'scan': w_scan, 'sgemm': w_sgemm, 'conv2d': w_c
              'splat': w_splat, 'splatfix': w_splatfix,
              'smembank': w_smembank, 'coalesce': w_coalesce,
              'atomcontend': w_atomcontend, 'barriercost': w_barriercost,
-             'aluprobe': w_aluprobe, 'ubopalette': w_ubopalette, 'uboparams': w_uboparams}
+             'aluprobe': w_aluprobe, 'ubopalette': w_ubopalette, 'uboparams': w_uboparams,
+             'bindless': w_bindless, 'bindlessu': w_bindlessu}
 
 
 # ---------------------------------------------------------------------------------------------------------------
@@ -3195,8 +3233,8 @@ def root_value(kind, ctx):
     if k == 'set': return ctx['set_va']
     if k == 'self': return ctx['root_va']
     if k == 'group_count_addr': return ctx['gc_va']
-    if k == 'buffer': return ctx['va'][int(arg)]
-    if k == 'buffer_size': return ctx['size'][int(arg)]
+    if k == 'buffer': return ctx['va'][arg if '.' in arg else int(arg)]
+    if k == 'buffer_size': return ctx['size'][arg if '.' in arg else int(arg)]
     raise ValueError(f'unknown root field kind {kind!r}')
 
 
@@ -3229,13 +3267,26 @@ class DriverLaunch:
             self.va[binding], self.size[binding] = nxt, len(data)
             self.files[binding] = work / f'buf{binding}.bin'; self.files[binding].write_bytes(data)
             nxt += (len(data) + 0xffff) // 0x10000 * 0x10000 + 0x10000
+        for binding, arrs in sorted(w.barrays.items()):                         # descriptor-array elements: key 'B.E'
+            for e, arr in enumerate(arrs):
+                key, data = f'{binding}.{e}', np.ascontiguousarray(arr).tobytes()
+                self.va[key], self.size[key] = nxt, len(data)
+                self.files[key] = work / f'arr{binding}_{e}.bin'; self.files[key].write_bytes(data)
+                nxt += (len(data) + 0xffff) // 0x10000 * 0x10000 + 0x10000
         self.set_va, self.root_va, self.gc_va = nxt, nxt + 0x10000, nxt + 0x20000
         d = self.layout['descriptor']
-        setmem = bytearray(d['stride'] * (max(w.buffers) + 1))
-        for binding in w.buffers:
+        # as honeykrisp lays out a set: bindings in order, each count x stride after the previous ones (present
+        # bindings only; one descriptor per buffer binding, one per element of a descriptor array)
+        slots, off = [], 0
+        for binding in sorted(set(w.buffers) | set(w.barrays)):
+            keys = [f'{binding}.{e}' for e in range(len(w.barrays[binding]))] if binding in w.barrays else [binding]
+            for key in keys:
+                slots.append((off, key)); off += d['stride']
+        setmem = bytearray(off)
+        for off_, key in slots:
             for fld in d['fields']:
-                put_field(setmem, binding * d['stride'] // 4 + fld['word'],
-                          root_value(fld['value'].replace(':B', f':{binding}'), {'va': self.va, 'size': self.size, 'set_va': self.set_va}), fld.get('bytes', 4))
+                put_field(setmem, off_ // 4 + fld['word'],
+                          root_value(fld['value'].replace(':B', f':{key}'), {'va': self.va, 'size': self.size, 'set_va': self.set_va}), fld.get('bytes', 4))
         (work / 'set.bin').write_bytes(setmem)
         if info:
             self.wg, self.shared, self.regs = info['workgroup_size'], info['local_size'], info['nr_gprs']
@@ -3266,7 +3317,7 @@ class DriverLaunch:
             args += ['--uniform', f'{int(u)}={v & 0xffffffff:#x}', '--uniform', f'{int(u) + 1}={v >> 32:#x}']
         for u, v in (self.info or {}).get('uniform_init', {}).items():
             args += ['--uniform', f'{u}={v:#x}']
-        for b in self.w.buffers:
+        for b in list(self.w.buffers) + [k for k in self.va if isinstance(k, str)]:     # buffers, then descriptor-array elements
             args += ['--map', f'{self.va[b]:#x}={self.files[b]}']
         return grid, args
 
@@ -3402,6 +3453,8 @@ def input_hashes(w):
     h = {str(b): hashlib.sha256(init.tobytes()).hexdigest() for b, (init, _) in sorted(w.buffers.items()) if not isinstance(init, int)}
     h.update({f't{b}': hashlib.sha256(np.ascontiguousarray(t[0]).tobytes()).hexdigest() for b, t in sorted(w.textures.items())})
     h.update({f'i{b}': hashlib.sha256(np.ascontiguousarray(t[0]).tobytes()).hexdigest() for b, t in sorted(w.simages.items()) if t[0] is not None})
+    h.update({f'a{b}_{e}': hashlib.sha256(np.ascontiguousarray(a_).tobytes()).hexdigest() for b, arrs in sorted(w.barrays.items())
+              for e, a_ in enumerate(arrs)})
     if w.specs:
         h['specs'] = hashlib.sha256(json.dumps(sorted(w.specs.items())).encode()).hexdigest()
     return h
