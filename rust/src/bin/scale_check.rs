@@ -23,9 +23,10 @@ fn main() {
         let d = read_json(std::path::Path::new(&f)).unwrap();
         let steps: Vec<u32> = d["steps"].as_array().unwrap().iter().map(|x| x.as_u64().unwrap() as u32).collect();
         let mut errs = vec![];
-        for r in d["rows"].as_array().unwrap() {
+        let rows: Vec<&serde_json::Value> = d["rows"].as_array().unwrap().iter().filter(|r| r.get("core_cycles_per_step").and_then(|x| x.as_f64()).is_some()).collect();
+        // rows are independent: simulate them on every core (output order unchanged)
+        let preds = agx_sim::par::map_by(&rows, |r| r["groups"].as_u64().unwrap_or(1) * r["chains"].as_u64().unwrap_or(1), |r| {
             let idle: Vec<u64> = r.get("idle").and_then(|x| x.as_array()).map(|a| a.iter().filter_map(|v| v.as_u64()).collect()).unwrap_or_default();
-            let Some(meas) = r.get("core_cycles_per_step").and_then(|x| x.as_f64()) else { continue };
             let op = r["op"].as_str().unwrap();
             let ch = r["chains"].as_u64().unwrap() as u32;
             let g = r["groups"].as_u64().unwrap() as usize;
@@ -42,7 +43,11 @@ fn main() {
                 let seqs: Vec<&[usize]> = (0..g as u64).map(|k| if idle.contains(&k) { trs.pcs.as_slice() } else { tr.pcs.as_slice() }).collect();
                 cost::simulate_groups(&ins, &seqs, None, &p, false, None).unwrap().0
             };
-            let pred = to_ref(sim(steps[1]) - sim(steps[0])) / (t_ * (steps[1] - steps[0])) as f64;
+            to_ref(sim(steps[1]) - sim(steps[0])) / (t_ * (steps[1] - steps[0])) as f64
+        });
+        for (r, pred) in rows.into_iter().zip(preds) {
+            let meas = r["core_cycles_per_step"].as_f64().unwrap();
+            let (op, ch, g) = (r["op"].as_str().unwrap(), r["chains"].as_u64().unwrap(), r["groups"].as_u64().unwrap());
             let e = (pred - meas) / meas;
             errs.push(e.abs());
             if verbose {

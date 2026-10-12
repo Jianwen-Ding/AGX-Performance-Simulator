@@ -131,22 +131,23 @@ pub fn simulate(code: &[u8], l: &Launch, p: &Params) -> Result<Report, String> {
         let count = (m - first).min(r as u64);
         let mut traces = vec![];
         let mut wg_of = vec![];
-        let mut slot = 0u32;
         let mut warn = vec![];
-        for i in 0..count {
+        // (workgroup, group, slot) of every SIMD group; their traces are independent (emulated in parallel)
+        let jobs: Vec<(u64, u32, u32)> = (0..count).flat_map(|i| (0..gpw).map(move |g| (i, g, i as u32 * gpw + g))).collect();
+        let traced = crate::par::map(&jobs, |&(i, g, slot)| {
             let wg_index = ((first + i) * cores).min(n - 1); // representative workgroups spread over the grid
-            for g in 0..gpw {
-                let ctx = GroupCtx { wg_size: l.wg, wg_id: wg_coords(wg_index), group: g, core: 0, slot, uniforms: l.uniforms.clone() };
-                slot += 1;
-                let t = cost::trace_group(code, &ctx, l.max_steps)?;
-                for x in &t.warnings {
-                    if !warn.contains(x) {
-                        warn.push(x.clone());
-                    }
+            let ctx = GroupCtx { wg_size: l.wg, wg_id: wg_coords(wg_index), group: g, core: 0, slot, uniforms: l.uniforms.clone() };
+            cost::trace_group(code, &ctx, l.max_steps)
+        });
+        for (&(i, _, _), t) in jobs.iter().zip(traced) {
+            let t = t?;
+            for x in &t.warnings {
+                if !warn.contains(x) {
+                    warn.push(x.clone());
                 }
-                traces.push(t);
-                wg_of.push(i as u32);
             }
+            traces.push(t);
+            wg_of.push(i as u32);
         }
         let seqs: Vec<&[usize]> = traces.iter().map(|t| t.pcs.as_slice()).collect();
         let mems: Vec<&[(u32, Vec<u64>)]> = traces.iter().map(|t| t.mem.as_slice()).collect();
@@ -167,11 +168,11 @@ pub fn simulate(code: &[u8], l: &Launch, p: &Params) -> Result<Report, String> {
             let others: Vec<u64> = [1u64, 2, cores / 2, cores - 1].iter().copied().filter(|&k| k < n && k > 0).collect();
             let mut ovs = vec![];
             for &k in &others {
-                let mut tr = vec![];
-                for g in 0..gpw {
+                let gs: Vec<u32> = (0..gpw).collect();
+                let tr = crate::par::map(&gs, |&g| {
                     let ctx = GroupCtx { wg_size: l.wg, wg_id: wg_coords(k), group: g, core: 1, slot: g, uniforms: l.uniforms.clone() };
-                    tr.push(cost::trace_group(code, &ctx, l.max_steps)?);
-                }
+                    cost::trace_group(code, &ctx, l.max_steps)
+                }).into_iter().collect::<Result<Vec<_>, _>>()?;
                 ovs.push(cost::segment_overlap(&traces, &tr, &device_pcs));
             }
             if !ovs.is_empty() {
@@ -192,8 +193,10 @@ pub fn simulate(code: &[u8], l: &Launch, p: &Params) -> Result<Report, String> {
     todo.truncate(l.max_waves.max(1));
     let mut first_cycles = 0.0;
     let mut total = 0.0;
-    for &w in &todo {
-        let (count, c, warn) = sim_wave(w)?;
+    // the simulated waves are independent: run them concurrently (results combined in wave order)
+    let results = crate::par::map(&todo, |&w| sim_wave(w));
+    for (&w, res) in todo.iter().zip(results) {
+        let (count, c, warn) = res?;
         for x in warn {
             if !rep.warnings.contains(&x) {
                 rep.warnings.push(x);

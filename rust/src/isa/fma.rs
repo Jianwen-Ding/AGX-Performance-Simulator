@@ -89,6 +89,11 @@ pub fn f16_to_f64(bits: u64, ftz: bool) -> u64 {
 }
 
 pub fn f32_to_f64(bits: u64, ftz: bool) -> u64 {
+    let ef = (bits >> F32_FRACTION_BITS) & F32_EXPONENT_MASK as u64;
+    if ef != 0 && ef != F32_EXPONENT_MASK as u64 {
+        // normal: the hardware widening is exact and gives the same bits
+        return (f32::from_bits(bits as u32) as f64).to_bits();
+    }
     let s = bits >> F32_SIGN_SHIFT;
     let mut e = ((bits >> F32_FRACTION_BITS) as i64) & F32_EXPONENT_MASK;
     let mut f = bits & F32_FRACTION_MASK;
@@ -255,6 +260,43 @@ pub fn bfma64(bx: u64, by: u64, bz: u64, rounding: &Rounding) -> u64 {
     ((ps as u128) << 63).wrapping_add((pe as u128) << 52).wrapping_add(m) as u64
 }
 
+/// `bfma64(x, y, z, ROUND_TO_ODD)` for x and y with at most 24 significant bits (f32 / f16 values widened to f64,
+/// or 1.0), on the hardware FPU: the product is then exact in f64, the sum's rounding error comes from TwoSum, and an
+/// inexact sum is moved to the odd neighbour, which is the round-to-odd result. Anything outside plain finite non-zero
+/// normal values (NaN, infinities, zeros of the product, tiny or huge magnitudes) takes the exact software path.
+#[inline]
+pub fn fma_rto_narrow(x: u64, y: u64, z: u64) -> u64 {
+    const LOW29: u64 = (1 << 29) - 1;
+    let (a, b, c) = (f64::from_bits(x), f64::from_bits(y), f64::from_bits(z));
+    if (x | y) & LOW29 == 0 {
+        let p = a * b;
+        let ap = p.abs();
+        if ap > 1e-280 && ap < 1e280 {
+            if c == 0.0 {
+                return p.to_bits();
+            }
+            let ac = c.abs();
+            if ac > 1e-280 && ac < 1e280 {
+                let s = p + c;
+                if s.abs() > 1e-280 {
+                    let bb = s - p;
+                    let e = (p - (s - bb)) + (c - bb);
+                    let mut bits = s.to_bits();
+                    if e != 0.0 && bits & 1 == 0 {
+                        if (e > 0.0) == (s > 0.0) {
+                            bits += 1;
+                        } else {
+                            bits -= 1;
+                        }
+                    }
+                    return bits;
+                }
+            }
+        }
+    }
+    bfma64(x, y, z, &ROUND_TO_ODD)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -267,5 +309,52 @@ mod tests {
         assert_eq!(f32_to_f64(1.5f32.to_bits() as u64, true), 1.5f64.to_bits());
         assert_eq!(f64_to_f16(1.5f64.to_bits(), false), 0x3e00);
         assert_eq!(f16_to_f64(0x3e00, false), 1.5f64.to_bits());
+    }
+
+    /// the hardware-FPU round-to-odd fma equals the software one on f32 / f16 operands, specials included
+    #[test]
+    fn fma_rto_narrow_matches() {
+        let mut s: u64 = 0x9E3779B97F4A7C15;
+        let mut rnd = || {
+            s ^= s << 13;
+            s ^= s >> 7;
+            s ^= s << 17;
+            s
+        };
+        let special = [0u32, 0x80000000, 0x3f800000, 0xbf800000, 0x7f800000, 0xff800000, 0x7fc00000, 0x00000001, 0x007fffff,
+            0x00800000, 0x7f7fffff, 0xff7fffff, 0x33800000, 0x4b800000];
+        let mut pick = |r: u64| -> u64 {
+            let b = match r % 5 {
+                0 => special[(r >> 8) as usize % special.len()],
+                1 => (r >> 16) as u32 & 0x80ffffff | 0x3f000000, // near 1, both signs
+                2 => 0x3f800000 ^ ((r >> 20) as u32 & 0xff), // ulp-level neighbours of 1
+                _ => (r >> 13) as u32,
+            };
+            f32_to_f64(b as u64, r & (1 << 40) != 0)
+        };
+        for i in 0..3_000_000u64 {
+            let (x, y) = (pick(rnd()), pick(rnd()));
+            let z = if i % 7 == 0 { 0 } else if i % 11 == 0 { (-(f64::from_bits(x) * f64::from_bits(y))).to_bits() } else { pick(rnd()) };
+            let y = if i % 13 == 0 { F64_ONE } else { y };
+            assert_eq!(fma_rto_narrow(x, y, z), bfma64(x, y, z, &ROUND_TO_ODD), "{:016x} {:016x} {:016x}", x, y, z);
+        }
+    }
+
+    /// the fast normal-number widening equals the bitwise one (that is also the reference for the other cases)
+    #[test]
+    fn f32_to_f64_fast_path() {
+        for hi in 0..=0x1ffu64 {
+            for lo in [0u64, 1, 0x3ff, 0x400000, 0x7fffff, 0x123457] {
+                let bits = hi << 23 | lo;
+                let e = (bits >> 23) & 0xff;
+                if e == 0 || e == 0xff {
+                    continue;
+                }
+                let s = bits >> 31;
+                let slow = (s << 63) | (((e as i64 - 127 + 1023) as u64) << 52) | (lo << 29);
+                assert_eq!(f32_to_f64(bits, true), slow);
+                assert_eq!(f32_to_f64(bits, false), slow);
+            }
+        }
     }
 }

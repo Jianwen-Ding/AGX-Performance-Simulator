@@ -1369,6 +1369,7 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
     let mut stats: Vec<(u64, i64, i64, i64)> = vec![(0, 0, 0, 0); sim.len()];
     let mut wake: Vec<i64> = Vec::with_capacity(g);
     let mut sr_cache: Vec<Option<i64>> = vec![None; g];
+    let mut fresh_cache: Vec<Option<(usize, i64)>> = vec![None; g];
     let mut blk_cache: Vec<Option<i64>> = vec![None; g];
     let mut order: Vec<usize> = Vec::with_capacity(g);
 
@@ -1481,12 +1482,35 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
                         refilling.push(b);
                     }
                 }
+                // (the token test first: the forwarding count only matters once the unit has a token)
+                if tok[b].unwrap() < r.cost {
+                    wake.push(t + 1);
+                    continue;
+                }
                 need = r.need_port;
                 if need > 0.0 {
-                    let fresh = r.src32.iter().filter(|&&reg| matches!(wtime[gi].get(reg as usize), Some(Some((t0, _))) if t - t0 <= fwd)).count();
+                    // registers written within the forwarding window. Depends on this group's write times (which
+                    // change only when it issues) and can only drop as t grows: cached with the last tick it holds.
+                    let fresh = match fresh_cache[gi] {
+                        Some((n, until)) if t <= until => n,
+                        _ => {
+                            let wt = &wtime[gi];
+                            let (mut n, mut until) = (0usize, i64::MAX);
+                            for &reg in &r.src32 {
+                                if let Some(Some((t0, _))) = wt.get(reg as usize) {
+                                    if t - t0 <= fwd {
+                                        n += 1;
+                                        until = until.min(t0 + fwd);
+                                    }
+                                }
+                            }
+                            fresh_cache[gi] = Some((n, until));
+                            n
+                        }
+                    };
                     need = (need - (fresh as i64 * t_) as f64).max(0.0);
                 }
-                if tok[b].unwrap() < r.cost || port[half] < need {
+                if port[half] < need {
                     wake.push(t + 1);
                     continue;
                 }
@@ -1954,6 +1978,7 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
             nxt[gi] += 1;
             sr_cache[gi] = None;
             blk_cache[gi] = None;
+            fresh_cache[gi] = None;
             issued += 1;
             tick_issued[gi] = true;
             if nxt[gi] >= npcs[gi] {

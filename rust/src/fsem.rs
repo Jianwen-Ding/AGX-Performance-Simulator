@@ -7,7 +7,7 @@
 //! canonical NaN 0x7e00. `.sat`: clamp to [0, 1], NaN -> +0.
 
 use crate::isa::exec::{CoreState, SIMD_WIDTH};
-use crate::isa::fma::{bfma64, f16_to_f64, f64_to_f16, ROUND_TO_ODD};
+use crate::isa::fma::{f16_to_f64, f64_to_f16};
 use crate::isa::operand::{ImmVal, Operand, F_ABS, F_NEG, F_SX};
 use crate::isa::{fget, Fields};
 
@@ -97,7 +97,7 @@ pub fn sat(x: f64) -> f64 {
 }
 
 fn fma_odd(a: f64, b: f64, c: f64) -> f64 {
-    f64::from_bits(bfma64(a.to_bits(), b.to_bits(), c.to_bits(), &ROUND_TO_ODD))
+    f64::from_bits(crate::isa::fma::fma_rto_narrow(a.to_bits(), b.to_bits(), c.to_bits()))
 }
 
 /// Write a value to a destination operand for lane t (Reg16: low 16 bits, Reg32: 32, Reg64: 64).

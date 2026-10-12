@@ -553,7 +553,7 @@ impl Compiled {
                 let v = match memo {
                     Some((mx, my, mz, mv)) if (mx, my, mz) == (x, y, z) => mv,
                     _ => {
-                        let mut r = fma::bfma64(x, y, z, &fma::ROUND_TO_ODD);
+                        let mut r = fma::fma_rto_narrow(x, y, z);
                         if matches!(op, Fl::FMAdd32 | Fl::FAdd32 | Fl::FMul32) {
                             r = fma::f32_to_f64(fma::f64_to_f32(r, true), false);
                         }

@@ -376,7 +376,7 @@ fn exec_thread(c: &Ctx, ex: Ex, st: &mut CoreState, t: usize) -> R<()> {
                 Ex::FAdd32 | Ex::FAdd16 => (a, fma::F64_ONE, b),
                 _ => (a, b, 0),
             };
-            let mut r = fma::bfma64(x, y, z, &fma::ROUND_TO_ODD);
+            let mut r = fma::fma_rto_narrow(x, y, z);
             if matches!(ex, Ex::FMAdd32 | Ex::FAdd32 | Ex::FMul32) {
                 r = fma::f32_to_f64(fma::f64_to_f32(r, true), false);
             }

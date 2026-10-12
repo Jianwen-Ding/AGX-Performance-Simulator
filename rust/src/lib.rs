@@ -7,6 +7,7 @@ pub mod func;
 pub mod fsem;
 pub mod isa;
 pub mod kernels;
+pub mod par;
 pub mod pyrandom;
 pub mod transtab;
 
