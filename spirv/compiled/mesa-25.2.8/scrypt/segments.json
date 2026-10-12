@@ -1,0 +1,22 @@
+{
+ "blob": "spirv/compiled/mesa-25.2.8/scrypt/shader.bin",
+ "code_start": 2236,
+ "code_size": 15126,
+ "layout": "agx_shader_info",
+ "programs": [
+  {
+   "label": "main",
+   "file": "main.bin",
+   "offset": 0,
+   "bytes": 14884,
+   "instructions": 2053
+  },
+  {
+   "label": "preamble",
+   "file": "preamble.bin",
+   "offset": 14976,
+   "bytes": 134,
+   "instructions": 22
+  }
+ ]
+}

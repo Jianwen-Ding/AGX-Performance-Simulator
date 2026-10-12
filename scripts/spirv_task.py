@@ -2098,6 +2098,23 @@ def w_ghash(size, rng):
              [((nmsg + 63) // 64, 1, 1, push(nmsg, blocks))], check, 64, {'bytes': nmsg * 16 * blocks})
 
 
+def w_scrypt(size, rng):
+    N = 1024                                                                 # 128 KiB of scratchpad per hash
+    T = 64 if size == 'small' else 2048                                      # 8 MiB / 256 MiB of scratchpad
+    sc = lambda pw, salt: hashlib.scrypt(pw, salt=salt, n=N, r=1, p=1, dklen=64, maxmem=1 << 26)
+    rfc = hashlib.scrypt(b'', salt=b'', n=16, r=1, p=1, dklen=64)           # RFC 7914 section 12, first vector
+    assert rfc[:16].hex() == '77d6576238657b203b19ca42c18a0497', 'hashlib.scrypt disagrees with RFC 7914'
+    pws = [rng.integers(33, 127, int(rng.integers(8, 17)), dtype=np.uint8).tobytes() for _ in range(T)]
+    salts = [rng.integers(0, 256, 16, dtype=np.uint8).tobytes() for _ in range(T)]
+    B = np.frombuffer(b''.join(hashlib.pbkdf2_hmac('sha256', pw, sl, 1, 128) for pw, sl in zip(pws, salts)), np.uint32)
+    def check(o):
+        X = o[0][:128 * T].view(np.uint8).reshape(T, 128)
+        bad = sum(hashlib.pbkdf2_hmac('sha256', pw, X[t].tobytes(), 1, 64) != sc(pw, sl) for t, (pw, sl) in enumerate(zip(pws, salts)))
+        return bad == 0, {'bad_keys': int(bad), 'hashes': T, 'N': N, 'scratchpad_mib': N * 128 * T >> 20}
+    return W('scrypt', {0: (u32(B), True), 1: (N * 128 * T, False)}, [((T + 63) // 64, 1, 1, push(N, T))], check, 64,
+             {'hashes': T})
+
+
 def w_spmv(size, rng):
     rows, cols = (512, 512) if size == 'small' else (1 << 18, 1 << 18)
     nnz = rng.integers(0, 64, rows) * (rng.random(rows) < 0.95)    # some empty rows
@@ -4627,7 +4644,7 @@ WORKLOADS = {'reduce': w_reduce, 'scan': w_scan, 'sgemm': w_sgemm, 'conv2d': w_c
              'aluprobe': w_aluprobe, 'ubopalette': w_ubopalette, 'uboparams': w_uboparams,
              'bindless': w_bindless, 'bindlessu': w_bindlessu,
              # appended only: the input seed is the index in this dict
-             'rle': w_rle, 'huffdec': w_huffdec, 'lookback': w_lookback, 'hll': w_hll, 'tricount': w_tricount, 'sha3': w_sha3, 'stereo': w_stereo, 'viterbi': w_viterbi, 'viterbifix': w_viterbifix, 'shiftfuse': w_shiftfuse, 'bc1enc': w_bc1enc, 'lz4dec': w_lz4dec, 'nttmul': w_nttmul, 'topk': w_topk, 'cellsort': w_cellsort, 'boruvka': w_boruvka, 'biquad': w_biquad, 'edt': w_edt, 'mt19937': w_mt19937, 'bitap': w_bitap, 'cholesky': w_cholesky, 'rsshash': w_rsshash, 'poly1305': w_poly1305, 'crc32c': w_crc32c, 'siphash': w_siphash, 'blake2s': w_blake2s, 'blake2sfast': w_blake2sfast, 'q4gemv': w_q4gemv, 'attndec': w_attndec, 'attndecsplit': w_attndecsplit, 'rmsrope': w_rmsrope, 'q8dot': w_q8dot, 'isp': w_isp, 'contour': w_contour, 'hough': w_hough, 'spmvsg': w_spmvsg, 'varint': w_varint, 'bvhrays': w_bvhrays, 'adamw': w_adamw, 'stream': w_stream, 'motionest': w_motionest, 'jsonidx': w_jsonidx, 'cdc': w_cdc, 'swalign': w_swalign, 'swalignfit': w_swalignfit, 'swalignpad': w_swalignpad, 'jpcolor': w_jpcolor, 'postings': w_postings, 'tpchq6': w_tpchq6, 'ghash': w_ghash}
+             'rle': w_rle, 'huffdec': w_huffdec, 'lookback': w_lookback, 'hll': w_hll, 'tricount': w_tricount, 'sha3': w_sha3, 'stereo': w_stereo, 'viterbi': w_viterbi, 'viterbifix': w_viterbifix, 'shiftfuse': w_shiftfuse, 'bc1enc': w_bc1enc, 'lz4dec': w_lz4dec, 'nttmul': w_nttmul, 'topk': w_topk, 'cellsort': w_cellsort, 'boruvka': w_boruvka, 'biquad': w_biquad, 'edt': w_edt, 'mt19937': w_mt19937, 'bitap': w_bitap, 'cholesky': w_cholesky, 'rsshash': w_rsshash, 'poly1305': w_poly1305, 'crc32c': w_crc32c, 'siphash': w_siphash, 'blake2s': w_blake2s, 'blake2sfast': w_blake2sfast, 'q4gemv': w_q4gemv, 'attndec': w_attndec, 'attndecsplit': w_attndecsplit, 'rmsrope': w_rmsrope, 'q8dot': w_q8dot, 'isp': w_isp, 'contour': w_contour, 'hough': w_hough, 'spmvsg': w_spmvsg, 'varint': w_varint, 'bvhrays': w_bvhrays, 'adamw': w_adamw, 'stream': w_stream, 'motionest': w_motionest, 'jsonidx': w_jsonidx, 'cdc': w_cdc, 'swalign': w_swalign, 'swalignfit': w_swalignfit, 'swalignpad': w_swalignpad, 'jpcolor': w_jpcolor, 'postings': w_postings, 'tpchq6': w_tpchq6, 'ghash': w_ghash, 'scrypt': w_scrypt}
 
 
 # ---------------------------------------------------------------------------------------------------------------
