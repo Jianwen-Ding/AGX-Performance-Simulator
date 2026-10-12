@@ -57,7 +57,7 @@ The rest of this file is the detailed procedure, for investigating results.
 
 ## Workloads
 
-One hundred and sixty-three realistic compute kernels, written in GLSL (`spirv/shaders/*.comp`) and compiled to SPIR-V:
+One hundred and sixty-four realistic compute kernels, written in GLSL (`spirv/shaders/*.comp`) and compiled to SPIR-V:
 
 | Workload | Kernel | Stresses |
 |---|---|---|
@@ -224,6 +224,7 @@ One hundred and sixty-three realistic compute kernels, written in GLSL (`spirv/s
 | `varint` | Protobuf sint32 serialisation: zigzag + LEB128 varints packed back to back (count, scan, scatter) | 8-bit storage-buffer stores at unaligned byte offsets, a shared-memory scan per workgroup, a serial one-invocation offsets pass; requires `storage_buffer_8bit` |
 | `bvhrays` | Closest-hit ray traversal of a median-split BVH over a triangle mesh, short stack in shared memory, Möller-Trumbore tests | Pointer-chasing node fetches, per-lane divergent traversal depth and order, `1/x` and cross products, a 12 KiB shared-memory stack |
 | `adamw` | One AdamW optimiser step over 4M fp32 parameters, updated in place with both moments | Pure streaming (28 bytes per element), `sqrt` / division, buffers both read and written back |
+| `stream` | STREAM (Copy, Scale, Add, Triad) plus a pure read and a pure fill over 64 MiB fp32 arrays, one dispatch each | Memory bandwidth by access kind; `probes` reports measured and modelled GB/s per kind |
 
 Each workload has two sizes:
 

@@ -1644,6 +1644,32 @@ def w_adamw(size, rng):
              {'bytes': 28 * n})
 
 
+STREAM_KINDS = ['copy', 'scale', 'add', 'triad', 'read', 'fill']
+STREAM_BYTES = [8, 8, 12, 12, 4, 4]                                          # bytes moved per element
+
+
+def w_stream(size, rng):
+    n = 1 << 16 if size == 'small' else 1 << 24                                # 64 MiB per array at the large size
+    sc = 3.0
+    a0 = f32(rng.uniform(0.5, 1.5, n)); b0 = f32(rng.uniform(0.5, 1.5, n)); c0 = f32(rng.uniform(0.5, 1.5, n))
+    def check(o):
+        A, B, C, D = (o[k].view(np.float32)[:n].astype(np.float64) for k in range(4))
+        S = o[4].view(np.float32)[:n // 4096].astype(np.float64)
+        c1 = a0.astype(np.float64); b1 = np.float32(sc) * c1                  # the sequence of the 4 STREAM kernels
+        c2 = a0.astype(np.float64) + b1.astype(np.float32); a1 = b1.astype(np.float32) + np.float32(sc) * c2.astype(np.float32)
+        tol = lambda x: 4 * 2.0 ** -24 * np.abs(x) + 1e-30                    # 2 ulps: fused or not, either rounding
+        errs = {'b': float(np.max(np.abs(B - b1) / tol(b1))), 'c': float(np.max(np.abs(C - c2) / tol(c2))),
+                'a': float(np.max(np.abs(A - a1) / tol(a1)))}
+        rs = a1.reshape(-1, 4096).sum(1)                                     # read kernel sums a after triad
+        rerr = float(np.max(np.abs(S - rs) / (np.abs(a1).reshape(-1, 4096).sum(1) * 4096 * 2.0 ** -24)))
+        fill_ok = bool(np.array_equal(D, (np.arange(n) & 1023).astype(np.float64)))
+        ok = max(errs.values()) <= 1 and rerr <= 1 and fill_ok
+        return ok, {'max_err_over_bound': {**{k: round(v, 3) for k, v in errs.items()}, 'read_sums': round(rerr, 3)}, 'fill_ok': fill_ok}
+    ds = [((n + 255) // 256, 1, 1, push(k, n, sc)) for k in range(4)] + [(n // 4096, 1, 1, push(4, n, sc)), ((n + 255) // 256, 1, 1, push(5, n, sc))]
+    return W('stream', {0: (a0, True), 1: (b0, True), 2: (c0, True), 3: (4 * n, True), 4: (4 * (n // 4096), True)}, ds, check, 256,
+             {'bytes': sum(STREAM_BYTES) * 4 * n // 4})
+
+
 def w_spmv(size, rng):
     rows, cols = (512, 512) if size == 'small' else (1 << 18, 1 << 18)
     nnz = rng.integers(0, 64, rows) * (rng.random(rows) < 0.95)    # some empty rows
@@ -4173,7 +4199,7 @@ WORKLOADS = {'reduce': w_reduce, 'scan': w_scan, 'sgemm': w_sgemm, 'conv2d': w_c
              'aluprobe': w_aluprobe, 'ubopalette': w_ubopalette, 'uboparams': w_uboparams,
              'bindless': w_bindless, 'bindlessu': w_bindlessu,
              # appended only: the input seed is the index in this dict
-             'rle': w_rle, 'huffdec': w_huffdec, 'lookback': w_lookback, 'hll': w_hll, 'tricount': w_tricount, 'sha3': w_sha3, 'stereo': w_stereo, 'viterbi': w_viterbi, 'viterbifix': w_viterbifix, 'shiftfuse': w_shiftfuse, 'bc1enc': w_bc1enc, 'lz4dec': w_lz4dec, 'nttmul': w_nttmul, 'topk': w_topk, 'cellsort': w_cellsort, 'boruvka': w_boruvka, 'biquad': w_biquad, 'edt': w_edt, 'mt19937': w_mt19937, 'bitap': w_bitap, 'cholesky': w_cholesky, 'rsshash': w_rsshash, 'poly1305': w_poly1305, 'crc32c': w_crc32c, 'siphash': w_siphash, 'blake2s': w_blake2s, 'blake2sfast': w_blake2sfast, 'q4gemv': w_q4gemv, 'attndec': w_attndec, 'attndecsplit': w_attndecsplit, 'rmsrope': w_rmsrope, 'q8dot': w_q8dot, 'isp': w_isp, 'contour': w_contour, 'hough': w_hough, 'spmvsg': w_spmvsg, 'varint': w_varint, 'bvhrays': w_bvhrays, 'adamw': w_adamw}
+             'rle': w_rle, 'huffdec': w_huffdec, 'lookback': w_lookback, 'hll': w_hll, 'tricount': w_tricount, 'sha3': w_sha3, 'stereo': w_stereo, 'viterbi': w_viterbi, 'viterbifix': w_viterbifix, 'shiftfuse': w_shiftfuse, 'bc1enc': w_bc1enc, 'lz4dec': w_lz4dec, 'nttmul': w_nttmul, 'topk': w_topk, 'cellsort': w_cellsort, 'boruvka': w_boruvka, 'biquad': w_biquad, 'edt': w_edt, 'mt19937': w_mt19937, 'bitap': w_bitap, 'cholesky': w_cholesky, 'rsshash': w_rsshash, 'poly1305': w_poly1305, 'crc32c': w_crc32c, 'siphash': w_siphash, 'blake2s': w_blake2s, 'blake2sfast': w_blake2sfast, 'q4gemv': w_q4gemv, 'attndec': w_attndec, 'attndecsplit': w_attndecsplit, 'rmsrope': w_rmsrope, 'q8dot': w_q8dot, 'isp': w_isp, 'contour': w_contour, 'hough': w_hough, 'spmvsg': w_spmvsg, 'varint': w_varint, 'bvhrays': w_bvhrays, 'adamw': w_adamw, 'stream': w_stream}
 
 
 # ---------------------------------------------------------------------------------------------------------------
@@ -5005,6 +5031,10 @@ def cmd_probes(a):
                                    'dep_over_x8_model': [round(p_[k] / p_[k + 1], 2) for k in (0, 2, 4)] if p_ else None},
         'rule110': lambda m, p_: {'us_per_dispatch_measured': round(float(np.median(m)), 2) if m else None,
                                   'us_per_dispatch_model': round(float(np.median(p_)), 2) if p_ else None},
+        # GB/s per STREAM kind (large size: 2^24 elements): read vs fill vs copy separates read, write and write-back
+        'stream': lambda m, p_: {'kinds': STREAM_KINDS,
+                                 'gbps_measured': [round(b * (1 << 24) / t / 1e3, 1) for b, t in zip(STREAM_BYTES, m)] if len(m) == 6 else None,
+                                 'gbps_model': [round(b * (1 << 24) / t / 1e3, 1) for b, t in zip(STREAM_BYTES, p_)] if p_ and len(p_) == 6 else None},
     }
     for name, derive in probes.items():
         r = rec_of(name)
