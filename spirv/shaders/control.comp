@@ -1,0 +1,42 @@
+#version 450
+// Control flow: a 10-way switch with fallthrough-free cases and a default, nested loops with break / continue,
+// an early return per lane, and a function called from inside a loop. All integer, per-thread.
+layout(local_size_x = 64) in;
+layout(std430, binding = 0) readonly buffer I { uint inp[]; };
+layout(std430, binding = 1) writeonly buffer O { uint o[]; };
+layout(push_constant) uniform P { uint n; } p;
+
+uint step_fn(uint v, uint k) {
+    switch (v % 10u) {
+        case 0u: return v + k;
+        case 1u: return v * 3u + 1u;
+        case 2u: return v >> 1;
+        case 3u: return v ^ 0x5a5a5a5au;
+        case 4u: return v - k;
+        case 5u: return (v << 3) | (v >> 29);
+        case 6u: return v * v;
+        case 7u: return ~v;
+        case 8u: return v + 0x9e3779b9u;
+        default: return v / 3u;
+    }
+}
+
+void main() {
+    uint i = gl_GlobalInvocationID.x;
+    if (i >= p.n) return;
+    uint v = inp[i];
+    if ((v & 63u) == 0u) { o[2u * i] = 0xdeadu; o[2u * i + 1u] = 0u; return; }   // early return in some lanes
+    uint acc = 0u, iters = 0u;
+    for (uint outer = 0u; outer < 8u; outer++) {
+        if (((v >> outer) & 7u) == 5u) continue;
+        for (uint inner = 0u; inner < 16u; inner++) {
+            v = step_fn(v, inner + outer);
+            iters++;
+            if ((v & 255u) == 7u) break;
+            if ((v & 3u) == 1u) continue;
+            acc += v;
+        }
+        if (acc > 0xf0000000u) break;
+    }
+    o[2u * i] = acc; o[2u * i + 1u] = iters;
+}

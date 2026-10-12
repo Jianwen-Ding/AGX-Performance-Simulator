@@ -1,6 +1,6 @@
 # SPIR-V workloads on AGX: shared procedure
 
-Eighteen realistic compute kernels, written in GLSL (`spirv/shaders/*.comp`) and compiled to SPIR-V:
+Twenty-four realistic compute kernels, written in GLSL (`spirv/shaders/*.comp`) and compiled to SPIR-V:
 
 | Workload | Kernel | Stresses |
 |---|---|---|
@@ -22,19 +22,26 @@ Eighteen realistic compute kernels, written in GLSL (`spirv/shaders/*.comp`) and
 | `mandelbrot` | Q13 fixed-point iteration counts | Divergent loops with per-lane trip counts (exact integers) |
 | `softmax` | Row softmax, shared-memory max and sum trees | exp, barriers in loops, reductions |
 | `rgba8` | unpack/packUnorm4x8 tone curve, luma through 8-bit storage | unorm conversions, byte stores |
+| `atomics` | Every device atomic with returns, contended and distinct words; threadgroup counter and max | Atomic return values, contention, shared atomics |
+| `geom3d` | 4×4×2 workgroups over a ragged 3-D grid, every built-in id written | 3-D ids, partial workgroups |
+| `spill` | 96-word private array with data-dependent indices | Register spills: `stack_store` / `stack_load` |
+| `control` | 10-way switch, nested break / continue, early returns, a called function | Branch-heavy integer control flow |
+| `shuffle` | subgroupShuffle / Xor / Up / Down / Broadcast | Cross-lane shuffles (reference follows the reported subgroup size) |
+| `floatops` | min / max / clamp / abs / sign / floor / ceil / fract / round / trunc / step / compares on special values | Exact float semantics (±0, ±inf, ties) |
 
 Each workload has two sizes:
 
 - **small:** for the simulator.
 - **large:** for timing. 3–470 ms per run on lavapipe (CPU).
 
-The five task files group them:
+The six task files group them:
 
 - `spirv-01-reduce-scan.md`
 - `spirv-02-sgemm-conv2d.md`
 - `spirv-03-histogram-bitonic.md`
 - `spirv-04-nbody-sha256.md`
-- `spirv-05-isa-coverage.md` (the last ten: integer, fp16, 64-bit, 8-bit and subgroup features the first eight do not reach)
+- `spirv-05-isa-coverage.md` (integer, fp16, 64-bit, 8-bit and subgroup features the first eight do not reach)
+- `spirv-06-semantics.md` (atomics, 3-D geometry, spills, control flow, shuffles, exact float operations)
 
 Every workload already passes its numpy reference on Mesa lavapipe (CPU Vulkan), at both sizes. A wrong result on the
 M2 is therefore a GPU, driver or runner finding, not a shader bug.
@@ -105,9 +112,9 @@ M2 is therefore a GPU, driver or runner finding, not a shader bug.
    python3 -B scripts/spirv_task.py sim sgemm --code-dir spirv/out/sgemm-small/code --hardware spirv/out/sgemm-small
    ```
 
-   - Offline, all eighteen workloads already pass their references with Mesa 25.2.8 and 26.0.3 code (`make spirv-sim`).
+   - Offline, all twenty-four workloads already pass their references with Mesa 25.2.8 and 26.0.3 code (`make spirv-sim`).
    - Integer workloads (`scan`, `histogram`, `bitonic`, `sha256`, `int64`, `bitops`, `intdiv`, `compact`, `transpose`,
-     `mandelbrot`, and reduce's uint half) must match the hardware word for word.
+     `mandelbrot`, `atomics`, `geom3d`, `spill`, `control`, `shuffle`, `floatops`, and reduce's uint half) must match the hardware word for word.
    - Float workloads only need to be close: within the workload's reference tolerance. Last-bit float differences
      (fp32 transcendentals, summation order) are not worth chasing.
    - When `agx_run` stops on an unimplemented instruction or format, that is the finding: report it, and implement it

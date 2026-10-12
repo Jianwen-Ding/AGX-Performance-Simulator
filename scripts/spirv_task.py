@@ -389,10 +389,172 @@ def w_rgba8(size, rng):
     return W('rgba8', {0: (px, False), 1: (4 * n, True), 2: (n, True)}, [((n + 255) // 256, 1, 1, push(n))], check, 256, {'bytes': 9 * n})
 
 
+
+def w_atomics(size, rng):
+    n = 1024 if size == 'small' else 1 << 18
+    val = u32(rng.integers(0, 1 << 32, 2 * n, dtype=np.uint64)); a, b = val[0::2], val[1::2]
+    dist = u32(rng.integers(0, 1 << 32, 8 * n, dtype=np.uint64)).reshape(n, 8)
+    swap = rng.random(n) < 0.5
+    dist[swap, 7] = b[swap]                                       # half the compare-swaps succeed
+    cont = u32(rng.integers(0, 1 << 32, 16, dtype=np.uint64))
+    def check(o):
+        got_d = o[0].view(np.uint32)[:8 * n].reshape(n, 8); got_c = o[1].view(np.uint32)[:16]
+        ret = o[3].view(np.uint32)[:11 * n].reshape(n, 11).astype(np.uint64)
+        d64, a64 = dist.astype(np.uint64), a.astype(np.uint64)
+        fin = np.stack([(d64[:, 0] + a64) & 0xffffffff, np.minimum(d64[:, 1], a64), np.maximum(d64[:, 2], a64), d64[:, 3] & a64,
+                        d64[:, 4] | a64, d64[:, 5] ^ a64, a64, np.where(d64[:, 7] == b, a64, d64[:, 7])], 1)
+        bad = {'distinct_returns': int(np.sum(ret[:, :8] != d64)), 'distinct_finals': int(np.sum(got_d != fin))}
+        add = a64 & 0xffff
+        lanes = np.arange(n) % 8
+        fin_add = [(int(cont[k]) + int(add[lanes == k].sum())) & 0xffffffff for k in range(8)]
+        fin_max = [max(int(cont[8 + k]), int(a64[lanes == k].max())) for k in range(8)]
+        bad['contended_finals'] = sum(int(got_c[k]) != fin_add[k] for k in range(8)) + sum(int(got_c[8 + k]) != fin_max[k] for k in range(8))
+        chain = 0                                                  # returns of one word form a chain init -> final
+        for k in range(8):
+            r_ = ret[lanes == k, 8]; ad = add[lanes == k]
+            chain += sorted(((r_ + ad) & 0xffffffff).tolist() + [int(cont[k])]) != sorted(r_.tolist() + [fin_add[k]])
+        bad['contended_chain'] = chain
+        wg = np.arange(n) // 256
+        bad['tg_counter'] = sum(sorted(ret[wg == g, 9].tolist()) != list(range(int(np.sum(wg == g)))) for g in range(int(wg.max()) + 1))
+        bad['tg_max'] = int(sum(np.sum(ret[wg == g, 10] != a64[wg == g].max()) for g in range(int(wg.max()) + 1)))
+        return not any(bad.values()), bad
+    return W('atomics', {0: (dist, True), 1: (cont, True), 2: (val, False), 3: (44 * n, True)}, [((n + 255) // 256, 1, 1, push(n))],
+             check, 256, {'atomics': 11 * n})
+
+
+def w_geom3d(size, rng):
+    ex, ey, ez = (9, 7, 5) if size == 'small' else (300, 200, 30)
+    gx, gy, gz = (ex + 3) // 4, (ey + 3) // 4, (ez + 1) // 2
+    def check(o):
+        got = o[0].view(np.uint32)[:12 * ex * ey * ez].reshape(ez, ey, ex, 12)
+        z, y, x = np.meshgrid(np.arange(ez), np.arange(ey), np.arange(ex), indexing='ij')
+        lx, ly, lz = x % 4, y % 4, z % 2
+        ref = np.stack([x, y, z, lx, ly, lz, lz * 16 + ly * 4 + lx, x // 4, y // 4, z // 2,
+                        np.full_like(x, gx * 10000 + gy * 100 + gz), np.full_like(x, 32)], -1)
+        bad = got != ref
+        return not bad.any(), {'mismatches': int(bad.sum()), 'by_field': {str(k): int(v) for k, v in enumerate(bad.reshape(-1, 12).sum(0)) if v}}
+    return W('geom3d', {0: (48 * ex * ey * ez, True)}, [(gx, gy, gz, push(ex, ey, ez))], check, (4, 4, 2), {'threads': ex * ey * ez})
+
+
+def spill_ref(seed, steps):
+    m = 0xffffffff
+    s = seed; arr = []
+    for _ in range(96):
+        s = (s * 1664525 + 1013904223) & m; arr.append(s)
+    idx, acc = s % 96, 0
+    for k in range(steps & 255):
+        v = arr[idx]; arr[idx] = v ^ (v >> 7) ^ k; acc = (acc * 31 + v) & m; idx = ((v + k) & m) % 96
+    x = 0
+    for k in range(96):
+        x ^= (arr[k] * (k + 1)) & m
+    return [acc, x, idx, arr[(acc ^ x) % 96]]
+
+
+def w_spill(size, rng):
+    n = 256 if size == 'small' else 1 << 18
+    inp = u32(rng.integers(0, 1 << 32, 4 * n, dtype=np.uint64)).reshape(n, 4)
+    def check(o):
+        got = o[1].view(np.uint32)[:4 * n].reshape(n, 4)
+        rows = range(n) if size == 'small' else rng.choice(n, 2048, replace=False)
+        bad = sum([int(v) for v in got[i]] != spill_ref(int(inp[i, 0]), int(inp[i, 1])) for i in rows)
+        return bad == 0, {'bad_rows': int(bad)}
+    return W('spill', {0: (inp, False), 1: (16 * n, True)}, [((n + 63) // 64, 1, 1, push(n))], check, 64, {'threads': n})
+
+
+def control_ref(v):
+    m = 0xffffffff
+    if v & 63 == 0:
+        return [0xdead, 0]
+    def step(v, k):
+        c = v % 10
+        return [(v + k) & m, (v * 3 + 1) & m, v >> 1, v ^ 0x5a5a5a5a, (v - k) & m, ((v << 3) | (v >> 29)) & m, (v * v) & m,
+                ~v & m, (v + 0x9e3779b9) & m, v // 3][c]
+    acc = iters = 0
+    for outer in range(8):
+        if (v >> outer) & 7 == 5:
+            continue
+        for inner in range(16):
+            v = step(v, inner + outer); iters += 1
+            if v & 255 == 7: break
+            if v & 3 == 1: continue
+            acc = (acc + v) & m
+        if acc > 0xf0000000: break
+    return [acc, iters]
+
+
+def w_control(size, rng):
+    n = 1024 if size == 'small' else 1 << 18
+    inp = u32(rng.integers(0, 1 << 32, n, dtype=np.uint64))
+    def check(o):
+        got = o[1].view(np.uint32)[:2 * n].reshape(n, 2)
+        rows = range(n) if size == 'small' else rng.choice(n, 4096, replace=False)
+        bad = sum([int(v) for v in got[i]] != control_ref(int(inp[i])) for i in rows)
+        return bad == 0, {'bad_rows': int(bad)}
+    return W('control', {0: (inp, False), 1: (8 * n, True)}, [((n + 63) // 64, 1, 1, push(n))], check, 64, {'threads': n})
+
+
+def w_shuffle(size, rng):
+    n = 1024 if size == 'small' else 1 << 20
+    v = u32(rng.integers(0, 1 << 32, n, dtype=np.uint64))
+    def check(o):
+        S = int(o[2].view(np.uint32)[0])
+        got = o[1].view(np.uint32)[:6 * n].reshape(n, 6).astype(np.int64)
+        i = np.arange(n); lane = i % S; base = i - lane; v64 = v.astype(np.int64)
+        sums = (v64.reshape(-1, S).sum(1) & 0xffffffff).repeat(S)
+        ref = np.stack([v64[base + (lane + 1) % S], v64[base + (lane + (v64 & 7)) % S], sums,
+                        np.where(lane >= 1, v64[np.maximum(i - 1, 0)], v64), np.where(lane + 2 < S, v64[np.minimum(i + 2, n - 1)], v64),
+                        v64[base + 1]], 1)
+        bad = got != ref
+        return S in (4, 8, 16, 32, 64, 128) and not bad.any(), {'subgroup_size': S, 'mismatches': int(bad.sum()),
+                                                                 'by_output': {str(k): int(c) for k, c in enumerate(bad.sum(0)) if c}}
+    return W('shuffle', {0: (v, False), 1: (24 * n, True), 2: (4, True)}, [(n // 128, 1, 1, push(n))], check, 128, {'items': n})
+
+
+def floatops_inputs(n, rng):
+    special = np.array([0.0, -0.0, 1.0, -1.0, 0.5, -0.5, 1.5, -1.5, 2.5, -2.5, 3.0, -3.0, 2.25, np.inf, -np.inf,
+                        3.4028235e38, -3.4028235e38, 1.1754944e-38, -1.1754944e-38, 1e30, -1e30, 8388608.5, -8388609.0, 0.75], np.float32)
+    bits = rng.integers(0, 1 << 32, n, dtype=np.uint64).astype(np.uint32)
+    e = (bits >> 23) & 0xff
+    bits = np.where((e == 0) | (e == 255), bits ^ 0x40000000, bits)          # no denormals / NaN
+    x = bits.view(np.float32).copy()
+    small_neg = (x < 0) & (x > -1)                                           # fract exact: multiples of 2^-20
+    x[small_neg] = -rng.integers(1, 1 << 20, int(small_neg.sum())) * 2.0 ** -20
+    pick = rng.random(n)
+    x = np.where(pick < 0.3, rng.choice(special, n), np.where(pick < 0.5, np.round(rng.uniform(-6, 6, n) * 4) / 4, x)).astype(np.float32)
+    return x
+
+
+def w_floatops(size, rng):
+    n = 2048 if size == 'small' else 1 << 18
+    x, y = floatops_inputs(n, rng), floatops_inputs(n, rng)
+    inp = f32(np.stack([x, y], 1))
+    def check(o):
+        got = o[1].view(np.uint32)[:16 * n].reshape(n, 16)
+        g = got.view(np.float32)
+        same = lambda k, ref, either_zero=None: (got[:, k] == ref.astype(np.float32).view(np.uint32)) | (
+            either_zero if either_zero is not None else False)
+        zeros_eq = (x == y)                                                   # min/max of equal values (incl. +-0): either
+        with np.errstate(invalid='ignore', over='ignore'):               # inf - inf in fract, max + max in output 14
+            fin = np.isfinite(x)
+            half = (np.abs(x - np.trunc(x)) == 0.5)
+            away = np.trunc(x + np.copysign(0.5, x)).astype(np.float32)
+            ok = [same(0, np.minimum(x, y), zeros_eq & (g[:, 0] == x)), same(1, np.maximum(x, y), zeros_eq & (g[:, 1] == x)),
+                  same(2, np.clip(x, np.float32(-1.5), np.float32(2.25)), (x == 0) & (g[:, 2] == 0)),
+                  same(3, np.abs(x)), same(4, np.sign(x), (x == 0) & (g[:, 4] == 0)), same(5, np.floor(x)), same(6, np.ceil(x)),
+                  same(7, x - np.floor(x)) | ~fin, same(8, np.round(x), half & (g[:, 8] == away)), same(9, np.round(x)),
+                  same(10, np.trunc(x)), same(11, np.where(x < y, 0.0, 1.0)), same(12, -x),
+                  got[:, 13] == ((x < y) | (x <= y) << 1 | (x == y) << 2 | (x != y) << 3 | (x > y) << 4 | (x >= y) << 5),
+                  same(14, np.abs(x) + np.abs(y)), same(15, np.maximum(np.minimum(x, np.float32(1e30)), np.float32(-1e30)))]
+        bad = {str(k): int((~np.asarray(v)).sum()) for k, v in enumerate(ok) if (~np.asarray(v)).any()}
+        return not bad, {'mismatches_by_output': bad}
+    return W('floatops', {0: (inp, False), 1: (64 * n, True)}, [((n + 63) // 64, 1, 1, push(n))], check, 64, {'items': n})
+
+
 WORKLOADS = {'reduce': w_reduce, 'scan': w_scan, 'sgemm': w_sgemm, 'conv2d': w_conv2d, 'histogram': w_histogram,
              'nbody': w_nbody, 'bitonic': w_bitonic, 'sha256': w_sha256, 'fp16': w_fp16, 'int64': w_int64, 'bitops': w_bitops,
              'intdiv': w_intdiv, 'compact': w_compact, 'spmv': w_spmv, 'transpose': w_transpose, 'mandelbrot': w_mandelbrot,
-             'softmax': w_softmax, 'rgba8': w_rgba8}
+             'softmax': w_softmax, 'rgba8': w_rgba8, 'atomics': w_atomics, 'geom3d': w_geom3d, 'spill': w_spill,
+             'control': w_control, 'shuffle': w_shuffle, 'floatops': w_floatops}
 
 
 # ---------------------------------------------------------------------------------------------------------------

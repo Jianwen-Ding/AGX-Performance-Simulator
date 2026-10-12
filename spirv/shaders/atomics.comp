@@ -1,0 +1,34 @@
+#version 450
+// Device and threadgroup atomics with returned values. Each thread:
+// - distinct word i: add, min, max, and, or, xor, exchange, compare-swap (deterministic returns and finals)
+// - contended word (i % 8): atomicAdd and atomicMax (finals deterministic; returns checked as a set)
+// - threadgroup counter: atomicAdd(1) returns a permutation of 0..255 per workgroup; written out
+layout(local_size_x = 256) in;
+layout(std430, binding = 0) buffer D { uint dist[]; };          // 8 words per thread
+layout(std430, binding = 1) buffer C { uint cont[]; };          // 16 words: 8 add, 8 max
+layout(std430, binding = 2) readonly buffer V { uint val[]; };  // 2 operands per thread
+layout(std430, binding = 3) writeonly buffer R { uint ret[]; }; // 11 returns per thread
+layout(push_constant) uniform P { uint n; } p;
+shared uint tgc;
+shared uint tgmax;
+
+void main() {
+    uint i = gl_GlobalInvocationID.x;
+    if (gl_LocalInvocationID.x == 0u) { tgc = 0u; tgmax = 0u; }
+    barrier();
+    uint a = val[2u * i], b = val[2u * i + 1u], d = 8u * i, r = 11u * i;
+    ret[r + 0u] = atomicAdd(dist[d + 0u], a);
+    ret[r + 1u] = atomicMin(dist[d + 1u], a);
+    ret[r + 2u] = atomicMax(dist[d + 2u], a);
+    ret[r + 3u] = atomicAnd(dist[d + 3u], a);
+    ret[r + 4u] = atomicOr(dist[d + 4u], a);
+    ret[r + 5u] = atomicXor(dist[d + 5u], a);
+    ret[r + 6u] = atomicExchange(dist[d + 6u], a);
+    ret[r + 7u] = atomicCompSwap(dist[d + 7u], b, a);          // swaps when the word equals b
+    ret[r + 8u] = atomicAdd(cont[i % 8u], a & 0xffffu);
+    atomicMax(cont[8u + i % 8u], a);
+    ret[r + 9u] = atomicAdd(tgc, 1u);
+    atomicMax(tgmax, a);
+    barrier();
+    ret[r + 10u] = tgmax;
+}

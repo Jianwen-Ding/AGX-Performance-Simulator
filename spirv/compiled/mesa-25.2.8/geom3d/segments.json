@@ -1,0 +1,22 @@
+{
+ "blob": "spirv/compiled/mesa-25.2.8/geom3d/shader.bin",
+ "code_start": 2236,
+ "code_size": 756,
+ "layout": "agx_shader_info",
+ "programs": [
+  {
+   "label": "main",
+   "file": "main.bin",
+   "offset": 0,
+   "bytes": 390,
+   "instructions": 59
+  },
+  {
+   "label": "preamble",
+   "file": "preamble.bin",
+   "offset": 512,
+   "bytes": 228,
+   "instructions": 36
+  }
+ ]
+}

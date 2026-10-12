@@ -1,0 +1,36 @@
+0x0200  0501100d00c87200         device_load 0, i32, xyz, r0_r1_r2, u0_u1, 1, signed, lsl 2
+0x0208  3800                     wait 0
+0x020a  7e11400a8000             mov r4, r0
+0x0210  7e15420a8000             mov r5, r1
+0x0216  c520803d0080f000         uniform_store 2, i16, xyzw, 0, r4l_r4h_r5l_r5h, 8
+0x021e  c510c03d00803000         uniform_store 2, i16, xy, 0, r2l_r2h, 12
+0x0226  0e01000064001000         iadd r0, 0, r0.sx, lsl 2
+0x022e  c500e03d00803000         uniform_store 2, i16, xy, 0, r0l_r0h, 14
+0x0236  0e01002064001000         iadd r0, 0, r1.sx, lsl 2
+0x023e  c500003d01803000         uniform_store 2, i16, xy, 0, r0l_r0h, 16
+0x0246  0e010040e4000000         iadd r0, 0, r2.sx, lsl 1
+0x024e  c500203d01803000         uniform_store 2, i16, xy, 0, r0l_r0h, 18
+0x0256  0501700d01c81200         device_load 0, i32, x, r0, u0_u1, 23, signed, lsl 2
+0x025e  3800                     wait 0
+0x0260  c500403d01803000         uniform_store 2, i16, xy, 0, r0l_r0h, 20
+0x0268  0501d00d05c01200         device_load 0, i32, x, r0, u0_u1, 93, signed
+0x0270  3800                     wait 0
+0x0272  c500603d01803000         uniform_store 2, i16, xy, 0, r0l_r0h, 22
+0x027a  0509f00d02c41200         device_load 0, i32, x, r1, u0_u1, 47, signed, lsl 1
+0x0282  3800                     wait 0
+0x0284  c508803d01803000         uniform_store 2, i16, xy, 0, r1l_r1h, 24
+0x028c  c500a03d01803000         uniform_store 2, i16, xy, 0, r0l_r0h, 26
+0x0294  0501700d02c83200         device_load 0, i32, xy, r0_r1, u0_u1, 39, signed, lsl 2
+0x029c  3800                     wait 0
+0x029e  0501004500c0f200         device_load 1, i32, xyzw, r0_r1_r2_r3, r0_r1, 0, signed
+0x02a6  3801                     wait 1
+0x02a8  c500c03d0180f000         uniform_store 2, i16, xyzw, 0, r0l_r0h_r1l_r1h, 28
+0x02b0  0501100d00c43200         device_load 0, i32, xy, r0_r1, u0_u1, 1, signed, lsl 1
+0x02b8  3800                     wait 0
+0x02ba  0501004500c07200         device_load 1, i32, xyz, r0_r1_r2, r0_r1, 0, signed
+0x02c2  3801                     wait 1
+0x02c4  1e05424602440601         imadd r1, r1.sx, 100, r2.sx
+0x02cc  620910270000             mov_imm r2, 10000, 0b0
+0x02d2  1e01404664420600         imadd r0, r0.sx, r2.sx, r1.sx
+0x02da  c500003d02803000         uniform_store 2, i16, xy, 0, r0l_r0h, 32
+0x02e2  8800                     stop

@@ -83,6 +83,8 @@ struct Group {
     done: bool,
     /// recorded dynamic path in the cost model's format (pcs, memory segments / threadgroup words per access)
     trace: Option<Trace>,
+    /// per-lane private stack (scratch) memory for stack_store / stack_load, grown on demand
+    stack: Vec<Vec<u8>>,
 }
 
 fn ext(v: i128, bits: u32, signed: bool) -> i128 {
@@ -158,7 +160,7 @@ fn run_workgroup(d: &Dispatch, cache: &mut [Option<Info>], mem: &mut Memory, [wx
                 st.uniforms[2 * u] = (v & 0xffff) as u16;
                 st.uniforms[2 * u + 1] = (v >> 16) as u16;
             }
-            Group { st, ctx, pc: 0, done: false, trace: if record { Some(Trace::default()) } else { None } }
+            Group { st, ctx, pc: 0, done: false, trace: if record { Some(Trace::default()) } else { None }, stack: vec![] }
         })
         .collect();
     stats.groups += groups.len() as u64;
@@ -268,6 +270,7 @@ fn step_group(g: &mut Group, code: &[u8], cache: &mut [Option<Info>], mem: &mut 
                 }
             }
             "device_load" | "device_store" => device_mem(g, f, mem, desc.name == "device_load")?,
+            "stack_load" | "stack_store" => stack_mem(g, f, desc.name == "stack_load")?,
             "uniform_store" => uniform_store(g, f)?,
             "threadgroup_load" | "threadgroup_store" => tg_mem(g, f, tg, desc.name == "threadgroup_load")?,
             "atomic" => device_atomic(g, f, mem)?,
@@ -302,6 +305,59 @@ fn step_group(g: &mut Group, code: &[u8], cache: &mut [Option<Info>], mem: &mut 
         g.pc += info.size;
     }
     Ok(Stop::Done)
+}
+
+/// stack_store / stack_load: per-lane private memory (the driver's register spills and private arrays). Byte address
+/// = offset (16-bit immediate, or the 32-bit register O/2 of the lane) + component * item size; i8 / i16 / i32 items
+/// from consecutive registers (32-bit) or halves (16-bit). A mask of 0 accesses nothing (the program's stack setup,
+/// whose immediate is the scratch size).
+fn stack_mem(g: &mut Group, f: &Fields, load: bool) -> Result<(), String> {
+    let x = |k: &str| fget(f, k).unwrap_or(0);
+    let mask = x("mask");
+    if mask == 0 {
+        return Ok(());
+    }
+    let item = match x("F") {
+        0 => 1usize,
+        1 => 2,
+        2 => 4,
+        v => return Err(format!("stack format {} not implemented", v)),
+    };
+    let (r, rt) = (x("R") as usize, x("Rt") != 0);
+    if g.stack.is_empty() {
+        g.stack = vec![vec![]; 32];
+    }
+    for t in 0..32 {
+        if !g.st.exec[t] {
+            continue;
+        }
+        let base = if x("Ot") != 0 { x("O") as usize } else { g.st.get_reg32((x("O") >> 1) as usize, t)? as u32 as usize };
+        let mut k = 0;
+        for c in 0..4 {
+            if mask & (1 << c) == 0 {
+                continue;
+            }
+            let a = base + c * item;
+            if a + item > 1 << 20 {
+                return Err(format!("stack access beyond 1 MiB ({:#x})", a));
+            }
+            let lane = &mut g.stack[t];
+            if lane.len() < a + item {
+                lane.resize(a + item, 0);
+            }
+            if load {
+                let v = (0..item).fold(0i128, |v, b| v | (lane[a + b] as i128) << (8 * b));
+                put(&mut g.st, rt, r, k, t, v)?;
+            } else {
+                let v = get(&g.st, rt, r, k, t)?;
+                for b in 0..item {
+                    lane[a + b] = (v >> (8 * b)) as u8;
+                }
+            }
+            k += 1;
+        }
+    }
+    Ok(())
 }
 
 /// uniform_store (the driver preamble's way of filling the uniforms from the root table): components of R from the
@@ -347,7 +403,7 @@ pub fn run_preamble(code: &[u8], uniforms: &[(usize, u32)], mem: &mut Memory, nu
         st.uniforms[2 * u] = (v & 0xffff) as u16;
         st.uniforms[2 * u + 1] = (v >> 16) as u16;
     }
-    let mut g = Group { st, ctx, pc: 0, done: false, trace: None };
+    let mut g = Group { st, ctx, pc: 0, done: false, trace: None, stack: vec![] };
     let mut cache: Vec<Option<Info>> = (0..code.len()).map(|_| None).collect();
     let mut tg = vec![0u8; 16];
     let mut stats = RunStats::default();

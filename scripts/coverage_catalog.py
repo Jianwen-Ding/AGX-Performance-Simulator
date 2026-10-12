@@ -568,7 +568,7 @@ MANUAL = [  # behaviours known from findings whose encodings have to be built on
     ('fmadd_lane_offset', 'fmadd-lane-offset', 'fmadd 10-byte form with the lane-offset operand: build from the finding\'s encoding table'),
     ('undecoded_opcodes', 'opcode-descriptions', 'the 49 non-faulting undecoded opcodes: one case each from the finding\'s description table (register effects)'),
     ('sync_0x18', 'sync-and-end-opcodes', '0x18 fixed-cost op and the ending opcodes (0x08 trap / 0x88 stop variants)'),
-    ('stack', 'stack-via-mesa', 'stack_store / stack_load / stack_get_ptr / stack_adjust: capture Mesa\'s scratch-using shader (direct-DRM setup documented in the finding)'),
+    ('stack', 'stack-via-mesa', 'stack_store / stack_load / stack_get_ptr / stack_adjust: the SPIR-V `spill` workload (spirv/compiled/*/spill) is a Mesa scratch-using shader; record its stack layout on the device (functional values already pass in the simulator)'),
     ('preshader', 'preshader-execution', 'uniform_store from a preamble (AGX_PRESHADER=1 in tests/drm_compute.c) and the preshader-last rule (sr17-sr32)'),
     ('imageblock_srs', 'sr12-sr13-sr15-imageblock', 'SR12/SR13/SR15 under imageblock-sized launches'),
     ('memory_ordering', 'memory-ordering', 'cross-core message passing with f533 (release) vs memory_barrier alone: record outcome counts, not exact words'),

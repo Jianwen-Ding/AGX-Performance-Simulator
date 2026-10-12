@@ -1,0 +1,31 @@
+#version 450
+// Exact float operations on ordinary and special values (no NaN or denormal inputs: implementation-defined results):
+// min, max, clamp, abs, sign, floor, ceil, fract, round (half away or even: checked as either), roundEven, trunc,
+// step, negation, and the float compares as 0/1 bits.
+layout(local_size_x = 64) in;
+layout(std430, binding = 0) readonly buffer I { vec2 inp[]; };
+layout(std430, binding = 1) writeonly buffer O { uint o[]; };
+layout(push_constant) uniform P { uint n; } p;
+
+void main() {
+    uint i = gl_GlobalInvocationID.x;
+    if (i >= p.n) return;
+    float x = inp[i].x, y = inp[i].y;
+    uint b = 16u * i;
+    o[b + 0u] = floatBitsToUint(min(x, y));
+    o[b + 1u] = floatBitsToUint(max(x, y));
+    o[b + 2u] = floatBitsToUint(clamp(x, -1.5, 2.25));
+    o[b + 3u] = floatBitsToUint(abs(x));
+    o[b + 4u] = floatBitsToUint(sign(x));
+    o[b + 5u] = floatBitsToUint(floor(x));
+    o[b + 6u] = floatBitsToUint(ceil(x));
+    o[b + 7u] = floatBitsToUint(fract(x));
+    o[b + 8u] = floatBitsToUint(round(x));
+    o[b + 9u] = floatBitsToUint(roundEven(x));
+    o[b + 10u] = floatBitsToUint(trunc(x));
+    o[b + 11u] = floatBitsToUint(step(y, x));
+    o[b + 12u] = floatBitsToUint(-x);
+    o[b + 13u] = uint(x < y) | uint(x <= y) << 1 | uint(x == y) << 2 | uint(x != y) << 3 | uint(x > y) << 4 | uint(x >= y) << 5;
+    o[b + 14u] = floatBitsToUint(abs(x) + abs(y));
+    o[b + 15u] = floatBitsToUint(max(min(x, 1e30), -1e30));
+}
