@@ -1,0 +1,69 @@
+0x0080  72053000                 get_sr r1, sr48 (thread_position_in_threadgroup.x)
+0x0084  0e09002064001000         iadd r2, 0, r1.sx, lsl 2
+0x008c  720d0000                 get_sr r3, sr0 (threadgroup_position_in_grid.x)
+0x0090  0e0d468658000000         iadd r3, r3.sx, u4.sx
+0x0098  2e110060240c0000         bfi r4, 0, r3, 12
+0x00a0  1215482224482044         icmpsel ugt, r5, r4, r1, r4, r1
+0x00a8  12154a0200030110         icmpsel ueq, r5, r5, 0, 3, 0
+0x00b0  2995040214000000         threadgroup_store i32, x, r5, r2l, 0
+0x00b8  62000000                 mov_imm r0l, 0
+0x00bc  6800                     threadgroup_barrier
+0x00be  7e15420a8000             mov r5, r1
+0x00c4  522c4ae21800             while_icmp r0l, ult, r5, u7, 1
+0x00ca  0531a00e10c01200         device_load 0, i32, x, r6, u8_u9, r5, unsigned
+0x00d2  3800                     wait 0
+0x00d4  3e9d0ac42400             convert u32_to_f, r7, r6, rte
+0x00da  0a214e82                 rcp r8, r7
+0x00de  3a1d4e0a2530             fmadd32 r7, r7.neg, r8, 1.0
+0x00e4  3a9d4e0225500200         fmadd32 r7, r7, r8, r8
+0x00ec  021d4ee2244e0005         fcmpsel eq, r7, r7, r7, r7, r8
+0x00f4  1a9d4ee21900             fmul32 r7, r7, u15
+0x00fa  3e9d08e02400             convert f_to_u32, r7, r7, rtz
+0x0100  1e214ce664000000         imadd r8, r6.sx, r7.sx, 0
+0x0108  0e21000865000000         isub r8, 0, r8.sx
+0x0110  1e234e0225000000         imadd r8_r9, r7, r8, 0
+0x0118  0e1d4e2665000000         iadd r7, r7.sx, r9.sx
+0x0120  0e21481e00000000         isub r8, r4.sx, 1
+0x0128  0e2150c664000000         iadd r8, r8.sx, r6.sx
+0x0130  1e2b50e224000000         imadd r10_r11, r8, r7, 0
+0x0138  1e1d56c664000000         imadd r7, r11.sx, r6.sx, 0
+0x0140  0e1d50ee64000000         isub r7, r8.sx, r7.sx
+0x0148  0e21561600000000         iadd r8, r11.sx, 1
+0x0150  12214ec224560025         icmpsel ult, r8, r7, r6, r11, r8
+0x0158  0e254ece64000000         isub r9, r7.sx, r6.sx
+0x0160  121d4ec2244e2025         icmpsel ult, r7, r7, r6, r7, r9
+0x0168  0e25501600000000         iadd r9, r8.sx, 1
+0x0170  121d4ec224502025         icmpsel ult, r7, r7, r6, r8, r9
+0x0178  1e1d4ec664000000         imadd r7, r7.sx, r6.sx, 0
+0x0180  1e214cc664000000         imadd r8, r6.sx, r6.sx, 0
+0x0188  121d50e22450e044         icmpsel ugt, r7, r8, r7, r8, r7
+0x0190  420800000000             push_exec r0l, 1
+0x0196  0e2148c659000000         iadd r8, r4.sx, u14.sx
+0x019e  522c4e022500             while_icmp r0l, ult, r7, r8, 1
+0x01a4  0e214e8e64000000         isub r8, r7.sx, r4.sx
+0x01ac  2ea5000025050000         bfeil r9, 0, r8, 5
+0x01b4  0e25002065001000         iadd r9, 0, r9.sx, lsl 2
+0x01bc  7e2150f28100             and r8, r8, 31
+0x01c2  2e21001000500200         bfi r8, 0, 1, r8
+0x01ca  19801209148000001000     threadgroup_atomic or, None, r9l, 0, r8, 0, 2, 128, 0
+0x01d4  0e1d4ec664000000         iadd r7, r7.sx, r6.sx
+0x01dc  00c0baffffff             jmp_exec_any pc-70
+0x01e2  520e00000000             pop_exec r0l, 1
+0x01e8  0e154a0600020000         iadd r5, r5.sx, 128
+0x01f0  00c0d4feffff             jmp_exec_any pc-300
+0x01f6  520e00000000             pop_exec r0l, 1
+0x01fc  6800                     threadgroup_barrier
+0x01fe  1e05460600420602         imadd r1, r3.sx, 128, r1.sx
+0x0206  698d040214000000         threadgroup_load i32, x, r3, r2l, 0
+0x020e  4519240e10c01200         device_store 0, i32, x, r3, u10_u11, r1, unsigned, 0
+0x0216  6985040214000000         threadgroup_load i32, x, r1, r2l, 0
+0x021e  3e05420a0000             popcount r1, r1
+0x0224  0e05202864000000         isub r1, 32, r1.sx
+0x022c  6f8542220080             simd_iadd r1, r1
+0x0232  72023a00                 get_sr r0h, sr58 (active_thread_index_in_simdgroup)
+0x0236  3800                     wait 0
+0x0238  520841000000             if_icmp r0l, ueq, r0h, 0, 1
+0x023e  1500088d10500200         atomic add, 0, None, u12_u13, 0, signed, r1, 1, 0, 1, 4, 2
+0x0246  3800                     wait 0
+0x0248  520e00000000             pop_exec r0l, 1
+0x024e  8800                     stop

@@ -31,7 +31,7 @@ The rest of this file is the detailed procedure, for investigating results.
 
 ## Workloads
 
-Seventy-nine realistic compute kernels, written in GLSL (`spirv/shaders/*.comp`) and compiled to SPIR-V:
+Eighty-three realistic compute kernels, written in GLSL (`spirv/shaders/*.comp`) and compiled to SPIR-V:
 
 | Workload | Kernel | Stresses |
 |---|---|---|
@@ -114,6 +114,10 @@ Seventy-nine realistic compute kernels, written in GLSL (`spirv/shaders/*.comp`)
 | `bitpack` | 7-bit value packing into a bit stream | `atomicOr` across word boundaries |
 | `perlin` | Procedural terrain from Perlin noise | Table lookups, `floor`, polynomial fades, fp32 |
 | `adler32` | Adler-32 checksums (zlib) | Byte sums in long serial chains, integer modulo |
+| `sieve` | Segmented prime sieve | Shared-memory `atomicOr`, popcount, nested strided loops |
+| `gcd` | Binary GCD | `findLSB`, data-dependent loop lengths |
+| `dither` | Ordered (Bayer) dithering to 1 bit | Constant-table lookups, bit packing |
+| `advect` | Semi-Lagrangian fluid advection, 40 dispatches | Clamped gather, bilinear fp32 interpolation |
 
 Each workload has two sizes:
 
@@ -200,7 +204,7 @@ references are right; a wrong result on the M2 is therefore a GPU, driver or run
    python3 -B scripts/spirv_task.py sim sgemm --code-dir spirv/out/sgemm-small/code --hardware spirv/out/sgemm-small
    ```
 
-   - Offline, all seventy-nine workloads pass their numpy references with shim-compiled Mesa 25.2.8 and 26.0.3 code
+   - Offline, all eighty-three workloads pass their numpy references with shim-compiled Mesa 25.2.8 and 26.0.3 code
      (`make spirv-sim`). That is a sanity check; verification is `make spirv-verify` against the M2 recordings.
    - Integer workloads (`scan`, `histogram`, `bitonic`, `sha256`, `int64`, `bitops`, `intdiv`, `compact`, `transpose`,
      `mandelbrot`, `atomics`, `geom3d`, `spill`, `control`, `shuffle`, `floatops`, `radix_sort`, `crc32`, `int8dot`, `int16`, `sobel`,

@@ -1,0 +1,22 @@
+#version 450
+// Greatest common divisors of 32-bit pairs by Stein's binary algorithm (findLSB shifts, subtract-and-swap loop):
+// data-dependent trip counts per lane, as in fraction reduction and RSA-style number theory. Integer-exact.
+layout(local_size_x = 256) in;
+layout(std430, binding = 0) readonly buffer A { uvec2 pairs[]; };
+layout(std430, binding = 1) writeonly buffer G { uint g[]; };
+layout(push_constant) uniform P { uint n; } p;
+
+void main() {
+    uint i = gl_GlobalInvocationID.x;
+    if (i >= p.n) return;
+    uint a = pairs[i].x, b = pairs[i].y;
+    if (a == 0u || b == 0u) { g[i] = a | b; return; }
+    int shift = findLSB(a | b);
+    a >>= findLSB(a);
+    while (b != 0u) {
+        b >>= findLSB(b);
+        if (a > b) { uint t = a; a = b; b = t; }
+        b -= a;
+    }
+    g[i] = a << shift;
+}

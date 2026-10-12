@@ -1835,6 +1835,83 @@ def w_adler32(size, rng):
              {'bytes': blocks * 4096})
 
 
+def w_sieve(size, rng):
+    N = 1 << 16 if size == 'small' else 1 << 26
+    r = int(np.sqrt(N))
+    small = np.ones(r + 1, bool); small[:2] = False
+    for k in range(2, int(r ** 0.5) + 1):
+        if small[k]: small[k * k::k] = False
+    base = u32(np.flatnonzero(small))
+    def check(o):
+        bits = o[1].view(np.uint32)[:N // 32]; count = int(o[2].view(np.uint32)[0])
+        prime = np.ones(N, bool); prime[:2] = False
+        for q in base: prime[int(q) * int(q)::int(q)] = False
+        ref = np.packbits(~prime, bitorder='little').view('<u4')
+        known = {1 << 16: 6542, 1 << 26: 3957809}[N]
+        return np.array_equal(bits, ref) and count == int(prime.sum()) == known, {'word_mismatches': int(np.sum(bits != ref)), 'primes': count, 'known': known}
+    return W('sieve', {0: (base, False), 1: (N // 8, True), 2: (u32([0]), True)}, [(N // 4096, 1, 1, push(len(base)))], check, 128,
+             {'integers': N})
+
+
+def w_gcd(size, rng):
+    n = 4096 if size == 'small' else 1 << 22
+    k = rng.integers(1, 1 << 12, n, dtype=np.uint64)                         # shared factors make gcds interesting
+    a = (rng.integers(1, 1 << 20, n, dtype=np.uint64) * k) & 0xffffffff; b = (rng.integers(1, 1 << 20, n, dtype=np.uint64) * k) & 0xffffffff
+    a[:4] = [0, 12, 0, 1 << 31]; b[:4] = [7, 0, 0, 1 << 30]                   # zeros and powers of two
+    pairs = u32(np.stack([a, b], 1))
+    def check(o):
+        got = o[1].view(np.uint32)[:n]
+        ref = np.gcd(a.astype(np.int64), b.astype(np.int64)).astype(np.uint32)
+        return np.array_equal(got, ref), {'mismatches': int(np.sum(got != ref)), 'mean_gcd': float(ref.mean()), 'gcd_1_fraction': float(np.mean(ref == 1))}
+    return W('gcd', {0: (pairs, False), 1: (4 * n, True)}, [((n + 255) // 256, 1, 1, push(n))], check, 256, {'pairs': n})
+
+
+BAYER8 = np.array([0, 32, 8, 40, 2, 34, 10, 42, 48, 16, 56, 24, 50, 18, 58, 26, 12, 44, 4, 36, 14, 46, 6, 38, 60, 28, 52, 20, 62, 30,
+                   54, 22, 3, 35, 11, 43, 1, 33, 9, 41, 51, 19, 59, 27, 49, 17, 57, 25, 15, 47, 7, 39, 13, 45, 5, 37, 63, 31, 55, 23,
+                   61, 29, 53, 21]).reshape(8, 8)
+
+
+def w_dither(size, rng):
+    Wd, H = (128, 64) if size == 'small' else (4096, 4096)
+    gy, gx = np.mgrid[0:H, 0:Wd]
+    img = np.clip(255 * gx / (Wd - 1) * (0.6 + 0.4 * np.cos(gy / 40.0)) + rng.integers(-3, 4, (H, Wd)), 0, 255).astype(np.uint8)
+    def check(o):
+        got = o[1].view(np.uint32)[:Wd * H // 32]
+        on = img.astype(np.int64) > BAYER8[gy & 7, gx & 7] * 4 + 1
+        ref = np.packbits(on.ravel(), bitorder='little').view('<u4')
+        mean_err = float(abs(on.mean() - img.mean() / 255))                     # dithering preserves average brightness
+        return np.array_equal(got, ref), {'word_mismatches': int(np.sum(got != ref)), 'brightness_error': mean_err}
+    return W('dither', {0: (img, False), 1: (Wd * H // 8, True)}, [((Wd * H // 32 + 63) // 64, 1, 1, push(Wd, H))], check, 64,
+             {'pixels': Wd * H}, images=[(1, Wd, H, 'bits')])
+
+
+def w_advect(size, rng):
+    n, steps = (48, 10) if size == 'small' else (1024, 40)
+    dt = 1.0
+    gy, gx = np.mgrid[0:n, 0:n].astype(np.float64)
+    c = (n - 1) / 2; rr = np.hypot(gx - c, gy - c) / n
+    omega = 3.0 / n * np.exp(-8 * rr * rr)                                     # swirl, fastest near the middle
+    vel = f32(np.stack([-(gy - c) * omega, (gx - c) * omega], -1)).reshape(-1, 2)
+    dye0 = f32(((gx // (n / 8) + gy // (n / 8)) % 2) * (rr < 0.45))           # checkerboard disc
+    def check(o):
+        got = o[0].view(np.float32)[:n * n].reshape(n, n)                       # even step count ends in the first half
+        f = dye0.astype(np.float64); vx, vy = vel[:, 0].astype(np.float64).reshape(n, n), vel[:, 1].astype(np.float64).reshape(n, n)
+        for _ in range(steps):
+            qx, qy = gx - np.float32(dt) * vx, gy - np.float32(dt) * vy
+            fx, fy = np.floor(qx), np.floor(qy); wx, wy = qx - fx, qy - fy
+            x0, y0 = fx.astype(np.int64), fy.astype(np.int64)
+            at = lambda x, y: f[np.clip(y, 0, n - 1), np.clip(x, 0, n - 1)]
+            f = (at(x0, y0) * (1 - wx) + at(x0 + 1, y0) * wx) * (1 - wy) + (at(x0, y0 + 1) * (1 - wx) + at(x0 + 1, y0 + 1) * wx) * wy
+        err = float(np.max(np.abs(got - f)))
+        # per step: the back-traced position is rounded to fp32 (about one ulp of the coordinate, n * 2^-23 cells) and
+        # the dye changes by at most 1 per cell; bilinear sampling never amplifies earlier errors; plus a few roundings
+        bound = steps * (n * 2.0 ** -23 + 16 * 2.0 ** -24)
+        return err <= bound, {'max_abs_err': err, 'bound': bound, 'dye_mass_in': float(dye0.sum()), 'dye_mass_out': float(got.sum())}
+    ds = [((n + 15) // 16, (n + 15) // 16, 1, push(n, k & 1, dt)) for k in range(steps)]
+    return W('advect', {0: (f32(np.concatenate([dye0.ravel(), np.zeros(n * n)])), True), 1: (vel, False), 2: (n * n, True)}, ds, check,
+             (16, 16, 1), {'cell_updates': n * n * steps}, images=[(2, n, n, 'gray8')])
+
+
 WORKLOADS = {'reduce': w_reduce, 'scan': w_scan, 'sgemm': w_sgemm, 'conv2d': w_conv2d, 'histogram': w_histogram,
              'nbody': w_nbody, 'bitonic': w_bitonic, 'sha256': w_sha256, 'fp16': w_fp16, 'int64': w_int64, 'bitops': w_bitops,
              'intdiv': w_intdiv, 'compact': w_compact, 'spmv': w_spmv, 'transpose': w_transpose, 'mandelbrot': w_mandelbrot,
@@ -1851,7 +1928,8 @@ WORKLOADS = {'reduce': w_reduce, 'scan': w_scan, 'sgemm': w_sgemm, 'conv2d': w_c
              'strsearch': w_strsearch, 'quantize': w_quantize, 'rule110': w_rule110, 'voxel': w_voxel,
              'nms': w_nms, 'sat': w_sat, 'sssp': w_sssp, 'morton': w_morton,
              'utf8': w_utf8, 'fir': w_fir, 'composite': w_composite, 'nqueens': w_nqueens,
-             'lzmatch': w_lzmatch, 'bitpack': w_bitpack, 'perlin': w_perlin, 'adler32': w_adler32}
+             'lzmatch': w_lzmatch, 'bitpack': w_bitpack, 'perlin': w_perlin, 'adler32': w_adler32,
+             'sieve': w_sieve, 'gcd': w_gcd, 'dither': w_dither, 'advect': w_advect}
 
 
 # ---------------------------------------------------------------------------------------------------------------
