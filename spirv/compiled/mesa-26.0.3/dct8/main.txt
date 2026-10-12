@@ -1,0 +1,180 @@
+0x0080  f2050000                 get_sr r1.cache, sr0 (threadgroup_position_in_grid.x)
+0x0084  8e05c28658000000         iadd r1.cache, r1.discard.sx, u4.sx
+0x008c  f2090100                 get_sr r2.cache, sr1 (threadgroup_position_in_grid.y)
+0x0090  8e09c4a658000000         iadd r2.cache, r2.discard.sx, u5.sx
+0x0098  f20d3000                 get_sr r3.cache, sr48 (thread_position_in_threadgroup.x)
+0x009c  f2113100                 get_sr r4.cache, sr49 (thread_position_in_threadgroup.y)
+0x00a0  8e158626e4001000         iadd r5.cache, r3.cache.sx, r1.sx, lsl 3
+0x00a8  8e198846e4001000         iadd r6.cache, r4.cache.sx, r2.sx, lsl 3
+0x00b0  1e15cce658ca0600         imadd r5, r6.discard.sx, u7.sx, r5.discard.sx
+0x00b8  0504a00e10c01000         device_load 0, i8, x, r0h, u8_u9, r5, unsigned
+0x00c0  8e154686e4001000         iadd r5.cache, r3.sx, r4.sx, lsl 3
+0x00c8  0e1900a064001000         iadd r6, 0, r5.sx, lsl 2
+0x00d0  3800                     wait 0
+0x00d2  be9d00140c00             convert u8_to_f, r7.cache, r0h.discard, rte
+0x00d8  2a9dce021200             fadd32 r7, r7.discard, u16l
+0x00de  299d0c0214000000         threadgroup_store i32, x, r7, r6l, 0
+0x00e6  62000000                 mov_imm r0l, 0
+0x00ea  6800                     threadgroup_barrier
+0x00ec  621900000000             mov_imm r6, 0, 0b0
+0x00f2  621d00000000             mov_imm r7, 0, 0b0
+0x00f8  522c8c820000             while_icmp r0l, ult, r6.cache, 8, 1
+0x00fe  ae2100c028050000         bfi r8.cache, 0, r6.cache, 5
+0x0106  7e0290088000             mov r0h, r8l.cache
+0x010c  69a5010214000000         threadgroup_load i32, x, r9, r0h, 0
+0x0114  fe2986f28100             and r10.cache, r3.cache, 31
+0x011a  8e2d940e02000000         isub r11.cache, r10.cache.sx, 32
+0x0122  12291040255640a5         icmpsel slt, r10, 16, r10, r11, r10
+0x012a  bea90b442500             convert s32_to_f, r10.cache, r10, rte
+0x0130  ba2902402510             fmadd32 r10.cache, 0.03125, r10, 0.25
+0x0136  8a2d9402                 floor r11.cache, r10.cache
+0x013a  aaa95462a500             fadd32 r10.cache, r10, r11.neg
+0x0140  9aa954020101             fmul32 r10.cache, r10, 4.0
+0x0146  8a2954a2                 sin_pt_1 r10.cache, r10
+0x014a  8a2d94e2                 sin_pt_2 r11.cache, r10.cache
+0x014e  9aa956422500             fmul32 r10.cache, r11, r10
+0x0154  9aa552422500             fmul32 r9.cache, r9, r10
+0x015a  8e2901c0e8000000         iadd r10.cache, 1, r6.cache.sx, lsl 1
+0x0162  9e29548664000000         imadd r10.cache, r10.sx, r4.sx, 0
+0x016a  fe2954f28100             and r10.cache, r10, 31
+0x0170  8e2d940e02000000         isub r11.cache, r10.cache.sx, 32
+0x0178  12291040255640a5         icmpsel slt, r10, 16, r10, r11, r10
+0x0180  bea90b442500             convert s32_to_f, r10.cache, r10, rte
+0x0186  ba2902402510             fmadd32 r10.cache, 0.03125, r10, 0.25
+0x018c  8a2d9402                 floor r11.cache, r10.cache
+0x0190  aaa95462a500             fadd32 r10.cache, r10, r11.neg
+0x0196  9aa954020101             fmul32 r10.cache, r10, 4.0
+0x019c  8a2954a2                 sin_pt_1 r10.cache, r10
+0x01a0  8a2d94e2                 sin_pt_2 r11.cache, r10.cache
+0x01a4  9aa956422500             fmul32 r10.cache, r11, r10
+0x01aa  ba9d9422254e0200         fmadd32 r7.cache, r10.cache, r9, r7
+0x01b2  0e25904600000000         iadd r9, r8.cache.sx, 4
+0x01ba  69ad120214000000         threadgroup_load i32, x, r11, r9l, 0
+0x01c2  8e258666e8000000         iadd r9.cache, r3.cache.sx, r3.cache.sx, lsl 1
+0x01ca  fe2552f28100             and r9.cache, r9, 31
+0x01d0  8e31920e02000000         isub r12.cache, r9.cache.sx, 32
+0x01d8  12251020255820a5         icmpsel slt, r9, 16, r9, r12, r9
+0x01e0  bea50b242500             convert s32_to_f, r9.cache, r9, rte
+0x01e6  ba2502202510             fmadd32 r9.cache, 0.03125, r9, 0.25
+0x01ec  8a319202                 floor r12.cache, r9.cache
+0x01f0  aaa55282a500             fadd32 r9.cache, r9, r12.neg
+0x01f6  9aad56422900             fmul32 r11.cache, r11, r10.cache
+0x01fc  9aa552020101             fmul32 r9.cache, r9, 4.0
+0x0202  8a2552a2                 sin_pt_1 r9.cache, r9
+0x0206  8a3192e2                 sin_pt_2 r12.cache, r9.cache
+0x020a  9aa558222500             fmul32 r9.cache, r12, r9
+0x0210  ba9d5262254e0200         fmadd32 r7.cache, r9, r11, r7
+0x0218  0e25908600000000         iadd r9, r8.cache.sx, 8
+0x0220  69ad120214000000         threadgroup_load i32, x, r11, r9l, 0
+0x0228  8e25866668001000         iadd r9.cache, r3.cache.sx, r3.cache.sx, lsl 2
+0x0230  fe2552f28100             and r9.cache, r9, 31
+0x0236  8e31920e02000000         isub r12.cache, r9.cache.sx, 32
+0x023e  12251020255820a5         icmpsel slt, r9, 16, r9, r12, r9
+0x0246  bea50b242500             convert s32_to_f, r9.cache, r9, rte
+0x024c  ba2502202510             fmadd32 r9.cache, 0.03125, r9, 0.25
+0x0252  8a319202                 floor r12.cache, r9.cache
+0x0256  aaa55282a500             fadd32 r9.cache, r9, r12.neg
+0x025c  9aad56422900             fmul32 r11.cache, r11, r10.cache
+0x0262  9aa552020101             fmul32 r9.cache, r9, 4.0
+0x0268  8a2552a2                 sin_pt_1 r9.cache, r9
+0x026c  8a3192e2                 sin_pt_2 r12.cache, r9.cache
+0x0270  9aa558222500             fmul32 r9.cache, r12, r9
+0x0276  ba9d5262254e0200         fmadd32 r7.cache, r9, r11, r7
+0x027e  0e2590c600000000         iadd r9, r8.cache.sx, 12
+0x0286  69ad120214000000         threadgroup_load i32, x, r11, r9l, 0
+0x028e  9e25076068000000         imadd r9.cache, 7, r3.cache.sx, 0
+0x0296  fe2552f28100             and r9.cache, r9, 31
+0x029c  8e31920e02000000         isub r12.cache, r9.cache.sx, 32
+0x02a4  12251020255820a5         icmpsel slt, r9, 16, r9, r12, r9
+0x02ac  bea50b242500             convert s32_to_f, r9.cache, r9, rte
+0x02b2  ba2502202510             fmadd32 r9.cache, 0.03125, r9, 0.25
+0x02b8  8a319202                 floor r12.cache, r9.cache
+0x02bc  aaa55282a500             fadd32 r9.cache, r9, r12.neg
+0x02c2  9aad56422900             fmul32 r11.cache, r11, r10.cache
+0x02c8  9aa552020101             fmul32 r9.cache, r9, 4.0
+0x02ce  8a2552a2                 sin_pt_1 r9.cache, r9
+0x02d2  8a3192e2                 sin_pt_2 r12.cache, r9.cache
+0x02d6  9aa558222500             fmul32 r9.cache, r12, r9
+0x02dc  ba9d5262254e0200         fmadd32 r7.cache, r9, r11, r7
+0x02e4  0e25900601000000         iadd r9, r8.cache.sx, 16
+0x02ec  69ad120214000000         threadgroup_load i32, x, r11, r9l, 0
+0x02f4  8e258666e8001000         iadd r9.cache, r3.cache.sx, r3.cache.sx, lsl 3
+0x02fc  fe2552f28100             and r9.cache, r9, 31
+0x0302  8e31920e02000000         isub r12.cache, r9.cache.sx, 32
+0x030a  12251020255820a5         icmpsel slt, r9, 16, r9, r12, r9
+0x0312  bea50b242500             convert s32_to_f, r9.cache, r9, rte
+0x0318  ba2502202510             fmadd32 r9.cache, 0.03125, r9, 0.25
+0x031e  8a319202                 floor r12.cache, r9.cache
+0x0322  aaa55282a500             fadd32 r9.cache, r9, r12.neg
+0x0328  9aad56422900             fmul32 r11.cache, r11, r10.cache
+0x032e  9aa552020101             fmul32 r9.cache, r9, 4.0
+0x0334  8a2552a2                 sin_pt_1 r9.cache, r9
+0x0338  8a3192e2                 sin_pt_2 r12.cache, r9.cache
+0x033c  9aa558222500             fmul32 r9.cache, r12, r9
+0x0342  ba9d5262254e0200         fmadd32 r7.cache, r9, r11, r7
+0x034a  0e25904601000000         iadd r9, r8.cache.sx, 20
+0x0352  69ad120214000000         threadgroup_load i32, x, r11, r9l, 0
+0x035a  9e250b6068000000         imadd r9.cache, 11, r3.cache.sx, 0
+0x0362  fe2552f28100             and r9.cache, r9, 31
+0x0368  8e31920e02000000         isub r12.cache, r9.cache.sx, 32
+0x0370  12251020255820a5         icmpsel slt, r9, 16, r9, r12, r9
+0x0378  bea50b242500             convert s32_to_f, r9.cache, r9, rte
+0x037e  ba2502202510             fmadd32 r9.cache, 0.03125, r9, 0.25
+0x0384  8a319202                 floor r12.cache, r9.cache
+0x0388  aaa55282a500             fadd32 r9.cache, r9, r12.neg
+0x038e  9aad56422900             fmul32 r11.cache, r11, r10.cache
+0x0394  9aa552020101             fmul32 r9.cache, r9, 4.0
+0x039a  8a2552a2                 sin_pt_1 r9.cache, r9
+0x039e  8a3192e2                 sin_pt_2 r12.cache, r9.cache
+0x03a2  9aa558222500             fmul32 r9.cache, r12, r9
+0x03a8  ba9d5262254e0200         fmadd32 r7.cache, r9, r11, r7
+0x03b0  0e25908601000000         iadd r9, r8.cache.sx, 24
+0x03b8  69ad120214000000         threadgroup_load i32, x, r11, r9l, 0
+0x03c0  9e250d6068000000         imadd r9.cache, 13, r3.cache.sx, 0
+0x03c8  fe2552f28100             and r9.cache, r9, 31
+0x03ce  8e31920e02000000         isub r12.cache, r9.cache.sx, 32
+0x03d6  12251020255820a5         icmpsel slt, r9, 16, r9, r12, r9
+0x03de  bea50b242500             convert s32_to_f, r9.cache, r9, rte
+0x03e4  ba2502202510             fmadd32 r9.cache, 0.03125, r9, 0.25
+0x03ea  8a319202                 floor r12.cache, r9.cache
+0x03ee  aaa55282a500             fadd32 r9.cache, r9, r12.neg
+0x03f4  9aad56422900             fmul32 r11.cache, r11, r10.cache
+0x03fa  9aa552020101             fmul32 r9.cache, r9, 4.0
+0x0400  8a2552a2                 sin_pt_1 r9.cache, r9
+0x0404  8a3192e2                 sin_pt_2 r12.cache, r9.cache
+0x0408  9aa558222500             fmul32 r9.cache, r12, r9
+0x040e  ba9d5262254e0200         fmadd32 r7.cache, r9, r11, r7
+0x0416  0e2150c601000000         iadd r8, r8.sx, 28
+0x041e  69a1100214000000         threadgroup_load i32, x, r8, r8l, 0
+0x0426  9e250f6064000000         imadd r9.cache, 15, r3.sx, 0
+0x042e  fe2552f28100             and r9.cache, r9, 31
+0x0434  8e2d920e02000000         isub r11.cache, r9.cache.sx, 32
+0x043c  12251020255620a5         icmpsel slt, r9, 16, r9, r11, r9
+0x0444  bea50b242500             convert s32_to_f, r9.cache, r9, rte
+0x044a  ba2502202510             fmadd32 r9.cache, 0.03125, r9, 0.25
+0x0450  8a2d9202                 floor r11.cache, r9.cache
+0x0454  aaa55262a500             fadd32 r9.cache, r9, r11.neg
+0x045a  9aa150422500             fmul32 r8.cache, r8, r10
+0x0460  9aa552020101             fmul32 r9.cache, r9, 4.0
+0x0466  8a2552a2                 sin_pt_1 r9.cache, r9
+0x046a  8a2992e2                 sin_pt_2 r10.cache, r9.cache
+0x046e  9aa554222500             fmul32 r9.cache, r10, r9
+0x0474  3a9d5202254e0200         fmadd32 r7, r9, r8, r7
+0x047c  0e194c1600000000         iadd r6, r6.sx, 1
+0x0484  00c074fcffff             jmp_exec_any pc-908
+0x048a  520e00000000             pop_exec r0l, 1
+0x0490  920d460200a6811a         icmpsel ueq, r3.cache, r3, 0, u19, u20
+0x0498  9211480200a4211a         icmpsel ueq, r4.cache, r4, 0, u18, u17
+0x04a0  9a8d46822400             fmul32 r3.cache, r3, r4
+0x04a6  9a8d46e22400             fmul32 r3.cache, r3, r7
+0x04ac  9e05444659420600         imadd r1.cache, r2.sx, u10.sx, r1.sx
+0x04b4  1e054206004a0601         imadd r1, r1.sx, 64, r5.sx
+0x04bc  0511a80e10c01200         device_load 0, i32, x, r2, u12_u13, r5, unsigned
+0x04c4  3800                     wait 0
+0x04c6  be890b442400             convert s32_to_f, r2.cache, r2, rte
+0x04cc  8a094482                 rcp r2.cache, r2
+0x04d0  1a8946422400             fmul32 r2, r3, r2
+0x04d6  0a8944020300             rint r2, r2
+0x04dc  3e8909402400             convert f_to_s32, r2, r2, rtz
+0x04e2  45112c0e10c01200         device_store 0, i32, x, r2, u14_u15, r1, unsigned, 0
+0x04ea  8800                     stop

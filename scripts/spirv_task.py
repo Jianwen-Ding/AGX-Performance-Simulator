@@ -876,6 +876,135 @@ def w_hist_eq(size, rng):
     return W('hist_eq', {0: (img, False), 1: (2048, False), 2: (n, True)}, ds, check, 256, {'pixels': n}, images=[(2, Wd, H, 'gray8')])
 
 
+
+def aes_sbox():
+    """the AES S-box from GF(2^8) inversion and the affine map"""
+    def mul(a, b):
+        r = 0
+        while b:
+            if b & 1: r ^= a
+            a = ((a << 1) ^ (0x1b if a & 0x80 else 0)) & 0xff; b >>= 1
+        return r
+    inv = [0] * 256
+    for a in range(1, 256):
+        inv[a] = next(b for b in range(1, 256) if mul(a, b) == 1)
+    rot = lambda x, k: ((x << k) | (x >> (8 - k))) & 0xff
+    return [inv[a] ^ rot(inv[a], 1) ^ rot(inv[a], 2) ^ rot(inv[a], 3) ^ rot(inv[a], 4) ^ 0x63 for a in range(256)]
+
+
+AES_SBOX = None
+
+
+def aes_encrypt(key, block):
+    """AES-128 encryption of one block (bytes); checked against FIPS-197 C.1 before use"""
+    global AES_SBOX
+    if AES_SBOX is None:
+        AES_SBOX = aes_sbox()
+    S = AES_SBOX
+    xt = lambda b: ((b << 1) ^ (0x1b if b & 0x80 else 0)) & 0xff
+    w = [list(key[4 * i:4 * i + 4]) for i in range(4)]
+    rcon = 1
+    for i in range(4, 44):
+        t = list(w[i - 1])
+        if i % 4 == 0:
+            t = [S[b] for b in t[1:] + t[:1]]; t[0] ^= rcon; rcon = xt(rcon)
+        w.append([a ^ b for a, b in zip(w[i - 4], t)])
+    s = [b ^ w[i // 4][i % 4] for i, b in enumerate(block)]
+    for r in range(1, 11):
+        u = [S[s[4 * ((c + j) % 4) + j]] for c in range(4) for j in range(4)]
+        if r < 10:
+            m = []
+            for c in range(4):
+                a = u[4 * c:4 * c + 4]; al = a[0] ^ a[1] ^ a[2] ^ a[3]
+                m += [a[k] ^ al ^ xt(a[k] ^ a[(k + 1) % 4]) for k in range(4)]
+            u = m
+        s = [b ^ w[4 * r + i // 4][i % 4] for i, b in enumerate(u)]
+    return bytes(s), w
+
+
+def w_aes(size, rng):
+    n = 512 if size == 'small' else 1 << 20
+    fips = aes_encrypt(bytes(range(16)), bytes.fromhex('00112233445566778899aabbccddeeff'))[0]
+    if fips.hex() != '69c4e0d86a7b0430d8cdb78070b4c55a':
+        raise RuntimeError('AES reference fails FIPS-197 C.1')
+    key = bytes(rng.integers(0, 256, 16, dtype=np.uint8))
+    blocks = rng.integers(0, 256, (n, 16), dtype=np.uint8)
+    rk = u32(np.array([int.from_bytes(bytes(wd), 'little') for wd in aes_encrypt(key, bytes(16))[1]], dtype=np.uint64))
+    sbox = u32(aes_sbox())
+    def check(o):
+        got = o[3][:16 * n].reshape(n, 16)
+        rows = range(n) if size == 'small' else rng.choice(n, 2048, replace=False)
+        bad = sum(bytes(got[i]) != aes_encrypt(key, bytes(blocks[i]))[0] for i in rows)
+        return bad == 0, {'bad_blocks': int(bad), 'fips197_reference_ok': True}
+    return W('aes', {0: (blocks, False), 1: (rk, False), 2: (sbox, False), 3: (16 * n, True)}, [((n + 63) // 64, 1, 1, push(n))], check, 64,
+             {'bytes': 16 * n})
+
+
+def w_hash_table(size, rng):
+    n, cap = (2000, 4096) if size == 'small' else (1 << 20, 1 << 21)
+    keys = u32(rng.choice(0xfffffffe, n, replace=False) if n <= 4096 else np.unique(rng.integers(0, 0xfffffffe, 2 * n, dtype=np.uint64))[:n])
+    rng.shuffle(keys)
+    vals = u32(rng.integers(0, 1 << 32, n, dtype=np.uint64))
+    present = rng.random(n) < 0.5
+    queries = u32(np.where(present, keys[rng.permutation(n)], rng.integers(0, 0xfffffffe, n, dtype=np.uint64)))
+    table = np.full(2 * cap, 0xffffffff, np.uint32)
+    def check(o):
+        got = o[4].view(np.uint32)[:n]
+        d = dict(zip(keys.tolist(), vals.tolist()))
+        ref = np.array([d.get(q, 0xffffffff) for q in queries.tolist()], dtype=np.uint32)
+        occ = int(np.sum(o[2].view(np.uint32)[0:2 * cap:2] != 0xffffffff))
+        return np.array_equal(got, ref) and occ == n, {'lookup_mismatches': int(np.sum(got != ref)), 'occupied_slots': occ, 'hits': int(np.sum(ref != 0xffffffff))}
+    ds = [((n + 127) // 128, 1, 1, push(0, n, cap - 1)), ((n + 127) // 128, 1, 1, push(1, n, cap - 1))]
+    return W('hash_table', {0: (keys, False), 1: (vals, False), 2: (table, True), 3: (queries, False), 4: (4 * n, True)}, ds, check, 128,
+             {'ops': 2 * n})
+
+
+def w_word_count(size, rng):
+    n = 1 << 14 if size == 'small' else 1 << 24
+    words = [''.join(rng.choice(list('abcdefghijklmnopqrstuvwxyz0123'), rng.integers(1, 21))) for _ in range(4096)]
+    out, total = [], 0
+    while total < n:
+        wd = words[rng.integers(0, len(words))]
+        sep = rng.choice([' ', ' ', ' ', ', ', '. ', '\n', '  ', ' - '])
+        out.append(wd + sep); total += len(wd) + len(sep)
+    text = np.frombuffer(''.join(out).encode()[:n], dtype=np.uint8).copy()
+    def check(o):
+        import re
+        got = o[1].view(np.uint32)[:18]
+        t = text.tobytes().decode()
+        lens = [len(m) for m in re.findall(r'[A-Za-z0-9]+', t)]
+        hist = np.bincount(np.minimum(lens, 15), minlength=16)
+        ref = np.concatenate([[len(lens), t.count('\n')], hist]).astype(np.uint32)
+        return np.array_equal(got, ref), {'words': int(got[0]), 'words_ref': len(lens), 'lines': int(got[1]),
+                                          'hist_mismatch': int(np.sum(got[2:] != ref[2:]))}
+    return W('word_count', {0: (text, False), 1: (72, True)}, [((n + 255) // 256, 1, 1, push(n))], check, 256, {'bytes': n})
+
+
+JPEG_Q = np.array([16, 11, 10, 16, 24, 40, 51, 61, 12, 12, 14, 19, 26, 58, 60, 55, 14, 13, 16, 24, 40, 57, 69, 56,
+                   14, 17, 22, 29, 51, 87, 80, 62, 18, 22, 37, 56, 68, 109, 103, 77, 24, 35, 55, 64, 81, 104, 113, 92,
+                   49, 64, 78, 87, 103, 121, 120, 101, 72, 92, 95, 98, 112, 100, 103, 99], np.int32)
+
+
+def w_dct8(size, rng):
+    Wd, H = (64, 48) if size == 'small' else (3840, 2160)
+    gy, gx = np.mgrid[0:H, 0:Wd]
+    img = (128 + 70 * np.sin(gx / 9.0 + gy / 23.0) + 30 * ((gx // 32 + gy // 32) % 2) + rng.normal(0, 4, (H, Wd))).clip(0, 255).astype(np.uint8)
+    def check(o):
+        got = o[2].view(np.int32)[:Wd * H].reshape(H // 8, Wd // 8, 8, 8)       # [block row, block col, v, u]
+        k = np.arange(8)
+        Cm = np.cos((2 * k[None, :] + 1) * k[:, None] * np.pi / 16) * np.where(k == 0, 1 / np.sqrt(2), 1.0)[:, None]   # [u, x]
+        blocks = (img.astype(np.float64) - 128).reshape(H // 8, 8, Wd // 8, 8).transpose(0, 2, 1, 3)              # [by, bx, y, x]
+        F = 0.25 * np.einsum('vy,ux,abyx->abvu', Cm, Cm, blocks)
+        q = F / JPEG_Q.reshape(8, 8)
+        d = np.abs(got - np.round(q))
+        # values within float rounding of a .5 tie may round either way: off by one allowed only there
+        tie = np.abs(np.abs(q - np.trunc(q)) - 0.5) < 1e-3
+        bad = int(np.sum((d > 1) | ((d == 1) & ~tie)))
+        return bad == 0, {'bad_coefficients': bad, 'off_by_one_at_ties': int(np.sum((d == 1) & tie)), 'nonzero': int(np.sum(got != 0))}
+    return W('dct8', {0: (img, False), 1: (JPEG_Q, False), 2: (4 * Wd * H, True)}, [(Wd // 8, H // 8, 1, push(Wd, H))], check, (8, 8, 1),
+             {'pixels': Wd * H})
+
+
 WORKLOADS = {'reduce': w_reduce, 'scan': w_scan, 'sgemm': w_sgemm, 'conv2d': w_conv2d, 'histogram': w_histogram,
              'nbody': w_nbody, 'bitonic': w_bitonic, 'sha256': w_sha256, 'fp16': w_fp16, 'int64': w_int64, 'bitops': w_bitops,
              'intdiv': w_intdiv, 'compact': w_compact, 'spmv': w_spmv, 'transpose': w_transpose, 'mandelbrot': w_mandelbrot,
@@ -883,7 +1012,7 @@ WORKLOADS = {'reduce': w_reduce, 'scan': w_scan, 'sgemm': w_sgemm, 'conv2d': w_c
              'control': w_control, 'shuffle': w_shuffle, 'floatops': w_floatops, 'radix_sort': w_radix_sort, 'fft': w_fft,
              'crc32': w_crc32, 'kmeans': w_kmeans, 'int8dot': w_int8dot, 'stencil3d': w_stencil3d, 'int16': w_int16, 'trig': w_trig,
              'raytrace': w_raytrace, 'mlp': w_mlp, 'sobel': w_sobel, 'life': w_life, 'bfs': w_bfs, 'conv_layer': w_conv_layer,
-             'hist_eq': w_hist_eq}
+             'hist_eq': w_hist_eq, 'aes': w_aes, 'hash_table': w_hash_table, 'word_count': w_word_count, 'dct8': w_dct8}
 
 
 # ---------------------------------------------------------------------------------------------------------------

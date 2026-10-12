@@ -1,6 +1,7 @@
-# Task SPIR-V 8: applications (ray tracer, neural networks, image processing, cellular automaton, graph search)
+# Task SPIR-V 8: applications (ray tracer, neural networks, image processing, cellular automaton, graph search,
+# encryption, hashing, text, compression)
 
-**Workloads:** `raytrace`, `mlp`, `sobel`, `life`, `bfs`, `conv_layer`, `hist_eq`. These are recorded and verified by `make asahi-verify` with the others;
+**Workloads:** `raytrace`, `mlp`, `sobel`, `life`, `bfs`, `conv_layer`, `hist_eq`, `aes`, `hash_table`, `word_count`, `dct8`. These are recorded and verified by `make asahi-verify` with the others;
 they are **PENDING** until then. The detailed procedure is in `tasks/spirv-workloads.md`.
 
 ## Why these
@@ -18,11 +19,15 @@ reference.
 | `bfs` | Breadth-first search from vertex 0 over a 1 Mi-vertex random graph, one dispatch per level | Distances and the number of vertices found per level; exact |
 | `conv_layer` | A 3×3 convolution layer, 16 → 32 channels, ReLU, on 224×224 | Feature maps; within a summation error bound |
 | `hist_eq` | Histogram equalisation of a low-contrast 4K image | Equalised image `image2.pgm` (contrast stretched to 0..255); exact |
+| `aes` | AES-128 (ECB) of 1 Mi blocks with a random key; the Python reference must reproduce FIPS-197 appendix C.1 first | Ciphertext; exact |
+| `hash_table` | Build a 2 Mi-slot open-addressing table from 1 Mi keys (atomicCompSwap), then 1 Mi lookups (about half hits) | Lookup results, table occupancy; exact |
+| `word_count` | Word count, line count and word-length histogram of 16 MiB of generated text | 18 counters; exact |
+| `dct8` | JPEG luminance DCT + quantisation of a 4K image (the first stage of a JPEG encoder) | Quantised coefficients; exact except ±1 at .5 ties |
 
 ## Offline sanity checks (not hardware verification)
 
 - **lavapipe:** all three pass at both sizes.
-- **Shim-compiled Mesa 25.2.8 and 26.0.3 code on the functional simulator:** 14 of 14.
+- **Shim-compiled Mesa 25.2.8 and 26.0.3 code on the functional simulator:** 22 of 22.
   - `bfs` found a simulator bug. Mesa aggregates `atomicAdd(found[l], 1)` under divergence: one lane, chosen with SR58
     (`active_thread_index_in_simdgroup`), adds SR59, the number of active lanes. The simulator modelled both from the
     launch shape (lane index, 32), which is only right when every lane is active, so the counts came out as multiples

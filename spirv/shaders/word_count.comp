@@ -1,0 +1,32 @@
+#version 450
+// Text statistics over a byte buffer (ASCII): words (a letter or digit not preceded by one), lines (newlines) and
+// the histogram of word lengths up to 15 (longer words in bin 15). One byte per thread; counts per workgroup in shared
+// memory, then one device atomic per counter.
+#extension GL_EXT_shader_8bit_storage : require
+#extension GL_EXT_shader_explicit_arithmetic_types_int8 : require
+layout(local_size_x = 256) in;
+layout(std430, binding = 0) readonly buffer T { uint8_t text[]; };
+layout(std430, binding = 1) buffer C { uint counts[18]; };     // words, lines, lengths 0..15
+layout(push_constant) uniform P { uint n; } p;
+shared uint sc[18];
+
+bool alnum(uint c) { return (c >= 48u && c <= 57u) || (c >= 65u && c <= 90u) || (c >= 97u && c <= 122u); }
+
+void main() {
+    uint t = gl_LocalInvocationID.x, i = gl_GlobalInvocationID.x;
+    if (t < 18u) sc[t] = 0u;
+    barrier();
+    if (i < p.n) {
+        uint c = uint(text[i]);
+        bool start = alnum(c) && (i == 0u || !alnum(uint(text[i - 1u])));
+        if (start) {
+            atomicAdd(sc[0], 1u);
+            uint len = 0u;
+            while (i + len < p.n && alnum(uint(text[i + len])) && len < 15u) len++;
+            atomicAdd(sc[2u + len], 1u);
+        }
+        if (c == 10u) atomicAdd(sc[1], 1u);
+    }
+    barrier();
+    if (t < 18u && sc[t] != 0u) atomicAdd(counts[t], sc[t]);
+}
