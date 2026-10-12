@@ -1,0 +1,38 @@
+0x0100  0501100d00c87200         device_load 0, i32, xyz, r0_r1_r2, u0_u1, 1, signed, lsl 2
+0x0108  3800                     wait 0
+0x010a  2e01000024070000         bfi r0, 0, r0, 7
+0x0112  c500803d00803000         uniform_store 2, i16, xy, 0, r0l_r0h, 8
+0x011a  0501700d01c81200         device_load 0, i32, x, r0, u0_u1, 23, signed, lsl 2
+0x0122  3800                     wait 0
+0x0124  c500a03d00803000         uniform_store 2, i16, xy, 0, r0l_r0h, 10
+0x012c  0509d00d05c01200         device_load 0, i32, x, r1, u0_u1, 93, signed
+0x0134  3800                     wait 0
+0x0136  1e09420664000000         imadd r2, r1.sx, r0.sx, 0
+0x013e  c510c03d00803000         uniform_store 2, i16, xy, 0, r2l_r2h, 12
+0x0146  0e05012864000000         isub r1, 1, r1.sx
+0x014e  1e05420664000000         imadd r1, r1.sx, r0.sx, 0
+0x0156  c508e03d00803000         uniform_store 2, i16, xy, 0, r1l_r1h, 14
+0x015e  0511700d02c83200         device_load 0, i32, xy, r2_r3, u0_u1, 39, signed, lsl 2
+0x0166  3800                     wait 0
+0x0168  0521044500c0f200         device_load 1, i32, xyzw, r4_r5_r6_r7, r2_r3, 0, signed
+0x0170  3801                     wait 1
+0x0172  c520003d0180f000         uniform_store 2, i16, xyzw, 0, r4l_r4h_r5l_r5h, 16
+0x017a  0521140500c8f200         device_load 0, i32, xyzw, r4_r5_r6_r7, r2_r3, 1, signed, lsl 2
+0x0182  3800                     wait 0
+0x0184  c520403d0180f000         uniform_store 2, i16, xyzw, 0, r4l_r4h_r5l_r5h, 20
+0x018c  0521340500c8f200         device_load 0, i32, xyzw, r4_r5_r6_r7, r2_r3, 3, signed, lsl 2
+0x0194  3800                     wait 0
+0x0196  c520803d0180f000         uniform_store 2, i16, xyzw, 0, r4l_r4h_r5l_r5h, 24
+0x019e  0541240500c8f200         device_load 0, i32, xyzw, r8_r9_r10_r11, r2_r3, 2, signed, lsl 2
+0x01a6  3800                     wait 0
+0x01a8  c540c03d0180f000         uniform_store 2, i16, xyzw, 0, r8l_r8h_r9l_r9h, 28
+0x01b0  0509f00d02c41200         device_load 0, i32, x, r1, u0_u1, 47, signed, lsl 1
+0x01b8  3800                     wait 0
+0x01ba  c508003d02803000         uniform_store 2, i16, xy, 0, r1l_r1h, 32
+0x01c2  3e810a042400             convert u32_to_f, r0, r0, rte
+0x01c8  0a014082                 rcp r0, r0
+0x01cc  2a853020a400             fadd32 r1, 1.0, r1.neg
+0x01d2  1a8142022400             fmul32 r0, r1, r0
+0x01d8  c500203d02803000         uniform_store 2, i16, xy, 0, r0l_r0h, 34
+0x01e0  c520403d0280f000         uniform_store 2, i16, xyzw, 0, r4l_r4h_r5l_r5h, 36
+0x01e8  8800                     stop

@@ -28,7 +28,7 @@
 #include <time.h>
 
 #define MAXB 16
-#define MAXD 256
+#define MAXD 1024
 
 static void die(const char *what, int code) {
     printf("{\"error\":\"%s\",\"code\":%d}\n", what, code);

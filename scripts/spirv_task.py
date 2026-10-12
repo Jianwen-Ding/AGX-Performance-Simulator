@@ -1345,6 +1345,97 @@ def w_tridiag(size, rng):
              [((S + 63) // 64, 1, 1, push(S))], check, 64, {'systems': S, 'unknowns': 64 * S})
 
 
+def w_merge(size, rng):
+    n, m = (700, 500) if size == 'small' else (1 << 23, 3 << 21)
+    a = np.sort(rng.integers(-1000, 1000 if size == 'small' else 1 << 20, n)).astype(np.int32)   # many ties within and across
+    b = np.sort(rng.integers(-1000, 1000 if size == 'small' else 1 << 20, m)).astype(np.int32)
+    def check(o):
+        got = o[2].view(np.int32)[:n + m]; src = o[3].view(np.uint32)[:n + m]
+        order = np.argsort(np.concatenate([a, b]), kind='stable')          # stable: A's equal keys first
+        ok = np.array_equal(src, order) and np.array_equal(got, np.concatenate([a, b])[order])
+        return ok, {'value_mismatches': int(np.sum(got != np.concatenate([a, b])[order])), 'source_mismatches': int(np.sum(src != order))}
+    return W('merge', {0: (a, False), 1: (b, False), 2: (4 * (n + m), True), 3: (4 * (n + m), True)},
+             [((n + m + 255) // 256, 1, 1, push(n, m))], check, 256, {'elements': n + m})
+
+
+def ccl_jacobi(fg, lab):
+    """one synchronous label-propagation step (4-connectivity, foreground only)"""
+    big = np.uint32(0xffffffff)
+    m = lab.copy()
+    for sl_dst, sl_src in [((slice(None), slice(1, None)), (slice(None), slice(None, -1))), ((slice(None), slice(None, -1)), (slice(None), slice(1, None))),
+                           ((slice(1, None), slice(None)), (slice(None, -1), slice(None))), ((slice(None, -1), slice(None)), (slice(1, None), slice(None)))]:
+        nb = np.where(fg[sl_src], lab[sl_src], big)
+        m[sl_dst] = np.minimum(m[sl_dst], nb)
+    return np.where(fg, m, big)
+
+
+def w_ccl(size, rng):
+    Wd, H = (48, 40) if size == 'small' else (512, 512)
+    noise = rng.standard_normal((H + 8, Wd + 8))
+    sm = sum(noise[dy:dy + H, dx:dx + Wd] for dy in range(9) for dx in range(9))   # box-smoothed noise: blobs
+    fg = sm > 2.0
+    lab0 = np.where(fg, np.arange(H * Wd, dtype=np.uint32).reshape(H, Wd), np.uint32(0xffffffff)).astype(np.uint32)
+    lab, iters = lab0, 0
+    while True:                                                             # Jacobi order converges slowest
+        nxt = ccl_jacobi(fg, lab)
+        if np.array_equal(nxt, lab):
+            break
+        lab, iters = nxt, iters + 1
+    ref = lab
+    def check(o):
+        got = o[1].view(np.uint32)[:H * Wd].reshape(H, Wd)
+        comps = len(np.unique(ref[fg]))
+        return np.array_equal(got, ref), {'label_mismatches': int(np.sum(got != ref)), 'components': comps, 'dispatches': max(iters, 1)}
+    ds = [((Wd + 15) // 16, (H + 15) // 16, 1, push(Wd, H))] * max(iters, 1)
+    return W('ccl', {0: (u32(fg.ravel()), False), 1: (lab0.ravel(), True)}, ds, check, (16, 16, 1), {'pixel_updates': Wd * H * len(ds)})
+
+
+def w_pagerank(size, rng):
+    (n, iters), d = ((500, 20) if size == 'small' else (1 << 20, 20)), 0.85
+    outdeg = np.minimum(rng.zipf(2.0, n), 200)                              # heavy-tailed out-degrees, all >= 1
+    srcs = np.repeat(np.arange(n), outdeg)
+    dsts = (srcs + rng.integers(1, n, len(srcs))) % n                       # no self links
+    order = np.argsort(dsts, kind='stable')
+    col = u32(srcs[order]); rowptr = u32(np.concatenate([[0], np.cumsum(np.bincount(dsts, minlength=n))]))
+    inv_out = f32(1.0 / outdeg)
+    def check(o):
+        got = o[3].view(np.float32)[:n]                                     # even iteration count ends in the first half
+        r = np.full(n, 1.0 / n)
+        for _ in range(iters):
+            r = (1 - d) / n + d * np.bincount(dsts, weights=r[srcs] / outdeg[srcs], minlength=n)
+        err = float(np.max(np.abs(got - r) / r))
+        return err < 1e-4, {'max_rel_err': err, 'top_page': int(np.argmax(r)), 'top_rank': float(r.max()), 'rank_sum': float(got.sum())}
+    ds = [((n + 127) // 128, 1, 1, push(n, k & 1, d)) for k in range(iters)]
+    rank0 = f32(np.concatenate([np.full(n, 1.0 / n), np.zeros(n)]))
+    return W('pagerank', {0: (rowptr, False), 1: (col, False), 2: (inv_out, False), 3: (rank0, True)}, ds, check, 128,
+             {'edges': len(col) * iters})
+
+
+def w_skinning(size, rng):
+    n, nb = (500 if size == 'small' else 1 << 20), 64
+    pos = f32(np.concatenate([rng.uniform(-1, 1, (n, 3)), np.ones((n, 1))], 1))
+    nv = rng.standard_normal((n, 3)); nv /= np.linalg.norm(nv, axis=1, keepdims=True)
+    nrm = f32(np.concatenate([nv, np.zeros((n, 1))], 1))
+    jidx = rng.integers(0, nb, (n, 4))
+    joints = u32(jidx[:, 0] | jidx[:, 1] << 8 | jidx[:, 2] << 16 | jidx[:, 3] << 24)
+    w = rng.random((n, 4)) ** 2; w /= w.sum(1, keepdims=True); w = f32(w)
+    ang = rng.uniform(-np.pi, np.pi, nb)                                    # rotations about z plus translations
+    bones = np.zeros((nb, 4, 4)); bones[:, 0, 0] = bones[:, 1, 1] = np.cos(ang); bones[:, 0, 1] = -np.sin(ang); bones[:, 1, 0] = np.sin(ang)
+    bones[:, 2, 2] = 1; bones[:, 3, 3] = 1; bones[:, :3, 3] = rng.uniform(-0.5, 0.5, (nb, 3))
+    bones = f32(bones)
+    bones_cm = f32(np.transpose(bones, (0, 2, 1)))                          # GLSL mat4: column-major
+    def check(o):
+        gp = o[5].view(np.float32)[:4 * n].reshape(n, 4); gn = o[6].view(np.float32)[:4 * n].reshape(n, 4)
+        M = np.einsum('nk,nkij->nij', w.astype(np.float64), bones.astype(np.float64)[jidx])
+        rp = np.einsum('nij,nj->ni', M, pos.astype(np.float64))
+        rn = np.einsum('nij,nj->ni', M[:, :3, :3], nrm[:, :3].astype(np.float64))
+        bound = 32 * 2.0 ** -24 * 2.0                                       # |M| entries <= 1.5, |v| <= 1: a few dozen roundings
+        ep, en = float(np.max(np.abs(gp - rp))), float(np.max(np.abs(gn[:, :3] - rn)))
+        return ep <= bound and en <= bound and np.all(gn[:, 3] == 0), {'pos_max_err': ep, 'nrm_max_err': en, 'bound': bound}
+    return W('skinning', {0: (pos, False), 1: (nrm, False), 2: (joints, False), 3: (w, False), 4: (bones_cm, False),
+                          5: (16 * n, True), 6: (16 * n, True)}, [((n + 63) // 64, 1, 1, push(n))], check, 64, {'vertices': n})
+
+
 WORKLOADS = {'reduce': w_reduce, 'scan': w_scan, 'sgemm': w_sgemm, 'conv2d': w_conv2d, 'histogram': w_histogram,
              'nbody': w_nbody, 'bitonic': w_bitonic, 'sha256': w_sha256, 'fp16': w_fp16, 'int64': w_int64, 'bitops': w_bitops,
              'intdiv': w_intdiv, 'compact': w_compact, 'spmv': w_spmv, 'transpose': w_transpose, 'mandelbrot': w_mandelbrot,
@@ -1356,7 +1447,8 @@ WORKLOADS = {'reduce': w_reduce, 'scan': w_scan, 'sgemm': w_sgemm, 'conv2d': w_c
              'attention': w_attention, 'resize': w_resize, 'median3': w_median3, 'poisson': w_poisson,
              'lbm': w_lbm, 'base64': w_base64, 'md5': w_md5, 'gemv': w_gemv,
              'levenshtein': w_levenshtein, 'blur': w_blur, 'yuv420': w_yuv420, 'montecarlo': w_montecarlo,
-             'xxhash': w_xxhash, 'bloom': w_bloom, 'collatz': w_collatz, 'tridiag': w_tridiag}
+             'xxhash': w_xxhash, 'bloom': w_bloom, 'collatz': w_collatz, 'tridiag': w_tridiag,
+             'merge': w_merge, 'ccl': w_ccl, 'pagerank': w_pagerank, 'skinning': w_skinning}
 
 
 # ---------------------------------------------------------------------------------------------------------------

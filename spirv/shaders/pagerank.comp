@@ -1,0 +1,22 @@
+#version 450
+// PageRank by power iteration on a CSR graph of in-links (pull form): one thread per page sums its in-neighbours'
+// rank / out-degree, then applies damping; ranks ping-pong between the two halves of one buffer. fp32, checked
+// against float64 iterations.
+layout(local_size_x = 128) in;
+layout(std430, binding = 0) readonly buffer RP { uint rowptr[]; };
+layout(std430, binding = 1) readonly buffer CI { uint col[]; };
+layout(std430, binding = 2) readonly buffer OD { float inv_out[]; };   // 1 / out-degree
+layout(std430, binding = 3) buffer R { float rank[]; };                 // 2 * n
+layout(push_constant) uniform P { uint n; uint parity; float damping; } p;
+
+void main() {
+    uint v = gl_GlobalInvocationID.x;
+    if (v >= p.n) return;
+    uint src = p.parity * p.n, dst = (1u - p.parity) * p.n;
+    float s = 0.0;
+    for (uint e = rowptr[v]; e < rowptr[v + 1u]; e++) {
+        uint u = col[e];
+        s += rank[src + u] * inv_out[u];
+    }
+    rank[dst + v] = (1.0 - p.damping) / float(p.n) + p.damping * s;
+}

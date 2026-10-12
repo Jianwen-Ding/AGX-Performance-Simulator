@@ -1,7 +1,7 @@
 # Task SPIR-V 8: applications (ray tracer, neural networks, image processing, cellular automaton, graph search,
 # encryption, hashing, text, compression)
 
-**Workloads:** `raytrace`, `mlp`, `sobel`, `life`, `bfs`, `conv_layer`, `hist_eq`, `aes`, `hash_table`, `word_count`, `dct8`, `attention`, `resize`, `median3`, `poisson`, `lbm`, `base64`, `md5`, `gemv`, `levenshtein`, `blur`, `yuv420`, `montecarlo`, `xxhash`, `bloom`, `collatz`, `tridiag`. These are recorded and verified by `make asahi-verify` with the others;
+**Workloads:** `raytrace`, `mlp`, `sobel`, `life`, `bfs`, `conv_layer`, `hist_eq`, `aes`, `hash_table`, `word_count`, `dct8`, `attention`, `resize`, `median3`, `poisson`, `lbm`, `base64`, `md5`, `gemv`, `levenshtein`, `blur`, `yuv420`, `montecarlo`, `xxhash`, `bloom`, `collatz`, `tridiag`, `merge`, `ccl`, `pagerank`, `skinning`. These are recorded and verified by `make asahi-verify` with the others;
 they are **PENDING** until then. The detailed procedure is in `tasks/spirv-workloads.md`.
 
 ## Why these
@@ -39,11 +39,15 @@ reference.
 | `bloom` | Bloom filter of 2^21 keys (10 bits per key, 6 hashes): insert with `atomicOr`, then query | Exact bit array and answers; no false negatives, ~0.8% false positives |
 | `collatz` | 3n + 1 trajectories of 2^20 starts below 2^31 in uint64: steps and peak | Exact; per-lane trip counts from 20 to ~800 steps (divergence) |
 | `tridiag` | 65536 tridiagonal 64 × 64 systems, Thomas algorithm per thread | Within 64 ulp of float64 `numpy.linalg.solve`; private arrays go to the stack |
+| `merge` | Stable merge of two sorted int32 arrays (8.4M + 6.3M) by merge path, one binary search per output | Exact values and source indices (ties take A first) |
+| `ccl` | Connected components of a 512 × 512 binary image by label propagation with `atomicMin`, 308 dispatches | Exact labels (smallest pixel index per component); the dispatch count covers the slowest (Jacobi) order |
+| `pagerank` | 20 PageRank iterations on a 2^20-page graph with heavy-tailed out-degrees (CSR, pull form) | Within 1e-4 relative of float64; rank sum 1 |
+| `skinning` | Linear blend skinning of 2^20 vertices by 4 of 64 bone matrices: positions and normals | Within 2^-18 of float64 |
 
 ## Offline sanity checks (not hardware verification)
 
 - **lavapipe:** all pass at both sizes.
-- **Shim-compiled Mesa 25.2.8 and 26.0.3 code on the functional simulator:** 54 of 54.
+- **Shim-compiled Mesa 25.2.8 and 26.0.3 code on the functional simulator:** 62 of 62.
   - `bfs` found a simulator bug. Mesa aggregates `atomicAdd(found[l], 1)` under divergence: one lane, chosen with SR58
     (`active_thread_index_in_simdgroup`), adds SR59, the number of active lanes. The simulator modelled both from the
     launch shape (lane index, 32), which is only right when every lane is active, so the counts came out as multiples
@@ -74,3 +78,7 @@ reference.
 7. `xxhash`, `bloom` and `collatz` are exact and must PASS. `tridiag` divides, so expect CLOSE; report its largest
    difference. Mesa 25.2.8 compiles it to 1304 instructions and 26.0.3 to 2266 (about 900 extra `xor`), and the
    simulator executes twice as many with 26.0.3: note which Mesa the M2 runs and compare the time with `predict`.
+8. `merge` and `ccl` are exact and must PASS. `ccl` converges whatever order the GPU's in-place updates land in,
+   because each update can only lower a label faster than the Jacobi order that sets the dispatch count. Its
+   prediction runs every dispatch from the initial labels. `pagerank` and `skinning` are fp32 sums, so expect CLOSE
+   or PASS. `pagerank` is irregular gathers; compare its time with `predict` as a memory-latency case.

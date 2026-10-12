@@ -31,7 +31,7 @@ The rest of this file is the detailed procedure, for investigating results.
 
 ## Workloads
 
-Fifty-nine realistic compute kernels, written in GLSL (`spirv/shaders/*.comp`) and compiled to SPIR-V:
+Sixty-three realistic compute kernels, written in GLSL (`spirv/shaders/*.comp`) and compiled to SPIR-V:
 
 | Workload | Kernel | Stresses |
 |---|---|---|
@@ -94,6 +94,10 @@ Fifty-nine realistic compute kernels, written in GLSL (`spirv/shaders/*.comp`) a
 | `bloom` | Bloom filter insert and query | `atomicOr`, integer modulo, two dependent dispatches |
 | `collatz` | 3n + 1 trajectories in uint64 | 64-bit integer arithmetic, data-dependent loop lengths |
 | `tridiag` | Batched tridiagonal solves (Thomas algorithm) | fp32 division, private arrays on the stack |
+| `merge` | Merge-path merge of sorted arrays | Binary searches with data-dependent addresses |
+| `ccl` | Connected-component labelling (308 dispatches) | `atomicMin` in place, long dispatch chains |
+| `pagerank` | PageRank power iteration on a CSR graph | Irregular gathers, fp32 accumulation, ping-pong buffers |
+| `skinning` | Linear blend skinning of mesh vertices | mat4 arithmetic, byte-packed indices, vec4 loads and stores |
 
 Each workload has two sizes:
 
@@ -180,7 +184,7 @@ references are right; a wrong result on the M2 is therefore a GPU, driver or run
    python3 -B scripts/spirv_task.py sim sgemm --code-dir spirv/out/sgemm-small/code --hardware spirv/out/sgemm-small
    ```
 
-   - Offline, all fifty-nine workloads pass their numpy references with shim-compiled Mesa 25.2.8 and 26.0.3 code
+   - Offline, all sixty-three workloads pass their numpy references with shim-compiled Mesa 25.2.8 and 26.0.3 code
      (`make spirv-sim`). That is a sanity check; verification is `make spirv-verify` against the M2 recordings.
    - Integer workloads (`scan`, `histogram`, `bitonic`, `sha256`, `int64`, `bitops`, `intdiv`, `compact`, `transpose`,
      `mandelbrot`, `atomics`, `geom3d`, `spill`, `control`, `shuffle`, `floatops`, `radix_sort`, `crc32`, `int8dot`, `int16`, `sobel`,

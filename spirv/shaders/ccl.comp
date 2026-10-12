@@ -1,0 +1,22 @@
+#version 450
+// Connected-component labelling of a binary image (4-connectivity) by label propagation: every foreground pixel
+// lowers its label to the smallest label among itself and its foreground neighbours, with atomicMin so updates
+// land in place; repeated dispatches converge to the smallest pixel index of each component. Background pixels
+// keep 0xffffffff. Integer-exact once converged (the dispatch count covers the slowest, Jacobi-order, case).
+layout(local_size_x = 16, local_size_y = 16) in;
+layout(std430, binding = 0) readonly buffer I { uint fg[]; };
+layout(std430, binding = 1) buffer L { uint labels[]; };
+layout(push_constant) uniform P { int width; int height; } p;
+
+void main() {
+    ivec2 g = ivec2(gl_GlobalInvocationID.xy);
+    if (g.x >= p.width || g.y >= p.height) return;
+    uint i = uint(g.y * p.width + g.x);
+    if (fg[i] == 0u) return;
+    uint m = labels[i];
+    if (g.x > 0 && fg[i - 1u] != 0u) m = min(m, labels[i - 1u]);
+    if (g.x < p.width - 1 && fg[i + 1u] != 0u) m = min(m, labels[i + 1u]);
+    if (g.y > 0 && fg[i - uint(p.width)] != 0u) m = min(m, labels[i - uint(p.width)]);
+    if (g.y < p.height - 1 && fg[i + uint(p.width)] != 0u) m = min(m, labels[i + uint(p.width)]);
+    atomicMin(labels[i], m);
+}
