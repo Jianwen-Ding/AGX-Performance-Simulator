@@ -1,0 +1,28 @@
+#version 450
+// Multi-keyword search with an Aho-Corasick automaton compiled to a dense DFA (log scanning / intrusion detection):
+// each thread runs one 128-byte log line through the transition table (state x byte -> state, in shared memory)
+// and counts keyword occurrences, overlapping ones included. Integer-exact.
+#extension GL_EXT_shader_8bit_storage : require
+#extension GL_EXT_shader_explicit_arithmetic_types_int8 : require
+layout(local_size_x = 128) in;
+layout(std430, binding = 0) readonly buffer T { uint8_t text[]; };
+layout(std430, binding = 1) readonly buffer D { uint8_t delta[]; };   // states x 256
+layout(std430, binding = 2) readonly buffer A { uint8_t hits[]; };    // keywords ending in each state
+layout(std430, binding = 3) writeonly buffer C { uint counts[]; };
+layout(push_constant) uniform P { uint lines; uint states; } p;
+shared uint8_t sd[32 * 256];
+shared uint8_t sh[32];
+
+void main() {
+    uint l = gl_LocalInvocationID.x, line = gl_GlobalInvocationID.x;
+    for (uint k = l; k < p.states * 256u; k += 128u) sd[k] = delta[k];
+    if (l < p.states) sh[l] = hits[l];
+    barrier();
+    if (line >= p.lines) return;
+    uint s = 0u, c = 0u;
+    for (uint k = 0u; k < 128u; k++) {
+        s = uint(sd[s * 256u + uint(text[line * 128u + k])]);
+        c += uint(sh[s]);
+    }
+    counts[line] = c;
+}

@@ -1,0 +1,466 @@
+0x0080  72051004                 get_sr r1, sr80 (thread_position_in_grid.x)
+0x0084  0e05428658000000         iadd r1, r1.sx, u4.sx
+0x008c  62000000                 mov_imm r0l, 0
+0x0090  522842a21800             if_icmp r0l, ult, r1, u5, 1
+0x0096  20c0340c0000             jmp_exec_none pc+3124
+0x009c  05112c0e00c01200         device_load 0, i32, x, r2, u6_u7, r1, unsigned
+0x00a4  0521f04d10c43200         device_load 1, i32, xy, r4_r5, u8_u9, 15, signed, lsl 1
+0x00ac  3801                     wait 1
+0x00ae  0e0d00a0e4000000         iadd r3, 0, r5.sx, lsl 1
+0x00b6  3800                     wait 0
+0x00b8  0e19446e64000000         isub r6, r2.sx, r3.sx
+0x00c0  0e0d446664000000         iadd r3, r2.sx, r3.sx
+0x00c8  0e1d00a864000000         isub r7, 0, r5.sx
+0x00d0  120d44e2244640a4         icmpsel slt, r3, r2, r7, r3, r2
+0x00d8  120d4a42244c60a4         icmpsel slt, r3, r5, r2, r6, r3
+0x00e0  52a946020000             if_icmp r0l, sgte, r3, 0, 1
+0x00e6  0531000d10c01200         device_load 0, i32, x, r6, u8_u9, 0, signed
+0x00ee  3800                     wait 0
+0x00f0  0e0d46ce64000000         isub r3, r3.sx, r6.sx
+0x00f8  7e19460a8000             mov r6, r3
+0x00fe  7e0d480a8000             mov r3, r4
+0x0104  420a00000000             else_fcmp r0l, eq, 0.0, 0.0, 1
+0x010a  0531000d10c01200         device_load 0, i32, x, r6, u8_u9, 0, signed
+0x0112  3800                     wait 0
+0x0114  0e0d46c664000000         iadd r3, r3.sx, r6.sx
+0x011c  0e19008864000000         isub r6, 0, r4.sx
+0x0124  7e0d46ca6400             xor r3, r3, r6
+0x012a  7e1946ca6400             xor r6, r3, r6
+0x0130  7e0d46ca6400             xor r3, r3, r6
+0x0136  520e00000000             pop_exec r0l, 1
+0x013c  2ea1481600000000         asr r8, r4, 1
+0x0144  2ea5461600000000         asr r9, r3, 1
+0x014c  52a94c020000             if_icmp r0l, sgte, r6, 0, 1
+0x0152  0e11482e65000000         isub r4, r4.sx, r9.sx
+0x015a  0e0d460665000000         iadd r3, r3.sx, r8.sx
+0x0162  0541100d10c01200         device_load 0, i32, x, r8, u8_u9, 1, signed
+0x016a  3800                     wait 0
+0x016c  0e194c0e65000000         isub r6, r6.sx, r8.sx
+0x0174  420a00000000             else_fcmp r0l, eq, 0.0, 0.0, 1
+0x017a  0e11482665000000         iadd r4, r4.sx, r9.sx
+0x0182  0e0d460e65000000         isub r3, r3.sx, r8.sx
+0x018a  0541100d10c01200         device_load 0, i32, x, r8, u8_u9, 1, signed
+0x0192  3800                     wait 0
+0x0194  0e194c0665000000         iadd r6, r6.sx, r8.sx
+0x019c  520e00000000             pop_exec r0l, 1
+0x01a2  2ea1482600000000         asr r8, r4, 2
+0x01aa  2ea5462600000000         asr r9, r3, 2
+0x01b2  52a94c020000             if_icmp r0l, sgte, r6, 0, 1
+0x01b8  0e11482e65000000         isub r4, r4.sx, r9.sx
+0x01c0  0e0d460665000000         iadd r3, r3.sx, r8.sx
+0x01c8  0541100d10c41200         device_load 0, i32, x, r8, u8_u9, 1, signed, lsl 1
+0x01d0  3800                     wait 0
+0x01d2  0e194c0e65000000         isub r6, r6.sx, r8.sx
+0x01da  420a00000000             else_fcmp r0l, eq, 0.0, 0.0, 1
+0x01e0  0e11482665000000         iadd r4, r4.sx, r9.sx
+0x01e8  0e0d460e65000000         isub r3, r3.sx, r8.sx
+0x01f0  0541100d10c41200         device_load 0, i32, x, r8, u8_u9, 1, signed, lsl 1
+0x01f8  3800                     wait 0
+0x01fa  0e194c0665000000         iadd r6, r6.sx, r8.sx
+0x0202  520e00000000             pop_exec r0l, 1
+0x0208  2ea1483600000000         asr r8, r4, 3
+0x0210  2ea5463600000000         asr r9, r3, 3
+0x0218  52a94c020000             if_icmp r0l, sgte, r6, 0, 1
+0x021e  0e11482e65000000         isub r4, r4.sx, r9.sx
+0x0226  0e0d460665000000         iadd r3, r3.sx, r8.sx
+0x022e  0541300d10c01200         device_load 0, i32, x, r8, u8_u9, 3, signed
+0x0236  3800                     wait 0
+0x0238  0e194c0e65000000         isub r6, r6.sx, r8.sx
+0x0240  420a00000000             else_fcmp r0l, eq, 0.0, 0.0, 1
+0x0246  0e11482665000000         iadd r4, r4.sx, r9.sx
+0x024e  0e0d460e65000000         isub r3, r3.sx, r8.sx
+0x0256  0541300d10c01200         device_load 0, i32, x, r8, u8_u9, 3, signed
+0x025e  3800                     wait 0
+0x0260  0e194c0665000000         iadd r6, r6.sx, r8.sx
+0x0268  520e00000000             pop_exec r0l, 1
+0x026e  2ea1484600000000         asr r8, r4, 4
+0x0276  2ea5464600000000         asr r9, r3, 4
+0x027e  52a94c020000             if_icmp r0l, sgte, r6, 0, 1
+0x0284  0e11482e65000000         isub r4, r4.sx, r9.sx
+0x028c  0e0d460665000000         iadd r3, r3.sx, r8.sx
+0x0294  0541100d10c81200         device_load 0, i32, x, r8, u8_u9, 1, signed, lsl 2
+0x029c  3800                     wait 0
+0x029e  0e194c0e65000000         isub r6, r6.sx, r8.sx
+0x02a6  420a00000000             else_fcmp r0l, eq, 0.0, 0.0, 1
+0x02ac  0e11482665000000         iadd r4, r4.sx, r9.sx
+0x02b4  0e0d460e65000000         isub r3, r3.sx, r8.sx
+0x02bc  0541100d10c81200         device_load 0, i32, x, r8, u8_u9, 1, signed, lsl 2
+0x02c4  3800                     wait 0
+0x02c6  0e194c0665000000         iadd r6, r6.sx, r8.sx
+0x02ce  520e00000000             pop_exec r0l, 1
+0x02d4  2ea1485600000000         asr r8, r4, 5
+0x02dc  2ea5465600000000         asr r9, r3, 5
+0x02e4  52a94c020000             if_icmp r0l, sgte, r6, 0, 1
+0x02ea  0e11482e65000000         isub r4, r4.sx, r9.sx
+0x02f2  0e0d460665000000         iadd r3, r3.sx, r8.sx
+0x02fa  0541500d10c01200         device_load 0, i32, x, r8, u8_u9, 5, signed
+0x0302  3800                     wait 0
+0x0304  0e194c0e65000000         isub r6, r6.sx, r8.sx
+0x030c  420a00000000             else_fcmp r0l, eq, 0.0, 0.0, 1
+0x0312  0e11482665000000         iadd r4, r4.sx, r9.sx
+0x031a  0e0d460e65000000         isub r3, r3.sx, r8.sx
+0x0322  0541500d10c01200         device_load 0, i32, x, r8, u8_u9, 5, signed
+0x032a  3800                     wait 0
+0x032c  0e194c0665000000         iadd r6, r6.sx, r8.sx
+0x0334  520e00000000             pop_exec r0l, 1
+0x033a  2ea1486600000000         asr r8, r4, 6
+0x0342  2ea5466600000000         asr r9, r3, 6
+0x034a  52a94c020000             if_icmp r0l, sgte, r6, 0, 1
+0x0350  0e11482e65000000         isub r4, r4.sx, r9.sx
+0x0358  0e0d460665000000         iadd r3, r3.sx, r8.sx
+0x0360  0541300d10c41200         device_load 0, i32, x, r8, u8_u9, 3, signed, lsl 1
+0x0368  3800                     wait 0
+0x036a  0e194c0e65000000         isub r6, r6.sx, r8.sx
+0x0372  420a00000000             else_fcmp r0l, eq, 0.0, 0.0, 1
+0x0378  0e11482665000000         iadd r4, r4.sx, r9.sx
+0x0380  0e0d460e65000000         isub r3, r3.sx, r8.sx
+0x0388  0541300d10c41200         device_load 0, i32, x, r8, u8_u9, 3, signed, lsl 1
+0x0390  3800                     wait 0
+0x0392  0e194c0665000000         iadd r6, r6.sx, r8.sx
+0x039a  520e00000000             pop_exec r0l, 1
+0x03a0  2ea1487600000000         asr r8, r4, 7
+0x03a8  2ea5467600000000         asr r9, r3, 7
+0x03b0  52a94c020000             if_icmp r0l, sgte, r6, 0, 1
+0x03b6  0e11482e65000000         isub r4, r4.sx, r9.sx
+0x03be  0e0d460665000000         iadd r3, r3.sx, r8.sx
+0x03c6  0541700d10c01200         device_load 0, i32, x, r8, u8_u9, 7, signed
+0x03ce  3800                     wait 0
+0x03d0  0e194c0e65000000         isub r6, r6.sx, r8.sx
+0x03d8  420a00000000             else_fcmp r0l, eq, 0.0, 0.0, 1
+0x03de  0e11482665000000         iadd r4, r4.sx, r9.sx
+0x03e6  0e0d460e65000000         isub r3, r3.sx, r8.sx
+0x03ee  0541700d10c01200         device_load 0, i32, x, r8, u8_u9, 7, signed
+0x03f6  3800                     wait 0
+0x03f8  0e194c0665000000         iadd r6, r6.sx, r8.sx
+0x0400  520e00000000             pop_exec r0l, 1
+0x0406  2ea1488600000000         asr r8, r4, 8
+0x040e  2ea5468600000000         asr r9, r3, 8
+0x0416  52a94c020000             if_icmp r0l, sgte, r6, 0, 1
+0x041c  0e11482e65000000         isub r4, r4.sx, r9.sx
+0x0424  0e0d460665000000         iadd r3, r3.sx, r8.sx
+0x042c  0541200d10c81200         device_load 0, i32, x, r8, u8_u9, 2, signed, lsl 2
+0x0434  3800                     wait 0
+0x0436  0e194c0e65000000         isub r6, r6.sx, r8.sx
+0x043e  420a00000000             else_fcmp r0l, eq, 0.0, 0.0, 1
+0x0444  0e11482665000000         iadd r4, r4.sx, r9.sx
+0x044c  0e0d460e65000000         isub r3, r3.sx, r8.sx
+0x0454  0541200d10c81200         device_load 0, i32, x, r8, u8_u9, 2, signed, lsl 2
+0x045c  3800                     wait 0
+0x045e  0e194c0665000000         iadd r6, r6.sx, r8.sx
+0x0466  520e00000000             pop_exec r0l, 1
+0x046c  2ea1489600000000         asr r8, r4, 9
+0x0474  2ea5469600000000         asr r9, r3, 9
+0x047c  52a94c020000             if_icmp r0l, sgte, r6, 0, 1
+0x0482  0e11482e65000000         isub r4, r4.sx, r9.sx
+0x048a  0e0d460665000000         iadd r3, r3.sx, r8.sx
+0x0492  0541900d10c01200         device_load 0, i32, x, r8, u8_u9, 9, signed
+0x049a  3800                     wait 0
+0x049c  0e194c0e65000000         isub r6, r6.sx, r8.sx
+0x04a4  420a00000000             else_fcmp r0l, eq, 0.0, 0.0, 1
+0x04aa  0e11482665000000         iadd r4, r4.sx, r9.sx
+0x04b2  0e0d460e65000000         isub r3, r3.sx, r8.sx
+0x04ba  0541900d10c01200         device_load 0, i32, x, r8, u8_u9, 9, signed
+0x04c2  3800                     wait 0
+0x04c4  0e194c0665000000         iadd r6, r6.sx, r8.sx
+0x04cc  520e00000000             pop_exec r0l, 1
+0x04d2  2ea148a600000000         asr r8, r4, 10
+0x04da  2ea546a600000000         asr r9, r3, 10
+0x04e2  52a94c020000             if_icmp r0l, sgte, r6, 0, 1
+0x04e8  0e11482e65000000         isub r4, r4.sx, r9.sx
+0x04f0  0e0d460665000000         iadd r3, r3.sx, r8.sx
+0x04f8  0541500d10c41200         device_load 0, i32, x, r8, u8_u9, 5, signed, lsl 1
+0x0500  3800                     wait 0
+0x0502  0e194c0e65000000         isub r6, r6.sx, r8.sx
+0x050a  420a00000000             else_fcmp r0l, eq, 0.0, 0.0, 1
+0x0510  0e11482665000000         iadd r4, r4.sx, r9.sx
+0x0518  0e0d460e65000000         isub r3, r3.sx, r8.sx
+0x0520  0541500d10c41200         device_load 0, i32, x, r8, u8_u9, 5, signed, lsl 1
+0x0528  3800                     wait 0
+0x052a  0e194c0665000000         iadd r6, r6.sx, r8.sx
+0x0532  520e00000000             pop_exec r0l, 1
+0x0538  2ea148b600000000         asr r8, r4, 11
+0x0540  2ea546b600000000         asr r9, r3, 11
+0x0548  52a94c020000             if_icmp r0l, sgte, r6, 0, 1
+0x054e  0e11482e65000000         isub r4, r4.sx, r9.sx
+0x0556  0e0d460665000000         iadd r3, r3.sx, r8.sx
+0x055e  0541b00d10c01200         device_load 0, i32, x, r8, u8_u9, 11, signed
+0x0566  3800                     wait 0
+0x0568  0e194c0e65000000         isub r6, r6.sx, r8.sx
+0x0570  420a00000000             else_fcmp r0l, eq, 0.0, 0.0, 1
+0x0576  0e11482665000000         iadd r4, r4.sx, r9.sx
+0x057e  0e0d460e65000000         isub r3, r3.sx, r8.sx
+0x0586  0541b00d10c01200         device_load 0, i32, x, r8, u8_u9, 11, signed
+0x058e  3800                     wait 0
+0x0590  0e194c0665000000         iadd r6, r6.sx, r8.sx
+0x0598  520e00000000             pop_exec r0l, 1
+0x059e  2ea148c600000000         asr r8, r4, 12
+0x05a6  2ea546c600000000         asr r9, r3, 12
+0x05ae  52a94c020000             if_icmp r0l, sgte, r6, 0, 1
+0x05b4  0e11482e65000000         isub r4, r4.sx, r9.sx
+0x05bc  0e0d460665000000         iadd r3, r3.sx, r8.sx
+0x05c4  0541300d10c81200         device_load 0, i32, x, r8, u8_u9, 3, signed, lsl 2
+0x05cc  3800                     wait 0
+0x05ce  0e194c0e65000000         isub r6, r6.sx, r8.sx
+0x05d6  420a00000000             else_fcmp r0l, eq, 0.0, 0.0, 1
+0x05dc  0e11482665000000         iadd r4, r4.sx, r9.sx
+0x05e4  0e0d460e65000000         isub r3, r3.sx, r8.sx
+0x05ec  0541300d10c81200         device_load 0, i32, x, r8, u8_u9, 3, signed, lsl 2
+0x05f4  3800                     wait 0
+0x05f6  0e194c0665000000         iadd r6, r6.sx, r8.sx
+0x05fe  520e00000000             pop_exec r0l, 1
+0x0604  2ea148d600000000         asr r8, r4, 13
+0x060c  2ea546d600000000         asr r9, r3, 13
+0x0614  52a94c020000             if_icmp r0l, sgte, r6, 0, 1
+0x061a  0e11482e65000000         isub r4, r4.sx, r9.sx
+0x0622  0e0d460665000000         iadd r3, r3.sx, r8.sx
+0x062a  0541d00d10c01200         device_load 0, i32, x, r8, u8_u9, 13, signed
+0x0632  3800                     wait 0
+0x0634  0e194c0e65000000         isub r6, r6.sx, r8.sx
+0x063c  420a00000000             else_fcmp r0l, eq, 0.0, 0.0, 1
+0x0642  0e11482665000000         iadd r4, r4.sx, r9.sx
+0x064a  0e0d460e65000000         isub r3, r3.sx, r8.sx
+0x0652  0541d00d10c01200         device_load 0, i32, x, r8, u8_u9, 13, signed
+0x065a  3800                     wait 0
+0x065c  0e194c0665000000         iadd r6, r6.sx, r8.sx
+0x0664  520e00000000             pop_exec r0l, 1
+0x066a  2ea148e600000000         asr r8, r4, 14
+0x0672  2ea546e600000000         asr r9, r3, 14
+0x067a  52a94c020000             if_icmp r0l, sgte, r6, 0, 1
+0x0680  0e11482e65000000         isub r4, r4.sx, r9.sx
+0x0688  0e0d460665000000         iadd r3, r3.sx, r8.sx
+0x0690  0541700d10c41200         device_load 0, i32, x, r8, u8_u9, 7, signed, lsl 1
+0x0698  3800                     wait 0
+0x069a  0e194c0e65000000         isub r6, r6.sx, r8.sx
+0x06a2  420a00000000             else_fcmp r0l, eq, 0.0, 0.0, 1
+0x06a8  0e11482665000000         iadd r4, r4.sx, r9.sx
+0x06b0  0e0d460e65000000         isub r3, r3.sx, r8.sx
+0x06b8  0541700d10c41200         device_load 0, i32, x, r8, u8_u9, 7, signed, lsl 1
+0x06c0  3800                     wait 0
+0x06c2  0e194c0665000000         iadd r6, r6.sx, r8.sx
+0x06ca  520e00000000             pop_exec r0l, 1
+0x06d0  2ea148f600000000         asr r8, r4, 15
+0x06d8  2ea546f600000000         asr r9, r3, 15
+0x06e0  52a94c020000             if_icmp r0l, sgte, r6, 0, 1
+0x06e6  0e11482e65000000         isub r4, r4.sx, r9.sx
+0x06ee  0e0d460665000000         iadd r3, r3.sx, r8.sx
+0x06f6  0541f00d10c01200         device_load 0, i32, x, r8, u8_u9, 15, signed
+0x06fe  3800                     wait 0
+0x0700  0e194c0e65000000         isub r6, r6.sx, r8.sx
+0x0708  420a00000000             else_fcmp r0l, eq, 0.0, 0.0, 1
+0x070e  0e11482665000000         iadd r4, r4.sx, r9.sx
+0x0716  0e0d460e65000000         isub r3, r3.sx, r8.sx
+0x071e  0541f00d10c01200         device_load 0, i32, x, r8, u8_u9, 15, signed
+0x0726  3800                     wait 0
+0x0728  0e194c0665000000         iadd r6, r6.sx, r8.sx
+0x0730  520e00000000             pop_exec r0l, 1
+0x0736  7e0249088000             mov r0h, r4h
+0x073c  7e2047088000             mov r8l, r3h
+0x0742  52a94c020000             if_icmp r0l, sgte, r6, 0, 1
+0x0748  0e11480e45000000         isub r4, r4.sx, r8l.sx
+0x0750  0e0d461644000000         iadd r3, r3.sx, r0h.sx
+0x0758  0541400d10c81200         device_load 0, i32, x, r8, u8_u9, 4, signed, lsl 2
+0x0760  3800                     wait 0
+0x0762  0e194c0e65000000         isub r6, r6.sx, r8.sx
+0x076a  420a00000000             else_fcmp r0l, eq, 0.0, 0.0, 1
+0x0770  0e11480645000000         iadd r4, r4.sx, r8l.sx
+0x0778  0e0d461e44000000         isub r3, r3.sx, r0h.sx
+0x0780  0541400d10c81200         device_load 0, i32, x, r8, u8_u9, 4, signed, lsl 2
+0x0788  3800                     wait 0
+0x078a  0e194c0665000000         iadd r6, r6.sx, r8.sx
+0x0792  520e00000000             pop_exec r0l, 1
+0x0798  2ea1481601000000         asr r8, r4, 17
+0x07a0  2ea5461601000000         asr r9, r3, 17
+0x07a8  52a94c020000             if_icmp r0l, sgte, r6, 0, 1
+0x07ae  0e11482e65000000         isub r4, r4.sx, r9.sx
+0x07b6  0e0d460665000000         iadd r3, r3.sx, r8.sx
+0x07be  0541100d11c01200         device_load 0, i32, x, r8, u8_u9, 17, signed
+0x07c6  3800                     wait 0
+0x07c8  0e194c0e65000000         isub r6, r6.sx, r8.sx
+0x07d0  420a00000000             else_fcmp r0l, eq, 0.0, 0.0, 1
+0x07d6  0e11482665000000         iadd r4, r4.sx, r9.sx
+0x07de  0e0d460e65000000         isub r3, r3.sx, r8.sx
+0x07e6  0541100d11c01200         device_load 0, i32, x, r8, u8_u9, 17, signed
+0x07ee  3800                     wait 0
+0x07f0  0e194c0665000000         iadd r6, r6.sx, r8.sx
+0x07f8  520e00000000             pop_exec r0l, 1
+0x07fe  2ea1482601000000         asr r8, r4, 18
+0x0806  2ea5462601000000         asr r9, r3, 18
+0x080e  52a94c020000             if_icmp r0l, sgte, r6, 0, 1
+0x0814  0e11482e65000000         isub r4, r4.sx, r9.sx
+0x081c  0e0d460665000000         iadd r3, r3.sx, r8.sx
+0x0824  0541900d10c41200         device_load 0, i32, x, r8, u8_u9, 9, signed, lsl 1
+0x082c  3800                     wait 0
+0x082e  0e194c0e65000000         isub r6, r6.sx, r8.sx
+0x0836  420a00000000             else_fcmp r0l, eq, 0.0, 0.0, 1
+0x083c  0e11482665000000         iadd r4, r4.sx, r9.sx
+0x0844  0e0d460e65000000         isub r3, r3.sx, r8.sx
+0x084c  0541900d10c41200         device_load 0, i32, x, r8, u8_u9, 9, signed, lsl 1
+0x0854  3800                     wait 0
+0x0856  0e194c0665000000         iadd r6, r6.sx, r8.sx
+0x085e  520e00000000             pop_exec r0l, 1
+0x0864  2ea1483601000000         asr r8, r4, 19
+0x086c  2ea5463601000000         asr r9, r3, 19
+0x0874  52a94c020000             if_icmp r0l, sgte, r6, 0, 1
+0x087a  0e11482e65000000         isub r4, r4.sx, r9.sx
+0x0882  0e0d460665000000         iadd r3, r3.sx, r8.sx
+0x088a  0541300d11c01200         device_load 0, i32, x, r8, u8_u9, 19, signed
+0x0892  3800                     wait 0
+0x0894  0e194c0e65000000         isub r6, r6.sx, r8.sx
+0x089c  420a00000000             else_fcmp r0l, eq, 0.0, 0.0, 1
+0x08a2  0e11482665000000         iadd r4, r4.sx, r9.sx
+0x08aa  0e0d460e65000000         isub r3, r3.sx, r8.sx
+0x08b2  0541300d11c01200         device_load 0, i32, x, r8, u8_u9, 19, signed
+0x08ba  3800                     wait 0
+0x08bc  0e194c0665000000         iadd r6, r6.sx, r8.sx
+0x08c4  520e00000000             pop_exec r0l, 1
+0x08ca  2ea1484601000000         asr r8, r4, 20
+0x08d2  2ea5464601000000         asr r9, r3, 20
+0x08da  52a94c020000             if_icmp r0l, sgte, r6, 0, 1
+0x08e0  0e11482e65000000         isub r4, r4.sx, r9.sx
+0x08e8  0e0d460665000000         iadd r3, r3.sx, r8.sx
+0x08f0  0541500d10c81200         device_load 0, i32, x, r8, u8_u9, 5, signed, lsl 2
+0x08f8  3800                     wait 0
+0x08fa  0e194c0e65000000         isub r6, r6.sx, r8.sx
+0x0902  420a00000000             else_fcmp r0l, eq, 0.0, 0.0, 1
+0x0908  0e11482665000000         iadd r4, r4.sx, r9.sx
+0x0910  0e0d460e65000000         isub r3, r3.sx, r8.sx
+0x0918  0541500d10c81200         device_load 0, i32, x, r8, u8_u9, 5, signed, lsl 2
+0x0920  3800                     wait 0
+0x0922  0e194c0665000000         iadd r6, r6.sx, r8.sx
+0x092a  520e00000000             pop_exec r0l, 1
+0x0930  2ea1485601000000         asr r8, r4, 21
+0x0938  2ea5465601000000         asr r9, r3, 21
+0x0940  52a94c020000             if_icmp r0l, sgte, r6, 0, 1
+0x0946  0e11482e65000000         isub r4, r4.sx, r9.sx
+0x094e  0e0d460665000000         iadd r3, r3.sx, r8.sx
+0x0956  0541500d11c01200         device_load 0, i32, x, r8, u8_u9, 21, signed
+0x095e  3800                     wait 0
+0x0960  0e194c0e65000000         isub r6, r6.sx, r8.sx
+0x0968  420a00000000             else_fcmp r0l, eq, 0.0, 0.0, 1
+0x096e  0e11482665000000         iadd r4, r4.sx, r9.sx
+0x0976  0e0d460e65000000         isub r3, r3.sx, r8.sx
+0x097e  0541500d11c01200         device_load 0, i32, x, r8, u8_u9, 21, signed
+0x0986  3800                     wait 0
+0x0988  0e194c0665000000         iadd r6, r6.sx, r8.sx
+0x0990  520e00000000             pop_exec r0l, 1
+0x0996  2ea1486601000000         asr r8, r4, 22
+0x099e  2ea5466601000000         asr r9, r3, 22
+0x09a6  52a94c020000             if_icmp r0l, sgte, r6, 0, 1
+0x09ac  0e11482e65000000         isub r4, r4.sx, r9.sx
+0x09b4  0e0d460665000000         iadd r3, r3.sx, r8.sx
+0x09bc  0541b00d10c41200         device_load 0, i32, x, r8, u8_u9, 11, signed, lsl 1
+0x09c4  3800                     wait 0
+0x09c6  0e194c0e65000000         isub r6, r6.sx, r8.sx
+0x09ce  420a00000000             else_fcmp r0l, eq, 0.0, 0.0, 1
+0x09d4  0e11482665000000         iadd r4, r4.sx, r9.sx
+0x09dc  0e0d460e65000000         isub r3, r3.sx, r8.sx
+0x09e4  0541b00d10c41200         device_load 0, i32, x, r8, u8_u9, 11, signed, lsl 1
+0x09ec  3800                     wait 0
+0x09ee  0e194c0665000000         iadd r6, r6.sx, r8.sx
+0x09f6  520e00000000             pop_exec r0l, 1
+0x09fc  2ea1487601000000         asr r8, r4, 23
+0x0a04  2ea5467601000000         asr r9, r3, 23
+0x0a0c  52a94c020000             if_icmp r0l, sgte, r6, 0, 1
+0x0a12  0e11482e65000000         isub r4, r4.sx, r9.sx
+0x0a1a  0e0d460665000000         iadd r3, r3.sx, r8.sx
+0x0a22  0541700d11c01200         device_load 0, i32, x, r8, u8_u9, 23, signed
+0x0a2a  3800                     wait 0
+0x0a2c  0e194c0e65000000         isub r6, r6.sx, r8.sx
+0x0a34  420a00000000             else_fcmp r0l, eq, 0.0, 0.0, 1
+0x0a3a  0e11482665000000         iadd r4, r4.sx, r9.sx
+0x0a42  0e0d460e65000000         isub r3, r3.sx, r8.sx
+0x0a4a  0541700d11c01200         device_load 0, i32, x, r8, u8_u9, 23, signed
+0x0a52  3800                     wait 0
+0x0a54  0e194c0665000000         iadd r6, r6.sx, r8.sx
+0x0a5c  520e00000000             pop_exec r0l, 1
+0x0a62  2ea1488601000000         asr r8, r4, 24
+0x0a6a  2ea5468601000000         asr r9, r3, 24
+0x0a72  52a94c020000             if_icmp r0l, sgte, r6, 0, 1
+0x0a78  0e11482e65000000         isub r4, r4.sx, r9.sx
+0x0a80  0e0d460665000000         iadd r3, r3.sx, r8.sx
+0x0a88  0541600d10c81200         device_load 0, i32, x, r8, u8_u9, 6, signed, lsl 2
+0x0a90  3800                     wait 0
+0x0a92  0e194c0e65000000         isub r6, r6.sx, r8.sx
+0x0a9a  420a00000000             else_fcmp r0l, eq, 0.0, 0.0, 1
+0x0aa0  0e11482665000000         iadd r4, r4.sx, r9.sx
+0x0aa8  0e0d460e65000000         isub r3, r3.sx, r8.sx
+0x0ab0  0541600d10c81200         device_load 0, i32, x, r8, u8_u9, 6, signed, lsl 2
+0x0ab8  3800                     wait 0
+0x0aba  0e194c0665000000         iadd r6, r6.sx, r8.sx
+0x0ac2  520e00000000             pop_exec r0l, 1
+0x0ac8  2ea1489601000000         asr r8, r4, 25
+0x0ad0  2ea5469601000000         asr r9, r3, 25
+0x0ad8  52a94c020000             if_icmp r0l, sgte, r6, 0, 1
+0x0ade  0e11482e65000000         isub r4, r4.sx, r9.sx
+0x0ae6  0e0d460665000000         iadd r3, r3.sx, r8.sx
+0x0aee  0541900d11c01200         device_load 0, i32, x, r8, u8_u9, 25, signed
+0x0af6  3800                     wait 0
+0x0af8  0e194c0e65000000         isub r6, r6.sx, r8.sx
+0x0b00  420a00000000             else_fcmp r0l, eq, 0.0, 0.0, 1
+0x0b06  0e11482665000000         iadd r4, r4.sx, r9.sx
+0x0b0e  0e0d460e65000000         isub r3, r3.sx, r8.sx
+0x0b16  0541900d11c01200         device_load 0, i32, x, r8, u8_u9, 25, signed
+0x0b1e  3800                     wait 0
+0x0b20  0e194c0665000000         iadd r6, r6.sx, r8.sx
+0x0b28  520e00000000             pop_exec r0l, 1
+0x0b2e  2ea148a601000000         asr r8, r4, 26
+0x0b36  2ea546a601000000         asr r9, r3, 26
+0x0b3e  52a94c020000             if_icmp r0l, sgte, r6, 0, 1
+0x0b44  0e11482e65000000         isub r4, r4.sx, r9.sx
+0x0b4c  0e0d460665000000         iadd r3, r3.sx, r8.sx
+0x0b54  0541d00d10c41200         device_load 0, i32, x, r8, u8_u9, 13, signed, lsl 1
+0x0b5c  3800                     wait 0
+0x0b5e  0e194c0e65000000         isub r6, r6.sx, r8.sx
+0x0b66  420a00000000             else_fcmp r0l, eq, 0.0, 0.0, 1
+0x0b6c  0e11482665000000         iadd r4, r4.sx, r9.sx
+0x0b74  0e0d460e65000000         isub r3, r3.sx, r8.sx
+0x0b7c  0541d00d10c41200         device_load 0, i32, x, r8, u8_u9, 13, signed, lsl 1
+0x0b84  3800                     wait 0
+0x0b86  0e194c0665000000         iadd r6, r6.sx, r8.sx
+0x0b8e  520e00000000             pop_exec r0l, 1
+0x0b94  2ea148b601000000         asr r8, r4, 27
+0x0b9c  2ea546b601000000         asr r9, r3, 27
+0x0ba4  52a94c020000             if_icmp r0l, sgte, r6, 0, 1
+0x0baa  0e11482e65000000         isub r4, r4.sx, r9.sx
+0x0bb2  0e0d460665000000         iadd r3, r3.sx, r8.sx
+0x0bba  0541b00d11c01200         device_load 0, i32, x, r8, u8_u9, 27, signed
+0x0bc2  3800                     wait 0
+0x0bc4  0e194c0e65000000         isub r6, r6.sx, r8.sx
+0x0bcc  420a00000000             else_fcmp r0l, eq, 0.0, 0.0, 1
+0x0bd2  0e11482665000000         iadd r4, r4.sx, r9.sx
+0x0bda  0e0d460e65000000         isub r3, r3.sx, r8.sx
+0x0be2  0541b00d11c01200         device_load 0, i32, x, r8, u8_u9, 27, signed
+0x0bea  3800                     wait 0
+0x0bec  0e194c0665000000         iadd r6, r6.sx, r8.sx
+0x0bf4  520e00000000             pop_exec r0l, 1
+0x0bfa  2ea148c601000000         asr r8, r4, 28
+0x0c02  2ea546c601000000         asr r9, r3, 28
+0x0c0a  52a94c020000             if_icmp r0l, sgte, r6, 0, 1
+0x0c10  0e11482e65000000         isub r4, r4.sx, r9.sx
+0x0c18  0e0d460665000000         iadd r3, r3.sx, r8.sx
+0x0c20  0541700d10c81200         device_load 0, i32, x, r8, u8_u9, 7, signed, lsl 2
+0x0c28  3800                     wait 0
+0x0c2a  0e194c0e65000000         isub r6, r6.sx, r8.sx
+0x0c32  420a00000000             else_fcmp r0l, eq, 0.0, 0.0, 1
+0x0c38  0e11482665000000         iadd r4, r4.sx, r9.sx
+0x0c40  0e0d460e65000000         isub r3, r3.sx, r8.sx
+0x0c48  0541700d10c81200         device_load 0, i32, x, r8, u8_u9, 7, signed, lsl 2
+0x0c50  3800                     wait 0
+0x0c52  0e194c0665000000         iadd r6, r6.sx, r8.sx
+0x0c5a  520e00000000             pop_exec r0l, 1
+0x0c60  2ea148d601000000         asr r8, r4, 29
+0x0c68  0e25000865000000         isub r9, 0, r8.sx
+0x0c70  12214c02005200a5         icmpsel slt, r8, r6, 0, r9, r8
+0x0c78  0e21460665000000         iadd r8, r3.sx, r8.sx
+0x0c80  2e8d46d601000000         asr r3, r3, 29
+0x0c88  0e25006864000000         isub r9, 0, r3.sx
+0x0c90  120d4c02004620a5         icmpsel slt, r3, r6, 0, r3, r9
+0x0c98  0e0d486664000000         iadd r3, r4.sx, r3.sx
+0x0ca0  121144e2249811b0         icmpsel slt, r4, r2, r7, u12, 1
+0x0ca8  12094a42249881a4         icmpsel slt, r2, r5, r2, u12, r4
+0x0cb0  1e11446664000000         imadd r4, r2.sx, r3.sx, 0
+0x0cb8  1e15440665000000         imadd r5, r2.sx, r8.sx, 0
+0x0cc0  4521240e10c43200         device_store 0, i32, xy, r4_r5, u10_u11, r1, unsigned, lsl 1, 0
+0x0cc8  3800                     wait 0
+0x0cca  520e00000000             pop_exec r0l, 1
+0x0cd0  8800                     stop

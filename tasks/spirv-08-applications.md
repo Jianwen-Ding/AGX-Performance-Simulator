@@ -1,7 +1,7 @@
 # Task SPIR-V 8: applications (ray tracer, neural networks, image processing, cellular automaton, graph search,
 # encryption, hashing, text, compression)
 
-**Workloads:** `raytrace`, `mlp`, `sobel`, `life`, `bfs`, `conv_layer`, `hist_eq`, `aes`, `hash_table`, `word_count`, `dct8`, `attention`, `resize`, `median3`, `poisson`, `lbm`, `base64`, `md5`, `gemv`, `levenshtein`, `blur`, `yuv420`, `montecarlo`, `xxhash`, `bloom`, `collatz`, `tridiag`, `merge`, `ccl`, `pagerank`, `skinning`, `strsearch`, `quantize`, `rule110`, `voxel`, `nms`, `sat`, `sssp`, `morton`, `utf8`, `fir`, `composite`, `nqueens`, `lzmatch`, `bitpack`, `perlin`, `adler32`, `sieve`, `gcd`, `dither`, `advect`, `knn`, `csvparse`, `pip`, `lift53`, `chacha20`, `modexp`, `floyd`, `f16pack`, `raster`, `canny`, `secded`, `bicubic`. These are recorded and verified by `make asahi-verify` with the others;
+**Workloads:** `raytrace`, `mlp`, `sobel`, `life`, `bfs`, `conv_layer`, `hist_eq`, `aes`, `hash_table`, `word_count`, `dct8`, `attention`, `resize`, `median3`, `poisson`, `lbm`, `base64`, `md5`, `gemv`, `levenshtein`, `blur`, `yuv420`, `montecarlo`, `xxhash`, `bloom`, `collatz`, `tridiag`, `merge`, `ccl`, `pagerank`, `skinning`, `strsearch`, `quantize`, `rule110`, `voxel`, `nms`, `sat`, `sssp`, `morton`, `utf8`, `fir`, `composite`, `nqueens`, `lzmatch`, `bitpack`, `perlin`, `adler32`, `sieve`, `gcd`, `dither`, `advect`, `knn`, `csvparse`, `pip`, `lift53`, `chacha20`, `modexp`, `floyd`, `f16pack`, `raster`, `canny`, `secded`, `bicubic`, `dfa`, `b64decode`, `cordic`, `rsenc`. These are recorded and verified by `make asahi-verify` with the others;
 they are **PENDING** until then. The detailed procedure is in `tasks/spirv-workloads.md`.
 
 ## Why these
@@ -75,11 +75,15 @@ reference.
 | `canny` | Canny edge thinning of a 4K image: integer Sobel, direction sector from exact tan 22.5° comparisons, non-maximum suppression, threshold (2 dispatches) | Exact edge map; `image2.pgm` shows the edges |
 | `secded` | Extended Hamming(8,4) SECDED encode of 2M words, then decode after injected 0 / 1 / 2-bit errors per byte (2 dispatches) | Exact; single errors corrected, every double error flagged |
 | `bicubic` | 2× Catmull-Rom bicubic upscaling of a 1920 × 1080 fp32 image to 4K | Within 64 ulp of the image maximum (float64 reference) |
+| `dfa` | Aho-Corasick multi-keyword search (6 keywords, 24-state DFA in shared memory) over 2^18 log lines of 128 bytes | Exact per-line counts, overlapping matches included |
+| `b64decode` | Base64 decoding of 8 MiB of text with corrupted characters, padding at the end | Exact bytes and per-quantum validity flags (against Python's `base64`) |
+| `cordic` | Q2.30 fixed-point CORDIC sine / cosine of 2^22 angles over [-π, π], 30 shift-and-add steps | Exact against the same integer steps in numpy; within 2e-8 of `sin` / `cos` |
+| `rsenc` | RS(255, 223) Reed-Solomon parity of 32768 codewords over GF(2^8), log / antilog tables in shared memory | Exact parity; sampled codewords have zero syndromes |
 
 ## Offline sanity checks (not hardware verification)
 
 - **lavapipe:** all pass at both sizes.
-- **Shim-compiled Mesa 25.2.8 and 26.0.3 code on the functional simulator:** 126 of 126.
+- **Shim-compiled Mesa 25.2.8 and 26.0.3 code on the functional simulator:** 134 of 134.
   - `bfs` found a simulator bug. Mesa aggregates `atomicAdd(found[l], 1)` under divergence: one lane, chosen with SR58
     (`active_thread_index_in_simdgroup`), adds SR59, the number of active lanes. The simulator modelled both from the
     launch shape (lane index, 32), which is only right when every lane is active, so the counts came out as multiples
@@ -136,3 +140,4 @@ reference.
     - Its round trip is split into two dispatches on purpose. In one shader, lavapipe's compiler folded
       `unpackHalf2x16(packHalf2x16(v))` back to `v` for one component, which is not a correct round trip.
 16. `raster`, `canny` and `secded` are exact and must PASS; `bicubic` is fp32 (CLOSE or PASS).
+17. `dfa`, `b64decode`, `cordic` and `rsenc` are exact and must PASS.

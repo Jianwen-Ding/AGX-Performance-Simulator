@@ -1,0 +1,29 @@
+#version 450
+// Reed-Solomon RS(255, 223) systematic encoding over GF(2^8) (CDs, QR codes, deep-space links): one thread per
+// codeword runs the 223 message bytes through the 32-stage LFSR of the generator polynomial, multiplying with
+// log / antilog tables held in shared memory, and emits the 32 parity bytes. Integer-exact; checked by syndromes.
+#extension GL_EXT_shader_8bit_storage : require
+#extension GL_EXT_shader_explicit_arithmetic_types_int8 : require
+layout(local_size_x = 64) in;
+layout(std430, binding = 0) readonly buffer M { uint8_t msg[]; };      // 223 bytes per codeword
+layout(std430, binding = 1) readonly buffer G { uint8_t tabs[]; };     // log[256], exp[512], gen[33] (as logs)
+layout(std430, binding = 2) writeonly buffer O { uint8_t parity[]; };  // 32 bytes per codeword
+layout(push_constant) uniform P { uint n; } p;
+shared uint slog[256], sexp[512], sgen[33];
+
+void main() {
+    uint l = gl_LocalInvocationID.x, cw = gl_GlobalInvocationID.x;
+    for (uint k = l; k < 256u; k += 64u) slog[k] = uint(tabs[k]);
+    for (uint k = l; k < 512u; k += 64u) sexp[k] = uint(tabs[256u + k]);
+    if (l < 33u) sgen[l] = uint(tabs[768u + l]);
+    barrier();
+    if (cw >= p.n) return;
+    uint r[32];
+    for (int k = 0; k < 32; k++) r[k] = 0u;
+    for (uint k = 0u; k < 223u; k++) {
+        uint fb = uint(msg[cw * 223u + k]) ^ r[0];
+        for (int j = 0; j < 31; j++) r[j] = r[j + 1] ^ (fb != 0u ? sexp[slog[fb] + sgen[31 - j]] : 0u);
+        r[31] = fb != 0u ? sexp[slog[fb] + sgen[0]] : 0u;
+    }
+    for (int k = 0; k < 32; k++) parity[cw * 32u + uint(k)] = uint8_t(r[k]);
+}

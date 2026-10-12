@@ -2222,6 +2222,159 @@ def w_bicubic(size, rng):
              check, (16, 16, 1), {'output_pixels': 4 * sw * sh}, images=[(2, 2 * sw, 2 * sh, 'gray8')])
 
 
+def aho_corasick(words):
+    """dense DFA (states x 256) of the Aho-Corasick automaton and the number of keywords ending in each state"""
+    goto, out, fail = [{}], [0], [0]
+    for w in words:
+        st = 0
+        for ch in w.encode():
+            if ch not in goto[st]:
+                goto.append({}); out.append(0); fail.append(0); goto[st][ch] = len(goto) - 1
+            st = goto[st][ch]
+        out[st] += 1
+    order, q = [], list(goto[0].values())
+    while q:
+        st = q.pop(0); order.append(st)
+        for ch, nx in goto[st].items():
+            f = fail[st]
+            while f and ch not in goto[f]:
+                f = fail[f]
+            fail[nx] = goto[f][ch] if ch in goto[f] and goto[f][ch] != nx else 0
+            out[nx] += out[fail[nx]]
+            q.append(nx)
+    delta = np.zeros((len(goto), 256), np.uint8)
+    for st in [0] + order:
+        for ch in range(256):
+            delta[st, ch] = goto[st][ch] if ch in goto[st] else (delta[fail[st], ch] if st else 0)
+    return delta, np.array(out, np.uint8)
+
+
+def w_dfa(size, rng):
+    lines = 256 if size == 'small' else 1 << 18
+    words = ['error', 'err', 'warn', 'fail', 'failure', 'timeout']
+    delta, hits = aho_corasick(words)
+    vocab = ['ok', 'request', 'error', 'served', 'warn', 'retry', 'failure', 'disk', 'timeout', 'user', 'errand', 'fail', 'id=42', 'eror']
+    txt = []
+    for _ in range(lines):
+        ln = ' '.join(vocab[k] for k in rng.integers(0, len(vocab), 20))[:128]
+        txt.append(ln.ljust(128))
+    text = np.frombuffer(''.join(txt).encode(), np.uint8).copy()
+    def check(o):
+        got = o[3].view(np.uint32)[:lines]
+        def occ(ln, w):
+            c, k = 0, ln.find(w)
+            while k >= 0:
+                c += 1; k = ln.find(w, k + 1)
+            return c
+        ref = np.array([sum(occ(ln, w) for w in words) for ln in txt], np.uint32)
+        return np.array_equal(got, ref), {'mismatches': int(np.sum(got != ref)), 'states': len(hits), 'total_hits': int(ref.sum())}
+    return W('dfa', {0: (text, False), 1: (delta.ravel(), False), 2: (hits, False), 3: (4 * lines, True)},
+             [((lines + 127) // 128, 1, 1, push(lines, len(hits)))], check, 128, {'bytes': len(text)})
+
+
+def w_b64decode(size, rng):
+    import base64
+    nbytes = 3000 - 1 if size == 'small' else 3 * (1 << 21) - 2                   # ends in '=' / '==' padding
+    raw = rng.integers(0, 256, nbytes, dtype=np.uint8).tobytes()
+    text = bytearray(base64.b64encode(raw))
+    q = len(text) // 4
+    corrupt = rng.choice(q - 1, max(4, q // 1000), replace=False)                  # bad characters, never in the last quantum
+    for k in corrupt:
+        text[4 * k + int(rng.integers(0, 4))] = int(rng.choice([ord('!'), ord('-'), ord(' '), ord('='), ord('\n')]))
+    text = np.frombuffer(bytes(text), np.uint8).copy()
+    def check(o):
+        got = o[1][:3 * q]; bad = o[2].view(np.uint32)[:q]
+        alpha = b'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
+        ref = np.zeros(3 * q, np.uint8); ref_bad = np.zeros(q, np.uint32)
+        tb = text.tobytes()
+        for k in range(q):
+            quad = tb[4 * k:4 * k + 4]
+            last = k == q - 1
+            if all(c in alpha for c in quad) or (last and all(c in alpha for c in quad.rstrip(b'=')) and quad.rstrip(b'=') and len(quad.rstrip(b'=')) >= 2):
+                dec = base64.b64decode(quad)
+                ref[3 * k:3 * k + len(dec)] = np.frombuffer(dec, np.uint8)
+            else:
+                ref_bad[k] = 1
+        ok = np.array_equal(got, ref) and np.array_equal(bad, ref_bad)
+        return ok, {'byte_mismatches': int(np.sum(got != ref)), 'flag_mismatches': int(np.sum(bad != ref_bad)), 'bad_quanta': int(ref_bad.sum())}
+    return W('b64decode', {0: (text, False), 1: (3 * q, True), 2: (4 * q, True)}, [((q + 255) // 256, 1, 1, push(q))], check, 256, {'chars': len(text)})
+
+
+def cordic_ref(angles, tab, k_gain, half_pi):
+    z = angles.astype(np.int64); sgn = np.ones_like(z)
+    hi, lo = z > half_pi, z < -half_pi
+    z = np.where(hi, z - 2 * half_pi, np.where(lo, z + 2 * half_pi, z)); sgn = np.where(hi | lo, -1, 1)
+    x = np.full_like(z, k_gain); y = np.zeros_like(z)
+    for k in range(30):
+        dx, dy = y >> k, x >> k
+        pos = z >= 0
+        x, y, z = np.where(pos, x - dx, x + dx), np.where(pos, y + dy, y - dy), np.where(pos, z - tab[k], z + tab[k])
+    return sgn * x, sgn * y
+
+
+def w_cordic(size, rng):
+    n = 4096 if size == 'small' else 1 << 22
+    q29 = 2.0 ** 29
+    tab = np.array([round(np.arctan(2.0 ** -k) * q29) for k in range(30)], np.int64)
+    gain = np.prod([1 / np.sqrt(1 + 2.0 ** (-2 * k)) for k in range(30)])
+    k_gain, half_pi = int(round(gain * 2.0 ** 30)), int(round(np.pi / 2 * q29))
+    ang = rng.integers(-2 * half_pi, 2 * half_pi + 1, n).astype(np.int32)
+    ang[:5] = [0, half_pi, -half_pi, 2 * half_pi, half_pi + 1]
+    params = np.concatenate([tab, [k_gain, half_pi]]).astype(np.int32)
+    def check(o):
+        got = o[2].view(np.int32)[:2 * n].reshape(n, 2).astype(np.int64)
+        rc, rs = cordic_ref(ang, tab, k_gain, half_pi)
+        ok = np.array_equal(got[:, 0], rc) and np.array_equal(got[:, 1], rs)
+        th = ang.astype(np.float64) / q29
+        acc = float(max(np.max(np.abs(got[:, 0] / 2.0 ** 30 - np.cos(th))), np.max(np.abs(got[:, 1] / 2.0 ** 30 - np.sin(th)))))
+        return ok, {'mismatches': int(np.sum(np.any(got != np.stack([rc, rs], 1), axis=1))), 'max_error_vs_sin_cos': acc}
+    return W('cordic', {0: (ang, False), 1: (params, False), 2: (8 * n, True)}, [((n + 255) // 256, 1, 1, push(n))], check, 256, {'angles': n})
+
+
+def gf256_tables():
+    exp = np.zeros(512, np.int64); log = np.zeros(256, np.int64); x = 1
+    for k in range(255):
+        exp[k] = x; log[x] = k; x <<= 1
+        if x & 0x100: x ^= 0x11d
+    exp[255:510] = exp[:255]
+    return log, exp
+
+
+def w_rsenc(size, rng):
+    n = 64 if size == 'small' else 1 << 15
+    log, exp = gf256_tables()
+    gmul = lambda a, b: 0 if a == 0 or b == 0 else int(exp[log[a] + log[b]])
+    g = [1]                                                                       # prod (x - a^i), i = 0..31; g[d] = coefficient of x^d
+    for i in range(32):
+        ng = [0] * (len(g) + 1)
+        for d, c in enumerate(g):
+            ng[d + 1] ^= c; ng[d] ^= gmul(c, int(exp[i]))
+        g = ng
+    assert all(c != 0 for c in g)
+    tabs = np.concatenate([log, exp, [log[c] for c in g]]).astype(np.uint8)
+    msg = rng.integers(0, 256, (n, 223), dtype=np.uint8)
+    def check(o):
+        par = o[2][:32 * n].reshape(n, 32).astype(np.int64)
+        r = np.zeros((n, 32), np.int64)                                           # the same LFSR, vectorised over codewords
+        glog = np.array([log[c] for c in g])
+        mul = lambda a, lg: np.where(a == 0, 0, exp[log[a] + lg])
+        for k in range(223):
+            fb = msg[:, k].astype(np.int64) ^ r[:, 0]
+            r = np.concatenate([r[:, 1:] ^ np.stack([mul(fb, glog[31 - j]) for j in range(31)], 1), mul(fb, glog[0])[:, None]], 1)
+        cw = np.concatenate([msg.astype(np.int64), par], 1)
+        rows = range(n) if size == 'small' else rng.choice(n, 256, replace=False)
+        def syndromes_zero(c):                                                    # c(a^i) = 0 for i = 0..31: a valid codeword
+            for i in range(32):
+                acc = 0
+                for v in c:
+                    acc = gmul(acc, int(exp[i])) ^ int(v)
+                if acc: return False
+            return True
+        synd = all(syndromes_zero(cw[k]) for k in rows)
+        return np.array_equal(par, r) and synd, {'parity_mismatches': int(np.sum(par != r)), 'syndromes_zero': synd}
+    return W('rsenc', {0: (msg, False), 1: (tabs, False), 2: (32 * n, True)}, [((n + 63) // 64, 1, 1, push(n))], check, 64, {'codewords': n})
+
+
 WORKLOADS = {'reduce': w_reduce, 'scan': w_scan, 'sgemm': w_sgemm, 'conv2d': w_conv2d, 'histogram': w_histogram,
              'nbody': w_nbody, 'bitonic': w_bitonic, 'sha256': w_sha256, 'fp16': w_fp16, 'int64': w_int64, 'bitops': w_bitops,
              'intdiv': w_intdiv, 'compact': w_compact, 'spmv': w_spmv, 'transpose': w_transpose, 'mandelbrot': w_mandelbrot,
@@ -2242,7 +2395,8 @@ WORKLOADS = {'reduce': w_reduce, 'scan': w_scan, 'sgemm': w_sgemm, 'conv2d': w_c
              'sieve': w_sieve, 'gcd': w_gcd, 'dither': w_dither, 'advect': w_advect,
              'knn': w_knn, 'csvparse': w_csvparse, 'pip': w_pip, 'lift53': w_lift53,
              'chacha20': w_chacha20, 'modexp': w_modexp, 'floyd': w_floyd, 'f16pack': w_f16pack,
-             'raster': w_raster, 'canny': w_canny, 'secded': w_secded, 'bicubic': w_bicubic}
+             'raster': w_raster, 'canny': w_canny, 'secded': w_secded, 'bicubic': w_bicubic,
+             'dfa': w_dfa, 'b64decode': w_b64decode, 'cordic': w_cordic, 'rsenc': w_rsenc}
 
 
 # ---------------------------------------------------------------------------------------------------------------
