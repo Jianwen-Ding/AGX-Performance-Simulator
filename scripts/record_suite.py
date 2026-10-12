@@ -475,9 +475,56 @@ def gen_geometry():
                b, gx, lx, 64, 0, [0]*(total*len(SR_GEOM)), None, (gx, gy, gz, lx, ly, lz))
 
 
+import re as _re
+
+
+def retarget(t, a, b, d):
+    """Map the template's registers: r6/r7 -> a/a+1, r8/r9 -> b/b+1, r14/r15 -> d/d+1 (pairs stay aligned)."""
+    m = {6: a, 7: a+1, 8: b, 9: b+1, 14: d, 15: d+1}
+    return _re.sub(r'(?<![A-Za-z0-9])r(\d+)', lambda x: f'r{m.get(int(x.group(1)), int(x.group(1)))}', t)
+
+
+def gen_random():
+    """Random programs over the template pool: 24-40 instructions reading inputs r6..r13 and results r16..r23, writing
+    r16..r23; a third wrap chunks in lane-dependent if/else and per-lane loops. r16..r23 -> table[8n + 8*gid + k]."""
+    n, wg = 1024, 256
+    pool = [t for t in ST.templates() if not t.startswith('GETSR')]
+    load = mov(27, 8)+e('imadd r5, r1, r27, 0')+e('iadd r26, r5, 4')+e('device_load 0, i32, xyzw, r6_r7_r8_r9, u8_u9, r5, unsigned')
+    load += e('device_load 0, i32, xyzw, r10_r11_r12_r13, u8_u9, r26, unsigned')+e('wait 0')
+    for k in range(150):
+        rng = random.Random(f'random-program-{k}')
+        init = b''.join(mov(16+i, rng.getrandbits(32)) for i in range(8))
+        def chunk(m):
+            out = b''; text = []
+            for _ in range(m):
+                t = rng.choice(pool)
+                a = rng.choice([6, 8, 10, 12, 16, 18, 20, 22]); bb = rng.choice([6, 8, 10, 12, 16, 18, 20, 22]); d = rng.choice([16, 18, 20, 22])
+                tt = retarget(t, a, bb, d)
+                out += e(tt); text.append(tt)
+            return out, text
+        body = load+init
+        lines = []
+        structured = k >= 100
+        nins = rng.randrange(24, 41)
+        if not structured:
+            c, t = chunk(nins); body += c; lines += t
+        else:
+            c1, t1 = chunk(nins//3); c2, t2 = chunk(nins//3); c3, t3 = chunk(nins//3)
+            body += c1+mov(24, rng.randrange(1, 60))+if_else('if_icmp r0l, ult, r6, r24, 1', 'else_icmp r0l, ugt, r6, r24, 1', c2, c3)
+            c4, t4 = chunk(4)
+            body += mov(27, 7)+e('and r25, r7, r27')+counted_reg(c4, 25)
+            lines += t1+['if r6 < k {']+t2+['} else {']+t3+['}', 'loop (r7 & 7) + 1 times {']+t4+['}']
+        body += mov(27, 8*n)+mov(25, 8)+e('imadd r26, r1, r25, r27')
+        for i in range(8):
+            body += agx_loop.store(16+i, 8, 26)+e('iadd r26, r26, 1')
+        body += e('wait 0')+e('iadd r2, r16, 0')
+        table = [operand(rng) for _ in range(8*n)]+[0]*(8*n)
+        yield ('random', f'prog_{k:03d}', '; '.join(lines), body, n, wg, 64, 0, table)
+
+
 GENERATORS = {'alu': lambda: gen_alu(False), 'alu_masked': lambda: gen_alu(True), 'mem_load': gen_mem_load,
               'mem_store': gen_mem_store, 'threadgroup': gen_tg, 'atomic': gen_atomic, 'tg_atomic': gen_tgatomic,
-              'control': gen_control, 'kernel': gen_kernels, 'geometry': gen_geometry}
+              'control': gen_control, 'kernel': gen_kernels, 'geometry': gen_geometry, 'random': gen_random}
 
 
 def record(R, out_dir, cat, name, desc, body, n, wg, regs, shared, table, oracle=None, dims=None):

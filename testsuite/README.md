@@ -1,4 +1,4 @@
-# Hardware-recorded AGX test suite
+# Hardware-recorded AGX test suite (721 cases)
 
 Exact behaviour of the M2 Max GPU (driver-reported G14C B1, Asahi Linux, direct DRM) captured case by case, so the
 functional simulator can be developed and checked without the device. Recorded by `scripts/record_suite.py`
@@ -14,6 +14,8 @@ functional simulator can be developed and checked without the device. Recorded b
 | `atomic` | 44 | device atomics: 11 ops × distinct / 4 shared words × return / no return |
 | `tg_atomic` | 44 | threadgroup atomics, same matrix |
 | `control` | 23 | lane-dependent if/else (integer and float conditions), nesting, per-lane loop trip counts, nested loops, `while_fcmp` |
+| `geometry` | 8 | 1-D/2-D/3-D launches (8 shapes incl. non-power-of-two and partial groups): 23 geometry special registers per thread |
+| `random` | 150 | random programs of 24-40 template instructions chained through r16..r23 (100 straight-line, 50 with lane-dependent if/else and a per-lane loop); r16..r23 stored per lane |
 | `kernel` | 8 | tree reductions (3 sizes), saxpy (fmadd32), 64×64 integer matmul, per-workgroup scan, histogram, 16×16 transpose; each matched a host oracle on hardware before it was recorded |
 
 ## Case format (`<category>/<name>.json.gz`)
@@ -40,3 +42,13 @@ word for word.
 Safety of re-recording: only applegpu-assemblable named forms are used; the funop functions and convert encodings
 that hung the GPU are excluded (`suite_templates.py`), every body passes a decode gate, memory cases are bounds
 checked, and control cases are emulated first.
+
+## Status and use
+
+`make suite-check` (≈1 s) prints per-category pass counts and the instructions the functional simulator cannot yet
+run (`-v` lists every failure with its first differing word; `--only CATEGORY`, `--case NAME`). Baseline when the
+suite was recorded: 330 / 721 (the applegpu-derived emulator lacks convert, the funop functions, quad and SIMD
+reductions / prefix ops, quad shuffles and ballots, intl, some float compare codes and u8norm loads).
+
+Timing is tested separately against stored hardware measurements: `make verify-cost-model`, `verify-scaling`,
+`verify-memory-model`, `verify-dispatch` (each prints median errors and fails past a limit).
