@@ -1,0 +1,22 @@
+#version 450
+// Sparse matrix-vector product, CSR, "vector" kernel (cuSPARSE / Ginkgo style): one subgroup per row, its lanes
+// striding over the row's nonzeros, the row's sum by subgroupAdd. Rows follow a power law (most short, a few with
+// thousands of nonzeros), the case where one-invocation-per-row kernels (spmv) serialise on long rows. The fp32
+// summation order depends on the subgroup size; the reference's error bound covers any order.
+#extension GL_KHR_shader_subgroup_arithmetic : require
+layout(local_size_x = 128) in;
+layout(std430, binding = 0) readonly buffer RP { uint rowptr[]; };
+layout(std430, binding = 1) readonly buffer CI { uint col[]; };
+layout(std430, binding = 2) readonly buffer VA { float val[]; };
+layout(std430, binding = 3) readonly buffer XV { float x[]; };
+layout(std430, binding = 4) writeonly buffer YV { float y[]; };
+layout(push_constant) uniform P { uint rows; } p;
+
+void main() {
+    uint row = gl_WorkGroupID.x * gl_NumSubgroups + gl_SubgroupID;
+    if (row >= p.rows) return;
+    float s = 0.0;
+    for (uint k = rowptr[row] + gl_SubgroupInvocationID; k < rowptr[row + 1u]; k += gl_SubgroupSize) s += val[k] * x[col[k]];
+    s = subgroupAdd(s);
+    if (subgroupElect()) y[row] = s;
+}

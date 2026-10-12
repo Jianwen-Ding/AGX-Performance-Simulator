@@ -1485,6 +1485,28 @@ def w_hough(size, rng):
              [((n + 63) // 64, 1, 1, push(n, nrho, rmax))], check, 64, {'items': n * 180})
 
 
+def w_spmvsg(size, rng):
+    rows = 2048 if size == 'small' else 1 << 17
+    cols = rows
+    nnz = np.minimum((rng.pareto(1.2, rows) * 4).astype(np.int64), 2047)        # power law, capped
+    rowptr = u32(np.concatenate([[0], np.cumsum(nnz)]))
+    col = u32(rng.integers(0, cols, int(rowptr[-1])))
+    val = f32(rng.uniform(-1, 1, int(rowptr[-1])))
+    x = f32(rng.uniform(-1, 1, cols))
+    def check(o):
+        got = o[4].view(np.float32)[:rows].astype(np.float64)
+        prod = val.astype(np.float64) * x[col].astype(np.float64)
+        rid = np.repeat(np.arange(rows), nnz)                                  # row of every nonzero
+        ref = np.bincount(rid, prod, minlength=rows); ab = np.bincount(rid, np.abs(prod), minlength=rows)
+        bound = ab * (nnz + 2) * 2.0 ** -24 + 1e-30
+        excess = float(np.max(np.abs(got - ref) / bound))
+        return excess <= 1.0 and bool(np.all(got[nnz == 0] == 0)), {'max_err_over_bound': excess, 'nnz': int(rowptr[-1]),
+                                                                   'max_row': int(nnz.max()), 'empty_rows': int(np.sum(nnz == 0))}
+    return W('spmvsg', {0: (rowptr, False), 1: (col, False), 2: (val, False), 3: (x, False), 4: (4 * rows, True)},
+             [((rows + 3) // 4, 1, 1, push(rows))], check, 128, {'flops': 2 * int(rowptr[-1]), 'bytes': 12 * int(rowptr[-1])},
+             requires=['subgroup_arithmetic'])
+
+
 def w_spmv(size, rng):
     rows, cols = (512, 512) if size == 'small' else (1 << 18, 1 << 18)
     nnz = rng.integers(0, 64, rows) * (rng.random(rows) < 0.95)    # some empty rows
@@ -1495,9 +1517,9 @@ def w_spmv(size, rng):
     def check(o):
         got = o[4].view(np.float32)[:rows]
         prod = val.astype(np.float64) * x[col].astype(np.float64)
-        ref = np.add.reduceat(prod, rowptr[:-1].astype(np.int64)) if len(prod) else np.zeros(rows)
-        ref = np.where(nnz > 0, ref, 0.0)
-        bound = np.add.reduceat(np.abs(prod), rowptr[:-1].astype(np.int64)) * (nnz + 1) * 2.0 ** -24
+        rid = np.repeat(np.arange(rows), nnz)                                  # row of every nonzero (empty rows: 0)
+        ref = np.bincount(rid, prod, minlength=rows)
+        bound = np.bincount(rid, np.abs(prod), minlength=rows) * (nnz + 1) * 2.0 ** -24
         excess = float(np.max(np.abs(got - ref) / np.maximum(bound, 1e-30) * (nnz > 0)))
         return excess <= 1.0 and bool(np.all(got[nnz == 0] == 0)), {'max_err_over_bound': excess}
     return W('spmv', {0: (rowptr, False), 1: (col, False), 2: (val, False), 3: (x, False), 4: (4 * rows, True)},
@@ -4014,7 +4036,7 @@ WORKLOADS = {'reduce': w_reduce, 'scan': w_scan, 'sgemm': w_sgemm, 'conv2d': w_c
              'aluprobe': w_aluprobe, 'ubopalette': w_ubopalette, 'uboparams': w_uboparams,
              'bindless': w_bindless, 'bindlessu': w_bindlessu,
              # appended only: the input seed is the index in this dict
-             'rle': w_rle, 'huffdec': w_huffdec, 'lookback': w_lookback, 'hll': w_hll, 'tricount': w_tricount, 'sha3': w_sha3, 'stereo': w_stereo, 'viterbi': w_viterbi, 'viterbifix': w_viterbifix, 'shiftfuse': w_shiftfuse, 'bc1enc': w_bc1enc, 'lz4dec': w_lz4dec, 'nttmul': w_nttmul, 'topk': w_topk, 'cellsort': w_cellsort, 'boruvka': w_boruvka, 'biquad': w_biquad, 'edt': w_edt, 'mt19937': w_mt19937, 'bitap': w_bitap, 'cholesky': w_cholesky, 'rsshash': w_rsshash, 'poly1305': w_poly1305, 'crc32c': w_crc32c, 'siphash': w_siphash, 'blake2s': w_blake2s, 'blake2sfast': w_blake2sfast, 'q4gemv': w_q4gemv, 'attndec': w_attndec, 'attndecsplit': w_attndecsplit, 'rmsrope': w_rmsrope, 'q8dot': w_q8dot, 'isp': w_isp, 'contour': w_contour, 'hough': w_hough}
+             'rle': w_rle, 'huffdec': w_huffdec, 'lookback': w_lookback, 'hll': w_hll, 'tricount': w_tricount, 'sha3': w_sha3, 'stereo': w_stereo, 'viterbi': w_viterbi, 'viterbifix': w_viterbifix, 'shiftfuse': w_shiftfuse, 'bc1enc': w_bc1enc, 'lz4dec': w_lz4dec, 'nttmul': w_nttmul, 'topk': w_topk, 'cellsort': w_cellsort, 'boruvka': w_boruvka, 'biquad': w_biquad, 'edt': w_edt, 'mt19937': w_mt19937, 'bitap': w_bitap, 'cholesky': w_cholesky, 'rsshash': w_rsshash, 'poly1305': w_poly1305, 'crc32c': w_crc32c, 'siphash': w_siphash, 'blake2s': w_blake2s, 'blake2sfast': w_blake2sfast, 'q4gemv': w_q4gemv, 'attndec': w_attndec, 'attndecsplit': w_attndecsplit, 'rmsrope': w_rmsrope, 'q8dot': w_q8dot, 'isp': w_isp, 'contour': w_contour, 'hough': w_hough, 'spmvsg': w_spmvsg}
 
 
 # ---------------------------------------------------------------------------------------------------------------

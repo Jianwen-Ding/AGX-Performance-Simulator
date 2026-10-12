@@ -1,0 +1,34 @@
+0x0000  72050000                 get_sr r1, sr0 (threadgroup_position_in_grid.x)
+0x0004  72093500                 get_sr r2, sr53 (simdgroup_index_in_threadgroup)
+0x0008  0e05428658000000         iadd r1, r1.sx, u4.sx
+0x0010  0e05442664001000         iadd r1, r2.sx, r1.sx, lsl 2
+0x0018  62000000                 mov_imm r0l, 0
+0x001c  522842e21800             if_icmp r0l, ult, r1, u7, 1
+0x0022  20c098000000             jmp_exec_none pc+152
+0x0028  0511200e10c01200         device_load 0, i32, x, r2, u8_u9, r1, unsigned
+0x0030  720d3400                 get_sr r3, sr52 (thread_index_in_simdgroup)
+0x0034  3800                     wait 0
+0x0036  0e09446664000000         iadd r2, r2.sx, r3.sx
+0x003e  620d00000000             mov_imm r3, 0, 0b0
+0x0044  420800000000             push_exec r0l, 1
+0x004a  0e11421600000000         iadd r4, r1.sx, 1
+0x0052  0521800e10c01200         device_load 0, i32, x, r4, u8_u9, r4, unsigned
+0x005a  3800                     wait 0
+0x005c  522c44822400             while_icmp r0l, ult, r2, r4, 1
+0x0062  0521440e10c01200         device_load 0, i32, x, r4, u10_u11, r2, unsigned
+0x006a  0529484e10c01200         device_load 1, i32, x, r5, u12_u13, r2, unsigned
+0x0072  3801                     wait 1
+0x0074  0529ac0e10c01200         device_load 0, i32, x, r5, u14_u15, r5, unsigned
+0x007c  3800                     wait 0
+0x007e  3a8d48a224460200         fmadd32 r3, r4, r5, r3
+0x0086  0e09440602000000         iadd r2, r2.sx, 32
+0x008e  00c0bcffffff             jmp_exec_any pc-68
+0x0094  520e00000000             pop_exec r0l, 1
+0x009a  72023a00                 get_sr r0h, sr58 (active_thread_index_in_simdgroup)
+0x009e  6f8946320000             simd_fadd r2, r3
+0x00a4  520841000000             if_icmp r0l, ueq, r0h, 0, 1
+0x00aa  4511200e20c01200         device_store 0, i32, x, r2, u16_u17, r1, unsigned, 0
+0x00b2  3800                     wait 0
+0x00b4  520e00000000             pop_exec r0l, 1
+0x00ba  520e00000000             pop_exec r0l, 1
+0x00c0  8800                     stop
