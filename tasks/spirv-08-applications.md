@@ -383,6 +383,13 @@ reference.
     - `predict` times each dispatch from the initial buffers, so all 24 rounds are costed as round 1. There every
       edge joins two components and does two `atomicMin` operations; in later rounds most edges are inside one
       component and return early.
-    - The prediction (43 ms) is therefore expected to be well above the M2 time. The per-dispatch times in the
-      recording show how much, and are the data for timing dispatches from the state the previous ones left
-      (the functional simulator has it).
+    - The default prediction (43 ms) is therefore expected to be above the M2 time.
+    - `predict --stateful` times each dispatch from the buffers the previous ones left: the functional simulator
+      advances them between dispatches, so it is sequential and slower (77 s for this workload). It gives 32.2 ms.
+      - The hooking and pointer-jumping passes fall from 195 / 20 µs in round 1 to about 10 µs.
+      - The winning-edge pass falls from 1176 to 617 µs.
+      - The `atomicMin` pass stays at about 617 µs in every round: each edge still loads its 16 bytes and two random
+        `parent` words before it can return early, so the pass is bound by those loads whatever the state.
+    - The M2's per-dispatch times say which of the two predictions to trust for multi-pass algorithms. Use
+      `--stateful` for workloads whose later dispatches depend on earlier results (`bfs`, `sssp`, `ccl`, `pagerank`,
+      `boruvka`).

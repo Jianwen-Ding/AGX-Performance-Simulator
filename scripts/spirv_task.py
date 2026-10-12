@@ -8,7 +8,7 @@ driver's compiled AGX code to the simulator.
     spirv_task.py sim  WORKLOAD --code-dir DIR [--layout L] [--hardware RUN_DIR]   functional simulator
     spirv_task.py compile WORKLOAD|all --out DIR [--mesa SRC]   compile with Mesa's AGX compiler (also via drm-shim, no GPU)
     spirv_task.py simall DIR / predictall DIR              sim / predict every workload compile wrote under DIR
-    spirv_task.py predict WORKLOAD --code-dir DIR [--size S]   agx_dispatch per dispatch, paths from the functional simulator
+    spirv_task.py predict WORKLOAD --code-dir DIR [--size S] [--stateful]   agx_dispatch per dispatch, paths from the functional simulator
     spirv_task.py predict WORKLOAD --code main.bin [--size S] [--regs H] [--uniform I=V ...]   ... from the cost model's emulation
     spirv_task.py list
 
@@ -3886,7 +3886,24 @@ def cmd_predict(a):
     if hw_only(make_workload(a.workload, a.size)):
         print(json.dumps({'workload': a.workload, 'size': a.size, 'unsupported': NO_TEXTURE_UNIT}))
         return 0
-    if a.code_dir:
+    if a.code_dir and a.stateful:
+        # each dispatch timed from the buffers the previous ones left: agx_dispatch on the current buffers, then
+        # agx_run (as sim) advances them. Sequential, and every dispatch is simulated in full once.
+        L = DriverLaunch(a.workload, a.size, a.code_dir, a.layout, a.out or Path(a.code_dir) / f'predict-{a.workload}-{a.size}')
+        run = ROOT / 'rust/target/release/agx_run'
+        for k in range(len(L.w.dispatches)):
+            grid, args = L.args(k)
+            cmd = [str(exe), str(L.main_bin), '--grid', ','.join(map(str, grid)), '--regs', str(a.regs or L.regs),
+                   '--tg-bytes', str(a.tg_bytes if a.tg_bytes is not None else L.shared)] + args
+            if a.no_mem: cmd.append('--no-mem')
+            rows.append(run_dispatch(cmd))
+            adv = [str(run), str(L.main_bin), '--grid', ','.join(map(str, grid)), '--shared', str(L.shared)] + args
+            for b in L.w.buffers:
+                adv += ['--dump', f'{L.va[b]:#x}={L.size[b]}:{L.files[b]}']
+            r = subprocess.run(adv, capture_output=True, text=True)
+            if r.returncode:
+                sys.exit(f'{a.workload} dispatch {k} (advancing the buffers): {r.stdout.strip()} {r.stderr.strip()}')
+    elif a.code_dir:
         L = DriverLaunch(a.workload, a.size, a.code_dir, a.layout, a.out or Path(a.code_dir) / f'predict-{a.workload}-{a.size}')
         for k in range(len(L.w.dispatches)):
             grid, args = L.args(k)
@@ -3921,7 +3938,7 @@ def cmd_predict(a):
             rows.append(cmd)
         rows = pmap(run_dispatch, rows)
     total = sum(r['time_us'] for r in rows)
-    print(json.dumps({'workload': a.workload, 'size': a.size, 'predicted_us': total,
+    print(json.dumps({'workload': a.workload, 'size': a.size, 'predicted_us': total, **({'stateful': True} if a.stateful else {}),
                       'dispatch_us': [r['time_us'] for r in rows], 'dispatches': rows}))
 
 
@@ -4277,6 +4294,8 @@ def main():
     p.add_argument('--out', help='work directory for buffers')
     p.add_argument('--size', choices=['small', 'large'], default='large'); p.add_argument('--regs', type=int)
     p.add_argument('--tg-bytes', type=int); p.add_argument('--uniform', action='append'); p.add_argument('--no-mem', action='store_true')
+    p.add_argument('--stateful', action='store_true', help='with --code-dir: time each dispatch from the buffers the previous '
+                   'ones left (functional simulation between dispatches) instead of from the initial buffers')
     a = ap.parse_args()
     if a.cmd == 'list':
         for k, f in WORKLOADS.items():
