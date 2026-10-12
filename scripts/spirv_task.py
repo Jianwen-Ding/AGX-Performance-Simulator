@@ -1341,6 +1341,63 @@ def w_q8dot(size, rng):
              requires=['integer_dot_product', 'subgroup_arithmetic'])
 
 
+def isp_ref(raw, black, wb, ccm, lut):
+    """isp.comp in numpy (int64): RGBA8 words [h, w]"""
+    H, Wd = raw.shape
+    ys, xs = np.mgrid[0:H, 0:Wd]
+    cfa = np.where(ys % 2 == 0, np.where(xs % 2 == 0, 0, 1), np.where(xs % 2 == 0, 1, 2))
+    v = np.maximum(raw.astype(np.int64) - black, 0)
+    lin = np.minimum((v * np.array(wb, np.int64)[cfa] + 128) >> 8, 4095)
+    pad = np.pad(lin, 1, mode='edge')
+    S = lambda dx, dy: pad[1 + dy:1 + dy + H, 1 + dx:1 + dx + Wd]
+    self = S(0, 0)
+    cross4 = (S(-1, 0) + S(1, 0) + S(0, -1) + S(0, 1) + 2) >> 2
+    diag4 = (S(-1, -1) + S(1, -1) + S(-1, 1) + S(1, 1) + 2) >> 2
+    horiz = (S(-1, 0) + S(1, 0) + 1) >> 1; vert = (S(0, -1) + S(0, 1) + 1) >> 1
+    r = np.select([cfa == 0, cfa == 2, ys % 2 == 0], [self, diag4, horiz], vert)
+    g = np.where((cfa == 0) | (cfa == 2), cross4, self)
+    b = np.select([cfa == 0, cfa == 2, ys % 2 == 0], [diag4, self, vert], horiz)
+    M = np.array(ccm, np.int64).reshape(3, 3)
+    out = [np.clip((M[k, 0] * r + M[k, 1] * g + M[k, 2] * b + 512) >> 10, 0, 4095) for k in range(3)]
+    L = np.array(lut, np.int64)
+    return (L[out[0]] | (L[out[1]] << 8) | (L[out[2]] << 16) | (0xff << 24)).astype(np.uint32), (r, g, b)
+
+
+def w_isp(size, rng):
+    Wd, H = (96, 64) if size == 'small' else (4032, 3024)                      # a 12 MP sensor
+    ys, xs = np.mgrid[0:H, 0:Wd].astype(np.float64)
+    scene = np.stack([0.5 + 0.4 * np.sin(xs / 97 + ys / 61), 0.5 + 0.4 * np.cos(xs / 53), 0.4 + 0.3 * np.sin(ys / 71)], -1)
+    for _ in range(30 if size == 'large' else 3):
+        x0, y0 = rng.integers(0, Wd - 8), rng.integers(0, H - 8)
+        scene[y0:y0 + rng.integers(4, H // 3), x0:x0 + rng.integers(4, Wd // 3)] = rng.uniform(0.05, 0.95, 3)
+    black, wb = 64, [int(2.0 * 256), 256, int(1.6 * 256)]                      # sensor sees R / B weaker
+    gains = np.array([2.0, 1.0, 1.6])
+    cfa = np.where(ys % 2 == 0, np.where(xs % 2 == 0, 0, 1), np.where(xs % 2 == 0, 1, 2)).astype(int)
+    sensed = np.take_along_axis(scene, cfa[..., None], -1)[..., 0] / gains[cfa]
+    raw = np.clip(np.rint(black + sensed * 4000 + rng.normal(0, 6, sensed.shape)), 0, 4095).astype(np.uint16)
+    ccm = [1250, -170, -56, -120, 1300, -156, -30, -250, 1304]                 # rows sum to 1024
+    lut = u32(np.rint(255 * (np.arange(4096) / 4095) ** (1 / 2.2)))
+    def check(o):
+        got = o[3].view(np.uint32)[:Wd * H].reshape(H, Wd)
+        ref, _ = isp_ref(raw, black, wb, ccm, lut)
+        bad = int(np.sum(got != ref))
+        # against the ideal development of the scene (same colour matrix and gamma in floating point, no noise, no
+        # demosaic, no quantisation), in 8-bit display levels, in flat regions away from edges
+        dev = np.stack([(ref >> (8 * k)) & 255 for k in range(3)], -1).astype(np.float64)
+        lin = np.clip(scene * 4000 / 4095, 0, 1) @ (np.array(ccm, np.float64).reshape(3, 3) / 1024).T
+        want = 255 * np.clip(lin, 0, 1) ** (1 / 2.2)
+        flat = np.ones(scene.shape[:2], bool)
+        for ax in (0, 1):
+            d = np.abs(np.diff(scene, axis=ax)).max(-1) > 0.01
+            flat &= ~np.pad(d, [(0, 1) if a == ax else (0, 0) for a in (0, 1)]) & ~np.pad(d, [(1, 0) if a == ax else (0, 0) for a in (0, 1)])
+        mae = float(np.mean(np.abs(dev - want)[flat]))
+        return bad == 0, {'mismatched_pixels': bad, 'mean_abs_err_vs_ideal_8bit': round(mae, 2)}
+    return W('isp', {0: (np.ascontiguousarray(raw.reshape(-1)), False), 1: (lut, False),
+                     2: (np.array(ccm + wb + [black], np.int32), False), 3: (4 * Wd * H, True)},
+             [((Wd + 15) // 16, (H + 15) // 16, 1, push(Wd, H))], check, (16, 16, 1), {'items': Wd * H},
+             requires=['storage_buffer_16bit'])
+
+
 def w_spmv(size, rng):
     rows, cols = (512, 512) if size == 'small' else (1 << 18, 1 << 18)
     nnz = rng.integers(0, 64, rows) * (rng.random(rows) < 0.95)    # some empty rows
@@ -3870,7 +3927,7 @@ WORKLOADS = {'reduce': w_reduce, 'scan': w_scan, 'sgemm': w_sgemm, 'conv2d': w_c
              'aluprobe': w_aluprobe, 'ubopalette': w_ubopalette, 'uboparams': w_uboparams,
              'bindless': w_bindless, 'bindlessu': w_bindlessu,
              # appended only: the input seed is the index in this dict
-             'rle': w_rle, 'huffdec': w_huffdec, 'lookback': w_lookback, 'hll': w_hll, 'tricount': w_tricount, 'sha3': w_sha3, 'stereo': w_stereo, 'viterbi': w_viterbi, 'viterbifix': w_viterbifix, 'shiftfuse': w_shiftfuse, 'bc1enc': w_bc1enc, 'lz4dec': w_lz4dec, 'nttmul': w_nttmul, 'topk': w_topk, 'cellsort': w_cellsort, 'boruvka': w_boruvka, 'biquad': w_biquad, 'edt': w_edt, 'mt19937': w_mt19937, 'bitap': w_bitap, 'cholesky': w_cholesky, 'rsshash': w_rsshash, 'poly1305': w_poly1305, 'crc32c': w_crc32c, 'siphash': w_siphash, 'blake2s': w_blake2s, 'blake2sfast': w_blake2sfast, 'q4gemv': w_q4gemv, 'attndec': w_attndec, 'attndecsplit': w_attndecsplit, 'rmsrope': w_rmsrope, 'q8dot': w_q8dot}
+             'rle': w_rle, 'huffdec': w_huffdec, 'lookback': w_lookback, 'hll': w_hll, 'tricount': w_tricount, 'sha3': w_sha3, 'stereo': w_stereo, 'viterbi': w_viterbi, 'viterbifix': w_viterbifix, 'shiftfuse': w_shiftfuse, 'bc1enc': w_bc1enc, 'lz4dec': w_lz4dec, 'nttmul': w_nttmul, 'topk': w_topk, 'cellsort': w_cellsort, 'boruvka': w_boruvka, 'biquad': w_biquad, 'edt': w_edt, 'mt19937': w_mt19937, 'bitap': w_bitap, 'cholesky': w_cholesky, 'rsshash': w_rsshash, 'poly1305': w_poly1305, 'crc32c': w_crc32c, 'siphash': w_siphash, 'blake2s': w_blake2s, 'blake2sfast': w_blake2sfast, 'q4gemv': w_q4gemv, 'attndec': w_attndec, 'attndecsplit': w_attndecsplit, 'rmsrope': w_rmsrope, 'q8dot': w_q8dot, 'isp': w_isp}
 
 
 # ---------------------------------------------------------------------------------------------------------------
