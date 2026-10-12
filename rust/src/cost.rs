@@ -1990,17 +1990,19 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
                     last_alu[gi] = t;
                     alu_done[gi] = alu_done[gi].max(t + lat);
                     alu_since_mem[gi] = true;
-                    for pi in 0..pending[gi].len() {
-                        let newdone = t + pending[gi][pi].lat;
-                        if newdone > pending[gi][pi].done {
-                            pending[gi][pi].done = newdone;
-                            let ins = pending[gi][pi].ins;
-                            for &h in &sim[ins].dst {
-                                let i = touch(&mut ready[gi], &mut present[gi], &mut present_list[gi], h);
-                                ready[gi][i] = ready[gi][i].max(newdone);
+                    // the load's issue touched its destinations (`present` is never cleared), so they are indexed
+                    // directly here
+                    let (rg, sl) = (&mut ready[gi], &mut slots[gi]);
+                    for p in pending[gi].iter_mut() {
+                        let newdone = t + p.lat;
+                        if newdone > p.done {
+                            p.done = newdone;
+                            for &h in &sim[p.ins].dst {
+                                let x = &mut rg[h as usize];
+                                *x = (*x).max(newdone);
                             }
-                            let s = pending[gi][pi].slot;
-                            slots[gi][s] = Some(slots[gi][s].map_or(newdone, |m| m.max(newdone)));
+                            let m = &mut sl[p.slot];
+                            *m = Some(m.map_or(newdone, |m| m.max(newdone)));
                         }
                     }
                 }
