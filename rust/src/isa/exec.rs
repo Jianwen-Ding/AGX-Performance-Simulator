@@ -55,10 +55,21 @@ impl CoreState {
         self.reg16s[i][t] = (v & 0xFFFF) as u16;
         Ok(())
     }
+    #[inline]
     pub fn get_reg32(&self, r: usize, t: usize) -> R<i128> {
+        if 2 * r + 1 < self.reg16s.len() {
+            // both halves in range: one check (the general path below reports the same errors otherwise)
+            return Ok(self.reg16s[2 * r][t] as i128 | (self.reg16s[2 * r + 1][t] as i128) << 16);
+        }
         Ok(self.get_reg16(2 * r, t)? | (self.get_reg16(2 * r + 1, t)? << 16))
     }
+    #[inline]
     pub fn set_reg32(&mut self, r: usize, t: usize, v: i128) -> R<()> {
+        if 2 * r + 1 < self.reg16s.len() {
+            self.reg16s[2 * r][t] = (v & 0xFFFF) as u16;
+            self.reg16s[2 * r + 1][t] = ((v >> 16) & 0xFFFF) as u16;
+            return Ok(());
+        }
         // applegpu writes the low half first; an out-of-range high half raises after it
         self.set_reg16(2 * r, t, v & 0xFFFF)?;
         self.set_reg16(2 * r + 1, t, (v >> 16) & 0xFFFF)
