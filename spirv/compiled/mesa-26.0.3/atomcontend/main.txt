@@ -1,0 +1,36 @@
+0x0080  f2011004                 get_sr r0.cache, sr80 (thread_position_in_grid.x)
+0x0084  620501000000             mov_imm r1, 1, 0b0
+0x008a  8e01c08658000000         iadd r0.cache, r0.discard.sx, u4.sx
+0x0092  9e01c04659000000         imadd r0.cache, r0.discard.sx, u10.sx, 0
+0x009a  fe0980a29800             and r2.cache, r0.cache, u5
+0x00a0  0e098c456c000000         iadd r2, u6.sx, r2.discard.sx
+0x00a8  1500408c10500200         atomic add, 0, None, u8_u9, r2, signed, r1, 1, 0, 1, 4, 2
+0x00b0  8e09960568000000         iadd r2.cache, u11.sx, r0.cache.sx
+0x00b8  fe09c4a29800             and r2.cache, r2.discard, u5
+0x00be  0e098c456c000000         iadd r2, u6.sx, r2.discard.sx
+0x00c6  150040cc10500200         atomic add, 1, None, u8_u9, r2, signed, r1, 1, 0, 1, 4, 2
+0x00ce  8e099a0568000000         iadd r2.cache, u13.sx, r0.cache.sx
+0x00d6  fe09c4a29800             and r2.cache, r2.discard, u5
+0x00dc  0e098c456c000000         iadd r2, u6.sx, r2.discard.sx
+0x00e4  1500408c10500200         atomic add, 0, None, u8_u9, r2, signed, r1, 1, 0, 1, 4, 2
+0x00ec  8e099c0568000000         iadd r2.cache, u14.sx, r0.cache.sx
+0x00f4  fe09c4a29800             and r2.cache, r2.discard, u5
+0x00fa  0e098c456c000000         iadd r2, u6.sx, r2.discard.sx
+0x0102  1500408c10500200         atomic add, 0, None, u8_u9, r2, signed, r1, 1, 0, 1, 4, 2
+0x010a  8e09a00568000000         iadd r2.cache, u16.sx, r0.cache.sx
+0x0112  fe09c4a29800             and r2.cache, r2.discard, u5
+0x0118  0e098c456c000000         iadd r2, u6.sx, r2.discard.sx
+0x0120  1500408c10500200         atomic add, 0, None, u8_u9, r2, signed, r1, 1, 0, 1, 4, 2
+0x0128  8e099e0568000000         iadd r2.cache, u15.sx, r0.cache.sx
+0x0130  fe09c4a29800             and r2.cache, r2.discard, u5
+0x0136  0e098c456c000000         iadd r2, u6.sx, r2.discard.sx
+0x013e  1500408c10500200         atomic add, 0, None, u8_u9, r2, signed, r1, 1, 0, 1, 4, 2
+0x0146  8e09a20568000000         iadd r2.cache, u17.sx, r0.cache.sx
+0x014e  fe09c4a29800             and r2.cache, r2.discard, u5
+0x0154  0e098c456c000000         iadd r2, u6.sx, r2.discard.sx
+0x015c  1500408c10500200         atomic add, 0, None, u8_u9, r2, signed, r1, 1, 0, 1, 4, 2
+0x0164  8e0198056c000000         iadd r0.cache, u12.sx, r0.discard.sx
+0x016c  fe01c0a29800             and r0.cache, r0.discard, u5
+0x0172  0e018c056c000000         iadd r0, u6.sx, r0.discard.sx
+0x017a  1500008c10500200         atomic add, 0, None, u8_u9, r0, signed, r1, 1, 0, 1, 4, 2
+0x0182  8800                     stop

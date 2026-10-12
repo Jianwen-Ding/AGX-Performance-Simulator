@@ -1,0 +1,22 @@
+{
+ "blob": "spirv/compiled/mesa-26.0.3/barriercost/shader.bin",
+ "code_start": 2244,
+ "code_size": 364,
+ "layout": "agx_shader_info",
+ "programs": [
+  {
+   "label": "main",
+   "file": "main.bin",
+   "offset": 0,
+   "bytes": 136,
+   "instructions": 23
+  },
+  {
+   "label": "preamble",
+   "file": "preamble.bin",
+   "offset": 256,
+   "bytes": 92,
+   "instructions": 16
+  }
+ ]
+}

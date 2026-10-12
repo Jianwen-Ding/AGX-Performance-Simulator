@@ -1,0 +1,12 @@
+#version 450
+// Atomic contention sweep (a timing probe): every invocation performs 8 atomicAdds into a table of C counters
+// (C = 1, 32, 1024, 32768, 2^20 per dispatch: from one hot address to fully spread), so the per-dispatch GPU times
+// measure how atomics serialise on the M2. Exact final counts.
+layout(local_size_x = 256) in;
+layout(std430, binding = 0) buffer C { uint counters[]; };
+layout(push_constant) uniform P { uint mask; uint base; } p;
+
+void main() {
+    uint i = gl_GlobalInvocationID.x;
+    for (uint k = 0u; k < 8u; k++) atomicAdd(counters[p.base + ((i * 8u + k) * 2654435761u & p.mask)], 1u);
+}

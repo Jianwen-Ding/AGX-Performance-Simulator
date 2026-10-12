@@ -2732,6 +2732,47 @@ def w_coalesce(size, rng):
              {'bytes': 4 * 16 * n * len(COALESCE_STRIDES)})
 
 
+ATOM_TABLES = [1, 32, 1024, 32768, 1 << 20]
+
+
+def w_atomcontend(size, rng):
+    groups = 4 if size == 'small' else 2048
+    n = groups * 256
+    bases = np.cumsum([0] + ATOM_TABLES[:-1])
+    def check(o):
+        got = o[0].view(np.uint32)[:sum(ATOM_TABLES)]
+        i = np.arange(n, dtype=np.uint64)
+        bad = 0
+        for c, b in zip(ATOM_TABLES, bases):
+            idx = (((i[:, None] * 8 + np.arange(8, dtype=np.uint64)) * 2654435761) & 0xffffffff) & (c - 1)
+            ref = np.bincount(idx.ravel().astype(np.int64), minlength=c).astype(np.uint32)
+            bad += int(np.sum(got[b:b + c] != ref))
+        return bad == 0, {'counter_mismatches': bad, 'tables': ATOM_TABLES, 'adds_per_dispatch': 8 * n}
+    ds = [(groups, 1, 1, push(c - 1, int(b))) for c, b in zip(ATOM_TABLES, bases)]
+    return W('atomcontend', {0: (u32(np.zeros(sum(ATOM_TABLES))), True)}, ds, check, 256, {'atomics': 8 * n * len(ATOM_TABLES)})
+
+
+BARRIER_ROUNDS = [0, 16, 64, 256]
+
+
+def w_barriercost(size, rng):
+    groups = 4 if size == 'small' else 1024
+    n = groups * 256
+    def check(o):
+        got = o[0].view(np.uint32)[:len(BARRIER_ROUNDS) * n].reshape(len(BARRIER_ROUNDS), n)
+        ref = []
+        for rounds in BARRIER_ROUNDS:
+            sh = np.arange(256, dtype=np.uint64); v = sh.copy()
+            for _ in range(rounds):
+                v = (v * 3 + sh[(np.arange(256) + 1) & 255]) & 0xffffffff
+                sh = v.copy()
+            ref.append(np.tile(v, groups))
+        ref = np.array(ref, np.uint32)
+        return np.array_equal(got, ref), {'mismatches': int(np.sum(got != ref)), 'rounds': BARRIER_ROUNDS}
+    ds = [(groups, 1, 1, push(r, k)) for k, r in enumerate(BARRIER_ROUNDS)]
+    return W('barriercost', {0: (4 * len(BARRIER_ROUNDS) * n, True)}, ds, check, 256, {'barriers': 2 * sum(BARRIER_ROUNDS) * groups})
+
+
 WORKLOADS = {'reduce': w_reduce, 'scan': w_scan, 'sgemm': w_sgemm, 'conv2d': w_conv2d, 'histogram': w_histogram,
              'nbody': w_nbody, 'bitonic': w_bitonic, 'sha256': w_sha256, 'fp16': w_fp16, 'int64': w_int64, 'bitops': w_bitops,
              'intdiv': w_intdiv, 'compact': w_compact, 'spmv': w_spmv, 'transpose': w_transpose, 'mandelbrot': w_mandelbrot,
@@ -2761,7 +2802,8 @@ WORKLOADS = {'reduce': w_reduce, 'scan': w_scan, 'sgemm': w_sgemm, 'conv2d': w_c
              'specblur': w_specblur, 'cullindirect': w_cullindirect,
              'bigsort': w_bigsort, 'pushmat': w_pushmat, 'mplitmus': w_mplitmus,
              'splat': w_splat, 'splatfix': w_splatfix,
-             'smembank': w_smembank, 'coalesce': w_coalesce}
+             'smembank': w_smembank, 'coalesce': w_coalesce,
+             'atomcontend': w_atomcontend, 'barriercost': w_barriercost}
 
 
 # ---------------------------------------------------------------------------------------------------------------

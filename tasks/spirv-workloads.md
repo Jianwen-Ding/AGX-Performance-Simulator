@@ -41,7 +41,7 @@ The rest of this file is the detailed procedure, for investigating results.
 
 ## Workloads
 
-One hundred and seventeen realistic compute kernels, written in GLSL (`spirv/shaders/*.comp`) and compiled to SPIR-V:
+One hundred and nineteen realistic compute kernels, written in GLSL (`spirv/shaders/*.comp`) and compiled to SPIR-V:
 
 | Workload | Kernel | Stresses |
 |---|---|---|
@@ -162,6 +162,8 @@ One hundred and seventeen realistic compute kernels, written in GLSL (`spirv/sha
 | `splatfix` | The same splat with 16.16 fixed-point integer atomics | The portable technique where float atomics are missing |
 | `smembank` | Shared-memory stride sweep (1 .. 33), one dispatch per stride | Bank conflicts; a timing probe for the cost model |
 | `coalesce` | Device-memory stride sweep (1 .. 64), one dispatch per stride | Coalescing / cache lines; a timing probe for the memory model |
+| `atomcontend` | atomicAdd into 1 .. 2^20 counters, one dispatch each | Atomic contention; a timing probe |
+| `barriercost` | 0 .. 256 rounds of shared exchange + barriers, one dispatch each | Barrier cost; a timing probe |
 
 Each workload has two sizes:
 

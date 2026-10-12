@@ -1,7 +1,7 @@
 # Task SPIR-V 8: applications (ray tracer, neural networks, image processing, cellular automaton, graph search,
 # encryption, hashing, text, compression)
 
-**Workloads:** `raytrace`, `mlp`, `sobel`, `life`, `bfs`, `conv_layer`, `hist_eq`, `aes`, `hash_table`, `word_count`, `dct8`, `attention`, `resize`, `median3`, `poisson`, `lbm`, `base64`, `md5`, `gemv`, `levenshtein`, `blur`, `yuv420`, `montecarlo`, `xxhash`, `bloom`, `collatz`, `tridiag`, `merge`, `ccl`, `pagerank`, `skinning`, `strsearch`, `quantize`, `rule110`, `voxel`, `nms`, `sat`, `sssp`, `morton`, `utf8`, `fir`, `composite`, `nqueens`, `lzmatch`, `bitpack`, `perlin`, `adler32`, `sieve`, `gcd`, `dither`, `advect`, `knn`, `csvparse`, `pip`, `lift53`, `chacha20`, `modexp`, `floyd`, `f16pack`, `raster`, `canny`, `secded`, `bicubic`, `dfa`, `b64decode`, `cordic`, `rsenc`, `texfetch`, `texfilter`, `imgerode`, `imgtonemap`, `argmax64`, `minmax64`, `dsum`, `quadmip`, `clustered`, `specblur`, `cullindirect`, `bigsort`, `pushmat`, `mplitmus`, `splat`, `splatfix`, `smembank`, `coalesce`. These are recorded and verified by `make asahi-verify` with the others;
+**Workloads:** `raytrace`, `mlp`, `sobel`, `life`, `bfs`, `conv_layer`, `hist_eq`, `aes`, `hash_table`, `word_count`, `dct8`, `attention`, `resize`, `median3`, `poisson`, `lbm`, `base64`, `md5`, `gemv`, `levenshtein`, `blur`, `yuv420`, `montecarlo`, `xxhash`, `bloom`, `collatz`, `tridiag`, `merge`, `ccl`, `pagerank`, `skinning`, `strsearch`, `quantize`, `rule110`, `voxel`, `nms`, `sat`, `sssp`, `morton`, `utf8`, `fir`, `composite`, `nqueens`, `lzmatch`, `bitpack`, `perlin`, `adler32`, `sieve`, `gcd`, `dither`, `advect`, `knn`, `csvparse`, `pip`, `lift53`, `chacha20`, `modexp`, `floyd`, `f16pack`, `raster`, `canny`, `secded`, `bicubic`, `dfa`, `b64decode`, `cordic`, `rsenc`, `texfetch`, `texfilter`, `imgerode`, `imgtonemap`, `argmax64`, `minmax64`, `dsum`, `quadmip`, `clustered`, `specblur`, `cullindirect`, `bigsort`, `pushmat`, `mplitmus`, `splat`, `splatfix`, `smembank`, `coalesce`, `atomcontend`, `barriercost`. These are recorded and verified by `make asahi-verify` with the others;
 they are **PENDING** until then. The detailed procedure is in `tasks/spirv-workloads.md`.
 
 ## Why these
@@ -97,6 +97,8 @@ reference.
 | `splatfix` | The same points with weights in 16.16 fixed point and `atomicAdd` on uint | Exact; the fixed-point grid is within half a unit per term of the exact sums |
 | `smembank` | 64 shared-memory reads per lane at stride 1, 2, 4, 8, 16, 32, 33, one dispatch each | Exact sums; per-stride times |
 | `coalesce` | 16 device reads per lane at stride 1 .. 64 words over 64 MiB, one dispatch each | Exact sums; per-stride times |
+| `atomcontend` | 4M atomicAdds per dispatch into 1, 32, 1024, 32768 and 2^20 counters | Exact counts; per-dispatch times |
+| `barriercost` | 0, 16, 64, 256 rounds of neighbour exchange with two barriers each | Exact; per-dispatch times |
 
 ## Offline sanity checks (not hardware verification)
 
@@ -211,3 +213,8 @@ reference.
       stride 16; stride 33 is conflict-free);
     - device memory, µs per stride 1 .. 64: 24, 104, 197, 383, 756, 406, 230. Strides 32 and 64 wrap the 64 MiB
       buffer and reuse lines; whether the M2 shows that drop too is part of the check.
+26. **Probes `atomcontend` and `barriercost`.**
+    - The model predicts `barriercost` at 8.5, 16.6, 45.6 and 162 µs, about 0.27 µs per barrier pair per wave.
+    - It predicts `atomcontend` flat at 11.5 µs for every table size. It has no cross-group same-address
+      serialisation for return-less atomics, so the single-counter dispatch is the likely large under-prediction.
+    - The M2's per-dispatch times give the slope to add.
