@@ -1,7 +1,7 @@
 # Task SPIR-V 8: applications (ray tracer, neural networks, image processing, cellular automaton, graph search,
 # encryption, hashing, text, compression)
 
-**Workloads:** `raytrace`, `mlp`, `sobel`, `life`, `bfs`, `conv_layer`, `hist_eq`, `aes`, `hash_table`, `word_count`, `dct8`, `attention`, `resize`, `median3`, `poisson`, `lbm`, `base64`, `md5`, `gemv`, `levenshtein`, `blur`, `yuv420`, `montecarlo`, `xxhash`, `bloom`, `collatz`, `tridiag`, `merge`, `ccl`, `pagerank`, `skinning`, `strsearch`, `quantize`, `rule110`, `voxel`. These are recorded and verified by `make asahi-verify` with the others;
+**Workloads:** `raytrace`, `mlp`, `sobel`, `life`, `bfs`, `conv_layer`, `hist_eq`, `aes`, `hash_table`, `word_count`, `dct8`, `attention`, `resize`, `median3`, `poisson`, `lbm`, `base64`, `md5`, `gemv`, `levenshtein`, `blur`, `yuv420`, `montecarlo`, `xxhash`, `bloom`, `collatz`, `tridiag`, `merge`, `ccl`, `pagerank`, `skinning`, `strsearch`, `quantize`, `rule110`, `voxel`, `nms`, `sat`, `sssp`, `morton`. These are recorded and verified by `make asahi-verify` with the others;
 they are **PENDING** until then. The detailed procedure is in `tasks/spirv-workloads.md`.
 
 ## Why these
@@ -47,11 +47,15 @@ reference.
 | `quantize` | Per-row int8 quantization of 32768 × 256 fp32 activations (round half to even), with per-row Σ\|q\| in shared memory | Exact; row 0 holds ties (0.5 → 0, 1.5 → 2, 2.5 → 2) |
 | `rule110` | Rule 110 automaton on an 8192-cell ring, 1000 dependent dispatches building the space-time history | Exact every row; `sim_image0.pgm` / `image0.pgm` show the history |
 | `voxel` | Bin 2^22 clustered points into a 64³ grid: counts and 16.16 fixed-point coordinate sums with `atomicAdd` | Exact under any atomic order |
+| `nms` | Fast non-maximum suppression of 8192 score-sorted detection boxes (IoU > 0.5), earlier boxes streamed through shared memory | Exact keep flags and count (integer IoU test: 2 · intersection > union) |
+| `sat` | Summed-area table of a 3840 × 2160 8-bit image: row scans, then column scans in place, shared-memory Hillis-Steele with carry | Exact; a box sum from four lookups is checked too |
+| `sssp` | Bellman-Ford shortest paths on a 512 × 512 road grid with highways, `atomicMin` relaxation, 78 dispatches | Exact distances (the dispatch count covers synchronous rounds; in-place updates only converge faster) |
+| `morton` | 32-bit and 64-bit Morton (Z-order) codes of 2^22 points | Exact (mask-and-shift bit spreading, 64-bit integers) |
 
 ## Offline sanity checks (not hardware verification)
 
 - **lavapipe:** all pass at both sizes.
-- **Shim-compiled Mesa 25.2.8 and 26.0.3 code on the functional simulator:** 70 of 70.
+- **Shim-compiled Mesa 25.2.8 and 26.0.3 code on the functional simulator:** 78 of 78.
   - `bfs` found a simulator bug. Mesa aggregates `atomicAdd(found[l], 1)` under divergence: one lane, chosen with SR58
     (`active_thread_index_in_simdgroup`), adds SR59, the number of active lanes. The simulator modelled both from the
     launch shape (lane index, 32), which is only right when every lane is active, so the counts came out as multiples
@@ -89,3 +93,9 @@ reference.
 9. `strsearch`, `quantize`, `rule110` and `voxel` are exact and must PASS. `quantize` confirms `roundEven` and the
    fp32 → int conversion. `rule110` is 1000 dispatches of 128 threads each: its time per dispatch is a direct
    measure of launch overhead (the model predicts 6.4 µs, of which 5.6 µs is launch).
+10. `nms`, `sat`, `sssp` and `morton` are exact and must PASS.
+    - **`nms` is a known under-prediction.** Workgroup k compares its boxes with all earlier ones, so its work grows
+      with k. Its 32 workgroups fit one per core, and the dispatch takes as long as the last, heaviest workgroup.
+      The model simulates workgroup 0 as the representative, the lightest, so it predicts 78 µs.
+    - Expect the M2 to take far longer, roughly 32 × the work of workgroup 0 on its busiest core.
+    - The measured time decides how the model should pick representative workgroups when work is uneven.

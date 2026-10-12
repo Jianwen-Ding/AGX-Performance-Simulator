@@ -1,0 +1,35 @@
+#version 450
+// Summed-area table (integral image) of an 8-bit image, two dispatches: pass 0 scans every row (src -> sat),
+// pass 1 scans every column in place. One workgroup per line runs a 256-wide shared-memory scan per chunk and
+// carries the running total. Box filters of any size then cost four reads. Integer-exact (uint32).
+#extension GL_EXT_shader_8bit_storage : require
+#extension GL_EXT_shader_explicit_arithmetic_types_int8 : require
+layout(local_size_x = 256) in;
+layout(std430, binding = 0) readonly buffer I { uint8_t src[]; };
+layout(std430, binding = 1) buffer S { uint sat[]; };
+layout(push_constant) uniform P { uint width; uint height; uint pass_; } p;
+shared uint s[256];
+shared uint carry;
+
+void main() {
+    uint line = gl_WorkGroupID.x, t = gl_LocalInvocationID.x;
+    uint len = p.pass_ == 0u ? p.width : p.height;
+    if (t == 0u) carry = 0u;
+    for (uint c = 0u; c < len; c += 256u) {
+        uint k = c + t;
+        uint idx = p.pass_ == 0u ? line * p.width + k : k * p.width + line;
+        uint v = k < len ? (p.pass_ == 0u ? uint(src[idx]) : sat[idx]) : 0u;
+        barrier();
+        s[t] = v;
+        barrier();
+        for (uint d = 1u; d < 256u; d <<= 1) {                         // Hillis-Steele inclusive scan
+            uint add = t >= d ? s[t - d] : 0u;
+            barrier();
+            s[t] += add;
+            barrier();
+        }
+        if (k < len) sat[idx] = s[t] + carry;
+        barrier();
+        if (t == 255u) carry += s[255];
+    }
+}

@@ -1,0 +1,18 @@
+#version 450
+// Single-source shortest paths (Bellman-Ford) on a weighted CSR road-like graph: each dispatch relaxes every
+// out-edge of every reached vertex with atomicMin. Updates land in place, which can only converge faster than the
+// synchronous rounds that set the dispatch count, so the final distances are exact under any ordering.
+layout(local_size_x = 128) in;
+layout(std430, binding = 0) readonly buffer RP { uint rowptr[]; };
+layout(std430, binding = 1) readonly buffer CI { uint col[]; };
+layout(std430, binding = 2) readonly buffer WT { uint wt[]; };
+layout(std430, binding = 3) buffer D { uint dist[]; };
+layout(push_constant) uniform P { uint n; } p;
+
+void main() {
+    uint u = gl_GlobalInvocationID.x;
+    if (u >= p.n) return;
+    uint du = dist[u];
+    if (du == 0xffffffffu) return;
+    for (uint e = rowptr[u]; e < rowptr[u + 1u]; e++) atomicMin(dist[col[e]], du + wt[e]);
+}

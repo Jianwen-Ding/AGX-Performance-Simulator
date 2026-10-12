@@ -1527,6 +1527,100 @@ def w_voxel(size, rng):
              [((n + 255) // 256, 1, 1, push(n))], check, 256, {'points': n})
 
 
+def w_nms(size, rng):
+    n = 300 if size == 'small' else 8192
+    cx, cy = rng.integers(0, 1024, n), rng.integers(0, 1024, n)
+    obj = rng.integers(0, max(n // 6, 1), n)                                   # detections cluster on objects
+    ox, oy = rng.integers(40, 984, (2, n // 6 + 1))
+    cx, cy = np.where(rng.random(n) < 0.8, ox[obj] + rng.integers(-12, 13, n), cx), np.where(rng.random(n) < 0.8, oy[obj] + rng.integers(-12, 13, n), cy)
+    w, h = rng.integers(16, 120, n), rng.integers(16, 120, n)
+    boxes = np.stack([cx - w // 2, cy - h // 2, cx + w // 2, cy + h // 2], 1).astype(np.int32)   # sorted by score: index order
+    def check(o):
+        keep = o[1].view(np.uint32)[:n]; kept = int(o[2].view(np.uint32)[0])
+        b = boxes.astype(np.int64); area = (b[:, 2] - b[:, 0]) * (b[:, 3] - b[:, 1])
+        ref = np.ones(n, np.uint32)
+        for i0 in range(0, n, 512):                                            # blocks of rows keep the pair matrix small
+            bi = b[i0:i0 + 512]
+            iw = np.clip(np.minimum(bi[:, None, 2], b[None, :, 2]) - np.maximum(bi[:, None, 0], b[None, :, 0]), 0, None)
+            ih = np.clip(np.minimum(bi[:, None, 3], b[None, :, 3]) - np.maximum(bi[:, None, 1], b[None, :, 1]), 0, None)
+            inter = iw * ih
+            over = 2 * inter > area[i0:i0 + 512, None] + area[None, :] - inter
+            earlier = np.arange(n)[None, :] < np.arange(i0, i0 + len(bi))[:, None]
+            ref[i0:i0 + len(bi)] = ~np.any(over & earlier, axis=1)
+        ok = np.array_equal(keep, ref) and kept == int(ref.sum())
+        return ok, {'keep_mismatches': int(np.sum(keep != ref)), 'kept': kept, 'ref_kept': int(ref.sum())}
+    return W('nms', {0: (boxes, False), 1: (4 * n, True), 2: (u32([0]), True)}, [((n + 255) // 256, 1, 1, push(n))], check, 256,
+             {'pairs': n * (n - 1) // 2})
+
+
+def w_sat(size, rng):
+    Wd, H = (300, 200) if size == 'small' else (3840, 2160)
+    gy, gx = np.mgrid[0:H, 0:Wd]
+    img = np.clip(128 + 100 * np.sin(gx / 37.0) * np.cos(gy / 23.0) + rng.integers(-20, 21, (H, Wd)), 0, 255).astype(np.uint8)
+    def check(o):
+        got = o[1].view(np.uint32)[:Wd * H].reshape(H, Wd)
+        ref = img.astype(np.uint64).cumsum(0).cumsum(1).astype(np.uint32)
+        r0, c0, r1, c1 = H // 4, Wd // 4, H // 2, Wd // 2                     # a box sum from four lookups
+        box = int(got[r1, c1]) - int(got[r0 - 1, c1]) - int(got[r1, c0 - 1]) + int(got[r0 - 1, c0 - 1])
+        return np.array_equal(got, ref), {'mismatches': int(np.sum(got != ref)), 'box_sum_ok': box == int(img[r0:r1 + 1, c0:c1 + 1].astype(np.int64).sum())}
+    ds = [(H, 1, 1, push(Wd, H, 0)), (Wd, 1, 1, push(Wd, H, 1))]
+    return W('sat', {0: (img, False), 1: (4 * Wd * H, True)}, ds, check, 256, {'pixels': Wd * H})
+
+
+def w_sssp(size, rng):
+    side = 24 if size == 'small' else 512
+    n = side * side
+    # a road-like grid: 4-neighbour streets plus a few long highways, integer travel times
+    idx = np.arange(n).reshape(side, side)
+    src_ = np.concatenate([idx[:, :-1].ravel(), idx[:, 1:].ravel(), idx[:-1, :].ravel(), idx[1:, :].ravel()])
+    dst_ = np.concatenate([idx[:, 1:].ravel(), idx[:, :-1].ravel(), idx[1:, :].ravel(), idx[:-1, :].ravel()])
+    hw = rng.integers(0, n, (2, n // 64))
+    src_, dst_ = np.concatenate([src_, hw[0], hw[1]]), np.concatenate([dst_, hw[1], hw[0]])
+    wts = np.concatenate([rng.integers(5, 100, len(src_) - 2 * (n // 64)), np.tile(rng.integers(50, 400, n // 64), 2)])
+    order = np.argsort(src_, kind='stable')
+    col, wt = u32(dst_[order]), u32(wts[order])
+    rowptr = u32(np.concatenate([[0], np.cumsum(np.bincount(src_, minlength=n))]))
+    INF = 0xffffffff
+    d0 = np.full(n, INF, np.uint32); d0[0] = 0
+    dist, rounds = d0.astype(np.int64), 0
+    s_sorted = src_[order]
+    while True:                                                                # synchronous rounds converge slowest
+        cand = dist[s_sorted] + wts[order]
+        nd = dist.copy(); ok = dist[s_sorted] < INF
+        np.minimum.at(nd, dst_[order][ok], cand[ok])
+        if np.array_equal(nd, dist):
+            break
+        dist, rounds = nd, rounds + 1
+    ref = dist
+    def check(o):
+        got = o[3].view(np.uint32)[:n].astype(np.int64)
+        return np.array_equal(got, ref), {'mismatches': int(np.sum(got != ref)), 'max_dist': int(ref.max()), 'dispatches': max(rounds, 1)}
+    ds = [((n + 127) // 128, 1, 1, push(n))] * max(rounds, 1)
+    return W('sssp', {0: (rowptr, False), 1: (col, False), 2: (wt, False), 3: (d0, True)}, ds, check, 128, {'edge_relaxations': len(col) * len(ds)})
+
+
+def spread_bits(x, bits, stride):
+    out = np.zeros_like(x)
+    for b in range(bits):
+        out |= ((x >> b) & 1) << (stride * b)
+    return out
+
+
+def w_morton(size, rng):
+    n = 4096 if size == 'small' else 1 << 22
+    pts = f32(rng.random((n, 3)))
+    pts[0] = [0, 0, 0]; pts[1] = np.nextafter(np.float32(1), np.float32(0))   # corners: all-zero and all-one codes
+    pts4 = f32(np.concatenate([pts, np.ones((n, 1), np.float32)], 1))
+    def check(o):
+        c32 = o[1].view(np.uint32)[:n]; c64 = o[2].view(np.uint64)[:n]
+        a = (pts.astype(np.float64) * 1024).astype(np.uint64); b = (pts.astype(np.float64) * 2097152).astype(np.uint64)
+        r32 = (spread_bits(a[:, 0], 10, 3) | spread_bits(a[:, 1], 10, 3) << np.uint64(1) | spread_bits(a[:, 2], 10, 3) << np.uint64(2)).astype(np.uint32)
+        r64 = spread_bits(b[:, 0], 21, 3) | spread_bits(b[:, 1], 21, 3) << np.uint64(1) | spread_bits(b[:, 2], 21, 3) << np.uint64(2)
+        ok = np.array_equal(c32, r32) and np.array_equal(c64, r64)
+        return ok, {'mismatches32': int(np.sum(c32 != r32)), 'mismatches64': int(np.sum(c64 != r64)), 'corner_codes': [hex(int(c64[0])), hex(int(c64[1]))]}
+    return W('morton', {0: (pts4, False), 1: (4 * n, True), 2: (8 * n, True)}, [((n + 255) // 256, 1, 1, push(n))], check, 256, {'points': n})
+
+
 WORKLOADS = {'reduce': w_reduce, 'scan': w_scan, 'sgemm': w_sgemm, 'conv2d': w_conv2d, 'histogram': w_histogram,
              'nbody': w_nbody, 'bitonic': w_bitonic, 'sha256': w_sha256, 'fp16': w_fp16, 'int64': w_int64, 'bitops': w_bitops,
              'intdiv': w_intdiv, 'compact': w_compact, 'spmv': w_spmv, 'transpose': w_transpose, 'mandelbrot': w_mandelbrot,
@@ -1540,7 +1634,8 @@ WORKLOADS = {'reduce': w_reduce, 'scan': w_scan, 'sgemm': w_sgemm, 'conv2d': w_c
              'levenshtein': w_levenshtein, 'blur': w_blur, 'yuv420': w_yuv420, 'montecarlo': w_montecarlo,
              'xxhash': w_xxhash, 'bloom': w_bloom, 'collatz': w_collatz, 'tridiag': w_tridiag,
              'merge': w_merge, 'ccl': w_ccl, 'pagerank': w_pagerank, 'skinning': w_skinning,
-             'strsearch': w_strsearch, 'quantize': w_quantize, 'rule110': w_rule110, 'voxel': w_voxel}
+             'strsearch': w_strsearch, 'quantize': w_quantize, 'rule110': w_rule110, 'voxel': w_voxel,
+             'nms': w_nms, 'sat': w_sat, 'sssp': w_sssp, 'morton': w_morton}
 
 
 # ---------------------------------------------------------------------------------------------------------------

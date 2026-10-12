@@ -1,0 +1,163 @@
+0x0080  72051004                 get_sr r1, sr80 (thread_position_in_grid.x)
+0x0084  0e05428658000000         iadd r1, r1.sx, u4.sx
+0x008c  62000000                 mov_imm r0l, 0
+0x0090  522842a21800             if_icmp r0l, ult, r1, u5, 1
+0x0096  20c0fc030000             jmp_exec_none pc+1020
+0x009c  05212c0e00c8f200         device_load 0, i32, xyzw, r4_r5_r6_r7, u6_u7, r1, unsigned, lsl 2
+0x00a4  3800                     wait 0
+0x00a6  1a8948a21100             fmul32 r2, r4, u13l
+0x00ac  3e8908402400             convert f_to_u32, r2, r2, rtz
+0x00b2  7e0944e29a00             and r2, r2, u23
+0x00b8  2e0d004024100000         bfi r3, 0, r2, 16
+0x00c0  7e09446ae400             or r2, r2, r3
+0x00c6  7e0944c29900             and r2, r2, u14
+0x00cc  2e0d004024080000         bfi r3, 0, r2, 8
+0x00d4  7e09446ae400             or r2, r2, r3
+0x00da  7e0944e29900             and r2, r2, u15
+0x00e0  0e0d004064002000         iadd r3, 0, r2.sx, lsl 4
+0x00e8  7e09446ae400             or r2, r2, r3
+0x00ee  7e0944a29a00             and r2, r2, u21
+0x00f4  0e0d004064001000         iadd r3, 0, r2.sx, lsl 2
+0x00fc  7e09446ae400             or r2, r2, r3
+0x0102  1a8d4aa21100             fmul32 r3, r5, u13l
+0x0108  3e8d08602400             convert f_to_u32, r3, r3, rtz
+0x010e  7e0d46e29a00             and r3, r3, u23
+0x0114  2e1d006024100000         bfi r7, 0, r3, 16
+0x011c  7e0d46eae400             or r3, r3, r7
+0x0122  7e0d46c29900             and r3, r3, u14
+0x0128  2e1d006024080000         bfi r7, 0, r3, 8
+0x0130  7e0d46eae400             or r3, r3, r7
+0x0136  7e0d46e29900             and r3, r3, u15
+0x013c  0e1d006064002000         iadd r7, 0, r3.sx, lsl 4
+0x0144  7e0d46eae400             or r3, r3, r7
+0x014a  7e0d46a29a00             and r3, r3, u21
+0x0150  0e1d006064001000         iadd r7, 0, r3.sx, lsl 2
+0x0158  7e0d46eae400             or r3, r3, r7
+0x015e  7e0d46829a00             and r3, r3, u20
+0x0164  0e0d0060e4000000         iadd r3, 0, r3.sx, lsl 1
+0x016c  7e0944829a00             and r2, r2, u20
+0x0172  7e09446ae400             or r2, r2, r3
+0x0178  1a8d4ca21100             fmul32 r3, r6, u13l
+0x017e  3e8d08602400             convert f_to_u32, r3, r3, rtz
+0x0184  7e0d46e29a00             and r3, r3, u23
+0x018a  2e1d006024100000         bfi r7, 0, r3, 16
+0x0192  7e0d46eae400             or r3, r3, r7
+0x0198  7e0d46c29900             and r3, r3, u14
+0x019e  2e1d006024080000         bfi r7, 0, r3, 8
+0x01a6  7e0d46eae400             or r3, r3, r7
+0x01ac  7e0d46e29900             and r3, r3, u15
+0x01b2  0e1d006064002000         iadd r7, 0, r3.sx, lsl 4
+0x01ba  7e0d46eae400             or r3, r3, r7
+0x01c0  7e0d46a29a00             and r3, r3, u21
+0x01c6  0e1d006064001000         iadd r7, 0, r3.sx, lsl 2
+0x01ce  7e0d46eae400             or r3, r3, r7
+0x01d4  7e0d46829a00             and r3, r3, u20
+0x01da  0e0d006064001000         iadd r3, 0, r3.sx, lsl 2
+0x01e2  7e09446ae400             or r2, r2, r3
+0x01e8  4511200e10c01200         device_store 0, i32, x, r2, u8_u9, r1, unsigned, 0
+0x01f0  1a8948221b00             fmul32 r2, r4, u25
+0x01f6  3e8908402400             convert f_to_u32, r2, r2, rtz
+0x01fc  7e0d44629a00             and r3, r2, u19
+0x0202  7e0246088000             mov r0h, r3l
+0x0208  7e1141088000             mov r4, r0h
+0x020e  7e099841a400             and r2, u12, r2
+0x0214  2e1d004024100000         bfi r7, 0, r2, 16
+0x021c  7e114e9ac400             or r4, r7, r4h
+0x0222  7e09448ae400             or r2, r2, r4
+0x0228  2e0d006024100000         bfi r3, 0, r3, 16
+0x0230  7e0d4168e400             or r3, r0h, r3
+0x0236  7e0944829900             and r2, r2, u12
+0x023c  7e0d46029b00             and r3, r3, u24
+0x0242  2e11464624180000         extr r4, r3, r2, 24
+0x024a  7e09448ae400             or r2, r2, r4
+0x0250  2e11006024080000         bfi r4, 0, r3, 8
+0x0258  7e0d468ae400             or r3, r3, r4
+0x025e  7e0944629b00             and r2, r2, u27
+0x0264  7e0d46429b00             and r3, r3, u26
+0x026a  2e114646241c0000         extr r4, r3, r2, 28
+0x0272  7e09448ae400             or r2, r2, r4
+0x0278  0e11006064002000         iadd r4, 0, r3.sx, lsl 4
+0x0280  7e0d468ae400             or r3, r3, r4
+0x0286  7e0944429a00             and r2, r2, u18
+0x028c  7e0d46029a00             and r3, r3, u16
+0x0292  2e114646241e0000         extr r4, r3, r2, 30
+0x029a  7e09448ae400             or r2, r2, r4
+0x02a0  0e11006064001000         iadd r4, 0, r3.sx, lsl 2
+0x02a8  7e0d468ae400             or r3, r3, r4
+0x02ae  1a914a221b00             fmul32 r4, r5, u25
+0x02b4  3e9108802400             convert f_to_u32, r4, r4, rtz
+0x02ba  7e1548629a00             and r5, r4, u19
+0x02c0  7e024a088000             mov r0h, r5l
+0x02c6  7e1d41088000             mov r7, r0h
+0x02cc  7e119881a400             and r4, u12, r4
+0x02d2  2e21008024100000         bfi r8, 0, r4, 16
+0x02da  7e1d50fac400             or r7, r8, r7h
+0x02e0  7e1148eae400             or r4, r4, r7
+0x02e6  2e1500a024100000         bfi r5, 0, r5, 16
+0x02ee  7e1541a8e400             or r5, r0h, r5
+0x02f4  7e154a029b00             and r5, r5, u24
+0x02fa  7e1148829900             and r4, r4, u12
+0x0300  2e1d4a8624180000         extr r7, r5, r4, 24
+0x0308  7e1148eae400             or r4, r4, r7
+0x030e  2e1d00a024080000         bfi r7, 0, r5, 8
+0x0316  7e154aeae400             or r5, r5, r7
+0x031c  7e154a429b00             and r5, r5, u26
+0x0322  7e1148629b00             and r4, r4, u27
+0x0328  2e1d4a86241c0000         extr r7, r5, r4, 28
+0x0330  7e1148eae400             or r4, r4, r7
+0x0336  0e1d00a064002000         iadd r7, 0, r5.sx, lsl 4
+0x033e  7e154aeae400             or r5, r5, r7
+0x0344  7e154a029a00             and r5, r5, u16
+0x034a  7e1148429a00             and r4, r4, u18
+0x0350  2e1d4a86241e0000         extr r7, r5, r4, 30
+0x0358  7e1148eae400             or r4, r4, r7
+0x035e  0e1d00a064001000         iadd r7, 0, r5.sx, lsl 2
+0x0366  7e154aeae400             or r5, r5, r7
+0x036c  7e1148c29a00             and r4, r4, u22
+0x0372  7e154a229a00             and r5, r5, u17
+0x0378  2e114a86241f0000         extr r4, r5, r4, 31
+0x0380  7e0944c29a00             and r2, r2, u22
+0x0386  7e09448ae400             or r2, r2, r4
+0x038c  7e0d46229a00             and r3, r3, u17
+0x0392  0e1100a0e4000000         iadd r4, 0, r5.sx, lsl 1
+0x039a  7e0d468ae400             or r3, r3, r4
+0x03a0  1a914c221b00             fmul32 r4, r6, u25
+0x03a6  3e9108802400             convert f_to_u32, r4, r4, rtz
+0x03ac  7e1548629a00             and r5, r4, u19
+0x03b2  7e024a088000             mov r0h, r5l
+0x03b8  7e1941088000             mov r6, r0h
+0x03be  7e119881a400             and r4, u12, r4
+0x03c4  2e1d008024100000         bfi r7, 0, r4, 16
+0x03cc  7e194edac400             or r6, r7, r6h
+0x03d2  7e1148cae400             or r4, r4, r6
+0x03d8  2e1500a024100000         bfi r5, 0, r5, 16
+0x03e0  7e1541a8e400             or r5, r0h, r5
+0x03e6  7e154a029b00             and r5, r5, u24
+0x03ec  7e1148829900             and r4, r4, u12
+0x03f2  2e194a8624180000         extr r6, r5, r4, 24
+0x03fa  7e1148cae400             or r4, r4, r6
+0x0400  2e1900a024080000         bfi r6, 0, r5, 8
+0x0408  7e154acae400             or r5, r5, r6
+0x040e  7e154a429b00             and r5, r5, u26
+0x0414  7e1148629b00             and r4, r4, u27
+0x041a  2e194a86241c0000         extr r6, r5, r4, 28
+0x0422  7e1148cae400             or r4, r4, r6
+0x0428  0e1900a064002000         iadd r6, 0, r5.sx, lsl 4
+0x0430  7e154acae400             or r5, r5, r6
+0x0436  7e154a029a00             and r5, r5, u16
+0x043c  7e1148429a00             and r4, r4, u18
+0x0442  2e194a86241e0000         extr r6, r5, r4, 30
+0x044a  7e1148cae400             or r4, r4, r6
+0x0450  0e1900a064001000         iadd r6, 0, r5.sx, lsl 2
+0x0458  7e154acae400             or r5, r5, r6
+0x045e  7e154a229a00             and r5, r5, u17
+0x0464  7e1148c29a00             and r4, r4, u22
+0x046a  2e114a86241e0000         extr r4, r5, r4, 30
+0x0472  7e1d448ae400             or r7, r2, r4
+0x0478  0e0900a064001000         iadd r2, 0, r5.sx, lsl 2
+0x0480  7e19464ae400             or r6, r3, r2
+0x0486  4531244e10c43200         device_store 1, i32, xy, r6_r7, u10_u11, r1, unsigned, lsl 1, 0
+0x048e  3800                     wait 0
+0x0490  3801                     wait 1
+0x0492  520e00000000             pop_exec r0l, 1
+0x0498  8800                     stop
