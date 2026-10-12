@@ -229,24 +229,45 @@ fn src_get(st: &CoreState, s: Src, t: usize) -> R<(u64, u32)> {
 
 /// icmpsel with 16 / 32-bit register, uniform or immediate operands: the common case, without per-lane operand
 /// dispatch. Same result as the general path (compare masks to the operand size and sign-extends for signed codes).
+/// Every operand is at most 32 bits wide, so the compare runs in i64; the condition code is decoded once.
 fn icmpsel_fast(cc: u64, ops: &[Operand], st: &mut CoreState) -> R<bool> {
     let (Some(a), Some(b), Some(x), Some(y)) = (src_of(st, &ops[1])?, src_of(st, &ops[2])?, src_of(st, &ops[3])?, src_of(st, &ops[4])?)
     else {
         return Ok(false);
     };
-    if !matches!(ops[0], Operand::Reg16(..) | Operand::Reg32(..)) {
-        return Ok(false);
+    let (dn, d16) = match ops[0] {
+        Operand::Reg16(n, _) => (n as usize, true),
+        Operand::Reg32(n, _) => (n as usize, false),
+        _ => return Ok(false),
+    };
+    let signed = cc & 4 != 0;
+    let inv = cc & 8 != 0;
+    let op = cc & 3;
+    #[inline]
+    fn ext(v: u64, sz: u32, signed: bool) -> i64 {
+        let m = v & ((1u64 << sz) - 1);
+        if signed && m >> (sz - 1) & 1 == 1 { m as i64 - (1i64 << sz) } else { m as i64 }
     }
+    // a constant operand is extended once
+    let ka = if let Src::K(v, sz) = a { Some(ext(v, sz, signed)) } else { None };
+    let kb = if let Src::K(v, sz) = b { Some(ext(v, sz, signed)) } else { None };
     for t in 0..SIMD_WIDTH {
         if !st.exec[t] {
             continue;
         }
-        let (av, asz) = src_get(st, a, t)?;
-        let (bv, bsz) = src_get(st, b, t)?;
-        let am = (av & ((1u64 << asz) - 1)) as i128;
-        let bm = (bv & ((1u64 << bsz) - 1)) as i128;
-        let (v, _) = src_get(st, if icond(cc, am, asz, bm, bsz) { x } else { y }, t)?;
-        put(st, &ops[0], t, v)?;
+        let c = if op == 3 {
+            inv
+        } else {
+            let av = match ka { Some(k) => k, None => { let (v, sz) = src_get(st, a, t)?; ext(v, sz, signed) } };
+            let bv = match kb { Some(k) => k, None => { let (v, sz) = src_get(st, b, t)?; ext(v, sz, signed) } };
+            (match op { 0 => av == bv, 1 => av < bv, _ => av > bv }) != inv
+        };
+        let (v, _) = src_get(st, if c { x } else { y }, t)?;
+        if d16 {
+            st.set_reg16(dn, t, (v & 0xffff) as i128)?;
+        } else {
+            st.set_reg32(dn, t, (v & 0xffff_ffff) as i128)?;
+        }
     }
     Ok(true)
 }

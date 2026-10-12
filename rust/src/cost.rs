@@ -1382,6 +1382,14 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
     let mut stats: Vec<(u64, i64, i64, i64)> = vec![(0, 0, 0, 0); sim.len()];
     let mut wake: Vec<i64> = Vec::with_capacity(g);
     let mut sr_cache: Vec<Option<i64>> = vec![None; g];
+    #[derive(Clone, Copy)]
+    enum Retest {
+        Issue,
+        Bucket(usize, f64),
+        Port(usize, f64),
+    }
+    let mut retest: Vec<Retest> = Vec::new();
+    let mut unblocked = vec![false; g];
     let mut fresh_cache: Vec<Option<(usize, i64)>> = vec![None; g];
     let mut blk_cache: Vec<Option<i64>> = vec![None; g];
     let mut order: Vec<usize> = Vec::with_capacity(g);
@@ -1440,22 +1448,29 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
             }
         }
         wake.clear();
+        retest.clear();
+        let mut ff_ok = true;
+        let mut wmin_time = i64::MAX;
         for &gi in &issued_now {
             tick_issued[gi] = false;
         }
         issued_now.clear();
         for pass in 0..npass {
+        // pass 1 issues only through a scheduler that is free this tick: with none free, every group would skip
+        if pass == 1 && sched_free.iter().all(|&f| f > t) {
+            break;
+        }
         for oi in 0..order.len() {
             let gi = order[oi];
-            if nxt[gi] >= npcs[gi] || tick_issued[gi] || elig[gi / 64] >> (gi % 64) & 1 == 0 {
+            // eligible groups are unfinished, not busy (free <= t) and have not issued this tick: issuing or parking
+            // takes a group out of `elig`, and the heap returns it only once free / its block time has passed
+            if elig[gi / 64] >> (gi % 64) & 1 == 0 {
                 continue;
             }
-            if free[gi] > t {
-                wake.push(free[gi]);
-                continue;
-            }
+            debug_assert!(nxt[gi] < npcs[gi] && !tick_issued[gi] && free[gi] <= t);
             let ri = seqs[gi][nxt[gi]];
             let r = &sim[ri];
+            if !unblocked[gi] {
             // src_ready. It depends only on this group's ready / wtime / rcache, which change only when
             // this group issues, so it is computed once per instruction and group (same value as
             // recomputing it every tick; the defaultdict insertions it makes are idempotent).
@@ -1500,6 +1515,9 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
                 busy.push(std::cmp::Reverse((blocked, gi)));
                 continue;
             }
+            // the blocks are times already passed: they stay passed until the group issues
+            unblocked[gi] = true;
+            }
             let home = gi % SCHEDULERS;
             let half = home % 2;
             let mut need = 0.0;
@@ -1521,6 +1539,7 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
             }
             if issue_tok < t_ {
                 wake.push(t + 1);
+                retest.push(Retest::Issue);
                 continue;
             }
             if r.unit.is_some() {
@@ -1535,6 +1554,7 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
                 // (the token test first: the forwarding count only matters once the unit has a token)
                 if tok[b].unwrap() < r.cost {
                     wake.push(t + 1);
+                    retest.push(Retest::Bucket(b, r.cost));
                     continue;
                 }
                 need = r.need_port;
@@ -1562,6 +1582,7 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
                 }
                 if port[half] < need {
                     wake.push(t + 1);
+                    retest.push(Retest::Port(half, need));
                     continue;
                 }
             }
@@ -1586,6 +1607,7 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
                 };
                 if h > t {
                     wake.push(h);
+                    wmin_time = wmin_time.min(h);
                     continue;
                 }
             }
@@ -1601,6 +1623,7 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
                 }
                 if gate > t {
                     wake.push(gate);
+                    wmin_time = wmin_time.min(gate);
                     continue;
                 }
             }
@@ -1608,11 +1631,13 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
                 let gate = core_fast[half].max(core_slow[half]);
                 if gate > t {
                     wake.push(gate);
+                    wmin_time = wmin_time.min(gate);
                     continue;
                 }
             }
             // barrier: wait until every group of the scope has arrived (after draining its ALU work)
             if r.barrier != 0 {
+                ff_ok = false; // arrival spends writeback tokens without issuing
                 if bar_arrive[gi].is_none() {
                     // arriving writes back every register in the group's result cache (barrier-fill probe:
                     // 2 writebacks per cycle per core for F dirty registers per group)
@@ -1683,6 +1708,7 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
             if let Some(m) = ms.as_mut() {
                 let dev = !r.atomic && ((r.kind == Kind::Load && !r.tgop && !r.tg_name) || (r.kind == Kind::Store && !r.tg_name));
                 if dev && !memv.is_empty() {
+                    ff_ok = false; // the visit records the core's last load lines
                     let mv = memv[gi];
                     while m.cur[gi] < mv.len() && (mv[m.cur[gi]].0 as usize) < nxt[gi] {
                         m.cur[gi] += 1;
@@ -1733,6 +1759,7 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
                 let fresh = r.dst_regs.iter().filter(|reg| !wbc[gi].contains(reg)).count();
                 evict = (wbc[gi].len() + fresh).saturating_sub(nc);
                 if evict > 0 && wb_tok < evict as f64 {
+                    ff_ok = false;
                     wake.push(t + (((evict as f64 - wb_tok) / wb_rate).ceil() as i64).max(1));
                     continue;
                 }
@@ -2027,6 +2054,7 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
             last_t = last_t.max(free[gi]);
             nxt[gi] += 1;
             sr_cache[gi] = None;
+            unblocked[gi] = false;
             blk_cache[gi] = None;
             fresh_cache[gi] = None;
             issued += 1;
@@ -2053,38 +2081,72 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
         };
         // refill(nt - t). Python min(a, b) is `b if b < a else a`; a bucket already at its cap stays
         // there (cap + non-negative refill, clamped), so only buckets below their cap are visited.
-        let dt = (nt - t) as f64;
-        if let Some(m) = ms.as_mut() {
-            for i in 0..5 {
-                m.tok[i] = (m.tok[i] + m.rate[i] * dt).min(m.cap[i]);
+        // A tick that issued nothing and whose groups all stopped at a time threshold or at a resource that only
+        // refills (issue slots, unit tokens, register ports) repeats unchanged until a threshold passes or a
+        // resource suffices. Those ticks are stepped here with the same per-tick refill, without visiting groups.
+        let ff = issued == 0 && ff_ok && !retest.is_empty();
+        if ff {
+            for &f in &sched_free {
+                if f > t {
+                    wmin_time = wmin_time.min(f);
+                }
+            }
+            for &w in &wake {
+                if w > t + 1 {
+                    wmin_time = wmin_time.min(w);
+                }
+            }
+            if let Some(r) = busy.peek() {
+                wmin_time = wmin_time.min(r.0 .0);
             }
         }
-        for pt in port.iter_mut() {
-            *pt = pymin(*pt + HALF_READ_PORTS * dt, (HALF_READ_PORTS + 2.0) * t_ as f64);
-        }
-        issue_tok = (issue_tok + ISSUE_PER_CORE * (nt - t)).min(ISSUE_PER_CORE * t_);
-        wb_tok = (wb_tok + wb_rate * dt).min(WRITEBACK_CAP);
-        let mut i = 0;
-        while i < refilling.len() {
-            let b = refilling[i];
-            let bk = &buckets[b];
-            let cur = tok[b].unwrap();
-            let v = if bk.shared {
-                pymin(cur + dt * TOKSCALE as f64, bk.capmax)
-            } else {
-                pymin(cur + bk.cap * dt * TOKSCALE as f64, bk.capmax)
-            };
-            tok[b] = Some(v);
-            if v == bk.capmax {
-                in_refill[b] = false;
-                refilling.swap_remove(i);
-            } else {
-                i += 1;
+        let mut nt = nt;
+        loop {
+            let dt = (nt - t) as f64;
+            if let Some(m) = ms.as_mut() {
+                for i in 0..5 {
+                    m.tok[i] = (m.tok[i] + m.rate[i] * dt).min(m.cap[i]);
+                }
             }
-        }
-        t = nt;
-        if t > 50_000_000 * t_ {
-            return Err("simulation limit".into());
+            for pt in port.iter_mut() {
+                *pt = pymin(*pt + HALF_READ_PORTS * dt, (HALF_READ_PORTS + 2.0) * t_ as f64);
+            }
+            issue_tok = (issue_tok + ISSUE_PER_CORE * (nt - t)).min(ISSUE_PER_CORE * t_);
+            wb_tok = (wb_tok + wb_rate * dt).min(WRITEBACK_CAP);
+            let mut i = 0;
+            while i < refilling.len() {
+                let b = refilling[i];
+                let bk = &buckets[b];
+                let cur = tok[b].unwrap();
+                let v = if bk.shared {
+                    pymin(cur + dt * TOKSCALE as f64, bk.capmax)
+                } else {
+                    pymin(cur + bk.cap * dt * TOKSCALE as f64, bk.capmax)
+                };
+                tok[b] = Some(v);
+                if v == bk.capmax {
+                    in_refill[b] = false;
+                    refilling.swap_remove(i);
+                } else {
+                    i += 1;
+                }
+            }
+            t = nt;
+            if t > 50_000_000 * t_ {
+                return Err("simulation limit".into());
+            }
+            if !ff || t >= wmin_time {
+                break;
+            }
+            let pass = retest.iter().any(|x| match *x {
+                Retest::Issue => issue_tok >= t_,
+                Retest::Bucket(b, cost) => tok[b].unwrap() >= cost,
+                Retest::Port(h, need) => port[h] >= need,
+            });
+            if pass {
+                break;
+            }
+            nt = t + 1;
         }
     }
     let total = last_t as f64 / t_ as f64;
