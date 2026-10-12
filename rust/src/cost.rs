@@ -1433,7 +1433,9 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
     let mut last_push = vec![NEG_INF; g];
     let mut last_t: i64 = 0;
     let mut stats: Vec<(u64, i64, i64, i64)> = vec![(0, 0, 0, 0); sim.len()];
-    let mut wake: Vec<i64> = Vec::with_capacity(g);
+    // wake times offered this tick: only their minimum, and the minimum of those after t + 1, are ever read
+    let mut wk_min: i64;
+    let mut wk_gt: i64;
     let mut sr_cache: Vec<Option<i64>> = vec![None; g];
     #[derive(Clone, Copy)]
     enum Retest {
@@ -1448,7 +1450,6 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
     let mut unblocked = vec![false; g];
     let mut fresh_cache: Vec<Option<(usize, i64)>> = vec![None; g];
     let mut blk_cache: Vec<Option<i64>> = vec![None; g];
-    let mut order: Vec<usize> = Vec::with_capacity(g);
 
     #[inline]
     fn touch(ready: &mut [i64], present: &mut [bool], list: &mut Vec<u32>, h: u32) -> usize {
@@ -1462,6 +1463,15 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
     }
 
     let mut t: i64 = 0;
+    macro_rules! wake {
+        ($x:expr) => {{
+            let x_: i64 = $x;
+            wk_min = wk_min.min(x_);
+            if x_ > t + 1 {
+                wk_gt = wk_gt.min(x_);
+            }
+        }};
+    }
     let mut done = 0usize;
     let npcs: Vec<usize> = seqs.iter().map(Vec::len).collect();
     // Groups busy until free[gi] > t wait in a min-heap; the tick visits only the others (`elig`, a bitset), in the
@@ -1469,12 +1479,12 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
     // to offer free[gi] as a wake time: the heap's minimum gives the same min(wake).
     let words = g.div_ceil(64).max(1);
     let mut elig: Vec<u64> = vec![0; words];
+    let mut busy: std::collections::BinaryHeap<std::cmp::Reverse<(i64, usize)>> = std::collections::BinaryHeap::new();
     for gi in 0..g {
         if nxt[gi] < npcs[gi] {
-            elig[gi / 64] |= 1 << (gi % 64);
+            busy.push(std::cmp::Reverse((0, gi)));
         }
     }
-    let mut busy: std::collections::BinaryHeap<std::cmp::Reverse<(i64, usize)>> = std::collections::BinaryHeap::new();
     let mut issued_now: Vec<usize> = Vec::with_capacity(g);
     while done < g {
         let mut issued = 0;
@@ -1483,58 +1493,12 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
                 break;
             }
             busy.pop();
-            elig[gi / 64] |= 1 << (gi % 64);
-        }
-        order.clear();
-        let k0 = if g == 1 { 0 } else { (((t / t_) as u64).wrapping_mul(2654435761) >> 7) as usize % g };
-        // eligible groups in the order k0..g, 0..k0
-        for (lo, hi) in [(k0, g), (0, k0)] {
-            let mut i = lo;
-            while i < hi {
-                let w = elig[i / 64] >> (i % 64);
-                if w == 0 {
-                    i = (i / 64 + 1) * 64;
-                    continue;
-                }
-                i += w.trailing_zeros() as usize;
-                if i < hi {
-                    order.push(i);
-                }
-                i += 1;
-            }
-        }
-        wake.clear();
-        for x in &retest {
-            if let Retest::Bucket(b, _) = *x {
-                rt_at[b] = usize::MAX;
-            }
-        }
-        retest.clear();
-        let mut ff_ok = true;
-        let mut wmin_time = i64::MAX;
-        for &gi in &issued_now {
-            tick_issued[gi] = false;
-        }
-        issued_now.clear();
-        for pass in 0..npass {
-        // pass 1 issues only through a scheduler that is free this tick: with none free, every group would skip
-        if pass == 1 && sched_free.iter().all(|&f| f > t) {
-            break;
-        }
-        for oi in 0..order.len() {
-            let gi = order[oi];
-            // eligible groups are unfinished, not busy (free <= t) and have not issued this tick: issuing or parking
-            // takes a group out of `elig`, and the heap returns it only once free / its block time has passed
-            if elig[gi / 64] >> (gi % 64) & 1 == 0 {
-                continue;
-            }
-            debug_assert!(nxt[gi] < npcs[gi] && !tick_issued[gi] && free[gi] <= t);
+            // A group's blocks (src_ready, a wait's slot, wait_idle) depend only on its own state, which changes only
+            // when it issues, so they are tested once, here, when it becomes eligible (the value the first visit this
+            // tick would compute): a group still blocked goes back to the heap until the block lifts, and the groups
+            // in `elig` are all unblocked.
             let ri = seqs[gi][nxt[gi]];
             let r = &sim[ri];
-            if !unblocked[gi] {
-            // src_ready. It depends only on this group's ready / wtime / rcache, which change only when
-            // this group issues, so it is computed once per instruction and group (same value as
-            // recomputing it every tick; the defaultdict insertions it makes are idempotent).
             let sr = match sr_cache[gi] {
                 Some(v) => v,
                 None => {
@@ -1572,13 +1536,107 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
                 0
             };
             if blocked > t {
-                elig[gi / 64] &= !(1 << (gi % 64));
                 busy.push(std::cmp::Reverse((blocked, gi)));
                 continue;
             }
-            // the blocks are times already passed: they stay passed until the group issues
             unblocked[gi] = true;
+            elig[gi / 64] |= 1 << (gi % 64);
+        }
+        let k0 = if g == 1 { 0 } else { (((t / t_) as u64).wrapping_mul(2654435761) >> 7) as usize % g };
+        wk_min = i64::MAX;
+        wk_gt = i64::MAX;
+        // Pass 0 tries only the group's own scheduler, and a scheduler busy at the tick start stays busy all tick
+        // (sched_free only grows, by issuing through a free one). Its eligible groups would each offer
+        // sched_free[home] as a wake time and do nothing else, so they are not visited in pass 0: the scheduler offers
+        // the wake time once. Groups gi with gi % SCHEDULERS == s are the bits (0x1111.. << s) of every word.
+        let mut free_mask = 0u64;
+        for s in 0..SCHEDULERS {
+            let m = 0x1111_1111_1111_1111u64 << s;
+            if sched_free[s] <= t {
+                free_mask |= m;
+            } else if elig.iter().any(|&e| e & m != 0) {
+                wake!(sched_free[s]);
             }
+        }
+        for x in &retest {
+            if let Retest::Bucket(b, _) = *x {
+                rt_at[b] = usize::MAX;
+            }
+        }
+        retest.clear();
+        let mut ff_ok = true;
+        let mut wmin_time = i64::MAX;
+        for &gi in &issued_now {
+            tick_issued[gi] = false;
+        }
+        issued_now.clear();
+        for pass in 0..npass {
+        // pass 1 issues only through a scheduler that is free this tick: with none free, every group would skip
+        if pass == 1 && sched_free.iter().all(|&f| f > t) {
+            break;
+        }
+        if pass == 1 {
+            // Pass 1 acts only through a group whose home scheduler is busy (the others skip), and only such a group
+            // can make another home busy by stealing: with none eligible, the pass does nothing.
+            let mut busy_mask = 0u64;
+            for s in 0..SCHEDULERS {
+                if sched_free[s] > t {
+                    busy_mask |= 0x1111_1111_1111_1111u64 << s;
+                }
+            }
+            if elig.iter().all(|&e| e & busy_mask == 0) {
+                break;
+            }
+        }
+        // Visit the eligible groups in the rotated order k0..g, 0..k0 with a cursor over `elig`, which is read as it
+        // changes: groups only leave it during a tick (by issuing), and a group that issued is behind the cursor.
+        // Eligible groups are unfinished, not busy (free <= t), unblocked, and have not issued this tick.
+        // Pass 0 visits the groups of the schedulers free at the tick start (`free_mask`, above). In pass 1 a group
+        // whose home scheduler is free skips, so it visits those whose home is busy at the moment the cursor
+        // reaches them: the mask is recomputed after each steal, and a home made busy by a steal brings in its
+        // groups ahead of the cursor, as the full order would.
+        let mut mask = if pass == 0 { free_mask } else { 0 };
+        let mut mask_t = None;
+        let segs = [(k0, g), (0, k0)];
+        let mut seg = 0;
+        let mut cur = k0;
+        loop {
+            if pass == 1 && mask_t != Some(sched_free) {
+                mask = 0;
+                for s in 0..SCHEDULERS {
+                    if sched_free[s] > t {
+                        mask |= 0x1111_1111_1111_1111u64 << s;
+                    }
+                }
+                mask_t = Some(sched_free);
+            }
+            let mut gi = usize::MAX;
+            while seg < 2 {
+                let hi = segs[seg].1;
+                while cur < hi {
+                    let wd = (elig[cur / 64] & mask) >> (cur % 64);
+                    if wd == 0 {
+                        cur = (cur / 64 + 1) * 64;
+                        continue;
+                    }
+                    cur += wd.trailing_zeros() as usize;
+                    break;
+                }
+                if cur < hi {
+                    gi = cur;
+                    break;
+                }
+                seg += 1;
+                if seg < 2 {
+                    cur = segs[1].0;
+                }
+            }
+            if gi == usize::MAX {
+                break;
+            }
+            cur = gi + 1;
+            debug_assert!(nxt[gi] < npcs[gi] && !tick_issued[gi] && free[gi] <= t);
+            debug_assert!(unblocked[gi]);
             let home = gi % SCHEDULERS;
             let half = home % 2;
             let mut need = 0.0;
@@ -1595,11 +1653,13 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
                 }
             };
             if sched_free[sch] > t {
-                wake.push(sched_free[sch]);
+                wake!(sched_free[sch]);
                 continue;
             }
+            let ri = seqs[gi][nxt[gi]];
+            let r = &sim[ri];
             if issue_tok < t_ {
-                wake.push(t + 1);
+                wake!(t + 1);
                 retest.push(Retest::Issue);
                 continue;
             }
@@ -1614,7 +1674,7 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
                 }
                 // (the token test first: the forwarding count only matters once the unit has a token)
                 if tok[b].unwrap() < r.cost {
-                    wake.push(t + 1);
+                    wake!(t + 1);
                     // one entry per bucket with the least cost: any(tok >= c_i) is tok >= min(c_i)
                     match rt_at[b] {
                         usize::MAX => {
@@ -1655,7 +1715,7 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
                     need = (need - (fresh as i64 * t_) as f64).max(0.0);
                 }
                 if port[half] < need {
-                    wake.push(t + 1);
+                    wake!(t + 1);
                     retest.push(Retest::Port(half, need));
                     continue;
                 }
@@ -1680,7 +1740,7 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
                     }
                 };
                 if h > t {
-                    wake.push(h);
+                    wake!(h);
                     wmin_time = wmin_time.min(h);
                     continue;
                 }
@@ -1696,7 +1756,7 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
                     gate = gate.max(core_wb[0] + core_wb_gap - l_).max(if r.core_slow.is_some() { core_slow[half] } else { core_fast[half] });
                 }
                 if gate > t {
-                    wake.push(gate);
+                    wake!(gate);
                     wmin_time = wmin_time.min(gate);
                     continue;
                 }
@@ -1704,7 +1764,7 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
             if g > 1 && r.wide_cost.is_some() {
                 let gate = core_fast[half].max(core_slow[half]);
                 if gate > t {
-                    wake.push(gate);
+                    wake!(gate);
                     wmin_time = wmin_time.min(gate);
                     continue;
                 }
@@ -1718,7 +1778,7 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
                     let n = wbc[gi].len() as f64;
                     if n > 0.0 {
                         if wb_tok < n.min(WRITEBACK_CAP) {
-                            wake.push(t + (((n.min(WRITEBACK_CAP) - wb_tok) / wb_rate).ceil() as i64).max(1));
+                            wake!(t + (((n.min(WRITEBACK_CAP) - wb_tok) / wb_rate).ceil() as i64).max(1));
                             continue;
                         }
                         wb_tok -= n.min(WRITEBACK_CAP);
@@ -1731,7 +1791,7 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
                         wb_tok -= take;
                         wb_debt[gi] -= take;
                         if wb_debt[gi] > 0.0 {
-                            wake.push(t + ((wb_debt[gi] / wb_rate).ceil() as i64).max(1));
+                            wake!(t + ((wb_debt[gi] / wb_rate).ceil() as i64).max(1));
                             continue;
                         }
                     }
@@ -1780,7 +1840,7 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
                         continue;
                     }
                     Some(x) if x > t => {
-                        wake.push(x);
+                        wake!(x);
                         wmin_time = wmin_time.min(x);
                         continue;
                     }
@@ -1843,7 +1903,7 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
                             }
                         }
                         if until > 0 {
-                            wake.push(t + until.max(1));
+                            wake!(t + until.max(1));
                             continue;
                         }
                         mem_charge = Some((need, if store { 0 } else { m.extra[level] }, segs.clone()));
@@ -1860,7 +1920,7 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
                 evict = (wbc[gi].len() + fresh).saturating_sub(nc);
                 if evict > 0 && wb_tok < evict as f64 {
                     ff_ok = false;
-                    wake.push(t + (((evict as f64 - wb_tok) / wb_rate).ceil() as i64).max(1));
+                    wake!(t + (((evict as f64 - wb_tok) / wb_rate).ceil() as i64).max(1));
                     continue;
                 }
             }
@@ -2203,12 +2263,13 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
             }
         }
         }
-        if done >= g {
+         if done >= g {
             break;
         }
-        let wmin = match (wake.iter().min().copied(), busy.peek().map(|r| r.0 .0)) {
-            (Some(a), Some(b)) => Some(a.min(b)),
-            (a, b) => a.or(b),
+        let wmin = match (busy.peek().map(|r| r.0 .0), wk_min) {
+            (Some(b), a) => Some(a.min(b)),
+            (None, i64::MAX) => None,
+            (None, a) => Some(a),
         };
         let nt = match wmin {
             Some(m) if issued == 0 => (t + 1).max(m),
@@ -2226,11 +2287,7 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
                     wmin_time = wmin_time.min(f);
                 }
             }
-            for &w in &wake {
-                if w > t + 1 {
-                    wmin_time = wmin_time.min(w);
-                }
-            }
+            wmin_time = wmin_time.min(wk_gt);
             if let Some(r) = busy.peek() {
                 wmin_time = wmin_time.min(r.0 .0);
             }

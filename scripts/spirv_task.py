@@ -17,6 +17,8 @@ driver's compiled AGX code to the simulator.
 the device has VK_EXT_shader_object / VK_KHR_pipeline_executable_properties, the driver's compiled binary
 (shader.bin) and statistics / IR (props.json). The same command runs on any Vulkan device; for a CPU check use Mesa's
 lavapipe: VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/lvp_icd.json.
+With AGX_LOG_DISPATCH=FILE, predict / predictall append each agx_dispatch command line to FILE, to rerun or profile
+one dispatch on its own (the buffers it maps stay in the --out / --work directory).
 
 Workloads (tasks/spirv-*.md): reduce, scan, sgemm, conv2d, histogram, nbody, bitonic, sha256.
 """
@@ -5108,6 +5110,9 @@ def cmd_probes(a):
 
 
 def run_dispatch(cmd):
+    if os.environ.get('AGX_LOG_DISPATCH'):
+        with open(os.environ['AGX_LOG_DISPATCH'], 'a') as f:
+            f.write(' '.join(map(str, cmd)) + '\n')
     r = subprocess.run(cmd, capture_output=True, text=True)
     if r.returncode:
         sys.exit(f'agx_dispatch failed: {r.stderr.strip()}')
