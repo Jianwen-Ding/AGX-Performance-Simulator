@@ -1,0 +1,59 @@
+#version 450
+// Chunked run-length encoding and decoding (the layout GPU texture/columnar compressors use: runs never
+// cross a 256-element tile), in four passes:
+// pass 0: count run starts per tile (start: first element of the tile, or a value change) -> counts[tile]
+// pass 1: one workgroup turns counts into exclusive offsets, total run count -> nruns
+// pass 2: write each run as (value, start index) at offset[tile] + tile prefix of starts (ballots, subgroup
+//         prefix in shared memory, as compact)
+// pass 3: decode: element i binary-searches the runs for the last start <= i and writes its value
+#extension GL_KHR_shader_subgroup_ballot : require
+layout(local_size_x = 256) in;
+layout(std430, binding = 0) readonly buffer D { uint data[]; };
+layout(std430, binding = 1) buffer C { uint counts[]; };
+layout(std430, binding = 2) buffer R { uvec2 runs[]; };
+layout(std430, binding = 3) buffer T { uint nruns; };
+layout(std430, binding = 4) writeonly buffer O { uint decoded[]; };
+layout(push_constant) uniform P { uint pass; uint ngroups; } p;
+shared uint sub_count[256];
+
+void main() {
+    uint local = gl_SubgroupID * gl_SubgroupSize + gl_SubgroupInvocationID;
+    uint i = gl_WorkGroupID.x * 256u + local;
+    if (p.pass == 1u) {
+        if (gl_LocalInvocationID.x == 0u) {
+            uint acc = 0u;
+            for (uint g = 0u; g < p.ngroups; g++) { uint c = counts[g]; counts[g] = acc; acc += c; }
+            nruns = acc;
+        }
+        return;
+    }
+    if (p.pass == 3u) {
+        uint lo = 0u, hi = nruns;            // invariant: runs[lo].y <= i < runs[hi].y
+        while (hi - lo > 1u) {
+            uint mid = (lo + hi) >> 1;
+            if (runs[mid].y <= i) lo = mid; else hi = mid;
+        }
+        decoded[i] = runs[lo].x;
+        return;
+    }
+    uint x = data[i];
+    bool start = local == 0u || data[i - 1u] != x;
+    uvec4 b = subgroupBallot(start);
+    if (subgroupElect()) sub_count[gl_SubgroupID] = subgroupBallotBitCount(b);
+    barrier();
+    if (p.pass == 0u) {
+        if (gl_LocalInvocationID.x == 0u) {
+            uint acc = 0u;
+            for (uint s = 0u; s < gl_NumSubgroups; s++) acc += sub_count[s];
+            counts[gl_WorkGroupID.x] = acc;
+        }
+        return;
+    }
+    uint base = 0u;
+    if (subgroupElect()) {
+        base = counts[gl_WorkGroupID.x];
+        for (uint s = 0u; s < gl_SubgroupID; s++) base += sub_count[s];
+    }
+    base = subgroupBroadcastFirst(base);
+    if (start) runs[base + subgroupBallotExclusiveBitCount(b)] = uvec2(x, i);
+}

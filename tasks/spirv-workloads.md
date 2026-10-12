@@ -54,7 +54,7 @@ The rest of this file is the detailed procedure, for investigating results.
 
 ## Workloads
 
-One hundred and twenty-four realistic compute kernels, written in GLSL (`spirv/shaders/*.comp`) and compiled to SPIR-V:
+One hundred and twenty-five realistic compute kernels, written in GLSL (`spirv/shaders/*.comp`) and compiled to SPIR-V:
 
 | Workload | Kernel | Stresses |
 |---|---|---|
@@ -182,6 +182,7 @@ One hundred and twenty-four realistic compute kernels, written in GLSL (`spirv/s
 | `uboparams` | Colour correction with all parameters from a small uniform buffer | Uniform buffers read uniformly |
 | `bindless` | Lookups through a descriptor array of 8 storage buffers, non-uniform index per lane | `nonuniformEXT` descriptor indexing (simulated: the set is laid out as honeykrisp does) |
 | `bindlessu` | The same array indexed per workgroup (dynamically uniform) | Core dynamic descriptor indexing |
+| `rle` | Chunked run-length encode (count, serial offsets, write runs) then decode by binary search, 4 passes | Ballot-based run detection, a serial single-thread scan, data-dependent binary search |
 
 Each workload has two sizes:
 

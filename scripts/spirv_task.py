@@ -373,6 +373,28 @@ def w_compact(size, rng):
     return W('compact', {0: (data, False), 1: (4 * groups, False), 2: (4 * n, True), 3: (4, True)}, ds, check, 256, {'bytes': 8 * n})
 
 
+def w_rle(size, rng):
+    n = (1 << 14) if size == 'small' else (1 << 22)
+    groups = n // 256
+    lens = rng.geometric(1 / 12, n)                            # runs of mean length 12 over a 16-symbol alphabet
+    vals = rng.integers(0, 16, n)
+    data = u32(np.repeat(vals, lens)[:n])
+    idx = np.arange(n, dtype=np.uint32)
+    start = (idx % 256 == 0) | np.concatenate([[True], data[1:] != data[:-1]])
+    ref = np.stack([data[start], idx[start]], 1)
+    def check(o):
+        tot = int(o[3].view(np.uint32)[0])
+        got = o[2].view(np.uint32)[:2 * min(tot, n)].reshape(-1, 2)
+        dec = o[4].view(np.uint32)[:n]
+        enc_ok = tot == len(ref) and np.array_equal(got, ref)
+        dec_bad = int(np.sum(dec != data))
+        return enc_ok and dec_bad == 0, {'runs': len(ref), 'total': tot, 'encode_ok': bool(enc_ok), 'decode_mismatches': dec_bad}
+    ds = [(groups, 1, 1, push(k, groups)) for k in (0,)] + [(1, 1, 1, push(1, groups))] + \
+         [(groups, 1, 1, push(k, groups)) for k in (2, 3)]
+    return W('rle', {0: (data, False), 1: (4 * groups, False), 2: (8 * n, True), 3: (4, True), 4: (4 * n, True)},
+             ds, check, 256, {'bytes': 4 * n + 8 * len(ref) + 4 * n})
+
+
 def w_spmv(size, rng):
     rows, cols = (512, 512) if size == 'small' else (1 << 18, 1 << 18)
     nnz = rng.integers(0, 64, rows) * (rng.random(rows) < 0.95)    # some empty rows
@@ -2870,7 +2892,7 @@ def w_bindlessu(size, rng):
 
 WORKLOADS = {'reduce': w_reduce, 'scan': w_scan, 'sgemm': w_sgemm, 'conv2d': w_conv2d, 'histogram': w_histogram,
              'nbody': w_nbody, 'bitonic': w_bitonic, 'sha256': w_sha256, 'fp16': w_fp16, 'int64': w_int64, 'bitops': w_bitops,
-             'intdiv': w_intdiv, 'compact': w_compact, 'spmv': w_spmv, 'transpose': w_transpose, 'mandelbrot': w_mandelbrot,
+             'intdiv': w_intdiv, 'compact': w_compact, 'rle': w_rle, 'spmv': w_spmv, 'transpose': w_transpose, 'mandelbrot': w_mandelbrot,
              'softmax': w_softmax, 'rgba8': w_rgba8, 'atomics': w_atomics, 'geom3d': w_geom3d, 'spill': w_spill,
              'control': w_control, 'shuffle': w_shuffle, 'floatops': w_floatops, 'radix_sort': w_radix_sort, 'fft': w_fft,
              'crc32': w_crc32, 'kmeans': w_kmeans, 'int8dot': w_int8dot, 'stencil3d': w_stencil3d, 'int16': w_int16, 'trig': w_trig,

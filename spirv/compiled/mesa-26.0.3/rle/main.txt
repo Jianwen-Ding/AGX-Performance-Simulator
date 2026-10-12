@@ -1,0 +1,132 @@
+0x0080  62020000                 mov_imm r0h, 0
+0x0084  f2053500                 get_sr r1.cache, sr53 (simdgroup_index_in_threadgroup)
+0x0088  f2093400                 get_sr r2.cache, sr52 (thread_index_in_simdgroup)
+0x008c  9e0d420602440600         imadd r3.cache, r1.sx, 32, r2.sx
+0x0094  f2110000                 get_sr r4.cache, sr0 (threadgroup_position_in_grid.x)
+0x0098  8e11c88658000000         iadd r4.cache, r4.discard.sx, u4.sx
+0x00a0  1e1d48e658460601         imadd r7, r4.sx, u39.sx, r3.sx
+0x00a8  62000000                 mov_imm r0l, 0
+0x00ac  52090e010000             if_icmp r0l, nueq, u7l, 0, 1
+0x00b2  72053000                 get_sr r1, sr48 (thread_position_in_threadgroup.x)
+0x00b6  520842020000             if_icmp r0l, ueq, r1, 0, 1
+0x00bc  620500000000             mov_imm r1, 0, 0b0
+0x00c2  620900000000             mov_imm r2, 0, 0b0
+0x00c8  420800000000             push_exec r0l, 1
+0x00ce  522c82021900             while_icmp r0l, ult, r1.cache, u8, 1
+0x00d4  0519240e10c01200         device_load 0, i32, x, r3, u10_u11, r1, unsigned
+0x00dc  4511244e10c01200         device_store 1, i32, x, r2, u10_u11, r1, unsigned, 0
+0x00e4  3800                     wait 0
+0x00e6  0e09446664000000         iadd r2, r2.sx, r3.sx
+0x00ee  0e05421600000000         iadd r1, r1.sx, 1
+0x00f6  3801                     wait 1
+0x00f8  00c0d6ffffff             jmp_exec_any pc-42
+0x00fe  520e00000000             pop_exec r0l, 1
+0x0104  4511080d10c01200         device_store 0, i32, x, r2, u12_u13, 0, signed, 0
+0x010c  3800                     wait 0
+0x010e  520e00000000             pop_exec r0l, 1
+0x0114  420a00000000             else_fcmp r0l, eq, 0.0, 0.0, 1
+0x011a  20c08c020000             jmp_exec_none pc+652
+0x0120  52091c010000             if_icmp r0l, nueq, u14l, 0, 1
+0x0126  20c090000000             jmp_exec_none pc+144
+0x012c  0509000d20c01200         device_load 0, i32, x, r1, u16_u17, 0, signed
+0x0134  620900000000             mov_imm r2, 0, 0b0
+0x013a  620d00000000             mov_imm r3, 0, 0b0
+0x0140  3800                     wait 0
+0x0142  420800000000             push_exec r0l, 1
+0x0148  0e0d426664000000         iadd r3, r1.sx, r3.sx
+0x0150  522c01602400             while_icmp r0l, ult, 1, r3, 1
+0x0156  8e0d842668000000         iadd r3.cache, r2.cache.sx, r1.cache.sx
+0x015e  fe1186029901             and r4.cache, r3.cache, u40
+0x0164  0e11018064000000         iadd r4, 1, r4.sx
+0x016c  0521840e20c01200         device_load 0, i32, x, r4, u18_u19, r4, unsigned
+0x0174  ae8d006024010000         bfeil r3.cache, 0, r3, 1
+0x017c  3800                     wait 0
+0x017e  12058e8228862024         icmpsel ult, r1, r7.cache, r4.cache, r3.cache, r1
+0x0186  92094e8224446024         icmpsel ult, r2.cache, r7, r4, r2, r3
+0x018e  0e0d004864000000         isub r3, 0, r2.sx
+0x0196  00c0b2ffffff             jmp_exec_any pc-78
+0x019c  520e00000000             pop_exec r0l, 1
+0x01a2  0509480e20c41200         device_load 0, i32, x, r1, u20_u21, r2, unsigned, lsl 1
+0x01aa  3800                     wait 0
+0x01ac  4509ec4e20c01200         device_store 1, i32, x, r1, u22_u23, r7, unsigned, 0
+0x01b4  3801                     wait 1
+0x01b6  420a00000000             else_fcmp r0l, eq, 0.0, 0.0, 1
+0x01bc  20c0e4010000             jmp_exec_none pc+484
+0x01c2  0531e00e30c01200         device_load 0, i32, x, r6, u24_u25, r7, unsigned
+0x01ca  3800                     wait 0
+0x01cc  520946020000             if_icmp r0l, nueq, r3, 0, 1
+0x01d2  0e0d4e1e00000000         isub r3, r7.sx, 1
+0x01da  0519600e30c01200         device_load 0, i32, x, r3, u24_u25, r3, unsigned
+0x01e2  3800                     wait 0
+0x01e4  120c46c224001110         icmpsel ueq, r3l, r3, r6, 0, 1
+0x01ec  420a00000000             else_fcmp r0l, eq, 0.0, 0.0, 1
+0x01f2  620c0100                 mov_imm r3l, 1
+0x01f6  520e00000000             pop_exec r0l, 1
+0x01fc  720e3a00                 get_sr r3h, sr58 (active_thread_index_in_simdgroup)
+0x0200  3215460000800100         icmp_ballot r5, nueq, r3l, 0
+0x0208  520847000000             if_icmp r0l, ueq, r3h, 0, 1
+0x020e  0e21002064001000         iadd r8, 0, r1.sx, lsl 2
+0x0216  3e254a0a0000             popcount r9, r5
+0x021c  29a5100214000000         threadgroup_store i32, x, r9, r8l, 0
+0x0224  520e00000000             pop_exec r0l, 1
+0x022a  6800                     threadgroup_barrier
+0x022c  520934010000             if_icmp r0l, nueq, u26l, 0, 1
+0x0232  72053000                 get_sr r1, sr48 (thread_position_in_threadgroup.x)
+0x0236  520842020000             if_icmp r0l, ueq, r1, 0, 1
+0x023c  6985800214000000         threadgroup_load i32, x, r1, 0, 0
+0x0244  6989440214000004         threadgroup_load i32, x, r2, u34l, 0
+0x024c  8e05424664000000         iadd r1.cache, r1.sx, r2.sx
+0x0254  6989450214000004         threadgroup_load i32, x, r2, u34h, 0
+0x025c  8e05424664000000         iadd r1.cache, r1.sx, r2.sx
+0x0264  6989460214000004         threadgroup_load i32, x, r2, u35l, 0
+0x026c  8e05424664000000         iadd r1.cache, r1.sx, r2.sx
+0x0274  6989470214000004         threadgroup_load i32, x, r2, u35h, 0
+0x027c  8e05424664000000         iadd r1.cache, r1.sx, r2.sx
+0x0284  6989480214000004         threadgroup_load i32, x, r2, u36l, 0
+0x028c  8e05424664000000         iadd r1.cache, r1.sx, r2.sx
+0x0294  6989490214000004         threadgroup_load i32, x, r2, u36h, 0
+0x029c  8e05424664000000         iadd r1.cache, r1.sx, r2.sx
+0x02a4  69894a0214000004         threadgroup_load i32, x, r2, u37l, 0
+0x02ac  0e05442664000000         iadd r1, r2.sx, r1.sx
+0x02b4  4509880e30c01200         device_store 0, i32, x, r1, u28_u29, r4, unsigned, 0
+0x02bc  3800                     wait 0
+0x02be  520e00000000             pop_exec r0l, 1
+0x02c4  420a00000000             else_fcmp r0l, eq, 0.0, 0.0, 1
+0x02ca  20c0d0000000             jmp_exec_none pc+208
+0x02d0  720e3a00                 get_sr r3h, sr58 (active_thread_index_in_simdgroup)
+0x02d4  520847000000             if_icmp r0l, ueq, r3h, 0, 1
+0x02da  05218c0e30c01200         device_load 0, i32, x, r4, u30_u31, r4, unsigned
+0x02e2  3800                     wait 0
+0x02e4  7e21480a8000             mov r8, r4
+0x02ea  621100000000             mov_imm r4, 0, 0b0
+0x02f0  420800000000             push_exec r0l, 1
+0x02f6  522c88222400             while_icmp r0l, ult, r4.cache, r1, 1
+0x02fc  0e25008068001000         iadd r9, 0, r4.cache.sx, lsl 2
+0x0304  69a5120214000000         threadgroup_load i32, x, r9, r9l, 0
+0x030c  0e21502665000000         iadd r8, r8.sx, r9.sx
+0x0314  0e11481600000000         iadd r4, r4.sx, 1
+0x031c  00c0daffffff             jmp_exec_any pc-38
+0x0322  520e00000000             pop_exec r0l, 1
+0x0328  7e11500a8000             mov r4, r8
+0x032e  420a00000000             else_fcmp r0l, eq, 0.0, 0.0, 1
+0x0334  621100000000             mov_imm r4, 0, 0b0
+0x033a  520e00000000             pop_exec r0l, 1
+0x0340  f2043a00                 get_sr r1l.cache, sr58 (active_thread_index_in_simdgroup)
+0x0344  3221420000000100         icmp_ballot r8, ueq, r1l, 0
+0x034c  be05500e0000             ffs r1.cache, r8
+0x0352  fe02420a8000             mov r0h.cache, r1
+0x0358  6f0548160400             simd_shuffle r1, r4, r0h
+0x035e  62020000                 mov_imm r0h, 0
+0x0362  520946000000             if_icmp r0l, nueq, r3l, 0, 1
+0x0368  fe0944f28100             and r2.cache, r2, 31
+0x036e  ae0900c018440201         bfi r2.cache, 0, u38, r2
+0x0376  7e094a4a2400             bitop 0100, r2, r5, r2
+0x037c  be09440a0000             popcount r2.cache, r2
+0x0382  0e05424664000000         iadd r1, r1.sx, r2.sx
+0x038a  4531200e40c43200         device_store 0, i32, xy, r6_r7, u32_u33, r1, unsigned, lsl 1, 0
+0x0392  3800                     wait 0
+0x0394  520e00000000             pop_exec r0l, 1
+0x039a  520e00000000             pop_exec r0l, 1
+0x03a0  520e00000000             pop_exec r0l, 1
+0x03a6  520e00000000             pop_exec r0l, 1
+0x03ac  8800                     stop
