@@ -528,6 +528,21 @@ def w_tricount(size, rng):
              [((ne + 127) // 128, 1, 1, push(ne))], check, 128, {'items': ne})
 
 
+def w_sha3(size, rng):
+    import hashlib
+    n = 256 if size == 'small' else 1 << 18
+    msgs = rng.integers(0, 256, (n, 64), dtype=np.uint8)
+    lanes = np.ascontiguousarray(msgs).view('<u8').reshape(n, 8)
+    def check(o):
+        got = o[1].view(np.uint8)[:32 * n].reshape(n, 32)
+        idx = range(n) if n <= 4096 else np.unique(np.concatenate([np.arange(2048), np.arange(n - 2048, n),
+                                                                     rng.integers(0, n, 8192)]))
+        bad = sum(got[i].tobytes() != hashlib.sha3_256(msgs[i].tobytes()).digest() for i in idx)
+        return bad == 0, {'checked': len(idx), 'bad_digests': int(bad)}
+    return W('sha3', {0: (lanes, False), 1: (32 * n, True)}, [((n + 63) // 64, 1, 1, push(n))], check, 64,
+             {'hashes': n, 'bytes': 64 * n})
+
+
 def w_spmv(size, rng):
     rows, cols = (512, 512) if size == 'small' else (1 << 18, 1 << 18)
     nnz = rng.integers(0, 64, rows) * (rng.random(rows) < 0.95)    # some empty rows
@@ -3057,7 +3072,7 @@ WORKLOADS = {'reduce': w_reduce, 'scan': w_scan, 'sgemm': w_sgemm, 'conv2d': w_c
              'aluprobe': w_aluprobe, 'ubopalette': w_ubopalette, 'uboparams': w_uboparams,
              'bindless': w_bindless, 'bindlessu': w_bindlessu,
              # appended only: the input seed is the index in this dict
-             'rle': w_rle, 'huffdec': w_huffdec, 'lookback': w_lookback, 'hll': w_hll, 'tricount': w_tricount}
+             'rle': w_rle, 'huffdec': w_huffdec, 'lookback': w_lookback, 'hll': w_hll, 'tricount': w_tricount, 'sha3': w_sha3}
 
 
 # ---------------------------------------------------------------------------------------------------------------

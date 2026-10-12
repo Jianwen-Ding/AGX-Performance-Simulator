@@ -1,0 +1,49 @@
+#version 450
+// SHA3-256 (FIPS 202: Keccak-f[1600], 24 rounds on 25 64-bit lanes) of independent 64-byte messages, one per
+// invocation (one 136-byte rate block after padding). 64-bit xor, and-not and rotations, a 25-lane state kept
+// in registers. Checked against Python's hashlib.sha3_256.
+#extension GL_EXT_shader_explicit_arithmetic_types_int64 : require
+layout(local_size_x = 64) in;
+layout(std430, binding = 0) readonly buffer M { uint64_t msg[]; };     // 8 lanes per message
+layout(std430, binding = 1) writeonly buffer D { uint64_t digest[]; }; // 4 lanes per message
+layout(push_constant) uniform P { uint n; } p;
+
+const uint64_t RC[24] = uint64_t[24](
+    0x0000000000000001ul, 0x0000000000008082ul, 0x800000000000808Aul, 0x8000000080008000ul,
+    0x000000000000808Bul, 0x0000000080000001ul, 0x8000000080008081ul, 0x8000000000008009ul,
+    0x000000000000008Aul, 0x0000000000000088ul, 0x0000000080008009ul, 0x000000008000000Aul,
+    0x000000008000808Bul, 0x800000000000008Bul, 0x8000000000008089ul, 0x8000000000008003ul,
+    0x8000000000008002ul, 0x8000000000000080ul, 0x000000000000800Aul, 0x800000008000000Aul,
+    0x8000000080008081ul, 0x8000000000008080ul, 0x0000000080000001ul, 0x8000000080008008ul);
+
+uint64_t rotl(uint64_t x, uint r) { return r == 0u ? x : (x << r) | (x >> (64u - r)); }
+
+void main() {
+    uint m = gl_GlobalInvocationID.x;
+    if (m >= p.n) return;
+    uint64_t A[25];
+    for (int i = 0; i < 25; i++) A[i] = 0ul;
+    for (int i = 0; i < 8; i++) A[i] = msg[8u * m + uint(i)];
+    A[8] ^= 0x06ul;                                  // SHA-3 domain bits + pad10*1 start, byte 64
+    A[16] ^= 0x8000000000000000ul;                   // final pad bit, byte 135 (rate 136)
+    for (int round = 0; round < 24; round++) {
+        uint64_t C[5], D[5];
+        for (int x = 0; x < 5; x++) C[x] = A[x] ^ A[x + 5] ^ A[x + 10] ^ A[x + 15] ^ A[x + 20];
+        for (int x = 0; x < 5; x++) D[x] = C[(x + 4) % 5] ^ rotl(C[(x + 1) % 5], 1u);
+        for (int i = 0; i < 25; i++) A[i] ^= D[i % 5];
+        // rho and pi, unrolled: B[y][2x+3y] = rotl(A[x][y], r[x][y])
+        uint64_t B[25];
+        B[0]  = A[0];
+        B[10] = rotl(A[1], 1u);  B[20] = rotl(A[2], 62u); B[5]  = rotl(A[3], 28u); B[15] = rotl(A[4], 27u);
+        B[16] = rotl(A[5], 36u); B[1]  = rotl(A[6], 44u); B[11] = rotl(A[7], 6u);  B[21] = rotl(A[8], 55u);
+        B[6]  = rotl(A[9], 20u); B[7]  = rotl(A[10], 3u); B[17] = rotl(A[11], 10u); B[2] = rotl(A[12], 43u);
+        B[12] = rotl(A[13], 25u); B[22] = rotl(A[14], 39u); B[23] = rotl(A[15], 41u); B[8] = rotl(A[16], 45u);
+        B[18] = rotl(A[17], 15u); B[3] = rotl(A[18], 21u); B[13] = rotl(A[19], 8u); B[14] = rotl(A[20], 18u);
+        B[24] = rotl(A[21], 2u); B[9] = rotl(A[22], 61u); B[19] = rotl(A[23], 56u); B[4] = rotl(A[24], 14u);
+        for (int y = 0; y < 5; y++)
+            for (int x = 0; x < 5; x++)
+                A[5 * y + x] = B[5 * y + x] ^ (~B[5 * y + (x + 1) % 5] & B[5 * y + (x + 2) % 5]);
+        A[0] ^= RC[round];
+    }
+    for (int i = 0; i < 4; i++) digest[4u * m + uint(i)] = A[i];
+}
