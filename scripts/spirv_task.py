@@ -2211,10 +2211,11 @@ def w_secded(size, rng):
     data = u32(rng.integers(0, 1 << 32, n, dtype=np.uint64))
     nerr = rng.choice([0, 1, 2], (n, 8), p=[0.6, 0.3, 0.1])                     # flipped bits per code byte
     errb = np.zeros((n, 8), np.uint32)
-    for k in (1, 2):
+    for k in (1, 2):                                                             # k distinct bit positions per code byte
         rows, cols = np.nonzero(nerr == k)
-        bits = np.stack([rng.permutation(8)[:k] for _ in range(len(rows))]) if len(rows) else np.zeros((0, k), int)
-        errb[rows, cols] = (1 << bits).sum(1).astype(np.uint32)
+        b0 = rng.integers(0, 8, len(rows))
+        b1 = (b0 + rng.integers(1, 8, len(rows))) % 8
+        errb[rows, cols] = ((1 << b0) | ((1 << b1) if k == 2 else 0)).astype(np.uint32)
     errs = u32(np.stack([errb[:, 0] | errb[:, 1] << 8 | errb[:, 2] << 16 | errb[:, 3] << 24,
                          errb[:, 4] | errb[:, 5] << 8 | errb[:, 6] << 16 | errb[:, 7] << 24], 1))
     def check(o):
@@ -3222,8 +3223,19 @@ def cmd_predictall(a):
     """predict every workload compiled under DIR (functional paths); one line each, JSON per workload in --work"""
     work = Path(a.work); work.mkdir(parents=True, exist_ok=True)
     dirs = sorted(p for p in Path(a.dir).iterdir() if (p / 'main.bin').exists())
-    runs = pmap(lambda d: subprocess.run([sys.executable, '-B', __file__, 'predict', d.name, '--code-dir', str(d), '--size', a.size,
-                                          '--out', str(work / d.name)], capture_output=True, text=True), dirs)
+    # longest first (times of the previous run in this work directory), so a slow prediction does not start last;
+    # the order affects only the wall time, and the report keeps the alphabetical order
+    tf = work / 'timings.json'
+    prev = json.loads(tf.read_text()) if tf.exists() else {}
+    order = sorted(dirs, key=lambda d: -prev.get(d.name, 0.0))
+    def one(d):
+        t0 = time.time()
+        r = subprocess.run([sys.executable, '-B', __file__, 'predict', d.name, '--code-dir', str(d), '--size', a.size,
+                            '--out', str(work / d.name)], capture_output=True, text=True)
+        return d.name, r, time.time() - t0
+    done = {name: (r, dt) for name, r, dt in pmap(one, order)}
+    tf.write_text(json.dumps({k: round(v[1], 2) for k, v in sorted(done.items())}, indent=1) + '\n')
+    runs = [done[d.name][0] for d in dirs]
     for d, r in zip(dirs, runs):
         if r.returncode:
             print(f'{d.name:10} error: {(r.stdout + r.stderr).strip()[-300:]}'); continue
