@@ -940,6 +940,39 @@ def w_edt(size, rng):
              {'items': Wd * H, 'ops': Wd * H * H})
 
 
+def mt19937_ref(seeds, twists):
+    """MT19937 outputs [streams, 624 * twists] for init_genrand(seed) per stream (numpy, vectorised over streams)"""
+    M = np.uint64(0xffffffff); n = len(seeds)
+    mt = np.zeros((n, 624), np.uint64); mt[:, 0] = seeds
+    for i in range(1, 624):
+        x = mt[:, i - 1]
+        mt[:, i] = (np.uint64(1812433253) * (x ^ (x >> np.uint64(30))) + np.uint64(i)) & M
+    out = np.zeros((n, 624 * twists), np.uint64)
+    for k in range(twists):
+        for i in range(624):
+            y = (mt[:, i] & np.uint64(0x80000000)) | (mt[:, (i + 1) % 624] & np.uint64(0x7fffffff))
+            mt[:, i] = mt[:, (i + 397) % 624] ^ (y >> np.uint64(1)) ^ np.where(y & np.uint64(1), np.uint64(0x9908b0df), np.uint64(0))
+        y = mt.copy()
+        y ^= y >> np.uint64(11); y ^= (y << np.uint64(7)) & np.uint64(0x9d2c5680); y ^= (y << np.uint64(15)) & np.uint64(0xefc60000)
+        y ^= y >> np.uint64(18)
+        out[:, 624 * k:624 * (k + 1)] = y & M
+    return out.astype(np.uint32)
+
+
+def w_mt19937(size, rng):
+    streams, twists = (4, 17) if size == 'small' else (1024, 17)
+    seeds = u32(rng.integers(0, 1 << 32, streams, dtype=np.uint64)); seeds[0] = 5489    # 5489: the default seed
+    def check(o):
+        got = o[1].view(np.uint32)[:streams * 624 * twists].reshape(streams, 624 * twists)
+        ref = mt19937_ref(seeds, twists)
+        bad = int(np.sum((got != ref).any(1)))
+        # published known answers for seed 5489: first output, and the 10000th (the C++ standard's check value)
+        kat = bool(got[0, 0] == 3499211612 and got[0, 9999] == 4123659995)
+        return bad == 0 and kat, {'bad_streams': bad, 'known_answers_ok': kat, 'outputs_per_stream': 624 * twists}
+    return W('mt19937', {0: (seeds, False), 1: (4 * 624 * twists * streams, True)}, [(streams, 1, 1, push(twists))], check, 256,
+             {'items': streams * 624 * twists})
+
+
 def w_spmv(size, rng):
     rows, cols = (512, 512) if size == 'small' else (1 << 18, 1 << 18)
     nnz = rng.integers(0, 64, rows) * (rng.random(rows) < 0.95)    # some empty rows
@@ -3469,7 +3502,7 @@ WORKLOADS = {'reduce': w_reduce, 'scan': w_scan, 'sgemm': w_sgemm, 'conv2d': w_c
              'aluprobe': w_aluprobe, 'ubopalette': w_ubopalette, 'uboparams': w_uboparams,
              'bindless': w_bindless, 'bindlessu': w_bindlessu,
              # appended only: the input seed is the index in this dict
-             'rle': w_rle, 'huffdec': w_huffdec, 'lookback': w_lookback, 'hll': w_hll, 'tricount': w_tricount, 'sha3': w_sha3, 'stereo': w_stereo, 'viterbi': w_viterbi, 'viterbifix': w_viterbifix, 'shiftfuse': w_shiftfuse, 'bc1enc': w_bc1enc, 'lz4dec': w_lz4dec, 'nttmul': w_nttmul, 'topk': w_topk, 'cellsort': w_cellsort, 'boruvka': w_boruvka, 'biquad': w_biquad, 'edt': w_edt}
+             'rle': w_rle, 'huffdec': w_huffdec, 'lookback': w_lookback, 'hll': w_hll, 'tricount': w_tricount, 'sha3': w_sha3, 'stereo': w_stereo, 'viterbi': w_viterbi, 'viterbifix': w_viterbifix, 'shiftfuse': w_shiftfuse, 'bc1enc': w_bc1enc, 'lz4dec': w_lz4dec, 'nttmul': w_nttmul, 'topk': w_topk, 'cellsort': w_cellsort, 'boruvka': w_boruvka, 'biquad': w_biquad, 'edt': w_edt, 'mt19937': w_mt19937}
 
 
 # ---------------------------------------------------------------------------------------------------------------

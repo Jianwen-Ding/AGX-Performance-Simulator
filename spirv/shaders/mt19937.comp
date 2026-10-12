@@ -1,0 +1,46 @@
+#version 450
+// MT19937 (the Mersenne Twister of C++ std::mt19937, NumPy's RandomState, MATLAB): one workgroup per independent
+// stream, its 624-word state in shared memory. init_genrand(seed) runs serially on one invocation; each twist is
+// parallel in the three phases its recurrence allows (new[i] needs old[i + 1] and, for i >= 227, new[i - 227]):
+// i in [0, 227), [227, 454), [454, 623), each reading its inputs before a barrier and writing after it, then
+// i = 623 alone. Tempering of the 624 outputs is parallel. 17 twists: 10608 outputs per stream.
+layout(local_size_x = 256) in;
+layout(std430, binding = 0) readonly buffer S { uint seed[]; };
+layout(std430, binding = 1) writeonly buffer O { uint outp[]; };
+layout(push_constant) uniform P { uint twists; } p;
+shared uint mt[624];
+
+uint twist_value(uint i, uint a, uint b, uint far) {             // mt[i] <- far ^ (y >> 1) ^ (y odd ? MATRIX_A : 0)
+    uint y = (a & 0x80000000u) | (b & 0x7fffffffu);
+    return far ^ (y >> 1) ^ ((y & 1u) != 0u ? 0x9908b0dfu : 0u);
+}
+
+void phase(uint lo, uint hi) {
+    uint i = lo + gl_LocalInvocationID.x;
+    bool act = i < hi;
+    uint v = 0u;
+    if (act) v = twist_value(i, mt[i], mt[i + 1u], mt[(i + 397u) % 624u]);
+    barrier();
+    if (act) mt[i] = v;
+    barrier();
+}
+
+void main() {
+    uint l = gl_LocalInvocationID.x, s = gl_WorkGroupID.x;
+    if (l == 0u) {
+        mt[0] = seed[s];
+        for (uint i = 1u; i < 624u; i++) mt[i] = 1812433253u * (mt[i - 1u] ^ (mt[i - 1u] >> 30)) + i;
+    }
+    barrier();
+    for (uint k = 0u; k < p.twists; k++) {
+        phase(0u, 227u); phase(227u, 454u); phase(454u, 623u);
+        if (l == 0u) mt[623] = twist_value(623u, mt[623], mt[0], mt[396]);
+        barrier();
+        for (uint i = l; i < 624u; i += 256u) {
+            uint y = mt[i];
+            y ^= y >> 11; y ^= (y << 7) & 0x9d2c5680u; y ^= (y << 15) & 0xefc60000u; y ^= y >> 18;
+            outp[(s * p.twists + k) * 624u + i] = y;
+        }
+        barrier();
+    }
+}
