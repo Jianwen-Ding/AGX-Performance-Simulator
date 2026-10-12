@@ -41,11 +41,14 @@ def u32(a): return np.ascontiguousarray(a, dtype=np.uint32)
 class W:
     """a workload instance: buffers {binding: (init array or byte size, read back?)}, dispatches [(gx, gy, gz, push)],
     check(outputs) -> (ok, detail), metrics for throughput"""
-    def __init__(self, shader, buffers, dispatches, check, wg, work=None, images=None, textures=None):
+    def __init__(self, shader, buffers, dispatches, check, wg, work=None, images=None, textures=None, simages=None):
         self.shader, self.buffers, self.dispatches, self.check, self.wg, self.work = shader, buffers, dispatches, check, wg, work or {}
         # sampled textures {binding: (texels, width, height, 'rgba8' | 'r32f', 'nearest' | 'linear')}: read through the
         # GPU's texture unit, which the simulator does not model (sim / predict report such workloads as unsupported)
         self.textures = textures or {}
+        # storage images {binding: (initial texels or None, width, height, 'r32ui' | 'rgba8')}, read back after the run as
+        # outputs[binding]; image loads / stores also go through units the simulator does not model
+        self.simages = simages or {}
         self.images = images or []       # [(binding, width, height, 'rgba8' | 'gray8' | 'bits')]: written as .ppm / .pgm for viewing
 
 
@@ -71,10 +74,20 @@ def texture_spec(w, d):
     for b, (texels, wd, ht, fmt, filt) in sorted(w.textures.items()):
         p = Path(d) / f'tex{b}.bin'; p.write_bytes(np.ascontiguousarray(texels).tobytes())
         lines.append(f'texture {b} {wd} {ht} {fmt} {filt} {p}')
+    for b, (init, wd, ht, fmt) in sorted(w.simages.items()):
+        ip = '-'
+        if init is not None:
+            ip = Path(d) / f'img{b}.in.bin'; ip.write_bytes(np.ascontiguousarray(init).tobytes())
+        lines.append(f'image {b} {wd} {ht} {fmt} {ip} {Path(d) / f"out{b}.bin"}')
     return lines
 
 
-NO_TEXTURE_UNIT = 'texture sampling is not modelled by the simulator (hardware verification only)'
+def hw_only(w):
+    """workloads using the texture unit or storage images: verified on the hardware against the reference only"""
+    return bool(w.textures or w.simages)
+
+
+NO_TEXTURE_UNIT = 'texture sampling / image access is not modelled by the simulator (hardware verification only)'
 
 
 def wg_of(w, name):
@@ -2435,6 +2448,38 @@ def w_texfilter(size, rng):
              textures={0: (tex, tw, th, 'rgba8', 'linear')})
 
 
+def w_imgerode(size, rng):
+    Wd, H, iters = (64, 48, 4) if size == 'small' else (2048, 2048, 4)
+    img = u32(rng.integers(0, 1 << 20, (H, Wd), dtype=np.uint64))
+    def check(o):
+        got = o[0].view(np.uint32)[:Wd * H].reshape(H, Wd)                       # even iteration count ends in image a
+        r = img.copy()
+        for _ in range(iters):
+            q = np.pad(r, 1, mode='edge')
+            r = np.min(np.stack([q[1 + dy:1 + dy + H, 1 + dx:1 + dx + Wd] for dy in (-1, 0, 1) for dx in (-1, 0, 1)]), 0)
+        return np.array_equal(got, r), {'mismatches': int(np.sum(got != r))}
+    ds = [((Wd + 15) // 16, (H + 15) // 16, 1, push(Wd, H, k & 1)) for k in range(iters)]
+    return W('imgerode', {}, ds, check, (16, 16, 1), {'pixel_updates': Wd * H * iters},
+             simages={0: (img, Wd, H, 'r32ui'), 1: (None, Wd, H, 'r32ui')})
+
+
+def w_imgtonemap(size, rng):
+    Wd, H = (64, 48) if size == 'small' else (3840, 2160)
+    img = rng.integers(0, 256, (H, Wd, 4), dtype=np.uint8)
+    img[0, :256 if Wd >= 256 else Wd, :3] = np.arange(min(Wd, 256))[:, None]      # every level once
+    exposure = 2.5
+    def check(o):
+        got = o[0][:Wd * H * 4].reshape(H, Wd, 4).astype(np.int64)
+        x = img[..., :3].astype(np.float64) / 255 * np.float32(exposure)
+        f = x / (1 + x) * 255
+        nearest = np.floor(f + 0.5)
+        diff = np.abs(got[..., :3] - nearest)
+        ok = diff.max() <= 1 and np.array_equal(got[..., 3], img[..., 3].astype(np.int64))
+        return ok, {'max_level_diff': int(diff.max()), 'round_to_nearest_fraction': float(np.mean(diff == 0)), 'alpha_kept': bool(np.array_equal(got[..., 3], img[..., 3]))}
+    return W('imgtonemap', {}, [((Wd + 15) // 16, (H + 15) // 16, 1, push(Wd, H, exposure))], check, (16, 16, 1), {'pixels': Wd * H},
+             images=[(0, Wd, H, 'rgba8')], simages={0: (img, Wd, H, 'rgba8')})
+
+
 WORKLOADS = {'reduce': w_reduce, 'scan': w_scan, 'sgemm': w_sgemm, 'conv2d': w_conv2d, 'histogram': w_histogram,
              'nbody': w_nbody, 'bitonic': w_bitonic, 'sha256': w_sha256, 'fp16': w_fp16, 'int64': w_int64, 'bitops': w_bitops,
              'intdiv': w_intdiv, 'compact': w_compact, 'spmv': w_spmv, 'transpose': w_transpose, 'mandelbrot': w_mandelbrot,
@@ -2457,7 +2502,8 @@ WORKLOADS = {'reduce': w_reduce, 'scan': w_scan, 'sgemm': w_sgemm, 'conv2d': w_c
              'chacha20': w_chacha20, 'modexp': w_modexp, 'floyd': w_floyd, 'f16pack': w_f16pack,
              'raster': w_raster, 'canny': w_canny, 'secded': w_secded, 'bicubic': w_bicubic,
              'dfa': w_dfa, 'b64decode': w_b64decode, 'cordic': w_cordic, 'rsenc': w_rsenc,
-             'texfetch': w_texfetch, 'texfilter': w_texfilter}
+             'texfetch': w_texfetch, 'texfilter': w_texfilter,
+             'imgerode': w_imgerode, 'imgtonemap': w_imgtonemap}
 
 
 # ---------------------------------------------------------------------------------------------------------------
@@ -2503,6 +2549,7 @@ def run_one(name, size, repeat, out_root, export=True, seed=1):
     if r.returncode:
         raise RuntimeError(f'{name}: vk_run failed: {r.stdout[-400:]} {r.stderr[-400:]}')
     outs = {b: np.fromfile(out / f'out{b}.bin', dtype=np.uint8) for b, (_, rb) in w.buffers.items() if rb}
+    outs.update({b: np.fromfile(out / f'out{b}.bin', dtype=np.uint8) for b in w.simages})
     ok, detail = w.check(outs)
     write_images(w, outs, out, 'image')
     reps = [l for l in lines if 'rep' in l]
@@ -2856,7 +2903,7 @@ def cmd_sim(a):
     across dispatches; outputs checked with the workload's reference and compared word for word with a hardware run.
     With the extract's info.json, the workgroup size, threadgroup memory, registers and the constants the driver
     preloads into uniforms come from the driver's own shader info."""
-    if WORKLOADS[a.workload](a.size, np.random.default_rng([1, list(WORKLOADS).index(a.workload)])).textures:
+    if hw_only(WORKLOADS[a.workload](a.size, np.random.default_rng([1, list(WORKLOADS).index(a.workload)]))):
         print(json.dumps({'workload': a.workload, 'size': a.size, 'simulated_ok': None, 'unsupported': NO_TEXTURE_UNIT}))
         return 0
     L = DriverLaunch(a.workload, a.size, a.code_dir, a.layout, a.out or Path(a.code_dir) / f'sim-{a.workload}-{a.size}', a.shared)
@@ -2895,7 +2942,7 @@ def cmd_predict(a):
     matters where control flow or addresses depend on them). With --code alone: the cost model's own emulation."""
     exe = ROOT / 'rust/target/release/agx_dispatch'
     rows, total = [], 0.0
-    if WORKLOADS[a.workload](a.size, np.random.default_rng([1, list(WORKLOADS).index(a.workload)])).textures:
+    if hw_only(WORKLOADS[a.workload](a.size, np.random.default_rng([1, list(WORKLOADS).index(a.workload)]))):
         print(json.dumps({'workload': a.workload, 'size': a.size, 'unsupported': NO_TEXTURE_UNIT}))
         return 0
     if a.code_dir:
@@ -2970,6 +3017,7 @@ EXPECTED = ROOT / 'spirv/expected'
 def input_hashes(w):
     h = {str(b): hashlib.sha256(init.tobytes()).hexdigest() for b, (init, _) in sorted(w.buffers.items()) if not isinstance(init, int)}
     h.update({f't{b}': hashlib.sha256(np.ascontiguousarray(t[0]).tobytes()).hexdigest() for b, t in sorted(w.textures.items())})
+    h.update({f'i{b}': hashlib.sha256(np.ascontiguousarray(t[0]).tobytes()).hexdigest() for b, t in sorted(w.simages.items()) if t[0] is not None})
     return h
 
 
@@ -3060,7 +3108,7 @@ def verify_one(name, exp, layout, timing):
     w = WORKLOADS[name]('small', np.random.default_rng([1, list(WORKLOADS).index(name)]))
     if input_hashes(w) != rec['inputs_sha256']:
         return {'workload': name, 'status': 'STALE', 'why': 'inputs differ from the recording (workload or numpy changed): re-record'}
-    if w.textures:
+    if hw_only(w):
         ok = rec['small']['functional_ok']
         return {'workload': name, 'device': rec['device'].get('device'), 'hardware_matches_reference': ok,
                 'status': 'UNSIM' if ok else 'FAIL', 'why': NO_TEXTURE_UNIT if ok else 'the hardware result is outside the reference'}

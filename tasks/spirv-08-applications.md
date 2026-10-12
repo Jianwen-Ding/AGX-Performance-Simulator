@@ -1,7 +1,7 @@
 # Task SPIR-V 8: applications (ray tracer, neural networks, image processing, cellular automaton, graph search,
 # encryption, hashing, text, compression)
 
-**Workloads:** `raytrace`, `mlp`, `sobel`, `life`, `bfs`, `conv_layer`, `hist_eq`, `aes`, `hash_table`, `word_count`, `dct8`, `attention`, `resize`, `median3`, `poisson`, `lbm`, `base64`, `md5`, `gemv`, `levenshtein`, `blur`, `yuv420`, `montecarlo`, `xxhash`, `bloom`, `collatz`, `tridiag`, `merge`, `ccl`, `pagerank`, `skinning`, `strsearch`, `quantize`, `rule110`, `voxel`, `nms`, `sat`, `sssp`, `morton`, `utf8`, `fir`, `composite`, `nqueens`, `lzmatch`, `bitpack`, `perlin`, `adler32`, `sieve`, `gcd`, `dither`, `advect`, `knn`, `csvparse`, `pip`, `lift53`, `chacha20`, `modexp`, `floyd`, `f16pack`, `raster`, `canny`, `secded`, `bicubic`, `dfa`, `b64decode`, `cordic`, `rsenc`, `texfetch`, `texfilter`. These are recorded and verified by `make asahi-verify` with the others;
+**Workloads:** `raytrace`, `mlp`, `sobel`, `life`, `bfs`, `conv_layer`, `hist_eq`, `aes`, `hash_table`, `word_count`, `dct8`, `attention`, `resize`, `median3`, `poisson`, `lbm`, `base64`, `md5`, `gemv`, `levenshtein`, `blur`, `yuv420`, `montecarlo`, `xxhash`, `bloom`, `collatz`, `tridiag`, `merge`, `ccl`, `pagerank`, `skinning`, `strsearch`, `quantize`, `rule110`, `voxel`, `nms`, `sat`, `sssp`, `morton`, `utf8`, `fir`, `composite`, `nqueens`, `lzmatch`, `bitpack`, `perlin`, `adler32`, `sieve`, `gcd`, `dither`, `advect`, `knn`, `csvparse`, `pip`, `lift53`, `chacha20`, `modexp`, `floyd`, `f16pack`, `raster`, `canny`, `secded`, `bicubic`, `dfa`, `b64decode`, `cordic`, `rsenc`, `texfetch`, `texfilter`, `imgerode`, `imgtonemap`. These are recorded and verified by `make asahi-verify` with the others;
 they are **PENDING** until then. The detailed procedure is in `tasks/spirv-workloads.md`.
 
 ## Why these
@@ -81,6 +81,8 @@ reference.
 | `rsenc` | RS(255, 223) Reed-Solomon parity of 32768 codewords over GF(2^8), log / antilog tables in shared memory | Exact parity; sampled codewords have zero syndromes |
 | `texfetch` | 4M `texelFetch` reads of a 2048² r32f texture through the texture unit (`texture_sample` / `texture_load` in the AGX code) | Bit-exact, signed zero and extreme values included |
 | `texfilter` | 4M bilinear samples of a 1024² RGBA8 texture (ramps, checker, noise) with clamp-to-edge borders | Within 2/255 of the Vulkan definition at the sub-texel precision that fits best; that precision is reported |
+| `imgerode` | 3 × 3 grey-level erosion of a 2048² r32ui storage image, ping-pong between two images over 4 dispatches | Exact |
+| `imgtonemap` | Exposure + Reinhard tone mapping in place on a 4K RGBA8 storage image | Within one level of round-to-nearest (Vulkan's allowance); alpha untouched; the fraction rounding to nearest is reported |
 
 ## Offline sanity checks (not hardware verification)
 
@@ -150,3 +152,7 @@ reference.
       unsupported.
     - Record `texfilter`'s `best_subtexel_bits` (lavapipe: 8). It is the M2 texture unit's interpolation precision,
       and the first measured fact for a future texture model.
+19. `imgerode` and `imgtonemap` use storage images (`vk_run`'s `image` directive). The image is reloaded from a
+    staging buffer at the start of every run, and copied back after the dispatches. The AGX code uses `texture_load`
+    and `image_write`; like the textures, these are UNSIM in verification. Record `imgtonemap`'s
+    `round_to_nearest_fraction` (lavapipe: 0.992); it shows how the M2 rounds unorm stores.

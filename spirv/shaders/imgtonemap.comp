@@ -1,0 +1,16 @@
+#version 450
+// In-place tone mapping of an RGBA8 storage image (HDR-to-display, colour grading): imageLoad returns unorm floats,
+// the shader applies an exposure and the Reinhard curve x / (1 + x) per colour channel, and imageStore converts back
+// to 8 bits. Checks the float -> unorm conversion on store (within one level as Vulkan allows; the fraction that
+// rounds to nearest is reported). Verified on the hardware against the reference only.
+layout(local_size_x = 16, local_size_y = 16) in;
+layout(binding = 0, rgba8) uniform image2D img;
+layout(push_constant) uniform P { int width; int height; float exposure; } p;
+
+void main() {
+    ivec2 g = ivec2(gl_GlobalInvocationID.xy);
+    if (g.x >= p.width || g.y >= p.height) return;
+    vec4 c = imageLoad(img, g);
+    vec3 x = c.rgb * p.exposure;
+    imageStore(img, g, vec4(x / (1.0 + x), c.a));
+}

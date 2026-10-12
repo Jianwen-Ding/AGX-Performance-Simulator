@@ -1,0 +1,20 @@
+#version 450
+// Grey-level morphological erosion (3 x 3 minimum) on r32ui storage images, ping-ponging between two images over
+// four dispatches (imageLoad / imageStore with clamped borders): the image path for read-write compute. Integer-
+// exact; verified on the hardware against the reference only (the simulator does not model image access).
+layout(local_size_x = 16, local_size_y = 16) in;
+layout(binding = 0, r32ui) uniform uimage2D a;
+layout(binding = 1, r32ui) uniform uimage2D b;
+layout(push_constant) uniform P { int width; int height; int parity; } p;
+
+void main() {
+    ivec2 g = ivec2(gl_GlobalInvocationID.xy);
+    if (g.x >= p.width || g.y >= p.height) return;
+    uint m = 0xffffffffu;
+    for (int dy = -1; dy <= 1; dy++)
+        for (int dx = -1; dx <= 1; dx++) {
+            ivec2 q = clamp(g + ivec2(dx, dy), ivec2(0), ivec2(p.width - 1, p.height - 1));
+            m = min(m, p.parity == 0 ? imageLoad(a, q).r : imageLoad(b, q).r);
+        }
+    if (p.parity == 0) imageStore(b, g, uvec4(m)); else imageStore(a, g, uvec4(m));
+}

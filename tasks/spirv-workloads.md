@@ -23,7 +23,7 @@ and the reference agree; that is a sanity check, not hardware verification.
    | CLOSE | Differs, but both are within the reference tolerance |
    | FAIL | A difference to investigate |
    | STALE | The recording no longer matches the workload's inputs |
-   | UNSIM | Texture workloads only: the GPU's result matches the reference; the simulator has no texture unit to compare |
+   | UNSIM | Texture / storage-image workloads only: the GPU's result matches the reference; the simulator does not model that path |
 
 3. Also compares the large-size GPU time with the cost model's prediction. The last line of `verify.txt` sums this
    up as `"timing"`:
@@ -39,7 +39,7 @@ The rest of this file is the detailed procedure, for investigating results.
 
 ## Workloads
 
-One hundred and one realistic compute kernels, written in GLSL (`spirv/shaders/*.comp`) and compiled to SPIR-V:
+One hundred and three realistic compute kernels, written in GLSL (`spirv/shaders/*.comp`) and compiled to SPIR-V:
 
 | Workload | Kernel | Stresses |
 |---|---|---|
@@ -144,6 +144,8 @@ One hundred and one realistic compute kernels, written in GLSL (`spirv/shaders/*
 | `rsenc` | Reed-Solomon RS(255,223) encoder | GF(2^8) log / exp lookups, 32-register LFSR |
 | `texfetch` | `texelFetch` from an r32f texture | The texture unit (unfiltered), bit-exact; hardware-only (UNSIM) |
 | `texfilter` | Hardware bilinear filtering of an RGBA8 texture | The texture unit's filtering and sub-texel precision; hardware-only (UNSIM) |
+| `imgerode` | Morphological erosion on r32ui storage images, 4 ping-pong dispatches | `imageLoad` / `imageStore` (`texture_load` / `image_write`), exact; hardware-only (UNSIM) |
+| `imgtonemap` | In-place Reinhard tone mapping of an RGBA8 storage image | unorm load / store conversion; hardware-only (UNSIM) |
 
 Each workload has two sizes:
 
