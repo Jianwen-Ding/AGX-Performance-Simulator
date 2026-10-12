@@ -54,7 +54,7 @@ The rest of this file is the detailed procedure, for investigating results.
 
 ## Workloads
 
-One hundred and thirty-four realistic compute kernels, written in GLSL (`spirv/shaders/*.comp`) and compiled to SPIR-V:
+One hundred and thirty-five realistic compute kernels, written in GLSL (`spirv/shaders/*.comp`) and compiled to SPIR-V:
 
 | Workload | Kernel | Stresses |
 |---|---|---|
@@ -192,6 +192,7 @@ One hundred and thirty-four realistic compute kernels, written in GLSL (`spirv/s
 | `viterbi` | Viterbi decoding of the K = 7 rate-1/2 convolutional code, one frame per workgroup, one state per invocation | Shared-memory add-compare-select with a barrier per step, shared `atomicOr`, a single-thread traceback; exposes a compiler fusion that drops a shift mask (expected FAIL, see the applications notes) |
 | `viterbifix` | The same decoder with the traceback bit test written as `bitfieldExtract` with a masked offset | The workaround: expected PASS |
 | `shiftfuse` | Ten bit-manipulation idioms with variable, explicitly masked shifts, one output column each | Which shift / mask / or fusions (`bfeil`, `bfi`, `extr`) keep the shift mask; per-column mismatch counts |
+| `bc1enc` | BC1 (DXT1) texture compression of 4×4 blocks: bounding-box endpoints in RGB565, nearest of 4 palette entries per texel | Integer divides by 255 and 3, a 16-texel block held in registers (140 GPRs, low occupancy), unrolled distance search |
 
 Each workload has two sizes:
 

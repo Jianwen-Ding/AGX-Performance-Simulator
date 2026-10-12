@@ -1,0 +1,47 @@
+#version 450
+// BC1 (DXT1) texture compression, one 4x4 block per invocation (the format of GPU texture encoders): endpoints
+// are the corners of the block's colour bounding box quantised to RGB565 (c0 = max >= c1 = min, 4-colour mode),
+// the palette is c0, c1, (2 c0 + c1) / 3, (c0 + 2 c1) / 3 per channel after expanding to 8 bits, and each texel
+// takes the nearest palette entry (squared RGB distance, ties to the lower code). Output: endpoints, then 32 bits
+// of 2-bit codes.
+layout(local_size_x = 64) in;
+layout(std430, binding = 0) readonly buffer I { uint px[]; };       // RGBA8, row-major, width w
+layout(std430, binding = 1) writeonly buffer O { uvec2 blk[]; };
+layout(push_constant) uniform P { uint w; uint h; } p;
+
+uvec3 rgb(uint c) { return uvec3(c & 255u, (c >> 8) & 255u, (c >> 16) & 255u); }
+uint q(uint v, uint m) { return (v * m + 127u) / 255u; }
+uvec3 expand(uint c) {
+    uint r = c >> 11, g = (c >> 5) & 63u, b = c & 31u;
+    return uvec3((r << 3) | (r >> 2), (g << 2) | (g >> 4), (b << 3) | (b >> 2));
+}
+
+void main() {
+    uint bw = p.w / 4u, b = gl_GlobalInvocationID.x;
+    if (b >= bw * (p.h / 4u)) return;
+    uint x0 = (b % bw) * 4u, y0 = (b / bw) * 4u;
+    uvec3 t[16];
+    uvec3 lo = uvec3(255u), hi = uvec3(0u);
+    for (uint i = 0u; i < 16u; i++) {
+        t[i] = rgb(px[(y0 + i / 4u) * p.w + x0 + i % 4u]);
+        lo = min(lo, t[i]); hi = max(hi, t[i]);
+    }
+    uint c0 = (q(hi.r, 31u) << 11) | (q(hi.g, 63u) << 5) | q(hi.b, 31u);
+    uint c1 = (q(lo.r, 31u) << 11) | (q(lo.g, 63u) << 5) | q(lo.b, 31u);
+    uint codes = 0u;
+    if (c0 != c1) {
+        uvec3 pal[4];
+        pal[0] = expand(c0); pal[1] = expand(c1);
+        pal[2] = (2u * pal[0] + pal[1]) / 3u; pal[3] = (pal[0] + 2u * pal[1]) / 3u;
+        for (uint i = 0u; i < 16u; i++) {
+            uint best = 0xffffffffu, bi = 0u;
+            for (uint k = 0u; k < 4u; k++) {
+                ivec3 d = ivec3(t[i]) - ivec3(pal[k]);
+                uint e = uint(d.x * d.x + d.y * d.y + d.z * d.z);
+                if (e < best) { best = e; bi = k; }
+            }
+            codes |= bi << (2u * i);
+        }
+    }
+    blk[b] = uvec2(c0 | (c1 << 16), codes);
+}

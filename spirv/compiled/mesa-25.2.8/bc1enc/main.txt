@@ -1,0 +1,798 @@
+0x0080  72051004                 get_sr r1, sr80 (thread_position_in_grid.x)
+0x0084  0e0542a658000000         iadd r1, r1.sx, u5.sx
+0x008c  62000000                 mov_imm r0l, 0
+0x0090  522842e21800             if_icmp r0l, ult, r1, u7, 1
+0x0096  20c06a180000             jmp_exec_none pc+6250
+0x009c  1e0b420219000000         imadd r2_r3, r1, u8, 0
+0x00a4  1e0946c658000000         imadd r2, r3.sx, u6.sx, 0
+0x00ac  0e09424e64000000         isub r2, r1.sx, r2.sx
+0x00b4  0e11461600000000         iadd r4, r3.sx, 1
+0x00bc  120d44c218468024         icmpsel ult, r3, r2, u6, r3, r4
+0x00c4  0e11442659000000         iadd r4, r2.sx, u9.sx
+0x00cc  120944c218448024         icmpsel ult, r2, r2, u6, r2, r4
+0x00d4  0e11461600000000         iadd r4, r3.sx, 1
+0x00dc  120d44c218468024         icmpsel ult, r3, r2, u6, r3, r4
+0x00e4  0e11442659000000         iadd r4, r2.sx, u9.sx
+0x00ec  120944c218448024         icmpsel ult, r2, r2, u6, r2, r4
+0x00f4  0e0d006064001000         iadd r3, 0, r3.sx, lsl 2
+0x00fc  0e11461600000000         iadd r4, r3.sx, 1
+0x0104  0e15462600000000         iadd r5, r3.sx, 2
+0x010c  0e19463600000000         iadd r6, r3.sx, 3
+0x0114  1e0d468658000000         imadd r3, r3.sx, u4.sx, 0
+0x011c  0e09004064001000         iadd r2, 0, r2.sx, lsl 2
+0x0124  1e11488658000000         imadd r4, r4.sx, u4.sx, 0
+0x012c  1e154a8658000000         imadd r5, r5.sx, u4.sx, 0
+0x0134  1e194c8658000000         imadd r6, r6.sx, u4.sx, 0
+0x013c  0e1d461600000000         iadd r7, r3.sx, 1
+0x0144  0e21462600000000         iadd r8, r3.sx, 2
+0x014c  0e25463600000000         iadd r9, r3.sx, 3
+0x0154  0e0d464664000000         iadd r3, r3.sx, r2.sx
+0x015c  0e1d4e4664000000         iadd r7, r7.sx, r2.sx
+0x0164  0e21504664000000         iadd r8, r8.sx, r2.sx
+0x016c  0e25524664000000         iadd r9, r9.sx, r2.sx
+0x0174  0e29481600000000         iadd r10, r4.sx, 1
+0x017c  0e2d482600000000         iadd r11, r4.sx, 2
+0x0184  0e31483600000000         iadd r12, r4.sx, 3
+0x018c  0e11484664000000         iadd r4, r4.sx, r2.sx
+0x0194  0e29544664000000         iadd r10, r10.sx, r2.sx
+0x019c  0e2d564664000000         iadd r11, r11.sx, r2.sx
+0x01a4  0e31584664000000         iadd r12, r12.sx, r2.sx
+0x01ac  0e354a1600000000         iadd r13, r5.sx, 1
+0x01b4  0e394a2600000000         iadd r14, r5.sx, 2
+0x01bc  0e3d4a3600000000         iadd r15, r5.sx, 3
+0x01c4  0e154a4664000000         iadd r5, r5.sx, r2.sx
+0x01cc  0e355a4664000000         iadd r13, r13.sx, r2.sx
+0x01d4  0e395c4664000000         iadd r14, r14.sx, r2.sx
+0x01dc  0e3d5e4664000000         iadd r15, r15.sx, r2.sx
+0x01e4  0e414c1600000000         iadd r16, r6.sx, 1
+0x01ec  0e454c2600000000         iadd r17, r6.sx, 2
+0x01f4  0e494c3600000000         iadd r18, r6.sx, 3
+0x01fc  0e194c4664000000         iadd r6, r6.sx, r2.sx
+0x0204  0e41604664000000         iadd r16, r16.sx, r2.sx
+0x020c  0e45624664000000         iadd r17, r17.sx, r2.sx
+0x0214  0e09644664000000         iadd r2, r18.sx, r2.sx
+0x021c  0519640e10c01200         device_load 0, i32, x, r3, u10_u11, r3, unsigned
+0x0224  0539e44e10c01200         device_load 1, i32, x, r7, u10_u11, r7, unsigned
+0x022c  0541040e11c01200         device_load 0, i32, x, r8, u10_u11, r8, unsigned
+0x0234  3800                     wait 0
+0x0236  2ec9006024080800         bfeil r18, 0, r3, 8, mask 0xFF
+0x023e  3801                     wait 1
+0x0240  2ecd00e024080800         bfeil r19, 0, r7, 8, mask 0xFF
+0x0248  12d13f40263f4126c00c     icmpsel ult, r20, 255, r18, 255, r18
+0x0252  1251686226686026         icmpsel ult, r20, r20, r19, r20, r19
+0x025a  0549240e11c01200         device_load 0, i32, x, r9, u10_u11, r9, unsigned
+0x0262  2ed5000025080800         bfeil r21, 0, r8, 8, mask 0xFF
+0x026a  125168a22668a026         icmpsel ult, r20, r20, r21, r20, r21
+0x0272  0521844e10c01200         device_load 1, i32, x, r4, u10_u11, r4, unsigned
+0x027a  3800                     wait 0
+0x027c  2ed9002025080800         bfeil r22, 0, r9, 8, mask 0xFF
+0x0284  125168c22668c026         icmpsel ult, r20, r20, r22, r20, r22
+0x028c  0551440e11c01200         device_load 0, i32, x, r10, u10_u11, r10, unsigned
+0x0294  3801                     wait 1
+0x0296  2edd008024080800         bfeil r23, 0, r4, 8, mask 0xFF
+0x029e  125168e22668e026         icmpsel ult, r20, r20, r23, r20, r23
+0x02a6  0559644e11c01200         device_load 1, i32, x, r11, u10_u11, r11, unsigned
+0x02ae  3800                     wait 0
+0x02b0  2ee1004025080800         bfeil r24, 0, r10, 8, mask 0xFF
+0x02b8  1251680227680027         icmpsel ult, r20, r20, r24, r20, r24
+0x02c0  0561840e11c01200         device_load 0, i32, x, r12, u10_u11, r12, unsigned
+0x02c8  3801                     wait 1
+0x02ca  2ee5006025080800         bfeil r25, 0, r11, 8, mask 0xFF
+0x02d2  1251682227682027         icmpsel ult, r20, r20, r25, r20, r25
+0x02da  0529a44e10c01200         device_load 1, i32, x, r5, u10_u11, r5, unsigned
+0x02e2  3800                     wait 0
+0x02e4  2ee9008025080800         bfeil r26, 0, r12, 8, mask 0xFF
+0x02ec  1251684227684027         icmpsel ult, r20, r20, r26, r20, r26
+0x02f4  0569a40e11c01200         device_load 0, i32, x, r13, u10_u11, r13, unsigned
+0x02fc  3801                     wait 1
+0x02fe  2eed00a024080800         bfeil r27, 0, r5, 8, mask 0xFF
+0x0306  1251686227686027         icmpsel ult, r20, r20, r27, r20, r27
+0x030e  0571c44e11c01200         device_load 1, i32, x, r14, u10_u11, r14, unsigned
+0x0316  3800                     wait 0
+0x0318  2ef100a025080800         bfeil r28, 0, r13, 8, mask 0xFF
+0x0320  1251688227688027         icmpsel ult, r20, r20, r28, r20, r28
+0x0328  0579e40e11c01200         device_load 0, i32, x, r15, u10_u11, r15, unsigned
+0x0330  3801                     wait 1
+0x0332  2ef500c025080800         bfeil r29, 0, r14, 8, mask 0xFF
+0x033a  125168a22768a027         icmpsel ult, r20, r20, r29, r20, r29
+0x0342  0531c44e10c01200         device_load 1, i32, x, r6, u10_u11, r6, unsigned
+0x034a  3800                     wait 0
+0x034c  2ef900e025080800         bfeil r30, 0, r15, 8, mask 0xFF
+0x0354  125168c22768c027         icmpsel ult, r20, r20, r30, r20, r30
+0x035c  0581040e12c01200         device_load 0, i32, x, r16, u10_u11, r16, unsigned
+0x0364  3801                     wait 1
+0x0366  2efd00c024080800         bfeil r31, 0, r6, 8, mask 0xFF
+0x036e  125168e22768e027         icmpsel ult, r20, r20, r31, r20, r31
+0x0376  0589244e12c01200         device_load 1, i32, x, r17, u10_u11, r17, unsigned
+0x037e  3800                     wait 0
+0x0380  2e81000026080810         bfeil r32, 0, r16, 8, mask 0xFF
+0x0388  12d16802246800241001     icmpsel ult, r20, r20, r32, r20, r32
+0x0392  0511440e10c01200         device_load 0, i32, x, r2, u10_u11, r2, unsigned
+0x039a  3801                     wait 1
+0x039c  2e85002026080810         bfeil r33, 0, r17, 8, mask 0xFF
+0x03a4  12d16822246820241001     icmpsel ult, r20, r20, r33, r20, r33
+0x03ae  3800                     wait 0
+0x03b0  2e89004024080810         bfeil r34, 0, r2, 8, mask 0xFF
+0x03b8  12d16842246840241001     icmpsel ult, r20, r20, r34, r20, r34
+0x03c2  1e5168f6033f4000         imadd r20, r20.sx, 63, 127
+0x03ca  1e1368e219000010         imadd r36_r37, r20, u15, 0
+0x03d2  7e5146f28303             and r20, r3, 255
+0x03d8  7e0d4ef28313             and r35, r7, 255
+0x03de  12913f80263f8126c01c     icmpsel ult, r36, 255, r20, 255, r20
+0x03e8  12914862244860245015     icmpsel ult, r36, r36, r35, r36, r35
+0x03f2  7e1950f28313             and r38, r8, 255
+0x03f8  129148c22448c0245015     icmpsel ult, r36, r36, r38, r36, r38
+0x0402  7e1d52f28313             and r39, r9, 255
+0x0408  129148e22448e0245015     icmpsel ult, r36, r36, r39, r36, r39
+0x0412  7e2148f28313             and r40, r4, 255
+0x0418  12914802254800255015     icmpsel ult, r36, r36, r40, r36, r40
+0x0422  7e2554f28313             and r41, r10, 255
+0x0428  12914822254820255015     icmpsel ult, r36, r36, r41, r36, r41
+0x0432  7e2956f28313             and r42, r11, 255
+0x0438  12914842254840255015     icmpsel ult, r36, r36, r42, r36, r42
+0x0442  7e2d58f28313             and r43, r12, 255
+0x0448  12914862254860255015     icmpsel ult, r36, r36, r43, r36, r43
+0x0452  7e314af28313             and r44, r5, 255
+0x0458  12914882254880255015     icmpsel ult, r36, r36, r44, r36, r44
+0x0462  7e355af28313             and r45, r13, 255
+0x0468  129148a22548a0255015     icmpsel ult, r36, r36, r45, r36, r45
+0x0472  7e395cf28313             and r46, r14, 255
+0x0478  129148c22548c0255015     icmpsel ult, r36, r36, r46, r36, r46
+0x0482  7e3d5ef28313             and r47, r15, 255
+0x0488  129148e22548e0255015     icmpsel ult, r36, r36, r47, r36, r47
+0x0492  7e414cf28313             and r48, r6, 255
+0x0498  12914802264800265015     icmpsel ult, r36, r36, r48, r36, r48
+0x04a2  7e4560f28313             and r49, r16, 255
+0x04a8  12914822264820265015     icmpsel ult, r36, r36, r49, r36, r49
+0x04b2  7e4962f28313             and r50, r17, 255
+0x04b8  12914842264840265015     icmpsel ult, r36, r36, r50, r36, r50
+0x04c2  7e4d44f28313             and r51, r2, 255
+0x04c8  12914862264860265015     icmpsel ult, r36, r36, r51, r36, r51
+0x04d2  1e1148f6013f4014         imadd r36, r36.sx, 31, 127
+0x04da  1e5348e219000014         imadd r52_r53, r36, u15, 0
+0x04e2  12916462266460460010     icmpsel ugt, r36, r18, r19, r18, r19
+0x04ec  129148a22648a0464014     icmpsel ugt, r36, r36, r21, r36, r21
+0x04f6  129148c22648c0464014     icmpsel ugt, r36, r36, r22, r36, r22
+0x0500  129148e22648e0464014     icmpsel ugt, r36, r36, r23, r36, r23
+0x050a  12914802274800474014     icmpsel ugt, r36, r36, r24, r36, r24
+0x0514  12914822274820474014     icmpsel ugt, r36, r36, r25, r36, r25
+0x051e  12914842274840474014     icmpsel ugt, r36, r36, r26, r36, r26
+0x0528  12914862274860474014     icmpsel ugt, r36, r36, r27, r36, r27
+0x0532  12914882274880474014     icmpsel ugt, r36, r36, r28, r36, r28
+0x053c  129148a22748a0474014     icmpsel ugt, r36, r36, r29, r36, r29
+0x0546  129148c22748c0474014     icmpsel ugt, r36, r36, r30, r36, r30
+0x0550  129148e22748e0474014     icmpsel ugt, r36, r36, r31, r36, r31
+0x055a  12914802244800445015     icmpsel ugt, r36, r36, r32, r36, r32
+0x0564  12914822244820445015     icmpsel ugt, r36, r36, r33, r36, r33
+0x056e  12914842244840445015     icmpsel ugt, r36, r36, r34, r36, r34
+0x0578  1e1148f6033f4014         imadd r36, r36.sx, 63, 127
+0x0580  1e5b48e219000014         imadd r54_r55, r36, u15, 0
+0x0588  12916862246860441011     icmpsel ugt, r36, r20, r35, r20, r35
+0x0592  129148c22448c0445015     icmpsel ugt, r36, r36, r38, r36, r38
+0x059c  129148e22448e0445015     icmpsel ugt, r36, r36, r39, r36, r39
+0x05a6  12914802254800455015     icmpsel ugt, r36, r36, r40, r36, r40
+0x05b0  12914822254820455015     icmpsel ugt, r36, r36, r41, r36, r41
+0x05ba  12914842254840455015     icmpsel ugt, r36, r36, r42, r36, r42
+0x05c4  12914862254860455015     icmpsel ugt, r36, r36, r43, r36, r43
+0x05ce  12914882254880455015     icmpsel ugt, r36, r36, r44, r36, r44
+0x05d8  129148a22548a0455015     icmpsel ugt, r36, r36, r45, r36, r45
+0x05e2  129148c22548c0455015     icmpsel ugt, r36, r36, r46, r36, r46
+0x05ec  129148e22548e0455015     icmpsel ugt, r36, r36, r47, r36, r47
+0x05f6  12914802264800465015     icmpsel ugt, r36, r36, r48, r36, r48
+0x0600  12914822264820465015     icmpsel ugt, r36, r36, r49, r36, r49
+0x060a  12914842264840465015     icmpsel ugt, r36, r36, r50, r36, r50
+0x0614  12914862264860465015     icmpsel ugt, r36, r36, r51, r36, r51
+0x061e  1e1148f6013f4014         imadd r36, r36.sx, 31, 127
+0x0626  1e6348e219000014         imadd r56_r57, r36, u15, 0
+0x062e  7e1147f08313             and r36, r3h, 255
+0x0634  7e0d4ff08303             and r3, r7h, 255
+0x063a  129d3f80243f8124d00d     icmpsel ult, r7, 255, r36, 255, r36
+0x0644  121d4e62244e6024         icmpsel ult, r7, r7, r3, r7, r3
+0x064c  7e5151f08313             and r52, r8h, 255
+0x0652  129d4e82264e80261001     icmpsel ult, r7, r7, r52, r7, r52
+0x065c  7e2153f08303             and r8, r9h, 255
+0x0662  121d4e02254e0025         icmpsel ult, r7, r7, r8, r7, r8
+0x066a  7e2549f08303             and r9, r4h, 255
+0x0670  12114e22254e2025         icmpsel ult, r4, r7, r9, r7, r9
+0x0678  7e1d55f08303             and r7, r10h, 255
+0x067e  121148e22448e024         icmpsel ult, r4, r4, r7, r4, r7
+0x0686  7e2957f08303             and r10, r11h, 255
+0x068c  1211484225484025         icmpsel ult, r4, r4, r10, r4, r10
+0x0694  7e2d59f08303             and r11, r12h, 255
+0x069a  1211486225486025         icmpsel ult, r4, r4, r11, r4, r11
+0x06a2  7e314bf08303             and r12, r5h, 255
+0x06a8  1211488225488025         icmpsel ult, r4, r4, r12, r4, r12
+0x06b0  7e155bf08303             and r5, r13h, 255
+0x06b6  121148a22448a024         icmpsel ult, r4, r4, r5, r4, r5
+0x06be  7e355df08303             and r13, r14h, 255
+0x06c4  121148a22548a025         icmpsel ult, r4, r4, r13, r4, r13
+0x06cc  7e395ff08303             and r14, r15h, 255
+0x06d2  121148c22548c025         icmpsel ult, r4, r4, r14, r4, r14
+0x06da  7e3d4df08303             and r15, r6h, 255
+0x06e0  121148e22548e025         icmpsel ult, r4, r4, r15, r4, r15
+0x06e8  7e1961f08303             and r6, r16h, 255
+0x06ee  121148c22448c024         icmpsel ult, r4, r4, r6, r4, r6
+0x06f6  7e4163f08303             and r16, r17h, 255
+0x06fc  1211480226480026         icmpsel ult, r4, r4, r16, r4, r16
+0x0704  7e4545f08303             and r17, r2h, 255
+0x070a  1209482226482026         icmpsel ult, r2, r4, r17, r4, r17
+0x0712  1e0944f6013f4000         imadd r2, r2.sx, 31, 127
+0x071a  1e6b44e219000010         imadd r58_r59, r2, u15, 0
+0x0722  2e8900a024070001         bfeil r2, 0, r37, 7
+0x072a  2e9100a026070001         bfeil r4, 0, r53, 7
+0x0732  2e09004024050000         bfi r2, 0, r2, 5
+0x073a  2e110080240b0000         bfi r4, 0, r4, 11
+0x0742  7e09484ae400             or r2, r4, r2
+0x0748  12914862244860444004     icmpsel ugt, r4, r36, r3, r36, r3
+0x0752  12914882264880461001     icmpsel ugt, r4, r4, r52, r4, r52
+0x075c  1211480225480045         icmpsel ugt, r4, r4, r8, r4, r8
+0x0764  1211482225482045         icmpsel ugt, r4, r4, r9, r4, r9
+0x076c  121148e22448e044         icmpsel ugt, r4, r4, r7, r4, r7
+0x0774  1211484225484045         icmpsel ugt, r4, r4, r10, r4, r10
+0x077c  1211486225486045         icmpsel ugt, r4, r4, r11, r4, r11
+0x0784  1211488225488045         icmpsel ugt, r4, r4, r12, r4, r12
+0x078c  121148a22448a044         icmpsel ugt, r4, r4, r5, r4, r5
+0x0794  121148a22548a045         icmpsel ugt, r4, r4, r13, r4, r13
+0x079c  121148c22548c045         icmpsel ugt, r4, r4, r14, r4, r14
+0x07a4  121148e22548e045         icmpsel ugt, r4, r4, r15, r4, r15
+0x07ac  121148c22448c044         icmpsel ugt, r4, r4, r6, r4, r6
+0x07b4  1211480226480046         icmpsel ugt, r4, r4, r16, r4, r16
+0x07bc  1211482226482046         icmpsel ugt, r4, r4, r17, r4, r17
+0x07c4  1e1148f6013f4000         imadd r4, r4.sx, 31, 127
+0x07cc  1e7348e219000010         imadd r60_r61, r4, u15, 0
+0x07d4  2e9100e026070001         bfeil r4, 0, r55, 7
+0x07dc  2e95002027070011         bfeil r37, 0, r57, 7
+0x07e4  2e11008024050000         bfi r4, 0, r4, 5
+0x07ec  2e1500a0240b0011         bfi r37, 0, r37, 11
+0x07f4  7e114a8ae404             or r4, r37, r4
+0x07fa  2e95006027070011         bfeil r37, 0, r59, 7
+0x0802  7e0944aae401             or r2, r2, r37
+0x0808  2e9500a027070011         bfeil r37, 0, r61, 7
+0x0810  7e1148aae401             or r4, r4, r37
+0x0816  520948422400             if_icmp r0l, nueq, r4, r2, 1
+0x081c  20c0ba100000             jmp_exec_none pc+4282
+0x0822  7e1548f28110             and r37, r4, 31
+0x0828  2ed500a024020011         bfeil r53, 0, r37, 2
+0x0830  0e1500a0e4111000         iadd r37, 0, r37.sx, lsl 3
+0x0838  7e154aaae615             or r37, r37, r53
+0x083e  2ed50080a4050410         bfeil r53, 0, r4, 5, mask 0x3F
+0x0846  2ed900a026040011         bfeil r54, 0, r53, 4
+0x084e  0e5500a066111000         iadd r53, 0, r53.sx, lsl 2
+0x0856  7e556acae615             or r53, r53, r54
+0x085c  7e5944f28110             and r54, r2, 31
+0x0862  2edd00c026020011         bfeil r55, 0, r54, 2
+0x086a  0e5900c0e6111000         iadd r54, 0, r54.sx, lsl 3
+0x0872  7e596ceae615             or r54, r54, r55
+0x0878  2edd0040a4050410         bfeil r55, 0, r2, 5, mask 0x3F
+0x0880  2ee100e026040011         bfeil r56, 0, r55, 4
+0x0888  0e5d00e066111000         iadd r55, 0, r55.sx, lsl 2
+0x0890  7e5d6e0ae715             or r55, r55, r56
+0x0896  2ee10080240b0010         bfeil r56, 0, r4, 11
+0x089e  0e610000e7111000         iadd r56, 0, r56.sx, lsl 3
+0x08a6  2ee50080240d0010         bfeil r57, 0, r4, 13
+0x08ae  7e61702ae715             or r56, r56, r57
+0x08b4  0e6546ae64110000         isub r57, r3.sx, r37.sx
+0x08bc  1e65722667000015         imadd r57, r57.sx, r57.sx, 0
+0x08c4  0e6966ae66110000         isub r58, r19.sx, r53.sx
+0x08cc  1e65744667724615         imadd r57, r58.sx, r58.sx, r57.sx
+0x08d4  2ee90040240b0010         bfeil r58, 0, r2, 11
+0x08dc  0e690040e7111000         iadd r58, 0, r58.sx, lsl 3
+0x08e4  2eed0040240d0010         bfeil r59, 0, r2, 13
+0x08ec  7e69746ae715             or r58, r58, r59
+0x08f2  0e6d46ce66110000         isub r59, r3.sx, r54.sx
+0x08fa  1e6d766667000015         imadd r59, r59.sx, r59.sx, 0
+0x0902  0e7166ee66110000         isub r60, r19.sx, r55.sx
+0x090a  1e6d788667764615         imadd r59, r60.sx, r60.sx, r59.sx
+0x0912  0e716ca6e4150000         iadd r60, r54.sx, r37.sx, lsl 1
+0x091a  1e7378c219000014         imadd r60_r61, r60, u14, 0
+0x0922  0e716ea6e6150000         iadd r60, r55.sx, r53.sx, lsl 1
+0x092a  1e7b78c219000014         imadd r62_r63, r60, u14, 0
+0x0932  0e71460e67150000         isub r60, r35.sx, r56.sx
+0x093a  1e65788667724615         imadd r57, r60.sx, r60.sx, r57.sx
+0x0942  0e71464e67150000         isub r60, r35.sx, r58.sx
+0x094a  1e6d788667764615         imadd r59, r60.sx, r60.sx, r59.sx
+0x0952  0e717406e7150000         iadd r60, r58.sx, r56.sx, lsl 1
+0x095a  1e0378c219000024         imadd r64_r65, r60, u14, 0
+0x0962  2ef100a027010011         bfeil r60, 0, r61, 1
+0x096a  2ef500e027010011         bfeil r61, 0, r63, 1
+0x0972  0e79468e67110000         isub r62, r3.sx, r60.sx
+0x097a  1e797cc667000015         imadd r62, r62.sx, r62.sx, 0
+0x0982  0e7d66ae67110000         isub r63, r19.sx, r61.sx
+0x098a  1e797ee6677c4615         imadd r62, r63.sx, r63.sx, r62.sx
+0x0992  0e7d4ac6e6150000         iadd r63, r37.sx, r54.sx, lsl 1
+0x099a  1e0b7ec219000024         imadd r66_r67, r63, u14, 0
+0x09a2  0e7d6ae6e6150000         iadd r63, r53.sx, r55.sx, lsl 1
+0x09aa  1e137ec219000024         imadd r68_r69, r63, u14, 0
+0x09b2  12fd7622270101300015     icmpsel ult, r63, r59, r57, 1, 0
+0x09bc  12e57262277260275015     icmpsel ult, r57, r57, r59, r57, r59
+0x09c6  2eed002024010012         bfeil r59, 0, r65, 1
+0x09ce  0e01466e67250000         isub r64, r35.sx, r59.sx
+0x09d6  1e794006647c461a         imadd r62, r64.sx, r64.sx, r62.sx
+0x09de  0e017046e7250000         iadd r64, r56.sx, r58.sx, lsl 1
+0x09e6  1e0340c219000028         imadd r64_r65, r64, u14, 0
+0x09ee  2e81006024010022         bfeil r64, 0, r67, 1
+0x09f6  0e0d460e64020000         isub r3, r3.sx, r64.sx
+0x09fe  2e8900a024010022         bfeil r66, 0, r69, 1
+0x0a06  1e0d466664000000         imadd r3, r3.sx, r3.sx, 0
+0x0a0e  0e4d664e64020000         isub r19, r19.sx, r66.sx
+0x0a16  1e0d666666460600         imadd r3, r19.sx, r19.sx, r3.sx
+0x0a1e  12cd7c222702e1271005     icmpsel ult, r19, r62, r57, 2, r63
+0x0a28  12e572c22772c0275015     icmpsel ult, r57, r57, r62, r57, r62
+0x0a32  2ef9002024010012         bfeil r62, 0, r65, 1
+0x0a3a  0e0d46ce67150000         isub r35, r35.sx, r62.sx
+0x0a42  1e0d466664460605         imadd r3, r35.sx, r35.sx, r3.sx
+0x0a4a  128d4622270361260001     icmpsel ult, r3, r3, r57, 3, r19
+0x0a54  0e4d48ae64050000         isub r19, r36.sx, r37.sx
+0x0a5c  1e4d666666000000         imadd r19, r19.sx, r19.sx, 0
+0x0a64  0e0d64ae66110000         isub r35, r18.sx, r53.sx
+0x0a6c  1e4d466664660605         imadd r19, r35.sx, r35.sx, r19.sx
+0x0a74  0e0d48ce66150000         isub r35, r36.sx, r54.sx
+0x0a7c  1e0d466664000015         imadd r35, r35.sx, r35.sx, 0
+0x0a84  0e6564ee66110000         isub r57, r18.sx, r55.sx
+0x0a8c  1e0d722667464615         imadd r35, r57.sx, r57.sx, r35.sx
+0x0a94  0e65680e67110000         isub r57, r20.sx, r56.sx
+0x0a9c  1e4d722667660605         imadd r19, r57.sx, r57.sx, r19.sx
+0x0aa4  0e65684e67110000         isub r57, r20.sx, r58.sx
+0x0aac  1e0d722667464615         imadd r35, r57.sx, r57.sx, r35.sx
+0x0ab4  0e65488e67150000         isub r57, r36.sx, r60.sx
+0x0abc  1e65722667000015         imadd r57, r57.sx, r57.sx, 0
+0x0ac4  0e7d64ae67110000         isub r63, r18.sx, r61.sx
+0x0acc  1e657ee667724615         imadd r57, r63.sx, r63.sx, r57.sx
+0x0ad4  12fd4662260101300014     icmpsel ult, r63, r35, r19, 1, 0
+0x0ade  12cd6662246660241001     icmpsel ult, r19, r19, r35, r19, r35
+0x0ae8  0e0d686e67110000         isub r35, r20.sx, r59.sx
+0x0af0  1e0d466664724615         imadd r35, r35.sx, r35.sx, r57.sx
+0x0af8  0e11480e64160000         isub r36, r36.sx, r64.sx
+0x0b00  1e11488664000015         imadd r36, r36.sx, r36.sx, 0
+0x0b08  0e49644e64020000         isub r18, r18.sx, r66.sx
+0x0b10  1e49644666484600         imadd r18, r18.sx, r18.sx, r36.sx
+0x0b18  129146622602e1271014     icmpsel ult, r36, r35, r19, 2, r63
+0x0b22  12cd6662246660241001     icmpsel ult, r19, r19, r35, r19, r35
+0x0b2c  0e5168ce67010000         isub r20, r20.sx, r62.sx
+0x0b34  1e49688666640600         imadd r18, r20.sx, r20.sx, r18.sx
+0x0b3c  12c96462260381241000     icmpsel ult, r18, r18, r19, 3, r36
+0x0b46  0e4d68ae64050000         isub r19, r52.sx, r37.sx
+0x0b4e  1e4d666666000000         imadd r19, r19.sx, r19.sx, 0
+0x0b56  0e516aae66010000         isub r20, r21.sx, r53.sx
+0x0b5e  1e4d688666660600         imadd r19, r20.sx, r20.sx, r19.sx
+0x0b66  0e5168ce66050000         isub r20, r52.sx, r54.sx
+0x0b6e  1e51688666000000         imadd r20, r20.sx, r20.sx, 0
+0x0b76  0e0d6aee66110000         isub r35, r21.sx, r55.sx
+0x0b7e  1e51466664680605         imadd r20, r35.sx, r35.sx, r20.sx
+0x0b86  0e0d4c0e67150000         isub r35, r38.sx, r56.sx
+0x0b8e  1e4d466664660605         imadd r19, r35.sx, r35.sx, r19.sx
+0x0b96  0e0d4c4e67150000         isub r35, r38.sx, r58.sx
+0x0b9e  1e51466664680605         imadd r20, r35.sx, r35.sx, r20.sx
+0x0ba6  0e0d688e67150000         isub r35, r52.sx, r60.sx
+0x0bae  1e0d466664000015         imadd r35, r35.sx, r35.sx, 0
+0x0bb6  0e116aae67110000         isub r36, r21.sx, r61.sx
+0x0bbe  1e0d488664464615         imadd r35, r36.sx, r36.sx, r35.sx
+0x0bc6  12916862260101300010     icmpsel ult, r36, r20, r19, 1, 0
+0x0bd0  124d668226668026         icmpsel ult, r19, r19, r20, r19, r20
+0x0bd8  0e514c6e67050000         isub r20, r38.sx, r59.sx
+0x0be0  1e51688666464600         imadd r20, r20.sx, r20.sx, r35.sx
+0x0be8  0e0d680e64160000         isub r35, r52.sx, r64.sx
+0x0bf0  1e0d466664000015         imadd r35, r35.sx, r35.sx, 0
+0x0bf8  0e556a4e64020000         isub r21, r21.sx, r66.sx
+0x0c00  1e556aa666464600         imadd r21, r21.sx, r21.sx, r35.sx
+0x0c08  128d6862260281241010     icmpsel ult, r35, r20, r19, 2, r36
+0x0c12  124d668226668026         icmpsel ult, r19, r19, r20, r19, r20
+0x0c1a  0e514cce67050000         isub r20, r38.sx, r62.sx
+0x0c22  1e516886666a0600         imadd r20, r20.sx, r20.sx, r21.sx
+0x0c2a  12cd6862260361241000     icmpsel ult, r19, r20, r19, 3, r35
+0x0c34  0e5150ae64010000         isub r20, r8.sx, r37.sx
+0x0c3c  1e51688666000000         imadd r20, r20.sx, r20.sx, 0
+0x0c44  0e556cae66010000         isub r21, r22.sx, r53.sx
+0x0c4c  1e516aa666680600         imadd r20, r21.sx, r21.sx, r20.sx
+0x0c54  0e5550ce66010000         isub r21, r8.sx, r54.sx
+0x0c5c  1e556aa666000000         imadd r21, r21.sx, r21.sx, 0
+0x0c64  0e0d6cee66110000         isub r35, r22.sx, r55.sx
+0x0c6c  1e554666646a0605         imadd r21, r35.sx, r35.sx, r21.sx
+0x0c74  0e0d4e0e67150000         isub r35, r39.sx, r56.sx
+0x0c7c  1e51466664680605         imadd r20, r35.sx, r35.sx, r20.sx
+0x0c84  0e0d4e4e67150000         isub r35, r39.sx, r58.sx
+0x0c8c  1e554666646a0605         imadd r21, r35.sx, r35.sx, r21.sx
+0x0c94  0e0d508e67110000         isub r35, r8.sx, r60.sx
+0x0c9c  1e0d466664000015         imadd r35, r35.sx, r35.sx, 0
+0x0ca4  0e116cae67110000         isub r36, r22.sx, r61.sx
+0x0cac  1e0d488664464615         imadd r35, r36.sx, r36.sx, r35.sx
+0x0cb4  12916a82260101300010     icmpsel ult, r36, r21, r20, 1, 0
+0x0cbe  125168a22668a026         icmpsel ult, r20, r20, r21, r20, r21
+0x0cc6  0e554e6e67050000         isub r21, r39.sx, r59.sx
+0x0cce  1e556aa666464600         imadd r21, r21.sx, r21.sx, r35.sx
+0x0cd6  0e21500e64020000         isub r8, r8.sx, r64.sx
+0x0cde  1e21500665000000         imadd r8, r8.sx, r8.sx, 0
+0x0ce6  0e596c4e64020000         isub r22, r22.sx, r66.sx
+0x0cee  1e216cc666500600         imadd r8, r22.sx, r22.sx, r8.sx
+0x0cf6  12d96a82260281241000     icmpsel ult, r22, r21, r20, 2, r36
+0x0d00  125168a22668a026         icmpsel ult, r20, r20, r21, r20, r21
+0x0d08  0e554ece67050000         isub r21, r39.sx, r62.sx
+0x0d10  1e216aa666500600         imadd r8, r21.sx, r21.sx, r8.sx
+0x0d18  122150822603c126         icmpsel ult, r8, r8, r20, 3, r22
+0x0d20  0e5152ae64010000         isub r20, r9.sx, r37.sx
+0x0d28  1e51688666000000         imadd r20, r20.sx, r20.sx, 0
+0x0d30  0e556eae66010000         isub r21, r23.sx, r53.sx
+0x0d38  1e516aa666680600         imadd r20, r21.sx, r21.sx, r20.sx
+0x0d40  0e5552ce66010000         isub r21, r9.sx, r54.sx
+0x0d48  1e556aa666000000         imadd r21, r21.sx, r21.sx, 0
+0x0d50  0e596eee66010000         isub r22, r23.sx, r55.sx
+0x0d58  1e556cc6666a0600         imadd r21, r22.sx, r22.sx, r21.sx
+0x0d60  0e59500e67050000         isub r22, r40.sx, r56.sx
+0x0d68  1e516cc666680600         imadd r20, r22.sx, r22.sx, r20.sx
+0x0d70  0e59504e67050000         isub r22, r40.sx, r58.sx
+0x0d78  1e556cc6666a0600         imadd r21, r22.sx, r22.sx, r21.sx
+0x0d80  0e59528e67010000         isub r22, r9.sx, r60.sx
+0x0d88  1e596cc666000000         imadd r22, r22.sx, r22.sx, 0
+0x0d90  0e0d6eae67110000         isub r35, r23.sx, r61.sx
+0x0d98  1e594666646c0605         imadd r22, r35.sx, r35.sx, r22.sx
+0x0da0  128d6a82260101300010     icmpsel ult, r35, r21, r20, 1, 0
+0x0daa  125168a22668a026         icmpsel ult, r20, r20, r21, r20, r21
+0x0db2  0e55506e67050000         isub r21, r40.sx, r59.sx
+0x0dba  1e556aa6666c0600         imadd r21, r21.sx, r21.sx, r22.sx
+0x0dc2  0e25520e64020000         isub r9, r9.sx, r64.sx
+0x0dca  1e25522665000000         imadd r9, r9.sx, r9.sx, 0
+0x0dd2  0e596e4e64020000         isub r22, r23.sx, r66.sx
+0x0dda  1e256cc666520600         imadd r9, r22.sx, r22.sx, r9.sx
+0x0de2  12d96a82260261241000     icmpsel ult, r22, r21, r20, 2, r35
+0x0dec  125168a22668a026         icmpsel ult, r20, r20, r21, r20, r21
+0x0df4  0e5550ce67050000         isub r21, r40.sx, r62.sx
+0x0dfc  1e256aa666520600         imadd r9, r21.sx, r21.sx, r9.sx
+0x0e04  122552822603c126         icmpsel ult, r9, r9, r20, 3, r22
+0x0e0c  0e514eae64010000         isub r20, r7.sx, r37.sx
+0x0e14  1e51688666000000         imadd r20, r20.sx, r20.sx, 0
+0x0e1c  0e5570ae66010000         isub r21, r24.sx, r53.sx
+0x0e24  1e516aa666680600         imadd r20, r21.sx, r21.sx, r20.sx
+0x0e2c  0e554ece66010000         isub r21, r7.sx, r54.sx
+0x0e34  1e556aa666000000         imadd r21, r21.sx, r21.sx, 0
+0x0e3c  0e5970ee66010000         isub r22, r24.sx, r55.sx
+0x0e44  1e556cc6666a0600         imadd r21, r22.sx, r22.sx, r21.sx
+0x0e4c  0e59520e67050000         isub r22, r41.sx, r56.sx
+0x0e54  1e516cc666680600         imadd r20, r22.sx, r22.sx, r20.sx
+0x0e5c  0e59524e67050000         isub r22, r41.sx, r58.sx
+0x0e64  1e556cc6666a0600         imadd r21, r22.sx, r22.sx, r21.sx
+0x0e6c  0e594e8e67010000         isub r22, r7.sx, r60.sx
+0x0e74  1e596cc666000000         imadd r22, r22.sx, r22.sx, 0
+0x0e7c  0e5d70ae67010000         isub r23, r24.sx, r61.sx
+0x0e84  1e596ee6666c0600         imadd r22, r23.sx, r23.sx, r22.sx
+0x0e8c  125d6a8226010130         icmpsel ult, r23, r21, r20, 1, 0
+0x0e94  125168a22668a026         icmpsel ult, r20, r20, r21, r20, r21
+0x0e9c  0e55526e67050000         isub r21, r41.sx, r59.sx
+0x0ea4  1e556aa6666c0600         imadd r21, r21.sx, r21.sx, r22.sx
+0x0eac  0e1d4e0e64020000         isub r7, r7.sx, r64.sx
+0x0eb4  1e1d4ee664000000         imadd r7, r7.sx, r7.sx, 0
+0x0ebc  0e59704e64020000         isub r22, r24.sx, r66.sx
+0x0ec4  1e1d6cc6664e0600         imadd r7, r22.sx, r22.sx, r7.sx
+0x0ecc  12596a822602e126         icmpsel ult, r22, r21, r20, 2, r23
+0x0ed4  125168a22668a026         icmpsel ult, r20, r20, r21, r20, r21
+0x0edc  0e5552ce67050000         isub r21, r41.sx, r62.sx
+0x0ee4  1e1d6aa6664e0600         imadd r7, r21.sx, r21.sx, r7.sx
+0x0eec  121d4e822603c126         icmpsel ult, r7, r7, r20, 3, r22
+0x0ef4  0e5154ae64010000         isub r20, r10.sx, r37.sx
+0x0efc  1e51688666000000         imadd r20, r20.sx, r20.sx, 0
+0x0f04  0e5572ae66010000         isub r21, r25.sx, r53.sx
+0x0f0c  1e516aa666680600         imadd r20, r21.sx, r21.sx, r20.sx
+0x0f14  0e5554ce66010000         isub r21, r10.sx, r54.sx
+0x0f1c  1e556aa666000000         imadd r21, r21.sx, r21.sx, 0
+0x0f24  0e5972ee66010000         isub r22, r25.sx, r55.sx
+0x0f2c  1e556cc6666a0600         imadd r21, r22.sx, r22.sx, r21.sx
+0x0f34  0e59540e67050000         isub r22, r42.sx, r56.sx
+0x0f3c  1e516cc666680600         imadd r20, r22.sx, r22.sx, r20.sx
+0x0f44  0e59544e67050000         isub r22, r42.sx, r58.sx
+0x0f4c  1e556cc6666a0600         imadd r21, r22.sx, r22.sx, r21.sx
+0x0f54  0e59548e67010000         isub r22, r10.sx, r60.sx
+0x0f5c  1e596cc666000000         imadd r22, r22.sx, r22.sx, 0
+0x0f64  0e5d72ae67010000         isub r23, r25.sx, r61.sx
+0x0f6c  1e596ee6666c0600         imadd r22, r23.sx, r23.sx, r22.sx
+0x0f74  125d6a8226010130         icmpsel ult, r23, r21, r20, 1, 0
+0x0f7c  125168a22668a026         icmpsel ult, r20, r20, r21, r20, r21
+0x0f84  0e55546e67050000         isub r21, r42.sx, r59.sx
+0x0f8c  1e556aa6666c0600         imadd r21, r21.sx, r21.sx, r22.sx
+0x0f94  0e29540e64020000         isub r10, r10.sx, r64.sx
+0x0f9c  1e29544665000000         imadd r10, r10.sx, r10.sx, 0
+0x0fa4  0e59724e64020000         isub r22, r25.sx, r66.sx
+0x0fac  1e296cc666540600         imadd r10, r22.sx, r22.sx, r10.sx
+0x0fb4  12596a822602e126         icmpsel ult, r22, r21, r20, 2, r23
+0x0fbc  125168a22668a026         icmpsel ult, r20, r20, r21, r20, r21
+0x0fc4  0e5554ce67050000         isub r21, r42.sx, r62.sx
+0x0fcc  1e296aa666540600         imadd r10, r21.sx, r21.sx, r10.sx
+0x0fd4  122954822603c126         icmpsel ult, r10, r10, r20, 3, r22
+0x0fdc  0e5156ae64010000         isub r20, r11.sx, r37.sx
+0x0fe4  1e51688666000000         imadd r20, r20.sx, r20.sx, 0
+0x0fec  0e5574ae66010000         isub r21, r26.sx, r53.sx
+0x0ff4  1e516aa666680600         imadd r20, r21.sx, r21.sx, r20.sx
+0x0ffc  0e5556ce66010000         isub r21, r11.sx, r54.sx
+0x1004  1e556aa666000000         imadd r21, r21.sx, r21.sx, 0
+0x100c  0e5974ee66010000         isub r22, r26.sx, r55.sx
+0x1014  1e556cc6666a0600         imadd r21, r22.sx, r22.sx, r21.sx
+0x101c  0e59560e67050000         isub r22, r43.sx, r56.sx
+0x1024  1e516cc666680600         imadd r20, r22.sx, r22.sx, r20.sx
+0x102c  0e59564e67050000         isub r22, r43.sx, r58.sx
+0x1034  1e556cc6666a0600         imadd r21, r22.sx, r22.sx, r21.sx
+0x103c  0e59568e67010000         isub r22, r11.sx, r60.sx
+0x1044  1e596cc666000000         imadd r22, r22.sx, r22.sx, 0
+0x104c  0e5d74ae67010000         isub r23, r26.sx, r61.sx
+0x1054  1e596ee6666c0600         imadd r22, r23.sx, r23.sx, r22.sx
+0x105c  125d6a8226010130         icmpsel ult, r23, r21, r20, 1, 0
+0x1064  125168a22668a026         icmpsel ult, r20, r20, r21, r20, r21
+0x106c  0e55566e67050000         isub r21, r43.sx, r59.sx
+0x1074  1e556aa6666c0600         imadd r21, r21.sx, r21.sx, r22.sx
+0x107c  0e2d560e64020000         isub r11, r11.sx, r64.sx
+0x1084  1e2d566665000000         imadd r11, r11.sx, r11.sx, 0
+0x108c  0e59744e64020000         isub r22, r26.sx, r66.sx
+0x1094  1e2d6cc666560600         imadd r11, r22.sx, r22.sx, r11.sx
+0x109c  12596a822602e126         icmpsel ult, r22, r21, r20, 2, r23
+0x10a4  125168a22668a026         icmpsel ult, r20, r20, r21, r20, r21
+0x10ac  0e5556ce67050000         isub r21, r43.sx, r62.sx
+0x10b4  1e2d6aa666560600         imadd r11, r21.sx, r21.sx, r11.sx
+0x10bc  122d56822603c126         icmpsel ult, r11, r11, r20, 3, r22
+0x10c4  0e5158ae64010000         isub r20, r12.sx, r37.sx
+0x10cc  1e51688666000000         imadd r20, r20.sx, r20.sx, 0
+0x10d4  0e5576ae66010000         isub r21, r27.sx, r53.sx
+0x10dc  1e516aa666680600         imadd r20, r21.sx, r21.sx, r20.sx
+0x10e4  0e5558ce66010000         isub r21, r12.sx, r54.sx
+0x10ec  1e556aa666000000         imadd r21, r21.sx, r21.sx, 0
+0x10f4  0e5976ee66010000         isub r22, r27.sx, r55.sx
+0x10fc  1e556cc6666a0600         imadd r21, r22.sx, r22.sx, r21.sx
+0x1104  0e59580e67050000         isub r22, r44.sx, r56.sx
+0x110c  1e516cc666680600         imadd r20, r22.sx, r22.sx, r20.sx
+0x1114  0e59584e67050000         isub r22, r44.sx, r58.sx
+0x111c  1e556cc6666a0600         imadd r21, r22.sx, r22.sx, r21.sx
+0x1124  0e59588e67010000         isub r22, r12.sx, r60.sx
+0x112c  1e596cc666000000         imadd r22, r22.sx, r22.sx, 0
+0x1134  0e5d76ae67010000         isub r23, r27.sx, r61.sx
+0x113c  1e596ee6666c0600         imadd r22, r23.sx, r23.sx, r22.sx
+0x1144  125d6a8226010130         icmpsel ult, r23, r21, r20, 1, 0
+0x114c  125168a22668a026         icmpsel ult, r20, r20, r21, r20, r21
+0x1154  0e55586e67050000         isub r21, r44.sx, r59.sx
+0x115c  1e556aa6666c0600         imadd r21, r21.sx, r21.sx, r22.sx
+0x1164  0e31580e64020000         isub r12, r12.sx, r64.sx
+0x116c  1e31588665000000         imadd r12, r12.sx, r12.sx, 0
+0x1174  0e59764e64020000         isub r22, r27.sx, r66.sx
+0x117c  1e316cc666580600         imadd r12, r22.sx, r22.sx, r12.sx
+0x1184  12596a822602e126         icmpsel ult, r22, r21, r20, 2, r23
+0x118c  125168a22668a026         icmpsel ult, r20, r20, r21, r20, r21
+0x1194  0e5558ce67050000         isub r21, r44.sx, r62.sx
+0x119c  1e316aa666580600         imadd r12, r21.sx, r21.sx, r12.sx
+0x11a4  123158822603c126         icmpsel ult, r12, r12, r20, 3, r22
+0x11ac  0e514aae64010000         isub r20, r5.sx, r37.sx
+0x11b4  1e51688666000000         imadd r20, r20.sx, r20.sx, 0
+0x11bc  0e5578ae66010000         isub r21, r28.sx, r53.sx
+0x11c4  1e516aa666680600         imadd r20, r21.sx, r21.sx, r20.sx
+0x11cc  0e554ace66010000         isub r21, r5.sx, r54.sx
+0x11d4  1e556aa666000000         imadd r21, r21.sx, r21.sx, 0
+0x11dc  0e5978ee66010000         isub r22, r28.sx, r55.sx
+0x11e4  1e556cc6666a0600         imadd r21, r22.sx, r22.sx, r21.sx
+0x11ec  0e595a0e67050000         isub r22, r45.sx, r56.sx
+0x11f4  1e516cc666680600         imadd r20, r22.sx, r22.sx, r20.sx
+0x11fc  0e595a4e67050000         isub r22, r45.sx, r58.sx
+0x1204  1e556cc6666a0600         imadd r21, r22.sx, r22.sx, r21.sx
+0x120c  0e594a8e67010000         isub r22, r5.sx, r60.sx
+0x1214  1e596cc666000000         imadd r22, r22.sx, r22.sx, 0
+0x121c  0e5d78ae67010000         isub r23, r28.sx, r61.sx
+0x1224  1e596ee6666c0600         imadd r22, r23.sx, r23.sx, r22.sx
+0x122c  125d6a8226010130         icmpsel ult, r23, r21, r20, 1, 0
+0x1234  125168a22668a026         icmpsel ult, r20, r20, r21, r20, r21
+0x123c  0e555a6e67050000         isub r21, r45.sx, r59.sx
+0x1244  1e556aa6666c0600         imadd r21, r21.sx, r21.sx, r22.sx
+0x124c  0e154a0e64020000         isub r5, r5.sx, r64.sx
+0x1254  1e154aa664000000         imadd r5, r5.sx, r5.sx, 0
+0x125c  0e59784e64020000         isub r22, r28.sx, r66.sx
+0x1264  1e156cc6664a0600         imadd r5, r22.sx, r22.sx, r5.sx
+0x126c  12596a822602e126         icmpsel ult, r22, r21, r20, 2, r23
+0x1274  125168a22668a026         icmpsel ult, r20, r20, r21, r20, r21
+0x127c  0e555ace67050000         isub r21, r45.sx, r62.sx
+0x1284  1e156aa6664a0600         imadd r5, r21.sx, r21.sx, r5.sx
+0x128c  12154a822603c126         icmpsel ult, r5, r5, r20, 3, r22
+0x1294  0e515aae64010000         isub r20, r13.sx, r37.sx
+0x129c  1e51688666000000         imadd r20, r20.sx, r20.sx, 0
+0x12a4  0e557aae66010000         isub r21, r29.sx, r53.sx
+0x12ac  1e516aa666680600         imadd r20, r21.sx, r21.sx, r20.sx
+0x12b4  0e555ace66010000         isub r21, r13.sx, r54.sx
+0x12bc  1e556aa666000000         imadd r21, r21.sx, r21.sx, 0
+0x12c4  0e597aee66010000         isub r22, r29.sx, r55.sx
+0x12cc  1e556cc6666a0600         imadd r21, r22.sx, r22.sx, r21.sx
+0x12d4  0e595c0e67050000         isub r22, r46.sx, r56.sx
+0x12dc  1e516cc666680600         imadd r20, r22.sx, r22.sx, r20.sx
+0x12e4  0e595c4e67050000         isub r22, r46.sx, r58.sx
+0x12ec  1e556cc6666a0600         imadd r21, r22.sx, r22.sx, r21.sx
+0x12f4  0e595a8e67010000         isub r22, r13.sx, r60.sx
+0x12fc  1e596cc666000000         imadd r22, r22.sx, r22.sx, 0
+0x1304  0e5d7aae67010000         isub r23, r29.sx, r61.sx
+0x130c  1e596ee6666c0600         imadd r22, r23.sx, r23.sx, r22.sx
+0x1314  125d6a8226010130         icmpsel ult, r23, r21, r20, 1, 0
+0x131c  125168a22668a026         icmpsel ult, r20, r20, r21, r20, r21
+0x1324  0e555c6e67050000         isub r21, r46.sx, r59.sx
+0x132c  1e556aa6666c0600         imadd r21, r21.sx, r21.sx, r22.sx
+0x1334  0e355a0e64020000         isub r13, r13.sx, r64.sx
+0x133c  1e355aa665000000         imadd r13, r13.sx, r13.sx, 0
+0x1344  0e597a4e64020000         isub r22, r29.sx, r66.sx
+0x134c  1e356cc6665a0600         imadd r13, r22.sx, r22.sx, r13.sx
+0x1354  12596a822602e126         icmpsel ult, r22, r21, r20, 2, r23
+0x135c  125168a22668a026         icmpsel ult, r20, r20, r21, r20, r21
+0x1364  0e555cce67050000         isub r21, r46.sx, r62.sx
+0x136c  1e356aa6665a0600         imadd r13, r21.sx, r21.sx, r13.sx
+0x1374  12355a822603c126         icmpsel ult, r13, r13, r20, 3, r22
+0x137c  0e515cae64010000         isub r20, r14.sx, r37.sx
+0x1384  1e51688666000000         imadd r20, r20.sx, r20.sx, 0
+0x138c  0e557cae66010000         isub r21, r30.sx, r53.sx
+0x1394  1e516aa666680600         imadd r20, r21.sx, r21.sx, r20.sx
+0x139c  0e555cce66010000         isub r21, r14.sx, r54.sx
+0x13a4  1e556aa666000000         imadd r21, r21.sx, r21.sx, 0
+0x13ac  0e597cee66010000         isub r22, r30.sx, r55.sx
+0x13b4  1e556cc6666a0600         imadd r21, r22.sx, r22.sx, r21.sx
+0x13bc  0e595e0e67050000         isub r22, r47.sx, r56.sx
+0x13c4  1e516cc666680600         imadd r20, r22.sx, r22.sx, r20.sx
+0x13cc  0e595e4e67050000         isub r22, r47.sx, r58.sx
+0x13d4  1e556cc6666a0600         imadd r21, r22.sx, r22.sx, r21.sx
+0x13dc  0e595c8e67010000         isub r22, r14.sx, r60.sx
+0x13e4  1e596cc666000000         imadd r22, r22.sx, r22.sx, 0
+0x13ec  0e5d7cae67010000         isub r23, r30.sx, r61.sx
+0x13f4  1e596ee6666c0600         imadd r22, r23.sx, r23.sx, r22.sx
+0x13fc  125d6a8226010130         icmpsel ult, r23, r21, r20, 1, 0
+0x1404  125168a22668a026         icmpsel ult, r20, r20, r21, r20, r21
+0x140c  0e555e6e67050000         isub r21, r47.sx, r59.sx
+0x1414  1e556aa6666c0600         imadd r21, r21.sx, r21.sx, r22.sx
+0x141c  0e395c0e64020000         isub r14, r14.sx, r64.sx
+0x1424  1e395cc665000000         imadd r14, r14.sx, r14.sx, 0
+0x142c  0e597c4e64020000         isub r22, r30.sx, r66.sx
+0x1434  1e396cc6665c0600         imadd r14, r22.sx, r22.sx, r14.sx
+0x143c  12596a822602e126         icmpsel ult, r22, r21, r20, 2, r23
+0x1444  125168a22668a026         icmpsel ult, r20, r20, r21, r20, r21
+0x144c  0e555ece67050000         isub r21, r47.sx, r62.sx
+0x1454  1e396aa6665c0600         imadd r14, r21.sx, r21.sx, r14.sx
+0x145c  12395c822603c126         icmpsel ult, r14, r14, r20, 3, r22
+0x1464  0e515eae64010000         isub r20, r15.sx, r37.sx
+0x146c  1e51688666000000         imadd r20, r20.sx, r20.sx, 0
+0x1474  0e557eae66010000         isub r21, r31.sx, r53.sx
+0x147c  1e516aa666680600         imadd r20, r21.sx, r21.sx, r20.sx
+0x1484  0e555ece66010000         isub r21, r15.sx, r54.sx
+0x148c  1e556aa666000000         imadd r21, r21.sx, r21.sx, 0
+0x1494  0e597eee66010000         isub r22, r31.sx, r55.sx
+0x149c  1e556cc6666a0600         imadd r21, r22.sx, r22.sx, r21.sx
+0x14a4  0e59600e67050000         isub r22, r48.sx, r56.sx
+0x14ac  1e516cc666680600         imadd r20, r22.sx, r22.sx, r20.sx
+0x14b4  0e59604e67050000         isub r22, r48.sx, r58.sx
+0x14bc  1e556cc6666a0600         imadd r21, r22.sx, r22.sx, r21.sx
+0x14c4  0e595e8e67010000         isub r22, r15.sx, r60.sx
+0x14cc  1e596cc666000000         imadd r22, r22.sx, r22.sx, 0
+0x14d4  0e5d7eae67010000         isub r23, r31.sx, r61.sx
+0x14dc  1e596ee6666c0600         imadd r22, r23.sx, r23.sx, r22.sx
+0x14e4  125d6a8226010130         icmpsel ult, r23, r21, r20, 1, 0
+0x14ec  125168a22668a026         icmpsel ult, r20, r20, r21, r20, r21
+0x14f4  0e55606e67050000         isub r21, r48.sx, r59.sx
+0x14fc  1e556aa6666c0600         imadd r21, r21.sx, r21.sx, r22.sx
+0x1504  0e3d5e0e64020000         isub r15, r15.sx, r64.sx
+0x150c  1e3d5ee665000000         imadd r15, r15.sx, r15.sx, 0
+0x1514  0e597e4e64020000         isub r22, r31.sx, r66.sx
+0x151c  1e3d6cc6665e0600         imadd r15, r22.sx, r22.sx, r15.sx
+0x1524  12596a822602e126         icmpsel ult, r22, r21, r20, 2, r23
+0x152c  125168a22668a026         icmpsel ult, r20, r20, r21, r20, r21
+0x1534  0e5560ce67050000         isub r21, r48.sx, r62.sx
+0x153c  1e3d6aa6665e0600         imadd r15, r21.sx, r21.sx, r15.sx
+0x1544  123d5e822603c126         icmpsel ult, r15, r15, r20, 3, r22
+0x154c  0e514cae64010000         isub r20, r6.sx, r37.sx
+0x1554  1e51688666000000         imadd r20, r20.sx, r20.sx, 0
+0x155c  0e5540ae66050000         isub r21, r32.sx, r53.sx
+0x1564  1e516aa666680600         imadd r20, r21.sx, r21.sx, r20.sx
+0x156c  0e554cce66010000         isub r21, r6.sx, r54.sx
+0x1574  1e556aa666000000         imadd r21, r21.sx, r21.sx, 0
+0x157c  0e5940ee66050000         isub r22, r32.sx, r55.sx
+0x1584  1e556cc6666a0600         imadd r21, r22.sx, r22.sx, r21.sx
+0x158c  0e59620e67050000         isub r22, r49.sx, r56.sx
+0x1594  1e516cc666680600         imadd r20, r22.sx, r22.sx, r20.sx
+0x159c  0e59624e67050000         isub r22, r49.sx, r58.sx
+0x15a4  1e556cc6666a0600         imadd r21, r22.sx, r22.sx, r21.sx
+0x15ac  0e594c8e67010000         isub r22, r6.sx, r60.sx
+0x15b4  1e596cc666000000         imadd r22, r22.sx, r22.sx, 0
+0x15bc  0e5d40ae67050000         isub r23, r32.sx, r61.sx
+0x15c4  1e596ee6666c0600         imadd r22, r23.sx, r23.sx, r22.sx
+0x15cc  125d6a8226010130         icmpsel ult, r23, r21, r20, 1, 0
+0x15d4  125168a22668a026         icmpsel ult, r20, r20, r21, r20, r21
+0x15dc  0e55626e67050000         isub r21, r49.sx, r59.sx
+0x15e4  1e556aa6666c0600         imadd r21, r21.sx, r21.sx, r22.sx
+0x15ec  0e194c0e64020000         isub r6, r6.sx, r64.sx
+0x15f4  1e194cc664000000         imadd r6, r6.sx, r6.sx, 0
+0x15fc  0e59404e64060000         isub r22, r32.sx, r66.sx
+0x1604  1e196cc6664c0600         imadd r6, r22.sx, r22.sx, r6.sx
+0x160c  12596a822602e126         icmpsel ult, r22, r21, r20, 2, r23
+0x1614  125168a22668a026         icmpsel ult, r20, r20, r21, r20, r21
+0x161c  0e5562ce67050000         isub r21, r49.sx, r62.sx
+0x1624  1e196aa6664c0600         imadd r6, r21.sx, r21.sx, r6.sx
+0x162c  12194c822603c126         icmpsel ult, r6, r6, r20, 3, r22
+0x1634  0e5160ae64010000         isub r20, r16.sx, r37.sx
+0x163c  1e51688666000000         imadd r20, r20.sx, r20.sx, 0
+0x1644  0e5542ae66050000         isub r21, r33.sx, r53.sx
+0x164c  1e516aa666680600         imadd r20, r21.sx, r21.sx, r20.sx
+0x1654  0e5560ce66010000         isub r21, r16.sx, r54.sx
+0x165c  1e556aa666000000         imadd r21, r21.sx, r21.sx, 0
+0x1664  0e5942ee66050000         isub r22, r33.sx, r55.sx
+0x166c  1e556cc6666a0600         imadd r21, r22.sx, r22.sx, r21.sx
+0x1674  0e59640e67050000         isub r22, r50.sx, r56.sx
+0x167c  1e516cc666680600         imadd r20, r22.sx, r22.sx, r20.sx
+0x1684  0e59644e67050000         isub r22, r50.sx, r58.sx
+0x168c  1e556cc6666a0600         imadd r21, r22.sx, r22.sx, r21.sx
+0x1694  0e59608e67010000         isub r22, r16.sx, r60.sx
+0x169c  1e596cc666000000         imadd r22, r22.sx, r22.sx, 0
+0x16a4  0e5d42ae67050000         isub r23, r33.sx, r61.sx
+0x16ac  1e596ee6666c0600         imadd r22, r23.sx, r23.sx, r22.sx
+0x16b4  125d6a8226010130         icmpsel ult, r23, r21, r20, 1, 0
+0x16bc  125168a22668a026         icmpsel ult, r20, r20, r21, r20, r21
+0x16c4  0e55646e67050000         isub r21, r50.sx, r59.sx
+0x16cc  1e556aa6666c0600         imadd r21, r21.sx, r21.sx, r22.sx
+0x16d4  0e41600e64020000         isub r16, r16.sx, r64.sx
+0x16dc  1e41600666000000         imadd r16, r16.sx, r16.sx, 0
+0x16e4  0e59424e64060000         isub r22, r33.sx, r66.sx
+0x16ec  1e416cc666600600         imadd r16, r22.sx, r22.sx, r16.sx
+0x16f4  12596a822602e126         icmpsel ult, r22, r21, r20, 2, r23
+0x16fc  125168a22668a026         icmpsel ult, r20, r20, r21, r20, r21
+0x1704  0e5564ce67050000         isub r21, r50.sx, r62.sx
+0x170c  1e416aa666600600         imadd r16, r21.sx, r21.sx, r16.sx
+0x1714  124160822603c126         icmpsel ult, r16, r16, r20, 3, r22
+0x171c  0e5162ae64010000         isub r20, r17.sx, r37.sx
+0x1724  1e51688666000000         imadd r20, r20.sx, r20.sx, 0
+0x172c  0e5544ae66050000         isub r21, r34.sx, r53.sx
+0x1734  1e516aa666680600         imadd r20, r21.sx, r21.sx, r20.sx
+0x173c  0e5562ce66010000         isub r21, r17.sx, r54.sx
+0x1744  1e556aa666000000         imadd r21, r21.sx, r21.sx, 0
+0x174c  0e5944ee66050000         isub r22, r34.sx, r55.sx
+0x1754  1e556cc6666a0600         imadd r21, r22.sx, r22.sx, r21.sx
+0x175c  0e59660e67050000         isub r22, r51.sx, r56.sx
+0x1764  1e516cc666680600         imadd r20, r22.sx, r22.sx, r20.sx
+0x176c  0e59664e67050000         isub r22, r51.sx, r58.sx
+0x1774  1e556cc6666a0600         imadd r21, r22.sx, r22.sx, r21.sx
+0x177c  0e59628e67010000         isub r22, r17.sx, r60.sx
+0x1784  1e596cc666000000         imadd r22, r22.sx, r22.sx, 0
+0x178c  0e5d44ae67050000         isub r23, r34.sx, r61.sx
+0x1794  1e596ee6666c0600         imadd r22, r23.sx, r23.sx, r22.sx
+0x179c  0e45620e64020000         isub r17, r17.sx, r64.sx
+0x17a4  0e5d444e64060000         isub r23, r34.sx, r66.sx
+0x17ac  12616a8226010130         icmpsel ult, r24, r21, r20, 1, 0
+0x17b4  125168a22668a026         icmpsel ult, r20, r20, r21, r20, r21
+0x17bc  0e55666e67050000         isub r21, r51.sx, r59.sx
+0x17c4  1e556aa6666c0600         imadd r21, r21.sx, r21.sx, r22.sx
+0x17cc  1e45622666000000         imadd r17, r17.sx, r17.sx, 0
+0x17d4  1e456ee666620600         imadd r17, r23.sx, r23.sx, r17.sx
+0x17dc  0e5966ce67050000         isub r22, r51.sx, r62.sx
+0x17e4  125d6a8226020127         icmpsel ult, r23, r21, r20, 2, r24
+0x17ec  125168a22668a026         icmpsel ult, r20, r20, r21, r20, r21
+0x17f4  1e456cc666620600         imadd r17, r22.sx, r22.sx, r17.sx
+0x17fc  124562822603e126         icmpsel ult, r17, r17, r20, 3, r23
+0x1804  0e0d006064001000         iadd r3, 0, r3.sx, lsl 2
+0x180c  7e0d646ae400             or r3, r18, r3
+0x1812  0e49006066002000         iadd r18, 0, r19.sx, lsl 4
+0x181a  7e0d464ae600             or r3, r3, r18
+0x1820  2e21000025060000         bfi r8, 0, r8, 6
+0x1828  7e0d460ae500             or r3, r3, r8
+0x182e  2e21002025080000         bfi r8, 0, r9, 8
+0x1836  7e0d460ae500             or r3, r3, r8
+0x183c  2e1d00e0240a0000         bfi r7, 0, r7, 10
+0x1844  7e0d46eae400             or r3, r3, r7
+0x184a  2e1d0040250c0000         bfi r7, 0, r10, 12
+0x1852  7e0d46eae400             or r3, r3, r7
+0x1858  2e1d0060250e0000         bfi r7, 0, r11, 14
+0x1860  7e0d46eae400             or r3, r3, r7
+0x1866  2e1d008025100000         bfi r7, 0, r12, 16
+0x186e  7e0d46eae400             or r3, r3, r7
+0x1874  2e1500a024120000         bfi r5, 0, r5, 18
+0x187c  7e0d46aae400             or r3, r3, r5
+0x1882  2e1500a025140000         bfi r5, 0, r13, 20
+0x188a  7e0d46aae400             or r3, r3, r5
+0x1890  2e1500c025160000         bfi r5, 0, r14, 22
+0x1898  7e0d46aae400             or r3, r3, r5
+0x189e  2e1500e025180000         bfi r5, 0, r15, 24
+0x18a6  7e0d46aae400             or r3, r3, r5
+0x18ac  2e1500c0241a0000         bfi r5, 0, r6, 26
+0x18b4  7e0d46aae400             or r3, r3, r5
+0x18ba  2e150000261c0000         bfi r5, 0, r16, 28
+0x18c2  7e0d46aae400             or r3, r3, r5
+0x18c8  2e150020261e0000         bfi r5, 0, r17, 30
+0x18d0  7e0d46aae400             or r3, r3, r5
+0x18d6  420a00000000             else_fcmp r0l, eq, 0.0, 0.0, 1
+0x18dc  620d00000000             mov_imm r3, 0, 0b0
+0x18e2  520e00000000             pop_exec r0l, 1
+0x18e8  2e09004024100000         bfi r2, 0, r2, 16
+0x18f0  7e09484ae400             or r2, r4, r2
+0x18f6  4511280e10c43200         device_store 0, i32, xy, r2_r3, u12_u13, r1, unsigned, lsl 1, 0
+0x18fe  3800                     wait 0
+0x1900  520e00000000             pop_exec r0l, 1
+0x1906  8800                     stop

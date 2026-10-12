@@ -682,6 +682,48 @@ def w_shiftfuse(size, rng):
     return W('shiftfuse', {0: (inp, False), 1: (40 * n, True)}, [((n + 63) // 64, 1, 1, push(n))], check, 64, {'items': n})
 
 
+def bc1_ref(img):
+    """BC1 encode of an RGB image [H, W, 3] (uint8) as bc1enc.comp: returns blocks [H/4 * W/4, 2] uint32"""
+    H, Wd, _ = img.shape
+    t = img.reshape(H // 4, 4, Wd // 4, 4, 3).transpose(0, 2, 1, 3, 4).reshape(-1, 16, 3).astype(np.int64)
+    lo, hi = t.min(1), t.max(1)
+    q = lambda v, m: (v * m + 127) // 255
+    c565 = lambda c: (q(c[:, 0], 31) << 11) | (q(c[:, 1], 63) << 5) | q(c[:, 2], 31)
+    c0, c1 = c565(hi), c565(lo)
+    def expand(c):
+        r, g, b = c >> 11, (c >> 5) & 63, c & 31
+        return np.stack([(r << 3) | (r >> 2), (g << 2) | (g >> 4), (b << 3) | (b >> 2)], 1)
+    p0, p1 = expand(c0), expand(c1)
+    pal = np.stack([p0, p1, (2 * p0 + p1) // 3, (p0 + 2 * p1) // 3], 1)                 # [B, 4, 3]
+    err = ((t[:, :, None, :] - pal[:, None, :, :]) ** 2).sum(-1)                         # [B, 16, 4]
+    idx = np.argmin(err, -1)                                                              # first minimum
+    idx[c0 == c1] = 0
+    codes = (idx << (2 * np.arange(16))).sum(1)
+    return np.stack([c0 | (c1 << 16), codes], 1).astype(np.uint32), pal, idx
+
+
+def w_bc1enc(size, rng):
+    Wd, H = (64, 64) if size == 'small' else (2048, 2048)
+    ys, xs = np.mgrid[0:H, 0:Wd].astype(np.float64)
+    img = np.stack([128 + 100 * np.sin(xs / 37 + ys / 53), 128 + 90 * np.cos(xs / 23 - ys / 41), (xs + 2 * ys) % 256], -1)
+    for _ in range(40 if size == 'large' else 4):                                       # flat-coloured rectangles: edges
+        x0, y0 = rng.integers(0, Wd - 8), rng.integers(0, H - 8)
+        img[y0:y0 + rng.integers(4, Wd // 4), x0:x0 + rng.integers(4, Wd // 4)] = rng.integers(0, 256, 3)
+    img = np.clip(img + rng.normal(0, 4, img.shape), 0, 255).astype(np.uint8)
+    px = u32(img[..., 0].astype(np.uint32) | (img[..., 1].astype(np.uint32) << 8) | (img[..., 2].astype(np.uint32) << 16) | (255 << 24))
+    nb = (Wd // 4) * (H // 4)
+    def check(o):
+        ref, pal, idx = bc1_ref(img)
+        got = o[1].view(np.uint32)[:2 * nb].reshape(nb, 2)
+        bad = int(np.sum((got != ref).any(1)))
+        dec = pal[np.arange(nb)[:, None], idx]                                            # decoded texels [B, 16, 3]
+        t = img.reshape(H // 4, 4, Wd // 4, 4, 3).transpose(0, 2, 1, 3, 4).reshape(-1, 16, 3).astype(np.float64)
+        psnr = 10 * np.log10(255.0 ** 2 / np.mean((dec - t) ** 2))
+        return bad == 0, {'bad_blocks': bad, 'blocks': nb, 'psnr_db': round(float(psnr), 2)}
+    return W('bc1enc', {0: (px, False), 1: (8 * nb, True)}, [((nb + 63) // 64, 1, 1, push(Wd, H))], check, 64,
+             {'items': nb, 'bytes': 4 * Wd * H + 8 * nb})
+
+
 def w_spmv(size, rng):
     rows, cols = (512, 512) if size == 'small' else (1 << 18, 1 << 18)
     nnz = rng.integers(0, 64, rows) * (rng.random(rows) < 0.95)    # some empty rows
@@ -3211,7 +3253,7 @@ WORKLOADS = {'reduce': w_reduce, 'scan': w_scan, 'sgemm': w_sgemm, 'conv2d': w_c
              'aluprobe': w_aluprobe, 'ubopalette': w_ubopalette, 'uboparams': w_uboparams,
              'bindless': w_bindless, 'bindlessu': w_bindlessu,
              # appended only: the input seed is the index in this dict
-             'rle': w_rle, 'huffdec': w_huffdec, 'lookback': w_lookback, 'hll': w_hll, 'tricount': w_tricount, 'sha3': w_sha3, 'stereo': w_stereo, 'viterbi': w_viterbi, 'viterbifix': w_viterbifix, 'shiftfuse': w_shiftfuse}
+             'rle': w_rle, 'huffdec': w_huffdec, 'lookback': w_lookback, 'hll': w_hll, 'tricount': w_tricount, 'sha3': w_sha3, 'stereo': w_stereo, 'viterbi': w_viterbi, 'viterbifix': w_viterbifix, 'shiftfuse': w_shiftfuse, 'bc1enc': w_bc1enc}
 
 
 # ---------------------------------------------------------------------------------------------------------------
