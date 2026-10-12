@@ -711,16 +711,19 @@ pub fn mem_segments(f: &isa::Fields, st: &exec::CoreState) -> Option<Vec<u64>> {
         _ => 1,
     };
     let mask = if bit_packed { 0xF } else { g("mask")? };
+    // field lookups once per instruction (applied with `?` per lane as before: a missing field matters only
+    // when a lane is active)
+    let (f_at, f_a, f_ot, f_o, f_ou) = (g("At"), g("A"), g("Ot"), g("O"), g("Ou"));
     for t in 0..exec::SIMD_WIDTH {
         if !st.exec[t] {
             continue;
         }
-        let base = if g("At")? != 0 { st.ureg64((g("A")? >> 1) as usize).ok()? } else { st.get_reg64((g("A")? >> 1) as usize, t).ok()? };
-        let mut off: i128 = if g("Ot")? != 0 {
-            isa::desc::sign_extend(g("O")? as i128, 16)
+        let base = if f_at? != 0 { st.ureg64((f_a? >> 1) as usize).ok()? } else { st.get_reg64((f_a? >> 1) as usize, t).ok()? };
+        let mut off: i128 = if f_ot? != 0 {
+            isa::desc::sign_extend(f_o? as i128, 16)
         } else {
-            let o = st.get_reg32((g("O")? >> 1) as usize, t).ok()?;
-            if g("Ou")? == 0 { isa::desc::sign_extend(o, 32) } else { o }
+            let o = st.get_reg32((f_o? >> 1) as usize, t).ok()?;
+            if f_ou? == 0 { isa::desc::sign_extend(o, 32) } else { o }
         };
         off <<= shift;
         let a = base & !(item - 1);
