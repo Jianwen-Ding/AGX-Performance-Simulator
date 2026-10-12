@@ -1447,7 +1447,7 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
         for pass in 0..npass {
         for oi in 0..order.len() {
             let gi = order[oi];
-            if nxt[gi] >= npcs[gi] || tick_issued[gi] {
+            if nxt[gi] >= npcs[gi] || tick_issued[gi] || elig[gi / 64] >> (gi % 64) & 1 == 0 {
                 continue;
             }
             if free[gi] > t {
@@ -1482,21 +1482,23 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
                     sr
                 }
             };
-            if sr > t {
-                wake.push(sr);
+            // These three blocks depend only on this group's own state, which changes only when it issues:
+            // park the group in the heap until the block lifts (same wake time as rechecking every tick).
+            let blocked = if sr > t {
+                sr
+            } else if r.kind == Kind::Wait {
+                match slots[gi][r.slot] {
+                    Some(m) if m > t => m,
+                    _ if last_wait[gi] + wait_idle > t => last_wait[gi] + wait_idle,
+                    _ => 0,
+                }
+            } else {
+                0
+            };
+            if blocked > t {
+                elig[gi / 64] &= !(1 << (gi % 64));
+                busy.push(std::cmp::Reverse((blocked, gi)));
                 continue;
-            }
-            if r.kind == Kind::Wait {
-                if let Some(m) = slots[gi][r.slot] {
-                    if m > t {
-                        wake.push(m);
-                        continue;
-                    }
-                }
-                if last_wait[gi] + wait_idle > t {
-                    wake.push(last_wait[gi] + wait_idle);
-                    continue;
-                }
             }
             let home = gi % SCHEDULERS;
             let half = home % 2;
