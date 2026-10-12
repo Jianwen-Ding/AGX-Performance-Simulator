@@ -255,5 +255,5 @@ reference.
     - Each symbol depends on the previous one's code length (the bit position), so a thread's 256 symbols are one
       dependent chain of a shared-memory lookup, two device loads and an add. Throughput comes only from the
       number of resident threads.
-    - Predicted 258 µs for 4M symbols. A much larger M2 time would mean the shared-memory lookup latency, or the
+    - Predicted 257 µs for 4M symbols. A much larger M2 time would mean the shared-memory lookup latency, or the
       two unaligned word loads per peek, cost more in a dependent chain than the model assumes.

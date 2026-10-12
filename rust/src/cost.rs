@@ -1428,6 +1428,7 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
         Port(usize, f64),
     }
     let mut retest: Vec<Retest> = Vec::new();
+    let mut rt_at: Vec<usize> = vec![usize::MAX; buckets.len()];
     let mut bar_ver: u64 = 0;
     let mut bar_none_at: Vec<u64> = vec![u64::MAX; g];
     let mut unblocked = vec![false; g];
@@ -1489,6 +1490,11 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
             }
         }
         wake.clear();
+        for x in &retest {
+            if let Retest::Bucket(b, _) = *x {
+                rt_at[b] = usize::MAX;
+            }
+        }
         retest.clear();
         let mut ff_ok = true;
         let mut wmin_time = i64::MAX;
@@ -1595,7 +1601,20 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
                 // (the token test first: the forwarding count only matters once the unit has a token)
                 if tok[b].unwrap() < r.cost {
                     wake.push(t + 1);
-                    retest.push(Retest::Bucket(b, r.cost));
+                    // one entry per bucket with the least cost: any(tok >= c_i) is tok >= min(c_i)
+                    match rt_at[b] {
+                        usize::MAX => {
+                            rt_at[b] = retest.len();
+                            retest.push(Retest::Bucket(b, r.cost));
+                        }
+                        k => {
+                            if let Retest::Bucket(_, c) = &mut retest[k] {
+                                if r.cost < *c {
+                                    *c = r.cost;
+                                }
+                            }
+                        }
+                    }
                     continue;
                 }
                 need = r.need_port;

@@ -2951,7 +2951,7 @@ def w_bindlessu(size, rng):
 
 WORKLOADS = {'reduce': w_reduce, 'scan': w_scan, 'sgemm': w_sgemm, 'conv2d': w_conv2d, 'histogram': w_histogram,
              'nbody': w_nbody, 'bitonic': w_bitonic, 'sha256': w_sha256, 'fp16': w_fp16, 'int64': w_int64, 'bitops': w_bitops,
-             'intdiv': w_intdiv, 'compact': w_compact, 'rle': w_rle, 'huffdec': w_huffdec, 'spmv': w_spmv, 'transpose': w_transpose, 'mandelbrot': w_mandelbrot,
+             'intdiv': w_intdiv, 'compact': w_compact, 'spmv': w_spmv, 'transpose': w_transpose, 'mandelbrot': w_mandelbrot,
              'softmax': w_softmax, 'rgba8': w_rgba8, 'atomics': w_atomics, 'geom3d': w_geom3d, 'spill': w_spill,
              'control': w_control, 'shuffle': w_shuffle, 'floatops': w_floatops, 'radix_sort': w_radix_sort, 'fft': w_fft,
              'crc32': w_crc32, 'kmeans': w_kmeans, 'int8dot': w_int8dot, 'stencil3d': w_stencil3d, 'int16': w_int16, 'trig': w_trig,
@@ -2981,7 +2981,9 @@ WORKLOADS = {'reduce': w_reduce, 'scan': w_scan, 'sgemm': w_sgemm, 'conv2d': w_c
              'smembank': w_smembank, 'coalesce': w_coalesce,
              'atomcontend': w_atomcontend, 'barriercost': w_barriercost,
              'aluprobe': w_aluprobe, 'ubopalette': w_ubopalette, 'uboparams': w_uboparams,
-             'bindless': w_bindless, 'bindlessu': w_bindlessu}
+             'bindless': w_bindless, 'bindlessu': w_bindlessu,
+             # appended only: the input seed is the index in this dict
+             'rle': w_rle, 'huffdec': w_huffdec}
 
 
 # ---------------------------------------------------------------------------------------------------------------
