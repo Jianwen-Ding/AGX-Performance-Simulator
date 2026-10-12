@@ -1278,6 +1278,16 @@ def w_attndec(size, rng):
              {'bytes': 2 * k.nbytes, 'flops': 4 * heads * seq * 128}, requires=['storage_buffer_16bit'])
 
 
+def w_attndecsplit(size, rng):
+    w = w_attndec(size, rng)
+    heads, seq = (4, 256) if size == 'small' else (32, 4096)
+    nch = seq // 256
+    w.shader = 'attndecsplit'
+    w.buffers[4] = (8 * heads * nch, False); w.buffers[5] = (4 * 128 * heads * nch, False)
+    w.dispatches = [(heads * nch, 1, 1, push(0, seq)), (heads, 1, 1, push(1, seq))]
+    return w
+
+
 def w_spmv(size, rng):
     rows, cols = (512, 512) if size == 'small' else (1 << 18, 1 << 18)
     nnz = rng.integers(0, 64, rows) * (rng.random(rows) < 0.95)    # some empty rows
@@ -3807,7 +3817,7 @@ WORKLOADS = {'reduce': w_reduce, 'scan': w_scan, 'sgemm': w_sgemm, 'conv2d': w_c
              'aluprobe': w_aluprobe, 'ubopalette': w_ubopalette, 'uboparams': w_uboparams,
              'bindless': w_bindless, 'bindlessu': w_bindlessu,
              # appended only: the input seed is the index in this dict
-             'rle': w_rle, 'huffdec': w_huffdec, 'lookback': w_lookback, 'hll': w_hll, 'tricount': w_tricount, 'sha3': w_sha3, 'stereo': w_stereo, 'viterbi': w_viterbi, 'viterbifix': w_viterbifix, 'shiftfuse': w_shiftfuse, 'bc1enc': w_bc1enc, 'lz4dec': w_lz4dec, 'nttmul': w_nttmul, 'topk': w_topk, 'cellsort': w_cellsort, 'boruvka': w_boruvka, 'biquad': w_biquad, 'edt': w_edt, 'mt19937': w_mt19937, 'bitap': w_bitap, 'cholesky': w_cholesky, 'rsshash': w_rsshash, 'poly1305': w_poly1305, 'crc32c': w_crc32c, 'siphash': w_siphash, 'blake2s': w_blake2s, 'blake2sfast': w_blake2sfast, 'q4gemv': w_q4gemv, 'attndec': w_attndec}
+             'rle': w_rle, 'huffdec': w_huffdec, 'lookback': w_lookback, 'hll': w_hll, 'tricount': w_tricount, 'sha3': w_sha3, 'stereo': w_stereo, 'viterbi': w_viterbi, 'viterbifix': w_viterbifix, 'shiftfuse': w_shiftfuse, 'bc1enc': w_bc1enc, 'lz4dec': w_lz4dec, 'nttmul': w_nttmul, 'topk': w_topk, 'cellsort': w_cellsort, 'boruvka': w_boruvka, 'biquad': w_biquad, 'edt': w_edt, 'mt19937': w_mt19937, 'bitap': w_bitap, 'cholesky': w_cholesky, 'rsshash': w_rsshash, 'poly1305': w_poly1305, 'crc32c': w_crc32c, 'siphash': w_siphash, 'blake2s': w_blake2s, 'blake2sfast': w_blake2sfast, 'q4gemv': w_q4gemv, 'attndec': w_attndec, 'attndecsplit': w_attndecsplit}
 
 
 # ---------------------------------------------------------------------------------------------------------------
