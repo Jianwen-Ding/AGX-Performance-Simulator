@@ -191,12 +191,15 @@ int main(int argc, char **argv) {
     int timestamps = qf[qi].timestampValidBits > 0 && props.limits.timestampPeriod > 0;
     uint32_t ne = 0; CK(vkEnumerateDeviceExtensionProperties(pd, NULL, &ne, NULL));
     VkExtensionProperties *ex = calloc(ne, sizeof *ex); CK(vkEnumerateDeviceExtensionProperties(pd, NULL, &ne, ex));
-    int has_so = 0, has_pe = 0;
+    int has_so = 0, has_pe = 0, has_af = 0;
     for (uint32_t i = 0; i < ne; i++) {
+        has_af |= !strcmp(ex[i].extensionName, VK_EXT_SHADER_ATOMIC_FLOAT_EXTENSION_NAME);
         has_so |= !strcmp(ex[i].extensionName, VK_EXT_SHADER_OBJECT_EXTENSION_NAME);
         has_pe |= !strcmp(ex[i].extensionName, VK_KHR_PIPELINE_EXECUTABLE_PROPERTIES_EXTENSION_NAME);
     }
-    VkPhysicalDeviceShaderObjectFeaturesEXT sof = {.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_OBJECT_FEATURES_EXT};
+    VkPhysicalDeviceShaderAtomicFloatFeaturesEXT aff = {.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_ATOMIC_FLOAT_FEATURES_EXT};
+    VkPhysicalDeviceShaderObjectFeaturesEXT sof = {.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_OBJECT_FEATURES_EXT,
+                                                   .pNext = has_af ? &aff : NULL};
     VkPhysicalDevicePipelineExecutablePropertiesFeaturesKHR pef = {.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PIPELINE_EXECUTABLE_PROPERTIES_FEATURES_KHR, .pNext = &sof};
     VkPhysicalDeviceVulkan12Features f12 = {.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES, .pNext = &pef};
     VkPhysicalDeviceVulkan11Features f11 = {.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES, .pNext = &f12};
@@ -217,9 +220,14 @@ int main(int argc, char **argv) {
     void **tail = &e12.pNext;
     if (use_pe) { *tail = &epe; tail = &epe.pNext; }
     if (use_so) { *tail = &eso; tail = &eso.pNext; }
+    VkPhysicalDeviceShaderAtomicFloatFeaturesEXT eaf = {.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_ATOMIC_FLOAT_FEATURES_EXT,
+        .shaderBufferFloat32AtomicAdd = aff.shaderBufferFloat32AtomicAdd, .shaderSharedFloat32AtomicAdd = aff.shaderSharedFloat32AtomicAdd,
+        .shaderBufferFloat32Atomics = aff.shaderBufferFloat32Atomics, .shaderSharedFloat32Atomics = aff.shaderSharedFloat32Atomics};
+    if (has_af) { *tail = &eaf; tail = &eaf.pNext; }
     VkPhysicalDeviceFeatures2 e2 = {.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2, .pNext = &e11,
         .features = {.shaderInt64 = f2.features.shaderInt64, .shaderInt16 = f2.features.shaderInt16, .shaderFloat64 = f2.features.shaderFloat64}};
-    const char *exts[2]; uint32_t nexts = 0;
+    const char *exts[3]; uint32_t nexts = 0;
+    if (has_af) exts[nexts++] = VK_EXT_SHADER_ATOMIC_FLOAT_EXTENSION_NAME;
     if (use_pe) exts[nexts++] = VK_KHR_PIPELINE_EXECUTABLE_PROPERTIES_EXTENSION_NAME;
     if (use_so) exts[nexts++] = VK_EXT_SHADER_OBJECT_EXTENSION_NAME;
     float prio = 1;
@@ -230,25 +238,27 @@ int main(int argc, char **argv) {
     printf("{\"device\":"); jstr(stdout, props.deviceName);
     printf(",\"vendor\":%u,\"device_id\":%u,\"driver_version\":%u,\"api\":%u,\"timestamp_period_ns\":%g,\"timestamps\":%d,"
            "\"subgroup_size\":%u,\"shader_object\":%d,\"executable_properties\":%d,\"features\":{\"int64\":%d,\"float64\":%d,"
-           "\"float16\":%d,\"int8\":%d,\"buffer_int64_atomics\":%d,\"shared_int64_atomics\":%d,\"subgroup_ops\":%u},\"limits\":{\"shared_bytes\":%u,\"invocations\":%u,\"push_bytes\":%u}}\n",
+           "\"float16\":%d,\"int8\":%d,\"buffer_int64_atomics\":%d,\"shared_int64_atomics\":%d,\"subgroup_ops\":%u,\"buffer_float32_atomic_add\":%d,\"shared_float32_atomic_add\":%d},\"limits\":{\"shared_bytes\":%u,\"invocations\":%u,\"push_bytes\":%u}}\n",
            props.vendorID, props.deviceID, props.driverVersion, props.apiVersion, props.limits.timestampPeriod, timestamps,
            sgp.subgroupSize, use_so, use_pe, f2.features.shaderInt64, f2.features.shaderFloat64, f12.shaderFloat16, f12.shaderInt8,
            f12.shaderBufferInt64Atomics, f12.shaderSharedInt64Atomics, sgp.supportedOperations,
-           props.limits.maxComputeSharedMemorySize, props.limits.maxComputeWorkGroupInvocations, props.limits.maxPushConstantsSize);
+           aff.shaderBufferFloat32AtomicAdd, aff.shaderSharedFloat32AtomicAdd, props.limits.maxComputeSharedMemorySize, props.limits.maxComputeWorkGroupInvocations, props.limits.maxPushConstantsSize);
     int sg_compute = (sgp.supportedStages & VK_SHADER_STAGE_COMPUTE_BIT) != 0;
     for (int i = 0; i < nreq; i++) {
         const char *names[] = {"int64", "float64", "float16", "int8", "buffer_int64_atomics", "shared_int64_atomics",
                                "subgroup_vote", "subgroup_arithmetic", "subgroup_ballot", "subgroup_shuffle",
-                               "subgroup_shuffle_relative", "subgroup_clustered", "subgroup_quad", "vulkan_memory_model"};
+                               "subgroup_shuffle_relative", "subgroup_clustered", "subgroup_quad", "vulkan_memory_model", "buffer_float32_atomic_add",
+                               "shared_float32_atomic_add"};
         VkSubgroupFeatureFlags ops = sg_compute ? sgp.supportedOperations : 0;
         int have[] = {f2.features.shaderInt64, f2.features.shaderFloat64, f12.shaderFloat16, f12.shaderInt8,
                       f12.shaderBufferInt64Atomics, f12.shaderSharedInt64Atomics,
                       !!(ops & VK_SUBGROUP_FEATURE_VOTE_BIT), !!(ops & VK_SUBGROUP_FEATURE_ARITHMETIC_BIT),
                       !!(ops & VK_SUBGROUP_FEATURE_BALLOT_BIT), !!(ops & VK_SUBGROUP_FEATURE_SHUFFLE_BIT),
                       !!(ops & VK_SUBGROUP_FEATURE_SHUFFLE_RELATIVE_BIT), !!(ops & VK_SUBGROUP_FEATURE_CLUSTERED_BIT),
-                      !!(ops & VK_SUBGROUP_FEATURE_QUAD_BIT), f12.vulkanMemoryModel};
+                      !!(ops & VK_SUBGROUP_FEATURE_QUAD_BIT), f12.vulkanMemoryModel,
+                      aff.shaderBufferFloat32AtomicAdd, aff.shaderSharedFloat32AtomicAdd};
         int known = 0, ok = 0;
-        for (int k = 0; k < 14; k++) if (!strcmp(req[i], names[k])) { known = 1; ok = have[k]; }
+        for (int k = 0; k < 16; k++) if (!strcmp(req[i], names[k])) { known = 1; ok = have[k]; }
         unsigned need;   /* minimum limits: shared_bytes=N, invocations=N, push_bytes=N */
         if (sscanf(req[i], "shared_bytes=%u", &need) == 1) { known = 1; ok = props.limits.maxComputeSharedMemorySize >= need; }
         if (sscanf(req[i], "invocations=%u", &need) == 1) { known = 1; ok = props.limits.maxComputeWorkGroupInvocations >= need; }

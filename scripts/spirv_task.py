@@ -2652,6 +2652,52 @@ def w_mplitmus(size, rng):
              {'slots': slots}, requires=['vulkan_memory_model'])
 
 
+def splat_points(size, rng):
+    """the points shared by splat and splatfix (a fixed seed, not the workload's own generator, so the two grids compare)"""
+    rng = np.random.default_rng(20261012)
+    n, g = (4096, 64) if size == 'small' else (1 << 22, 512)
+    xy = rng.uniform(0, g - 1.001, (n, 2))
+    xy = np.where(rng.random((n, 1)) < 0.5, xy, g / 2 + rng.standard_normal((n, 2)) * g / 10).clip(0, g - 1.001)   # a dense blob
+    k = 1 << 8                                                                  # positions on a 1/256 grid: weights exact in fp32
+    xy = np.floor(xy * k) / k
+    wt = rng.integers(1, 9, n) / 4.0                                           # weights 0.25 .. 2: products exact in fp32
+    return n, g, f32(np.concatenate([xy, wt[:, None], np.zeros((n, 1))], 1))
+
+
+def splat_ref(pts, g):
+    f = np.floor(pts[:, :2]); w = pts[:, :2] - f; x, y = f[:, 0].astype(np.int64), f[:, 1].astype(np.int64); wt = pts[:, 2].astype(np.float64)
+    parts = [(y * g + x, wt * (1 - w[:, 0]) * (1 - w[:, 1])), (y * g + x + 1, wt * w[:, 0] * (1 - w[:, 1])),
+             ((y + 1) * g + x, wt * (1 - w[:, 0]) * w[:, 1]), ((y + 1) * g + x + 1, wt * w[:, 0] * w[:, 1])]
+    return parts
+
+
+def w_splat(size, rng):
+    n, g, pts = splat_points(size, rng)
+    def check(o):
+        got = o[1].view(np.float32)[:g * g].astype(np.float64)
+        ref = np.zeros(g * g); cnt = np.zeros(g * g)
+        for idx, val in splat_ref(pts, g):
+            np.add.at(ref, idx, val); np.add.at(cnt, idx, 1)
+        bound = (cnt + 1) * 2.0 ** -24 * ref                                    # every term exact; each addition rounds once
+        excess = float(np.max(np.abs(got - ref) / np.maximum(bound, 1e-30)))
+        return excess <= 1.0, {'max_err_over_bound': excess, 'total_weight': float(got.sum()), 'ref_total': float(ref.sum())}
+    return W('splat', {0: (pts, False), 1: (4 * g * g, True)}, [((n + 255) // 256, 1, 1, push(n, g))], check, 256, {'points': n},
+             requires=['buffer_float32_atomic_add'])
+
+
+def w_splatfix(size, rng):
+    n, g, pts = splat_points(size, rng)
+    def check(o):
+        got = o[1].view(np.uint32)[:g * g].astype(np.int64)
+        ref = np.zeros(g * g, np.int64); exact = np.zeros(g * g); cnt = np.zeros(g * g)
+        for idx, val in splat_ref(pts, g):
+            np.add.at(ref, idx, np.floor(val * 65536 + 0.5).astype(np.int64)); np.add.at(exact, idx, val); np.add.at(cnt, idx, 1)
+        fixed_err = float(np.max(np.abs(got / 65536 - exact) - cnt * 0.5 / 65536))    # <= 0: within half a unit per term
+        return np.array_equal(got, ref), {'mismatches': int(np.sum(got != ref)), 'total_weight': float(got.sum() / 65536),
+                                          'fixed_point_error_minus_bound': fixed_err}
+    return W('splatfix', {0: (pts, False), 1: (4 * g * g, True)}, [((n + 255) // 256, 1, 1, push(n, g))], check, 256, {'points': n})
+
+
 WORKLOADS = {'reduce': w_reduce, 'scan': w_scan, 'sgemm': w_sgemm, 'conv2d': w_conv2d, 'histogram': w_histogram,
              'nbody': w_nbody, 'bitonic': w_bitonic, 'sha256': w_sha256, 'fp16': w_fp16, 'int64': w_int64, 'bitops': w_bitops,
              'intdiv': w_intdiv, 'compact': w_compact, 'spmv': w_spmv, 'transpose': w_transpose, 'mandelbrot': w_mandelbrot,
@@ -2679,7 +2725,8 @@ WORKLOADS = {'reduce': w_reduce, 'scan': w_scan, 'sgemm': w_sgemm, 'conv2d': w_c
              'argmax64': w_argmax64, 'minmax64': w_minmax64,
              'dsum': w_dsum, 'quadmip': w_quadmip, 'clustered': w_clustered,
              'specblur': w_specblur, 'cullindirect': w_cullindirect,
-             'bigsort': w_bigsort, 'pushmat': w_pushmat, 'mplitmus': w_mplitmus}
+             'bigsort': w_bigsort, 'pushmat': w_pushmat, 'mplitmus': w_mplitmus,
+             'splat': w_splat, 'splatfix': w_splatfix}
 
 
 # ---------------------------------------------------------------------------------------------------------------

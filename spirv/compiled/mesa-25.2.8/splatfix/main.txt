@@ -1,0 +1,44 @@
+0x0080  72051004                 get_sr r1, sr80 (thread_position_in_grid.x)
+0x0084  0e05428658000000         iadd r1, r1.sx, u4.sx
+0x008c  62000000                 mov_imm r0l, 0
+0x0090  522842a21800             if_icmp r0l, ult, r1, u5, 1
+0x0096  20c0f0000000             jmp_exec_none pc+240
+0x009c  05212c0e00c8f200         device_load 0, i32, xyzw, r4_r5_r6_r7, u6_u7, r1, unsigned, lsl 2
+0x00a4  3800                     wait 0
+0x00a6  0a054802                 floor r1, r4
+0x00aa  2a894822a400             fadd32 r2, r4, r1.neg
+0x00b0  0a0d4a02                 floor r3, r5
+0x00b4  2a914a62a400             fadd32 r4, r5, r3.neg
+0x00ba  3e8508202400             convert f_to_u32, r1, r1, rtz
+0x00c0  3e8d08602400             convert f_to_u32, r3, r3, rtz
+0x00c6  1e15460659000000         imadd r5, r3.sx, u8.sx, 0
+0x00ce  0e1d4a2664000000         iadd r7, r5.sx, r1.sx
+0x00d6  2aa13040a400             fadd32 r8, 1.0, r2.neg
+0x00dc  1aa14c022500             fmul32 r8, r6, r8
+0x00e2  2aa53080a400             fadd32 r9, 1.0, r4.neg
+0x00e8  1aa150821900             fmul32 r8, r8, u12
+0x00ee  3a2950222520             fmadd32 r10, r8, r9, 0.5
+0x00f4  3ea908402500             convert f_to_u32, r10, r10, rtz
+0x00fa  1500e48c10501400         atomic add, 0, None, u10_u11, r7, signed, r10, 1, 0, 1, 4, 2
+0x0102  0e154a1600000000         iadd r5, r5.sx, 1
+0x010a  0e154a2664000000         iadd r5, r5.sx, r1.sx
+0x0112  1a894c422400             fmul32 r2, r6, r2
+0x0118  1a8944821900             fmul32 r2, r2, u12
+0x011e  3a1944222520             fmadd32 r6, r2, r9, 0.5
+0x0124  3e9908c02400             convert f_to_u32, r6, r6, rtz
+0x012a  1500a4cc10500c00         atomic add, 1, None, u10_u11, r5, signed, r6, 1, 0, 1, 4, 2
+0x0132  0e0d461600000000         iadd r3, r3.sx, 1
+0x013a  1e0d460659000000         imadd r3, r3.sx, u8.sx, 0
+0x0142  0e15462664000000         iadd r5, r3.sx, r1.sx
+0x014a  3a1950822420             fmadd32 r6, r8, r4, 0.5
+0x0150  3e9908c02400             convert f_to_u32, r6, r6, rtz
+0x0156  1500a48c10500c00         atomic add, 0, None, u10_u11, r5, signed, r6, 1, 0, 1, 4, 2
+0x015e  0e0d461600000000         iadd r3, r3.sx, 1
+0x0166  0e05462664000000         iadd r1, r3.sx, r1.sx
+0x016e  3a0944822420             fmadd32 r2, r2, r4, 0.5
+0x0174  3e8908402400             convert f_to_u32, r2, r2, rtz
+0x017a  1500248c10500400         atomic add, 0, None, u10_u11, r1, signed, r2, 1, 0, 1, 4, 2
+0x0182  3800                     wait 0
+0x0184  3801                     wait 1
+0x0186  520e00000000             pop_exec r0l, 1
+0x018c  8800                     stop
