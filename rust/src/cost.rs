@@ -393,10 +393,12 @@ fn regs_of(o: &Operand) -> Vec<u32> {
     set_of(v)
 }
 
-/// The 2-byte `78 09` barrier over aligned blocks of 4 SIMD groups (playground barrier finding), which
-/// applegpu does not decode.
+/// The 2-byte 0x78 barrier over aligned blocks of 4 SIMD groups (playground barrier finding), which applegpu
+/// does not decode. Both second bytes seen on the hardware, `78 09` (the playground's stress tests) and `78 00`
+/// (the coverage threadgroup cases, the 0x68 barrier's `68 00` pattern), synchronise alike (playground
+/// sync-and-end-opcodes).
 pub fn is_barrier78(code: &[u8], pc: usize) -> bool {
-    pc + 1 < code.len() && code[pc] == 0x78 && code[pc + 1] == 0x09
+    pc + 1 < code.len() && code[pc] == 0x78 && matches!(code[pc + 1], 0x09 | 0x00)
 }
 
 /// Mesa's stack_adjust (agx_pack.c AGX_OPCODE_STACK_ADJUST): opcode 0xb5 shared with stack_store.

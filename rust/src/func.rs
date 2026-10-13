@@ -206,15 +206,50 @@ fn item_size(fmt: u64) -> u64 {
     }
 }
 
-/// u8norm / 16-bit normalised formats are converted to fp16 by the hardware; not implemented yet.
-fn plain_format(fmt: u64) -> bool {
-    matches!(fmt, 0 | 1 | 2)
+/// Device memory formats 0..7 (coverage mem_load / mem_store, recorded on the M2):
+/// - 0 i8, 1 i16, 2 i32 and 3 "f16" are raw: zero-extended into a wider register, truncated on store. Format 3 is a
+///   16-bit pass-through like i16 (no f16 <-> f32 conversion even with a 32-bit register);
+/// - 4 u8norm, 5 s8norm, 6 u16norm, 7 s16norm are normalised: see `norm_load` / `norm_store`.
+fn norm_format(fmt: u64) -> bool {
+    matches!(fmt, 4..=7)
 }
 
-/// u8norm (format 4) load: v / 255 rounded to the destination register's precision (fp16 for 16-bit halves).
-fn unorm8(v: u64, rt: bool) -> i128 {
-    let x = v as f64 / 255.0;
+/// Normalised load: the exact ratio v/255, max(v,-127)/127, v/65535 or max(v,-32767)/32767 rounded once
+/// (nearest-even) to the destination's precision, f32 in a 32-bit register or f16 in a half, subnormals kept. The
+/// rounding is direct, not via f32: s16norm 0x8009 into a half gives 0xbbff where f32-then-f16 would give -1.0.
+/// (f64 division then one conversion is exact here: an odd denominator below 2^16 keeps the ratio further from
+/// every f16 / f32 rounding boundary than the f64 error.)
+fn norm_load(fmt: u64, v: u64, rt: bool) -> i128 {
+    let x = match fmt {
+        4 => v as f64 / 255.0,
+        5 => (v as u8 as i8 as f64).max(-127.0) / 127.0,
+        6 => v as f64 / 65535.0,
+        _ => (v as u16 as i16 as f64).max(-32767.0) / 32767.0,
+    };
     if rt { (x as f32).to_bits() as i128 } else { crate::isa::fma::f64_to_f16(x.to_bits(), false) as i128 }
+}
+
+/// Normalised store: the register read as f32 (32-bit) or f16 (half), NaN -> 0, clamped to [0, 1] or [-1, 1],
+/// scaled by 255 / 127 / 65535 / 32767 and rounded to the nearest integer (-1 gives -127 / -32767; the odd scales
+/// make a tie impossible). The product is exact in f64. A subnormal f16 source is flushed to zero (u16norm from
+/// 0x0311 stores 0, from the smallest normal 0x0411 stores 4); whether an f32 subnormal is flushed is invisible
+/// (it scales to below 0.5 either way).
+fn norm_store(fmt: u64, v: i128, rt: bool) -> u64 {
+    let x = if rt {
+        f32::from_bits(v as u32) as f64
+    } else {
+        f64::from_bits(crate::isa::fma::f16_to_f64(v as u64 & 0xffff, true))
+    };
+    if x.is_nan() {
+        return 0;
+    }
+    let (lo, scale) = match fmt {
+        4 => (0.0, 255.0),
+        5 => (-1.0, 127.0),
+        6 => (0.0, 65535.0),
+        _ => (-1.0, 32767.0),
+    };
+    (x.clamp(lo, 1.0) * scale).round() as i64 as u64
 }
 
 pub fn run(d: &Dispatch, mem: &mut Memory) -> Result<RunStats, String> {
@@ -574,7 +609,7 @@ fn device_mem(g: &mut Group, f: &Fields, mem: &mut Memory, load: bool) -> Result
     // fields read once, not per lane (fget searches the field list by name)
     let (f_at, f_a, f_ot, f_o, f_ou) = (x("At"), x("A"), x("Ot"), x("O"), x("Ou"));
     let fmt = x("F") | x("Fx") << 3;
-    if !plain_format(fmt) && !(fmt == 4 && load) {
+    if fmt > 7 {
         return Err(format!("device memory format {} not implemented", fmt));
     }
     let item = item_size(fmt);
@@ -617,7 +652,7 @@ fn device_mem(g: &mut Group, f: &Fields, mem: &mut Memory, load: bool) -> Result
             let va = (addr[t] + c as i128 * item as i128) as u64;
             if load {
                 let v = mem.read(va, item as usize)?;
-                let v = if fmt == 4 { unorm8(v, rt) } else { v as i128 };
+                let v = if norm_format(fmt) { norm_load(fmt, v, rt) } else { v as i128 };
                 if slot != 0 {
                     deferred.push((rt, r, k, t, v));
                 } else {
@@ -625,7 +660,8 @@ fn device_mem(g: &mut Group, f: &Fields, mem: &mut Memory, load: bool) -> Result
                 }
             } else {
                 let v = get(&g.st, rt, r, k, t)?;
-                mem.store(va, item as usize, v as u64)?;
+                let v = if norm_format(fmt) { norm_store(fmt, v, rt) } else { v as u64 };
+                mem.store(va, item as usize, v)?;
             }
         }
         k += 1;
