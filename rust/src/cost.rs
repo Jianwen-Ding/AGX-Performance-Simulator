@@ -1180,7 +1180,8 @@ pub struct MemModel {
     /// when the estimated GPU-wide footprint fits `slc_bytes`.
     pub resident_slc: bool,
     /// device atomics (no return, distinct words): per-core occupancy max(atomic_min, atomic_per_seg x 32-byte
-    /// sectors) reference cycles; lanes on one word serialise GPU-wide at atomic_same_word_rate per cycle
+    /// sectors) reference cycles; lanes on one word serialise GPU-wide at atomic_same_word_rate per cycle (every lane separately: the 32 lanes of an
+    /// instruction are not combined; playground 2026-10-16-atomic-contention)
     pub atomic_min: f64,
     pub atomic_per_seg: f64,
     pub atomic_same_word_rate: f64,
@@ -1219,7 +1220,7 @@ impl Default for MemModel {
             resident_slc: false,
             atomic_min: 6.9,
             atomic_per_seg: 1.7,
-            atomic_same_word_rate: 2.0,
+            atomic_same_word_rate: 0.89,   // playground novel-results/2026-10-16-atomic-contention: 0.86 ns per lane-op on one word at 1,398 MHz
             tg_group_load: 31.0,
             tg_group_store: 24.0,
             tg_group_atomic: 4.8,
@@ -2556,6 +2557,12 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
             }
             nt = t + 1;
         }
+    }
+    // a dispatch completes only when its device atomics have drained: a no-return atomic's queueing delay is charged to
+    // the next atomic or a `wait`, so without this a shader that ends right after its atomics (Mesa's code, e.g. the
+    // atomcontend probe) would finish before its serialised atomics (playground 2026-10-16-atomic-contention)
+    if let Some(m) = ms.as_ref() {
+        last_t = last_t.max(m.at_free);
     }
     let total = last_t as f64 / t_ as f64;
     let st = if detail {

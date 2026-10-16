@@ -48,10 +48,13 @@ test:
 	cd rust && cargo test --release
 
 verify-cost-model: rust
-	rust/target/release/verify_cost_model | diff - results/2026-10-11-cost-model/verify-output.txt && echo 'identical to verify-output.txt'
+	rust/target/release/verify_cost_model > /tmp/agx-verify-cost-model.txt
+	$(PYTHON) -c "import sys; a = open('/tmp/agx-verify-cost-model.txt').read(); b = open('results/2026-10-11-cost-model/verify-output.txt').read(); print('identical to verify-output.txt' if a == b else 'DIFFERS from verify-output.txt'); sys.exit(a != b)"
 
 verify-memory-model: rust
-	rust/target/release/mem_check --stored --limit 0.1
+	# mem_check simulates full-size caches in every worker thread; with one thread per core it drove the host into a
+	# global OOM on 2026-10-16 (other tenants held ~55 GB). Default to 2 threads; override with AGX_THREADS.
+	AGX_THREADS=$${AGX_THREADS:-2} rust/target/release/mem_check --stored --limit 0.1
 
 verify-scaling: rust
 	rust/target/release/scale_check results/2026-10-11-core-scaling/grid.json results/2026-10-11-core-scaling/chains.json results/2026-10-11-core-scaling/idle.json results/2026-10-11-core-scaling/dests.json
