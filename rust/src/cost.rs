@@ -29,7 +29,10 @@ const ALU: &[(&str, &str)] = &[
     ("iadd", "iadd"), ("imadd", "imadd"), ("bitop", "and"), ("bfi", "bfi"), ("bfeil", "bfeil"), ("extr", "extr"),
     ("shlhi", "shlhi"), ("shrhi", "shrhi"), ("asr", "asr"), ("asrh", "asrh"), ("bitrev", "bitrev"),
     ("popcount", "popcount"), ("ffs", "ffs"), ("intl", "intl"), ("iunop", "bitrev"), ("icmpsel", "icmpsel"),
-    ("fcmpsel", "fcmpsel"), ("mov_imm", "mov_imm"), ("fadd32", "fadd32"), ("fmul32", "fmul32"), ("fmadd32", "fmadd32"),
+    ("fcmpsel", "fcmpsel"), ("mov_imm", "mov_imm"),
+    // undecoded 6-byte no-ops issue exactly like a 6-byte mov_imm; 0x18 costs ~4.3 ns (~6 cycles) per use with no
+    // bench row (playground sync-and-end-opcodes), so it is costed as mov_imm and flagged unmeasured
+    ("nop6", "mov_imm"), ("fixed18", "mov_imm"), ("fadd32", "fadd32"), ("fmul32", "fmul32"), ("fmadd32", "fmadd32"),
     ("fadd16", "fadd16"), ("fmul16", "fmul16"), ("fmadd16", "fmadd16"), ("convert", "convert_f2i"), ("floor", "floor"),
     ("ceil", "floor"), ("trunc", "floor"), ("rint", "rint"), ("rcp", "rcp"), ("rsqrt", "rsqrt"),
     ("rsqrt_special", "rsqrt_special"), ("log2", "log2"), ("exp2", "exp2"), ("sin_pt_1", "sin_pt_1"),
@@ -42,6 +45,7 @@ const ALU: &[(&str, &str)] = &[
     ("fcmp_quad_ballot", "quad_shuffle"), ("get_sr", "get_sr"), ("TODO.sr_thing", "get_sr"),
 ];
 const UNMEASURED_ALU: &[&str] = &[
+    "fixed18",
     "iunop", "ceil", "trunc", "funop", "dfdx", "dfdy", "simd_shuffle_up", "simd_shuffle_rotate_up", "simd_shuf_op",
     "quad_shuffle_down", "quad_shuffle_up", "quad_shuffle_xor", "quad_shuffle_rotate_up", "TODO.sr_thing",
 ];
@@ -56,7 +60,7 @@ const STORES: &[&str] = &[
 const MEASURED_MEMORY: &[&str] = &["device_load", "device_store", "threadgroup_load", "threadgroup_store"];
 pub const CONTROL: &[&str] = &[
     "if_icmp", "if_fcmp", "else_icmp", "else_fcmp", "while_icmp", "while_fcmp", "pop_exec", "push_exec", "jmp_exec_any",
-    "jmp_exec_none", "stop", "trap", "TODO.unk51", "no_var",
+    "jmp_exec_none", "stop", "trap", "TODO.unk51", "no_var", "end_group",
 ];
 const BARRIERS: &[&str] = &["threadgroup_barrier", "memory_barrier", "wait_pix", "signal_pix", "TODO.unkE800"];
 const UNIT_GROUPS: &[&[&str]] = &[
@@ -487,11 +491,11 @@ pub fn decode(code: &[u8], p: &Params) -> Result<Vec<Instr>, String> {
             let mut src = union(
                 &regops.iter().filter(|(o, _)| !matches!(o, Operand::Reg16(0, _))).cloned().collect::<Vec<_>>(),
             );
-            if !["jmp_exec_any", "jmp_exec_none", "stop", "trap"].contains(&nm) {
+            if !["jmp_exec_any", "jmp_exec_none", "stop", "trap", "end_group"].contains(&nm) {
                 src.push(0);
             }
             rec.src = set_of(src);
-            rec.dst = if nm != "stop" && nm != "trap" { vec![0] } else { vec![] };
+            rec.dst = if !matches!(nm, "stop" | "trap" | "end_group") { vec![0] } else { vec![] };
             rec.uniform_src = ops.iter().any(Operand::is_ureg);
         } else if BARRIERS.contains(&nm) {
             rec.kind = Kind::Barrier;
@@ -964,7 +968,7 @@ fn trace_impl(code: &[u8], active: usize, max_steps: usize, reference: bool, ctx
             let size = desc.decode_size(n0);
             let n = desc.mask_instr(n0);
             let fields = desc.decode_fields(n);
-            let stop = desc.name == "stop" || desc.name == "trap";
+            let stop = matches!(desc.name, "stop" | "trap" | "end_group");
             let ops = if stop { vec![] } else { desc.fields_to_operands(&fields)? };
             let rs: Vec<Vec<u32>> = ops.iter().map(regs_of).collect();
             let uses = set_of(rs.iter().skip(1).flatten().copied());

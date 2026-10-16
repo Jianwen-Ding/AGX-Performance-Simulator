@@ -12,7 +12,7 @@ checked against the recordings offline.
 | `coverage/timing/<name>.json` | Recorded instruction-bench results (latency, SIMD issue, per-core throughput). Written by `record`. |
 | `coverage/log.jsonl`, `coverage/faults.json` | Log of every recording outcome, and the cases that faulted. |
 
-## Catalog (3,844 cases)
+## Catalog (4,247 cases)
 
 | Area | Safe | May fault | What it covers |
 |---|---|---|---|
@@ -24,6 +24,7 @@ checked against the recordings offline.
 | `threadgroup` | 44 | 60 | Barrier 0x68 vs 0x78 at workgroup sizes 32–1024. Threadgroup store/load in 9 formats × masks × immediate/register index. |
 | `sync` | 5 | 251 | Every `memory_barrier a, b, c`. |
 | `atomic` | 11 | 11 | All 11 device atomics, with uniform base (safe) and register base (may fault). |
+| `undecoded` | 403 | – | The 49 non-faulting undecoded opcodes (playground opcode-descriptions, sync-and-end-opcodes) in the 8 operand encodings that ran there: 31 six-byte no-ops, 0x18 (bit 7 clear), and the 16 ends opcodes plus 0x98 / 0xf8 (also inside a 3-of-4-lane branch). Recorded 2026-10-16 (tasks/safe-08): 403/403 deterministic, simulator exact. |
 | `bench` | 651 | – | Timing cases: every safe ALU form whose destination and first source have the same width. Each becomes a dependent-chain instruction-bench form. |
 
 **Risk levels:**
@@ -38,11 +39,13 @@ checked against the recordings offline.
 
   `record` runs these only when given `--risky`.
 
+Before any functional case is submitted, `record` runs the exact program in `agx_run` with the same uniforms and memory
+layout (`coverage.simulate`): it must finish and, when the case has a host oracle, match it. A refusal is logged as
+`sim-refused` and nothing is submitted. `--no-sim` skips this step.
+
 **Not generated** (`coverage_catalog.MANUAL`): behaviours that need hand-built encodings or a Mesa capture:
 
 - the fmadd lane-offset form;
-- the 49 non-faulting undecoded opcodes;
-- 0x18 and the ending opcodes;
 - the stack instructions;
 - the preshader;
 - imageblock special registers;

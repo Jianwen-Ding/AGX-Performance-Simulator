@@ -579,8 +579,6 @@ def timing_cases(alu):
 
 MANUAL = [  # behaviours known from findings whose encodings have to be built on the device (raw, not assemblable)
     ('fmadd_lane_offset', 'fmadd-lane-offset', 'fmadd 10-byte form with the lane-offset operand: build from the finding\'s encoding table'),
-    ('undecoded_opcodes', 'opcode-descriptions', 'the 49 non-faulting undecoded opcodes: one case each from the finding\'s description table (register effects)'),
-    ('sync_0x18', 'sync-and-end-opcodes', '0x18 fixed-cost op and the ending opcodes (0x08 trap / 0x88 stop variants)'),
     ('stack', 'stack-via-mesa', 'stack_store / stack_load / stack_get_ptr / stack_adjust: the SPIR-V `spill` workload (spirv/compiled/*/spill) is a Mesa scratch-using shader; record its stack layout on the device (functional values already pass in the simulator)'),
     ('preshader', 'preshader-execution', 'uniform_store from a preamble (AGX_PRESHADER=1 in tests/drm_compute.c) and the preshader-last rule (sr17-sr32)'),
     ('imageblock_srs', 'sr12-sr13-sr15-imageblock', 'SR12/SR13/SR15 under imageblock-sized launches'),
@@ -588,6 +586,55 @@ MANUAL = [  # behaviours known from findings whose encodings have to be built on
     ('occupancy', 'occupancy', 'register / threadgroup-memory limits: SR19 / SR18 and resident groups for each regs value'),
     ('in_shader_clock', 'in-shader-clock', 'CPU-written timer read: monotonic per lane'),
 ]
+
+
+# undecoded opcodes (playground novel-results/2026-10-11-opcode-descriptions, 2026-10-11-sync-and-end-opcodes): only the
+# eight operand encodings that ran there without a fault, and never the faulting / leaking opcodes
+UNDECODED_FORBIDDEN = {0x06, 0x24, 0x34, 0x44, 0x46, 0x54, 0x5c, 0x64, 0x74, 0x6e}
+UNDECODED_NOP6 = [op for op in range(3, 128, 4) if op != 0x6f]
+UNDECODED_ENDS = [0x01, 0x0d, 0x1d, 0x2c, 0x2d, 0x3c, 0x3d, 0x4d, 0x50, 0x5d, 0x60, 0x6c, 0x6d, 0x70, 0x7c, 0x7d]
+NOP6_OPERANDS = bytes.fromhex('38006240')     # bytes 2-5 exactly as in the finding's layout B (wait 0 + marker)
+
+
+def undecoded_encodings(op):
+    base = op | 2 << 7 | 4 << 9
+    return {'base': base, 'zero': op, 'd6': op | 2 << 7 | 12 << 9, 'dt0': op | 4 << 9, 'dt1': op | 1 << 7 | 4 << 9,
+            'dt3': op | 3 << 7 | 4 << 9, 'b15': base | 1 << 15, 'hi': op | 0xff80}
+
+
+def undecoded_cases():
+    """the 49 non-faulting undecoded opcodes in alu_body: 6-byte no-ops leave r14 / r15 alone; the ends opcodes (and
+    0x18 / 0x78 with bit 7 set) end the SIMD group before any store, also from inside a branch with 3 of 4 lanes active"""
+    out = []
+    forms = []
+    for op in UNDECODED_NOP6:
+        for k, w in undecoded_encodings(op).items():
+            forms.append((f'nop6_{op:02x}_{k}', w.to_bytes(2, 'little') + NOP6_OPERANDS, 'nop6', False))
+    for op in UNDECODED_ENDS:
+        for k, w in undecoded_encodings(op).items():
+            forms.append((f'end_{op:02x}_{k}', w.to_bytes(2, 'little'), 'end_group', False))
+        forms.append((f'end_{op:02x}_base_masked', undecoded_encodings(op)['base'].to_bytes(2, 'little'), 'end_group', True))
+    for op in (0x18, 0x78):
+        for k, w in undecoded_encodings(op).items():
+            if w & 0x80:
+                forms.append((f'end_{op | 0x80:02x}_{k}', w.to_bytes(2, 'little'), 'end_group', False))
+            elif op == 0x18:
+                forms.append((f'fixed18_{k}', w.to_bytes(2, 'little'), 'fixed18', False))
+    for name, instr, kind, masked in forms:
+        assert instr[0] & 0x7f not in UNDECODED_FORBIDDEN
+        def build(name=name, instr=instr, kind=kind, masked=masked):
+            RS = _rs()
+            rng = random.Random('coverage:undecoded:' + name)
+            table = [RS.operand(rng) for _ in range(8 * N)] + [0] * (2 * N)
+            if kind == 'end_group':   # nothing after it runs: output and table tail untouched
+                oracle = lambda out, tab: (out[:-16] == [0xcdcdcdcd] * (len(out) - 16) and out[-16:] == [0xa5a50000 + i for i in range(16)]
+                                           and tab[8 * N:] == [0] * (2 * N))
+            else:                     # no register effect: r14 = r15 = 0xdeadbeef reach the table and (as r2) the output
+                oracle = lambda out, tab: out[8:8 + N] == [0xdeadbeef] * N and tab[8 * N:] == [0xdeadbeef] * (2 * N)
+            return ('undecoded', name, f'undecoded {instr.hex()} ({kind})', RS.alu_body(instr, N, masked), N, WG, 64, 0, table, oracle)
+        out.append(Case(f'undecoded/{name}', 'undecoded', 'opcode-descriptions', 'safe', 'functional',
+                        f'{instr.hex()}: {kind}' + (' inside a 3-of-4-lane branch' if masked else ''), build, []))
+    return out
 
 
 def build_catalog():
@@ -609,7 +656,7 @@ def build_catalog():
     for n in range(256):
         for geom in (GEOMETRIES_DRM if n in _sr_known() else GEOMETRIES_DRM[:1]):
             cases.append(sr_case(n, geom))
-    cases += control_cases() + barrier_cases() + atomic_cases() + tg_format_cases()
+    cases += control_cases() + barrier_cases() + atomic_cases() + tg_format_cases() + undecoded_cases()
     cases += timing_cases(alu)
     return cases
 

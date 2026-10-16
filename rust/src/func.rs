@@ -143,7 +143,8 @@ enum OpKind {
 fn op_kind(name: &'static str) -> OpKind {
     use OpKind::*;
     match name {
-        "stop" | "trap" => Stop,
+        "stop" | "trap" | "end_group" => Stop,
+        "nop6" | "fixed18" => Nop,
         "jmp_exec_any" => Jmp { any: true },
         "jmp_exec_none" => Jmp { any: false },
         "threadgroup_barrier" => TgBarrier,

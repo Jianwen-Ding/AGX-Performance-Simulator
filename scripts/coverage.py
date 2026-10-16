@@ -136,6 +136,37 @@ def install():
 RAW_OK = {bytes.fromhex('7800')}   # threadgroup barrier variant (barrier-0x68-vs-0x78), not in applegpu's tables
 
 
+RUN = Path(os.environ.get('AGX_RUN', ROOT / 'rust/target/release/agx_run'))
+SIM_DATA_VA = 0x1100000000
+
+
+def simulate(code, n, wg, regs, shared, table, dims=None):
+    """Pre-GPU gate: run the exact program in agx_run with record_suite.run's layout (uniforms u4 = 0, u5 = n,
+    u6_u7 = output, u8_u9 = table); it must reach its end. Returns (out words, table words)."""
+    rounded = (n + 31) // 32 * 32
+    words = 8 + rounded + 8 + 16
+    table_off = max(1 << 20, (0x8000 + words * 4 + 16383) // 16384 * 16384)
+    out_va, tab_va = SIM_DATA_VA + 0x8000, SIM_DATA_VA + table_off
+    grid, wgs = (list(dims[:3]), list(dims[3:])) if dims else ([rounded, 1, 1], [wg, 1, 1])
+    with tempfile.TemporaryDirectory() as t:
+        t = Path(t)
+        (t / 'c.bin').write_bytes(code + bytes(16))
+        (t / 'o.bin').write_bytes(struct.pack(f'<{words}I', *([0xcdcdcdcd] * (words - 16) + [0xa5a50000 + i for i in range(16)])))
+        (t / 't.bin').write_bytes(struct.pack(f'<{len(table)}I', *table))
+        argv = [str(RUN), str(t / 'c.bin'), '--grid', ','.join(map(str, grid)), '--wg', ','.join(map(str, wgs)), '--regs', str(regs),
+                '--shared', str(shared), '--uniform', '4=0', '--uniform', f'5={n}',
+                '--uniform', f'6={out_va & 0xffffffff}', '--uniform', f'7={out_va >> 32}',
+                '--uniform', f'8={tab_va & 0xffffffff}', '--uniform', f'9={tab_va >> 32}',
+                '--map', f'{out_va:#x}={t / "o.bin"}', '--map', f'{tab_va:#x}={t / "t.bin"}',
+                '--dump', f'{out_va:#x}={4 * words}:{t / "or.bin"}', '--dump', f'{tab_va:#x}={4 * len(table)}:{t / "tr.bin"}',
+                '--alloc-regs', str(max(8, (regs + 7) // 8 * 8)), '--vm-slot', '0', '--pipeline', '4096']
+        r = subprocess.run(argv, capture_output=True, text=True, timeout=1800)
+        if r.returncode:
+            raise RuntimeError('simulator refused: ' + (r.stdout + r.stderr).strip()[-300:])
+        return (list(struct.unpack(f'<{words}I', (t / 'or.bin').read_bytes())),
+                list(struct.unpack(f'<{len(table)}I', (t / 'tr.bin').read_bytes())))
+
+
 def gate(body):
     """record_suite.gate on the Rust decoder: every instruction decodes; nothing undecodable or control-transferring"""
     install()
@@ -287,6 +318,16 @@ def cmd_record(a):
                 oracle = item[9] if len(item) > 9 else None
                 dims = item[10] if len(item) > 10 else None
                 gate(body)
+                if not a.no_sim:
+                    import run_drm_compute as drm
+                    try:
+                        sout, stab = simulate(drm.build_main(body), n, wg, regs, shared, table, dims)
+                        if oracle and not oracle(sout, stab):
+                            raise RuntimeError('simulator result differs from the host oracle')
+                    except RuntimeError as ex:      # not a GPU event: nothing was submitted, so no fault entry
+                        log({'case': c.id, 'state': 'sim-refused', 'error': str(ex)[:300]})
+                        print(json.dumps({'case': c.id, 'sim_refused': str(ex)[:200]}), flush=True)
+                        continue
                 det = RS.record(R, EXPECTED, cat, name, desc, body, n, wg, regs, shared, table, oracle, dims)
                 log({'case': c.id, 'state': 'recorded', 'deterministic': det})
         except Exception as ex:
@@ -375,6 +416,7 @@ def main():
         if name == 'record':
             p.add_argument('--risky', action='store_true', help='also run may_fault cases')
             p.add_argument('--redo', action='store_true', help='re-record cases that already have a file')
+            p.add_argument('--no-sim', action='store_true', help='skip the agx_run pre-GPU simulation (not recommended)')
             p.add_argument('--modes', help='timing modes (default run_bench: latency,simd_issue,gpu)')
         if name == 'check':
             p.add_argument('--timing', action='store_true', help='also compare timing cases with the cost model')

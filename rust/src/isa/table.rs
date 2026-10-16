@@ -626,6 +626,30 @@ pub fn build() -> Vec<Desc> {
     let mut d = Desc::new("zs_emit", s1(4), 15, E::MaskedTodo, Mn::Plain);
     d.c(0, 8, 0x41).c(15, 1, 0).op(sample_mask("S", 9, 24, 8, 1)).op(zs_desc("T")).op(immediate("u0", 22, 2));
     push!(d);
+    // Undecoded opcodes characterised on the M2 (playground novel-results/2026-10-11-opcode-descriptions and
+    // 2026-10-11-sync-and-end-opcodes; not in applegpu). Matched last, so no applegpu descriptor is shadowed.
+    // The 31 opcodes with low bits 0b11 (7-bit opcode): 6-byte true no-ops issuing at full rate.
+    for op in (3u128..128).step_by(4).filter(|&o| o != 0x6f) {
+        let mut d = Desc::new("nop6", s1(6), 15, E::None, Mn::Plain);
+        d.c(0, 7, op).op(immediate("a", 7, 9)).op(immediate("b", 16, 32));
+        push!(d);
+    }
+    // 0x18 with bit 7 clear: 2 bytes, no register effect, a fixed ~4.3 ns that waits for nothing tested.
+    let mut d = Desc::new("fixed18", s1(2), 15, E::None, Mn::Plain);
+    d.c(0, 8, 0x18).op(immediate("a", 8, 8));
+    push!(d);
+    // The 16 "ends" opcodes (any bits 7-15) and 0x98 / 0xf8 (0x18 / 0x78 with bit 7): end the whole SIMD group
+    // whatever the exec mask; earlier stores reach memory; nothing after them runs.
+    for op in [0x01u128, 0x0d, 0x1d, 0x2c, 0x2d, 0x3c, 0x3d, 0x4d, 0x50, 0x5d, 0x60, 0x6c, 0x6d, 0x70, 0x7c, 0x7d] {
+        let mut d = Desc::new("end_group", s1(2), 15, E::None, Mn::Plain);
+        d.c(0, 7, op).op(immediate("a", 7, 9));
+        push!(d);
+    }
+    for op in [0x98u128, 0xf8] {
+        let mut d = Desc::new("end_group", s1(2), 15, E::None, Mn::Plain);
+        d.c(0, 8, op).op(immediate("a", 8, 8));
+        push!(d);
+    }
     let mut d = Desc::new("memory_barrier", s1(2), 15, E::MaskedTodo, Mn::Plain);
     d.c(0, 8, 0xF5).op(immediate("a", 10, 2)).op(immediate("b", 8, 2)).op(immediate("c", 12, 4));
     push!(d);
