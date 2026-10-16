@@ -69,7 +69,7 @@ known gaps: [novel-results/2026-10-11-cost-model](novel-results/2026-10-11-cost-
 | `testsuite/`, `coverage/` | Hardware-recorded functional test suite (721 cases); coverage catalog of every known behaviour, to be recorded ([coverage/README.md](coverage/README.md)) |
 | `spirv/`, `tests/vk_run.c` | Realistic SPIR-V compute workloads with numpy references, a generic Vulkan runner, and the path from the driver's compiled code to the simulator |
 | `spirv/compiled/`, `scripts/build_mesa_shim.sh` | The workloads compiled by Mesa's Asahi driver (25.2.8, 26.0.3) without the GPU (no-op drm-shim reporting a G14C); root-table layouts per Mesa version ([finding](results/2026-10-12-spirv-offline/README.md)) |
-| `tasks/` | Self-contained tasks for an agent on Asahi Linux: [coverage recording](tasks/agx-coverage.md), [SPIR-V workloads](tasks/spirv-workloads.md) |
+| `tasks/` | Self-contained tasks for an agent on Asahi Linux: [coverage recording](tasks/agx-coverage.md), [SPIR-V workloads](tasks/spirv-workloads.md), [safe AGX probes](tasks/safe-probes.md) (safe-01 .. safe-06: numeric semantics, cost-model gaps, memory system, submission, textures via Vulkan, the 214 unknown special-register cases) |
 | `results/` | Calibration data and every validation measurement |
 | `novel-results/` | The cost-model finding and the hardware findings its rules come from |
 
