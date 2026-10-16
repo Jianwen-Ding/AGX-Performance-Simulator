@@ -21,3 +21,18 @@ Effect: test suite 720/721 -> 721/721 exact (prog_071 fixed). Coverage 1,984 exa
 
 Accuracy against PTX, and Mesa's cos sequence (2^-20.29 on hardware, PTX allows 2^-20.4) with a compliant fma
 variant: playground `novel-results/2026-10-16-transcendentals`.
+
+## fp16 forms (safe-01 part 2)
+
+`scripts/record_f16_trans.py` recorded all 65,536 fp16 inputs of `<op> r14l, r6h` (fp16 -> fp16) and `<op> r14, r6l`
+(fp16 source -> fp32), for rcp, rsqrt, rsqrt_special, log2, exp2, sin_pt_1 and sin_pt_2 (the coverage suite's safe
+forms; 0 faults).
+
+- **The fp16 result is the fp32 hardware result rounded to fp16** (round to nearest even), on 100 % of the inputs of
+  all seven ops. The fp16 forms are therefore not independently correctly rounded: log2 and exp2 differ from the
+  correctly rounded fp16 value on 2 and 4 inputs (double rounding), and the maximum error is 0.51 ulp.
+- **fp16 sources keep their denormals.** The fp32 unit sees the exact fp32 value of the fp16 input, so the fp32 tables
+  apply directly (h->f32 results equal the fp32 path on every input).
+- **`sin_pt_1(-4)` and `sin_pt_1(-0)` are +0, while `sin_pt_1(-2)` is -0.** The simulator returned -0 for -4 before.
+
+The simulator now reproduces every one of the 917,504 results (`f16/*.bin.gz`, checked by `make verify-transcendentals`).

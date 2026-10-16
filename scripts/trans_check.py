@@ -3,7 +3,8 @@
 
 results/2026-10-16-transcendentals/hw_samples.json.gz holds hardware results recorded on 2026-10-16: exp2 (76 binades,
 -2^127 .. 2^127), sin_pt_2 (60 binades, |x| < 2^127), log2 (12 binades, 2^-126 .. 2^127), 1026 inputs per binade,
-and Mesa's sin / cos sequence plus the fma-split variant (chain_sin2 / chain_cos2) on 32k inputs each. Each set runs
+and Mesa's sin / cos sequence plus the fma-split variant (chain_sin2 / chain_cos2) on 32k inputs each; and every
+fp16 input of the seven fp16 forms (`<op> r14l, r6h` and `<op> r14, r6l`, f16/*.bin.gz). Each set runs
 in agx_run with the exact kernel that recorded it (results/2026-10-16-transcendentals/kernels/*.bin: load x, the op or the
 chain, store) and every result word must match.
 """
@@ -44,6 +45,15 @@ def main():
             bad += n
             print(f'{"ok  " if not n else "FAIL"} {op:11s} {len(xs):7d} inputs' + (f' ({v["binades"]} binades)' if 'binades' in v else '')
                   + (f', {n} differ; first x={xs[got != hw][0]:#x}' if n else ''))
+        # fp16 forms: every one of the 65,536 inputs, recorded raw (f16/<op>_<form>.bin.gz; record_f16_trans.py)
+        for f in sorted((T/'f16').glob('*.bin.gz')):
+            op_form = f.name[:-len('.bin.gz')]
+            hw = np.frombuffer(gzip.open(f).read(), '<u4')
+            shift = 16 if op_form.endswith('h2h') else 0
+            got = sim(T/'kernels'/f'f16_{op_form}.bin', (np.arange(1 << 16, dtype=np.uint32) << shift), Path(tmp))
+            n = int(np.sum(got != hw))
+            bad += n
+            print(f'{"ok  " if not n else "FAIL"} f16 {op_form:18s} 65536 inputs' + (f', {n} differ' if n else ''))
     print(f'{bad} mismatching words')
     return 1 if bad else 0
 

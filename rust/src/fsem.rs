@@ -844,10 +844,11 @@ pub fn quad_shuffle(name: &str, ops: &[Operand], st: &mut CoreState) -> R<()> {
 
 // ---- transcendentals --------------------------------------------------------------------------------------
 //
-// fp16 forms are correctly rounded (every sampled lane of the suite). fp32 forms are the hardware's approximation:
-// rcp / rsqrt / rsqrt_special / sin_pt_2 come from recorded exact tables, log2 and exp2 from the recorded fixed-point
-// samples (`transtab`), for fp32 and fp16 sources alike: every fp32 transcendental is exact. Special values, the denormal rules (fp32 inputs flushed to zero, fp16
-// denormals kept), `.sat` and sin_pt_1 are exact.
+// The unit computes in fp32 with the hardware's approximation: rcp / rsqrt / rsqrt_special / sin_pt_2 come from
+// recorded exact tables, log2 and exp2 from the recorded fixed-point samples (`transtab`), for fp32 and fp16 sources
+// alike. A 16-bit destination receives that fp32 result rounded to fp16 (so fp16 forms are not always correctly
+// rounded: log2 / exp2 differ on a few inputs). Special values, the denormal rules (fp32 inputs flushed to zero, fp16
+// denormals kept), `.sat` and sin_pt_1 are exact; every form matches the hardware on all inputs recorded.
 
 /// Exact value (in f64) of the function, before rounding to the destination format.
 fn trans_f64(name: &str, x: f64) -> f64 {
@@ -886,7 +887,8 @@ fn trans_f64(name: &str, x: f64) -> f64 {
             } else if ax <= 3.0 {
                 (2.0 - ax) * x.signum()
             } else {
-                (ax - 4.0) * x.signum()
+                // a zero result here is +0 (sin_pt_1(-4) = +0), unlike the 2 - |x| branch (sin_pt_1(-2) = -0)
+                (ax - 4.0) * x.signum() + 0.0
             }
         }
         "sin_pt_2" => {
@@ -913,17 +915,19 @@ pub fn transcendental(name: &str, f: &Fields, ops: &[Operand], st: &mut CoreStat
         }
         // fp32 sources: denormals read as zero; fp16 sources keep denormals (exact in fp32)
         let x = float(st, &ops[1], t, true)?;
-        let table = if d16 || x.is_nan() { None } else { crate::transtab::lookup(name, (x as f32).to_bits()) };
+        // the unit computes in fp32 (the recorded tables); a 16-bit destination receives that fp32 result rounded to
+        // fp16 (round to nearest even): all 65,536 fp16 inputs of all seven ops (results/2026-10-16-f16-transcendentals)
+        let table = if x.is_nan() { None } else { crate::transtab::lookup(name, (x as f32).to_bits()) };
         let mut y = match table {
             Some(b) => f32::from_bits(b) as f64,
-            None => trans_f64(name, x),
+            None => f32::from_bits(to_f32(trans_f64(name, x))) as f64,
         };
         if s {
             y = sat(y);
         }
         let bits = match table {
-            Some(b) if !s => b,
             _ if d16 => to_f16(y),
+            Some(b) if !s => b,
             _ => to_f32(y),
         };
         put(st, &ops[0], t, bits as u64)?;

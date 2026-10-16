@@ -41,6 +41,9 @@ and is checked offline.
 
 ## 2. fp16 transcendentals
 
+**Done 2026-10-16** (`results/2026-10-16-transcendentals`, fp16 section): fp16 results = the fp32 hardware result rounded to
+fp16, exact on all 917,504 results; the simulator was updated.
+
 - **Scope:** `rcp`, `rsqrt`, `rsqrt_special`, `log2`, `exp2`, `sin_pt_1`, `sin_pt_2` with a 16-bit source and a 16-bit
   destination (forms such as `exp2 r14l, r6h` are in `coverage/expected/alu`).
 - All 65,536 inputs each, in a single 2^16-lane dispatch run twice.
