@@ -1,0 +1,3140 @@
+[
+ {
+  "workload": "reduce",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "2": 0,
+   "3": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 557.6,
+   "predicted_us": 467.2,
+   "ratio": 0.838,
+   "per_dispatch_us": [
+    [
+     450.12,
+     412.51
+    ],
+    [
+     107.52,
+     54.66
+    ]
+   ]
+  }
+ },
+ {
+  "workload": "scan",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "0": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 151.6,
+   "predicted_us": 44.6,
+   "ratio": 0.294,
+   "per_dispatch_us": [
+    [
+     83.79,
+     19.92
+    ],
+    [
+     24.83,
+     7.28
+    ],
+    [
+     43.0,
+     17.35
+    ]
+   ]
+  }
+ },
+ {
+  "workload": "sgemm",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "2": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 1741.8,
+   "predicted_us": 2069.5,
+   "ratio": 1.188
+  }
+ },
+ {
+  "workload": "conv2d",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "2": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 531.0,
+   "predicted_us": 283.3,
+   "ratio": 0.533
+  }
+ },
+ {
+  "workload": "histogram",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "1": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 114.5,
+   "predicted_us": 58.6,
+   "ratio": 0.511
+  }
+ },
+ {
+  "workload": "nbody",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "2": 0,
+   "3": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 1987.2,
+   "predicted_us": 6596.7,
+   "ratio": 3.319
+  }
+ },
+ {
+  "workload": "bitonic",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "0": 0,
+   "1": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 3408.8,
+   "predicted_us": 1697.4,
+   "ratio": 0.498
+  }
+ },
+ {
+  "workload": "sha256",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "1": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 3418.4,
+   "predicted_us": 4715.4,
+   "ratio": 1.379
+  }
+ },
+ {
+  "workload": "fp16",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "2": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 154.5,
+   "predicted_us": 111.6,
+   "ratio": 0.722
+  }
+ },
+ {
+  "workload": "int64",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "2": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 261.9,
+   "predicted_us": 143.3,
+   "ratio": 0.547
+  }
+ },
+ {
+  "workload": "bitops",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "1": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 442.3,
+   "predicted_us": 98.4,
+   "ratio": 0.222
+  }
+ },
+ {
+  "workload": "intdiv",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "1": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 447.5,
+   "predicted_us": 234.6,
+   "ratio": 0.524
+  }
+ },
+ {
+  "workload": "compact",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "2": 0,
+   "3": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 2364.3,
+   "predicted_us": 1991.7,
+   "ratio": 0.842,
+   "per_dispatch_us": [
+    [
+     101.83,
+     85.51
+    ],
+    [
+     2118.88,
+     1771.3
+    ],
+    [
+     143.62,
+     134.84
+    ]
+   ]
+  }
+ },
+ {
+  "workload": "spmv",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "4": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 996.3,
+   "predicted_us": 802.0,
+   "ratio": 0.805
+  }
+ },
+ {
+  "workload": "transpose",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "1": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 248.1,
+   "predicted_us": 277.9,
+   "ratio": 1.12
+  }
+ },
+ {
+  "workload": "mandelbrot",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "0": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 2054.8,
+   "predicted_us": 83.4,
+   "ratio": 0.041
+  }
+ },
+ {
+  "workload": "softmax",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "1": 42884
+  },
+  "simulator_matches_reference": true,
+  "status": "CLOSE",
+  "why": "42884 words differ, both within the reference tolerance",
+  "timing": {
+   "measured_us": 472.9,
+   "predicted_us": 485.0,
+   "ratio": 1.026
+  }
+ },
+ {
+  "workload": "rgba8",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "1": 0,
+   "2": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 245.2,
+   "predicted_us": 100.0,
+   "ratio": 0.408
+  }
+ },
+ {
+  "workload": "atomics",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "0": 0,
+   "1": 0,
+   "3": 1536
+  },
+  "simulator_matches_reference": true,
+  "status": "CLOSE",
+  "why": "1536 words differ, both within the reference tolerance",
+  "timing": {
+   "measured_us": 565.7,
+   "predicted_us": 103.8,
+   "ratio": 0.184
+  }
+ },
+ {
+  "workload": "geom3d",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "0": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 716.5,
+   "predicted_us": 325.6,
+   "ratio": 0.454
+  }
+ },
+ {
+  "workload": "spill",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "1": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 5978.5,
+   "predicted_us": 341.6,
+   "ratio": 0.057
+  }
+ },
+ {
+  "workload": "control",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "1": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 915.8,
+   "predicted_us": 500.2,
+   "ratio": 0.546
+  }
+ },
+ {
+  "workload": "shuffle",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "1": 0,
+   "2": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 145.4,
+   "predicted_us": 96.4,
+   "ratio": 0.663
+  }
+ },
+ {
+  "workload": "floatops",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "1": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 449.7,
+   "predicted_us": 92.5,
+   "ratio": 0.206
+  }
+ },
+ {
+  "workload": "radix_sort",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "0": 0,
+   "1": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 5605.5,
+   "predicted_us": 4639.1,
+   "ratio": 0.828
+  }
+ },
+ {
+  "workload": "fft",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "1": 7004
+  },
+  "simulator_matches_reference": true,
+  "status": "CLOSE",
+  "why": "7004 words differ, both within the reference tolerance",
+  "timing": {
+   "measured_us": 614.1,
+   "predicted_us": 356.6,
+   "ratio": 0.581
+  }
+ },
+ {
+  "workload": "crc32",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "1": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 389.8,
+   "predicted_us": 125.6,
+   "ratio": 0.322
+  }
+ },
+ {
+  "workload": "kmeans",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "2": 0,
+   "3": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 847.3,
+   "predicted_us": 250.4,
+   "ratio": 0.296
+  }
+ },
+ {
+  "workload": "int8dot",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "2": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 4886.2,
+   "predicted_us": 4776.9,
+   "ratio": 0.978
+  }
+ },
+ {
+  "workload": "stencil3d",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "1": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 745.4,
+   "predicted_us": 703.5,
+   "ratio": 0.944
+  }
+ },
+ {
+  "workload": "int16",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "1": 0,
+   "2": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 402.0,
+   "predicted_us": 109.6,
+   "ratio": 0.273
+  }
+ },
+ {
+  "workload": "trig",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "1": 10236
+  },
+  "simulator_matches_reference": true,
+  "status": "CLOSE",
+  "why": "10236 words differ, both within the reference tolerance",
+  "timing": {
+   "measured_us": 926.1,
+   "predicted_us": 234.7,
+   "ratio": 0.253
+  }
+ },
+ {
+  "workload": "raytrace",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "0": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 591.6,
+   "predicted_us": 167.0,
+   "ratio": 0.282
+  }
+ },
+ {
+  "workload": "mlp",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "5": 631
+  },
+  "simulator_matches_reference": true,
+  "status": "CLOSE",
+  "why": "631 words differ, both within the reference tolerance",
+  "timing": {
+   "measured_us": 16802.8,
+   "predicted_us": 6248.8,
+   "ratio": 0.372
+  }
+ },
+ {
+  "workload": "sobel",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "1": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 664.0,
+   "predicted_us": 284.5,
+   "ratio": 0.428
+  }
+ },
+ {
+  "workload": "life",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "0": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 11549.3,
+   "predicted_us": 12258.4,
+   "ratio": 1.061
+  }
+ },
+ {
+  "workload": "bfs",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "2": 0,
+   "3": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 2574.8,
+   "predicted_us": 919.8,
+   "ratio": 0.357,
+   "predicted_stateful_us": 2951.0,
+   "ratio_stateful": 1.146
+  }
+ },
+ {
+  "workload": "conv_layer",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "3": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 2023.3,
+   "predicted_us": 2083.6,
+   "ratio": 1.03
+  }
+ },
+ {
+  "workload": "hist_eq",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "2": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 223.5,
+   "predicted_us": 207.0,
+   "ratio": 0.926,
+   "per_dispatch_us": [
+    [
+     77.4,
+     35.91
+    ],
+    [
+     57.0,
+     109.25
+    ],
+    [
+     89.1,
+     61.79
+    ]
+   ]
+  }
+ },
+ {
+  "workload": "aes",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "3": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 1886.6,
+   "predicted_us": 563.5,
+   "ratio": 0.299
+  }
+ },
+ {
+  "workload": "hash_table",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "2": 1088,
+   "4": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "CLOSE",
+  "why": "1088 words differ, both within the reference tolerance",
+  "timing": {
+   "measured_us": 643.9,
+   "predicted_us": 429.0,
+   "ratio": 0.666,
+   "per_dispatch_us": [
+    [
+     355.98,
+     212.52
+    ],
+    [
+     287.92,
+     216.52
+    ]
+   ]
+  }
+ },
+ {
+  "workload": "word_count",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "1": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 2696.1,
+   "predicted_us": 1766.2,
+   "ratio": 0.655
+  }
+ },
+ {
+  "workload": "dct8",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "2": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 3177.4,
+   "predicted_us": 2967.8,
+   "ratio": 0.934
+  }
+ },
+ {
+  "workload": "attention",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "3": 3234
+  },
+  "simulator_matches_reference": true,
+  "status": "CLOSE",
+  "why": "3234 words differ, both within the reference tolerance",
+  "timing": {
+   "measured_us": 32683.3,
+   "predicted_us": 16384.6,
+   "ratio": 0.501
+  }
+ },
+ {
+  "workload": "resize",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "1": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 963.2,
+   "predicted_us": 307.4,
+   "ratio": 0.319
+  }
+ },
+ {
+  "workload": "median3",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "1": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 342.7,
+   "predicted_us": 313.9,
+   "ratio": 0.916
+  }
+ },
+ {
+  "workload": "poisson",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "0": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 9575.6,
+   "predicted_us": 7035.6,
+   "ratio": 0.735
+  }
+ },
+ {
+  "workload": "lbm",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "0": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 13525.8,
+   "predicted_us": 8749.4,
+   "ratio": 0.647
+  }
+ },
+ {
+  "workload": "base64",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "1": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 200.7,
+   "predicted_us": 95.0,
+   "ratio": 0.473
+  }
+ },
+ {
+  "workload": "md5",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "1": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 1446.8,
+   "predicted_us": 872.7,
+   "ratio": 0.603
+  }
+ },
+ {
+  "workload": "gemv",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "2": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 815.7,
+   "predicted_us": 855.9,
+   "ratio": 1.049
+  }
+ },
+ {
+  "workload": "levenshtein",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "3": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 9756.2,
+   "predicted_us": 16924.7,
+   "ratio": 1.735
+  }
+ },
+ {
+  "workload": "blur",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "2": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 1042.4,
+   "predicted_us": 1285.5,
+   "ratio": 1.233,
+   "per_dispatch_us": [
+    [
+     526.79,
+     729.1
+    ],
+    [
+     515.58,
+     556.4
+    ]
+   ]
+  }
+ },
+ {
+  "workload": "yuv420",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "1": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 209.2,
+   "predicted_us": 178.9,
+   "ratio": 0.855
+  }
+ },
+ {
+  "workload": "montecarlo",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "0": 0,
+   "1": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 1614.6,
+   "predicted_us": 1576.5,
+   "ratio": 0.976
+  }
+ },
+ {
+  "workload": "xxhash",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "1": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 1362.2,
+   "predicted_us": 876.8,
+   "ratio": 0.644
+  }
+ },
+ {
+  "workload": "bloom",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "1": 0,
+   "3": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 1913.4,
+   "predicted_us": 874.5,
+   "ratio": 0.457,
+   "per_dispatch_us": [
+    [
+     1197.12,
+     447.53
+    ],
+    [
+     716.23,
+     426.97
+    ]
+   ]
+  }
+ },
+ {
+  "workload": "collatz",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "1": 0,
+   "2": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 3250.2,
+   "predicted_us": 2604.5,
+   "ratio": 0.801
+  }
+ },
+ {
+  "workload": "tridiag",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "4": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 2965.6,
+   "predicted_us": 1292.3,
+   "ratio": 0.436
+  }
+ },
+ {
+  "workload": "merge",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "2": 0,
+   "3": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 1415.7,
+   "predicted_us": 1638.5,
+   "ratio": 1.157
+  }
+ },
+ {
+  "workload": "ccl",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "1": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 8982.7,
+   "predicted_us": 4931.1,
+   "ratio": 0.549,
+   "predicted_stateful_us": 4931.1,
+   "ratio_stateful": 0.549
+  }
+ },
+ {
+  "workload": "pagerank",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "3": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 7552.2,
+   "predicted_us": 30579.2,
+   "ratio": 4.049,
+   "predicted_stateful_us": 30579.2,
+   "ratio_stateful": 4.049
+  }
+ },
+ {
+  "workload": "skinning",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "5": 0,
+   "6": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 553.0,
+   "predicted_us": 341.8,
+   "ratio": 0.618
+  }
+ },
+ {
+  "workload": "strsearch",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "2": 0,
+   "3": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 2836.5,
+   "predicted_us": 1388.8,
+   "ratio": 0.49
+  }
+ },
+ {
+  "workload": "quantize",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "2": 0,
+   "3": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 242.2,
+   "predicted_us": 157.0,
+   "ratio": 0.648
+  }
+ },
+ {
+  "workload": "rule110",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "0": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 22050.9,
+   "predicted_us": 6364.9,
+   "ratio": 0.289
+  }
+ },
+ {
+  "workload": "voxel",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "1": 0,
+   "2": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 1831.3,
+   "predicted_us": 585.9,
+   "ratio": 0.32
+  }
+ },
+ {
+  "workload": "nms",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "1": 0,
+   "2": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 999.3,
+   "predicted_us": 76.7,
+   "ratio": 0.077
+  }
+ },
+ {
+  "workload": "sat",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "1": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 2191.9,
+   "predicted_us": 1791.5,
+   "ratio": 0.817,
+   "per_dispatch_us": [
+    [
+     682.9,
+     257.6
+    ],
+    [
+     1509.04,
+     1533.87
+    ]
+   ]
+  }
+ },
+ {
+  "workload": "sssp",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "3": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 3337.1,
+   "predicted_us": 858.0,
+   "ratio": 0.257,
+   "predicted_stateful_us": 1928.5,
+   "ratio_stateful": 0.578
+  }
+ },
+ {
+  "workload": "morton",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "1": 0,
+   "2": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 556.3,
+   "predicted_us": 334.5,
+   "ratio": 0.601
+  }
+ },
+ {
+  "workload": "utf8",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "1": 0,
+   "2": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 1480.3,
+   "predicted_us": 459.4,
+   "ratio": 0.31
+  }
+ },
+ {
+  "workload": "fir",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "2": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 1531.8,
+   "predicted_us": 981.7,
+   "ratio": 0.641
+  }
+ },
+ {
+  "workload": "composite",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "2": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 417.0,
+   "predicted_us": 287.0,
+   "ratio": 0.688
+  }
+ },
+ {
+  "workload": "nqueens",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "0": 0,
+   "1": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 6478.8,
+   "predicted_us": 4653.7,
+   "ratio": 0.718
+  }
+ },
+ {
+  "workload": "lzmatch",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "1": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 897.4,
+   "predicted_us": 944.2,
+   "ratio": 1.052
+  }
+ },
+ {
+  "workload": "bitpack",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "1": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 669.0,
+   "predicted_us": 1130.9,
+   "ratio": 1.691
+  }
+ },
+ {
+  "workload": "perlin",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "1": 0,
+   "2": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 369.8,
+   "predicted_us": 268.2,
+   "ratio": 0.725
+  }
+ },
+ {
+  "workload": "adler32",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "1": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 1639.5,
+   "predicted_us": 512.5,
+   "ratio": 0.313
+  }
+ },
+ {
+  "workload": "sieve",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "1": 0,
+   "2": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 3401.6,
+   "predicted_us": 3116.5,
+   "ratio": 0.916
+  }
+ },
+ {
+  "workload": "gcd",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "1": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 612.0,
+   "predicted_us": 213.5,
+   "ratio": 0.349
+  }
+ },
+ {
+  "workload": "dither",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "1": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 729.3,
+   "predicted_us": 577.5,
+   "ratio": 0.792
+  }
+ },
+ {
+  "workload": "advect",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "0": 0,
+   "2": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 2537.1,
+   "predicted_us": 1244.9,
+   "ratio": 0.491
+  }
+ },
+ {
+  "workload": "knn",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "2": 0,
+   "3": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 5810.1,
+   "predicted_us": 8053.3,
+   "ratio": 1.386
+  }
+ },
+ {
+  "workload": "csvparse",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "1": 0,
+   "2": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 932.3,
+   "predicted_us": 442.1,
+   "ratio": 0.474
+  }
+ },
+ {
+  "workload": "pip",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "2": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 6467.6,
+   "predicted_us": 6464.7,
+   "ratio": 1.0
+  }
+ },
+ {
+  "workload": "lift53",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "1": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 273.2,
+   "predicted_us": 236.8,
+   "ratio": 0.867
+  }
+ },
+ {
+  "workload": "chacha20",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "2": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 756.7,
+   "predicted_us": 279.2,
+   "ratio": 0.369
+  }
+ },
+ {
+  "workload": "modexp",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "1": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 8658.4,
+   "predicted_us": 30073.1,
+   "ratio": 3.473
+  }
+ },
+ {
+  "workload": "floyd",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "0": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 12912.1,
+   "predicted_us": 4563.7,
+   "ratio": 0.353
+  }
+ },
+ {
+  "workload": "f16pack",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "1": 0,
+   "2": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 363.5,
+   "predicted_us": 285.8,
+   "ratio": 0.786,
+   "per_dispatch_us": [
+    [
+     213.94,
+     146.37
+    ],
+    [
+     149.6,
+     139.45
+    ]
+   ]
+  }
+ },
+ {
+  "workload": "raster",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "1": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 2809.6,
+   "predicted_us": 913.9,
+   "ratio": 0.325
+  }
+ },
+ {
+  "workload": "canny",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "2": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 718.5,
+   "predicted_us": 598.1,
+   "ratio": 0.832,
+   "per_dispatch_us": [
+    [
+     393.04,
+     294.3
+    ],
+    [
+     325.44,
+     303.79
+    ]
+   ]
+  }
+ },
+ {
+  "workload": "secded",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "1": 0,
+   "3": 0,
+   "4": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 502.3,
+   "predicted_us": 352.7,
+   "ratio": 0.702,
+   "per_dispatch_us": [
+    [
+     208.06,
+     140.32
+    ],
+    [
+     294.27,
+     212.39
+    ]
+   ]
+  }
+ },
+ {
+  "workload": "bicubic",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "1": 0,
+   "2": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 774.4,
+   "predicted_us": 368.4,
+   "ratio": 0.476
+  }
+ },
+ {
+  "workload": "dfa",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "3": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 3156.6,
+   "predicted_us": 956.1,
+   "ratio": 0.303
+  }
+ },
+ {
+  "workload": "b64decode",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "1": 0,
+   "2": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 152.5,
+   "predicted_us": 76.9,
+   "ratio": 0.504
+  }
+ },
+ {
+  "workload": "cordic",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "2": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 795.0,
+   "predicted_us": 376.4,
+   "ratio": 0.473
+  }
+ },
+ {
+  "workload": "rsenc",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "2": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 1511.8,
+   "predicted_us": 1648.4,
+   "ratio": 1.09
+  }
+ },
+ {
+  "workload": "texfetch",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "status": "UNSIM",
+  "why": "texture sampling, image access and indirect dispatch are not modelled by the simulator (hardware verification only)"
+ },
+ {
+  "workload": "texfilter",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "status": "UNSIM",
+  "why": "texture sampling, image access and indirect dispatch are not modelled by the simulator (hardware verification only)"
+ },
+ {
+  "workload": "imgerode",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "status": "UNSIM",
+  "why": "texture sampling, image access and indirect dispatch are not modelled by the simulator (hardware verification only)"
+ },
+ {
+  "workload": "imgtonemap",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "status": "UNSIM",
+  "why": "texture sampling, image access and indirect dispatch are not modelled by the simulator (hardware verification only)"
+ },
+ {
+  "workload": "argmax64",
+  "device": "Apple M2 Max (G14C B1)",
+  "status": "NODEV",
+  "why": "the driver does not offer buffer_int64_atomics, which the shader needs"
+ },
+ {
+  "workload": "minmax64",
+  "device": "Apple M2 Max (G14C B1)",
+  "status": "NODEV",
+  "why": "the driver does not offer buffer_int64_atomics, which the shader needs"
+ },
+ {
+  "workload": "dsum",
+  "device": "Apple M2 Max (G14C B1)",
+  "status": "NODEV",
+  "why": "the driver does not offer float64, which the shader needs"
+ },
+ {
+  "workload": "quadmip",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "1": 0,
+   "2": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 1069.2,
+   "predicted_us": 979.5,
+   "ratio": 0.916
+  }
+ },
+ {
+  "workload": "clustered",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "1": 0,
+   "2": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 394.6,
+   "predicted_us": 414.2,
+   "ratio": 1.05
+  }
+ },
+ {
+  "workload": "specblur",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "1": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 541.3,
+   "predicted_us": 233.1,
+   "ratio": 0.431
+  }
+ },
+ {
+  "workload": "cullindirect",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "status": "UNSIM",
+  "why": "texture sampling, image access and indirect dispatch are not modelled by the simulator (hardware verification only)"
+ },
+ {
+  "workload": "bigsort",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "1": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 2532.1,
+   "predicted_us": 2563.4,
+   "ratio": 1.012
+  }
+ },
+ {
+  "workload": "pushmat",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "1": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 445.4,
+   "predicted_us": 362.1,
+   "ratio": 0.813
+  }
+ },
+ {
+  "workload": "mplitmus",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "0": 0,
+   "1": 0,
+   "2": 3
+  },
+  "simulator_matches_reference": true,
+  "status": "CLOSE",
+  "why": "3 words differ, both within the reference tolerance",
+  "timing": {
+   "measured_us": 65.3,
+   "predicted_us": 27.2,
+   "ratio": 0.416
+  }
+ },
+ {
+  "workload": "splat",
+  "device": "Apple M2 Max (G14C B1)",
+  "status": "NODEV",
+  "why": "the driver does not offer buffer_float32_atomic_add, which the shader needs"
+ },
+ {
+  "workload": "splatfix",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "1": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 1627.1,
+   "predicted_us": 588.2,
+   "ratio": 0.362
+  }
+ },
+ {
+  "workload": "smembank",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "0": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 727.0,
+   "predicted_us": 683.1,
+   "ratio": 0.94,
+   "per_dispatch_us": [
+    [
+     99.29,
+     76.42
+    ],
+    [
+     88.9,
+     76.45
+    ],
+    [
+     90.88,
+     77.09
+    ],
+    [
+     97.48,
+     78.76
+    ],
+    [
+     114.65,
+     105.9
+    ],
+    [
+     147.6,
+     192.03
+    ],
+    [
+     88.23,
+     76.42
+    ]
+   ]
+  }
+ },
+ {
+  "workload": "coalesce",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "1": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 1542.7,
+   "predicted_us": 2099.3,
+   "ratio": 1.361,
+   "per_dispatch_us": [
+    [
+     63.21,
+     24.16
+    ],
+    [
+     70.92,
+     103.42
+    ],
+    [
+     113.79,
+     196.43
+    ],
+    [
+     202.17,
+     383.46
+    ],
+    [
+     376.42,
+     756.06
+    ],
+    [
+     361.6,
+     405.46
+    ],
+    [
+     354.58,
+     230.35
+    ]
+   ]
+  }
+ },
+ {
+  "workload": "atomcontend",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "0": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 7492.1,
+   "predicted_us": 57.4,
+   "ratio": 0.008,
+   "per_dispatch_us": [
+    [
+     3633.4,
+     11.48
+    ],
+    [
+     3302.42,
+     11.48
+    ],
+    [
+     231.4,
+     11.48
+    ],
+    [
+     154.44,
+     11.48
+    ],
+    [
+     170.42,
+     11.48
+    ]
+   ]
+  }
+ },
+ {
+  "workload": "barriercost",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "0": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 671.5,
+   "predicted_us": 232.7,
+   "ratio": 0.347,
+   "per_dispatch_us": [
+    [
+     44.88,
+     8.54
+    ],
+    [
+     55.96,
+     16.57
+    ],
+    [
+     131.88,
+     45.63
+    ],
+    [
+     438.79,
+     161.98
+    ]
+   ]
+  }
+ },
+ {
+  "workload": "aluprobe",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "0": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 1286.5,
+   "predicted_us": 491.7,
+   "ratio": 0.382,
+   "per_dispatch_us": [
+    [
+     333.98,
+     91.86
+    ],
+    [
+     81.75,
+     32.64
+    ],
+    [
+     239.02,
+     95.16
+    ],
+    [
+     89.21,
+     57.21
+    ],
+    [
+     325.81,
+     117.65
+    ],
+    [
+     216.69,
+     97.2
+    ]
+   ]
+  }
+ },
+ {
+  "workload": "ubopalette",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "3": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 526.6,
+   "predicted_us": 504.4,
+   "ratio": 0.958
+  }
+ },
+ {
+  "workload": "uboparams",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "2": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 202.3,
+   "predicted_us": 87.5,
+   "ratio": 0.432
+  }
+ },
+ {
+  "workload": "bindless",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "2": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 434.4,
+   "predicted_us": 525.3,
+   "ratio": 1.209
+  }
+ },
+ {
+  "workload": "bindlessu",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "2": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 171.6,
+   "predicted_us": 322.0,
+   "ratio": 1.877
+  }
+ },
+ {
+  "workload": "rle",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "2": 0,
+   "3": 0,
+   "4": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 2767.5,
+   "predicted_us": 2092.1,
+   "ratio": 0.756,
+   "per_dispatch_us": [
+    [
+     112.9,
+     100.82
+    ],
+    [
+     2119.83,
+     1771.3
+    ],
+    [
+     154.17,
+     150.78
+    ],
+    [
+     380.58,
+     69.25
+    ]
+   ]
+  }
+ },
+ {
+  "workload": "huffdec",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "3": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 950.6,
+   "predicted_us": 257.2,
+   "ratio": 0.271
+  }
+ },
+ {
+  "workload": "lookback",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "1": 0,
+   "2": 1
+  },
+  "simulator_matches_reference": true,
+  "status": "CLOSE",
+  "why": "1 words differ, both within the reference tolerance",
+  "timing": {
+   "measured_us": 611.8,
+   "predicted_us": 55.2,
+   "ratio": 0.09,
+   "predicted_stateful_us": 55.2,
+   "ratio_stateful": 0.09
+  }
+ },
+ {
+  "workload": "hll",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "1": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 909.3,
+   "predicted_us": 335.0,
+   "ratio": 0.368
+  }
+ },
+ {
+  "workload": "tricount",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "3": 0,
+   "4": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 3118.9,
+   "predicted_us": 3713.9,
+   "ratio": 1.191
+  }
+ },
+ {
+  "workload": "sha3",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "1": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 1447.1,
+   "predicted_us": 454.4,
+   "ratio": 0.314
+  }
+ },
+ {
+  "workload": "stereo",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "4": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 5024.7,
+   "predicted_us": 3567.4,
+   "ratio": 0.71,
+   "per_dispatch_us": [
+    [
+     186.12,
+     158.15
+    ],
+    [
+     4838.54,
+     3409.28
+    ]
+   ]
+  }
+ },
+ {
+  "workload": "viterbi",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": false,
+  "words_differing": {
+   "1": 0
+  },
+  "simulator_matches_reference": false,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 2323.6,
+   "predicted_us": 3618.5,
+   "ratio": 1.557
+  }
+ },
+ {
+  "workload": "viterbifix",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "1": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 2929.7,
+   "predicted_us": 3678.6,
+   "ratio": 1.256
+  }
+ },
+ {
+  "workload": "shiftfuse",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": false,
+  "words_differing": {
+   "1": 0
+  },
+  "simulator_matches_reference": false,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 659.9,
+   "predicted_us": 178.0,
+   "ratio": 0.27
+  }
+ },
+ {
+  "workload": "bc1enc",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "1": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 216.6,
+   "predicted_us": 99.0,
+   "ratio": 0.457
+  }
+ },
+ {
+  "workload": "lz4dec",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": false,
+  "words_differing": {
+   "2": 0,
+   "3": 0
+  },
+  "simulator_matches_reference": false,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 80.4,
+   "predicted_us": 24.8,
+   "ratio": 0.308
+  }
+ },
+ {
+  "workload": "nttmul",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "3": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 357.2,
+   "predicted_us": 245.2,
+   "ratio": 0.687
+  }
+ },
+ {
+  "workload": "topk",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "2": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 901.7,
+   "predicted_us": 789.3,
+   "ratio": 0.875
+  }
+ },
+ {
+  "workload": "cellsort",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "1": 0,
+   "2": 0,
+   "4": 8328
+  },
+  "simulator_matches_reference": true,
+  "status": "CLOSE",
+  "why": "8328 words differ, both within the reference tolerance",
+  "timing": {
+   "measured_us": 2076.6,
+   "predicted_us": 639.1,
+   "ratio": 0.308,
+   "per_dispatch_us": [
+    [
+     465.54,
+     188.26
+    ],
+    [
+     775.73,
+     261.74
+    ],
+    [
+     835.33,
+     189.1
+    ]
+   ],
+   "predicted_stateful_us": 1153.9,
+   "ratio_stateful": 0.556
+  }
+ },
+ {
+  "workload": "boruvka",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "1": 0,
+   "4": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 10803.3,
+   "predicted_us": 42943.3,
+   "ratio": 3.975,
+   "predicted_stateful_us": 32218.9,
+   "ratio_stateful": 2.982
+  }
+ },
+ {
+  "workload": "biquad",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "2": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 4851.0,
+   "predicted_us": 3726.8,
+   "ratio": 0.768
+  }
+ },
+ {
+  "workload": "edt",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "2": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 1538.8,
+   "predicted_us": 736.9,
+   "ratio": 0.479,
+   "per_dispatch_us": [
+    [
+     652.29,
+     295.43
+    ],
+    [
+     886.54,
+     441.46
+    ]
+   ]
+  }
+ },
+ {
+  "workload": "mt19937",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "1": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 569.1,
+   "predicted_us": 475.6,
+   "ratio": 0.836
+  }
+ },
+ {
+  "workload": "bitap",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": false,
+  "words_differing": {
+   "2": 0
+  },
+  "simulator_matches_reference": false,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 962.4,
+   "predicted_us": 308.1,
+   "ratio": 0.32
+  }
+ },
+ {
+  "workload": "cholesky",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "1": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 1151.3,
+   "predicted_us": 526.1,
+   "ratio": 0.457
+  }
+ },
+ {
+  "workload": "rsshash",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "2": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 3038.8,
+   "predicted_us": 1236.6,
+   "ratio": 0.407
+  }
+ },
+ {
+  "workload": "poly1305",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "3": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 580.9,
+   "predicted_us": 322.2,
+   "ratio": 0.555
+  }
+ },
+ {
+  "workload": "crc32c",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "4": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 1514.3,
+   "predicted_us": 700.6,
+   "ratio": 0.463,
+   "per_dispatch_us": [
+    [
+     926.12,
+     534.1
+    ],
+    [
+     588.21,
+     166.53
+    ]
+   ]
+  }
+ },
+ {
+  "workload": "siphash",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "3": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 1016.4,
+   "predicted_us": 256.6,
+   "ratio": 0.253
+  }
+ },
+ {
+  "workload": "blake2s",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "2": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 208515.3,
+   "predicted_us": 13101.2,
+   "ratio": 0.063
+  }
+ },
+ {
+  "workload": "blake2sfast",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "2": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 688.6,
+   "predicted_us": 162.6,
+   "ratio": 0.236
+  }
+ },
+ {
+  "workload": "q4gemv",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "2": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 920.6,
+   "predicted_us": 200.0,
+   "ratio": 0.217
+  }
+ },
+ {
+  "workload": "attndec",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "3": 321
+  },
+  "simulator_matches_reference": true,
+  "status": "CLOSE",
+  "why": "321 words differ, both within the reference tolerance",
+  "timing": {
+   "measured_us": 2793.8,
+   "predicted_us": 2441.9,
+   "ratio": 0.874
+  }
+ },
+ {
+  "workload": "attndecsplit",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "3": 312
+  },
+  "simulator_matches_reference": true,
+  "status": "CLOSE",
+  "why": "312 words differ, both within the reference tolerance",
+  "timing": {
+   "measured_us": 1820.1,
+   "predicted_us": 633.8,
+   "ratio": 0.348,
+   "per_dispatch_us": [
+    [
+     1775.29,
+     618.55
+    ],
+    [
+     44.83,
+     15.24
+    ]
+   ]
+  }
+ },
+ {
+  "workload": "rmsrope",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "3": 56554
+  },
+  "simulator_matches_reference": true,
+  "status": "CLOSE",
+  "why": "56554 words differ, both within the reference tolerance",
+  "timing": {
+   "measured_us": 385.4,
+   "predicted_us": 206.9,
+   "ratio": 0.537
+  }
+ },
+ {
+  "workload": "q8dot",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "4": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 266.9,
+   "predicted_us": 64.3,
+   "ratio": 0.241
+  }
+ },
+ {
+  "workload": "isp",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "3": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 2037.5,
+   "predicted_us": 1885.6,
+   "ratio": 0.925
+  }
+ },
+ {
+  "workload": "contour",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "1": 0,
+   "2": 1905
+  },
+  "simulator_matches_reference": true,
+  "status": "CLOSE",
+  "why": "1905 words differ, both within the reference tolerance",
+  "timing": {
+   "measured_us": 1096.7,
+   "predicted_us": 443.3,
+   "ratio": 0.404
+  }
+ },
+ {
+  "workload": "hough",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "2": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 686.9,
+   "predicted_us": 238.8,
+   "ratio": 0.348
+  }
+ },
+ {
+  "workload": "spmvsg",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "4": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 323.2,
+   "predicted_us": 405.2,
+   "ratio": 1.254
+  }
+ },
+ {
+  "workload": "varint",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "2": 0,
+   "3": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 4105.8,
+   "predicted_us": 2136.2,
+   "ratio": 0.52,
+   "per_dispatch_us": [
+    [
+     332.29,
+     162.14
+    ],
+    [
+     3282.96,
+     1771.29
+    ],
+    [
+     490.5,
+     202.77
+    ]
+   ]
+  }
+ },
+ {
+  "workload": "bvhrays",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "3": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 619.6,
+   "predicted_us": 452.0,
+   "ratio": 0.729
+  }
+ },
+ {
+  "workload": "adamw",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "0": 0,
+   "2": 0,
+   "3": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 348.0,
+   "predicted_us": 202.1,
+   "ratio": 0.581
+  }
+ },
+ {
+  "workload": "stream",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "0": 0,
+   "1": 0,
+   "2": 0,
+   "3": 0,
+   "4": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 2420.1,
+   "predicted_us": 2669.5,
+   "ratio": 1.103,
+   "per_dispatch_us": [
+    [
+     448.33,
+     376.54
+    ],
+    [
+     396.6,
+     421.82
+    ],
+    [
+     568.35,
+     651.76
+    ],
+    [
+     559.92,
+     692.77
+    ],
+    [
+     222.02,
+     212.4
+    ],
+    [
+     224.88,
+     314.23
+    ]
+   ]
+  }
+ },
+ {
+  "workload": "motionest",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "2": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 3311.1,
+   "predicted_us": 4888.6,
+   "ratio": 1.476
+  }
+ },
+ {
+  "workload": "jsonidx",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "1": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 604.8,
+   "predicted_us": 287.4,
+   "ratio": 0.475
+  }
+ },
+ {
+  "workload": "cdc",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": false,
+  "words_differing": {
+   "2": 0,
+   "3": 0
+  },
+  "simulator_matches_reference": false,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 25668.0,
+   "predicted_us": 5950.1,
+   "ratio": 0.232,
+   "per_dispatch_us": [
+    [
+     1999.54,
+     1834.51
+    ],
+    [
+     23668.46,
+     4115.59
+    ]
+   ]
+  }
+ },
+ {
+  "workload": "swalign",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "2": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 54398.1,
+   "predicted_us": 71828.8,
+   "ratio": 1.32
+  }
+ },
+ {
+  "workload": "swalignfit",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "2": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 22684.8,
+   "predicted_us": 32646.7,
+   "ratio": 1.439
+  }
+ },
+ {
+  "workload": "swalignpad",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "2": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 44215.1,
+   "predicted_us": 56203.3,
+   "ratio": 1.271
+  }
+ },
+ {
+  "workload": "jpcolor",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "3": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 4021.7,
+   "predicted_us": 28779.0,
+   "ratio": 7.156,
+   "predicted_stateful_us": 9134.8,
+   "ratio_stateful": 2.271
+  }
+ },
+ {
+  "workload": "postings",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "3": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 4430.0,
+   "predicted_us": 2068.9,
+   "ratio": 0.467
+  }
+ },
+ {
+  "workload": "tpchq6",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "4": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 382.3,
+   "predicted_us": 328.1,
+   "ratio": 0.858
+  }
+ },
+ {
+  "workload": "ghash",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "2": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 1296.8,
+   "predicted_us": 705.0,
+   "ratio": 0.544
+  }
+ },
+ {
+  "workload": "scrypt",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "0": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 22421.4,
+   "predicted_us": 17365.9,
+   "ratio": 0.775
+  }
+ },
+ {
+  "workload": "pngunfilter",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "1": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 6987.2,
+   "predicted_us": 5890.4,
+   "ratio": 0.843
+  }
+ },
+ {
+  "workload": "inflate",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "2": 0,
+   "3": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 24912.2,
+   "predicted_us": 20747.8,
+   "ratio": 0.833
+  }
+ },
+ {
+  "workload": "inflateshm",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "2": 0,
+   "3": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "PASS",
+  "timing": {
+   "measured_us": 23747.0,
+   "predicted_us": 20539.0,
+   "ratio": 0.865
+  }
+ },
+ {
+  "workload": "csrbuild",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "2": 0,
+   "5": 15182
+  },
+  "simulator_matches_reference": true,
+  "status": "CLOSE",
+  "why": "15182 words differ, both within the reference tolerance",
+  "timing": {
+   "measured_us": 753.6,
+   "predicted_us": 385.7,
+   "ratio": 0.512,
+   "per_dispatch_us": [
+    [
+     253.46,
+     165.69
+    ],
+    [
+     32.81,
+     10.57
+    ],
+    [
+     24.85,
+     7.7
+    ],
+    [
+     32.73,
+     10.57
+    ],
+    [
+     409.71,
+     191.12
+    ]
+   ],
+   "predicted_stateful_us": 904.9,
+   "ratio_stateful": 1.201
+  }
+ },
+ {
+  "workload": "blackscholes",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "1": 5842
+  },
+  "simulator_matches_reference": true,
+  "status": "CLOSE",
+  "why": "5842 words differ, both within the reference tolerance",
+  "timing": {
+   "measured_us": 599.2,
+   "predicted_us": 337.8,
+   "ratio": 0.564
+  }
+ },
+ {
+  "workload": "warphash",
+  "device": "Apple M2 Max (G14C B1)",
+  "hardware_matches_reference": true,
+  "words_differing": {
+   "2": 3830,
+   "5": 0
+  },
+  "simulator_matches_reference": true,
+  "status": "CLOSE",
+  "why": "3830 words differ, both within the reference tolerance",
+  "timing": {
+   "measured_us": 6248.7,
+   "predicted_us": 6628.6,
+   "ratio": 1.061,
+   "per_dispatch_us": [
+    [
+     3503.62,
+     3395.31
+    ],
+    [
+     2745.04,
+     3233.27
+    ]
+   ],
+   "predicted_stateful_us": 6639.1,
+   "ratio_stateful": 1.062
+  }
+ }
+]

@@ -660,6 +660,46 @@ fn xapply(op: XOp, x: u32, y: u32) -> u32 {
     }
 }
 
+/// xapply on 16-bit values (integers wrap at 16 bits, floats are fp16 with denormals kept, one rounding).
+fn xapply16(op: XOp, x: u32, y: u32) -> u32 {
+    let s = |v: u32| v as u16 as i16;
+    let h = |v: u32| f64::from_bits(f16_to_f64(v as u64, false));
+    match op {
+        XOp::IAdd => x.wrapping_add(y) & 0xffff,
+        XOp::And => x & y,
+        XOp::Or => x | y,
+        XOp::Xor => x ^ y,
+        XOp::MinU => x.min(y),
+        XOp::MaxU => x.max(y),
+        XOp::MinS => if s(y) < s(x) { y } else { x },
+        XOp::MaxS => if s(y) > s(x) { y } else { x },
+        XOp::FAdd => to_f16(h(x) + h(y)),
+        XOp::FMul => to_f16(h(x) * h(y)),
+        XOp::MinF | XOp::MaxF => {
+            let (fx, fy) = (h(x), h(y));
+            if fx.is_nan() {
+                return if fy.is_nan() { x } else { y };
+            }
+            if fy.is_nan() || fx == fy {
+                return x;
+            }
+            if (fx < fy) == (op == XOp::MinF) { x } else { y }
+        }
+    }
+}
+
+fn identity16(op: XOp) -> u32 {
+    match op {
+        XOp::IAdd | XOp::Or | XOp::Xor | XOp::MaxU => 0,
+        XOp::And | XOp::MinU => 0xffff,
+        XOp::MinS => 0x7fff,
+        XOp::MaxS => 0x8000,
+        XOp::FAdd => 0x8000,
+        XOp::FMul => 0x3c00,
+        XOp::MinF | XOp::MaxF => NAN16,
+    }
+}
+
 fn identity(op: XOp) -> u32 {
     match op {
         XOp::IAdd | XOp::Or | XOp::Xor | XOp::MaxU => 0,
@@ -672,23 +712,32 @@ fn identity(op: XOp) -> u32 {
     }
 }
 
-fn comb(op: XOp, x: Option<u32>, y: Option<u32>) -> Option<u32> {
+fn comb(op: XOp, w16: bool, x: Option<u32>, y: Option<u32>) -> Option<u32> {
     match (x, y) {
         (None, v) | (v, None) => v,
-        (Some(a), Some(b)) => Some(xapply(op, a, b)),
+        (Some(a), Some(b)) => Some(if w16 { xapply16(op, a, b) } else { xapply(op, a, b) }),
     }
 }
 
-fn canon(op: XOp, v: u32) -> u32 {
+fn canon(op: XOp, w16: bool, v: u32) -> u32 {
     // min / max return an operand's raw bits, NaN included (random/prog_077: all-NaN quad -> 0xffffffff)
     let is_float = matches!(op, XOp::FAdd | XOp::FMul);
-    if is_float && f32::from_bits(v).is_nan() { NAN32 } else { v }
+    if !is_float {
+        v
+    } else if w16 {
+        if f64::from_bits(f16_to_f64(v as u64, false)).is_nan() { NAN16 } else { v }
+    } else if f32::from_bits(v).is_nan() {
+        NAN32
+    } else {
+        v
+    }
 }
 
 /// simd_/quad_ reductions and exclusive prefix ops (`ops` = D, A). Inactive lanes take no part.
-/// Reductions: pairwise tree over the quad / SIMD group. Quad prefix: lane-order chain. SIMD prefix: per-quad
-/// inclusive chain for lanes 0-2 and a tree total for lane 3, then a Kogge-Stone scan over quads (strides 1, 2, 4);
-/// lane i receives the inclusive value of lane i-1 (lane 0 and lanes with nothing before them: the identity).
+/// Reductions: pairwise tree over the quad / SIMD group. Quad prefix: lane-order chain. SIMD prefix: Sklansky scan
+/// over the 32 lanes; lane i receives the inclusive value of lane i-1 (lane 0 and lanes with nothing before them: the
+/// identity). 16-bit sources combine at 16 bits (fp16, denormals kept, rounded every step); 64-bit sources are read as
+/// their low 32 bits (coverage/expected alu, alu_masked).
 pub fn cross_lane(name: &str, ops: &[Operand], st: &mut CoreState) -> R<()> {
     let quad = name.starts_with("quad_");
     let rest = name.split_once('_').map(|x| x.1).unwrap_or("");
@@ -697,30 +746,30 @@ pub fn cross_lane(name: &str, ops: &[Operand], st: &mut CoreState) -> R<()> {
         None => (false, rest),
     };
     let op = xop(opname).ok_or_else(|| format!("{} not modelled", name))?;
+    // A 16-bit source is combined at 16 bits (fp16 for the float ops). A 64-bit source is read as its low 32 bits.
+    let w16 = raw(st, &ops[1], 0)?.1 == 16;
     let mut x: [Option<u32>; SIMD_WIDTH] = [None; SIMD_WIDTH];
     for t in 0..SIMD_WIDTH {
         if st.exec[t] {
-            let (b, sz) = raw(st, &ops[1], t)?;
-            if sz != 32 {
-                return Err(format!("{} with a {}-bit source not modelled", name, sz));
-            }
-            let b = b as u32;
-            // fadd / fmul read denormals as signed zero (also when a lane's value passes through unchanged)
-            let flush = matches!(op, XOp::FAdd | XOp::FMul) && (b >> 23) & 0xff == 0;
+            let b = raw(st, &ops[1], t)?.0 as u32;
+            // fp32 fadd / fmul read denormals as signed zero (also when a lane's value passes through unchanged)
+            let flush = !w16 && matches!(op, XOp::FAdd | XOp::FMul) && (b >> 23) & 0xff == 0;
             x[t] = Some(if flush { b & 0x8000_0000 } else { b });
         } else if matches!(op, XOp::MinF | XOp::MaxF) {
             // inactive lanes take part as the canonical NaN (random/prog_106: a lone active NaN comes out canonical,
             // while four active NaNs keep their raw bits, prog_077)
-            x[t] = Some(NAN32);
+            x[t] = Some(if w16 { NAN16 } else { NAN32 });
         }
     }
+    let comb = |x, y| comb(op, w16, x, y);
+    let identity = |op| if w16 { identity16(op) } else { identity(op) };
     let w = if quad { 4 } else { 32 };
     let mut out: [Option<u32>; SIMD_WIDTH] = [None; SIMD_WIDTH];
     if !prefix {
         for lo in (0..SIMD_WIDTH).step_by(w) {
             let mut vs: Vec<Option<u32>> = x[lo..lo + w].to_vec();
             while vs.len() > 1 {
-                vs = vs.chunks(2).map(|p| comb(op, p[0], p[1])).collect();
+                vs = vs.chunks(2).map(|p| comb(p[0], p[1])).collect();
             }
             for o in &mut out[lo..lo + w] {
                 *o = vs[0];
@@ -728,27 +777,25 @@ pub fn cross_lane(name: &str, ops: &[Operand], st: &mut CoreState) -> R<()> {
         }
     } else {
         // inclusive values per lane
-        let mut inc: [Option<u32>; SIMD_WIDTH] = [None; SIMD_WIDTH];
-        let mut tots = [None; 8];
-        for q in 0..8 {
-            let a = &x[4 * q..4 * q + 4];
-            let s01 = comb(op, a[0], a[1]);
-            let v2 = comb(op, s01, a[2]);
-            let v3 = if quad { comb(op, v2, a[3]) } else { comb(op, s01, comb(op, a[2], a[3])) };
-            inc[4 * q..4 * q + 4].copy_from_slice(&[a[0], s01, v2, v3]);
-            tots[q] = v3;
-        }
-        if !quad {
-            let mut d = 1;
-            while d < 8 {
-                let (pv, py) = (inc, tots);
-                for q in d..8 {
-                    for i in 0..4 {
-                        inc[4 * q + i] = comb(op, py[q - d], pv[4 * q + i]);
-                    }
-                    tots[q] = comb(op, py[q - d], py[q]);
+        let mut inc = x;
+        if quad {
+            for q in 0..8 {
+                for i in 1..4 {
+                    inc[4 * q + i] = comb(inc[4 * q + i - 1], x[4 * q + i]);
                 }
-                d *= 2;
+            }
+        } else {
+            // Sklansky network over the 32 lanes: at block size b, every lane in the upper half of a 2b block takes
+            // the last inclusive value of the lower half on its left (fp16 recordings fit this order exactly)
+            let mut b = 1;
+            while b < SIMD_WIDTH {
+                let prev = inc;
+                for t in 0..SIMD_WIDTH {
+                    if (t / b) % 2 == 1 {
+                        inc[t] = comb(prev[(t / b) * b - 1], prev[t]);
+                    }
+                }
+                b *= 2;
             }
         }
         for t in 0..SIMD_WIDTH {
@@ -759,7 +806,7 @@ pub fn cross_lane(name: &str, ops: &[Operand], st: &mut CoreState) -> R<()> {
     for t in 0..SIMD_WIDTH {
         if st.exec[t] {
             if let Some(v) = out[t] {
-                put(st, &ops[0], t, canon(op, v) as u64)?;
+                put(st, &ops[0], t, canon(op, w16, v) as u64)?;
             }
         }
     }

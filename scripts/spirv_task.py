@@ -4911,10 +4911,15 @@ def run_one(name, size, repeat, out_root, export=True, seed=1):
            'dispatches': [{'groups': [gx, gy, gz], 'push': pc.hex()} for gx, gy, gz, pc in w.dispatches], 'wg_threads': w.wg,
            'work': w.work, 'repeat': repeat, 'compile_ns': next(l for l in lines if 'functional' in l)['compile_ns']}
     if reps and 'total_ns' in reps[0]:
+        # The GPU's clock moves between states about 2.1x apart from one run to the next (sustained load on battery
+        # lowers it; novel-results/2026-10-16-vulkan-dispatch-timing). The model assumes the top clock, so the timing
+        # fields are medians over the runs in the fastest state seen (total within 5% of the minimum).
         tot = [l['total_ns'] for l in reps]
-        med = statistics.median(tot)
-        res['gpu_ns'] = {'median': med, 'min': min(tot), 'max': max(tot)}
-        res['dispatch_ns_median'] = [statistics.median(l['dispatch_ns'][k] for l in reps) for k in range(len(w.dispatches))]
+        fast = [l for l in reps if l['total_ns'] <= 1.05 * min(tot)]
+        med = statistics.median(l['total_ns'] for l in fast)
+        res['gpu_ns'] = {'median': med, 'min': min(tot), 'max': max(tot), 'median_all': statistics.median(tot),
+                         'fast_runs': len(fast), 'runs': [round(t) for t in tot]}
+        res['dispatch_ns_median'] = [statistics.median(l['dispatch_ns'][k] for l in fast) for k in range(len(w.dispatches))]
         if 'flops' in w.work: res['gflops'] = w.work['flops'] / med
         if 'bytes' in w.work: res['gbytes_per_s'] = w.work['bytes'] / med
     res['host_ns_median'] = statistics.median(l['host_ns'] for l in reps) if reps else None
@@ -5523,13 +5528,14 @@ def cmd_record(a):
                                                  driver_version=r['device'].get('driver_version')))
             rec = {'workload': name, 'device': r['device'], 'test_recording_not_hardware': bool(why), 'recorded_utc': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()),
                    'inputs_sha256': input_hashes(w), 'numpy': np.__version__, 'small': {k: r.get(k) for k in
-                   ('functional_ok', 'functional', 'gpu_ns', 'dispatch_ns_median', 'repeat')}, 'code_extracted': not ext}
+                   ('functional_ok', 'functional', 'gpu_ns', 'dispatch_ns_median', 'repeat', 'host_ns_median')}, 'code_extracted': not ext,
+                   'timing_method': TIMING_METHOD}
             if not a.no_large:
                 rl = run_one(name, 'large', a.repeat_large, scratch, export=False)
                 runl = scratch / f'{name}-large'
                 wl = WORKLOADS[name]('large', np.random.default_rng([1, list(WORKLOADS).index(name)]))
                 rec['large'] = {k: rl.get(k) for k in ('functional_ok', 'functional', 'gpu_ns', 'dispatch_ns_median', 'repeat', 'gflops',
-                                                        'gbytes_per_s', 'work')}
+                                                        'gbytes_per_s', 'work', 'host_ns_median')}
                 rec['large']['out_sha256'] = {str(b): hashlib.sha256((runl / f'out{b}.bin').read_bytes()).hexdigest()
                                               for b, (_, rb) in wl.buffers.items() if rb}
                 rec['large']['inputs_sha256'] = input_hashes(wl)
@@ -5540,6 +5546,59 @@ def cmd_record(a):
             print(json.dumps({'workload': name, 'recorded': str(dest), 'hardware_matches_reference': r['functional_ok'],
                               'small_gpu_us': (r.get('gpu_ns') or {}).get('median', 0) / 1e3,
                               'large_gpu_us': ((rec.get('large') or {}).get('gpu_ns') or {}).get('median', 0) / 1e3}), flush=True)
+        except SystemExit:
+            raise
+        except Exception as ex:
+            bad += 1
+            print(json.dumps({'workload': name, 'error': str(ex)[:500]}), flush=True)
+    return 1 if bad else 0
+
+
+TIMING_METHOD = 'two-before'   # vk_run writes two timestamps before each dispatch (tests/vk_run.c); recordings without this key used one before / one after, which brackets nothing on Honeykrisp
+
+
+def cmd_retime(a):
+    """On Asahi Linux: re-run recorded workloads on the GPU and replace only their timing fields in hardware.json
+    (gpu_ns, dispatch_ns_median, gflops, gbytes_per_s, host_ns_median). The functional recordings stay as they are;
+    the large size's output hashes are compared with the recorded ones and the result kept as 'out_sha256_same'
+    (racy workloads differ by design)."""
+    if not VK_RUN.exists() or not list(BUILD.glob('*.spv')):
+        cmd_build()
+    exp = Path(a.expected)
+    names = sorted(d.name for d in exp.iterdir() if (d / 'hardware.json').exists()) if a.workload == 'all' else a.workload.split(',')
+    scratch = Path(a.scratch)
+    bad = 0
+    for name in names:
+        try:
+            hj = exp / name / 'hardware.json'
+            rec = json.loads(hj.read_text())
+            if rec.get('unsupported_on_device'):
+                continue
+            for size, repeat in (('small', a.repeat_small), ('large', a.repeat_large)):
+                if size not in rec:
+                    continue
+                r = run_one(name, size, repeat, scratch, export=False)
+                why = real_gpu_problem(r['device'])
+                if why:
+                    sys.exit(f'refusing to record hardware timing: {why}')
+                if r['functional_ok'] != rec[size].get('functional_ok'):
+                    raise RuntimeError(f'{size}: functional_ok {r["functional_ok"]} differs from the recording')
+                for k in ('gpu_ns', 'dispatch_ns_median', 'gflops', 'gbytes_per_s', 'host_ns_median'):
+                    if r.get(k) is not None:
+                        rec[size][k] = r[k]
+                rec[size]['repeat'] = repeat
+                run = scratch / f'{name}-{size}'
+                if size == 'large' and 'out_sha256' in rec['large']:
+                    got = {b: hashlib.sha256((run / f'out{b}.bin').read_bytes()).hexdigest() for b in rec['large']['out_sha256']}
+                    rec['large']['out_sha256_same'] = got == rec['large']['out_sha256']
+                shutil.rmtree(run, ignore_errors=True)
+            rec['timing_method'] = TIMING_METHOD
+            rec['retimed_utc'] = time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())
+            hj.write_text(json.dumps(rec, indent=1) + '\n')
+            print(json.dumps({'workload': name, 'small_gpu_us': rec['small']['gpu_ns']['median'] / 1e3,
+                              'large_gpu_us': ((rec.get('large') or {}).get('gpu_ns') or {}).get('median', 0) / 1e3,
+                              'large_dispatch_us': [round(x / 1e3, 1) for x in (rec.get('large') or {}).get('dispatch_ns_median') or []][:8],
+                              'large_out_same': (rec.get('large') or {}).get('out_sha256_same')}), flush=True)
         except SystemExit:
             raise
         except Exception as ex:
@@ -5825,6 +5884,9 @@ def main():
     p.add_argument('--expected', default=str(EXPECTED)); p.add_argument('--scratch', default='/tmp/agx-spirv-record')
     p.add_argument('--repeat-small', type=int, default=5); p.add_argument('--repeat-large', type=int, default=20)
     p.add_argument('--no-large', action='store_true'); p.add_argument('--any-device', action='store_true', help='testing only')
+    p = sub.add_parser('retime'); p.add_argument('workload', nargs='?', default='all')
+    p.add_argument('--expected', default=str(EXPECTED)); p.add_argument('--scratch', default='/tmp/agx-spirv-record')
+    p.add_argument('--repeat-small', type=int, default=5); p.add_argument('--repeat-large', type=int, default=20)
     p = sub.add_parser('verify'); p.add_argument('workload', nargs='?', default='all')
     p.add_argument('--expected', default=str(EXPECTED)); p.add_argument('--layout', help='root-table layout (default: from the recorded code\'s info.json)')
     p.add_argument('--timing', action='store_true', help='also predict the large size and compare with the recorded time')
@@ -5843,7 +5905,7 @@ def main():
             print(k, '-', (SHADERS / f'{k}.comp').read_text().splitlines()[1].lstrip('/ '))
         return
     sys.exit({'build': cmd_build, 'run': cmd_run, 'compile': cmd_compile, 'extract': cmd_extract, 'sim': cmd_sim, 'simall': cmd_simall, 'predictall': cmd_predictall,
-              'predict': cmd_predict, 'record': cmd_record, 'verify': cmd_verify, 'probes': cmd_probes}[a.cmd](a) or 0)
+              'predict': cmd_predict, 'record': cmd_record, 'retime': cmd_retime, 'verify': cmd_verify, 'probes': cmd_probes}[a.cmd](a) or 0)
 
 
 if __name__ == '__main__':

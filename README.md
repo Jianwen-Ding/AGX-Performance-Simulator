@@ -100,6 +100,7 @@ make spirv-lavapipe     # offline: SPIR-V workloads on Mesa lavapipe (glslang, s
 make spirv-run          # hardware: SPIR-V workloads on the GPU (tasks/spirv-*.md)
 make asahi-verify       # hardware (M2): record every SPIR-V workload on the GPU and verify the simulator against it
 make spirv-verify       # offline: simulator vs those recordings (PENDING until they exist)
+python3 -B scripts/spirv_task.py retime all   # hardware: re-measure every recording's times only (results/2026-10-16-asahi-retime)
 make spirv-sim          # offline: functional simulator on the driver-compiled workloads vs their references (16 / 16)
 make spirv-predict      # offline: predicted time of every workload from the driver-compiled code
 make spirv-compile      # offline: build Mesa (MESA_VERSION, default 26.0.3) with the drm-shim, recompile the workloads

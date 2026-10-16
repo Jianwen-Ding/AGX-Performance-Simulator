@@ -1,6 +1,6 @@
 # After `make asahi-verify`: what the M2 run decides
 
-`results/<date>-asahi-verify/README.md` is the report. This page lists the questions the first hardware run settles,
+`results/<date>-asahi-verify/README.md` is the report. Answers so far: [2026-10-12](../results/2026-10-12-asahi-verify/README.md) (functional: Q1, Q2, Q4) and [2026-10-16](../results/2026-10-16-asahi-retime/README.md) (real kernel times: Q2b, Q3, the measurement table). Re-time with `spirv_task.py retime` after changing the runner. This page lists the questions the first hardware run settles,
 where each answer appears, and what to change for each outcome. The details are in the numbered notes of
 `tasks/spirv-08-applications.md` ("note N" below).
 

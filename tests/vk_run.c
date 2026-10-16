@@ -28,6 +28,8 @@
  *   dispatch GX GY GZ [PUSHHEX]   one vkCmdDispatch (push constants as hex bytes); dispatches run in order with a
  *                                 compute->compute memory barrier between them
  *   repeat N                      timed runs after the functional run (buffers re-initialised before each)
+ *   warmup MS                     before the timed runs, resubmit (buffers re-initialised each time) for MS ms of host
+ *                                 time, so the GPU's clock (DVFS) state is the one sustained load reaches; prints {"warmup": ...}
  *   export PATH                   VK_EXT_shader_object binary of the shader (the driver's compiled code), if supported
  *   props PATH                    VK_KHR_pipeline_executable_properties statistics and internal representations
  *                                 (driver IR / disassembly text), if supported
@@ -104,7 +106,7 @@ int main(int argc, char **argv) {
     struct simg I[MAXT]; int ni = 0;
     char req[8][32]; int nreq = 0;
     VkSpecializationMapEntry spe[16]; uint32_t spv_vals[16]; int nspec = 0;
-    int repeat = 0;
+    int repeat = 0, warmup_ms = 0;
     uint32_t maxpush = 0;
     FILE *sf = fopen(argv[1], "r");
     if (!sf) die("open spec", 0);
@@ -116,6 +118,7 @@ int main(int argc, char **argv) {
         else if (!strcmp(kw, "export")) sscanf(line, "%*s %511s", exportp);
         else if (!strcmp(kw, "props")) sscanf(line, "%*s %511s", propsp);
         else if (!strcmp(kw, "repeat")) sscanf(line, "%*s %d", &repeat);
+        else if (!strcmp(kw, "warmup")) sscanf(line, "%*s %d", &warmup_ms);
         else if (!strcmp(kw, "buffer")) {
             if (nb == MAXB) die("too many buffers", 0);
             unsigned long long sz; struct buf *b = &B[nb++]; memset(b, 0, sizeof *b);
@@ -189,6 +192,14 @@ int main(int argc, char **argv) {
     VkPhysicalDevice pds[8]; CK(vkEnumeratePhysicalDevices(inst, &np, pds));
     const char *sel = getenv("VK_RUN_DEVICE"); uint32_t pi = sel ? (uint32_t)atoi(sel) : 0;
     if (pi >= np) die("VK_RUN_DEVICE", pi);
+    if (!sel) {   /* default: the first non-CPU device. Index 0 is llvmpipe whenever the GPU is missing from the
+                   * enumeration (seen on the M2 for a few minutes on 2026-10-16), and its results look plausible */
+        IF(vkGetPhysicalDeviceProperties);
+        for (uint32_t i = np; i-- > 0;) {
+            VkPhysicalDeviceProperties p; vkGetPhysicalDeviceProperties(pds[i], &p);
+            if (p.deviceType != VK_PHYSICAL_DEVICE_TYPE_CPU) pi = i;
+        }
+    }
     VkPhysicalDevice pd = pds[pi];
     VkPhysicalDeviceSubgroupProperties sgp = {.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_PROPERTIES};
     VkPhysicalDeviceProperties2 pp2 = {.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2, .pNext = &sgp};
@@ -577,14 +588,17 @@ int main(int argc, char **argv) {
         if (i) vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT,
                                     0, 1, &mb, 0, NULL, 0, NULL);
         if (D[i].npush) vkCmdPushConstants(cb, pl, VK_SHADER_STAGE_COMPUTE_BIT, 0, D[i].npush, D[i].push);
+        /* Honeykrisp makes a compute timestamp the END of the current control stream and splits at the next write
+         * (hk_query_pool.c), so "TS; dispatch; TS" brackets nothing. Two writes before the dispatch: 2i ends the
+         * previous (empty) stream, 2i+1 ends the stream that receives this dispatch. dispatch_ns = ts[2i+1] - ts[2i]. */
         if (timestamps) vkCmdWriteTimestamp(cb, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, qp, 2 * i);
+        if (timestamps) vkCmdWriteTimestamp(cb, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, qp, 2 * i + 1);
         if (D[i].indirect) {
             int k = 0;
             while (k < nb && B[k].binding != D[i].ibinding) k++;
             if (k == nb) die("dispatch_indirect: no such buffer", D[i].ibinding);
             vkCmdDispatchIndirect(cb, B[k].b, D[i].ioffset);
         } else vkCmdDispatch(cb, D[i].g[0], D[i].g[1], D[i].g[2]);
-        if (timestamps) vkCmdWriteTimestamp(cb, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, qp, 2 * i + 1);
     }
     for (int i = 0; i < ni; i++) {   /* copy the image back for readback */
         VkImageMemoryBarrier b3 = {.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER, .srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT,
@@ -611,6 +625,28 @@ int main(int argc, char **argv) {
         if (timestamps) {
             CK(vkGetQueryPoolResults(dev, qp, 0, 2 * nd, 2 * nd * sizeof *ts, ts, sizeof *ts, VK_QUERY_RESULT_64_BIT | VK_QUERY_RESULT_WAIT_BIT));
             total = (ts[2 * nd - 1] - ts[0]) * (double)props.limits.timestampPeriod;
+        }
+        if (rep < 0 && warmup_ms > 0) {   /* outputs are written below, before any warm-up submission */
+            for (int i = 0; i < nb; i++) if (strcmp(B[i].out, "-")) spit(B[i].out, B[i].map, B[i].size);
+            for (int i = 0; i < ni; i++) if (strcmp(I[i].out, "-")) spit(I[i].out, I[i].rmap, (size_t)I[i].w * I[i].h * I[i].texel);
+            printf("{\"functional\":true,\"host_ns\":%.0f,\"gpu_ns\":%.0f,\"compile_ns\":%.0f,\"dispatches\":%d}\n", host, total, compile_ns, nd);
+            double w0 = now_ns(); int n = 0;
+            while (now_ns() - w0 < warmup_ms * 1e6) {   /* every submission starts from the initial buffers, as the timed runs do */
+                for (int i = 0; i < nb; i++) {
+                    memset(B[i].map, 0, B[i].size);
+                    if (B[i].initdata) memcpy(B[i].map, B[i].initdata, B[i].initlen);
+                }
+                CK(vkQueueSubmit(q, 1, &si, VK_NULL_HANDLE));
+                CK(vkQueueWaitIdle(q));
+                n++;
+            }
+            double last = 0;
+            if (timestamps) {
+                CK(vkGetQueryPoolResults(dev, qp, 0, 2 * nd, 2 * nd * sizeof *ts, ts, sizeof *ts, VK_QUERY_RESULT_64_BIT | VK_QUERY_RESULT_WAIT_BIT));
+                last = (ts[2 * nd - 1] - ts[0]) * (double)props.limits.timestampPeriod;
+            }
+            printf("{\"warmup\":{\"ms\":%d,\"submits\":%d,\"host_ns\":%.0f,\"last_total_ns\":%.0f}}\n", warmup_ms, n, now_ns() - w0, last);
+            continue;
         }
         if (rep < 0) {
             for (int i = 0; i < nb; i++) if (strcmp(B[i].out, "-")) spit(B[i].out, B[i].map, B[i].size);

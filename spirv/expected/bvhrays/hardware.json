@@ -47,14 +47,24 @@
    "nodes": 399
   },
   "gpu_ns": {
-   "median": 25833,
-   "min": 24750,
-   "max": 27000
+   "median": 296083,
+   "min": 295125,
+   "max": 298042,
+   "median_all": 296083,
+   "fast_runs": 5,
+   "runs": [
+    298042,
+    296875,
+    295209,
+    296083,
+    295125
+   ]
   },
   "dispatch_ns_median": [
-   25833
+   296083
   ],
-  "repeat": 5
+  "repeat": 5,
+  "host_ns_median": 413209
  },
  "code_extracted": true,
  "large": {
@@ -68,12 +78,36 @@
    "nodes": 4239
   },
   "gpu_ns": {
-   "median": 26312.5,
-   "min": 24625,
-   "max": 31875
+   "median": 619625,
+   "min": 602500,
+   "max": 1335875,
+   "median_all": 640604.5,
+   "fast_runs": 7,
+   "runs": [
+    1335875,
+    735458,
+    667667,
+    648583,
+    617084,
+    650666,
+    656166,
+    628708,
+    623792,
+    624375,
+    758250,
+    609625,
+    637167,
+    641250,
+    619625,
+    640542,
+    602500,
+    632958,
+    640667,
+    718709
+   ]
   },
   "dispatch_ns_median": [
-   26312.5
+   619625
   ],
   "repeat": 20,
   "gflops": null,
@@ -88,6 +122,10 @@
    "0": "dccb16e745d1e73e783ea5a6d46da0fcd7d4ce272dde15d76b50b2c5152c17fa",
    "1": "3dec6520c7bb216d7dd982177cabafeb7d3c704c96f3c9ab9eeddb5587c73c38",
    "2": "22b2e8ca2285cb2652ea1cb962c3e417342f821158b990fa2ca44aec75adab9a"
-  }
- }
+  },
+  "host_ns_median": 758481.5,
+  "out_sha256_same": true
+ },
+ "timing_method": "two-before",
+ "retimed_utc": "2026-10-16T15:59:27Z"
 }

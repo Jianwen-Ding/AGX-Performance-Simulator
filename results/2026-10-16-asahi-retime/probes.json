@@ -1,0 +1,340 @@
+[
+ {
+  "probe": "barriercost",
+  "measured_us": [
+   44.88,
+   55.96,
+   131.88,
+   438.79
+  ],
+  "predicted_us": [
+   8.54,
+   16.57,
+   45.63,
+   161.98
+  ],
+  "rounds": [
+   0,
+   16,
+   64,
+   256
+  ],
+  "us_per_round_measured": 1.5663421658986174,
+  "us_per_round_model": 0.6025123694920769
+ },
+ {
+  "probe": "atomcontend",
+  "measured_us": [
+   3633.4,
+   3302.42,
+   231.4,
+   154.44,
+   170.42
+  ],
+  "predicted_us": [
+   11.48,
+   11.48,
+   11.48,
+   11.48,
+   11.48
+  ],
+  "counters": [
+   1,
+   32,
+   1024,
+   32768,
+   1048576
+  ],
+  "hot_over_spread_measured": 21.32,
+  "hot_over_spread_model": 1.0
+ },
+ {
+  "probe": "smembank",
+  "measured_us": [
+   99.29,
+   88.9,
+   90.88,
+   97.48,
+   114.65,
+   147.6,
+   88.23
+  ],
+  "predicted_us": [
+   76.42,
+   76.45,
+   77.09,
+   78.76,
+   105.9,
+   192.03,
+   76.42
+  ],
+  "strides": [
+   1,
+   2,
+   4,
+   8,
+   16,
+   32,
+   33
+  ],
+  "relative_measured": [
+   1.0,
+   0.9,
+   0.92,
+   0.98,
+   1.15,
+   1.49,
+   0.89
+  ],
+  "relative_model": [
+   1.0,
+   1.0,
+   1.01,
+   1.03,
+   1.39,
+   2.51,
+   1.0
+  ]
+ },
+ {
+  "probe": "coalesce",
+  "measured_us": [
+   63.21,
+   70.92,
+   113.79,
+   202.17,
+   376.42,
+   361.6,
+   354.58
+  ],
+  "predicted_us": [
+   24.16,
+   103.42,
+   196.43,
+   383.46,
+   756.06,
+   405.46,
+   230.35
+  ],
+  "strides": [
+   1,
+   2,
+   4,
+   8,
+   16,
+   32,
+   64
+  ],
+  "relative_measured": [
+   1.0,
+   1.12,
+   1.8,
+   3.2,
+   5.96,
+   5.72,
+   5.61
+  ],
+  "relative_model": [
+   1.0,
+   4.28,
+   8.13,
+   15.87,
+   31.3,
+   16.78,
+   9.54
+  ]
+ },
+ {
+  "probe": "aluprobe",
+  "measured_us": [
+   333.98,
+   81.75,
+   239.02,
+   89.21,
+   325.81,
+   216.69
+  ],
+  "predicted_us": [
+   91.86,
+   32.64,
+   95.16,
+   57.21,
+   117.65,
+   97.2
+  ],
+  "kinds": [
+   "fma32 dep",
+   "fma32 x8",
+   "fma16 dep",
+   "fma16 x8",
+   "imad dep",
+   "imad x8"
+  ],
+  "dep_over_x8_measured": [
+   4.09,
+   2.68,
+   1.5
+  ],
+  "dep_over_x8_model": [
+   2.81,
+   1.66,
+   1.21
+  ]
+ },
+ {
+  "probe": "rule110",
+  "measured_us": {
+   "dispatches": 1000,
+   "median": 21.96,
+   "min": 19.83,
+   "max": 30.12
+  },
+  "predicted_us": {
+   "dispatches": 1000,
+   "median": 6.36,
+   "min": 6.36,
+   "max": 6.36
+  },
+  "us_per_dispatch_measured": 21.96,
+  "us_per_dispatch_model": 6.36
+ },
+ {
+  "probe": "stream",
+  "measured_us": [
+   448.33,
+   396.6,
+   568.35,
+   559.92,
+   222.02,
+   224.88
+  ],
+  "predicted_us": [
+   376.54,
+   421.82,
+   651.76,
+   692.77,
+   212.4,
+   314.23
+  ],
+  "kinds": [
+   "copy",
+   "scale",
+   "add",
+   "triad",
+   "read",
+   "fill"
+  ],
+  "gbps_measured": [
+   299.4,
+   338.4,
+   354.2,
+   359.6,
+   302.3,
+   298.4
+  ],
+  "gbps_model": [
+   356.5,
+   318.2,
+   308.9,
+   290.6,
+   315.9,
+   213.6
+  ]
+ },
+ {
+  "probe": "texfilter",
+  "best_subtexel_bits": {
+   "small": 10,
+   "large": 10
+  },
+  "hardware_matches_reference": true
+ },
+ {
+  "probe": "imgtonemap",
+  "round_to_nearest_fraction": {
+   "small": 0.99609375,
+   "large": 0.9960896910365227
+  },
+  "hardware_matches_reference": true
+ },
+ {
+  "probe": "mplitmus",
+  "relaxed_stale_reads": {
+   "small": 3392,
+   "large": 4064
+  },
+  "hardware_matches_reference": true
+ },
+ {
+  "probe": "f16pack",
+  "half_mismatches": {
+   "small": 0,
+   "large": 0
+  },
+  "hardware_matches_reference": true
+ },
+ {
+  "probe": "lookback",
+  "mean_lookback_steps": {
+   "small": 5.267,
+   "large": 27.726
+  },
+  "hardware_matches_reference": true
+ },
+ {
+  "probe": "viterbi",
+  "mismatched_bits": {
+   "small": 4923,
+   "large": 634159
+  },
+  "hardware_matches_reference": false
+ },
+ {
+  "probe": "viterbifix",
+  "mismatched_bits": {
+   "small": 0,
+   "large": 0
+  },
+  "hardware_matches_reference": true
+ },
+ {
+  "probe": "shiftfuse",
+  "mismatches": {
+   "small": {
+    "bit_test": 1520,
+    "byte_extract": 2922,
+    "double_and_mask": 1944
+   },
+   "large": {
+    "bit_test": 393363,
+    "byte_extract": 759283,
+    "double_and_mask": 507882
+   }
+  },
+  "hardware_matches_reference": false
+ },
+ {
+  "probe": "rmsrope",
+  "max_rel_error": {
+   "small": 0.0007370990065600776,
+   "large": 0.0007995462332695336
+  },
+  "hardware_matches_reference": true
+ },
+ {
+  "probe": "blackscholes",
+  "max_abs_error": {
+   "small": 1.9854037304867234e-05,
+   "large": 2.694422661875251e-05
+  },
+  "hardware_matches_reference": true
+ },
+ {
+  "features_missing_on_device": {
+   "argmax64": "buffer_int64_atomics",
+   "minmax64": "buffer_int64_atomics",
+   "dsum": "float64",
+   "splat": "buffer_float32_atomic_add"
+  }
+ }
+]

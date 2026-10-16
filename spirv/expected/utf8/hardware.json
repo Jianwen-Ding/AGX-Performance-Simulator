@@ -44,14 +44,25 @@
    "valid_half_matches_python": true
   },
   "gpu_ns": {
-   "median": 13958,
-   "min": 13708,
-   "max": 16875
+   "median": 27167.0,
+   "min": 26959,
+   "max": 34875,
+   "median_all": 30541,
+   "fast_runs": 2,
+   "runs": [
+    34875,
+    30541,
+    26959,
+    27375,
+    31875
+   ]
   },
   "dispatch_ns_median": [
-   13958
+   27167.0
   ],
-  "repeat": 5
+  "repeat": 5,
+  "gbytes_per_s": 0.15077115618213274,
+  "host_ns_median": 161667
  },
  "code_extracted": true,
  "large": {
@@ -63,16 +74,40 @@
    "valid_half_matches_python": true
   },
   "gpu_ns": {
-   "median": 32249.5,
-   "min": 28667,
-   "max": 39875
+   "median": 1480271.0,
+   "min": 1476667,
+   "max": 1498666,
+   "median_all": 1480271.0,
+   "fast_runs": 20,
+   "runs": [
+    1498666,
+    1477791,
+    1481958,
+    1484542,
+    1483083,
+    1480500,
+    1479500,
+    1481625,
+    1490000,
+    1479250,
+    1485209,
+    1480042,
+    1479084,
+    1476667,
+    1479166,
+    1481542,
+    1481084,
+    1477000,
+    1479083,
+    1478875
+   ]
   },
   "dispatch_ns_median": [
-   32249.5
+   1480271.0
   ],
   "repeat": 20,
   "gflops": null,
-  "gbytes_per_s": 520.2318175475589,
+  "gbytes_per_s": 11.333881431170374,
   "work": {
    "bytes": 16777216
   },
@@ -83,6 +118,10 @@
   "inputs_sha256": {
    "0": "57dc73c33a2b6598925256ba5fd845520f0be2d8071cf48d42aa5a279188a55e",
    "2": "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc"
-  }
- }
+  },
+  "host_ns_median": 1991319.0,
+  "out_sha256_same": true
+ },
+ "timing_method": "two-before",
+ "retimed_utc": "2026-10-16T16:03:02Z"
 }

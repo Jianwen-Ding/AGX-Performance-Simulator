@@ -42,14 +42,25 @@
    "stopband_tone_db": -57.302760073060234
   },
   "gpu_ns": {
-   "median": 22750,
-   "min": 21000,
-   "max": 27125
+   "median": 51708,
+   "min": 51333,
+   "max": 52125,
+   "median_all": 51708,
+   "fast_runs": 5,
+   "runs": [
+    52042,
+    51708,
+    51333,
+    52125,
+    51417
+   ]
   },
   "dispatch_ns_median": [
-   22750
+   51708
   ],
-  "repeat": 5
+  "repeat": 5,
+  "gflops": 9.98097006265955,
+  "host_ns_median": 155125
  },
  "code_extracted": true,
  "large": {
@@ -59,15 +70,39 @@
    "stopband_tone_db": -104.6480087993043
   },
   "gpu_ns": {
-   "median": 34729.5,
-   "min": 31542,
-   "max": 38084
+   "median": 1531791,
+   "min": 1528709,
+   "max": 2132542,
+   "median_all": 1819563.0,
+   "fast_runs": 5,
+   "runs": [
+    1701541,
+    1529625,
+    1770584,
+    1531791,
+    1821583,
+    1528709,
+    1819917,
+    1532833,
+    1823166,
+    1558083,
+    1819209,
+    1686416,
+    1821209,
+    1824250,
+    1829500,
+    1822458,
+    1946625,
+    1818208,
+    2132542,
+    2105917
+   ]
   },
   "dispatch_ns_median": [
-   34729.5
+   1531791
   ],
   "repeat": 20,
-  "gflops": 30434.20170172332,
+  "gflops": 690.0188132715233,
   "gbytes_per_s": null,
   "work": {
    "samples": 8388608,
@@ -79,6 +114,10 @@
   "inputs_sha256": {
    "0": "05b6b93d09290cd52ca94edb737b6bb6b22cd5f733e24231d3e1e193e2f02e8c",
    "1": "d76fa3eac74d5dde79148d865be7146da58c2f21013a3e2e19bb399c5fdbf5ed"
-  }
- }
+  },
+  "host_ns_median": 2430632.0,
+  "out_sha256_same": true
+ },
+ "timing_method": "two-before",
+ "retimed_utc": "2026-10-16T16:00:00Z"
 }

@@ -93,6 +93,9 @@ and imgtonemap, imgerode, texfetch and texfilter in 25.2.8 were labelled 26.0. T
 
 ## The recorded GPU times are not kernel durations
 
+**Fixed 2026-10-16:** vk_run now writes two timestamps before each dispatch, and every workload was re-timed. See
+[2026-10-16-asahi-retime](../2026-10-16-asahi-retime/README.md), which also settles Q2b and Q3.
+
 Per-dispatch GPU timestamps on this driver do not bracket the dispatch's execution. vk_run writes a TOP_OF_PIPE
 timestamp before each dispatch and a BOTTOM_OF_PIPE timestamp after it. All 134 single-dispatch workloads measure
 11-41 µs (median 31 µs), whatever their size. Examples:
