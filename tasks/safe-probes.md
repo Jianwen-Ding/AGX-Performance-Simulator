@@ -23,7 +23,7 @@ The stack / scratch item is excluded: hand-built direct-DRM scratch programs sta
 | [safe-09](safe-09-preshader.md) | Preamble: uniform file size, register budget, multi-dispatch behaviour, cost | Computing kernel-uniform values once per core |
 | [safe-10](safe-10-memory-ordering.md) | SB / LB / threadgroup litmus tests, atomics as release, fence cost, ordering across dispatches | PTX `fence` / `membar` / `ld.acquire` / `st.release` mapping |
 | [safe-11](safe-11-occupancy-and-clock.md) | Small-workgroup occupancy cap, imageblock SRs, cost and skew of the in-shader clock | Occupancy API, `cudaDeviceProp`, `clock()` / `%globaltimer` |
-| [safe-12](safe-12-drm-interface-map.md) | Reference for the direct-DRM interface: UAPI, command words, limits, sync objects | Building blocks of the CUDA runtime (allocation, launch, streams, events) |
+| [safe-12](safe-12-drm-interface-map.md) | Reference for the direct-DRM interface: UAPI, command words, limits, sync objects | Building blocks of the CUDA runtime (allocation, launch, streams, events). **Steps 1-4 done 2026-10-16:** playground `docs/drm-interface.md`; cross-queue syncobj waits cost ~0.1 ms |
 
 Before starting a task, read the playground's `docs/external-knowledge.md` (a survey of published sources against our
 measurements), so a task confirms or refutes known claims instead of rediscovering them.
