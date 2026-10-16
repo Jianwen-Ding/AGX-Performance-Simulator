@@ -158,7 +158,7 @@ pub fn simulate_with(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer
                 out
             }
             None => crate::par::map(&jobs, |&(i, g, slot)| {
-                let ctx = GroupCtx { wg_size: l.wg, wg_id: wg_at(i), group: g, core: 0, slot, uniforms: l.uniforms.clone() };
+                let ctx = GroupCtx { wg_size: l.wg, wg_id: wg_at(i), group: g, core: 0, slot, uniforms: l.uniforms.clone(), launch: cost::SrLaunch { tg_bytes: l.tg_bytes, regs: l.regs, ..Default::default() } };
                 cost::trace_group(code, &ctx, l.max_steps)
             }),
         };
@@ -199,7 +199,7 @@ pub fn simulate_with(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer
                     for &k in &others {
                         let gs: Vec<u32> = (0..gpw).collect();
                         let tr = crate::par::map(&gs, |&g| {
-                            let ctx = GroupCtx { wg_size: l.wg, wg_id: wg_coords(k), group: g, core: 1, slot: g, uniforms: l.uniforms.clone() };
+                            let ctx = GroupCtx { wg_size: l.wg, wg_id: wg_coords(k), group: g, core: 1, slot: g, uniforms: l.uniforms.clone(), launch: cost::SrLaunch { tg_bytes: l.tg_bytes, regs: l.regs, ..Default::default() } };
                             cost::trace_group(code, &ctx, l.max_steps)
                         }).into_iter().collect::<Result<Vec<_>, _>>()?;
                         ovs.push(cost::segment_overlap(&traces, &tr, &device_pcs));

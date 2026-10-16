@@ -692,6 +692,22 @@ pub struct Trace {
 /// (playground experiments/registers/sr-geometry-core-alt.md) and to give r1 the global X index (the
 /// direct-DRM harness prefix convention). Threads are linearised x fastest; SIMD group `group` holds
 /// linear local indices 32*group .. 32*group+31.
+/// Launch resources and state that special registers expose (playground sr-resources-width, sr-direct-drm):
+/// SR18 threadgroup bytes, SR19 register allocation, SR21 context, SR24 program kind, SR32 pipeline-word offset.
+/// `regs` 0, `pipeline` / `context` None: not known to the caller (reading the register is then an error).
+#[derive(Clone, Copy, Debug, Default)]
+pub struct SrLaunch {
+    /// threadgroup memory allocated per workgroup (bytes)
+    pub tg_bytes: u32,
+    /// register allocation per thread (16-bit registers)
+    pub regs: u32,
+    /// USC-relative offset of the dispatch's pipeline words (CDM launch word 1)
+    pub pipeline: Option<u32>,
+    pub context: Option<u32>,
+    /// the group runs a preamble (preshader): one lane, slot 96, SR24 = 5
+    pub preamble: bool,
+}
+
 #[derive(Clone, Debug)]
 pub struct GroupCtx {
     pub wg_size: [u32; 3],
@@ -701,6 +717,7 @@ pub struct GroupCtx {
     pub slot: u32,
     /// 32-bit uniform registers preset (index, value), e.g. buffer addresses in u8_u9
     pub uniforms: Vec<(usize, u32)>,
+    pub launch: SrLaunch,
 }
 
 impl GroupCtx {
@@ -728,7 +745,15 @@ impl GroupCtx {
             15 => 16,
             17 => self.slot,
             20 => self.core,
-            24 | 25 => 2,
+            18 => self.launch.tg_bytes.div_ceil(256) * 256,
+            19 => if self.launch.regs > 0 { self.launch.regs.div_ceil(8).max(1) * 8 } else { return None },
+            21 => self.launch.context?,
+            24 => if self.launch.preamble { 5 } else { 2 },
+            25 => 2,
+            32 => self.launch.pipeline?,
+            // constant in compute under every launch parameter varied so far (meaning unknown)
+            97 => 2048,
+            114 => 136,
             48..=50 => loc[sr as usize - 48],
             51 => i,
             52 | 58 => i % 32,
@@ -737,13 +762,20 @@ impl GroupCtx {
             57 => 4.min(l - 4 * (i / 4)),
             59 => 32.min(l - 32 * (i / 32)),
             80..=82 => self.wg_id[sr as usize - 80] * self.wg_size[sr as usize - 80] + loc[sr as usize - 80],
-            // constant in compute under all 10 recorded geometries (coverage/expected/geometry): 12 / 13 imageblock
-            // width / height (no imageblock), 60 = 15, 63 = 1 (Mesa: is_active_thread). Not modelled: 18 / 19
-            // (threadgroup bytes / register allocation of the launch), 21 (per-context, varies between runs), 32 (USC
-            // offset of the pipeline words, set by the driver)
+            // constant in compute under all 10 recorded geometries (coverage/expected/geometry) and under divergence:
+            // 12 / 13 imageblock width / height (no imageblock), 60 = 15 (Mesa: coverage_mask), 63 = 1 (Mesa:
+            // is_active_thread)
             12 | 13 | 54 | 55 | 61 | 62 | 124 | 144 | 146 | 147 => 0,
             60 => 15,
             63 => 1,
+            // physical position in the quad: unlike SR56 it ignores the execution mask (playground sr-divergence)
+            16 => i % 4,
+            // 0 / 8, uniform over a whole dispatch, not tied to any launch parameter, lane, core, slot, VM slot or
+            // clock state tested (playground novel-results/2026-10-16-special-registers)
+            113 => return None,
+            // every other selector read 0 in all 121 executing main-shader scans (playground sr-direct-drm) and under
+            // divergence
+            0..=255 => 0,
             _ => return None,
         })
     }

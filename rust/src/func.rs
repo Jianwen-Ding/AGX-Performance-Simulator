@@ -89,6 +89,8 @@ pub struct Dispatch {
     /// different placement (other core ids; with more than one workgroup, other hardware slots), so a checker can
     /// tell which results depend on where the hardware happened to place the workgroups.
     pub placement: u32,
+    /// what SR18 / SR19 / SR21 / SR32 read
+    pub launch: crate::cost::SrLaunch,
 }
 
 #[derive(Debug, Default)]
@@ -307,7 +309,7 @@ fn run_workgroup(d: &Dispatch, cache: &mut [Option<Info>], mem: &mut Memory, [wx
     let mut groups: Vec<Group> = (0..gpw)
         .map(|g| {
             let (core, slot) = placement(d, [wx, wy, wz], g);
-            let ctx = GroupCtx { wg_size: d.wg, wg_id: [wx, wy, wz], group: g, core, slot, uniforms: d.uniforms.clone() };
+            let ctx = GroupCtx { wg_size: d.wg, wg_id: [wx, wy, wz], group: g, core, slot, uniforms: d.uniforms.clone(), launch: d.launch };
             let mut st = CoreState::new(d.num_registers, None);
             let lanes = ctx.lanes();
             for t in 0..32 {
@@ -442,17 +444,26 @@ fn step_group(g: &mut Group, code: &[u8], cache: &mut [Option<Info>], mem: &mut 
                     Some(Operand::Reg16(r, _)) => (*r as usize, true),
                     _ => return Err("get_sr: unexpected destination".into()),
                 };
-                // SR58 / SR59 are the active thread's index among the active threads and the number of active threads
+                // SR58 / SR59 (SR56 / SR57 within the quad) are the active thread's index among the active threads and the number of active threads
                 // (Mesa aggregates atomics with them under divergence); with every lane active they equal the launch
                 // geometry's lane index / lane count, which is what the recorded suite covers
+                // SR56 / SR57 are the same within the lane's quad (hardware: nested ifs, playground sr-divergence)
                 let active = g.st.exec.iter().filter(|&&e| e).count() as u32;
                 let mut rank = 0u32;
                 for t in 0..32 {
                     if g.st.exec[t] {
+                        let q = t & !3;
                         let v = match sr {
+                            56 => (q..t).filter(|&u| g.st.exec[u]).count() as u32,
+                            57 => (q..q + 4).filter(|&u| g.st.exec[u]).count() as u32,
                             58 => rank,
                             59 => active,
-                            _ => g.ctx.sr(sr, t).ok_or_else(|| format!("get_sr: special register {} not modelled", sr))?,
+                            // AGX_SR_DEFAULT=V: unmodelled selectors read V (for checking a program's control flow / stores
+                            // offline, e.g. a 256-selector scan, before it runs on the GPU)
+                            _ => match (g.ctx.sr(sr, t), std::env::var("AGX_SR_DEFAULT").ok().and_then(|v| v.parse::<u32>().ok())) {
+                                (Some(v), _) | (None, Some(v)) => v,
+                                (None, None) => return Err(format!("get_sr: special register {} not modelled", sr)),
+                            },
                         };
                         rank += 1;
                         if half { g.st.set_reg16(dr, t, v as i128)? } else { g.st.set_reg32(dr, t, v as i128)? }
@@ -574,7 +585,8 @@ fn uniform_store(g: &mut Group, f: &Fields) -> Result<(), String> {
 /// Run a driver preamble (Mesa's once-per-dispatch program that loads the root table into uniforms) as a single
 /// lane with the given 32-bit uniforms; returns every 32-bit uniform afterwards, for the main shader's Dispatch.
 pub fn run_preamble(code: &[u8], uniforms: &[(usize, u32)], mem: &mut Memory, num_registers: usize) -> Result<Vec<(usize, u32)>, String> {
-    let ctx = GroupCtx { wg_size: [1, 1, 1], wg_id: [0, 0, 0], group: 0, core: 0, slot: 0, uniforms: uniforms.to_vec() };
+    let ctx = GroupCtx { wg_size: [1, 1, 1], wg_id: [0, 0, 0], group: 0, core: 0, slot: 96, uniforms: uniforms.to_vec(),
+                          launch: crate::cost::SrLaunch { preamble: true, ..Default::default() } };
     let mut st = CoreState::new(num_registers, None);
     for t in 0..32 {
         st.exec[t] = t == 0;

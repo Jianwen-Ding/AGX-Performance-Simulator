@@ -105,6 +105,7 @@ make spirv-sim          # offline: functional simulator on the driver-compiled w
 make spirv-predict      # offline: predicted time of every workload from the driver-compiled code
 make spirv-compile      # offline: build Mesa (MESA_VERSION, default 26.0.3) with the drm-shim, recompile the workloads
 make verify-traces      # offline: functional-simulator paths vs the cost model's emulation on the test suite
+make verify-sr          # offline: all special registers vs the M2 under divergence (1518 lane-checked values)
 ```
 
 Other offline tools: `agx_asm` (assembler / decoder / raw field edits on stdin), `agx_run` (functional simulation of a

@@ -119,7 +119,8 @@ fn run_job(a: &[String], p: &Params) -> Result<serde_json::Value, String> {
             l.uniforms = func::run_preamble(pre, &l.uniforms, &mut mem, 128).map_err(|e| format!("preamble: {}", e))?;
         }
         Some(func::Dispatch { code: code.clone(), grid: l.grid, wg: l.wg, shared_bytes: l.tg_bytes, uniforms: l.uniforms.clone(),
-                              num_registers: 128, max_steps: l.max_steps as u64, placement: 0 })
+                              num_registers: 128, max_steps: l.max_steps as u64, placement: 0,
+                              launch: agx_sim::cost::SrLaunch { tg_bytes: l.tg_bytes, regs: l.regs, ..Default::default() } })
     } else {
         None
     };

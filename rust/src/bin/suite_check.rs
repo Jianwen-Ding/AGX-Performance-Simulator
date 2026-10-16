@@ -65,7 +65,7 @@ use std::sync::atomic::Ordering::Relaxed;
 fn compare_traces(d: &Dispatch, mem: &Memory) -> Result<Option<String>, String> {
     let f = func::trace_workgroups(d, mem, &[[0, 0, 0]])?.remove(0);
     for (g, ft) in f.iter().enumerate() {
-        let ctx = agx_sim::cost::GroupCtx { wg_size: d.wg, wg_id: [0, 0, 0], group: g as u32, core: 0, slot: g as u32, uniforms: d.uniforms.clone() };
+        let ctx = agx_sim::cost::GroupCtx { wg_size: d.wg, wg_id: [0, 0, 0], group: g as u32, core: 0, slot: g as u32, uniforms: d.uniforms.clone(), launch: Default::default() };
         let ct = agx_sim::cost::trace_group(&d.code, &ctx, 5_000_000)?;
         if let Some(i) = ft.pcs.iter().zip(&ct.pcs).position(|(a, b)| a != b).or((ft.pcs.len() != ct.pcs.len()).then_some(ft.pcs.len().min(ct.pcs.len()))) {
             return Ok(Some(format!("group {} path differs at step {} ({} vs {} steps)", g, i, ft.pcs.len(), ct.pcs.len())));
@@ -158,6 +158,13 @@ fn check(c: &Value) -> Result<Verdict, String> {
         num_registers: 128,
         max_steps: 50_000_000,
         placement: 0,
+        // the direct-DRM harness puts the pipeline words at USC offset 0x1000 (tests/drm_compute.c)
+        launch: agx_sim::cost::SrLaunch {
+            tg_bytes: u(&launch["shared_bytes"]) as u32,
+            regs: u(&launch["regs"]) as u32,
+            pipeline: c["device"].as_str().filter(|s| s.contains("direct DRM")).map(|_| 0x1000),
+            ..Default::default()
+        },
     };
     if TRACES.load(std::sync::atomic::Ordering::Relaxed) {
         return Ok(match compare_traces(&d, &mem)? {
