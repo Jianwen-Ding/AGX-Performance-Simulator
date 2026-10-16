@@ -129,6 +129,7 @@ def main():
         gpu_safety.require_budget(1)
         code = drm.build_main(body(*f))
         xs = form_inputs(f)
+        sim_gate(f, code, xs)
         hw = np.zeros(len(xs), np.uint32)
         for s0 in range(0, len(xs), C):
             part = [int(x) for x in xs[s0:s0+C]]
@@ -140,6 +141,25 @@ def main():
             hw[s0:s0+n] = res[0][C:C+n]
         np.savez_compressed(path, hw=hw)     # inputs: regenerate with inputs(...) and the form's seed (see seed())
         print(json.dumps({'form': name(*f), 'inputs': len(xs)}), flush=True)
+
+
+def sim_gate(f, code, xs, n=4096):
+    """Pre-GPU gate: the exact kernel runs in agx_run (simulator) on a sample of the form's inputs (first, last and
+    random words, one 2^18-lane chunk layout) and must equal the convert model (convert_check.model)."""
+    import convert_check as CC
+    rng = np.random.default_rng(1)
+    pick = np.unique(np.concatenate([np.arange(min(n, len(xs))), np.arange(max(0, len(xs)-n), len(xs)),
+                                     rng.integers(0, len(xs), n)]))
+    sample = xs[pick]
+    C = T.CHUNK
+    table = [int(x) for x in sample]+[0]*(C-len(sample))+[0]*C
+    _, tab = COV.simulate(code, C, T.WG, 64, 0, table)
+    got = np.array(tab[C:C+len(sample)], np.uint32)
+    want = CC.model(*f, sample).astype(np.uint32)
+    bad = int(np.sum(got != want))
+    if bad:
+        raise RuntimeError(f'{name(*f)}: simulator differs from the convert model on {bad} of {len(sample)} sampled inputs; refusing')
+    return len(sample)
 
 
 run = RS.run

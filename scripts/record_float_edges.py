@@ -57,6 +57,26 @@ def sweeps():
     return out
 
 
+def table_for(xs, s0, consts):
+    part = xs[s0:s0+N]
+    tab = np.zeros((N, 8), np.uint32)
+    tab[:len(part), :part.shape[1]] = part
+    for reg, val in consts.items():
+        tab[:, reg-6] = val
+    return tab.ravel().tolist()+[0]*(2*N), len(part)
+
+
+def simulate_chunk(code, xs, s0, consts):
+    """agx_run (simulator) result words (r14, r15 per input) of one 2^16-lane chunk"""
+    table, n = table_for(xs, s0, consts)
+    _, tab = COV.simulate(code, N, 256, 64, 0, table)
+    return np.array(tab[8*N:10*N], np.uint32).reshape(N, 2)[:n]
+
+
+def sim_first_chunk(code, xs, consts):
+    simulate_chunk(code, xs, 0, consts)
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument('--sweeps', default='.')
@@ -77,15 +97,10 @@ def main():
         RS.gate(body)
         code = drm.build_main(body)          # the whole program: prologue + body + stop (a bare body hung the GPU)
         gpu_safety.require_budget(1)
+        sim_first_chunk(code, xs, consts)                # pre-GPU gate: the exact kernel completes in agx_run
         hw = np.zeros((len(xs), 2), np.uint32)
         for s0 in range(0, len(xs), N):
-            part = xs[s0:s0+N]
-            n = len(part)
-            tab = np.zeros((N, 8), np.uint32)
-            tab[:n, :part.shape[1]] = part
-            for reg, val in consts.items():
-                tab[:, reg-6] = val
-            table = tab.ravel().tolist()+[0]*(2*N)
+            table, n = table_for(xs, s0, consts)
             res = [RS.run(R, code, N, 256, table)[1] for _ in range(2)]
             if res[0] != res[1]:
                 raise RuntimeError(f'{k} chunk {s0}: runs disagree')
