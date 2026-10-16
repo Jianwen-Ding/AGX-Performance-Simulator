@@ -12,7 +12,7 @@ The stack / scratch item is excluded: hand-built direct-DRM scratch programs sta
 
 | Task | What it learns | Why it matters for CUDA |
 |---|---|---|
-| [safe-01](safe-01-numeric-semantics.md) | Exact behaviour of `convert`, fp16 transcendentals, subnormal edges of fp32 math | PTX `cvt` and the default (non-`.ftz`) float ops must match bit for bit |
+| [safe-01](safe-01-numeric-semantics.md) | Exact behaviour of `convert`, fp16 transcendentals, subnormal edges of fp32 math | PTX `cvt` and the default (non-`.ftz`) float ops must match bit for bit. **Done 2026-10-16:** 80 convert forms (1.37e9 words) + fp32 boundary sweeps, simulator exact; PTX mapping and a GPU-verified floor/ceil fix-up (playground `novel-results/2026-10-16-conversions`). Open: setp / min non-ftz fix-ups |
 | [safe-02](safe-02-performance-gaps.md) | Atomic contention, strided access, barriers, write-back, the fma sin/cos cost | The largest gaps between the cost model and the GPU (`results/2026-10-16-asahi-retime`) |
 | [safe-03](safe-03-memory-system.md) | Line and page size, TLB reach, SLC capacity, CPU -> GPU visibility latency | Cache-aware lowering; emulating unified memory |
 | [safe-04](safe-04-driver-submission.md) | Queue priorities, concurrent queues, submission latency, command limits | Streams, events and launch overhead in a CUDA runtime. **Done 2026-10-16** (playground novel-results `submission-latency`, `commands-per-submit`, `queue-priority`, `queue-concurrency`): ~55 µs launch warm / 0.4-0.7 ms after GPU wake-up; 64 in-order commands per SUBMIT; priority has no effect; at most 4 concurrent commands GPU-wide; clock ramps 3.1x over ~15 ms |
