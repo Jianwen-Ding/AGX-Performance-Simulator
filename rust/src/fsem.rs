@@ -845,10 +845,8 @@ pub fn quad_shuffle(name: &str, ops: &[Operand], st: &mut CoreState) -> R<()> {
 // ---- transcendentals --------------------------------------------------------------------------------------
 //
 // fp16 forms are correctly rounded (every sampled lane of the suite). fp32 forms are the hardware's approximation:
-// rcp / rsqrt / rsqrt_special come from recorded exact tables and log2 from the recorded fixed-point samples
-// (`transtab`: exact on every suite lane), for fp32 and fp16 sources alike. exp2 and sin_pt_2 have no table (not
-// separable by exponent) and are modelled as correctly rounded, within 2 ulp of the hardware on every suite lane
-// (suite_check accepts them as CLOSE). Special values, the denormal rules (fp32 inputs flushed to zero, fp16
+// rcp / rsqrt / rsqrt_special / sin_pt_2 come from recorded exact tables, log2 and exp2 from the recorded fixed-point
+// samples (`transtab`), for fp32 and fp16 sources alike: every fp32 transcendental is exact. Special values, the denormal rules (fp32 inputs flushed to zero, fp16
 // denormals kept), `.sat` and sin_pt_1 are exact.
 
 /// Exact value (in f64) of the function, before rounding to the destination format.

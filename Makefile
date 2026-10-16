@@ -6,7 +6,7 @@ MESA_VERSION ?= 26.0.3
 MESA_SHIM_DIR ?= $(CURDIR)/../mesa-src
 export CC PROBE_INCLUDE
 
-.PHONY: help verify-sr check rust test verify-cost-model verify-memory-model bench verify-bench cost-calibrate cost-validate suite-check record-suite record-transcendentals coverage-validate coverage-record coverage-check coverage-status spirv-build spirv-run spirv-lavapipe spirv-sim spirv-compile spirv-predict verify-traces spirv-verify asahi-verify
+.PHONY: help verify-transcendentals verify-sr check rust test verify-cost-model verify-memory-model bench verify-bench cost-calibrate cost-validate suite-check record-suite record-transcendentals coverage-validate coverage-record coverage-check coverage-status spirv-build spirv-run spirv-lavapipe spirv-sim spirv-compile spirv-predict verify-traces spirv-verify asahi-verify
 
 help:
 	@echo 'make rust               Build the model (rust/target/release: agx_cost, agx_predict, verify_cost_model, agx_bench)'
@@ -28,6 +28,7 @@ help:
 	@echo 'make asahi-verify       Hardware (Asahi, M2): record every SPIR-V workload on the GPU, then verify the simulator against it'
 	@echo 'make spirv-compile      Offline: build Mesa $$(MESA_VERSION) with a no-op drm-shim and compile the workloads with it'
 	@echo 'make spirv-predict      Offline: predicted time of every workload (large) from the driver-compiled code'
+	@echo 'make verify-transcendentals Offline: exp2 / sin_pt_2 / log2 and the sin/cos sequences vs the M2, bit for bit'
 	@echo 'make verify-sr          Offline: special registers vs the M2 under divergence (results/2026-10-16-special-registers)'
 	@echo 'make verify-traces      Offline: functional-simulator paths vs the cost model emulation on the test suite'
 	@echo 'make verify-dispatch    Offline: whole-dispatch model against 25 stored dispatches'
@@ -111,6 +112,9 @@ spirv-compile: rust spirv-build
 
 spirv-predict: rust
 	$(PYTHON) -B scripts/spirv_task.py predictall spirv/compiled/mesa-$(MESA_VERSION) --size large --work build/spirv-predict
+
+verify-transcendentals: rust
+	$(PYTHON) -B scripts/trans_check.py
 
 verify-sr: rust
 	$(PYTHON) -B scripts/sr_check.py
