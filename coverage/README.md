@@ -19,7 +19,7 @@ checked against the recordings offline.
 | `alu` | 863 | 292 | Integer, float and bit ALU forms. Varies operands (16/32/64-bit, `.sx`, `.abs`/`.neg`, `.cache`/`.discard`, uniforms, immediates), all 16 bitop truth tables, shifts, saturation, every funop function code (0–63), every convert mode×round field, every compare/ballot condition code including the unnamed ones, shuffles with every index kind, reductions and prefix ops (16/64-bit), and simd_op sub-ops. |
 | `alu_masked` | 213 | – | Cross-lane forms running with a quarter of the lanes inactive. |
 | `mem_load` / `mem_store` | 202 / 194 | 116 / 112 | All 12 device formats × component masks × 16/32-bit registers, `lsl 0..3` shifts, signed/unsigned index, uniform/register base, and immediate index. |
-| `geometry` | 546 | 214 | Every special register 0–255. The known ones run under 13 launch geometries (1-D, 2-D, 3-D, partial groups, workgroup sizes 1–1024). |
+| `geometry` | 760 | – | Every special register 0–255. The identified ones run under 13 launch geometries (1-D, 2-D, 3-D, partial groups, workgroup sizes 1–1024), the rest under one. All 256 are safe to read (no fault in 126+ full scans); the former 214 `may_fault` cases were recorded on 2026-10-16 (tasks/safe-06). |
 | `control` | 59 | – | if/else/while for every int and float condition, nesting depth 1–8, and `push_exec` counts 1–3. |
 | `threadgroup` | 44 | 60 | Barrier 0x68 vs 0x78 at workgroup sizes 32–1024. Threadgroup store/load in 9 formats × masks × immediate/register index. |
 | `sync` | 5 | 251 | Every `memory_barrier a, b, c`. |

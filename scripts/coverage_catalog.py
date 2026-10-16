@@ -360,7 +360,10 @@ def sr_case(n, geom):
         b += RS.e('wait 0') + RS.e('iadd r2, r14, 0')
         table = [0] * (8192 + geom[0] * geom[1] * geom[2] + 64)
         return ('geometry', name, f'get_sr sr{n} per thread, grid {geom[:3]} workgroup {geom[3:]}', b, count, geom[3], 64, 0, table, None, geom)
-    risk = 'safe' if n in _sr_known() else 'may_fault'
+    # every selector 0..255 has been read with this get_sr encoding without a fault (126+ direct-DRM full scans, the
+    # 2026-10-16 divergence / VM-slot runs, and the recorded geometry cases), so all are safe to read; _sr_known()
+    # only decides which selectors run under all launch geometries
+    risk = 'safe'
     return Case(f'geometry/{name}', 'geometry', 'sr-geometry-core-id / sr-resource-registers / sr17-sr32', risk, 'functional',
                 f'special register {n} under launch {geom}', build, [])
 

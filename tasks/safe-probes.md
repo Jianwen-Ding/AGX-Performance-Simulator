@@ -14,7 +14,7 @@ These tasks learn more about the AGX GPU (M2 Max, G14C) **without risking a GPU 
 | [safe-03](safe-03-memory-system.md) | Line and page size, TLB reach, SLC capacity, CPU -> GPU visibility latency | Cache-aware lowering; emulating unified memory |
 | [safe-04](safe-04-driver-submission.md) | Queue priorities, concurrent queues, submission latency, command limits | Streams, events and launch overhead in a CUDA runtime |
 | [safe-05](safe-05-textures-via-vulkan.md) | `texture_sample` / `texture_load` semantics from Mesa-compiled shaders | CUDA texture and surface objects |
-| [safe-06](safe-06-unknown-special-registers.md) | Record the 214 coverage "may fault" special-register cases | Completes the special-register map in the coverage suite |
+| [safe-06](safe-06-unknown-special-registers.md) | Record the 214 coverage "may fault" special-register cases | Completes the special-register map in the coverage suite. **Done 2026-10-16:** 214/214 recorded, 0 faults; 213 match the simulator, and SR113 is unmodelled by design |
 
 ## Rules for every task
 
