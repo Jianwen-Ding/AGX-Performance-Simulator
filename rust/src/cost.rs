@@ -737,6 +737,13 @@ impl GroupCtx {
             57 => 4.min(l - 4 * (i / 4)),
             59 => 32.min(l - 32 * (i / 32)),
             80..=82 => self.wg_id[sr as usize - 80] * self.wg_size[sr as usize - 80] + loc[sr as usize - 80],
+            // constant in compute under all 10 recorded geometries (coverage/expected/geometry): 12 / 13 imageblock
+            // width / height (no imageblock), 60 = 15, 63 = 1 (Mesa: is_active_thread). Not modelled: 18 / 19
+            // (threadgroup bytes / register allocation of the launch), 21 (per-context, varies between runs), 32 (USC
+            // offset of the pipeline words, set by the driver)
+            12 | 13 | 54 | 55 | 61 | 62 | 124 | 144 | 146 | 147 => 0,
+            60 => 15,
+            63 => 1,
             _ => return None,
         })
     }
