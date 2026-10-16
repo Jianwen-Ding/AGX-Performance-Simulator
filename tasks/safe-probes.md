@@ -25,6 +25,9 @@ The stack / scratch item is excluded: hand-built direct-DRM scratch programs sta
 | [safe-11](safe-11-occupancy-and-clock.md) | Small-workgroup occupancy cap, imageblock SRs, cost and skew of the in-shader clock | Occupancy API, `cudaDeviceProp`, `clock()` / `%globaltimer` |
 | [safe-12](safe-12-drm-interface-map.md) | Reference for the direct-DRM interface: UAPI, command words, limits, sync objects | Building blocks of the CUDA runtime (allocation, launch, streams, events) |
 
+Before starting a task, read the playground's `docs/external-knowledge.md` (a survey of published sources against our
+measurements), so a task confirms or refutes known claims instead of rediscovering them.
+
 ## Rules for every task
 
 1. **Before anything touches the GPU:**

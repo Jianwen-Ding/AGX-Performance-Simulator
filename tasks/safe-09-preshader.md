@@ -32,8 +32,8 @@ Read [safe-probes.md](safe-probes.md) first (safety rules).
    shader stores them per lane together with SR20. Expected: every lane on a core sees that core's values. Record
    it and check it in `suite_check`.
 2. **Uniform file size.**
-   - `uniform_store` to u0 .. u511, in steps, from the preamble. Stay within the encodable range
-     (`isa/table.rs:465`).
+   - `uniform_store` to u0 .. u255, in steps, from the preamble. applegpu documents 256 uniforms (playground
+     `docs/external-knowledge.md`). Stay within the encodable range (`isa/table.rs:465`).
    - Read every uniform back in the main shader.
    - Find which uniforms survive and whether high uniforms alias low ones.
    - The simulator errors beyond the uniform file today. Fix the bound to the measured one.
