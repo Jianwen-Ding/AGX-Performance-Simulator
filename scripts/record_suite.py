@@ -33,7 +33,12 @@ def b64(words):
 
 def run(R, code, count, local_x, table, regs=64, shared=0, dims=None):
     """One dispatch; returns (out words, table words after, fw_ns, table_va). dims = (gx, gy, gz, lx, ly, lz) for a
-    multi-dimensional launch (count still sets the out buffer and u5)."""
+    multi-dimensional launch (count still sets the out buffer and u5). `code` must be a whole program
+    (run_drm_compute.build_main(body)): a bare body has no prologue and no final `stop`, and executing past its end hung
+    the GPU on 2026-10-16."""
+    if not bytes(code).endswith(b'\x88\x00'):           # callers pass the unpadded program; run() pads it below
+        raise ValueError('refusing to submit: the program does not end with stop (0x8800); wrap the body with '
+                         'run_drm_compute.build_main()')
     (R.out/'c.bin').write_bytes(code+bytes(16))
     (R.out/'t.bin').write_bytes(struct.pack(f'<{len(table)}I', *table))
     env = {'PATH': '/usr/bin', 'AGX_LOCAL_X': str(local_x), 'AGX_TABLE_OUT': str(R.out/'t.out')}

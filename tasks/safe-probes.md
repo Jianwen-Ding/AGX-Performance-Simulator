@@ -26,13 +26,16 @@ These tasks learn more about the AGX GPU (M2 Max, G14C) **without risking a GPU 
    - Confirm the device is the AGX: a Vulkan runner must report "Apple M2 Max", not llvmpipe.
 2. **No new encodings.** If a probe needs an instruction form the coverage suite has not recorded as `safe`, stop
    and list it as a follow-up. Do not try it.
-3. **Bounded code only.**
+3. **Whole programs only.**
+   - Submit `run_drm_compute.build_main(body)`, never a bare body. A bare body has no final `stop`; one stopped the GPU
+     executing work on 2026-10-16. `record_suite.run()` now refuses a program that does not end with `stop`.
+4. **Bounded code only.**
    - Loops must use `agx_loop` bodies that pass their emulator gate.
    - Simulate any new kernel in `rust/target/release/agx_run` (set `AGX_SR_DEFAULT` if it reads unmodelled special
      registers) and check that it terminates and writes what you expect before it runs on the GPU.
-4. **Small first.** Run one small dispatch and check its oracle before any sweep.
-5. **Stop on any fault or timeout.** Note it in `coverage/faults.json` or the task's report, and do not retry blindly.
-6. **Record evidence and push.**
+5. **Small first.** Run one small dispatch and check its oracle before any sweep.
+6. **Stop on any fault or timeout.** Note it in `coverage/faults.json` or the task's report, and do not retry blindly.
+7. **Record evidence and push.**
    - Raw bulk data goes under `/scratch/agxsim-data/` (regenerable).
    - Compact evidence plus an offline check goes into git: the simulator's `results/<date>-<topic>/` and the
      playground's `novel-results/` + `results/` + a `make verify-*` target.
