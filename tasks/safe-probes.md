@@ -7,6 +7,9 @@ These tasks learn more about the AGX GPU (M2 Max, G14C) **without risking a GPU 
 - the direct-DRM harness (`tests/drm_compute.c` via `scripts/record_suite.run` or the playground's runners), which
   records any timeout against the hang budget; or Vulkan through Mesa.
 
+Tasks safe-07 .. safe-12 come from the playground's direct-DRM findings and `coverage_catalog.MANUAL`.
+The stack / scratch item is excluded: hand-built direct-DRM scratch programs stalled twice.
+
 | Task | What it learns | Why it matters for CUDA |
 |---|---|---|
 | [safe-01](safe-01-numeric-semantics.md) | Exact behaviour of `convert`, fp16 transcendentals, subnormal edges of fp32 math | PTX `cvt` and the default (non-`.ftz`) float ops must match bit for bit |
@@ -15,6 +18,12 @@ These tasks learn more about the AGX GPU (M2 Max, G14C) **without risking a GPU 
 | [safe-04](safe-04-driver-submission.md) | Queue priorities, concurrent queues, submission latency, command limits | Streams, events and launch overhead in a CUDA runtime |
 | [safe-05](safe-05-textures-via-vulkan.md) | `texture_sample` / `texture_load` semantics from Mesa-compiled shaders | CUDA texture and surface objects |
 | [safe-06](safe-06-unknown-special-registers.md) | Record the 214 coverage "may fault" special-register cases | Completes the special-register map in the coverage suite. **Done 2026-10-16:** 214/214 recorded, 0 faults; 213 match the simulator, and SR113 is unmodelled by design |
+| [safe-07](safe-07-fmadd-lane-offset.md) | The 10-byte fmadd lane-offset form and the fmadd32 bit-52 operation | A lane-shifted fma can replace `shfl.up` + `fma` in scans and stencils |
+| [safe-08](safe-08-undecoded-and-control-opcodes.md) | The 49 non-faulting undecoded opcodes, what 0x18 waits for, the ending opcodes | Keeps the backend away from accidental encodings; possible sync and early-exit primitives |
+| [safe-09](safe-09-preshader.md) | Preamble: uniform file size, register budget, multi-dispatch behaviour, cost | Computing kernel-uniform values once per core |
+| [safe-10](safe-10-memory-ordering.md) | SB / LB / threadgroup litmus tests, atomics as release, fence cost, ordering across dispatches | PTX `fence` / `membar` / `ld.acquire` / `st.release` mapping |
+| [safe-11](safe-11-occupancy-and-clock.md) | Small-workgroup occupancy cap, imageblock SRs, cost and skew of the in-shader clock | Occupancy API, `cudaDeviceProp`, `clock()` / `%globaltimer` |
+| [safe-12](safe-12-drm-interface-map.md) | Reference for the direct-DRM interface: UAPI, command words, limits, sync objects | Building blocks of the CUDA runtime (allocation, launch, streams, events) |
 
 ## Rules for every task
 
