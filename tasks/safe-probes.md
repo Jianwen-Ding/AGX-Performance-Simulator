@@ -52,6 +52,11 @@ measurements), so a task confirms or refutes known claims instead of rediscoveri
    - Compact evidence plus an offline check goes into git: the simulator's `results/<date>-<topic>/` and the
      playground's `novel-results/` + `results/` + a `make verify-*` target.
 
+8. **Release GPU memory.** Every direct-DRM program must munmap + `GEM_CLOSE` its buffer objects before exit.
+   Leaving them to process exit leaks their shmem in the kernel: ~55 GB on 2026-10-16, which made the host run out
+   of memory. `tests/drm_compute.c` now does this by default. Check `grep shmem /sys/fs/cgroup/memory.stat` before
+   and after one run.
+
 ## Not safe: do not run
 
 - funop functions 2, 3, 5, 7, 11 and 15 (24 confirmed GPU hangs), and convert mode 2, 3, 12+ or round field > 1.

@@ -342,6 +342,18 @@ int main(int argc, char **argv)
 
     struct drm_asahi_queue_destroy qd = {.queue_id = qc.queue_id};
     io(DRM_IOCTL_ASAHI_QUEUE_DESTROY, &qd, "queue-destroy");
+    /* Release every buffer object explicitly: leaving them to process exit leaks their shmem in the kernel
+       (playground notes/failed-approaches.md, 2026-10-16: ~55 GB over ~20,000 runs). AGX_CLEAN_EXIT=0 restores the old exit. */
+    if (env("AGX_CLEAN_EXIT", 1)) {
+        struct bo *bs[3] = {&usc, &data, &tsb};
+        for (int i = 0; i < 3; i++) {
+            require(munmap(bs[i]->map, bs[i]->size) == 0, "munmap");
+            struct drm_gem_close gcl = {.handle = bs[i]->handle};
+            io(DRM_IOCTL_GEM_CLOSE, &gcl, "gem-close");
+        }
+        struct drm_syncobj_destroy sd = {.handle = sc.handle};
+        io(DRM_IOCTL_SYNCOBJ_DESTROY, &sd, "syncobj-destroy");
+    }
     struct drm_asahi_vm_destroy vd = {.vm_id = vc.vm_id};
     io(DRM_IOCTL_ASAHI_VM_DESTROY, &vd, "vm-destroy");
     close(fd);
