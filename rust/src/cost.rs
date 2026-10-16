@@ -770,8 +770,8 @@ impl GroupCtx {
             63 => 1,
             // physical position in the quad: unlike SR56 it ignores the execution mask (playground sr-divergence)
             16 => i % 4,
-            // 0 / 8, uniform over a whole dispatch, not tied to any launch parameter, lane, core, slot, VM slot or
-            // clock state tested (playground novel-results/2026-10-16-special-registers)
+            // 0 / 8: a global firmware power-management state bit, set on a 56 ms cycle while the GPU is busy and
+            // cleared after ~2 ms of idle; it can change mid-dispatch (playground novel-results/2026-10-16-special-registers)
             113 => return None,
             // every other selector read 0 in all 121 executing main-shader scans (playground sr-direct-drm) and under
             // divergence
