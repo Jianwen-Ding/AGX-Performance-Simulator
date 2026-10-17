@@ -8,7 +8,7 @@
 //! elements; 8/16-bit loads write the low half; threadgroup byte = base + 4*size*index + size*component; atomics
 //! return the old value; cmpxchg's source holds the new value, source+1 the compare value).
 
-use crate::cost::{self, is_barrier78, GroupCtx, Trace};
+use crate::cost::{is_barrier78, GroupCtx, Trace};
 use crate::fsem;
 use crate::isa::{self, compiled::Compiled, exec::CoreState, fget, Desc, Fields, Operand};
 use std::sync::OnceLock;
@@ -134,6 +134,7 @@ struct Info {
     vals: Vec<Operand>,
     /// what step_group does with it, decided once from the name instead of on every execution
     kind: OpKind,
+    access: Option<Box<crate::memtrace::Access>>,
 }
 
 // The byte-indexed table stores only a once-cell and pointer. Instruction records
@@ -431,7 +432,7 @@ fn call_base() -> i128 {
 fn decode_at(code: &[u8], pc: usize, nregs: usize) -> Result<Info, String> {
     if pc % 2 != 0 { return Err(format!("unaligned instruction address {}", pc)); }
     if is_barrier78(code, pc) {
-        return Ok(Info { desc: None, size: 2, fields: vec![], op: None, ops: vec![], vals: vec![], kind: OpKind::Nop });
+        return Ok(Info { desc: None, size: 2, fields: vec![], op: None, ops: vec![], vals: vec![], kind: OpKind::Nop, access: None });
     }
     let n0 = isa::opcode_to_number(&code[pc..code.len().min(pc + 16)]);
     let desc = isa::get_instruction_descriptor(n0).ok_or_else(|| format!("undecodable instruction at {}", pc))?;
@@ -445,7 +446,8 @@ fn decode_at(code: &[u8], pc: usize, nregs: usize) -> Result<Info, String> {
     let op = Compiled::new(desc, &fields, &ops, nregs);
     let vals = vals(&ops);
     let kind = op_kind(desc.name, &fields);
-    Ok(Info { desc: Some(desc), size, fields, op: Some(op), ops, vals, kind })
+    let access = crate::memtrace::Access::decode(desc.name, &fields, true);
+    Ok(Info { desc: Some(desc), size, fields, op: Some(op), ops, vals, kind, access })
 }
 
 fn step_group(g: &mut Group, code: &[u8], cache: &[OnceLock<Box<Info>>], mem: &mut Memory, tg: &mut [u8], max_steps: u64,
@@ -472,12 +474,7 @@ fn step_group(g: &mut Group, code: &[u8], cache: &[OnceLock<Box<Info>>], mem: &m
             // access executes, the device segments / threadgroup words / atomic words of the active lanes
             tr.pcs.push(g.pc);
             let at = (tr.pcs.len() - 1) as u32;
-            let touched = match info.desc.map(|d| d.name) {
-                Some("device_load" | "device_store" | "device_load.TODO" | "device_store.TODO") => cost::mem_segments(&info.fields, &g.st),
-                Some(n) if n.starts_with("threadgroup_") && n != "threadgroup_barrier" => cost::tg_words(&info.fields, &g.st),
-                Some("atomic") => cost::atomic_words(&info.fields, &g.st),
-                _ => None,
-            };
+            let touched = info.access.as_ref().and_then(|a| a.capture(&g.st));
             if let Some(w) = touched {
                 tr.mem.push((at, w));
             }

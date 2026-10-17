@@ -136,3 +136,28 @@ Next: cached cost-trace memory operands, broader cross-lane replay and guards fo
 malformed performance launch dimensions. Keep approximate cost-emulation paths
 distinct from real-memory functional traces. Hardware-only timing work remains
 blocked on an M2 device.
+
+## 2026-10-17: cached memory capture and 130 cross-lane replays
+
+Both tracers cache memory-address operands once per visited PC. Device segment
+vectors reserve once before sorting/deduplication; atomic/TG lane-component
+order and duplicates are preserved. Tests pin the unchanged legacy helpers'
+missing-field, inactive-lane, format and signed-offset behavior. A scattered-
+access regression in an adjacent-dedup trial was measured and that variant was
+rejected; raw trial data is retained separately.
+
+Five alternating checked benchmark pairs: cost memory tracing 1.120-1.421x and
+functional tracing 1.056-1.165x faster over coalesced/scattered, 1/4-worker cases.
+The ALU-only CLI control was 2.5% slower; no general speedup is claimed. Details,
+raw samples and reproduction: `results/2026-10-17-memory-tracing/README.md`.
+
+Added strict `suite_check --case-prefix` selection and playground
+`make replay-cross-lane-suite`. All 276 selected recordings compare exactly,
+including 130 full/masked reductions, scans, shuffles and quad ballots. All 74
+atomic replays pass, 23 Rust tests and doc checks pass, and the cost verifier has
+zero failures. All 36 complete prediction reports match the committed baseline
+hash; a new read-only reference checker makes that regression repeatable.
+
+No hardware evidence, calibration or instruction semantics were changed. Next:
+malformed performance launch guards, cached atomic execution operands and real
+data-dependent memory profiling. Hardware-only timing remains blocked on M2 access.

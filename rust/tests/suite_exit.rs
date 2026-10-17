@@ -25,6 +25,8 @@ fn replay_status_rejects_empty_failed_and_incomplete_suites() {
     write(&c);
     let ok = run(&[]);
     assert!(ok.status.success(), "{}", String::from_utf8_lossy(&ok.stdout));
+    assert!(run(&["--case-prefix", "synthetic-"]).status.success());
+    assert_eq!(run(&["--case-prefix", "does-not-exist"]).status.code(), Some(1));
     assert_eq!(run(&["--case", "does-not-exist"]).status.code(), Some(1));
     c["expect"]["table"] = json!("AQAAAA=="); // one wrong word
     write(&c);

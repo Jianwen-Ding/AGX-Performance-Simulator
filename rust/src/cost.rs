@@ -912,6 +912,7 @@ struct PcInfo {
     /// control instruction whose condition is checked for uniforms / tainted sources
     check: bool,
     ureg: bool,
+    access: Option<Box<crate::memtrace::Access>>,
 }
 
 /// agx_cost.trace: dynamic pc sequence for one SIMD group (applegpu emulator; uniforms and memory
@@ -978,8 +979,10 @@ impl<'a> PreparedTrace<'a> {
             let check = CONTROL.contains(&desc.name) && !["jmp_exec_any", "jmp_exec_none", "pop_exec"].contains(&desc.name);
             let ureg = ops.iter().any(Operand::is_ureg);
             let op = isa::compiled::Compiled::new(desc, &fields, &ops, nregs);
+            // Preserve the approximate tracer's existing classification (no .TODO accesses).
+            let access = crate::memtrace::Access::decode(desc.name, &fields, false);
             // Concurrent misses can decode independently; only the winning immutable value is retained.
-            let _ = cell.set(Box::new(PcInfo { desc, size, fields, ops, uses, dst, op, stop, jump, off, check, ureg }));
+            let _ = cell.set(Box::new(PcInfo { desc, size, fields, ops, uses, dst, op, stop, jump, off, check, ureg, access }));
         }
         Ok(cell.get().unwrap())
     }
@@ -1050,18 +1053,8 @@ impl<'a> PreparedTrace<'a> {
                 continue;
             }
             let dname = info.desc.name;
-            if dname == "device_load" || dname == "device_store" {
-                if let Some(sg) = mem_segments(&info.fields, &st) {
-                    out.mem.push(((out.pcs.len() - 1) as u32, sg));
-                }
-            } else if dname.starts_with("threadgroup_") && dname != "threadgroup_barrier" {
-                if let Some(w) = tg_words(&info.fields, &st) {
-                    out.mem.push(((out.pcs.len() - 1) as u32, w));
-                }
-            } else if dname == "atomic" {
-                if let Some(w) = atomic_words(&info.fields, &st) {
-                    out.mem.push(((out.pcs.len() - 1) as u32, w));
-                }
+            if let Some(w) = info.access.as_ref().and_then(|a| a.capture(&st)) {
+                out.mem.push(((out.pcs.len() - 1) as u32, w));
             }
             if let (Some(c), "get_sr") = (ctx, dname) {
                 let sr = fget(&info.fields, "SR").unwrap_or(0) as u32;

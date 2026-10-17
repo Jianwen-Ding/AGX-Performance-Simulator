@@ -7,6 +7,7 @@ pub mod func;
 pub mod fsem;
 pub mod isa;
 pub mod kernels;
+mod memtrace;
 pub mod par;
 pub mod pyrandom;
 pub mod transtab;
@@ -17,3 +18,4 @@ pub fn py_round_repr(x: f64, nd: usize) -> String {
     let v: f64 = s.parse().unwrap();
     isa::operand::py_float(v)
 }
+

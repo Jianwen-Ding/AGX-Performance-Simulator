@@ -1,6 +1,6 @@
 //! Offline check of the functional simulator against the hardware-recorded test suite (testsuite/).
 //!
-//! suite_check [DIR] [-v] [--only CATEGORY] [--case NAME] [--traces]
+//! suite_check [DIR] [-v] [--only CATEGORY] [--case NAME] [--case-prefix PREFIX] [--traces]
 //! For every case: map the out buffer (harness initial pattern) and the input table at their recorded VAs, set the
 //! uniforms (u4 = 0, u5 = count, u6_u7 = out VA, u8_u9 = table VA), run every SIMD group of the grid and compare the
 //! deterministic parts word for word. Prints per-category pass counts and, with -v, each failure's first mismatch
@@ -284,7 +284,8 @@ fn main() {
     let opt = |k: &str| args.iter().position(|a| a == k).map(|i| args[i + 1].clone());
     let only = opt("--only");
     let one = opt("--case");
-    let dir = args.iter().find(|a| !a.starts_with('-') && Some(*a) != only.as_ref() && Some(*a) != one.as_ref()).cloned()
+    let prefix = opt("--case-prefix");
+    let dir = args.iter().find(|a| !a.starts_with('-') && Some(*a) != only.as_ref() && Some(*a) != one.as_ref() && Some(*a) != prefix.as_ref()).cloned()
         .unwrap_or_else(|| agx_sim::cost::repo_root().join("testsuite").display().to_string());
     // per category: (exact, close, mismatch, error)
     let mut cats: BTreeMap<String, (u32, u32, u32, u32)> = BTreeMap::new();
@@ -306,7 +307,8 @@ fn main() {
         let c = load(&p);
         let cat = c["category"].as_str().unwrap().to_string();
         let name = c["name"].as_str().unwrap().to_string();
-        if only.as_ref().map(|o| o != &cat).unwrap_or(false) || one.as_ref().map(|o| o != &name).unwrap_or(false) {
+        if only.as_ref().map(|o| o != &cat).unwrap_or(false) || one.as_ref().map(|o| o != &name).unwrap_or(false)
+            || prefix.as_ref().is_some_and(|p| !name.starts_with(p)) {
             continue;
         }
         let e = cats.entry(cat.clone()).or_default();
