@@ -11,6 +11,7 @@
 use crate::cost::{self, is_barrier78, GroupCtx, Trace};
 use crate::fsem;
 use crate::isa::{self, compiled::Compiled, exec::CoreState, fget, Desc, Fields, Operand};
+use std::sync::OnceLock;
 
 /// Sparse byte-addressed memory made of mapped regions. Regions are shared copy-on-write: cloning a Memory (one per
 /// traced workgroup) shares every buffer, and a write copies only the region it lands in.
@@ -105,6 +106,7 @@ pub struct Dispatch {
     /// 32-bit uniform registers (index, value)
     pub uniforms: Vec<(usize, u32)>,
     pub num_registers: usize,
+    /// Maximum executed instructions per SIMD group, including all barrier resumes.
     pub max_steps: u64,
     /// 0: every workgroup alone on core 0 (sr20 = 0, sr17 = SIMD group in workgroup). Otherwise a seed for a
     /// different placement (other core ids; with more than one workgroup, other hardware slots), so a checker can
@@ -132,6 +134,15 @@ struct Info {
     vals: Vec<Operand>,
     /// what step_group does with it, decided once from the name instead of on every execution
     kind: OpKind,
+}
+
+// The byte-indexed table stores only a once-cell and pointer. Instruction records
+// are allocated lazily at visited PCs and shared by independent traced workgroups.
+// Keeping execution state in Group lets every worker reuse the immutable decode.
+type CodeCache = Vec<OnceLock<Box<Info>>>;
+
+fn code_cache(bytes: usize) -> CodeCache {
+    (0..bytes).map(|_| OnceLock::new()).collect()
 }
 
 #[derive(Clone, Copy)]
@@ -211,6 +222,7 @@ struct Group {
     ctx: GroupCtx,
     pc: usize,
     done: bool,
+    steps: u64,
     /// recorded dynamic path in the cost model's format (pcs, memory segments / threadgroup words per access)
     trace: Option<Trace>,
     /// per-lane private stack (scratch) memory for stack_store / stack_load, grown on demand
@@ -282,13 +294,13 @@ fn norm_store(fmt: u64, v: i128, rt: bool) -> u64 {
 
 pub fn run(d: &Dispatch, mem: &mut Memory) -> Result<RunStats, String> {
     validate_dispatch(d)?;
-    let mut cache: Vec<Option<Info>> = (0..d.code.len()).map(|_| None).collect();
+    let cache = code_cache(d.code.len());
     let dims: Vec<u32> = (0..3).map(|i| d.grid[i].div_ceil(d.wg[i])).collect();
     let mut stats = RunStats::default();
     for wz in 0..dims[2] {
         for wy in 0..dims[1] {
             for wx in 0..dims[0] {
-                run_workgroup(d, &mut cache, mem, [wx, wy, wz], false, &mut stats)?;
+                run_workgroup(d, &cache, mem, [wx, wy, wz], false, &mut stats)?;
             }
         }
     }
@@ -298,14 +310,31 @@ pub fn run(d: &Dispatch, mem: &mut Memory) -> Result<RunStats, String> {
 /// Dynamic path of every SIMD group of the given workgroups (each run alone from `mem` as it is, with its own copy),
 /// for the cost model: exact control flow and addresses, whatever the data.
 pub fn trace_workgroups(d: &Dispatch, mem: &Memory, wgs: &[[u32; 3]]) -> Result<Vec<Vec<Trace>>, String> {
-    validate_dispatch(d)?;
-    crate::par::map(wgs, |&wg| {
-        let mut cache: Vec<Option<Info>> = (0..d.code.len()).map(|_| None).collect();
+    PreparedDispatch::new(d)?.trace_workgroups(mem, wgs)
+}
+
+/// Reusable, thread-safe lazy decoding for functional traces of one immutable dispatch.
+/// Only instruction metadata is shared: every trace starts with fresh registers,
+/// shared memory, execution masks and a copy-on-write snapshot of the supplied memory.
+pub struct PreparedDispatch<'a> {
+    dispatch: &'a Dispatch,
+    cache: CodeCache,
+}
+
+impl<'a> PreparedDispatch<'a> {
+    pub fn new(dispatch: &'a Dispatch) -> Result<Self, String> {
+        validate_dispatch(dispatch)?;
+        Ok(Self { dispatch, cache: code_cache(dispatch.code.len()) })
+    }
+
+    pub fn trace_workgroup(&self, mem: &Memory, wg: [u32; 3]) -> Result<Vec<Trace>, String> {
         let mut m = mem.clone();
-        run_workgroup(d, &mut cache, &mut m, wg, true, &mut RunStats::default())
-    })
-    .into_iter()
-    .collect()
+        run_workgroup(self.dispatch, &self.cache, &mut m, wg, true, &mut RunStats::default())
+    }
+
+    pub fn trace_workgroups(&self, mem: &Memory, wgs: &[[u32; 3]]) -> Result<Vec<Vec<Trace>>, String> {
+        crate::par::map(wgs, |&wg| self.trace_workgroup(mem, wg)).into_iter().collect()
+    }
 }
 
 fn validate_dispatch(d: &Dispatch) -> Result<(), String> {
@@ -340,7 +369,7 @@ fn placement(d: &Dispatch, wg: [u32; 3], g: u32) -> (u32, u32) {
     (core, slot)
 }
 
-fn run_workgroup(d: &Dispatch, cache: &mut [Option<Info>], mem: &mut Memory, [wx, wy, wz]: [u32; 3], record: bool,
+fn run_workgroup(d: &Dispatch, cache: &[OnceLock<Box<Info>>], mem: &mut Memory, [wx, wy, wz]: [u32; 3], record: bool,
                  stats: &mut RunStats) -> Result<Vec<Trace>, String> {
     let code = &d.code;
     let threads = d.wg[0] * d.wg[1] * d.wg[2];
@@ -365,7 +394,7 @@ fn run_workgroup(d: &Dispatch, cache: &mut [Option<Info>], mem: &mut Memory, [wx
                 st.uniforms[2 * u] = (v & 0xffff) as u16;
                 st.uniforms[2 * u + 1] = (v >> 16) as u16;
             }
-            Group { st, ctx, pc: 0, done: false, trace: if record { Some(Trace::default()) } else { None }, stack: vec![], pending: vec![] }
+            Group { st, ctx, pc: 0, done: false, steps: 0, trace: if record { Some(Trace::default()) } else { None }, stack: vec![], pending: vec![] }
         })
         .collect();
     stats.groups += groups.len() as u64;
@@ -401,12 +430,16 @@ fn call_base() -> i128 {
 }
 
 fn decode_at(code: &[u8], pc: usize, nregs: usize) -> Result<Info, String> {
+    if pc % 2 != 0 { return Err(format!("unaligned instruction address {}", pc)); }
     if is_barrier78(code, pc) {
         return Ok(Info { desc: None, size: 2, fields: vec![], op: None, ops: vec![], vals: vec![], kind: OpKind::Nop });
     }
     let n0 = isa::opcode_to_number(&code[pc..code.len().min(pc + 16)]);
     let desc = isa::get_instruction_descriptor(n0).ok_or_else(|| format!("undecodable instruction at {}", pc))?;
     let size = desc.decode_size(n0);
+    if size > code.len() - pc {
+        return Err(format!("truncated {} at {}: needs {} bytes, has {}", desc.name, pc, size, code.len() - pc));
+    }
     let n = desc.mask_instr(n0);
     let fields = desc.decode_fields(n);
     let ops = if desc.name == "stop" || desc.name == "trap" { vec![] } else { desc.fields_to_operands(&fields)? };
@@ -415,20 +448,25 @@ fn decode_at(code: &[u8], pc: usize, nregs: usize) -> Result<Info, String> {
     Ok(Info { desc: Some(desc), size, fields, op: Some(op), ops, vals, kind: op_kind(desc.name) })
 }
 
-fn step_group(g: &mut Group, code: &[u8], cache: &mut [Option<Info>], mem: &mut Memory, tg: &mut [u8], max_steps: u64,
+fn step_group(g: &mut Group, code: &[u8], cache: &[OnceLock<Box<Info>>], mem: &mut Memory, tg: &mut [u8], max_steps: u64,
               stats: &mut RunStats) -> Result<Stop, String> {
     let nregs = g.st.reg16s.len(); // 16-bit registers, as Compiled::new expects
-    let mut steps = 0u64;
     while g.pc < code.len() {
-        steps += 1;
-        stats.instructions += 1;
-        if steps > max_steps {
+        if g.steps >= max_steps {
             return Err("step limit (non-terminating loop?)".into());
         }
-        if cache[g.pc].is_none() {
-            cache[g.pc] = Some(decode_at(code, g.pc, nregs)?);
-        }
-        let info = cache[g.pc].as_ref().unwrap();
+        g.steps += 1;
+        stats.instructions += 1;
+        let info = match cache[g.pc].get() {
+            Some(info) => info,
+            None => {
+                let info = Box::new(decode_at(code, g.pc, nregs)?);
+                // Another tracing worker may have decoded this PC concurrently.
+                // Both decodes are identical; retain the first successfully installed one.
+                let _ = cache[g.pc].set(info);
+                cache[g.pc].get().unwrap()
+            }
+        };
         if let Some(tr) = g.trace.as_mut() {
             // as cost::trace_group records it: every pc (barriers, jumps and the stop included) and, before the
             // access executes, the device segments / threadgroup words / atomic words of the active lanes
@@ -460,7 +498,15 @@ fn step_group(g: &mut Group, code: &[u8], cache: &mut [Option<Info>], mem: &mut 
                 if off & (1 << 31) != 0 {
                     off -= 1 << 32;
                 }
-                g.pc = if take { (g.pc as i64 + off) as usize } else { g.pc + info.size };
+                if take {
+                    let target = g.pc as i128 + off as i128;
+                    if target < 0 || target >= code.len() as i128 || target % 2 != 0 {
+                        return Err(format!("jump at {} targets {} outside the program or unaligned", g.pc, target));
+                    }
+                    g.pc = target as usize;
+                } else {
+                    g.pc += info.size;
+                }
                 continue;
             }
             // call / ret (applegpu pseudocode; no hardware evidence yet, see the playground's remaining-work.md). The link
@@ -701,11 +747,11 @@ pub fn run_preamble(code: &[u8], uniforms: &[(usize, u32)], mem: &mut Memory, nu
         st.uniforms[2 * u] = (v & 0xffff) as u16;
         st.uniforms[2 * u + 1] = (v >> 16) as u16;
     }
-    let mut g = Group { st, ctx, pc: 0, done: false, trace: None, stack: vec![], pending: vec![] };
-    let mut cache: Vec<Option<Info>> = (0..code.len()).map(|_| None).collect();
+    let mut g = Group { st, ctx, pc: 0, done: false, steps: 0, trace: None, stack: vec![], pending: vec![] };
+    let cache = code_cache(code.len());
     let mut tg = vec![0u8; 16];
     let mut stats = RunStats::default();
-    match step_group(&mut g, code, &mut cache, mem, &mut tg, 1_000_000, &mut stats)? {
+    match step_group(&mut g, code, &cache, mem, &mut tg, 1_000_000, &mut stats)? {
         Stop::Done => {}
         Stop::Barrier(_) => return Err("barrier in a preamble".into()),
     }
@@ -958,6 +1004,82 @@ mod tests {
     fn dispatch(code: Vec<u8>, grid: [u32; 3], wg: [u32; 3]) -> Dispatch {
         Dispatch { code, grid, wg, shared_bytes: 0, uniforms: vec![], num_registers: 32,
             max_steps: 1000, placement: 0, launch: Default::default() }
+    }
+
+    #[test]
+    fn prepared_tracing_preserves_data_geometry_and_memory_isolation() {
+        use crate::kernels::{atomic_add, e, e2, get_sr, mov};
+        let mut code = mov(3, 0);
+        code.extend(mov(5, 0));
+        code.extend(mov(6, 1));
+        code.extend(e("device_load 0, i32, x, r4, u8_u9, r5, unsigned"));
+        code.extend(e("wait 0"));
+        code.extend(get_sr(0, 7));
+        code.extend(e("iadd r4, r4, r7"));
+        code.extend(e2("if_fcmp r0l, eq, 0.0, 0.0, 1", "push_exec r0l, 1"));
+        let mut lp = e("iadd r3, 1, r3.sx");
+        lp.extend(e("while_icmp r0l, ult, r3, r4, 1"));
+        lp.extend(e(&format!("jmp_exec_any pc-{}", lp.len())));
+        code.extend(lp);
+        code.extend(e("pop_exec r0l, 1"));
+        code.extend(atomic_add(8, 5, 6)); // mutate only the private workgroup snapshot
+        code.extend([0x88, 0, 0xff]); // unreachable malformed byte is never decoded
+        let mut d = dispatch(code, [512, 1, 1], [32, 1, 1]);
+        d.uniforms = vec![(8, 0x1000), (9, 0)];
+        let prepared = PreparedDispatch::new(&d).unwrap();
+        let wgs: Vec<_> = (0..16).map(|x| [x, 0, 0]).collect();
+        let mut lengths = vec![];
+        crate::par::set_local_threads(4);
+        for trips in [2u32, 5] {
+            let mut mem = Memory::default();
+            mem.map(0x1000, trips.to_le_bytes().to_vec());
+            let batch = prepared.trace_workgroups(&mem, &wgs).unwrap();
+            for (i, wg) in wgs.iter().enumerate() {
+                let fresh = trace_workgroups(&d, &mem, &[*wg]).unwrap();
+                let (a, b) = (&batch[i][0], &fresh[0][0]);
+                assert_eq!(a.pcs, b.pcs);
+                assert_eq!(a.mem, b.mem);
+                assert_eq!(a.skipped, b.skipped);
+                assert_eq!(a.warnings, b.warnings);
+                if i > 0 { assert!(a.pcs.len() > batch[i - 1][0].pcs.len()); }
+            }
+            assert_eq!(mem.read(0x1000, 4).unwrap(), trips as u64);
+            lengths.push(batch[0][0].pcs.len());
+        }
+        crate::par::set_local_threads(0);
+        assert!(lengths[1] > lengths[0]);
+    }
+
+    #[test]
+    fn step_limit_survives_barrier_resumes_and_is_per_group() {
+        // Two barrier variants then stop: each group executes exactly three instructions.
+        let mut d = dispatch(vec![0x68, 0, 0x78, 0, 0x88, 0], [64, 1, 1], [64, 1, 1]);
+        d.max_steps = 3;
+        let stats = run(&d, &mut Memory::default()).unwrap();
+        assert_eq!(stats.instructions, 6);
+        d.max_steps = 2;
+        assert!(run(&d, &mut Memory::default()).unwrap_err().contains("step limit"));
+        assert!(trace_workgroups(&d, &Memory::default(), &[[0; 3]]).unwrap_err().contains("step limit"));
+        d.max_steps = 0;
+        assert!(run(&d, &mut Memory::default()).unwrap_err().contains("step limit"));
+    }
+
+    #[test]
+    fn reject_truncated_instructions_and_invalid_taken_jumps() {
+        use crate::kernels::{e, get_sr};
+        for n in 1..4 {
+            let d = dispatch(get_sr(80, 2)[..n].to_vec(), [32, 1, 1], [32, 1, 1]);
+            assert!(run(&d, &mut Memory::default()).is_err(), "truncated get_sr: {n} bytes");
+        }
+        for text in ["jmp_exec_any pc-2", "jmp_exec_any pc+100", "jmp_exec_any pc+1"] {
+            let d = dispatch(e(text), [32, 1, 1], [32, 1, 1]);
+            assert!(run(&d, &mut Memory::default()).unwrap_err().contains("jump at"));
+        }
+        // An untaken jump does not inspect its target, nor decode unreachable data.
+        let mut code = e("jmp_exec_none pc+100");
+        code.extend([0x88, 0, 0xff]);
+        let d = dispatch(code, [32, 1, 1], [32, 1, 1]);
+        assert_eq!(run(&d, &mut Memory::default()).unwrap().instructions, 2);
     }
 
     #[test]

@@ -74,9 +74,7 @@ fn main() {
 /// One dispatch: its arguments as on the command line, the JSON result.
 fn run_job(a: &[String], p: &Params) -> Result<serde_json::Value, String> {
     let mut code = std::fs::read(&a[0]).map_err(|e| format!("{}: {}", a[0], e))?;
-    while code.last() == Some(&0) {
-        code.pop(); // trailing zero padding (the harness appends 16 bytes)
-    }
+    trim_padding(&mut code);
     let mut l = Launch::default();
     let (mut preamble, mut mem, mut functional) = (None, func::Memory::default(), false);
     let mut i = 1;
@@ -124,8 +122,9 @@ fn run_job(a: &[String], p: &Params) -> Result<serde_json::Value, String> {
     } else {
         None
     };
+    let prepared = d.as_ref().map(func::PreparedDispatch::new).transpose()?;
     let tracer = |wg: [u32; 3]| -> Result<Vec<cost::Trace>, String> {
-        func::trace_workgroups(d.as_ref().unwrap(), &mem, &[wg]).map(|mut v| v.remove(0))
+        prepared.as_ref().unwrap().trace_workgroup(&mem, wg)
     };
     let r = dispatch::simulate_with(&code, &l, p, if functional { Some(&tracer) } else { None })?;
     Ok(serde_json::json!({
@@ -137,6 +136,32 @@ fn run_job(a: &[String], p: &Params) -> Result<serde_json::Value, String> {
     }))
 }
 
+fn trim_padding(code: &mut Vec<u8>) {
+    // AGX instructions are halfword aligned. Byte-wise stripping also removed
+    // the high byte of the final 0x0088 stop and left a truncated instruction.
+    while code.len() > 2 && code[code.len() - 2..] == [0, 0] {
+        code.truncate(code.len() - 2);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn padding_preserves_complete_stop() {
+        for pad in [0, 2, 16, 128] {
+            let mut code = vec![0x88, 0];
+            code.extend(vec![0; pad]);
+            trim_padding(&mut code);
+            assert_eq!(code, vec![0x88, 0]);
+            let d = func::Dispatch { code, grid: [1; 3], wg: [1; 3], shared_bytes: 0,
+                uniforms: vec![], num_registers: 8, max_steps: 1, placement: 0, launch: Default::default() };
+            assert_eq!(func::run(&d, &mut func::Memory::default()).unwrap().instructions, 1);
+        }
+    }
+}
+
 fn parse_u64(s: &str) -> u64 {
     if let Some(h) = s.strip_prefix("0x") { u64::from_str_radix(h, 16).unwrap() } else { s.parse().unwrap() }
 }
@@ -144,3 +169,4 @@ fn parse_u64(s: &str) -> u64 {
 fn parse_u32(s: &str) -> u32 {
     if let Some(h) = s.strip_prefix("0x") { u32::from_str_radix(h, 16).unwrap() } else { s.parse().unwrap() }
 }
+

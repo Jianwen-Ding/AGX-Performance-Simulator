@@ -57,8 +57,25 @@ x86_64 host. Timing includes process startup, execution and output dumping;
 every output word and the dynamic instruction count are checked. This is a
 focused workload, not an overall workload-average speed claim.
 
-Next candidates: profile full functional and tracing workloads; bound total
-execution steps across barrier resumes; avoid repeated decoding of identical
-workgroup traces without changing data-dependent behavior; extend replay to
-other retained hardware recordings. New float/u64 atomic timing still requires
-measurements. Preserve calibration and evidence unless measurements justify changes.
+## 2026-10-17: shared lazy decode cache and bounded execution
+
+Added `PreparedDispatch`, a reusable thread-safe functional tracer. Instruction
+metadata is decoded lazily into shared once-cells; workgroup execution and memory
+snapshots remain independent. `agx_dispatch` reuses this prepared state across
+its callbacks. Replaced full per-byte instruction records with compact pointers.
+
+The instruction budget is now cumulative per SIMD group across barrier resumes.
+Truncated instructions and invalid taken jumps return errors. Fixed
+`agx_dispatch` padding removal so it preserves the complete final stop.
+
+Validation: 18 Rust tests, all 74 atomic replays, and 30 representative retained
+hardware cases pass; twelve functional prediction JSON reports match the prior
+build exactly. The checked tracing benchmark is 3.06x faster on compact code,
+8.36x faster on a padded four-worker case, and uses 8,448 rather than 94,780 KiB
+peak RSS in that case. Direct SR execution remains within normal run variation.
+See `results/2026-10-17-functional-cache/README.md` for scope and reproduction.
+
+Next candidates: extend retained-hardware regression coverage, profile real
+data-dependent dispatches, and reduce repeated memory operand decoding where
+profiles justify it. Float/u64 atomic timing still needs hardware measurements.
+Preserve calibration and evidence unless measurements justify changes.
