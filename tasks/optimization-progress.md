@@ -339,3 +339,34 @@ prediction reports keep their existing hash. No new M2 validation or calibration
 Next: compact/boxed optional SR metadata and controlled profiling of memory/
 partial-mask regressions; public GroupCtx guards; original resource-shader
 functional replay. M2/profilers unavailable; SR113 and new timing stay unvalidated.
+
+## 2026-10-17: measured uniform call/return model (concurrent hardware work)
+
+Retained G14C follow-up establishes the in-program, all-active uniform case:
+`ret rX` consumes a shader-buffer-relative byte address, leaves lanes masked at
+effective depth two, and resumes after `pop_exec r0l, 2` (or two depth-one
+pops). Direct, uniform register-indirect and saved-link nested calls completed
+with passing before/after controls and no faults. The two-byte register call
+writes a two-byte next-PC link. Partial/divergent return state and quiet
+out-of-program behavior remain unmodelled.
+
+Functional execution exposes this model only under
+`AGX_EXPERIMENTAL_RET=buffer-pop2`; default execution still rejects return and
+register-call forms. The opt-in model matches every word of seven successful
+retained in-program records, including direct, indirect and nested cases, and
+rejects out-of-program/odd targets and a return that reaches program end without
+reconvergence. The older opt-in value `1` is a contradicted historical
+code-relative hypothesis and is not a hardware-validation gate.
+
+The isolated hardware observations were 5,208 ns for the first direct round
+trip, 5,750 ns indirect and 9,500 ns nested. These are firmware timestamps, not
+a calibrated instruction cost or a simulator CPU benchmark; no performance
+claim or timing rebaseline is made. Evidence and verifier live in
+Apple-M2-Playground `novel-results/2026-10-17-call-ret` and
+`scripts/verify_call_ret.py`.
+
+Next: add focused Rust regressions for mask depth, saved links, indirect target
+uniformity and overflow-safe target conversion; replay the verifier in the full
+offline gate before enabling any broader scope. Keep divergent/partial calls,
+out-of-program behavior and call timing opt-in/unmodelled until evidence exists.
+
