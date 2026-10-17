@@ -579,7 +579,7 @@ fn step_group_impl<C: InstructionCells>(g: &mut Group, code: &[u8], cache: &C, m
                 }
                 continue;
             }
-            // call / ret (applegpu pseudocode; no hardware evidence yet, see the playground's remaining-work.md). The link
+            // Direct call: measured by C1a-C1c; ret is unresolved (C2b/C2c contradict the old model). The link
             // register is r1; the stored value is AGX_CALL_BASE + the byte offset of the next instruction. The base is 0x2000, measured
             // on G14C (stage 1 probes). A target outside the program is an error, never a jump.
             OpKind::Call => {
@@ -604,6 +604,9 @@ fn step_group_impl<C: InstructionCells>(g: &mut Group, code: &[u8], cache: &C, m
                 continue;
             }
             OpKind::Ret => {
+                if std::env::var("AGX_EXPERIMENTAL_RET").as_deref() != Ok("1") {
+                    return Err("ret semantics unresolved: recorded C2b/C2c contradict the code-relative model; AGX_EXPERIMENTAL_RET=1 enables that hypothesis for offline study only, not a hardware validation gate".into());
+                }
                 let r = x("reg32") as usize;
                 let mut tgt: Option<i128> = None;
                 for t in 0..32 {
@@ -620,8 +623,8 @@ fn step_group_impl<C: InstructionCells>(g: &mut Group, code: &[u8], cache: &C, m
                     g.pc += info.size; // no active lane: falls through
                     continue;
                 };
-                // ret jumps to code start + register (hardware fault of probe C2a: `ret r1` with the raw link, which
-                // is code_off + pc + 6, fetched past the end of the code buffer). The link is therefore NOT a ret target.
+                // Unvalidated hypothesis only: target = code start + register.
+                // C2b/C2c did not reach this target on hardware.
                 let target = v;
                 if target < 0 || target as usize >= code.len() {
                     return Err(format!("ret at {} targets {} outside the program (0..{})", g.pc, target, code.len()));
