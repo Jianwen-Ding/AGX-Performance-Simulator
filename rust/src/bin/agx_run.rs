@@ -84,12 +84,10 @@ fn main() {
                   launch: agx_sim::cost::SrLaunch { tg_bytes: shared, ..launch } };
     let st = func::run(&d, &mut mem).unwrap_or_else(|e| die(&e));
     for (va, n, f) in &dumps {
-        let mut b = Vec::with_capacity(*n);
-        for k in 0..*n {
-            b.push(mem.read(va + k as u64, 1).unwrap_or_else(|e| die(&e)) as u8);
-        }
+        let b = mem.read_bytes(*va, *n).unwrap_or_else(|e| die(&e));
         std::fs::write(f, b).unwrap_or_else(|e| die(&format!("{}: {}", f, e)));
     }
     let u: Vec<String> = after.unwrap_or_default().iter().filter(|(_, v)| *v != 0).map(|(k, v)| format!("\"u{}\":{}", k, v)).collect();
     println!("{{\"instructions\":{},\"groups\":{},\"preamble_uniforms\":{{{}}}}}", st.instructions, st.groups, u.join(","));
 }
+

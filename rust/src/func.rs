@@ -29,9 +29,27 @@ impl Memory {
         self.regions.push((va, std::sync::Arc::new(bytes)));
     }
     fn find(&self, va: u64, len: u64) -> Option<(usize, usize)> {
-        self.regions.iter().position(|(b, d)| va >= *b && va + len <= *b + d.len() as u64).map(|i| (i, (va - self.regions[i].0) as usize))
+        if len > 0 && va.checked_add(len - 1).is_none() { return None; }
+        self.regions.iter().enumerate().find_map(|(i, (b, d))| {
+            let off = va.checked_sub(*b)?;
+            (off <= d.len() as u64 && len <= d.len() as u64 - off).then_some((i, off as usize))
+        })
+    }
+    /// Copy a mapped byte range in bulk. Adjacent regions retain byte-wise dump semantics.
+    pub fn read_bytes(&self, va: u64, len: usize) -> Result<Vec<u8>, String> {
+        if len == 0 { return Ok(Vec::new()); }
+        va.checked_add((len - 1) as u64).ok_or("memory range wraps the address space")?;
+        if let Some((i, o)) = self.find(va, len as u64) {
+            // A preceding overlapping region must still win for individual bytes.
+            let end = va as u128 + len as u128;
+            if !self.regions[..i].iter().any(|(b, d)| (*b as u128) < end && (*b as u128 + d.len() as u128) > va as u128) {
+                return Ok(self.regions[i].1[o..o + len].to_vec());
+            }
+        }
+        (0..len).map(|k| self.read(va + k as u64, 1).map(|v| v as u8)).collect()
     }
     pub fn read(&self, va: u64, len: usize) -> Result<u64, String> {
+        if len > 8 { return Err("scalar memory read exceeds 8 bytes".into()); }
         let (i, o) = self.find(va, len as u64).ok_or_else(|| format!("read of unmapped address {:#x}", va))?;
         let d = &self.regions[i].1;
         let mut v = 0u64;
@@ -41,6 +59,7 @@ impl Memory {
         Ok(v)
     }
     pub fn write(&mut self, va: u64, len: usize, v: u64) -> Result<(), String> {
+        if len > 8 { return Err("scalar memory write exceeds 8 bytes".into()); }
         let (i, o) = self.find(va, len as u64).ok_or_else(|| format!("write to unmapped address {:#x}", va))?;
         let d = std::sync::Arc::make_mut(&mut self.regions[i].1);
         for k in 0..len {
@@ -71,7 +90,9 @@ impl Memory {
         (e.len() > 1).then(|| e.iter().map(|x| x.1).collect())
     }
     pub fn words(&self, va: u64, n: usize) -> Result<Vec<u32>, String> {
-        (0..n).map(|k| self.read(va + 4 * k as u64, 4).map(|x| x as u32)).collect()
+        n.checked_mul(4).ok_or("word range is too large")?;
+        (0..n).map(|k| va.checked_add(4 * k as u64).ok_or_else(|| "word range wraps the address space".to_string())
+            .and_then(|a| self.read(a, 4).map(|x| x as u32))).collect()
     }
 }
 
@@ -535,6 +556,9 @@ fn step_group(g: &mut Group, code: &[u8], cache: &mut [Option<Info>], mem: &mut 
             OpKind::Stack { load } => stack_mem(g, f, load)?,
             OpKind::UniformStore => uniform_store(g, f)?,
             OpKind::TgMem { load } => tg_mem(g, f, tg, load)?,
+            // Measured only with Mesa's u5=2: ops 11..15 end the whole issuing group,
+            // including inactive lanes, without touching memory.
+            OpKind::Atomic if x("op") >= 11 && x("u5") == 2 => return Ok(Stop::Done),
             OpKind::Atomic => device_atomic(g, f, mem)?,
             OpKind::FloatArith => fsem::float_arith(desc.name, f, v, &mut g.st)?,
             OpKind::CmpSel { float } => fsem::cmpsel(float, f, v, &mut g.st)?,
@@ -814,6 +838,7 @@ fn device_atomic(g: &mut Group, f: &Fields, mem: &mut Memory) -> Result<(), Stri
     let r = (x("R") | x("Rx") << 6) as usize;
     let ret = x("Rt") != 0;
     let s = x("S") as usize;
+    let variant = x("u5");
     for t in 0..32 {
         if !g.st.exec[t] {
             continue;
@@ -826,15 +851,38 @@ fn device_atomic(g: &mut Group, f: &Fields, mem: &mut Memory) -> Result<(), Stri
             if f_ou == 0 { ext(o, 32, true) } else { o }
         };
         let va = (base + 4 * off) as u64;
-        let old = mem.read(va, 4)? as u32;
-        let v = g.st.get_reg32(s / 2, t)? as u32;
-        let cmp = g.st.get_reg32(s / 2 + 1, t)? as u32;
-        mem.write(va, 4, atomic_op(f_op, old, v, cmp)? as u64)?;
+        let result = if f_op == 3 && variant & 1 != 0 {
+            // G14C: bit 45 selects u64 min/max; the index still scales by four.
+            // Rt returns a changed flag, rather than the old memory value.
+            let old = mem.read(va, 8)?;
+            let v = g.st.get_reg64(s / 2, t)? as u64;
+            let new = if variant & 2 != 0 { old.max(v) } else { old.min(v) };
+            mem.write(va, 8, new)?;
+            (new != old) as u32
+        } else {
+            let old = mem.read(va, 4)? as u32;
+            let v = g.st.get_reg32(s / 2, t)? as u32;
+            let new = if f_op == 1 && variant & 1 != 0 {
+                atomic_fadd(old, v)
+            } else {
+                let cmp = if f_op == 3 { g.st.get_reg32(s / 2 + 1, t)? as u32 } else { 0 };
+                atomic_op(f_op, old, v, cmp)?
+            };
+            mem.write(va, 4, new as u64)?;
+            old
+        };
         if ret {
-            g.st.set_reg32(r / 2, t, old as i128)?;
+            g.st.set_reg32(r / 2, t, result as i128)?;
         }
     }
     Ok(())
+}
+
+/// G14C atomic add.f32: nearest-even, signed-zero flush on input and output, canonical NaN.
+fn atomic_fadd(a: u32, b: u32) -> u32 {
+    let flush = |v: u32| if v & 0x7f80_0000 == 0 { v & 0x8000_0000 } else { v };
+    let v = f32::from_bits(flush(a)) + f32::from_bits(flush(b));
+    if v.is_nan() { 0x7fc0_0000 } else { flush(v.to_bits()) }
 }
 
 fn tg_atomic(g: &mut Group, f: &Fields, tg: &mut [u8]) -> Result<(), String> {
@@ -844,6 +892,15 @@ fn tg_atomic(g: &mut Group, f: &Fields, tg: &mut [u8]) -> Result<(), String> {
     let r = x("R") as usize;
     let ret = x("Ra") != 0;
     let s = x("S") as usize;
+    // Recorded sub + gap bit 6 suppresses the access and returns zero.
+    if f_op == 1 && x("u1") == 1 {
+        if ret {
+            for t in 0..32 {
+                if g.st.exec[t] { g.st.set_reg32(r / 2, t, 0)?; }
+            }
+        }
+        return Ok(());
+    }
     for t in 0..32 {
         if !g.st.exec[t] {
             continue;
@@ -873,3 +930,54 @@ fn vals(ops: &[Operand]) -> Vec<Operand> {
         .cloned()
         .collect()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn atomic_float_edges() {
+        for (a, b, want) in [
+            (0x3f80_0000, 0x3f80_0000, 0x4000_0000),
+            (0x3f80_0000, 0x3380_0000, 0x3f80_0000), // tie to even
+            (0x3f80_0001, 0x3380_0000, 0x3f80_0002),
+            (0x8000_0001, 0x8000_0000, 0x8000_0000), // signed input flush
+            (0x0080_0001, 0x8080_0000, 0), // subnormal result flush
+            (0x8080_0001, 0x0080_0000, 0x8000_0000),
+            (0x7f80_0000, 0xff80_0000, 0x7fc0_0000),
+            (0xff80_0001, 0, 0x7fc0_0000),
+            (0x7f7f_ffff, 0x7f7f_ffff, 0x7f80_0000),
+        ] { assert_eq!(atomic_fadd(a, b), want, "{a:08x} + {b:08x}"); }
+    }
+
+    #[test]
+    fn bulk_memory_matches_byte_reads() {
+        let mut m = Memory::default();
+        m.map(100, vec![1, 2, 3, 4]);
+        m.map(104, vec![5, 6, 7, 8]);
+        assert_eq!(m.read_bytes(100, 8).unwrap(), (1..=8).collect::<Vec<u8>>());
+        assert!(m.read_bytes(100, 9).is_err());
+        assert_eq!(m.read_bytes(999, 0).unwrap(), Vec::<u8>::new());
+        // Partial overlap in an earlier region wins, just as the old byte-wise dump did.
+        m.map(98, vec![9; 12]);
+        let expected: Vec<_> = (98..110).map(|a| m.read(a, 1).unwrap() as u8).collect();
+        assert_eq!(m.read_bytes(98, 12).unwrap(), expected);
+        let before = m.clone();
+        m.write(100, 1, 42).unwrap();
+        assert_eq!(before.read(100, 1).unwrap(), 1); // copy-on-write unchanged
+        assert_eq!(m.read_bytes(100, 4).unwrap(), vec![42, 2, 3, 4]);
+    }
+
+    #[test]
+    fn memory_bounds_do_not_wrap() {
+        let mut m = Memory::default();
+        m.map(u64::MAX - 3, vec![1, 2, 3, 4]);
+        assert_eq!(m.read(u64::MAX - 3, 4).unwrap(), 0x0403_0201);
+        assert_eq!(m.read_bytes(u64::MAX - 3, 4).unwrap(), vec![1, 2, 3, 4]);
+        assert!(m.read_bytes(u64::MAX, 2).is_err());
+        assert!(m.read(0, 1).is_err());
+        assert!(m.read(u64::MAX - 3, 8).is_err());
+        assert!(m.write(u64::MAX - 3, 9, 0).is_err());
+    }
+}
+
