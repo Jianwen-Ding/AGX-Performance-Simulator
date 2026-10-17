@@ -624,10 +624,7 @@ impl Compiled {
             }),
             K::PopExec { n } => {
                 for t in 0..SIMD_WIDTH {
-                    // Measured on G14C (ret-depth probes 2026-10-17): popping
-                    // more than the current depth is a no-op (stays masked).
-                    let v0 = st.reg16s[0][t] as i128;
-                    let v = if *n <= v0 { v0 - *n } else { v0 };
+                    let v = (st.reg16s[0][t] as i128 - n).max(0);
                     st.reg16s[0][t] = (v & 0xFFFF) as u16;
                 }
                 update_exec(st);

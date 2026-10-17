@@ -562,10 +562,18 @@ fn step_group_impl<C: InstructionCells>(g: &mut Group, code: &[u8], cache: &C, m
         match info.kind {
             OpKind::Stop => {
                 // A return can leave every lane masked until pop_exec reconverges.
-                // The ret-byte-buffer/no-pop hardware pair shows stop is skipped then.
+                // The ret-byte-buffer/no-pop hardware pair shows stop is skipped by
+                // returning lanes (r0l == 2), while partial-mask-ret shows lanes at
+                // outer mask depth (r0l == 1) do not reactivate after sliding across
+                // stop into pop_exec 2.
                 if g.st.exec.iter().any(|&active| active)
                     || std::env::var("AGX_EXPERIMENTAL_RET").as_deref() != Ok("buffer-pop2") {
                     return Ok(Stop::Done);
+                }
+                for t in 0..32 {
+                    if g.st.get_reg16(0, t)? == 1 {
+                        g.st.set_reg16(0, t, 0xffff)?;
+                    }
                 }
             }
             OpKind::Jmp { any: want_any } => {
@@ -661,19 +669,6 @@ fn step_group_impl<C: InstructionCells>(g: &mut Group, code: &[u8], cache: &C, m
                     return Err("ret semantics unresolved outside uniform recorded cases: use AGX_EXPERIMENTAL_RET=buffer-pop2 for the measured buffer-relative target and mask-depth-2 model; value 1 retains the contradicted code-relative hypothesis for offline study only".into());
                 }
                 let r = x("reg32") as usize;
-                // Divergence is judged over ALL lanes (an inactive lane holding a
-                // stale divergent value still counts), because the hardware winner
-                // rule reads lane 0's register.
-                let mut first_all: Option<i128> = None;
-                let mut div_all = false;
-                for t in 0..32 {
-                    let v = g.st.get_reg32(r, t)? & 0xffff_ffff;
-                    match first_all {
-                        None => first_all = Some(v),
-                        Some(p) if p != v => { div_all = true; break; }
-                        _ => {}
-                    }
-                }
                 let mut first_active: Option<i128> = None;
                 let mut div_active = false;
                 for t in 0..32 {
@@ -686,19 +681,19 @@ fn step_group_impl<C: InstructionCells>(g: &mut Group, code: &[u8], cache: &C, m
                         }
                     }
                 }
-                // Measured on G14C (2026-10-17): uniform transfer sets depth 2 on
-                // active lanes and leaves dragged lanes unchanged; divergent transfer
-                // with lane 0 active is a full reconvergence (lane 0's target wins,
-                // every lane lands with depth 2); divergent with lane 0 inactive
-                // falls back to the active consensus if unanimous, else errors.
-                let (v, reconverge) = match (div_all, div_active, first_active) {
-                    (_, _, None) => {
+                // Measured on G14C (2026-10-17):
+                // - Empty active mask falls through.
+                // - If all active lanes agree on rX, transfer to that target.
+                // - If active lanes disagree and lane 0 is active, lane 0's rX wins.
+                // - Active lanes get mask depth 2 (r0l = 2); inactive lanes keep
+                //   their r0l unchanged.
+                let v = match (div_active, first_active) {
+                    (_, None) => {
                         g.pc += info.size; // no active lane: falls through
                         continue;
                     }
-                    (false, _, Some(a)) => (a, false),
-                    (true, false, Some(a)) => (a, false),
-                    (true, _, _) if g.st.exec[0] => (g.st.get_reg32(r, 0)? & 0xffff_ffff, true),
+                    (false, Some(a)) => a,
+                    (true, _) if g.st.exec[0] => g.st.get_reg32(r, 0)? & 0xffff_ffff,
                     _ => return Err(format!("ret at {0}: divergent active lanes with lane 0 inactive not modelled", g.pc)),
                 };
                 let target = if ret_model == "buffer-pop2" { v - call_base() } else { v };
@@ -706,22 +701,10 @@ fn step_group_impl<C: InstructionCells>(g: &mut Group, code: &[u8], cache: &C, m
                     return Err(format!("ret at {} targets {} outside the program (0..{})", g.pc, target, code.len()));
                 }
                 if ret_model == "buffer-pop2" {
-                    if reconverge {
-                        // Divergent transfer is a full reconvergence: every lane
-                        // lands with depth 2 (measured: nested inner ret drags
-                        // masked lanes through and they skip the first post pop).
-                        for t in 0..32 {
+                    for t in 0..32 {
+                        if g.st.exec[t] {
                             g.st.set_reg16(0, t, 2)?;
                             g.st.exec[t] = false;
-                        }
-                    } else {
-                        // Uniform transfer: active lanes get depth 2; dragged
-                        // (inactive) lanes keep their depth (measured 2026-10-17).
-                        for t in 0..32 {
-                            if g.st.exec[t] {
-                                g.st.set_reg16(0, t, 2)?;
-                                g.st.exec[t] = false;
-                            }
                         }
                     }
                 }
