@@ -140,3 +140,12 @@ for offline comparison, not a hardware validation gate. Run the adjacent
 playground's `make verify-call-ret` for exact reconstruction/replay of the
 hardware recordings, recovered faults and negative scope checks. This models
 functional behavior only; call/return timing is not calibrated.
+
+Threadgroup atomic ops 11–15 now reject explicitly even with an empty execution
+mask. Hardware probing found that issuing them stops the group; the old empty-mask
+skip was incorrect. Shared-memory side effects before termination are unmeasured,
+so a complete functional model remains pending. In the adjacent playground,
+`make verify-tg-atomic-followup` validates 27 retained variants, simulates every
+complete surrogate, replays 12 understood variants, and checks rejection of the
+15 ending-opcode cases. `make test-probe-watchdog` there tests bounded timeout
+handling and partial evidence retention without submitting GPU work.

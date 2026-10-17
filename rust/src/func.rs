@@ -1145,6 +1145,12 @@ fn atomic_fadd(a: u32, b: u32) -> u32 {
 
 fn tg_atomic(g: &mut Group, args: &ThreadgroupAtomic, tg: &mut [u8]) -> Result<(), String> {
     let ThreadgroupAtomic { at: f_at, a: f_a, ot: f_ot, o: f_o, op: f_op, r, ret, s, suppress } = *args;
+    // Hardware ends the issuing group even with an empty mask (2026-10-17
+    // tg-atomic-followup). Shared-memory side effects are not yet observed by
+    // another group, so reject these forms instead of silently skipping them.
+    if f_op >= 11 {
+        return Err(format!("threadgroup atomic op {}: termination observed, memory side effects not modeled", f_op));
+    }
     // Recorded sub + gap bit 6 suppresses the access and returns zero.
     if suppress {
         if ret {
@@ -1281,6 +1287,20 @@ mod tests {
         let mut mem = Memory::default();
         mem.map(0x1000, vec![0xcd; 8]);
         (d, mem)
+    }
+
+    #[test]
+    fn unknown_threadgroup_atomic_is_rejected_even_with_an_empty_mask() {
+        for op in 11..=15 {
+            let args = ThreadgroupAtomic::new(&vec![("op", op)]);
+            for mask in [0, 0xaaaaaaaa, u32::MAX] {
+                let mut g = sr_group(mask);
+                let mut memory = vec![0x5a; 2048];
+                assert!(tg_atomic(&mut g, &args, &mut memory).unwrap_err()
+                    .contains("termination observed, memory side effects not modeled"));
+                assert_eq!(memory, vec![0x5a; 2048]);
+            }
+        }
     }
 
     #[test]
