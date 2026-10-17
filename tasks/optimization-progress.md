@@ -274,3 +274,35 @@ missing patterns/selectors or incomplete lane values. Playground exposes it as
 Next: lower-level geometry guards, resource-width replay and controlled CPU
 profiling of real data-dependent paths/control regressions. M2 hardware remains
 unavailable; hardware-only timing and unmodelled SR113 remain outside scope.
+
+## 2026-10-17: functional geometry preparation and checked broadcasts
+
+Cache dispatch dimensions/SIMD counts; compute linear workgroup indices and
+writer bases once per workgroup, removing per-group/resume vector allocation.
+Keep the large interpreter loop separate from setup; uniform SR/SIMD-count
+broadcasts bypass per-lane selector classification with checked lane-ordered
+writes. Preserve masks, placement, barriers, half writes and unknown-SR fallback.
+
+Reject out-of-dispatch trace coordinates before workers/memory copies and reject
+more than 2^48 workgroups rather than aliasing the existing 48+16-bit writer tag.
+This is an executor representation limit, not hardware geometry evidence.
+Empty grids remain no-ops on every axis, without traversing other dimensions.
+Playground adds `verify-simulator-geometry`, including optimized-Python checks
+and old-binary failure injection.
+
+Final five-pair medians: setup 1.215-2.036x; uniform SR7/18/19 1.482-2.182x.
+One-worker scattered functional tracing is 4.4% slower; full ALU CLI 1.1% slower.
+Earlier candidate/control regressions and noisy A/A samples are retained; no
+overall speedup or resolution of prior regressions is claimed. Raw paired
+medians, rejected/intermediate candidates, hashes and reproduction:
+`results/2026-10-17-functional-geometry/README.md`.
+
+Validation: 41 Rust tests/doc checks; 363 exact retained cases and pinned hashes;
+1,518 SR comparisons; 74 atomic replays and independent evidence verification;
+normal/optimized schema and geometry gates; launch/batch isolation; zero cost
+failures; all 36 complete prediction reports keep their existing hash. No new
+hardware observation, instruction value, calibration or timing rebaseline.
+
+Next: cost::GroupCtx input guards and lazy coordinate calculations, resource-width
+replay, controlled profiling of partial-mask/data-dependent controls. M2 hardware
+and CPU profilers remain unavailable; SR113/hardware-only timing stay unvalidated.

@@ -1,0 +1,40 @@
+{
+  "baseline_commit": "5019a4630fd11da0b802e46dee94ae4f95cd9728",
+  "playground_evidence_commit": "4d35ca1aec3044753406277a4d33055823b822b2",
+  "machine": "x86_64",
+  "compiler": "rustc 1.99.1",
+  "profile": "release opt-level=3, fat LTO, codegen-units=1, panic=abort; linker-features=-lld",
+  "source_sha256": {
+    "rust/src/func.rs": "9e99cc7601554e29bfaae1ff8c8775cc1cf82b60c0769b695afbd7f7302a81e4",
+    "rust/examples/functional_geometry.rs": "9edd5b18c28006bcc0da5546def527e4b2fe33490b13ab43f4a0a5c55ad5bd71",
+    "rust/tests/functional_geometry.rs": "3d958dca04d45199bf060831829685b455c31ef185dc8eced42380b07961e8a6",
+    "scripts/bench_functional_geometry.py": "562ad69efe51a3583bb4feebe1cf20bcda295e0c3b4e642a8f0e1523157fb2f3"
+  },
+  "suite_manifest": {
+    "path": "results/2026-10-17-decode-pages/replay-manifest.tsv",
+    "sha256": "af54284e79efe35b69be2190e7150db7ccaf33467d4ce54f7e714e83af162e38"
+  },
+  "sr_blobs": {
+    "results/2026-10-16-special-registers/depth1.bin": "84477c6ae1e346d79e46da76c459867417d48b10",
+    "results/2026-10-16-special-registers/quad.bin": "c573446eba895469abffe7c3e450b855f63b0047",
+    "results/2026-10-16-special-registers/depth2.bin": "3b1b57694af3cccfddf8fb828eadee6548877ee5",
+    "results/2026-10-16-special-registers/quad-depth2.bin": "acba4cc2e06c22d8293ce9fbe1fd83d84e1ced8b",
+    "results/2026-10-16-special-registers/depth3.bin": "9d240c3f5012dc2cbf1a0b968c49a2bd5c1491f9",
+    "results/2026-10-16-special-registers/uniform.bin": "628b8d6211b9cbd5be162ffe13e2845b111a79db",
+    "results/2026-10-16-special-registers/hardware.json.gz": "49357351482c25d569de3c28b909d04370d68852"
+  },
+  "baseline_source_sha256": {
+    "rust/src/func.rs": "c52f5c608c18f9e284ea5064da5c51ec3b044bb98920d07847dda8e0d33d8b55",
+    "rust/examples/functional_geometry.rs": "9edd5b18c28006bcc0da5546def527e4b2fe33490b13ab43f4a0a5c55ad5bd71",
+    "rust/Cargo.lock": "3331ce8e5b6fedbebb7edfc070dfe542d51e1607ca6ac80fbf28432a2eab56ee"
+  },
+  "failure_injection_old_binary_sha256": "492d8b297a21e8b00392a601ad964eaa8afac5deea3e177c2c6a4eb782550f30",
+  "binary_sha256": {
+    "rust/target/release/examples/functional_geometry": "f6cf0960a79a72735124637ab8e7ebd550b003967951f0ad55bcc5908c9b1ec7",
+    "rust/target/release/examples/special_registers": "9c8b31bc86c37cc3e2ef801d0c1bfa9e888c73b8ba4e122bb02c8b5ed773e067",
+    "rust/target/release/examples/memory_trace": "123fb6c44ec9a39e29f09059982b7401b1a730b3190ac0fa1fe6e65d72961164",
+    "rust/target/release/examples/cost_trace": "ad24d14d5da0be580d2ddd2eac747c6fe22f5b13bb68484096ed62cffd75c7fb",
+    "rust/target/release/agx_run": "c8671ed1e9a4398ed7e50c4ff1bcfd37b28aa9f120491202f6c87f52f33a0ad9",
+    "rust/target/release/agx_dispatch": "4b507662295edbae26239b4232628b9a7b50070f9dff72060ba96b12909a6027"
+  }
+}

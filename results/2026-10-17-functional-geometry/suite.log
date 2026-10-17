@@ -1,0 +1,12 @@
+alu          pass   68 /   68   close    0   mismatch    0   unsupported    0
+alu_masked   pass   68 /   68   close    0   mismatch    0   unsupported    0
+atomic       pass   44 /   44   close    0   mismatch    0   unsupported    0
+control      pass   23 /   23   close    0   mismatch    0   unsupported    0
+geometry     pass    8 /    8   close    0   mismatch    0   unsupported    0
+kernel       pass    3 /    3   close    0   mismatch    0   unsupported    0
+mem_load     pass   50 /   50   close    0   mismatch    0   unsupported    0
+mem_store    pass   42 /   42   close    0   mismatch    0   unsupported    0
+random       pass    3 /    3   close    0   mismatch    0   unsupported    0
+tg_atomic    pass   44 /   44   close    0   mismatch    0   unsupported    0
+threadgroup  pass   10 /   10   close    0   mismatch    0   unsupported    0
+total        pass  363 /  363   (363 exact, 0 within 2 ulp)

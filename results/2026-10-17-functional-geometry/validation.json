@@ -1,0 +1,10 @@
+{
+  "rust_tests": 41,
+  "exact_cases": 363,
+  "sr_comparisons": 1518,
+  "atomic_replays": 74,
+  "cost_failures": 0,
+  "unchanged_prediction_reports": 36,
+  "source_and_binary_hashes_match": true,
+  "new_hardware_validation": false
+}

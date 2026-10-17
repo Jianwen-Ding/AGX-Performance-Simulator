@@ -1,0 +1,1400 @@
+{
+  "pairs": 5,
+  "repeats": 7,
+  "summary": [
+    {
+      "sr": 7,
+      "active": 13,
+      "baseline": 1.308,
+      "current": 1.163,
+      "speedup": 1.124677558039553
+    },
+    {
+      "sr": 7,
+      "active": 32,
+      "baseline": 1.437,
+      "current": 1.621,
+      "speedup": 0.8864898210980876
+    },
+    {
+      "sr": 18,
+      "active": 13,
+      "baseline": 1.209,
+      "current": 1.214,
+      "speedup": 0.9958813838550248
+    },
+    {
+      "sr": 18,
+      "active": 32,
+      "baseline": 1.629,
+      "current": 1.583,
+      "speedup": 1.02905874921036
+    },
+    {
+      "sr": 19,
+      "active": 13,
+      "baseline": 1.201,
+      "current": 1.218,
+      "speedup": 0.9860426929392447
+    },
+    {
+      "sr": 19,
+      "active": 32,
+      "baseline": 1.518,
+      "current": 1.499,
+      "speedup": 1.0126751167444963
+    },
+    {
+      "sr": 56,
+      "active": 13,
+      "baseline": 1.999,
+      "current": 1.825,
+      "speedup": 1.0953424657534248
+    },
+    {
+      "sr": 56,
+      "active": 32,
+      "baseline": 2.83,
+      "current": 2.914,
+      "speedup": 0.9711736444749485
+    },
+    {
+      "sr": 57,
+      "active": 13,
+      "baseline": 1.801,
+      "current": 1.823,
+      "speedup": 0.9879319802523313
+    },
+    {
+      "sr": 57,
+      "active": 32,
+      "baseline": 2.796,
+      "current": 2.715,
+      "speedup": 1.0298342541436465
+    },
+    {
+      "sr": 58,
+      "active": 13,
+      "baseline": 1.702,
+      "current": 1.796,
+      "speedup": 0.9476614699331848
+    },
+    {
+      "sr": 58,
+      "active": 32,
+      "baseline": 3.001,
+      "current": 3.049,
+      "speedup": 0.984257133486389
+    },
+    {
+      "sr": 59,
+      "active": 13,
+      "baseline": 1.176,
+      "current": 1.021,
+      "speedup": 1.1518119490695398
+    },
+    {
+      "sr": 59,
+      "active": 32,
+      "baseline": 1.432,
+      "current": 1.716,
+      "speedup": 0.8344988344988344
+    },
+    {
+      "sr": 80,
+      "active": 13,
+      "baseline": 4.261,
+      "current": 4.457,
+      "speedup": 0.9560242315458829
+    },
+    {
+      "sr": 80,
+      "active": 32,
+      "baseline": 9.559,
+      "current": 9.551,
+      "speedup": 1.0008376086273687
+    }
+  ],
+  "runs": [
+    {
+      "pair": 0,
+      "build": "baseline",
+      "sr": 7,
+      "active": 32,
+      "median_ms": 1.419,
+      "output": "sr=7 active=32 groups=256 reads=128 repeats=7 median_ms=1.419 checked_words=8192"
+    },
+    {
+      "pair": 0,
+      "build": "baseline",
+      "sr": 7,
+      "active": 13,
+      "median_ms": 1.308,
+      "output": "sr=7 active=13 groups=256 reads=128 repeats=7 median_ms=1.308 checked_words=8192"
+    },
+    {
+      "pair": 0,
+      "build": "baseline",
+      "sr": 18,
+      "active": 32,
+      "median_ms": 1.569,
+      "output": "sr=18 active=32 groups=256 reads=128 repeats=7 median_ms=1.569 checked_words=8192"
+    },
+    {
+      "pair": 0,
+      "build": "baseline",
+      "sr": 18,
+      "active": 13,
+      "median_ms": 1.258,
+      "output": "sr=18 active=13 groups=256 reads=128 repeats=7 median_ms=1.258 checked_words=8192"
+    },
+    {
+      "pair": 0,
+      "build": "baseline",
+      "sr": 19,
+      "active": 32,
+      "median_ms": 1.485,
+      "output": "sr=19 active=32 groups=256 reads=128 repeats=7 median_ms=1.485 checked_words=8192"
+    },
+    {
+      "pair": 0,
+      "build": "baseline",
+      "sr": 19,
+      "active": 13,
+      "median_ms": 1.087,
+      "output": "sr=19 active=13 groups=256 reads=128 repeats=7 median_ms=1.087 checked_words=8192"
+    },
+    {
+      "pair": 0,
+      "build": "baseline",
+      "sr": 80,
+      "active": 32,
+      "median_ms": 10.253,
+      "output": "sr=80 active=32 groups=256 reads=128 repeats=7 median_ms=10.253 checked_words=8192"
+    },
+    {
+      "pair": 0,
+      "build": "baseline",
+      "sr": 80,
+      "active": 13,
+      "median_ms": 4.218,
+      "output": "sr=80 active=13 groups=256 reads=128 repeats=7 median_ms=4.218 checked_words=8192"
+    },
+    {
+      "pair": 0,
+      "build": "baseline",
+      "sr": 56,
+      "active": 32,
+      "median_ms": 2.83,
+      "output": "sr=56 active=32 groups=256 reads=128 repeats=7 median_ms=2.830 checked_words=8192"
+    },
+    {
+      "pair": 0,
+      "build": "baseline",
+      "sr": 56,
+      "active": 13,
+      "median_ms": 1.696,
+      "output": "sr=56 active=13 groups=256 reads=128 repeats=7 median_ms=1.696 checked_words=8192"
+    },
+    {
+      "pair": 0,
+      "build": "baseline",
+      "sr": 57,
+      "active": 32,
+      "median_ms": 2.965,
+      "output": "sr=57 active=32 groups=256 reads=128 repeats=7 median_ms=2.965 checked_words=8192"
+    },
+    {
+      "pair": 0,
+      "build": "baseline",
+      "sr": 57,
+      "active": 13,
+      "median_ms": 1.701,
+      "output": "sr=57 active=13 groups=256 reads=128 repeats=7 median_ms=1.701 checked_words=8192"
+    },
+    {
+      "pair": 0,
+      "build": "baseline",
+      "sr": 58,
+      "active": 32,
+      "median_ms": 3.255,
+      "output": "sr=58 active=32 groups=256 reads=128 repeats=7 median_ms=3.255 checked_words=8192"
+    },
+    {
+      "pair": 0,
+      "build": "baseline",
+      "sr": 58,
+      "active": 13,
+      "median_ms": 1.702,
+      "output": "sr=58 active=13 groups=256 reads=128 repeats=7 median_ms=1.702 checked_words=8192"
+    },
+    {
+      "pair": 0,
+      "build": "baseline",
+      "sr": 59,
+      "active": 32,
+      "median_ms": 1.432,
+      "output": "sr=59 active=32 groups=256 reads=128 repeats=7 median_ms=1.432 checked_words=8192"
+    },
+    {
+      "pair": 0,
+      "build": "baseline",
+      "sr": 59,
+      "active": 13,
+      "median_ms": 1.211,
+      "output": "sr=59 active=13 groups=256 reads=128 repeats=7 median_ms=1.211 checked_words=8192"
+    },
+    {
+      "pair": 0,
+      "build": "current",
+      "sr": 7,
+      "active": 32,
+      "median_ms": 1.439,
+      "output": "sr=7 active=32 groups=256 reads=128 repeats=7 median_ms=1.439 checked_words=8192"
+    },
+    {
+      "pair": 0,
+      "build": "current",
+      "sr": 7,
+      "active": 13,
+      "median_ms": 1.383,
+      "output": "sr=7 active=13 groups=256 reads=128 repeats=7 median_ms=1.383 checked_words=8192"
+    },
+    {
+      "pair": 0,
+      "build": "current",
+      "sr": 18,
+      "active": 32,
+      "median_ms": 1.583,
+      "output": "sr=18 active=32 groups=256 reads=128 repeats=7 median_ms=1.583 checked_words=8192"
+    },
+    {
+      "pair": 0,
+      "build": "current",
+      "sr": 18,
+      "active": 13,
+      "median_ms": 1.543,
+      "output": "sr=18 active=13 groups=256 reads=128 repeats=7 median_ms=1.543 checked_words=8192"
+    },
+    {
+      "pair": 0,
+      "build": "current",
+      "sr": 19,
+      "active": 32,
+      "median_ms": 2.155,
+      "output": "sr=19 active=32 groups=256 reads=128 repeats=7 median_ms=2.155 checked_words=8192"
+    },
+    {
+      "pair": 0,
+      "build": "current",
+      "sr": 19,
+      "active": 13,
+      "median_ms": 1.538,
+      "output": "sr=19 active=13 groups=256 reads=128 repeats=7 median_ms=1.538 checked_words=8192"
+    },
+    {
+      "pair": 0,
+      "build": "current",
+      "sr": 80,
+      "active": 32,
+      "median_ms": 9.198,
+      "output": "sr=80 active=32 groups=256 reads=128 repeats=7 median_ms=9.198 checked_words=8192"
+    },
+    {
+      "pair": 0,
+      "build": "current",
+      "sr": 80,
+      "active": 13,
+      "median_ms": 4.16,
+      "output": "sr=80 active=13 groups=256 reads=128 repeats=7 median_ms=4.160 checked_words=8192"
+    },
+    {
+      "pair": 0,
+      "build": "current",
+      "sr": 56,
+      "active": 32,
+      "median_ms": 2.665,
+      "output": "sr=56 active=32 groups=256 reads=128 repeats=7 median_ms=2.665 checked_words=8192"
+    },
+    {
+      "pair": 0,
+      "build": "current",
+      "sr": 56,
+      "active": 13,
+      "median_ms": 1.825,
+      "output": "sr=56 active=13 groups=256 reads=128 repeats=7 median_ms=1.825 checked_words=8192"
+    },
+    {
+      "pair": 0,
+      "build": "current",
+      "sr": 57,
+      "active": 32,
+      "median_ms": 2.468,
+      "output": "sr=57 active=32 groups=256 reads=128 repeats=7 median_ms=2.468 checked_words=8192"
+    },
+    {
+      "pair": 0,
+      "build": "current",
+      "sr": 57,
+      "active": 13,
+      "median_ms": 2.122,
+      "output": "sr=57 active=13 groups=256 reads=128 repeats=7 median_ms=2.122 checked_words=8192"
+    },
+    {
+      "pair": 0,
+      "build": "current",
+      "sr": 58,
+      "active": 32,
+      "median_ms": 3.049,
+      "output": "sr=58 active=32 groups=256 reads=128 repeats=7 median_ms=3.049 checked_words=8192"
+    },
+    {
+      "pair": 0,
+      "build": "current",
+      "sr": 58,
+      "active": 13,
+      "median_ms": 1.882,
+      "output": "sr=58 active=13 groups=256 reads=128 repeats=7 median_ms=1.882 checked_words=8192"
+    },
+    {
+      "pair": 0,
+      "build": "current",
+      "sr": 59,
+      "active": 32,
+      "median_ms": 1.926,
+      "output": "sr=59 active=32 groups=256 reads=128 repeats=7 median_ms=1.926 checked_words=8192"
+    },
+    {
+      "pair": 0,
+      "build": "current",
+      "sr": 59,
+      "active": 13,
+      "median_ms": 1.014,
+      "output": "sr=59 active=13 groups=256 reads=128 repeats=7 median_ms=1.014 checked_words=8192"
+    },
+    {
+      "pair": 1,
+      "build": "current",
+      "sr": 7,
+      "active": 32,
+      "median_ms": 1.653,
+      "output": "sr=7 active=32 groups=256 reads=128 repeats=7 median_ms=1.653 checked_words=8192"
+    },
+    {
+      "pair": 1,
+      "build": "current",
+      "sr": 7,
+      "active": 13,
+      "median_ms": 1.163,
+      "output": "sr=7 active=13 groups=256 reads=128 repeats=7 median_ms=1.163 checked_words=8192"
+    },
+    {
+      "pair": 1,
+      "build": "current",
+      "sr": 18,
+      "active": 32,
+      "median_ms": 1.656,
+      "output": "sr=18 active=32 groups=256 reads=128 repeats=7 median_ms=1.656 checked_words=8192"
+    },
+    {
+      "pair": 1,
+      "build": "current",
+      "sr": 18,
+      "active": 13,
+      "median_ms": 1.081,
+      "output": "sr=18 active=13 groups=256 reads=128 repeats=7 median_ms=1.081 checked_words=8192"
+    },
+    {
+      "pair": 1,
+      "build": "current",
+      "sr": 19,
+      "active": 32,
+      "median_ms": 1.487,
+      "output": "sr=19 active=32 groups=256 reads=128 repeats=7 median_ms=1.487 checked_words=8192"
+    },
+    {
+      "pair": 1,
+      "build": "current",
+      "sr": 19,
+      "active": 13,
+      "median_ms": 1.218,
+      "output": "sr=19 active=13 groups=256 reads=128 repeats=7 median_ms=1.218 checked_words=8192"
+    },
+    {
+      "pair": 1,
+      "build": "current",
+      "sr": 80,
+      "active": 32,
+      "median_ms": 9.551,
+      "output": "sr=80 active=32 groups=256 reads=128 repeats=7 median_ms=9.551 checked_words=8192"
+    },
+    {
+      "pair": 1,
+      "build": "current",
+      "sr": 80,
+      "active": 13,
+      "median_ms": 5.012,
+      "output": "sr=80 active=13 groups=256 reads=128 repeats=7 median_ms=5.012 checked_words=8192"
+    },
+    {
+      "pair": 1,
+      "build": "current",
+      "sr": 56,
+      "active": 32,
+      "median_ms": 3.051,
+      "output": "sr=56 active=32 groups=256 reads=128 repeats=7 median_ms=3.051 checked_words=8192"
+    },
+    {
+      "pair": 1,
+      "build": "current",
+      "sr": 56,
+      "active": 13,
+      "median_ms": 2.164,
+      "output": "sr=56 active=13 groups=256 reads=128 repeats=7 median_ms=2.164 checked_words=8192"
+    },
+    {
+      "pair": 1,
+      "build": "current",
+      "sr": 57,
+      "active": 32,
+      "median_ms": 2.725,
+      "output": "sr=57 active=32 groups=256 reads=128 repeats=7 median_ms=2.725 checked_words=8192"
+    },
+    {
+      "pair": 1,
+      "build": "current",
+      "sr": 57,
+      "active": 13,
+      "median_ms": 1.823,
+      "output": "sr=57 active=13 groups=256 reads=128 repeats=7 median_ms=1.823 checked_words=8192"
+    },
+    {
+      "pair": 1,
+      "build": "current",
+      "sr": 58,
+      "active": 32,
+      "median_ms": 2.842,
+      "output": "sr=58 active=32 groups=256 reads=128 repeats=7 median_ms=2.842 checked_words=8192"
+    },
+    {
+      "pair": 1,
+      "build": "current",
+      "sr": 58,
+      "active": 13,
+      "median_ms": 1.834,
+      "output": "sr=58 active=13 groups=256 reads=128 repeats=7 median_ms=1.834 checked_words=8192"
+    },
+    {
+      "pair": 1,
+      "build": "current",
+      "sr": 59,
+      "active": 32,
+      "median_ms": 1.4,
+      "output": "sr=59 active=32 groups=256 reads=128 repeats=7 median_ms=1.400 checked_words=8192"
+    },
+    {
+      "pair": 1,
+      "build": "current",
+      "sr": 59,
+      "active": 13,
+      "median_ms": 1.021,
+      "output": "sr=59 active=13 groups=256 reads=128 repeats=7 median_ms=1.021 checked_words=8192"
+    },
+    {
+      "pair": 1,
+      "build": "baseline",
+      "sr": 7,
+      "active": 32,
+      "median_ms": 1.437,
+      "output": "sr=7 active=32 groups=256 reads=128 repeats=7 median_ms=1.437 checked_words=8192"
+    },
+    {
+      "pair": 1,
+      "build": "baseline",
+      "sr": 7,
+      "active": 13,
+      "median_ms": 1.071,
+      "output": "sr=7 active=13 groups=256 reads=128 repeats=7 median_ms=1.071 checked_words=8192"
+    },
+    {
+      "pair": 1,
+      "build": "baseline",
+      "sr": 18,
+      "active": 32,
+      "median_ms": 1.636,
+      "output": "sr=18 active=32 groups=256 reads=128 repeats=7 median_ms=1.636 checked_words=8192"
+    },
+    {
+      "pair": 1,
+      "build": "baseline",
+      "sr": 18,
+      "active": 13,
+      "median_ms": 1.108,
+      "output": "sr=18 active=13 groups=256 reads=128 repeats=7 median_ms=1.108 checked_words=8192"
+    },
+    {
+      "pair": 1,
+      "build": "baseline",
+      "sr": 19,
+      "active": 32,
+      "median_ms": 1.518,
+      "output": "sr=19 active=32 groups=256 reads=128 repeats=7 median_ms=1.518 checked_words=8192"
+    },
+    {
+      "pair": 1,
+      "build": "baseline",
+      "sr": 19,
+      "active": 13,
+      "median_ms": 1.403,
+      "output": "sr=19 active=13 groups=256 reads=128 repeats=7 median_ms=1.403 checked_words=8192"
+    },
+    {
+      "pair": 1,
+      "build": "baseline",
+      "sr": 80,
+      "active": 32,
+      "median_ms": 9.757,
+      "output": "sr=80 active=32 groups=256 reads=128 repeats=7 median_ms=9.757 checked_words=8192"
+    },
+    {
+      "pair": 1,
+      "build": "baseline",
+      "sr": 80,
+      "active": 13,
+      "median_ms": 4.261,
+      "output": "sr=80 active=13 groups=256 reads=128 repeats=7 median_ms=4.261 checked_words=8192"
+    },
+    {
+      "pair": 1,
+      "build": "baseline",
+      "sr": 56,
+      "active": 32,
+      "median_ms": 2.916,
+      "output": "sr=56 active=32 groups=256 reads=128 repeats=7 median_ms=2.916 checked_words=8192"
+    },
+    {
+      "pair": 1,
+      "build": "baseline",
+      "sr": 56,
+      "active": 13,
+      "median_ms": 2.029,
+      "output": "sr=56 active=13 groups=256 reads=128 repeats=7 median_ms=2.029 checked_words=8192"
+    },
+    {
+      "pair": 1,
+      "build": "baseline",
+      "sr": 57,
+      "active": 32,
+      "median_ms": 2.479,
+      "output": "sr=57 active=32 groups=256 reads=128 repeats=7 median_ms=2.479 checked_words=8192"
+    },
+    {
+      "pair": 1,
+      "build": "baseline",
+      "sr": 57,
+      "active": 13,
+      "median_ms": 1.852,
+      "output": "sr=57 active=13 groups=256 reads=128 repeats=7 median_ms=1.852 checked_words=8192"
+    },
+    {
+      "pair": 1,
+      "build": "baseline",
+      "sr": 58,
+      "active": 32,
+      "median_ms": 2.837,
+      "output": "sr=58 active=32 groups=256 reads=128 repeats=7 median_ms=2.837 checked_words=8192"
+    },
+    {
+      "pair": 1,
+      "build": "baseline",
+      "sr": 58,
+      "active": 13,
+      "median_ms": 1.584,
+      "output": "sr=58 active=13 groups=256 reads=128 repeats=7 median_ms=1.584 checked_words=8192"
+    },
+    {
+      "pair": 1,
+      "build": "baseline",
+      "sr": 59,
+      "active": 32,
+      "median_ms": 1.389,
+      "output": "sr=59 active=32 groups=256 reads=128 repeats=7 median_ms=1.389 checked_words=8192"
+    },
+    {
+      "pair": 1,
+      "build": "baseline",
+      "sr": 59,
+      "active": 13,
+      "median_ms": 1.176,
+      "output": "sr=59 active=13 groups=256 reads=128 repeats=7 median_ms=1.176 checked_words=8192"
+    },
+    {
+      "pair": 2,
+      "build": "baseline",
+      "sr": 7,
+      "active": 32,
+      "median_ms": 1.572,
+      "output": "sr=7 active=32 groups=256 reads=128 repeats=7 median_ms=1.572 checked_words=8192"
+    },
+    {
+      "pair": 2,
+      "build": "baseline",
+      "sr": 7,
+      "active": 13,
+      "median_ms": 1.465,
+      "output": "sr=7 active=13 groups=256 reads=128 repeats=7 median_ms=1.465 checked_words=8192"
+    },
+    {
+      "pair": 2,
+      "build": "baseline",
+      "sr": 18,
+      "active": 32,
+      "median_ms": 2.2,
+      "output": "sr=18 active=32 groups=256 reads=128 repeats=7 median_ms=2.200 checked_words=8192"
+    },
+    {
+      "pair": 2,
+      "build": "baseline",
+      "sr": 18,
+      "active": 13,
+      "median_ms": 1.592,
+      "output": "sr=18 active=13 groups=256 reads=128 repeats=7 median_ms=1.592 checked_words=8192"
+    },
+    {
+      "pair": 2,
+      "build": "baseline",
+      "sr": 19,
+      "active": 32,
+      "median_ms": 1.868,
+      "output": "sr=19 active=32 groups=256 reads=128 repeats=7 median_ms=1.868 checked_words=8192"
+    },
+    {
+      "pair": 2,
+      "build": "baseline",
+      "sr": 19,
+      "active": 13,
+      "median_ms": 1.301,
+      "output": "sr=19 active=13 groups=256 reads=128 repeats=7 median_ms=1.301 checked_words=8192"
+    },
+    {
+      "pair": 2,
+      "build": "baseline",
+      "sr": 80,
+      "active": 32,
+      "median_ms": 9.559,
+      "output": "sr=80 active=32 groups=256 reads=128 repeats=7 median_ms=9.559 checked_words=8192"
+    },
+    {
+      "pair": 2,
+      "build": "baseline",
+      "sr": 80,
+      "active": 13,
+      "median_ms": 4.366,
+      "output": "sr=80 active=13 groups=256 reads=128 repeats=7 median_ms=4.366 checked_words=8192"
+    },
+    {
+      "pair": 2,
+      "build": "baseline",
+      "sr": 56,
+      "active": 32,
+      "median_ms": 2.718,
+      "output": "sr=56 active=32 groups=256 reads=128 repeats=7 median_ms=2.718 checked_words=8192"
+    },
+    {
+      "pair": 2,
+      "build": "baseline",
+      "sr": 56,
+      "active": 13,
+      "median_ms": 1.999,
+      "output": "sr=56 active=13 groups=256 reads=128 repeats=7 median_ms=1.999 checked_words=8192"
+    },
+    {
+      "pair": 2,
+      "build": "baseline",
+      "sr": 57,
+      "active": 32,
+      "median_ms": 2.796,
+      "output": "sr=57 active=32 groups=256 reads=128 repeats=7 median_ms=2.796 checked_words=8192"
+    },
+    {
+      "pair": 2,
+      "build": "baseline",
+      "sr": 57,
+      "active": 13,
+      "median_ms": 1.801,
+      "output": "sr=57 active=13 groups=256 reads=128 repeats=7 median_ms=1.801 checked_words=8192"
+    },
+    {
+      "pair": 2,
+      "build": "baseline",
+      "sr": 58,
+      "active": 32,
+      "median_ms": 3.294,
+      "output": "sr=58 active=32 groups=256 reads=128 repeats=7 median_ms=3.294 checked_words=8192"
+    },
+    {
+      "pair": 2,
+      "build": "baseline",
+      "sr": 58,
+      "active": 13,
+      "median_ms": 1.951,
+      "output": "sr=58 active=13 groups=256 reads=128 repeats=7 median_ms=1.951 checked_words=8192"
+    },
+    {
+      "pair": 2,
+      "build": "baseline",
+      "sr": 59,
+      "active": 32,
+      "median_ms": 1.515,
+      "output": "sr=59 active=32 groups=256 reads=128 repeats=7 median_ms=1.515 checked_words=8192"
+    },
+    {
+      "pair": 2,
+      "build": "baseline",
+      "sr": 59,
+      "active": 13,
+      "median_ms": 1.207,
+      "output": "sr=59 active=13 groups=256 reads=128 repeats=7 median_ms=1.207 checked_words=8192"
+    },
+    {
+      "pair": 2,
+      "build": "current",
+      "sr": 7,
+      "active": 32,
+      "median_ms": 1.42,
+      "output": "sr=7 active=32 groups=256 reads=128 repeats=7 median_ms=1.420 checked_words=8192"
+    },
+    {
+      "pair": 2,
+      "build": "current",
+      "sr": 7,
+      "active": 13,
+      "median_ms": 1.084,
+      "output": "sr=7 active=13 groups=256 reads=128 repeats=7 median_ms=1.084 checked_words=8192"
+    },
+    {
+      "pair": 2,
+      "build": "current",
+      "sr": 18,
+      "active": 32,
+      "median_ms": 1.369,
+      "output": "sr=18 active=32 groups=256 reads=128 repeats=7 median_ms=1.369 checked_words=8192"
+    },
+    {
+      "pair": 2,
+      "build": "current",
+      "sr": 18,
+      "active": 13,
+      "median_ms": 1.065,
+      "output": "sr=18 active=13 groups=256 reads=128 repeats=7 median_ms=1.065 checked_words=8192"
+    },
+    {
+      "pair": 2,
+      "build": "current",
+      "sr": 19,
+      "active": 32,
+      "median_ms": 1.499,
+      "output": "sr=19 active=32 groups=256 reads=128 repeats=7 median_ms=1.499 checked_words=8192"
+    },
+    {
+      "pair": 2,
+      "build": "current",
+      "sr": 19,
+      "active": 13,
+      "median_ms": 1.122,
+      "output": "sr=19 active=13 groups=256 reads=128 repeats=7 median_ms=1.122 checked_words=8192"
+    },
+    {
+      "pair": 2,
+      "build": "current",
+      "sr": 80,
+      "active": 32,
+      "median_ms": 8.433,
+      "output": "sr=80 active=32 groups=256 reads=128 repeats=7 median_ms=8.433 checked_words=8192"
+    },
+    {
+      "pair": 2,
+      "build": "current",
+      "sr": 80,
+      "active": 13,
+      "median_ms": 3.947,
+      "output": "sr=80 active=13 groups=256 reads=128 repeats=7 median_ms=3.947 checked_words=8192"
+    },
+    {
+      "pair": 2,
+      "build": "current",
+      "sr": 56,
+      "active": 32,
+      "median_ms": 2.464,
+      "output": "sr=56 active=32 groups=256 reads=128 repeats=7 median_ms=2.464 checked_words=8192"
+    },
+    {
+      "pair": 2,
+      "build": "current",
+      "sr": 56,
+      "active": 13,
+      "median_ms": 1.617,
+      "output": "sr=56 active=13 groups=256 reads=128 repeats=7 median_ms=1.617 checked_words=8192"
+    },
+    {
+      "pair": 2,
+      "build": "current",
+      "sr": 57,
+      "active": 32,
+      "median_ms": 2.394,
+      "output": "sr=57 active=32 groups=256 reads=128 repeats=7 median_ms=2.394 checked_words=8192"
+    },
+    {
+      "pair": 2,
+      "build": "current",
+      "sr": 57,
+      "active": 13,
+      "median_ms": 1.554,
+      "output": "sr=57 active=13 groups=256 reads=128 repeats=7 median_ms=1.554 checked_words=8192"
+    },
+    {
+      "pair": 2,
+      "build": "current",
+      "sr": 58,
+      "active": 32,
+      "median_ms": 2.568,
+      "output": "sr=58 active=32 groups=256 reads=128 repeats=7 median_ms=2.568 checked_words=8192"
+    },
+    {
+      "pair": 2,
+      "build": "current",
+      "sr": 58,
+      "active": 13,
+      "median_ms": 1.545,
+      "output": "sr=58 active=13 groups=256 reads=128 repeats=7 median_ms=1.545 checked_words=8192"
+    },
+    {
+      "pair": 2,
+      "build": "current",
+      "sr": 59,
+      "active": 32,
+      "median_ms": 1.342,
+      "output": "sr=59 active=32 groups=256 reads=128 repeats=7 median_ms=1.342 checked_words=8192"
+    },
+    {
+      "pair": 2,
+      "build": "current",
+      "sr": 59,
+      "active": 13,
+      "median_ms": 0.936,
+      "output": "sr=59 active=13 groups=256 reads=128 repeats=7 median_ms=0.936 checked_words=8192"
+    },
+    {
+      "pair": 3,
+      "build": "current",
+      "sr": 7,
+      "active": 32,
+      "median_ms": 2.636,
+      "output": "sr=7 active=32 groups=256 reads=128 repeats=7 median_ms=2.636 checked_words=8192"
+    },
+    {
+      "pair": 3,
+      "build": "current",
+      "sr": 7,
+      "active": 13,
+      "median_ms": 1.125,
+      "output": "sr=7 active=13 groups=256 reads=128 repeats=7 median_ms=1.125 checked_words=8192"
+    },
+    {
+      "pair": 3,
+      "build": "current",
+      "sr": 18,
+      "active": 32,
+      "median_ms": 1.903,
+      "output": "sr=18 active=32 groups=256 reads=128 repeats=7 median_ms=1.903 checked_words=8192"
+    },
+    {
+      "pair": 3,
+      "build": "current",
+      "sr": 18,
+      "active": 13,
+      "median_ms": 1.214,
+      "output": "sr=18 active=13 groups=256 reads=128 repeats=7 median_ms=1.214 checked_words=8192"
+    },
+    {
+      "pair": 3,
+      "build": "current",
+      "sr": 19,
+      "active": 32,
+      "median_ms": 1.66,
+      "output": "sr=19 active=32 groups=256 reads=128 repeats=7 median_ms=1.660 checked_words=8192"
+    },
+    {
+      "pair": 3,
+      "build": "current",
+      "sr": 19,
+      "active": 13,
+      "median_ms": 1.307,
+      "output": "sr=19 active=13 groups=256 reads=128 repeats=7 median_ms=1.307 checked_words=8192"
+    },
+    {
+      "pair": 3,
+      "build": "current",
+      "sr": 80,
+      "active": 32,
+      "median_ms": 10.204,
+      "output": "sr=80 active=32 groups=256 reads=128 repeats=7 median_ms=10.204 checked_words=8192"
+    },
+    {
+      "pair": 3,
+      "build": "current",
+      "sr": 80,
+      "active": 13,
+      "median_ms": 4.658,
+      "output": "sr=80 active=13 groups=256 reads=128 repeats=7 median_ms=4.658 checked_words=8192"
+    },
+    {
+      "pair": 3,
+      "build": "current",
+      "sr": 56,
+      "active": 32,
+      "median_ms": 4.897,
+      "output": "sr=56 active=32 groups=256 reads=128 repeats=7 median_ms=4.897 checked_words=8192"
+    },
+    {
+      "pair": 3,
+      "build": "current",
+      "sr": 56,
+      "active": 13,
+      "median_ms": 1.779,
+      "output": "sr=56 active=13 groups=256 reads=128 repeats=7 median_ms=1.779 checked_words=8192"
+    },
+    {
+      "pair": 3,
+      "build": "current",
+      "sr": 57,
+      "active": 32,
+      "median_ms": 5.265,
+      "output": "sr=57 active=32 groups=256 reads=128 repeats=7 median_ms=5.265 checked_words=8192"
+    },
+    {
+      "pair": 3,
+      "build": "current",
+      "sr": 57,
+      "active": 13,
+      "median_ms": 1.867,
+      "output": "sr=57 active=13 groups=256 reads=128 repeats=7 median_ms=1.867 checked_words=8192"
+    },
+    {
+      "pair": 3,
+      "build": "current",
+      "sr": 58,
+      "active": 32,
+      "median_ms": 5.045,
+      "output": "sr=58 active=32 groups=256 reads=128 repeats=7 median_ms=5.045 checked_words=8192"
+    },
+    {
+      "pair": 3,
+      "build": "current",
+      "sr": 58,
+      "active": 13,
+      "median_ms": 1.796,
+      "output": "sr=58 active=13 groups=256 reads=128 repeats=7 median_ms=1.796 checked_words=8192"
+    },
+    {
+      "pair": 3,
+      "build": "current",
+      "sr": 59,
+      "active": 32,
+      "median_ms": 1.744,
+      "output": "sr=59 active=32 groups=256 reads=128 repeats=7 median_ms=1.744 checked_words=8192"
+    },
+    {
+      "pair": 3,
+      "build": "current",
+      "sr": 59,
+      "active": 13,
+      "median_ms": 1.472,
+      "output": "sr=59 active=13 groups=256 reads=128 repeats=7 median_ms=1.472 checked_words=8192"
+    },
+    {
+      "pair": 3,
+      "build": "baseline",
+      "sr": 7,
+      "active": 32,
+      "median_ms": 1.933,
+      "output": "sr=7 active=32 groups=256 reads=128 repeats=7 median_ms=1.933 checked_words=8192"
+    },
+    {
+      "pair": 3,
+      "build": "baseline",
+      "sr": 7,
+      "active": 13,
+      "median_ms": 1.377,
+      "output": "sr=7 active=13 groups=256 reads=128 repeats=7 median_ms=1.377 checked_words=8192"
+    },
+    {
+      "pair": 3,
+      "build": "baseline",
+      "sr": 18,
+      "active": 32,
+      "median_ms": 1.629,
+      "output": "sr=18 active=32 groups=256 reads=128 repeats=7 median_ms=1.629 checked_words=8192"
+    },
+    {
+      "pair": 3,
+      "build": "baseline",
+      "sr": 18,
+      "active": 13,
+      "median_ms": 1.209,
+      "output": "sr=18 active=13 groups=256 reads=128 repeats=7 median_ms=1.209 checked_words=8192"
+    },
+    {
+      "pair": 3,
+      "build": "baseline",
+      "sr": 19,
+      "active": 32,
+      "median_ms": 1.647,
+      "output": "sr=19 active=32 groups=256 reads=128 repeats=7 median_ms=1.647 checked_words=8192"
+    },
+    {
+      "pair": 3,
+      "build": "baseline",
+      "sr": 19,
+      "active": 13,
+      "median_ms": 1.156,
+      "output": "sr=19 active=13 groups=256 reads=128 repeats=7 median_ms=1.156 checked_words=8192"
+    },
+    {
+      "pair": 3,
+      "build": "baseline",
+      "sr": 80,
+      "active": 32,
+      "median_ms": 8.968,
+      "output": "sr=80 active=32 groups=256 reads=128 repeats=7 median_ms=8.968 checked_words=8192"
+    },
+    {
+      "pair": 3,
+      "build": "baseline",
+      "sr": 80,
+      "active": 13,
+      "median_ms": 4.296,
+      "output": "sr=80 active=13 groups=256 reads=128 repeats=7 median_ms=4.296 checked_words=8192"
+    },
+    {
+      "pair": 3,
+      "build": "baseline",
+      "sr": 56,
+      "active": 32,
+      "median_ms": 3.018,
+      "output": "sr=56 active=32 groups=256 reads=128 repeats=7 median_ms=3.018 checked_words=8192"
+    },
+    {
+      "pair": 3,
+      "build": "baseline",
+      "sr": 56,
+      "active": 13,
+      "median_ms": 2.217,
+      "output": "sr=56 active=13 groups=256 reads=128 repeats=7 median_ms=2.217 checked_words=8192"
+    },
+    {
+      "pair": 3,
+      "build": "baseline",
+      "sr": 57,
+      "active": 32,
+      "median_ms": 2.928,
+      "output": "sr=57 active=32 groups=256 reads=128 repeats=7 median_ms=2.928 checked_words=8192"
+    },
+    {
+      "pair": 3,
+      "build": "baseline",
+      "sr": 57,
+      "active": 13,
+      "median_ms": 1.968,
+      "output": "sr=57 active=13 groups=256 reads=128 repeats=7 median_ms=1.968 checked_words=8192"
+    },
+    {
+      "pair": 3,
+      "build": "baseline",
+      "sr": 58,
+      "active": 32,
+      "median_ms": 3.001,
+      "output": "sr=58 active=32 groups=256 reads=128 repeats=7 median_ms=3.001 checked_words=8192"
+    },
+    {
+      "pair": 3,
+      "build": "baseline",
+      "sr": 58,
+      "active": 13,
+      "median_ms": 1.798,
+      "output": "sr=58 active=13 groups=256 reads=128 repeats=7 median_ms=1.798 checked_words=8192"
+    },
+    {
+      "pair": 3,
+      "build": "baseline",
+      "sr": 59,
+      "active": 32,
+      "median_ms": 1.531,
+      "output": "sr=59 active=32 groups=256 reads=128 repeats=7 median_ms=1.531 checked_words=8192"
+    },
+    {
+      "pair": 3,
+      "build": "baseline",
+      "sr": 59,
+      "active": 13,
+      "median_ms": 1.074,
+      "output": "sr=59 active=13 groups=256 reads=128 repeats=7 median_ms=1.074 checked_words=8192"
+    },
+    {
+      "pair": 4,
+      "build": "baseline",
+      "sr": 7,
+      "active": 32,
+      "median_ms": 1.386,
+      "output": "sr=7 active=32 groups=256 reads=128 repeats=7 median_ms=1.386 checked_words=8192"
+    },
+    {
+      "pair": 4,
+      "build": "baseline",
+      "sr": 7,
+      "active": 13,
+      "median_ms": 1.044,
+      "output": "sr=7 active=13 groups=256 reads=128 repeats=7 median_ms=1.044 checked_words=8192"
+    },
+    {
+      "pair": 4,
+      "build": "baseline",
+      "sr": 18,
+      "active": 32,
+      "median_ms": 1.438,
+      "output": "sr=18 active=32 groups=256 reads=128 repeats=7 median_ms=1.438 checked_words=8192"
+    },
+    {
+      "pair": 4,
+      "build": "baseline",
+      "sr": 18,
+      "active": 13,
+      "median_ms": 1.038,
+      "output": "sr=18 active=13 groups=256 reads=128 repeats=7 median_ms=1.038 checked_words=8192"
+    },
+    {
+      "pair": 4,
+      "build": "baseline",
+      "sr": 19,
+      "active": 32,
+      "median_ms": 1.472,
+      "output": "sr=19 active=32 groups=256 reads=128 repeats=7 median_ms=1.472 checked_words=8192"
+    },
+    {
+      "pair": 4,
+      "build": "baseline",
+      "sr": 19,
+      "active": 13,
+      "median_ms": 1.201,
+      "output": "sr=19 active=13 groups=256 reads=128 repeats=7 median_ms=1.201 checked_words=8192"
+    },
+    {
+      "pair": 4,
+      "build": "baseline",
+      "sr": 80,
+      "active": 32,
+      "median_ms": 8.151,
+      "output": "sr=80 active=32 groups=256 reads=128 repeats=7 median_ms=8.151 checked_words=8192"
+    },
+    {
+      "pair": 4,
+      "build": "baseline",
+      "sr": 80,
+      "active": 13,
+      "median_ms": 3.852,
+      "output": "sr=80 active=13 groups=256 reads=128 repeats=7 median_ms=3.852 checked_words=8192"
+    },
+    {
+      "pair": 4,
+      "build": "baseline",
+      "sr": 56,
+      "active": 32,
+      "median_ms": 2.551,
+      "output": "sr=56 active=32 groups=256 reads=128 repeats=7 median_ms=2.551 checked_words=8192"
+    },
+    {
+      "pair": 4,
+      "build": "baseline",
+      "sr": 56,
+      "active": 13,
+      "median_ms": 1.608,
+      "output": "sr=56 active=13 groups=256 reads=128 repeats=7 median_ms=1.608 checked_words=8192"
+    },
+    {
+      "pair": 4,
+      "build": "baseline",
+      "sr": 57,
+      "active": 32,
+      "median_ms": 2.316,
+      "output": "sr=57 active=32 groups=256 reads=128 repeats=7 median_ms=2.316 checked_words=8192"
+    },
+    {
+      "pair": 4,
+      "build": "baseline",
+      "sr": 57,
+      "active": 13,
+      "median_ms": 1.539,
+      "output": "sr=57 active=13 groups=256 reads=128 repeats=7 median_ms=1.539 checked_words=8192"
+    },
+    {
+      "pair": 4,
+      "build": "baseline",
+      "sr": 58,
+      "active": 32,
+      "median_ms": 2.7,
+      "output": "sr=58 active=32 groups=256 reads=128 repeats=7 median_ms=2.700 checked_words=8192"
+    },
+    {
+      "pair": 4,
+      "build": "baseline",
+      "sr": 58,
+      "active": 13,
+      "median_ms": 1.662,
+      "output": "sr=58 active=13 groups=256 reads=128 repeats=7 median_ms=1.662 checked_words=8192"
+    },
+    {
+      "pair": 4,
+      "build": "baseline",
+      "sr": 59,
+      "active": 32,
+      "median_ms": 1.335,
+      "output": "sr=59 active=32 groups=256 reads=128 repeats=7 median_ms=1.335 checked_words=8192"
+    },
+    {
+      "pair": 4,
+      "build": "baseline",
+      "sr": 59,
+      "active": 13,
+      "median_ms": 0.935,
+      "output": "sr=59 active=13 groups=256 reads=128 repeats=7 median_ms=0.935 checked_words=8192"
+    },
+    {
+      "pair": 4,
+      "build": "current",
+      "sr": 7,
+      "active": 32,
+      "median_ms": 1.621,
+      "output": "sr=7 active=32 groups=256 reads=128 repeats=7 median_ms=1.621 checked_words=8192"
+    },
+    {
+      "pair": 4,
+      "build": "current",
+      "sr": 7,
+      "active": 13,
+      "median_ms": 1.262,
+      "output": "sr=7 active=13 groups=256 reads=128 repeats=7 median_ms=1.262 checked_words=8192"
+    },
+    {
+      "pair": 4,
+      "build": "current",
+      "sr": 18,
+      "active": 32,
+      "median_ms": 1.579,
+      "output": "sr=18 active=32 groups=256 reads=128 repeats=7 median_ms=1.579 checked_words=8192"
+    },
+    {
+      "pair": 4,
+      "build": "current",
+      "sr": 18,
+      "active": 13,
+      "median_ms": 1.527,
+      "output": "sr=18 active=13 groups=256 reads=128 repeats=7 median_ms=1.527 checked_words=8192"
+    },
+    {
+      "pair": 4,
+      "build": "current",
+      "sr": 19,
+      "active": 32,
+      "median_ms": 1.458,
+      "output": "sr=19 active=32 groups=256 reads=128 repeats=7 median_ms=1.458 checked_words=8192"
+    },
+    {
+      "pair": 4,
+      "build": "current",
+      "sr": 19,
+      "active": 13,
+      "median_ms": 1.11,
+      "output": "sr=19 active=13 groups=256 reads=128 repeats=7 median_ms=1.110 checked_words=8192"
+    },
+    {
+      "pair": 4,
+      "build": "current",
+      "sr": 80,
+      "active": 32,
+      "median_ms": 10.146,
+      "output": "sr=80 active=32 groups=256 reads=128 repeats=7 median_ms=10.146 checked_words=8192"
+    },
+    {
+      "pair": 4,
+      "build": "current",
+      "sr": 80,
+      "active": 13,
+      "median_ms": 4.457,
+      "output": "sr=80 active=13 groups=256 reads=128 repeats=7 median_ms=4.457 checked_words=8192"
+    },
+    {
+      "pair": 4,
+      "build": "current",
+      "sr": 56,
+      "active": 32,
+      "median_ms": 2.914,
+      "output": "sr=56 active=32 groups=256 reads=128 repeats=7 median_ms=2.914 checked_words=8192"
+    },
+    {
+      "pair": 4,
+      "build": "current",
+      "sr": 56,
+      "active": 13,
+      "median_ms": 1.87,
+      "output": "sr=56 active=13 groups=256 reads=128 repeats=7 median_ms=1.870 checked_words=8192"
+    },
+    {
+      "pair": 4,
+      "build": "current",
+      "sr": 57,
+      "active": 32,
+      "median_ms": 2.715,
+      "output": "sr=57 active=32 groups=256 reads=128 repeats=7 median_ms=2.715 checked_words=8192"
+    },
+    {
+      "pair": 4,
+      "build": "current",
+      "sr": 57,
+      "active": 13,
+      "median_ms": 1.611,
+      "output": "sr=57 active=13 groups=256 reads=128 repeats=7 median_ms=1.611 checked_words=8192"
+    },
+    {
+      "pair": 4,
+      "build": "current",
+      "sr": 58,
+      "active": 32,
+      "median_ms": 3.259,
+      "output": "sr=58 active=32 groups=256 reads=128 repeats=7 median_ms=3.259 checked_words=8192"
+    },
+    {
+      "pair": 4,
+      "build": "current",
+      "sr": 58,
+      "active": 13,
+      "median_ms": 1.658,
+      "output": "sr=58 active=13 groups=256 reads=128 repeats=7 median_ms=1.658 checked_words=8192"
+    },
+    {
+      "pair": 4,
+      "build": "current",
+      "sr": 59,
+      "active": 32,
+      "median_ms": 1.716,
+      "output": "sr=59 active=32 groups=256 reads=128 repeats=7 median_ms=1.716 checked_words=8192"
+    },
+    {
+      "pair": 4,
+      "build": "current",
+      "sr": 59,
+      "active": 13,
+      "median_ms": 1.324,
+      "output": "sr=59 active=13 groups=256 reads=128 repeats=7 median_ms=1.324 checked_words=8192"
+    }
+  ]
+}

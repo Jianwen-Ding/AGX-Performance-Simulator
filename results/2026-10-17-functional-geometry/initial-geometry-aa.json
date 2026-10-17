@@ -1,0 +1,1184 @@
+{
+  "pairs": 5,
+  "repeats": 7,
+  "summary": [
+    {
+      "threads": 1,
+      "barriers": 0,
+      "placement": 0,
+      "baseline": 0.738307,
+      "current": 0.745627,
+      "speedup": 0.9901827589397916
+    },
+    {
+      "threads": 1,
+      "barriers": 0,
+      "placement": 17,
+      "baseline": 0.818497,
+      "current": 0.73226,
+      "speedup": 1.1177682790265753
+    },
+    {
+      "threads": 1,
+      "barriers": 8,
+      "placement": 0,
+      "baseline": 1.116062,
+      "current": 1.229151,
+      "speedup": 0.9079942171466321
+    },
+    {
+      "threads": 1,
+      "barriers": 8,
+      "placement": 17,
+      "baseline": 1.167873,
+      "current": 1.266041,
+      "speedup": 0.922460647009062
+    },
+    {
+      "threads": 32,
+      "barriers": 0,
+      "placement": 0,
+      "baseline": 0.795327,
+      "current": 0.782469,
+      "speedup": 1.0164325998857464
+    },
+    {
+      "threads": 32,
+      "barriers": 0,
+      "placement": 17,
+      "baseline": 0.775194,
+      "current": 0.760839,
+      "speedup": 1.018867329356145
+    },
+    {
+      "threads": 32,
+      "barriers": 8,
+      "placement": 0,
+      "baseline": 1.2357,
+      "current": 1.22259,
+      "speedup": 1.0107231369469731
+    },
+    {
+      "threads": 32,
+      "barriers": 8,
+      "placement": 17,
+      "baseline": 1.159495,
+      "current": 1.127363,
+      "speedup": 1.0285019110969582
+    },
+    {
+      "threads": 256,
+      "barriers": 0,
+      "placement": 0,
+      "baseline": 5.437305,
+      "current": 5.096312,
+      "speedup": 1.0669097574873752
+    },
+    {
+      "threads": 256,
+      "barriers": 0,
+      "placement": 17,
+      "baseline": 5.544052,
+      "current": 5.243267,
+      "speedup": 1.05736595141922
+    },
+    {
+      "threads": 256,
+      "barriers": 8,
+      "placement": 0,
+      "baseline": 7.117055,
+      "current": 6.119405,
+      "speedup": 1.1630305560753045
+    },
+    {
+      "threads": 256,
+      "barriers": 8,
+      "placement": 17,
+      "baseline": 6.094161,
+      "current": 6.263239,
+      "speedup": 0.9730047025189363
+    }
+  ],
+  "runs": [
+    {
+      "pair": 0,
+      "build": "baseline",
+      "threads": 1,
+      "barriers": 0,
+      "placement": 0,
+      "median_ms": 0.732265,
+      "output": "threads=1 barriers=0 placement=0 workgroups=2048 repeats=7 median_ms=0.732265 checked_instructions=2048"
+    },
+    {
+      "pair": 0,
+      "build": "baseline",
+      "threads": 1,
+      "barriers": 0,
+      "placement": 17,
+      "median_ms": 0.734745,
+      "output": "threads=1 barriers=0 placement=17 workgroups=2048 repeats=7 median_ms=0.734745 checked_instructions=2048"
+    },
+    {
+      "pair": 0,
+      "build": "baseline",
+      "threads": 1,
+      "barriers": 8,
+      "placement": 0,
+      "median_ms": 1.088382,
+      "output": "threads=1 barriers=8 placement=0 workgroups=2048 repeats=7 median_ms=1.088382 checked_instructions=18432"
+    },
+    {
+      "pair": 0,
+      "build": "baseline",
+      "threads": 1,
+      "barriers": 8,
+      "placement": 17,
+      "median_ms": 1.100824,
+      "output": "threads=1 barriers=8 placement=17 workgroups=2048 repeats=7 median_ms=1.100824 checked_instructions=18432"
+    },
+    {
+      "pair": 0,
+      "build": "baseline",
+      "threads": 32,
+      "barriers": 0,
+      "placement": 0,
+      "median_ms": 0.795327,
+      "output": "threads=32 barriers=0 placement=0 workgroups=2048 repeats=7 median_ms=0.795327 checked_instructions=2048"
+    },
+    {
+      "pair": 0,
+      "build": "baseline",
+      "threads": 32,
+      "barriers": 0,
+      "placement": 17,
+      "median_ms": 0.740316,
+      "output": "threads=32 barriers=0 placement=17 workgroups=2048 repeats=7 median_ms=0.740316 checked_instructions=2048"
+    },
+    {
+      "pair": 0,
+      "build": "baseline",
+      "threads": 32,
+      "barriers": 8,
+      "placement": 0,
+      "median_ms": 1.229754,
+      "output": "threads=32 barriers=8 placement=0 workgroups=2048 repeats=7 median_ms=1.229754 checked_instructions=18432"
+    },
+    {
+      "pair": 0,
+      "build": "baseline",
+      "threads": 32,
+      "barriers": 8,
+      "placement": 17,
+      "median_ms": 1.145539,
+      "output": "threads=32 barriers=8 placement=17 workgroups=2048 repeats=7 median_ms=1.145539 checked_instructions=18432"
+    },
+    {
+      "pair": 0,
+      "build": "baseline",
+      "threads": 256,
+      "barriers": 0,
+      "placement": 0,
+      "median_ms": 5.552937,
+      "output": "threads=256 barriers=0 placement=0 workgroups=2048 repeats=7 median_ms=5.552937 checked_instructions=16384"
+    },
+    {
+      "pair": 0,
+      "build": "baseline",
+      "threads": 256,
+      "barriers": 0,
+      "placement": 17,
+      "median_ms": 5.35524,
+      "output": "threads=256 barriers=0 placement=17 workgroups=2048 repeats=7 median_ms=5.355240 checked_instructions=16384"
+    },
+    {
+      "pair": 0,
+      "build": "baseline",
+      "threads": 256,
+      "barriers": 8,
+      "placement": 0,
+      "median_ms": 7.117055,
+      "output": "threads=256 barriers=8 placement=0 workgroups=2048 repeats=7 median_ms=7.117055 checked_instructions=147456"
+    },
+    {
+      "pair": 0,
+      "build": "baseline",
+      "threads": 256,
+      "barriers": 8,
+      "placement": 17,
+      "median_ms": 6.094161,
+      "output": "threads=256 barriers=8 placement=17 workgroups=2048 repeats=7 median_ms=6.094161 checked_instructions=147456"
+    },
+    {
+      "pair": 0,
+      "build": "current",
+      "threads": 1,
+      "barriers": 0,
+      "placement": 0,
+      "median_ms": 0.745627,
+      "output": "threads=1 barriers=0 placement=0 workgroups=2048 repeats=7 median_ms=0.745627 checked_instructions=2048"
+    },
+    {
+      "pair": 0,
+      "build": "current",
+      "threads": 1,
+      "barriers": 0,
+      "placement": 17,
+      "median_ms": 0.92943,
+      "output": "threads=1 barriers=0 placement=17 workgroups=2048 repeats=7 median_ms=0.929430 checked_instructions=2048"
+    },
+    {
+      "pair": 0,
+      "build": "current",
+      "threads": 1,
+      "barriers": 8,
+      "placement": 0,
+      "median_ms": 1.344527,
+      "output": "threads=1 barriers=8 placement=0 workgroups=2048 repeats=7 median_ms=1.344527 checked_instructions=18432"
+    },
+    {
+      "pair": 0,
+      "build": "current",
+      "threads": 1,
+      "barriers": 8,
+      "placement": 17,
+      "median_ms": 1.266041,
+      "output": "threads=1 barriers=8 placement=17 workgroups=2048 repeats=7 median_ms=1.266041 checked_instructions=18432"
+    },
+    {
+      "pair": 0,
+      "build": "current",
+      "threads": 32,
+      "barriers": 0,
+      "placement": 0,
+      "median_ms": 1.024251,
+      "output": "threads=32 barriers=0 placement=0 workgroups=2048 repeats=7 median_ms=1.024251 checked_instructions=2048"
+    },
+    {
+      "pair": 0,
+      "build": "current",
+      "threads": 32,
+      "barriers": 0,
+      "placement": 17,
+      "median_ms": 0.827565,
+      "output": "threads=32 barriers=0 placement=17 workgroups=2048 repeats=7 median_ms=0.827565 checked_instructions=2048"
+    },
+    {
+      "pair": 0,
+      "build": "current",
+      "threads": 32,
+      "barriers": 8,
+      "placement": 0,
+      "median_ms": 1.452415,
+      "output": "threads=32 barriers=8 placement=0 workgroups=2048 repeats=7 median_ms=1.452415 checked_instructions=18432"
+    },
+    {
+      "pair": 0,
+      "build": "current",
+      "threads": 32,
+      "barriers": 8,
+      "placement": 17,
+      "median_ms": 1.304889,
+      "output": "threads=32 barriers=8 placement=17 workgroups=2048 repeats=7 median_ms=1.304889 checked_instructions=18432"
+    },
+    {
+      "pair": 0,
+      "build": "current",
+      "threads": 256,
+      "barriers": 0,
+      "placement": 0,
+      "median_ms": 5.666103,
+      "output": "threads=256 barriers=0 placement=0 workgroups=2048 repeats=7 median_ms=5.666103 checked_instructions=16384"
+    },
+    {
+      "pair": 0,
+      "build": "current",
+      "threads": 256,
+      "barriers": 0,
+      "placement": 17,
+      "median_ms": 5.522155,
+      "output": "threads=256 barriers=0 placement=17 workgroups=2048 repeats=7 median_ms=5.522155 checked_instructions=16384"
+    },
+    {
+      "pair": 0,
+      "build": "current",
+      "threads": 256,
+      "barriers": 8,
+      "placement": 0,
+      "median_ms": 6.752044,
+      "output": "threads=256 barriers=8 placement=0 workgroups=2048 repeats=7 median_ms=6.752044 checked_instructions=147456"
+    },
+    {
+      "pair": 0,
+      "build": "current",
+      "threads": 256,
+      "barriers": 8,
+      "placement": 17,
+      "median_ms": 6.889366,
+      "output": "threads=256 barriers=8 placement=17 workgroups=2048 repeats=7 median_ms=6.889366 checked_instructions=147456"
+    },
+    {
+      "pair": 1,
+      "build": "current",
+      "threads": 1,
+      "barriers": 0,
+      "placement": 0,
+      "median_ms": 0.72854,
+      "output": "threads=1 barriers=0 placement=0 workgroups=2048 repeats=7 median_ms=0.728540 checked_instructions=2048"
+    },
+    {
+      "pair": 1,
+      "build": "current",
+      "threads": 1,
+      "barriers": 0,
+      "placement": 17,
+      "median_ms": 0.705965,
+      "output": "threads=1 barriers=0 placement=17 workgroups=2048 repeats=7 median_ms=0.705965 checked_instructions=2048"
+    },
+    {
+      "pair": 1,
+      "build": "current",
+      "threads": 1,
+      "barriers": 8,
+      "placement": 0,
+      "median_ms": 1.111405,
+      "output": "threads=1 barriers=8 placement=0 workgroups=2048 repeats=7 median_ms=1.111405 checked_instructions=18432"
+    },
+    {
+      "pair": 1,
+      "build": "current",
+      "threads": 1,
+      "barriers": 8,
+      "placement": 17,
+      "median_ms": 1.165777,
+      "output": "threads=1 barriers=8 placement=17 workgroups=2048 repeats=7 median_ms=1.165777 checked_instructions=18432"
+    },
+    {
+      "pair": 1,
+      "build": "current",
+      "threads": 32,
+      "barriers": 0,
+      "placement": 0,
+      "median_ms": 0.782469,
+      "output": "threads=32 barriers=0 placement=0 workgroups=2048 repeats=7 median_ms=0.782469 checked_instructions=2048"
+    },
+    {
+      "pair": 1,
+      "build": "current",
+      "threads": 32,
+      "barriers": 0,
+      "placement": 17,
+      "median_ms": 0.744687,
+      "output": "threads=32 barriers=0 placement=17 workgroups=2048 repeats=7 median_ms=0.744687 checked_instructions=2048"
+    },
+    {
+      "pair": 1,
+      "build": "current",
+      "threads": 32,
+      "barriers": 8,
+      "placement": 0,
+      "median_ms": 1.22259,
+      "output": "threads=32 barriers=8 placement=0 workgroups=2048 repeats=7 median_ms=1.222590 checked_instructions=18432"
+    },
+    {
+      "pair": 1,
+      "build": "current",
+      "threads": 32,
+      "barriers": 8,
+      "placement": 17,
+      "median_ms": 1.11071,
+      "output": "threads=32 barriers=8 placement=17 workgroups=2048 repeats=7 median_ms=1.110710 checked_instructions=18432"
+    },
+    {
+      "pair": 1,
+      "build": "current",
+      "threads": 256,
+      "barriers": 0,
+      "placement": 0,
+      "median_ms": 4.908697,
+      "output": "threads=256 barriers=0 placement=0 workgroups=2048 repeats=7 median_ms=4.908697 checked_instructions=16384"
+    },
+    {
+      "pair": 1,
+      "build": "current",
+      "threads": 256,
+      "barriers": 0,
+      "placement": 17,
+      "median_ms": 5.243267,
+      "output": "threads=256 barriers=0 placement=17 workgroups=2048 repeats=7 median_ms=5.243267 checked_instructions=16384"
+    },
+    {
+      "pair": 1,
+      "build": "current",
+      "threads": 256,
+      "barriers": 8,
+      "placement": 0,
+      "median_ms": 6.119405,
+      "output": "threads=256 barriers=8 placement=0 workgroups=2048 repeats=7 median_ms=6.119405 checked_instructions=147456"
+    },
+    {
+      "pair": 1,
+      "build": "current",
+      "threads": 256,
+      "barriers": 8,
+      "placement": 17,
+      "median_ms": 5.806574,
+      "output": "threads=256 barriers=8 placement=17 workgroups=2048 repeats=7 median_ms=5.806574 checked_instructions=147456"
+    },
+    {
+      "pair": 1,
+      "build": "baseline",
+      "threads": 1,
+      "barriers": 0,
+      "placement": 0,
+      "median_ms": 0.856089,
+      "output": "threads=1 barriers=0 placement=0 workgroups=2048 repeats=7 median_ms=0.856089 checked_instructions=2048"
+    },
+    {
+      "pair": 1,
+      "build": "baseline",
+      "threads": 1,
+      "barriers": 0,
+      "placement": 17,
+      "median_ms": 0.920583,
+      "output": "threads=1 barriers=0 placement=17 workgroups=2048 repeats=7 median_ms=0.920583 checked_instructions=2048"
+    },
+    {
+      "pair": 1,
+      "build": "baseline",
+      "threads": 1,
+      "barriers": 8,
+      "placement": 0,
+      "median_ms": 1.642427,
+      "output": "threads=1 barriers=8 placement=0 workgroups=2048 repeats=7 median_ms=1.642427 checked_instructions=18432"
+    },
+    {
+      "pair": 1,
+      "build": "baseline",
+      "threads": 1,
+      "barriers": 8,
+      "placement": 17,
+      "median_ms": 1.255161,
+      "output": "threads=1 barriers=8 placement=17 workgroups=2048 repeats=7 median_ms=1.255161 checked_instructions=18432"
+    },
+    {
+      "pair": 1,
+      "build": "baseline",
+      "threads": 32,
+      "barriers": 0,
+      "placement": 0,
+      "median_ms": 0.900085,
+      "output": "threads=32 barriers=0 placement=0 workgroups=2048 repeats=7 median_ms=0.900085 checked_instructions=2048"
+    },
+    {
+      "pair": 1,
+      "build": "baseline",
+      "threads": 32,
+      "barriers": 0,
+      "placement": 17,
+      "median_ms": 0.795738,
+      "output": "threads=32 barriers=0 placement=17 workgroups=2048 repeats=7 median_ms=0.795738 checked_instructions=2048"
+    },
+    {
+      "pair": 1,
+      "build": "baseline",
+      "threads": 32,
+      "barriers": 8,
+      "placement": 0,
+      "median_ms": 1.268386,
+      "output": "threads=32 barriers=8 placement=0 workgroups=2048 repeats=7 median_ms=1.268386 checked_instructions=18432"
+    },
+    {
+      "pair": 1,
+      "build": "baseline",
+      "threads": 32,
+      "barriers": 8,
+      "placement": 17,
+      "median_ms": 1.163184,
+      "output": "threads=32 barriers=8 placement=17 workgroups=2048 repeats=7 median_ms=1.163184 checked_instructions=18432"
+    },
+    {
+      "pair": 1,
+      "build": "baseline",
+      "threads": 256,
+      "barriers": 0,
+      "placement": 0,
+      "median_ms": 5.437305,
+      "output": "threads=256 barriers=0 placement=0 workgroups=2048 repeats=7 median_ms=5.437305 checked_instructions=16384"
+    },
+    {
+      "pair": 1,
+      "build": "baseline",
+      "threads": 256,
+      "barriers": 0,
+      "placement": 17,
+      "median_ms": 5.574826,
+      "output": "threads=256 barriers=0 placement=17 workgroups=2048 repeats=7 median_ms=5.574826 checked_instructions=16384"
+    },
+    {
+      "pair": 1,
+      "build": "baseline",
+      "threads": 256,
+      "barriers": 8,
+      "placement": 0,
+      "median_ms": 12.839475,
+      "output": "threads=256 barriers=8 placement=0 workgroups=2048 repeats=7 median_ms=12.839475 checked_instructions=147456"
+    },
+    {
+      "pair": 1,
+      "build": "baseline",
+      "threads": 256,
+      "barriers": 8,
+      "placement": 17,
+      "median_ms": 11.232858,
+      "output": "threads=256 barriers=8 placement=17 workgroups=2048 repeats=7 median_ms=11.232858 checked_instructions=147456"
+    },
+    {
+      "pair": 2,
+      "build": "baseline",
+      "threads": 1,
+      "barriers": 0,
+      "placement": 0,
+      "median_ms": 0.738307,
+      "output": "threads=1 barriers=0 placement=0 workgroups=2048 repeats=7 median_ms=0.738307 checked_instructions=2048"
+    },
+    {
+      "pair": 2,
+      "build": "baseline",
+      "threads": 1,
+      "barriers": 0,
+      "placement": 17,
+      "median_ms": 0.709346,
+      "output": "threads=1 barriers=0 placement=17 workgroups=2048 repeats=7 median_ms=0.709346 checked_instructions=2048"
+    },
+    {
+      "pair": 2,
+      "build": "baseline",
+      "threads": 1,
+      "barriers": 8,
+      "placement": 0,
+      "median_ms": 1.097069,
+      "output": "threads=1 barriers=8 placement=0 workgroups=2048 repeats=7 median_ms=1.097069 checked_instructions=18432"
+    },
+    {
+      "pair": 2,
+      "build": "baseline",
+      "threads": 1,
+      "barriers": 8,
+      "placement": 17,
+      "median_ms": 1.167873,
+      "output": "threads=1 barriers=8 placement=17 workgroups=2048 repeats=7 median_ms=1.167873 checked_instructions=18432"
+    },
+    {
+      "pair": 2,
+      "build": "baseline",
+      "threads": 32,
+      "barriers": 0,
+      "placement": 0,
+      "median_ms": 0.767629,
+      "output": "threads=32 barriers=0 placement=0 workgroups=2048 repeats=7 median_ms=0.767629 checked_instructions=2048"
+    },
+    {
+      "pair": 2,
+      "build": "baseline",
+      "threads": 32,
+      "barriers": 0,
+      "placement": 17,
+      "median_ms": 0.775194,
+      "output": "threads=32 barriers=0 placement=17 workgroups=2048 repeats=7 median_ms=0.775194 checked_instructions=2048"
+    },
+    {
+      "pair": 2,
+      "build": "baseline",
+      "threads": 32,
+      "barriers": 8,
+      "placement": 0,
+      "median_ms": 1.151816,
+      "output": "threads=32 barriers=8 placement=0 workgroups=2048 repeats=7 median_ms=1.151816 checked_instructions=18432"
+    },
+    {
+      "pair": 2,
+      "build": "baseline",
+      "threads": 32,
+      "barriers": 8,
+      "placement": 17,
+      "median_ms": 1.159495,
+      "output": "threads=32 barriers=8 placement=17 workgroups=2048 repeats=7 median_ms=1.159495 checked_instructions=18432"
+    },
+    {
+      "pair": 2,
+      "build": "baseline",
+      "threads": 256,
+      "barriers": 0,
+      "placement": 0,
+      "median_ms": 4.967564,
+      "output": "threads=256 barriers=0 placement=0 workgroups=2048 repeats=7 median_ms=4.967564 checked_instructions=16384"
+    },
+    {
+      "pair": 2,
+      "build": "baseline",
+      "threads": 256,
+      "barriers": 0,
+      "placement": 17,
+      "median_ms": 4.997651,
+      "output": "threads=256 barriers=0 placement=17 workgroups=2048 repeats=7 median_ms=4.997651 checked_instructions=16384"
+    },
+    {
+      "pair": 2,
+      "build": "baseline",
+      "threads": 256,
+      "barriers": 8,
+      "placement": 0,
+      "median_ms": 6.092545,
+      "output": "threads=256 barriers=8 placement=0 workgroups=2048 repeats=7 median_ms=6.092545 checked_instructions=147456"
+    },
+    {
+      "pair": 2,
+      "build": "baseline",
+      "threads": 256,
+      "barriers": 8,
+      "placement": 17,
+      "median_ms": 6.06724,
+      "output": "threads=256 barriers=8 placement=17 workgroups=2048 repeats=7 median_ms=6.067240 checked_instructions=147456"
+    },
+    {
+      "pair": 2,
+      "build": "current",
+      "threads": 1,
+      "barriers": 0,
+      "placement": 0,
+      "median_ms": 0.873258,
+      "output": "threads=1 barriers=0 placement=0 workgroups=2048 repeats=7 median_ms=0.873258 checked_instructions=2048"
+    },
+    {
+      "pair": 2,
+      "build": "current",
+      "threads": 1,
+      "barriers": 0,
+      "placement": 17,
+      "median_ms": 0.73226,
+      "output": "threads=1 barriers=0 placement=17 workgroups=2048 repeats=7 median_ms=0.732260 checked_instructions=2048"
+    },
+    {
+      "pair": 2,
+      "build": "current",
+      "threads": 1,
+      "barriers": 8,
+      "placement": 0,
+      "median_ms": 1.306814,
+      "output": "threads=1 barriers=8 placement=0 workgroups=2048 repeats=7 median_ms=1.306814 checked_instructions=18432"
+    },
+    {
+      "pair": 2,
+      "build": "current",
+      "threads": 1,
+      "barriers": 8,
+      "placement": 17,
+      "median_ms": 1.291835,
+      "output": "threads=1 barriers=8 placement=17 workgroups=2048 repeats=7 median_ms=1.291835 checked_instructions=18432"
+    },
+    {
+      "pair": 2,
+      "build": "current",
+      "threads": 32,
+      "barriers": 0,
+      "placement": 0,
+      "median_ms": 0.889419,
+      "output": "threads=32 barriers=0 placement=0 workgroups=2048 repeats=7 median_ms=0.889419 checked_instructions=2048"
+    },
+    {
+      "pair": 2,
+      "build": "current",
+      "threads": 32,
+      "barriers": 0,
+      "placement": 17,
+      "median_ms": 0.811168,
+      "output": "threads=32 barriers=0 placement=17 workgroups=2048 repeats=7 median_ms=0.811168 checked_instructions=2048"
+    },
+    {
+      "pair": 2,
+      "build": "current",
+      "threads": 32,
+      "barriers": 8,
+      "placement": 0,
+      "median_ms": 1.323007,
+      "output": "threads=32 barriers=8 placement=0 workgroups=2048 repeats=7 median_ms=1.323007 checked_instructions=18432"
+    },
+    {
+      "pair": 2,
+      "build": "current",
+      "threads": 32,
+      "barriers": 8,
+      "placement": 17,
+      "median_ms": 1.261136,
+      "output": "threads=32 barriers=8 placement=17 workgroups=2048 repeats=7 median_ms=1.261136 checked_instructions=18432"
+    },
+    {
+      "pair": 2,
+      "build": "current",
+      "threads": 256,
+      "barriers": 0,
+      "placement": 0,
+      "median_ms": 5.770485,
+      "output": "threads=256 barriers=0 placement=0 workgroups=2048 repeats=7 median_ms=5.770485 checked_instructions=16384"
+    },
+    {
+      "pair": 2,
+      "build": "current",
+      "threads": 256,
+      "barriers": 0,
+      "placement": 17,
+      "median_ms": 6.233145,
+      "output": "threads=256 barriers=0 placement=17 workgroups=2048 repeats=7 median_ms=6.233145 checked_instructions=16384"
+    },
+    {
+      "pair": 2,
+      "build": "current",
+      "threads": 256,
+      "barriers": 8,
+      "placement": 0,
+      "median_ms": 7.014868,
+      "output": "threads=256 barriers=8 placement=0 workgroups=2048 repeats=7 median_ms=7.014868 checked_instructions=147456"
+    },
+    {
+      "pair": 2,
+      "build": "current",
+      "threads": 256,
+      "barriers": 8,
+      "placement": 17,
+      "median_ms": 6.658341,
+      "output": "threads=256 barriers=8 placement=17 workgroups=2048 repeats=7 median_ms=6.658341 checked_instructions=147456"
+    },
+    {
+      "pair": 3,
+      "build": "current",
+      "threads": 1,
+      "barriers": 0,
+      "placement": 0,
+      "median_ms": 0.739653,
+      "output": "threads=1 barriers=0 placement=0 workgroups=2048 repeats=7 median_ms=0.739653 checked_instructions=2048"
+    },
+    {
+      "pair": 3,
+      "build": "current",
+      "threads": 1,
+      "barriers": 0,
+      "placement": 17,
+      "median_ms": 0.847513,
+      "output": "threads=1 barriers=0 placement=17 workgroups=2048 repeats=7 median_ms=0.847513 checked_instructions=2048"
+    },
+    {
+      "pair": 3,
+      "build": "current",
+      "threads": 1,
+      "barriers": 8,
+      "placement": 0,
+      "median_ms": 1.216292,
+      "output": "threads=1 barriers=8 placement=0 workgroups=2048 repeats=7 median_ms=1.216292 checked_instructions=18432"
+    },
+    {
+      "pair": 3,
+      "build": "current",
+      "threads": 1,
+      "barriers": 8,
+      "placement": 17,
+      "median_ms": 1.119978,
+      "output": "threads=1 barriers=8 placement=17 workgroups=2048 repeats=7 median_ms=1.119978 checked_instructions=18432"
+    },
+    {
+      "pair": 3,
+      "build": "current",
+      "threads": 32,
+      "barriers": 0,
+      "placement": 0,
+      "median_ms": 0.754433,
+      "output": "threads=32 barriers=0 placement=0 workgroups=2048 repeats=7 median_ms=0.754433 checked_instructions=2048"
+    },
+    {
+      "pair": 3,
+      "build": "current",
+      "threads": 32,
+      "barriers": 0,
+      "placement": 17,
+      "median_ms": 0.743155,
+      "output": "threads=32 barriers=0 placement=17 workgroups=2048 repeats=7 median_ms=0.743155 checked_instructions=2048"
+    },
+    {
+      "pair": 3,
+      "build": "current",
+      "threads": 32,
+      "barriers": 8,
+      "placement": 0,
+      "median_ms": 1.110379,
+      "output": "threads=32 barriers=8 placement=0 workgroups=2048 repeats=7 median_ms=1.110379 checked_instructions=18432"
+    },
+    {
+      "pair": 3,
+      "build": "current",
+      "threads": 32,
+      "barriers": 8,
+      "placement": 17,
+      "median_ms": 1.127363,
+      "output": "threads=32 barriers=8 placement=17 workgroups=2048 repeats=7 median_ms=1.127363 checked_instructions=18432"
+    },
+    {
+      "pair": 3,
+      "build": "current",
+      "threads": 256,
+      "barriers": 0,
+      "placement": 0,
+      "median_ms": 5.07018,
+      "output": "threads=256 barriers=0 placement=0 workgroups=2048 repeats=7 median_ms=5.070180 checked_instructions=16384"
+    },
+    {
+      "pair": 3,
+      "build": "current",
+      "threads": 256,
+      "barriers": 0,
+      "placement": 17,
+      "median_ms": 5.102081,
+      "output": "threads=256 barriers=0 placement=17 workgroups=2048 repeats=7 median_ms=5.102081 checked_instructions=16384"
+    },
+    {
+      "pair": 3,
+      "build": "current",
+      "threads": 256,
+      "barriers": 8,
+      "placement": 0,
+      "median_ms": 5.913284,
+      "output": "threads=256 barriers=8 placement=0 workgroups=2048 repeats=7 median_ms=5.913284 checked_instructions=147456"
+    },
+    {
+      "pair": 3,
+      "build": "current",
+      "threads": 256,
+      "barriers": 8,
+      "placement": 17,
+      "median_ms": 6.057486,
+      "output": "threads=256 barriers=8 placement=17 workgroups=2048 repeats=7 median_ms=6.057486 checked_instructions=147456"
+    },
+    {
+      "pair": 3,
+      "build": "baseline",
+      "threads": 1,
+      "barriers": 0,
+      "placement": 0,
+      "median_ms": 0.794373,
+      "output": "threads=1 barriers=0 placement=0 workgroups=2048 repeats=7 median_ms=0.794373 checked_instructions=2048"
+    },
+    {
+      "pair": 3,
+      "build": "baseline",
+      "threads": 1,
+      "barriers": 0,
+      "placement": 17,
+      "median_ms": 0.889163,
+      "output": "threads=1 barriers=0 placement=17 workgroups=2048 repeats=7 median_ms=0.889163 checked_instructions=2048"
+    },
+    {
+      "pair": 3,
+      "build": "baseline",
+      "threads": 1,
+      "barriers": 8,
+      "placement": 0,
+      "median_ms": 1.349554,
+      "output": "threads=1 barriers=8 placement=0 workgroups=2048 repeats=7 median_ms=1.349554 checked_instructions=18432"
+    },
+    {
+      "pair": 3,
+      "build": "baseline",
+      "threads": 1,
+      "barriers": 8,
+      "placement": 17,
+      "median_ms": 1.442547,
+      "output": "threads=1 barriers=8 placement=17 workgroups=2048 repeats=7 median_ms=1.442547 checked_instructions=18432"
+    },
+    {
+      "pair": 3,
+      "build": "baseline",
+      "threads": 32,
+      "barriers": 0,
+      "placement": 0,
+      "median_ms": 0.88765,
+      "output": "threads=32 barriers=0 placement=0 workgroups=2048 repeats=7 median_ms=0.887650 checked_instructions=2048"
+    },
+    {
+      "pair": 3,
+      "build": "baseline",
+      "threads": 32,
+      "barriers": 0,
+      "placement": 17,
+      "median_ms": 1.071261,
+      "output": "threads=32 barriers=0 placement=17 workgroups=2048 repeats=7 median_ms=1.071261 checked_instructions=2048"
+    },
+    {
+      "pair": 3,
+      "build": "baseline",
+      "threads": 32,
+      "barriers": 8,
+      "placement": 0,
+      "median_ms": 1.539994,
+      "output": "threads=32 barriers=8 placement=0 workgroups=2048 repeats=7 median_ms=1.539994 checked_instructions=18432"
+    },
+    {
+      "pair": 3,
+      "build": "baseline",
+      "threads": 32,
+      "barriers": 8,
+      "placement": 17,
+      "median_ms": 1.246164,
+      "output": "threads=32 barriers=8 placement=17 workgroups=2048 repeats=7 median_ms=1.246164 checked_instructions=18432"
+    },
+    {
+      "pair": 3,
+      "build": "baseline",
+      "threads": 256,
+      "barriers": 0,
+      "placement": 0,
+      "median_ms": 6.274435,
+      "output": "threads=256 barriers=0 placement=0 workgroups=2048 repeats=7 median_ms=6.274435 checked_instructions=16384"
+    },
+    {
+      "pair": 3,
+      "build": "baseline",
+      "threads": 256,
+      "barriers": 0,
+      "placement": 17,
+      "median_ms": 6.493185,
+      "output": "threads=256 barriers=0 placement=17 workgroups=2048 repeats=7 median_ms=6.493185 checked_instructions=16384"
+    },
+    {
+      "pair": 3,
+      "build": "baseline",
+      "threads": 256,
+      "barriers": 8,
+      "placement": 0,
+      "median_ms": 7.311533,
+      "output": "threads=256 barriers=8 placement=0 workgroups=2048 repeats=7 median_ms=7.311533 checked_instructions=147456"
+    },
+    {
+      "pair": 3,
+      "build": "baseline",
+      "threads": 256,
+      "barriers": 8,
+      "placement": 17,
+      "median_ms": 6.940089,
+      "output": "threads=256 barriers=8 placement=17 workgroups=2048 repeats=7 median_ms=6.940089 checked_instructions=147456"
+    },
+    {
+      "pair": 4,
+      "build": "baseline",
+      "threads": 1,
+      "barriers": 0,
+      "placement": 0,
+      "median_ms": 0.733522,
+      "output": "threads=1 barriers=0 placement=0 workgroups=2048 repeats=7 median_ms=0.733522 checked_instructions=2048"
+    },
+    {
+      "pair": 4,
+      "build": "baseline",
+      "threads": 1,
+      "barriers": 0,
+      "placement": 17,
+      "median_ms": 0.818497,
+      "output": "threads=1 barriers=0 placement=17 workgroups=2048 repeats=7 median_ms=0.818497 checked_instructions=2048"
+    },
+    {
+      "pair": 4,
+      "build": "baseline",
+      "threads": 1,
+      "barriers": 8,
+      "placement": 0,
+      "median_ms": 1.116062,
+      "output": "threads=1 barriers=8 placement=0 workgroups=2048 repeats=7 median_ms=1.116062 checked_instructions=18432"
+    },
+    {
+      "pair": 4,
+      "build": "baseline",
+      "threads": 1,
+      "barriers": 8,
+      "placement": 17,
+      "median_ms": 1.072785,
+      "output": "threads=1 barriers=8 placement=17 workgroups=2048 repeats=7 median_ms=1.072785 checked_instructions=18432"
+    },
+    {
+      "pair": 4,
+      "build": "baseline",
+      "threads": 32,
+      "barriers": 0,
+      "placement": 0,
+      "median_ms": 0.725479,
+      "output": "threads=32 barriers=0 placement=0 workgroups=2048 repeats=7 median_ms=0.725479 checked_instructions=2048"
+    },
+    {
+      "pair": 4,
+      "build": "baseline",
+      "threads": 32,
+      "barriers": 0,
+      "placement": 17,
+      "median_ms": 0.724522,
+      "output": "threads=32 barriers=0 placement=17 workgroups=2048 repeats=7 median_ms=0.724522 checked_instructions=2048"
+    },
+    {
+      "pair": 4,
+      "build": "baseline",
+      "threads": 32,
+      "barriers": 8,
+      "placement": 0,
+      "median_ms": 1.2357,
+      "output": "threads=32 barriers=8 placement=0 workgroups=2048 repeats=7 median_ms=1.235700 checked_instructions=18432"
+    },
+    {
+      "pair": 4,
+      "build": "baseline",
+      "threads": 32,
+      "barriers": 8,
+      "placement": 17,
+      "median_ms": 1.123858,
+      "output": "threads=32 barriers=8 placement=17 workgroups=2048 repeats=7 median_ms=1.123858 checked_instructions=18432"
+    },
+    {
+      "pair": 4,
+      "build": "baseline",
+      "threads": 256,
+      "barriers": 0,
+      "placement": 0,
+      "median_ms": 5.040018,
+      "output": "threads=256 barriers=0 placement=0 workgroups=2048 repeats=7 median_ms=5.040018 checked_instructions=16384"
+    },
+    {
+      "pair": 4,
+      "build": "baseline",
+      "threads": 256,
+      "barriers": 0,
+      "placement": 17,
+      "median_ms": 5.544052,
+      "output": "threads=256 barriers=0 placement=17 workgroups=2048 repeats=7 median_ms=5.544052 checked_instructions=16384"
+    },
+    {
+      "pair": 4,
+      "build": "baseline",
+      "threads": 256,
+      "barriers": 8,
+      "placement": 0,
+      "median_ms": 6.036171,
+      "output": "threads=256 barriers=8 placement=0 workgroups=2048 repeats=7 median_ms=6.036171 checked_instructions=147456"
+    },
+    {
+      "pair": 4,
+      "build": "baseline",
+      "threads": 256,
+      "barriers": 8,
+      "placement": 17,
+      "median_ms": 6.007948,
+      "output": "threads=256 barriers=8 placement=17 workgroups=2048 repeats=7 median_ms=6.007948 checked_instructions=147456"
+    },
+    {
+      "pair": 4,
+      "build": "current",
+      "threads": 1,
+      "barriers": 0,
+      "placement": 0,
+      "median_ms": 0.851158,
+      "output": "threads=1 barriers=0 placement=0 workgroups=2048 repeats=7 median_ms=0.851158 checked_instructions=2048"
+    },
+    {
+      "pair": 4,
+      "build": "current",
+      "threads": 1,
+      "barriers": 0,
+      "placement": 17,
+      "median_ms": 0.712974,
+      "output": "threads=1 barriers=0 placement=17 workgroups=2048 repeats=7 median_ms=0.712974 checked_instructions=2048"
+    },
+    {
+      "pair": 4,
+      "build": "current",
+      "threads": 1,
+      "barriers": 8,
+      "placement": 0,
+      "median_ms": 1.229151,
+      "output": "threads=1 barriers=8 placement=0 workgroups=2048 repeats=7 median_ms=1.229151 checked_instructions=18432"
+    },
+    {
+      "pair": 4,
+      "build": "current",
+      "threads": 1,
+      "barriers": 8,
+      "placement": 17,
+      "median_ms": 1.323026,
+      "output": "threads=1 barriers=8 placement=17 workgroups=2048 repeats=7 median_ms=1.323026 checked_instructions=18432"
+    },
+    {
+      "pair": 4,
+      "build": "current",
+      "threads": 32,
+      "barriers": 0,
+      "placement": 0,
+      "median_ms": 0.720003,
+      "output": "threads=32 barriers=0 placement=0 workgroups=2048 repeats=7 median_ms=0.720003 checked_instructions=2048"
+    },
+    {
+      "pair": 4,
+      "build": "current",
+      "threads": 32,
+      "barriers": 0,
+      "placement": 17,
+      "median_ms": 0.760839,
+      "output": "threads=32 barriers=0 placement=17 workgroups=2048 repeats=7 median_ms=0.760839 checked_instructions=2048"
+    },
+    {
+      "pair": 4,
+      "build": "current",
+      "threads": 32,
+      "barriers": 8,
+      "placement": 0,
+      "median_ms": 1.135893,
+      "output": "threads=32 barriers=8 placement=0 workgroups=2048 repeats=7 median_ms=1.135893 checked_instructions=18432"
+    },
+    {
+      "pair": 4,
+      "build": "current",
+      "threads": 32,
+      "barriers": 8,
+      "placement": 17,
+      "median_ms": 1.119903,
+      "output": "threads=32 barriers=8 placement=17 workgroups=2048 repeats=7 median_ms=1.119903 checked_instructions=18432"
+    },
+    {
+      "pair": 4,
+      "build": "current",
+      "threads": 256,
+      "barriers": 0,
+      "placement": 0,
+      "median_ms": 5.096312,
+      "output": "threads=256 barriers=0 placement=0 workgroups=2048 repeats=7 median_ms=5.096312 checked_instructions=16384"
+    },
+    {
+      "pair": 4,
+      "build": "current",
+      "threads": 256,
+      "barriers": 0,
+      "placement": 17,
+      "median_ms": 4.994663,
+      "output": "threads=256 barriers=0 placement=17 workgroups=2048 repeats=7 median_ms=4.994663 checked_instructions=16384"
+    },
+    {
+      "pair": 4,
+      "build": "current",
+      "threads": 256,
+      "barriers": 8,
+      "placement": 0,
+      "median_ms": 5.91462,
+      "output": "threads=256 barriers=8 placement=0 workgroups=2048 repeats=7 median_ms=5.914620 checked_instructions=147456"
+    },
+    {
+      "pair": 4,
+      "build": "current",
+      "threads": 256,
+      "barriers": 8,
+      "placement": 17,
+      "median_ms": 6.263239,
+      "output": "threads=256 barriers=8 placement=17 workgroups=2048 repeats=7 median_ms=6.263239 checked_instructions=147456"
+    }
+  ]
+}

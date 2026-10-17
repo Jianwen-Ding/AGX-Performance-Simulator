@@ -312,14 +312,15 @@ fn norm_store(fmt: u64, v: i128, rt: bool) -> u64 {
 }
 
 pub fn run(d: &Dispatch, mem: &mut Memory) -> Result<RunStats, String> {
-    validate_dispatch(d)?;
+    let geometry = validate_dispatch(d)?;
+    if geometry.dims.contains(&0) { return Ok(RunStats::default()); }
     let cache = code_cache(d.code.len());
-    let dims: Vec<u32> = (0..3).map(|i| d.grid[i].div_ceil(d.wg[i])).collect();
+    let dims = geometry.dims;
     let mut stats = RunStats::default();
     for wz in 0..dims[2] {
         for wy in 0..dims[1] {
             for wx in 0..dims[0] {
-                run_workgroup(d, &cache, mem, [wx, wy, wz], false, &mut stats)?;
+                run_workgroup(d, &geometry, &cache, mem, [wx, wy, wz], false, &mut stats)?;
             }
         }
     }
@@ -337,26 +338,62 @@ pub fn trace_workgroups(d: &Dispatch, mem: &Memory, wgs: &[[u32; 3]]) -> Result<
 /// shared memory, execution masks and a copy-on-write snapshot of the supplied memory.
 pub struct PreparedDispatch<'a> {
     dispatch: &'a Dispatch,
+    geometry: Geometry,
     cache: CodeCache,
 }
 
 impl<'a> PreparedDispatch<'a> {
     pub fn new(dispatch: &'a Dispatch) -> Result<Self, String> {
-        validate_dispatch(dispatch)?;
-        Ok(Self { dispatch, cache: code_cache(dispatch.code.len()) })
+        let geometry = validate_dispatch(dispatch)?;
+        Ok(Self { dispatch, geometry, cache: code_cache(dispatch.code.len()) })
     }
 
     pub fn trace_workgroup(&self, mem: &Memory, wg: [u32; 3]) -> Result<Vec<Trace>, String> {
+        self.geometry.check_workgroup(wg)?;
         let mut m = mem.clone();
-        run_workgroup(self.dispatch, &self.cache, &mut m, wg, true, &mut RunStats::default())
+        run_workgroup(self.dispatch, &self.geometry, &self.cache, &mut m, wg, true, &mut RunStats::default())
     }
 
     pub fn trace_workgroups(&self, mem: &Memory, wgs: &[[u32; 3]]) -> Result<Vec<Vec<Trace>>, String> {
+        // Reject the entire request before starting workers or copying memory.
+        for &wg in wgs { self.geometry.check_workgroup(wg)?; }
         crate::par::map(wgs, |&wg| self.trace_workgroup(mem, wg)).into_iter().collect()
     }
 }
 
-fn validate_dispatch(d: &Dispatch) -> Result<(), String> {
+struct Geometry {
+    dims: [u32; 3],
+    groups: u32,
+}
+
+impl Geometry {
+    fn check_workgroup(&self, wg: [u32; 3]) -> Result<(), String> {
+        if (0..3).any(|i| wg[i] >= self.dims[i]) {
+            return Err(format!("workgroup {:?} is outside dispatch dimensions {:?}", wg, self.dims));
+        }
+        Ok(())
+    }
+
+    fn linear(&self, [x, y, z]: [u32; 3]) -> u64 {
+        x as u64 + self.dims[0] as u64 * (y as u64 + self.dims[1] as u64 * z as u64)
+    }
+}
+
+#[cfg(test)]
+#[test]
+fn geometry_linear_and_placement_keep_high_bits() {
+    let geometry = Geometry { dims: [65536; 3], groups: 32 };
+    let w = geometry.linear([65535; 3]);
+    assert_eq!(w, (1u64 << 48) - 1);
+    assert_eq!((w << 16) | 31, u64::MAX - 65504);
+    let d = Dispatch { code: vec![], grid: [67108864, 65536, 65536], wg: [1024, 1, 1], shared_bytes: 0,
+        uniforms: vec![], num_registers: 8, max_steps: 1, placement: u32::MAX, launch: Default::default() };
+    let (core, slot) = placement(&d, &geometry, w, 31);
+    assert_eq!(core, 1 + ((w as u128 * 7 + u32::MAX as u128) % 50) as u32);
+    assert_eq!(slot, 31 + 32 * (1 + ((w as u128 + u32::MAX as u128) % 3) as u32));
+}
+
+fn validate_dispatch(d: &Dispatch) -> Result<Geometry, String> {
     let threads = d.wg.iter().try_fold(1u32, |n, &v| n.checked_mul(v))
         .ok_or("workgroup size overflows")?;
     if threads == 0 || threads > 1024 {
@@ -365,38 +402,41 @@ fn validate_dispatch(d: &Dispatch) -> Result<(), String> {
     if d.uniforms.iter().any(|&(u, _)| u >= 256) {
         return Err("uniform register index exceeds u255".into());
     }
-    Ok(())
-}
-
-fn wg_linear(d: &Dispatch, [wx, wy, wz]: [u32; 3]) -> u64 {
-    let dims: Vec<u64> = (0..3).map(|i| d.grid[i].div_ceil(d.wg[i]) as u64).collect();
-    wx as u64 + dims[0] * (wy as u64 + dims[1] * wz as u64)
+    let dims = std::array::from_fn(|i| d.grid[i].div_ceil(d.wg[i]));
+    // Writer tags reserve 16 low bits for the SIMD group. This is an executor
+    // representation limit, not a hardware grid limit. Do not silently alias
+    // writers (or wrap placement arithmetic) on enormous synthetic dispatches.
+    let count = dims.iter().fold(1u128, |n, &v| n * v as u128);
+    if count > (1u128 << 48) {
+        return Err("dispatch exceeds the functional executor's 48-bit workgroup index capacity".into());
+    }
+    Ok(Geometry { dims, groups: threads.div_ceil(32) })
 }
 
 /// (sr20 core id, sr17 hardware slot) of SIMD group `g` of a workgroup under `d.placement`. The hardware gives
 /// every workgroup some core (SR20 = cluster << 4 | core) and its groups slots that equal the group index only
 /// while the core holds nothing else (playground sr-geometry-core-id, sr17-sr32).
-fn placement(d: &Dispatch, wg: [u32; 3], g: u32) -> (u32, u32) {
+fn placement(d: &Dispatch, geometry: &Geometry, w: u64, g: u32) -> (u32, u32) {
     if d.placement == 0 {
         return (0, g);
     }
-    let w = wg_linear(d, wg);
-    let gpw = (d.wg[0] * d.wg[1] * d.wg[2]).div_ceil(32);
-    let several = (0..3).any(|i| d.grid[i] > d.wg[i]);
+    let gpw = geometry.groups;
+    let several = geometry.dims.iter().any(|&n| n > 1);
     let core = 1 + ((w * 7 + d.placement as u64) % 50) as u32;
     let slot = if several { g + gpw * (1 + ((w + d.placement as u64) % 3) as u32) } else { g };
     (core, slot)
 }
 
-fn run_workgroup(d: &Dispatch, cache: &CodeCache, mem: &mut Memory, [wx, wy, wz]: [u32; 3], record: bool,
+fn run_workgroup(d: &Dispatch, geometry: &Geometry, cache: &CodeCache, mem: &mut Memory, [wx, wy, wz]: [u32; 3], record: bool,
                  stats: &mut RunStats) -> Result<Vec<Trace>, String> {
     let code = &d.code;
-    let threads = d.wg[0] * d.wg[1] * d.wg[2];
-    let gpw = threads.div_ceil(32);
+    let gpw = geometry.groups;
+    let linear = geometry.linear([wx, wy, wz]);
+    let writer_base = linear << 16;
     let mut tg = vec![0u8; d.shared_bytes.max(16) as usize];
     let mut groups: Vec<Group> = (0..gpw)
         .map(|g| {
-            let (core, slot) = placement(d, [wx, wy, wz], g);
+            let (core, slot) = placement(d, geometry, linear, g);
             let ctx = GroupCtx { wg_size: d.wg, wg_id: [wx, wy, wz], group: g, core, slot, uniforms: d.uniforms.clone(), launch: d.launch };
             let mut st = CoreState::new(d.num_registers, None);
             let lanes = ctx.lanes();
@@ -424,7 +464,7 @@ fn run_workgroup(d: &Dispatch, cache: &CodeCache, mem: &mut Memory, [wx, wy, wz]
             if g.done {
                 continue;
             }
-            mem.writer = wg_linear(d, [wx, wy, wz]) << 16 | gi as u64;
+            mem.writer = writer_base | gi as u64;
             match step_group(g, code, cache, mem, &mut tg, d.max_steps, stats)? {
                 Stop::Done => g.done = true,
                 Stop::Barrier(k) => at_barrier[gi] = Some(k),
@@ -479,6 +519,9 @@ fn step_group(g: &mut Group, code: &[u8], cache: &CodeCache, mem: &mut Memory, t
     }
 }
 
+// Keep the large interpreter loop out of workgroup setup/barrier scheduling.
+// Checked CPU setup/SR/memory controls are retained in the geometry benchmark.
+#[inline(never)]
 fn step_group_impl<C: InstructionCells>(g: &mut Group, code: &[u8], cache: &C, mem: &mut Memory, tg: &mut [u8], max_steps: u64,
                                        stats: &mut RunStats) -> Result<Stop, String> {
     let nregs = g.st.reg16s.len(); // 16-bit registers, as Compiled::new expects
@@ -805,6 +848,15 @@ fn special_register(g: &mut Group, args: &SpecialRegister, stats: &mut RunStats)
         SimdCount => g.st.exec.iter().filter(|&&active| active).count() as u32,
         _ => 0,
     };
+    // Broadcasts need no per-lane selector-class dispatch. Keep destination
+    // writes checked and in lane order, including half-register preservation.
+    if matches!(args.kind, Uniform | SimdCount) {
+        for t in 0..32 {
+            if !g.st.exec[t] { continue; }
+            if half { g.st.set_reg16(dr, t, uniform as i128)?; } else { g.st.set_reg32(dr, t, uniform as i128)?; }
+        }
+        return Ok(());
+    }
     let counts: [u32; 8] = if matches!(args.kind, QuadCount) {
         std::array::from_fn(|q| g.st.exec[4 * q..4 * q + 4].iter().filter(|&&active| active).count() as u32)
     } else { [0; 8] };

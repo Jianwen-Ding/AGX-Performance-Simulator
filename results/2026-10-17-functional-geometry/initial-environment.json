@@ -1,0 +1,26 @@
+{
+  "baseline_commit": "5019a4630fd11da0b802e46dee94ae4f95cd9728",
+  "playground_evidence_commit": "4d35ca1aec3044753406277a4d33055823b822b2",
+  "machine": "x86_64",
+  "compiler": "rustc 1.99.1",
+  "profile": "release opt-level=3, fat LTO, codegen-units=1, panic=abort; linker-features=-lld",
+  "source_sha256": {
+    "rust/src/func.rs": "6004a1a2e09ecbb842b34085065ba69bd53cc4807723c7bb5d2995794baf28f1",
+    "rust/examples/functional_geometry.rs": "9edd5b18c28006bcc0da5546def527e4b2fe33490b13ab43f4a0a5c55ad5bd71",
+    "rust/tests/functional_geometry.rs": "3d958dca04d45199bf060831829685b455c31ef185dc8eced42380b07961e8a6",
+    "scripts/bench_functional_geometry.py": "562ad69efe51a3583bb4feebe1cf20bcda295e0c3b4e642a8f0e1523157fb2f3"
+  },
+  "suite_manifest": {
+    "path": "results/2026-10-17-decode-pages/replay-manifest.tsv",
+    "sha256": "af54284e79efe35b69be2190e7150db7ccaf33467d4ce54f7e714e83af162e38"
+  },
+  "sr_blobs": {
+    "results/2026-10-16-special-registers/depth1.bin": "84477c6ae1e346d79e46da76c459867417d48b10",
+    "results/2026-10-16-special-registers/quad.bin": "c573446eba895469abffe7c3e450b855f63b0047",
+    "results/2026-10-16-special-registers/depth2.bin": "3b1b57694af3cccfddf8fb828eadee6548877ee5",
+    "results/2026-10-16-special-registers/quad-depth2.bin": "acba4cc2e06c22d8293ce9fbe1fd83d84e1ced8b",
+    "results/2026-10-16-special-registers/depth3.bin": "9d240c3f5012dc2cbf1a0b968c49a2bd5c1491f9",
+    "results/2026-10-16-special-registers/uniform.bin": "628b8d6211b9cbd5be162ffe13e2845b111a79db",
+    "results/2026-10-16-special-registers/hardware.json.gz": "49357351482c25d569de3c28b909d04370d68852"
+  }
+}

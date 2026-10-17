@@ -54,6 +54,21 @@ decode through ported but less exercised paths.
 
 ## Speed
 
+Functional dispatch preparation caches workgroup dimensions and group counts;
+linear workgroup indices and race-log writer bases are computed once per
+workgroup, not per SIMD group/barrier resume. Requested trace coordinates must
+lie inside the dispatch. Empty grids remain no-ops, including huge dimensions
+on the other axes. The functional executor accepts at most 2^48 workgroups
+(48 index bits + 16 group bits in its existing race-log writer tag); larger
+grids return an error rather than aliasing writers. This is a simulator
+representation limit, not a hardware geometry restriction.
+
+The large interpreter loop stays separate from workgroup setup. Uniform SR and
+active-SIMD-count broadcasts bypass per-lane selector-class dispatch while
+retaining checked lane-ordered writes. Focused CPU measurements, control
+regressions and intermediate candidates are retained in
+`../results/2026-10-17-functional-geometry/README.md`.
+
 `agx_bench` (132 stored random kernels in a 500-trip counted loop, ~15.5 k dynamic instructions
 each; one core of the build container):
 
@@ -82,3 +97,4 @@ skips refilling token buckets that are already at their cap.
 | `src/kernels.rs` | counted / bench loops, store and threadgroup encodings, random kernels |
 | `src/pyrandom.rs` | CPython `random.Random` |
 | `src/bin/` | `agx_cost`, `agx_predict`, `agx_dispatch`, `verify_cost_model`, `scale_check`, `mem_check`, `dispatch_check`, `agx_bench` |
+
