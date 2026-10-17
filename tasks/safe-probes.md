@@ -60,7 +60,8 @@ measurements), so a task confirms or refutes known claims instead of rediscoveri
 ## Not safe: do not run
 
 - funop functions 2, 3, 5, 7, 11 and 15 (24 confirmed GPU hangs), and convert mode 2, 3, 12+ or round field > 1.
-- `call`, `ret`, `jmp_incomplete`, `jmp_if_skipping_doorbell`.
+- `call`, `ret`, `jmp_incomplete`, `jmp_if_skipping_doorbell`. `call` / `ret` have an owner-approved, staged plan in
+  [unsafe-01-call-ret.md](unsafe-01-call-ret.md); do not run them any other way.
 - The 9 undecoded opcodes that discard a whole dispatch (0x06, 0x24, 0x34, 0x44, 0x46, 0x54, 0x5c, 0x64, 0x74).
 - Device atomic ops 11-15 and their u-bits.
 - Direct-DRM helper / scratch programs (two attempts stalled).
