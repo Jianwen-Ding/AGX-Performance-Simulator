@@ -79,3 +79,31 @@ Next candidates: extend retained-hardware regression coverage, profile real
 data-dependent dispatches, and reduce repeated memory operand decoding where
 profiles justify it. Float/u64 atomic timing still needs hardware measurements.
 Preserve calibration and evidence unless measurements justify changes.
+
+## 2026-10-17: cached memory operands and reliable replay status
+
+Device and threadgroup loads/stores cache immutable operand fields per visited
+PC. Dynamic registers, addresses, masks and scoreboard state remain per execution.
+Memory-only boxed payloads keep common decode records compact.
+
+The checked device-load benchmark (2048 groups, 256 loads/group) measures
+323.578 -> 297.460 ms, 1.088x, over five alternating pairs of nine measured runs.
+Every run checks all 65,536 output words and 532,480 instructions. The compact
+one-worker ALU trace control was 4.8% slower; the padded four-worker control was
+10.7% faster. These focused measurements are not a whole-corpus speed claim.
+Raw results and reproduction: `results/2026-10-17-memory-operands/README.md`.
+
+Strengthened `suite_check`: failures and empty selections now return nonzero;
+shortened deterministic expected buffers fail before zip-based comparisons.
+A synthetic CLI regression covers success and these failure paths. Playground
+`make replay-memory-suite` exposes the three retained memory categories.
+
+Validation: 19 Rust tests and documentation checks pass; all 126 selected
+retained cases match exactly (including all 102 memory recordings); all 74
+atomic replays pass; cost-model verifier has zero failures. The manifest records
+all replayed file hashes. No new GPU measurements or timing rebaseline.
+
+Next: profile memory-heavy data-dependent loops, consider cached atomic operands
+and shared cost-trace memory decoding, and extend cross-lane/control-flow replay.
+Check the ALU controls when changing decode layout. M2 hardware remains unavailable;
+float/u64 atomic timing still requires real hardware evidence.

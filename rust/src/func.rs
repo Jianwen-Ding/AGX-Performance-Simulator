@@ -145,7 +145,6 @@ fn code_cache(bytes: usize) -> CodeCache {
     (0..bytes).map(|_| OnceLock::new()).collect()
 }
 
-#[derive(Clone, Copy)]
 enum OpKind {
     Stop,
     Jmp { any: bool },
@@ -155,10 +154,10 @@ enum OpKind {
     Nop,
     Wait,
     GetSr,
-    DevMem { load: bool },
+    DevMem { load: bool, args: Box<DeviceMem> },
     Stack { load: bool },
     UniformStore,
-    TgMem { load: bool },
+    TgMem { load: bool, args: Box<ThreadgroupMem> },
     Atomic,
     FloatArith,
     CmpSel { float: bool },
@@ -174,7 +173,7 @@ enum OpKind {
     Generic,
 }
 
-fn op_kind(name: &'static str) -> OpKind {
+fn op_kind(name: &'static str, f: &Fields) -> OpKind {
     use OpKind::*;
     match name {
         "stop" | "trap" | "end_group" => Stop,
@@ -190,10 +189,10 @@ fn op_kind(name: &'static str) -> OpKind {
         // the .TODO encodings differ from the plain ones only in control bits (Mesa emits them for Vulkan-memory-model
         // atomic loads / stores, between memory_barrier sequences); on one sequentially simulated memory they read and
         // write exactly as the plain access does
-        "device_load" | "device_store" | "device_load.TODO" | "device_store.TODO" => DevMem { load: name.starts_with("device_load") },
+        "device_load" | "device_store" | "device_load.TODO" | "device_store.TODO" => DevMem { load: name.starts_with("device_load"), args: Box::new(DeviceMem::new(f)) },
         "stack_load" | "stack_store" => Stack { load: name == "stack_load" },
         "uniform_store" => UniformStore,
-        "threadgroup_load" | "threadgroup_store" => TgMem { load: name == "threadgroup_load" },
+        "threadgroup_load" | "threadgroup_store" => TgMem { load: name == "threadgroup_load", args: Box::new(ThreadgroupMem::new(f)) },
         "atomic" => Atomic,
         "fadd32" | "fmul32" | "fmadd32" | "fadd16" | "fmul16" | "fmadd16" => FloatArith,
         "icmpsel" | "fcmpsel" => CmpSel { float: name == "fcmpsel" },
@@ -445,7 +444,8 @@ fn decode_at(code: &[u8], pc: usize, nregs: usize) -> Result<Info, String> {
     let ops = if desc.name == "stop" || desc.name == "trap" { vec![] } else { desc.fields_to_operands(&fields)? };
     let op = Compiled::new(desc, &fields, &ops, nregs);
     let vals = vals(&ops);
-    Ok(Info { desc: Some(desc), size, fields, op: Some(op), ops, vals, kind: op_kind(desc.name) })
+    let kind = op_kind(desc.name, &fields);
+    Ok(Info { desc: Some(desc), size, fields, op: Some(op), ops, vals, kind })
 }
 
 fn step_group(g: &mut Group, code: &[u8], cache: &[OnceLock<Box<Info>>], mem: &mut Memory, tg: &mut [u8], max_steps: u64,
@@ -618,10 +618,10 @@ fn step_group(g: &mut Group, code: &[u8], cache: &[OnceLock<Box<Info>>], mem: &m
                     }
                 }
             }
-            OpKind::DevMem { load } => device_mem(g, f, mem, load)?,
+            OpKind::DevMem { load, ref args } => device_mem(g, args, mem, load)?,
             OpKind::Stack { load } => stack_mem(g, f, load)?,
             OpKind::UniformStore => uniform_store(g, f)?,
-            OpKind::TgMem { load } => tg_mem(g, f, tg, load)?,
+            OpKind::TgMem { load, ref args } => tg_mem(g, args, tg, load)?,
             // Measured only with Mesa's u5=2: ops 11..15 end the whole issuing group,
             // including inactive lanes, without touching memory.
             OpKind::Atomic if x("op") >= 11 && x("u5") == 2 => return Ok(Stop::Done),
@@ -767,22 +767,48 @@ fn get(st: &CoreState, rt: bool, r: usize, k: usize, t: usize) -> Result<i128, S
     if rt { st.get_reg32(r / 2 + k, t) } else { st.get_reg16(r + k, t) }
 }
 
-fn device_mem(g: &mut Group, f: &Fields, mem: &mut Memory, load: bool) -> Result<(), String> {
-    let x = |k: &str| fget(f, k).unwrap_or(0);
-    // fields read once, not per lane (fget searches the field list by name)
-    let (f_at, f_a, f_ot, f_o, f_ou) = (x("At"), x("A"), x("Ot"), x("O"), x("Ou"));
-    let fmt = x("F") | x("Fx") << 3;
+// Immutable operand fields are extracted once per visited PC, shared with the decode.
+// No register values, lane addresses or execution masks are cached here.
+#[derive(Clone, Copy)]
+struct DeviceMem {
+    at: u64, a: u64, ot: u64, o: u64, ou: u64,
+    fmt: u64, item: u64, shift: u64, mask: u64,
+    r: usize, rt: bool, slot: u64,
+}
+
+impl DeviceMem {
+    fn new(f: &Fields) -> Self {
+        let x = |k: &str| fget(f, k).unwrap_or(0);
+        let fmt = x("F") | x("Fx") << 3;
+        Self { at: x("At"), a: x("A"), ot: x("Ot"), o: x("O"), ou: x("Ou"),
+            fmt, item: item_size(fmt), shift: if x("s") == 3 { 2 } else { x("s") },
+            mask: x("mask"), r: x("R") as usize, rt: x("Rt") != 0, slot: x("g") }
+    }
+}
+
+#[derive(Clone, Copy)]
+struct ThreadgroupMem {
+    at: u64, a: u64, ot: u64, o: u64,
+    item: usize, mask: u64, r: usize, rt: bool,
+}
+
+impl ThreadgroupMem {
+    fn new(f: &Fields) -> Self {
+        let x = |k: &str| fget(f, k).unwrap_or(0);
+        Self { at: x("At"), a: x("A"), ot: x("Ot"), o: x("O"),
+            item: item_size(x("F")) as usize, mask: x("mask"), r: x("R") as usize, rt: x("Rt") != 0 }
+    }
+}
+
+fn device_mem(g: &mut Group, args: &DeviceMem, mem: &mut Memory, load: bool) -> Result<(), String> {
+    let DeviceMem { at: f_at, a: f_a, ot: f_ot, o: f_o, ou: f_ou,
+        fmt, item, shift, mask, r, rt, slot } = *args;
     if fmt > 7 {
         return Err(format!("device memory format {} not implemented", fmt));
     }
-    let item = item_size(fmt);
-    let shift = if x("s") == 3 { 2 } else { x("s") };
-    let mask = x("mask");
-    let (r, rt) = (x("R") as usize, x("Rt") != 0);
     // scoreboard slot (applegpu `g`, Mesa scoreboard bit 0): a load on slot 1 writes its registers only at `wait 1`;
     // read before that, the destination keeps its old value (coverage mem_load device_load_1_*: `wait 0` leaves
     // the preloaded 0xdeadbeef). Slot-0 loads complete at once (every program waits on slot 0 before reading).
-    let slot = x("g");
     let mut deferred = vec![];
     // per-lane element address
     let mut addr = [0i128; 32];
@@ -835,13 +861,8 @@ fn device_mem(g: &mut Group, f: &Fields, mem: &mut Memory, load: bool) -> Result
     Ok(())
 }
 
-fn tg_mem(g: &mut Group, f: &Fields, tg: &mut [u8], load: bool) -> Result<(), String> {
-    let x = |k: &str| fget(f, k).unwrap_or(0);
-    // fields read once, not per lane (fget searches the field list by name)
-    let (f_at, f_a, f_ot, f_o) = (x("At"), x("A"), x("Ot"), x("O"));
-    let item = item_size(x("F")) as usize;
-    let mask = x("mask");
-    let (r, rt) = (x("R") as usize, x("Rt") != 0);
+fn tg_mem(g: &mut Group, args: &ThreadgroupMem, tg: &mut [u8], load: bool) -> Result<(), String> {
+    let ThreadgroupMem { at: f_at, a: f_a, ot: f_ot, o: f_o, item, mask, r, rt } = *args;
     let mut addr = [0usize; 32];
     for t in 0..32 {
         if g.st.exec[t] {

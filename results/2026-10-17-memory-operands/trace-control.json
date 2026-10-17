@@ -1,0 +1,142 @@
+[
+  {
+    "workers": 1,
+    "padding_kib": 0,
+    "pair": 0,
+    "build": "baseline",
+    "median_ms": 4.793
+  },
+  {
+    "workers": 1,
+    "padding_kib": 0,
+    "pair": 0,
+    "build": "current",
+    "median_ms": 4.829
+  },
+  {
+    "workers": 1,
+    "padding_kib": 0,
+    "pair": 1,
+    "build": "current",
+    "median_ms": 5.081
+  },
+  {
+    "workers": 1,
+    "padding_kib": 0,
+    "pair": 1,
+    "build": "baseline",
+    "median_ms": 4.615
+  },
+  {
+    "workers": 1,
+    "padding_kib": 0,
+    "pair": 2,
+    "build": "baseline",
+    "median_ms": 4.661
+  },
+  {
+    "workers": 1,
+    "padding_kib": 0,
+    "pair": 2,
+    "build": "current",
+    "median_ms": 4.537
+  },
+  {
+    "workers": 1,
+    "padding_kib": 0,
+    "pair": 3,
+    "build": "current",
+    "median_ms": 4.884
+  },
+  {
+    "workers": 1,
+    "padding_kib": 0,
+    "pair": 3,
+    "build": "baseline",
+    "median_ms": 5.096
+  },
+  {
+    "workers": 1,
+    "padding_kib": 0,
+    "pair": 4,
+    "build": "baseline",
+    "median_ms": 4.633
+  },
+  {
+    "workers": 1,
+    "padding_kib": 0,
+    "pair": 4,
+    "build": "current",
+    "median_ms": 4.901
+  },
+  {
+    "workers": 4,
+    "padding_kib": 64,
+    "pair": 0,
+    "build": "baseline",
+    "median_ms": 1.831
+  },
+  {
+    "workers": 4,
+    "padding_kib": 64,
+    "pair": 0,
+    "build": "current",
+    "median_ms": 1.684
+  },
+  {
+    "workers": 4,
+    "padding_kib": 64,
+    "pair": 1,
+    "build": "current",
+    "median_ms": 1.682
+  },
+  {
+    "workers": 4,
+    "padding_kib": 64,
+    "pair": 1,
+    "build": "baseline",
+    "median_ms": 1.635
+  },
+  {
+    "workers": 4,
+    "padding_kib": 64,
+    "pair": 2,
+    "build": "baseline",
+    "median_ms": 1.485
+  },
+  {
+    "workers": 4,
+    "padding_kib": 64,
+    "pair": 2,
+    "build": "current",
+    "median_ms": 1.591
+  },
+  {
+    "workers": 4,
+    "padding_kib": 64,
+    "pair": 3,
+    "build": "current",
+    "median_ms": 1.501
+  },
+  {
+    "workers": 4,
+    "padding_kib": 64,
+    "pair": 3,
+    "build": "baseline",
+    "median_ms": 1.782
+  },
+  {
+    "workers": 4,
+    "padding_kib": 64,
+    "pair": 4,
+    "build": "baseline",
+    "median_ms": 1.79
+  },
+  {
+    "workers": 4,
+    "padding_kib": 64,
+    "pair": 4,
+    "build": "current",
+    "median_ms": 1.513
+  }
+]

@@ -1,0 +1,69 @@
+{
+  "runs": [
+    {
+      "pair": 0,
+      "build": "baseline",
+      "median_ms": 304.017,
+      "output": "groups=2048 loads=256 repeats=9 median_ms=304.017 instructions=532480 checked_words=65536"
+    },
+    {
+      "pair": 0,
+      "build": "current",
+      "median_ms": 302.823,
+      "output": "groups=2048 loads=256 repeats=9 median_ms=302.823 instructions=532480 checked_words=65536"
+    },
+    {
+      "pair": 1,
+      "build": "current",
+      "median_ms": 293.16,
+      "output": "groups=2048 loads=256 repeats=9 median_ms=293.160 instructions=532480 checked_words=65536"
+    },
+    {
+      "pair": 1,
+      "build": "baseline",
+      "median_ms": 331.44,
+      "output": "groups=2048 loads=256 repeats=9 median_ms=331.440 instructions=532480 checked_words=65536"
+    },
+    {
+      "pair": 2,
+      "build": "baseline",
+      "median_ms": 338.22,
+      "output": "groups=2048 loads=256 repeats=9 median_ms=338.220 instructions=532480 checked_words=65536"
+    },
+    {
+      "pair": 2,
+      "build": "current",
+      "median_ms": 288.865,
+      "output": "groups=2048 loads=256 repeats=9 median_ms=288.865 instructions=532480 checked_words=65536"
+    },
+    {
+      "pair": 3,
+      "build": "current",
+      "median_ms": 304.652,
+      "output": "groups=2048 loads=256 repeats=9 median_ms=304.652 instructions=532480 checked_words=65536"
+    },
+    {
+      "pair": 3,
+      "build": "baseline",
+      "median_ms": 323.578,
+      "output": "groups=2048 loads=256 repeats=9 median_ms=323.578 instructions=532480 checked_words=65536"
+    },
+    {
+      "pair": 4,
+      "build": "baseline",
+      "median_ms": 322.608,
+      "output": "groups=2048 loads=256 repeats=9 median_ms=322.608 instructions=532480 checked_words=65536"
+    },
+    {
+      "pair": 4,
+      "build": "current",
+      "median_ms": 297.46,
+      "output": "groups=2048 loads=256 repeats=9 median_ms=297.460 instructions=532480 checked_words=65536"
+    }
+  ],
+  "medians": {
+    "baseline": 323.578,
+    "current": 297.46,
+    "speedup": 1.0878034021381027
+  }
+}

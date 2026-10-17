@@ -214,6 +214,14 @@ fn check(c: &Value) -> Result<Verdict, String> {
     let want_out = words(&b64(c["expect"]["out"].as_str().unwrap()));
     let want_tab = words(&b64(c["expect"]["table"].as_str().unwrap()));
     let det = |k: &str| c.get(k).and_then(Value::as_bool).unwrap_or(true);
+    for (got, want, what, deterministic) in [
+        (&got_out, &want_out, "out", det("deterministic_out")),
+        (&got_tab, &want_tab, "table", det("deterministic_table")),
+    ] {
+        if deterministic && got.len() != want.len() {
+            return Ok(Verdict::Mismatch(format!("{} length: got {} words, expected {}", what, got.len(), want.len()), None));
+        }
+    }
     let got_out = if det("deterministic_out") { settle(out_va, &got_out, &alt_out, &want_out) } else { got_out };
     let got_tab = if det("deterministic_table") { settle(table_va, &got_tab, &alt_tab, &want_tab) } else { got_tab };
     RACE_WORDS.fetch_add(n_race, Relaxed);
@@ -353,6 +361,12 @@ fn main() {
     if !reasons.is_empty() {
         println!("unsupported (first error per case): {:?}", reasons);
     }
+    if t == 0 {
+        eprintln!("no retained cases selected");
+    }
+    if t == 0 || p != t {
+        std::process::exit(1);
+    }
 }
 
 fn walk(d: &std::path::Path) -> Vec<std::path::PathBuf> {
@@ -367,3 +381,4 @@ fn walk(d: &std::path::Path) -> Vec<std::path::PathBuf> {
     }
     v
 }
+
