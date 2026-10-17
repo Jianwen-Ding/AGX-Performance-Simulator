@@ -505,10 +505,18 @@ def atomic_cases():
             def build(op_i=op_i, base=base, name=name):
                 RS = _rs()
                 import run_drm_atomic as DA
-                b = RS.mem_prologue(N) if base == 'register' else b''
-                b += RS.mov(27, 2 * N) + RS.e('iadd r5, r1, r27') + RS.mov(27, 2) + RS.e('imadd r6, r1, r27, 0')
+                # Both forms hit word 2N + gid of the table. The register form takes its base from r24_r25 = table + 8 KiB
+                # (mem_prologue, = 2N words for N = 1024) with index gid, encoded by Mesa's agx_pack formula with At = 0.
+                # (Until 2026-10-17 the register cases only added the prologue and kept the uniform-base atomic.)
+                b = RS.mem_prologue(N) + RS.e('iadd r5, r1, 0') if base == 'register' else RS.mov(27, 2 * N) + RS.e('iadd r5, r1, r27')
+                b += RS.mov(27, 2) + RS.e('imadd r6, r1, r27, 0')
                 b += RS.e('device_load 0, i32, xy, r6_r7, u8_u9, r6, unsigned') + RS.e('wait 0') + RS.mov(14, 0xdeadbeef)
-                b += DA.atomic(op_i, 14, 5, 6, True) + RS.e('wait 0')
+                if base == 'register':
+                    assert 2 * N == 2048
+                    b += DA.mesa_atomic(op_i, 2 * 14, 2 * 24, 2 * 5, 2 * 6, True, uniform_base=False).to_bytes(8, 'little')
+                else:
+                    b += DA.atomic(op_i, 14, 5, 6, True)
+                b += RS.e('wait 0')
                 b += RS.mov(27, 3 * N) + RS.e('iadd r26, r1, r27') + RS.agx_loop.store(14, 8, 26) + RS.e('wait 0') + RS.e('iadd r2, r14, 0')
                 rng = random.Random(name)
                 return ('atomic', name, f'device atomic {ops[op_i]} returning, {base} base', b, N, WG, 64, 0, [rng.getrandbits(32) for _ in range(3 * N)] + [0] * N)

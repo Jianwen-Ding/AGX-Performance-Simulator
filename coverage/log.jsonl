@@ -3329,3 +3329,14 @@
 {"case": "control/while_fcmp_lte", "state": "recorded", "deterministic": true, "utc": "2026-10-17T03:42:09Z"}
 {"case": "control/while_fcmp_ngt", "state": "recorded", "deterministic": true, "utc": "2026-10-17T03:42:09Z"}
 {"case": "control/while_fcmp_ngte", "state": "recorded", "deterministic": true, "utc": "2026-10-17T03:42:09Z"}
+{"case": "atomic/atomic_add_register_base_ret", "state": "recorded", "deterministic": true, "utc": "2026-10-17T03:43:35Z"}
+{"case": "atomic/atomic_sub_register_base_ret", "state": "recorded", "deterministic": true, "utc": "2026-10-17T03:43:41Z"}
+{"case": "atomic/atomic_xchg_register_base_ret", "state": "recorded", "deterministic": true, "utc": "2026-10-17T03:43:41Z"}
+{"case": "atomic/atomic_cmpxchg_register_base_ret", "state": "recorded", "deterministic": true, "utc": "2026-10-17T03:43:41Z"}
+{"case": "atomic/atomic_umin_register_base_ret", "state": "recorded", "deterministic": true, "utc": "2026-10-17T03:43:41Z"}
+{"case": "atomic/atomic_imin_register_base_ret", "state": "recorded", "deterministic": true, "utc": "2026-10-17T03:43:41Z"}
+{"case": "atomic/atomic_umax_register_base_ret", "state": "recorded", "deterministic": true, "utc": "2026-10-17T03:43:41Z"}
+{"case": "atomic/atomic_imax_register_base_ret", "state": "recorded", "deterministic": true, "utc": "2026-10-17T03:43:41Z"}
+{"case": "atomic/atomic_and_register_base_ret", "state": "recorded", "deterministic": true, "utc": "2026-10-17T03:43:41Z"}
+{"case": "atomic/atomic_or_register_base_ret", "state": "recorded", "deterministic": true, "utc": "2026-10-17T03:43:41Z"}
+{"case": "atomic/atomic_xor_register_base_ret", "state": "recorded", "deterministic": true, "utc": "2026-10-17T03:43:41Z"}
