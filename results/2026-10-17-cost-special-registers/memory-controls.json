@@ -1,0 +1,792 @@
+{
+  "pairs": 5,
+  "repeats": 7,
+  "summary": [
+    {
+      "workers": 1,
+      "stride": 1,
+      "kind": "cost",
+      "baseline": 12.24,
+      "current": 12.282,
+      "speedup": 0.9965803615046409
+    },
+    {
+      "workers": 1,
+      "stride": 1,
+      "kind": "functional",
+      "baseline": 13.414,
+      "current": 13.241,
+      "speedup": 1.0130654784381845
+    },
+    {
+      "workers": 1,
+      "stride": 16,
+      "kind": "cost",
+      "baseline": 12.041,
+      "current": 12.387,
+      "speedup": 0.9720674901105998
+    },
+    {
+      "workers": 1,
+      "stride": 16,
+      "kind": "functional",
+      "baseline": 13.611,
+      "current": 13.473,
+      "speedup": 1.0102427076374971
+    },
+    {
+      "workers": 4,
+      "stride": 1,
+      "kind": "cost",
+      "baseline": 3.874,
+      "current": 4.149,
+      "speedup": 0.9337189684261268
+    },
+    {
+      "workers": 4,
+      "stride": 1,
+      "kind": "functional",
+      "baseline": 3.991,
+      "current": 4.124,
+      "speedup": 0.9677497575169739
+    },
+    {
+      "workers": 4,
+      "stride": 16,
+      "kind": "cost",
+      "baseline": 3.836,
+      "current": 3.991,
+      "speedup": 0.9611626158857428
+    },
+    {
+      "workers": 4,
+      "stride": 16,
+      "kind": "functional",
+      "baseline": 4.606,
+      "current": 4.963,
+      "speedup": 0.9280677009873061
+    }
+  ],
+  "runs": [
+    {
+      "workers": 1,
+      "stride": 1,
+      "pair": 0,
+      "build": "baseline",
+      "kind": "cost",
+      "median_ms": 12.123,
+      "output": "kind=cost groups=128 loads=128 stride=1 repeats=7 median_ms=12.123 instructions=17280 accesses=16384"
+    },
+    {
+      "workers": 1,
+      "stride": 1,
+      "pair": 0,
+      "build": "baseline",
+      "kind": "functional",
+      "median_ms": 13.098,
+      "output": "kind=functional groups=128 loads=128 stride=1 repeats=7 median_ms=13.098 instructions=17280 accesses=16384"
+    },
+    {
+      "workers": 1,
+      "stride": 1,
+      "pair": 0,
+      "build": "current",
+      "kind": "cost",
+      "median_ms": 12.217,
+      "output": "kind=cost groups=128 loads=128 stride=1 repeats=7 median_ms=12.217 instructions=17280 accesses=16384"
+    },
+    {
+      "workers": 1,
+      "stride": 1,
+      "pair": 0,
+      "build": "current",
+      "kind": "functional",
+      "median_ms": 13.209,
+      "output": "kind=functional groups=128 loads=128 stride=1 repeats=7 median_ms=13.209 instructions=17280 accesses=16384"
+    },
+    {
+      "workers": 1,
+      "stride": 1,
+      "pair": 1,
+      "build": "current",
+      "kind": "cost",
+      "median_ms": 12.392,
+      "output": "kind=cost groups=128 loads=128 stride=1 repeats=7 median_ms=12.392 instructions=17280 accesses=16384"
+    },
+    {
+      "workers": 1,
+      "stride": 1,
+      "pair": 1,
+      "build": "current",
+      "kind": "functional",
+      "median_ms": 13.291,
+      "output": "kind=functional groups=128 loads=128 stride=1 repeats=7 median_ms=13.291 instructions=17280 accesses=16384"
+    },
+    {
+      "workers": 1,
+      "stride": 1,
+      "pair": 1,
+      "build": "baseline",
+      "kind": "cost",
+      "median_ms": 11.833,
+      "output": "kind=cost groups=128 loads=128 stride=1 repeats=7 median_ms=11.833 instructions=17280 accesses=16384"
+    },
+    {
+      "workers": 1,
+      "stride": 1,
+      "pair": 1,
+      "build": "baseline",
+      "kind": "functional",
+      "median_ms": 13.854,
+      "output": "kind=functional groups=128 loads=128 stride=1 repeats=7 median_ms=13.854 instructions=17280 accesses=16384"
+    },
+    {
+      "workers": 1,
+      "stride": 1,
+      "pair": 2,
+      "build": "baseline",
+      "kind": "cost",
+      "median_ms": 12.24,
+      "output": "kind=cost groups=128 loads=128 stride=1 repeats=7 median_ms=12.240 instructions=17280 accesses=16384"
+    },
+    {
+      "workers": 1,
+      "stride": 1,
+      "pair": 2,
+      "build": "baseline",
+      "kind": "functional",
+      "median_ms": 13.413,
+      "output": "kind=functional groups=128 loads=128 stride=1 repeats=7 median_ms=13.413 instructions=17280 accesses=16384"
+    },
+    {
+      "workers": 1,
+      "stride": 1,
+      "pair": 2,
+      "build": "current",
+      "kind": "cost",
+      "median_ms": 12.279,
+      "output": "kind=cost groups=128 loads=128 stride=1 repeats=7 median_ms=12.279 instructions=17280 accesses=16384"
+    },
+    {
+      "workers": 1,
+      "stride": 1,
+      "pair": 2,
+      "build": "current",
+      "kind": "functional",
+      "median_ms": 13.241,
+      "output": "kind=functional groups=128 loads=128 stride=1 repeats=7 median_ms=13.241 instructions=17280 accesses=16384"
+    },
+    {
+      "workers": 1,
+      "stride": 1,
+      "pair": 3,
+      "build": "current",
+      "kind": "cost",
+      "median_ms": 12.6,
+      "output": "kind=cost groups=128 loads=128 stride=1 repeats=7 median_ms=12.600 instructions=17280 accesses=16384"
+    },
+    {
+      "workers": 1,
+      "stride": 1,
+      "pair": 3,
+      "build": "current",
+      "kind": "functional",
+      "median_ms": 13.849,
+      "output": "kind=functional groups=128 loads=128 stride=1 repeats=7 median_ms=13.849 instructions=17280 accesses=16384"
+    },
+    {
+      "workers": 1,
+      "stride": 1,
+      "pair": 3,
+      "build": "baseline",
+      "kind": "cost",
+      "median_ms": 12.327,
+      "output": "kind=cost groups=128 loads=128 stride=1 repeats=7 median_ms=12.327 instructions=17280 accesses=16384"
+    },
+    {
+      "workers": 1,
+      "stride": 1,
+      "pair": 3,
+      "build": "baseline",
+      "kind": "functional",
+      "median_ms": 13.414,
+      "output": "kind=functional groups=128 loads=128 stride=1 repeats=7 median_ms=13.414 instructions=17280 accesses=16384"
+    },
+    {
+      "workers": 1,
+      "stride": 1,
+      "pair": 4,
+      "build": "baseline",
+      "kind": "cost",
+      "median_ms": 12.32,
+      "output": "kind=cost groups=128 loads=128 stride=1 repeats=7 median_ms=12.320 instructions=17280 accesses=16384"
+    },
+    {
+      "workers": 1,
+      "stride": 1,
+      "pair": 4,
+      "build": "baseline",
+      "kind": "functional",
+      "median_ms": 13.77,
+      "output": "kind=functional groups=128 loads=128 stride=1 repeats=7 median_ms=13.770 instructions=17280 accesses=16384"
+    },
+    {
+      "workers": 1,
+      "stride": 1,
+      "pair": 4,
+      "build": "current",
+      "kind": "cost",
+      "median_ms": 12.282,
+      "output": "kind=cost groups=128 loads=128 stride=1 repeats=7 median_ms=12.282 instructions=17280 accesses=16384"
+    },
+    {
+      "workers": 1,
+      "stride": 1,
+      "pair": 4,
+      "build": "current",
+      "kind": "functional",
+      "median_ms": 13.089,
+      "output": "kind=functional groups=128 loads=128 stride=1 repeats=7 median_ms=13.089 instructions=17280 accesses=16384"
+    },
+    {
+      "workers": 1,
+      "stride": 16,
+      "pair": 0,
+      "build": "baseline",
+      "kind": "cost",
+      "median_ms": 12.024,
+      "output": "kind=cost groups=128 loads=128 stride=16 repeats=7 median_ms=12.024 instructions=17280 accesses=16384"
+    },
+    {
+      "workers": 1,
+      "stride": 16,
+      "pair": 0,
+      "build": "baseline",
+      "kind": "functional",
+      "median_ms": 13.363,
+      "output": "kind=functional groups=128 loads=128 stride=16 repeats=7 median_ms=13.363 instructions=17280 accesses=16384"
+    },
+    {
+      "workers": 1,
+      "stride": 16,
+      "pair": 0,
+      "build": "current",
+      "kind": "cost",
+      "median_ms": 12.191,
+      "output": "kind=cost groups=128 loads=128 stride=16 repeats=7 median_ms=12.191 instructions=17280 accesses=16384"
+    },
+    {
+      "workers": 1,
+      "stride": 16,
+      "pair": 0,
+      "build": "current",
+      "kind": "functional",
+      "median_ms": 13.121,
+      "output": "kind=functional groups=128 loads=128 stride=16 repeats=7 median_ms=13.121 instructions=17280 accesses=16384"
+    },
+    {
+      "workers": 1,
+      "stride": 16,
+      "pair": 1,
+      "build": "current",
+      "kind": "cost",
+      "median_ms": 12.165,
+      "output": "kind=cost groups=128 loads=128 stride=16 repeats=7 median_ms=12.165 instructions=17280 accesses=16384"
+    },
+    {
+      "workers": 1,
+      "stride": 16,
+      "pair": 1,
+      "build": "current",
+      "kind": "functional",
+      "median_ms": 13.433,
+      "output": "kind=functional groups=128 loads=128 stride=16 repeats=7 median_ms=13.433 instructions=17280 accesses=16384"
+    },
+    {
+      "workers": 1,
+      "stride": 16,
+      "pair": 1,
+      "build": "baseline",
+      "kind": "cost",
+      "median_ms": 17.279,
+      "output": "kind=cost groups=128 loads=128 stride=16 repeats=7 median_ms=17.279 instructions=17280 accesses=16384"
+    },
+    {
+      "workers": 1,
+      "stride": 16,
+      "pair": 1,
+      "build": "baseline",
+      "kind": "functional",
+      "median_ms": 13.697,
+      "output": "kind=functional groups=128 loads=128 stride=16 repeats=7 median_ms=13.697 instructions=17280 accesses=16384"
+    },
+    {
+      "workers": 1,
+      "stride": 16,
+      "pair": 2,
+      "build": "baseline",
+      "kind": "cost",
+      "median_ms": 12.041,
+      "output": "kind=cost groups=128 loads=128 stride=16 repeats=7 median_ms=12.041 instructions=17280 accesses=16384"
+    },
+    {
+      "workers": 1,
+      "stride": 16,
+      "pair": 2,
+      "build": "baseline",
+      "kind": "functional",
+      "median_ms": 13.553,
+      "output": "kind=functional groups=128 loads=128 stride=16 repeats=7 median_ms=13.553 instructions=17280 accesses=16384"
+    },
+    {
+      "workers": 1,
+      "stride": 16,
+      "pair": 2,
+      "build": "current",
+      "kind": "cost",
+      "median_ms": 12.928,
+      "output": "kind=cost groups=128 loads=128 stride=16 repeats=7 median_ms=12.928 instructions=17280 accesses=16384"
+    },
+    {
+      "workers": 1,
+      "stride": 16,
+      "pair": 2,
+      "build": "current",
+      "kind": "functional",
+      "median_ms": 20.446,
+      "output": "kind=functional groups=128 loads=128 stride=16 repeats=7 median_ms=20.446 instructions=17280 accesses=16384"
+    },
+    {
+      "workers": 1,
+      "stride": 16,
+      "pair": 3,
+      "build": "current",
+      "kind": "cost",
+      "median_ms": 12.41,
+      "output": "kind=cost groups=128 loads=128 stride=16 repeats=7 median_ms=12.410 instructions=17280 accesses=16384"
+    },
+    {
+      "workers": 1,
+      "stride": 16,
+      "pair": 3,
+      "build": "current",
+      "kind": "functional",
+      "median_ms": 13.913,
+      "output": "kind=functional groups=128 loads=128 stride=16 repeats=7 median_ms=13.913 instructions=17280 accesses=16384"
+    },
+    {
+      "workers": 1,
+      "stride": 16,
+      "pair": 3,
+      "build": "baseline",
+      "kind": "cost",
+      "median_ms": 11.775,
+      "output": "kind=cost groups=128 loads=128 stride=16 repeats=7 median_ms=11.775 instructions=17280 accesses=16384"
+    },
+    {
+      "workers": 1,
+      "stride": 16,
+      "pair": 3,
+      "build": "baseline",
+      "kind": "functional",
+      "median_ms": 13.611,
+      "output": "kind=functional groups=128 loads=128 stride=16 repeats=7 median_ms=13.611 instructions=17280 accesses=16384"
+    },
+    {
+      "workers": 1,
+      "stride": 16,
+      "pair": 4,
+      "build": "baseline",
+      "kind": "cost",
+      "median_ms": 12.601,
+      "output": "kind=cost groups=128 loads=128 stride=16 repeats=7 median_ms=12.601 instructions=17280 accesses=16384"
+    },
+    {
+      "workers": 1,
+      "stride": 16,
+      "pair": 4,
+      "build": "baseline",
+      "kind": "functional",
+      "median_ms": 13.631,
+      "output": "kind=functional groups=128 loads=128 stride=16 repeats=7 median_ms=13.631 instructions=17280 accesses=16384"
+    },
+    {
+      "workers": 1,
+      "stride": 16,
+      "pair": 4,
+      "build": "current",
+      "kind": "cost",
+      "median_ms": 12.387,
+      "output": "kind=cost groups=128 loads=128 stride=16 repeats=7 median_ms=12.387 instructions=17280 accesses=16384"
+    },
+    {
+      "workers": 1,
+      "stride": 16,
+      "pair": 4,
+      "build": "current",
+      "kind": "functional",
+      "median_ms": 13.473,
+      "output": "kind=functional groups=128 loads=128 stride=16 repeats=7 median_ms=13.473 instructions=17280 accesses=16384"
+    },
+    {
+      "workers": 4,
+      "stride": 1,
+      "pair": 0,
+      "build": "baseline",
+      "kind": "cost",
+      "median_ms": 4.079,
+      "output": "kind=cost groups=128 loads=128 stride=1 repeats=7 median_ms=4.079 instructions=17280 accesses=16384"
+    },
+    {
+      "workers": 4,
+      "stride": 1,
+      "pair": 0,
+      "build": "baseline",
+      "kind": "functional",
+      "median_ms": 4.12,
+      "output": "kind=functional groups=128 loads=128 stride=1 repeats=7 median_ms=4.120 instructions=17280 accesses=16384"
+    },
+    {
+      "workers": 4,
+      "stride": 1,
+      "pair": 0,
+      "build": "current",
+      "kind": "cost",
+      "median_ms": 4.149,
+      "output": "kind=cost groups=128 loads=128 stride=1 repeats=7 median_ms=4.149 instructions=17280 accesses=16384"
+    },
+    {
+      "workers": 4,
+      "stride": 1,
+      "pair": 0,
+      "build": "current",
+      "kind": "functional",
+      "median_ms": 4.2,
+      "output": "kind=functional groups=128 loads=128 stride=1 repeats=7 median_ms=4.200 instructions=17280 accesses=16384"
+    },
+    {
+      "workers": 4,
+      "stride": 1,
+      "pair": 1,
+      "build": "current",
+      "kind": "cost",
+      "median_ms": 4.401,
+      "output": "kind=cost groups=128 loads=128 stride=1 repeats=7 median_ms=4.401 instructions=17280 accesses=16384"
+    },
+    {
+      "workers": 4,
+      "stride": 1,
+      "pair": 1,
+      "build": "current",
+      "kind": "functional",
+      "median_ms": 5.039,
+      "output": "kind=functional groups=128 loads=128 stride=1 repeats=7 median_ms=5.039 instructions=17280 accesses=16384"
+    },
+    {
+      "workers": 4,
+      "stride": 1,
+      "pair": 1,
+      "build": "baseline",
+      "kind": "cost",
+      "median_ms": 3.874,
+      "output": "kind=cost groups=128 loads=128 stride=1 repeats=7 median_ms=3.874 instructions=17280 accesses=16384"
+    },
+    {
+      "workers": 4,
+      "stride": 1,
+      "pair": 1,
+      "build": "baseline",
+      "kind": "functional",
+      "median_ms": 4.176,
+      "output": "kind=functional groups=128 loads=128 stride=1 repeats=7 median_ms=4.176 instructions=17280 accesses=16384"
+    },
+    {
+      "workers": 4,
+      "stride": 1,
+      "pair": 2,
+      "build": "baseline",
+      "kind": "cost",
+      "median_ms": 3.767,
+      "output": "kind=cost groups=128 loads=128 stride=1 repeats=7 median_ms=3.767 instructions=17280 accesses=16384"
+    },
+    {
+      "workers": 4,
+      "stride": 1,
+      "pair": 2,
+      "build": "baseline",
+      "kind": "functional",
+      "median_ms": 3.902,
+      "output": "kind=functional groups=128 loads=128 stride=1 repeats=7 median_ms=3.902 instructions=17280 accesses=16384"
+    },
+    {
+      "workers": 4,
+      "stride": 1,
+      "pair": 2,
+      "build": "current",
+      "kind": "cost",
+      "median_ms": 3.886,
+      "output": "kind=cost groups=128 loads=128 stride=1 repeats=7 median_ms=3.886 instructions=17280 accesses=16384"
+    },
+    {
+      "workers": 4,
+      "stride": 1,
+      "pair": 2,
+      "build": "current",
+      "kind": "functional",
+      "median_ms": 3.932,
+      "output": "kind=functional groups=128 loads=128 stride=1 repeats=7 median_ms=3.932 instructions=17280 accesses=16384"
+    },
+    {
+      "workers": 4,
+      "stride": 1,
+      "pair": 3,
+      "build": "current",
+      "kind": "cost",
+      "median_ms": 3.792,
+      "output": "kind=cost groups=128 loads=128 stride=1 repeats=7 median_ms=3.792 instructions=17280 accesses=16384"
+    },
+    {
+      "workers": 4,
+      "stride": 1,
+      "pair": 3,
+      "build": "current",
+      "kind": "functional",
+      "median_ms": 4.124,
+      "output": "kind=functional groups=128 loads=128 stride=1 repeats=7 median_ms=4.124 instructions=17280 accesses=16384"
+    },
+    {
+      "workers": 4,
+      "stride": 1,
+      "pair": 3,
+      "build": "baseline",
+      "kind": "cost",
+      "median_ms": 4.571,
+      "output": "kind=cost groups=128 loads=128 stride=1 repeats=7 median_ms=4.571 instructions=17280 accesses=16384"
+    },
+    {
+      "workers": 4,
+      "stride": 1,
+      "pair": 3,
+      "build": "baseline",
+      "kind": "functional",
+      "median_ms": 3.986,
+      "output": "kind=functional groups=128 loads=128 stride=1 repeats=7 median_ms=3.986 instructions=17280 accesses=16384"
+    },
+    {
+      "workers": 4,
+      "stride": 1,
+      "pair": 4,
+      "build": "baseline",
+      "kind": "cost",
+      "median_ms": 3.728,
+      "output": "kind=cost groups=128 loads=128 stride=1 repeats=7 median_ms=3.728 instructions=17280 accesses=16384"
+    },
+    {
+      "workers": 4,
+      "stride": 1,
+      "pair": 4,
+      "build": "baseline",
+      "kind": "functional",
+      "median_ms": 3.991,
+      "output": "kind=functional groups=128 loads=128 stride=1 repeats=7 median_ms=3.991 instructions=17280 accesses=16384"
+    },
+    {
+      "workers": 4,
+      "stride": 1,
+      "pair": 4,
+      "build": "current",
+      "kind": "cost",
+      "median_ms": 4.259,
+      "output": "kind=cost groups=128 loads=128 stride=1 repeats=7 median_ms=4.259 instructions=17280 accesses=16384"
+    },
+    {
+      "workers": 4,
+      "stride": 1,
+      "pair": 4,
+      "build": "current",
+      "kind": "functional",
+      "median_ms": 4.089,
+      "output": "kind=functional groups=128 loads=128 stride=1 repeats=7 median_ms=4.089 instructions=17280 accesses=16384"
+    },
+    {
+      "workers": 4,
+      "stride": 16,
+      "pair": 0,
+      "build": "baseline",
+      "kind": "cost",
+      "median_ms": 3.83,
+      "output": "kind=cost groups=128 loads=128 stride=16 repeats=7 median_ms=3.830 instructions=17280 accesses=16384"
+    },
+    {
+      "workers": 4,
+      "stride": 16,
+      "pair": 0,
+      "build": "baseline",
+      "kind": "functional",
+      "median_ms": 4.784,
+      "output": "kind=functional groups=128 loads=128 stride=16 repeats=7 median_ms=4.784 instructions=17280 accesses=16384"
+    },
+    {
+      "workers": 4,
+      "stride": 16,
+      "pair": 0,
+      "build": "current",
+      "kind": "cost",
+      "median_ms": 4.063,
+      "output": "kind=cost groups=128 loads=128 stride=16 repeats=7 median_ms=4.063 instructions=17280 accesses=16384"
+    },
+    {
+      "workers": 4,
+      "stride": 16,
+      "pair": 0,
+      "build": "current",
+      "kind": "functional",
+      "median_ms": 6.331,
+      "output": "kind=functional groups=128 loads=128 stride=16 repeats=7 median_ms=6.331 instructions=17280 accesses=16384"
+    },
+    {
+      "workers": 4,
+      "stride": 16,
+      "pair": 1,
+      "build": "current",
+      "kind": "cost",
+      "median_ms": 3.542,
+      "output": "kind=cost groups=128 loads=128 stride=16 repeats=7 median_ms=3.542 instructions=17280 accesses=16384"
+    },
+    {
+      "workers": 4,
+      "stride": 16,
+      "pair": 1,
+      "build": "current",
+      "kind": "functional",
+      "median_ms": 4.671,
+      "output": "kind=functional groups=128 loads=128 stride=16 repeats=7 median_ms=4.671 instructions=17280 accesses=16384"
+    },
+    {
+      "workers": 4,
+      "stride": 16,
+      "pair": 1,
+      "build": "baseline",
+      "kind": "cost",
+      "median_ms": 4.239,
+      "output": "kind=cost groups=128 loads=128 stride=16 repeats=7 median_ms=4.239 instructions=17280 accesses=16384"
+    },
+    {
+      "workers": 4,
+      "stride": 16,
+      "pair": 1,
+      "build": "baseline",
+      "kind": "functional",
+      "median_ms": 4.963,
+      "output": "kind=functional groups=128 loads=128 stride=16 repeats=7 median_ms=4.963 instructions=17280 accesses=16384"
+    },
+    {
+      "workers": 4,
+      "stride": 16,
+      "pair": 2,
+      "build": "baseline",
+      "kind": "cost",
+      "median_ms": 4.732,
+      "output": "kind=cost groups=128 loads=128 stride=16 repeats=7 median_ms=4.732 instructions=17280 accesses=16384"
+    },
+    {
+      "workers": 4,
+      "stride": 16,
+      "pair": 2,
+      "build": "baseline",
+      "kind": "functional",
+      "median_ms": 4.606,
+      "output": "kind=functional groups=128 loads=128 stride=16 repeats=7 median_ms=4.606 instructions=17280 accesses=16384"
+    },
+    {
+      "workers": 4,
+      "stride": 16,
+      "pair": 2,
+      "build": "current",
+      "kind": "cost",
+      "median_ms": 4.151,
+      "output": "kind=cost groups=128 loads=128 stride=16 repeats=7 median_ms=4.151 instructions=17280 accesses=16384"
+    },
+    {
+      "workers": 4,
+      "stride": 16,
+      "pair": 2,
+      "build": "current",
+      "kind": "functional",
+      "median_ms": 5.648,
+      "output": "kind=functional groups=128 loads=128 stride=16 repeats=7 median_ms=5.648 instructions=17280 accesses=16384"
+    },
+    {
+      "workers": 4,
+      "stride": 16,
+      "pair": 3,
+      "build": "current",
+      "kind": "cost",
+      "median_ms": 3.991,
+      "output": "kind=cost groups=128 loads=128 stride=16 repeats=7 median_ms=3.991 instructions=17280 accesses=16384"
+    },
+    {
+      "workers": 4,
+      "stride": 16,
+      "pair": 3,
+      "build": "current",
+      "kind": "functional",
+      "median_ms": 4.963,
+      "output": "kind=functional groups=128 loads=128 stride=16 repeats=7 median_ms=4.963 instructions=17280 accesses=16384"
+    },
+    {
+      "workers": 4,
+      "stride": 16,
+      "pair": 3,
+      "build": "baseline",
+      "kind": "cost",
+      "median_ms": 3.836,
+      "output": "kind=cost groups=128 loads=128 stride=16 repeats=7 median_ms=3.836 instructions=17280 accesses=16384"
+    },
+    {
+      "workers": 4,
+      "stride": 16,
+      "pair": 3,
+      "build": "baseline",
+      "kind": "functional",
+      "median_ms": 3.96,
+      "output": "kind=functional groups=128 loads=128 stride=16 repeats=7 median_ms=3.960 instructions=17280 accesses=16384"
+    },
+    {
+      "workers": 4,
+      "stride": 16,
+      "pair": 4,
+      "build": "baseline",
+      "kind": "cost",
+      "median_ms": 3.811,
+      "output": "kind=cost groups=128 loads=128 stride=16 repeats=7 median_ms=3.811 instructions=17280 accesses=16384"
+    },
+    {
+      "workers": 4,
+      "stride": 16,
+      "pair": 4,
+      "build": "baseline",
+      "kind": "functional",
+      "median_ms": 4.153,
+      "output": "kind=functional groups=128 loads=128 stride=16 repeats=7 median_ms=4.153 instructions=17280 accesses=16384"
+    },
+    {
+      "workers": 4,
+      "stride": 16,
+      "pair": 4,
+      "build": "current",
+      "kind": "cost",
+      "median_ms": 3.974,
+      "output": "kind=cost groups=128 loads=128 stride=16 repeats=7 median_ms=3.974 instructions=17280 accesses=16384"
+    },
+    {
+      "workers": 4,
+      "stride": 16,
+      "pair": 4,
+      "build": "current",
+      "kind": "functional",
+      "median_ms": 4.172,
+      "output": "kind=functional groups=128 loads=128 stride=16 repeats=7 median_ms=4.172 instructions=17280 accesses=16384"
+    }
+  ]
+}

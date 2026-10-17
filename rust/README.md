@@ -54,6 +54,15 @@ decode through ported but less exercised paths.
 
 ## Speed
 
+The context-aware cost tracer caches get_sr operands, supports half-width reads
+with the other half preserved, and computes SR56..59 ranks/counts from the current
+execution mask (SR16 remains physical quad position). Uniform values resolve
+once per executed read, never across calls or launches; unknown state retains
+the existing skip/taint fallback. Odd 32-bit destination encodings do not write
+an adjacent high register. Context-free tracing/reference behavior is unchanged.
+`cargo build --release --example cost_special_registers` builds a checked CPU
+benchmark and JSONL replay probe used by playground `replay-simulator-cost-sr`.
+
 Functional dispatch preparation caches workgroup dimensions and group counts;
 linear workgroup indices and race-log writer bases are computed once per
 workgroup, not per SIMD group/barrier resume. Requested trace coordinates must

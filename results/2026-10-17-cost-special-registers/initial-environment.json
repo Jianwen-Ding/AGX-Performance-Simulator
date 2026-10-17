@@ -1,0 +1,38 @@
+{
+  "baseline_commit": "99b9179f8ac79a1110f2fbcb95996d5c63c8ce59",
+  "playground_commit": "05c8db782cdd19eeef94313585d898c8a10fb12b",
+  "machine": "x86_64",
+  "compiler": "rustc 1.99.1 (58cf8f9c3 2026-10-13)",
+  "profile": "opt-level=3, fat LTO, codegen-units=1, panic=abort; linker-features=-lld",
+  "source_sha256": {
+    "rust/src/cost.rs": "63b6fa763e1745c0007f531a0944b6431533a99c9761993605c4bbffb1fd3f97",
+    "rust/examples/cost_special_registers.rs": "9125d9c68219d84914d496803dccac40d7db1115ad928b6683c1b161c7731a78",
+    "scripts/bench_cost_special_registers.py": "2b80e7cf3f1922ab8c8050406cdaeeb9ca25c7730388838cb8bfa4144dbe1c8e"
+  },
+  "resource_sha256": {
+    "meta.json": "1d936e03528f40ef2ef372de9c0a89776fc97b82edeef7c198ff2feac7c43017",
+    "shared-full.json": "ca00e5580ce8932135af923876acfdbf964e446f5abccdb2fa05a130e9e692af",
+    "shared-granularity.json": "90110ef38624964319d5d65575288ab1481b66415ad59d645f94e3007f5256fa",
+    "width16.json": "09fe22e0951363e4fdd61133097114c805323c1ae15324e21afef53ae6afa802",
+    "width64.json": "3ca1d4fd8c4742f0c9bf9f09c01af99c89c4fad13cdf284cde05277a0d677e1f"
+  },
+  "standard_read_sha256": "f6bd167cac42f33c050d4c390823ea7ace3a75bbfb70213c7e0cadefdf51a8dc",
+  "sr_git_blobs": {
+    "results/2026-10-16-special-registers/quad.bin": "c573446eba895469abffe7c3e450b855f63b0047",
+    "results/2026-10-16-special-registers/hardware.json.gz": "49357351482c25d569de3c28b909d04370d68852",
+    "results/2026-10-16-special-registers/depth1.bin": "84477c6ae1e346d79e46da76c459867417d48b10",
+    "results/2026-10-16-special-registers/uniform.bin": "628b8d6211b9cbd5be162ffe13e2845b111a79db",
+    "results/2026-10-16-special-registers/depth2.bin": "3b1b57694af3cccfddf8fb828eadee6548877ee5",
+    "results/2026-10-16-special-registers/depth3.bin": "9d240c3f5012dc2cbf1a0b968c49a2bd5c1491f9",
+    "results/2026-10-16-special-registers/quad-depth2.bin": "acba4cc2e06c22d8293ce9fbe1fd83d84e1ced8b"
+  },
+  "baseline_materialization_note": "22 untouched Rust files differ from pinned main only by one terminal blank line; all compared after trimEnd. Cargo normalized the baseline lockfile to exactly match remote. Both builds used the same materialized modules.",
+  "binary_sha256": {
+    "rust/target/release/examples/cost_special_registers": "f5a9acd7b18c7f359765a48ee895154b3519466bf063dad9a4babc8d17d9b2a9",
+    "rust/target/release/examples/cost_trace": "1f1b008f30f9110a71adc5e4fd8dd4cc8c1475e393a33f31fcdee7c3359e2606",
+    "rust/target/release/examples/memory_trace": "b1e942e8a242a4fb1ab52a03d917bcf1b4887efd5f4e52d9cbdfaec8f222eb56",
+    "rust/target/release/examples/special_registers": "c40ae63c9c8d27087810cd487f918f88746fca5d3bf9948711202ced2b52e87d",
+    "rust/target/release/agx_run": "b21662296fbd20b5f64d217ac42a10a2e67ff8261ede18cf3469b26786707177",
+    "rust/target/release/agx_dispatch": "1cc55e70e73ddc64436c59d2ab09b7dd3fa76f6f5b3589e92223164178a9511f"
+  }
+}

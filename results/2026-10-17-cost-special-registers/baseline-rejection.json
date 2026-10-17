@@ -1,0 +1,4 @@
+{
+  "returncode": 1,
+  "stderr": "Traceback (most recent call last):\n  File \"/workspace/scratch/2ff2ed16ef96/Apple-M2-Playground/scripts/replay_cost_sr.py\", line 121, in <module>\n    main()\n  File \"/workspace/scratch/2ff2ed16ef96/Apple-M2-Playground/scripts/replay_cost_sr.py\", line 99, in main\n    require(result.returncode == 0, (result.stdout + result.stderr)[-3000:])\n  File \"/workspace/scratch/2ff2ed16ef96/Apple-M2-Playground/scripts/replay_cost_sr.py\", line 19, in require\n    raise AssertionError(detail)\nAssertionError: \nthread 'main' (6) panicked at examples/cost_special_registers.rs:56:9:\nassertion `left == right` failed: probe 0\n  left: [0, 4, 8, 12, 16, 20, 24, 28, 66, 70, 74, 78, 82, 86, 90, 94]\n right: [0, 4, 8, 12, 16, 20, 24, 28, 34, 38, 42, 46, 50, 54, 58, 62]\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n\n"
+}

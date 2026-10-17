@@ -1,0 +1,9 @@
+make: Entering directory '/workspace/scratch/2ff2ed16ef96/Apple-M2-Playground'
+python3 -B scripts/replay_cost_sr.py --simrepo "/workspace/scratch/2ff2ed16ef96/AGX-Performance-Simulator" --selftest
+6171 SR group probes pass: 3036 divergence, 3042 retained width, 93 resource metadata; no new GPU execution
+4 failure injections rejected (schema, width coverage/length, wrong lane value)
+python3 -B scripts/check_simulator_launch.py --run "/workspace/scratch/2ff2ed16ef96/AGX-Performance-Simulator/rust/target/release/agx_dispatch"
+34 invalid jobs and 3 malformed JSON lines isolated; valid controls unchanged (1/4 workers); no GPU
+python3 -B scripts/check_simulator_geometry.py --run "/workspace/scratch/2ff2ed16ef96/AGX-Performance-Simulator/rust/target/release/agx_run"
+functional geometry: 3 empty axes, 2 capacity errors, 3 partial-grid controls pass; memory unchanged
+make: Leaving directory '/workspace/scratch/2ff2ed16ef96/Apple-M2-Playground'

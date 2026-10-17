@@ -732,15 +732,14 @@ impl GroupCtx {
     pub fn lanes(&self) -> usize {
         (self.threads().saturating_sub(32 * self.group)).min(32) as usize
     }
-    fn local(&self, i: u32) -> [u32; 3] {
+    fn coordinate(&self, axis: usize, i: u32) -> u32 {
         let [x, y, _] = self.wg_size;
-        [i % x, (i / x) % y, i / (x * y)]
+        match axis { 0 => i % x, 1 => (i / x) % y, 2 => i / (x * y), _ => unreachable!() }
     }
     /// Special register `sr` for lane `t`, or None when not modelled.
     pub fn sr(&self, sr: u32, t: usize) -> Option<u32> {
         let l = self.threads();
         let i = 32 * self.group + t as u32;
-        let loc = self.local(i);
         Some(match sr {
             0..=2 => self.wg_id[sr as usize],
             4..=6 => self.wg_size[sr as usize - 4],
@@ -758,14 +757,14 @@ impl GroupCtx {
             // constant in compute under every launch parameter varied so far (meaning unknown)
             97 => 2048,
             114 => 136,
-            48..=50 => loc[sr as usize - 48],
+            48..=50 => self.coordinate(sr as usize - 48, i),
             51 => i,
             52 | 58 => i % 32,
             53 => i / 32,
             56 => i % 4,
             57 => 4.min(l - 4 * (i / 4)),
             59 => 32.min(l - 32 * (i / 32)),
-            80..=82 => self.wg_id[sr as usize - 80] * self.wg_size[sr as usize - 80] + loc[sr as usize - 80],
+            80..=82 => self.wg_id[sr as usize - 80] * self.wg_size[sr as usize - 80] + self.coordinate(sr as usize - 80, i),
             // constant in compute under all 10 recorded geometries (coverage/expected/geometry) and under divergence:
             // 12 / 13 imageblock width / height (no imageblock), 60 = 15 (Mesa: coverage_mask), 63 = 1 (Mesa:
             // is_active_thread)
@@ -913,6 +912,163 @@ struct PcInfo {
     check: bool,
     ureg: bool,
     access: Option<Box<crate::memtrace::Access>>,
+    sr: Option<SrRead>,
+}
+
+/// Immutable get_sr operands only; values and execution masks are never cached.
+struct SrRead { selector: u32, destination: usize, half: bool }
+
+impl SrRead {
+    fn new(name: &str, fields: &isa::Fields, ops: &[Operand]) -> Option<Self> {
+        if name != "get_sr" { return None; }
+        let (destination, half) = match ops.first()? {
+            Operand::Reg32(r, _) => (*r as usize, false),
+            Operand::Reg16(r, _) => (*r as usize, true),
+            _ => return None,
+        };
+        Some(Self { selector: fget(fields, "SR").unwrap_or(0) as u32, destination, half })
+    }
+
+    /// false preserves the approximate interpreter's skip/taint fallback for
+    /// unknown state (notably SR113 and absent launch metadata).
+    fn execute(&self, ctx: &GroupCtx, st: &mut exec::CoreState) -> Result<bool, String> {
+        let sr = self.selector;
+        let uniform = !matches!(sr, 16 | 48..=52 | 56..=59 | 80..=82);
+        let value = if uniform {
+            match ctx.sr(sr, 0) { Some(v) => v, None => return Ok(false) }
+        } else { 0 };
+        if uniform || sr == 59 {
+            let value = if sr == 59 { st.exec.iter().filter(|&&v| v).count() as u32 } else { value };
+            for t in 0..exec::SIMD_WIDTH {
+                if st.exec[t] { self.write(st, t, value)?; }
+            }
+            return Ok(true);
+        }
+        // Axis and global origin are uniform too: don't redispatch the full SR
+        // table (or recompute the origin) in each coordinate lane.
+        let coordinate = match sr {
+            48..=50 => Some((sr as usize - 48, false)),
+            80..=82 => Some((sr as usize - 80, true)),
+            _ => None,
+        };
+        if let Some((axis, global)) = coordinate {
+            let origin = if global { ctx.wg_id[axis] * ctx.wg_size[axis] } else { 0 };
+            let first = 32 * ctx.group;
+            for t in 0..exec::SIMD_WIDTH {
+                if st.exec[t] { self.write(st, t, origin + ctx.coordinate(axis, first + t as u32))?; }
+            }
+            return Ok(true);
+        }
+        let counts: [u32; 8] = if sr == 57 {
+            std::array::from_fn(|q| st.exec[4*q..4*q+4].iter().filter(|&&v| v).count() as u32)
+        } else { [0; 8] };
+        let mut ranks = [0u32; 8];
+        for t in 0..exec::SIMD_WIDTH {
+            if !st.exec[t] { continue; }
+            let value = match sr {
+                56 | 58 => {
+                    let q = if sr == 56 { t / 4 } else { 0 };
+                    let rank = ranks[q]; ranks[q] += 1; rank
+                }
+                57 => counts[t / 4],
+                _ => ctx.sr(sr, t).expect("known lane selector"),
+            };
+            self.write(st, t, value)?;
+        }
+        Ok(true)
+    }
+
+    fn write(&self, st: &mut exec::CoreState, t: usize, value: u32) -> Result<(), String> {
+        if self.half { st.set_reg16(self.destination, t, value as i128) }
+        else { st.set_reg32(self.destination, t, value as i128) }
+    }
+}
+
+#[cfg(test)]
+mod sr_tests {
+    use super::*;
+
+    fn context() -> GroupCtx {
+        GroupCtx { wg_size: [8, 4, 2], wg_id: [3, 2, 1], group: 1, core: 19, slot: 7, uniforms: vec![],
+            launch: SrLaunch { tg_bytes: 513, regs: 65, context: Some(47), pipeline: Some(0x1080), preamble: false } }
+    }
+
+    #[test]
+    fn cost_sr_reads_match_independent_mask_oracles_and_preserve_halves() {
+        for sr in (0..256).filter(|&sr| sr != 113) {
+            for half in [false, true] {
+                let read = SrRead { selector: sr, destination: if half { 8 } else { 4 }, half };
+                for mask in [0u32, u32::MAX, 0x55555555, 0x80808080, 0x00002001, 0xffff0000, 0x00001fff, 0x80000000] {
+                    let ctx = context();
+                    let mut st = exec::CoreState::new(8, None);
+                    for t in 0..32 {
+                        st.exec[t] = mask & (1 << t) != 0;
+                        st.set_reg32(4, t, 0xaabbccdd).unwrap(); st.set_reg32(5, t, 0x12345678).unwrap();
+                    }
+                    assert!(read.execute(&ctx, &mut st).unwrap());
+                    for t in 0..32 {
+                        let mut want = 0xaabbccdd;
+                        if mask & (1 << t) != 0 {
+                            let q = t / 4 * 4;
+                            let v = match sr {
+                                56 => (q..t).filter(|&i| mask & (1 << i) != 0).count() as u32,
+                                57 => (q..q+4).filter(|&i| mask & (1 << i) != 0).count() as u32,
+                                58 => (0..t).filter(|&i| mask & (1 << i) != 0).count() as u32,
+                                59 => mask.count_ones(),
+                                _ => ctx.sr(sr, t).unwrap(),
+                            };
+                            want = if half { 0xaabb0000 | (v & 0xffff) } else { v };
+                        }
+                        assert_eq!(st.get_reg32(4, t).unwrap() as u32, want, "sr={sr} half={half} mask={mask:x} lane={t}");
+                        assert_eq!(st.get_reg32(5, t).unwrap(), 0x12345678);
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn coordinate_fast_path_matches_cartesian_geometry_on_every_axis() {
+        for size in [[1, 1, 1], [6, 7, 1], [4, 3, 5], [8, 4, 2], [1, 16, 4]] {
+            let mut linear = 0;
+            for z in 0..size[2] { for y in 0..size[1] { for x in 0..size[0] {
+                let mut ctx = context(); ctx.wg_size = size; ctx.group = linear / 32;
+                let t = (linear % 32) as usize;
+                for axis in 0..3 {
+                    for global in [false, true] {
+                        let mut st = exec::CoreState::new(8, None); st.exec = [false; 32]; st.exec[t] = true;
+                        let read = SrRead { selector: if global { 80 } else { 48 } + axis as u32, destination: 4, half: false };
+                        assert!(read.execute(&ctx, &mut st).unwrap());
+                        let expected = [x, y, z][axis] + if global { ctx.wg_id[axis] * size[axis] } else { 0 };
+                        assert_eq!(st.get_reg32(4, t).unwrap(), expected as i128);
+                    }
+                }
+                linear += 1;
+            } } }
+        }
+    }
+
+    #[test]
+    fn cached_sr_operands_keep_unknown_fallback_and_resolve_launch_each_time() {
+        let mut ctx = context();
+        let mut st = exec::CoreState::new(8, None);
+        let read = SrRead { selector: 21, destination: 4, half: false };
+        for context in [Some(47), Some(91), None] {
+            ctx.launch.context = context;
+            assert_eq!(read.execute(&ctx, &mut st).unwrap(), context.is_some());
+            assert_eq!(st.get_reg32(4, 0).unwrap(), context.unwrap_or(91) as i128);
+        }
+        assert!(!SrRead { selector: 113, destination: 4, half: false }.execute(&ctx, &mut st).unwrap());
+        let mut code = crate::kernels::get_sr(7, 4);
+        code[1] |= 2; // odd encoded R aliases r4; it is not a 64-bit write
+        let n = isa::opcode_to_number(&code);
+        let d = isa::get_instruction_descriptor(n).unwrap(); let f = d.decode_fields(n);
+        let args = SrRead::new(d.name, &f, &d.fields_to_operands(&f).unwrap()).unwrap();
+        assert!(!args.half); assert_eq!(args.destination, 4);
+        st.set_reg32(5, 0, 0x12345678).unwrap(); args.execute(&ctx, &mut st).unwrap();
+        assert_eq!(st.get_reg32(5, 0).unwrap(), 0x12345678);
+        assert!(SrRead { selector: 7, destination: 100, half: false }.execute(&ctx, &mut st).is_err());
+    }
 }
 
 /// agx_cost.trace: dynamic pc sequence for one SIMD group (applegpu emulator; uniforms and memory
@@ -981,7 +1137,8 @@ impl<'a> PreparedTrace<'a> {
             // Preserve the approximate tracer's existing classification (no .TODO accesses).
             let access = crate::memtrace::Access::decode(desc.name, &fields, false);
             // Concurrent misses can decode independently; only the winning immutable value is retained.
-            let _ = cell.set(Box::new(PcInfo { desc, size, fields, ops, uses, dst, op, stop, jump, off, check, ureg, access }));
+            let sr = SrRead::new(desc.name, &fields, &ops);
+            let _ = cell.set(Box::new(PcInfo { desc, size, fields, ops, uses, dst, op, stop, jump, off, check, ureg, access, sr }));
         }
         Ok(cell.get().unwrap())
     }
@@ -1051,18 +1208,11 @@ impl<'a> PreparedTrace<'a> {
                 }
                 continue;
             }
-            let dname = info.desc.name;
             if let Some(w) = info.access.as_ref().and_then(|a| a.capture(&st)) {
                 out.mem.push(((out.pcs.len() - 1) as u32, w));
             }
-            if let (Some(c), "get_sr") = (ctx, dname) {
-                let sr = fget(&info.fields, "SR").unwrap_or(0) as u32;
-                if let (Some(Operand::Reg32(d, _)), Some(_)) = (info.ops.first(), c.sr(sr, 0)) {
-                    for t in 0..exec::SIMD_WIDTH {
-                        if st.exec[t] {
-                            st.set_reg32(*d as usize, t, c.sr(sr, t).unwrap() as i128)?;
-                        }
-                    }
+            if let (Some(c), Some(sr)) = (ctx, &info.sr) {
+                if sr.execute(c, &mut st)? {
                     for &h in &info.dst {
                         tainted[h as usize] = false;
                     }

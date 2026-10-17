@@ -1,0 +1,2 @@
+6171 SR group probes pass: 3036 divergence, 3042 retained width, 93 resource metadata; no new GPU execution
+4 failure injections rejected (schema, width coverage/length, wrong lane value)

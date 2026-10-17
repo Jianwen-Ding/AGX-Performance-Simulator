@@ -1,0 +1,5 @@
+make: Entering directory '/workspace/scratch/2ff2ed16ef96/Apple-M2-Playground'
+python3 -B scripts/verify_sr_resources.py --selftest
+{"passed": true, "errors": []}
+{"selftest_rejections": {"SR18 off by granule": true, "SR18 sweep value": true, "SR19 not rounded": true, "SR19 follows preamble": true, "shared changed other SR": true, "scan side effect": true, "r3 written": true, "16-bit high half lost": true, "missing selector": true}}
+make: Leaving directory '/workspace/scratch/2ff2ed16ef96/Apple-M2-Playground'

@@ -1,0 +1,12 @@
+{
+  "rust_tests": 44,
+  "exact_cases": 363,
+  "evidence_hashes_match": true,
+  "cost_sr_group_probes": 6171,
+  "functional_sr_comparisons": 1518,
+  "atomic_replays": 74,
+  "cost_failures": 0,
+  "unchanged_prediction_reports": 36,
+  "hashes_match_after_benchmarks": true,
+  "new_hardware_validation": false
+}

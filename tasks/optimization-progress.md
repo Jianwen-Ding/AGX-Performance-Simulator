@@ -306,3 +306,36 @@ hardware observation, instruction value, calibration or timing rebaseline.
 Next: cost::GroupCtx input guards and lazy coordinate calculations, resource-width
 replay, controlled profiling of partial-mask/data-dependent controls. M2 hardware
 and CPU profilers remain unavailable; SR113/hardware-only timing stay unvalidated.
+
+## 2026-10-17: cost-tracer special registers and retained width/resource probes
+
+Cache cost get_sr operands; resolve uniform values once per instruction and
+coordinate axes/global origins outside the lane loop. Support half-width writes
+with the other half preserved; SR56..59 now use actual execution-mask ranks/
+counts, not physical position/full-group size. SR16 stays physical. Unknown
+state retains skip/taint fallback; context-free/reference behavior is unchanged.
+Do not treat odd destinations as 64-bit writes.
+
+Playground adds `replay-simulator-cost-sr`: 6,171 reconstructed group probes
+(3,036 divergent SR, 3,042 recorded width, 93 resource sweep), with injective
+lane/value address encoding. These are not original shader executions. Odd-width
+recordings check only the observed adjacent register. Placement/time-varying
+exclusions are explicit. Four failure injections pass with normal/optimized
+Python; baseline correctly fails divergent ranks. Independent resource verifier
+passes its nine corruption checks. Retained data and manifests are unchanged.
+
+Final five-pair cost-SR medians improve 1.572-1.962x, including global-X 1.655x.
+Four-worker cost coalesced memory is 7.1% slower, functional scattered memory
+7.8% slower, partial-mask functional SR57 7.9% slower, ALU CLI 1.6% slower.
+No overall claim or resolved-prior-regression claim. All initial/axis/selected
+samples, A/A controls, hashes, rejection evidence and repros are retained in
+`results/2026-10-17-cost-special-registers/README.md`.
+
+Validation: 44 Rust tests/doc checks, 363 exact retained cases/pinned hashes,
+1,518 functional SR comparisons, 74 atomic replays plus independent evidence
+checks, launch/geometry gates, zero cost-verifier failures; all 36 complete
+prediction reports keep their existing hash. No new M2 validation or calibration.
+
+Next: compact/boxed optional SR metadata and controlled profiling of memory/
+partial-mask regressions; public GroupCtx guards; original resource-shader
+functional replay. M2/profilers unavailable; SR113 and new timing stay unvalidated.
