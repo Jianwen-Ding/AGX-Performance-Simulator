@@ -336,6 +336,11 @@ def cmd_record(a):
             log({'case': c.id, 'state': 'fault', 'error': str(ex)[:300]})
             if 'budget' in str(ex).lower():
                 raise
+            if not a.keep_going:
+                # Dispatches sent while the GPU recovers from a fault time out too: on 2026-10-12 one non-terminating
+                # while_icmp ugte turned into 6 control "faults" (and 2 safe if_fcmp cases) within 30 s.
+                sys.exit(f'stopped after the fault in {c.id}: check the kernel log and a control dispatch before resuming '
+                         f'(--keep-going to continue past faults)')
 
 
 def predict_timing(c, spec, mode):
@@ -417,6 +422,7 @@ def main():
             p.add_argument('--risky', action='store_true', help='also run may_fault cases')
             p.add_argument('--redo', action='store_true', help='re-record cases that already have a file')
             p.add_argument('--no-sim', action='store_true', help='skip the agx_run pre-GPU simulation (not recommended)')
+            p.add_argument('--keep-going', action='store_true', help='continue with the next case after a fault (default: stop)')
             p.add_argument('--modes', help='timing modes (default run_bench: latency,simd_issue,gpu)')
         if name == 'check':
             p.add_argument('--timing', action='store_true', help='also compare timing cases with the cost model')

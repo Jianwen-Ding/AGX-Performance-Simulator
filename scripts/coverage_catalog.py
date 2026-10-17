@@ -47,6 +47,7 @@ def raw(spec, text):
 
 ICC = {0: 'ueq', 1: 'ult', 2: 'ugt', 4: 'seq', 5: 'slt', 6: 'sgt', 8: 'nueq', 9: 'ugte', 10: 'ulte', 12: 'nseq', 13: 'sgte', 14: 'slte'}
 FCC = {0: 'eq', 1: 'lt', 2: 'gt', 3: 'ltn', 5: 'gte', 6: 'lte', 7: 'gtn', 8: 'neq', 9: 'nlt', 10: 'ngt', 13: 'ngte', 14: 'nlte'}
+WHILE_GUARD = 20   # trip bound of the guarded while_* cases (control_cases)
 
 
 def cc_form(base, cc, float_):
@@ -407,6 +408,36 @@ def control_cases():
         # while_* cases are may_fault.
         risk = 'may_fault' if name.startswith('while_') else 'safe'
         out.append(Case(f'control/{name}', 'control', 'cf-float / exec-control-cost', risk, 'functional', name, build, texts))
+    # The same while_* loops with a guard that bounds them whatever the condition under test does: the last instruction
+    # of the body is `while_icmp r0l, ult, r28, r29, 1` (the recorded agx_loop form) on a per-lane trip counter r28, so
+    # every lane with r0l <= 1 is off after WHILE_GUARD trips, both if `while` evaluates only active lanes (the
+    # simulator's reading) and if it re-evaluates r0l == 1 lanes. Lanes with r0l >= 2 stay off (agx_loop partial-SIMD-
+    # group runs). r10 holds NaN / +-inf in some lanes, so the NaN-aware float conditions are exercised too.
+    for kind, cc in [('icmp', c) for c in ICC.values()] + [('fcmp', c) for c in FCC.values()]:
+        t = f'while_fcmp r0l, {cc}, r22, r10, 1' if kind == 'fcmp' else f'while_icmp r0l, {cc}, r3, r20, 1'
+        name = f'while_guard_{kind}_{cc}'
+        def build(name=name, t=t):
+            RS = _rs()
+            load = RS.mov(27, 8) + RS.e('imadd r5, r1, r27, 0') + RS.e('iadd r26, r5, 4')
+            load += RS.e('device_load 0, i32, xyzw, r6_r7_r8_r9, u8_u9, r5, unsigned')
+            load += RS.e('device_load 0, i32, xyzw, r10_r11_r12_r13, u8_u9, r26, unsigned') + RS.e('wait 0') + RS.mov(2, 1000)
+            lp = RS.e('iadd r2, r2, r3') + RS.e('iadd r3, 1, r3.sx') + RS.mov(27, 0x3f000000) + RS.e('fadd32 r22, r22, r27')
+            lp += RS.e('iadd r28, 1, r28.sx') + RS.e(t) + RS.e('while_icmp r0l, ult, r28, r29, 1')
+            head = RS.mov(3, 0) + RS.mov(22, 0) + RS.mov(28, 0) + RS.mov(29, WHILE_GUARD)
+            head += RS.mov(27, 7) + RS.e('and r20, r6, r27') + RS.e('iadd r20, r20, 1')
+            head += RS.e('if_fcmp r0l, eq, 0.0, 0.0, 1', 'push_exec r0l, 1')
+            body = head + lp + RS.e(f'jmp_exec_any pc-{len(lp)}', f'jmp_exec_any pc-{len(lp)}') + RS.e('pop_exec r0l, 1')
+            b = load + body + RS.e('iadd r2, r2, r28')
+            rng = random.Random(name)
+            special = [0x7fc00000, 0x7f800000, 0xff800000, 0x00000000, 0x80000000, 0x41000000]   # NaN, +-inf, +-0, 8.0
+            table = []
+            for i in range(N):
+                f0 = special[i % 8] if i % 8 < len(special) and i % 3 == 0 else struct.unpack('<I', struct.pack('<f', rng.uniform(-4, 4)))[0]
+                table += [rng.randrange(64) for _ in range(4)] + [f0, struct.unpack('<I', struct.pack('<f', rng.uniform(-4, 4)))[0]]
+                table += [rng.randrange(64) for _ in range(2)]
+            return ('control', name, f'{t} + guard while_icmp ult r28 < {WHILE_GUARD}', b, N, WG, 64, 0, table)
+        out.append(Case(f'control/{name}', 'control', 'cf-float / exec-control-cost', 'may_fault', 'functional', name, build,
+                        [(t, None)]))
     # nesting depth 1..8 (r0l counter) and push counts n = 1..3
     for depth in range(1, 9):
         def build(depth=depth):
