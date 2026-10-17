@@ -183,6 +183,87 @@ MODELS_32 = {
 
 
 # ---------------------------------------------------------------------------------------------------------------
+# Family D: what happens after ops 11-15 (family B saw no memory change and no harness store)
+
+D_BEFORE, D_RET, D_R1, D_REEN = 3000, 3100, 3200, 3300   # table word offsets (+ lane)
+
+
+def probes_d():
+    """before X: marker 0x11110000 + i -> D_BEFORE + i. After X: r14 -> D_RET + i, r1 -> D_R1 + i, then
+    mov_imm r0l, 0 (the harness prologue's own instruction) and r14 -> D_REEN + i. Every index is computed before X."""
+    import record_suite as RS
+    st = RS.agx_loop.store
+    pre, _ = common(1)
+    for reg, off in ((20, D_BEFORE), (21, D_RET), (22, D_R1), (23, D_REEN)):
+        pre += RS.mov(27, off) + RS.e(f'iadd r{reg}, r1, r27')
+    pre += RS.mov(27, 0x11110000) + RS.e('iadd r15, r1, r27') + st(15, 8, 20) + RS.e('wait 0')
+    suf = RS.e('wait 0') + st(14, 8, 21) + st(1, 8, 22) + RS.e('wait 0') + RS.e('mov_imm r0l, 0') + st(14, 8, 23)
+    suf += RS.e('wait 0') + RS.e('iadd r2, r14, 0')
+    t = table_b()
+    tab = list(t); lanes = []
+    for i in range(N):
+        old = t[i]; lanes.append(old); tab[i] = (old + t[S_WORD + 2 * i]) & 0xffffffff
+        tab[D_BEFORE + i], tab[D_RET + i], tab[D_R1 + i], tab[D_REEN + i] = 0x11110000 + i, old, i, old
+    return [PV.Probe(f'D_op{op}_rt1', pre, atomic_bytes(0, 1), atomic_bytes(op, 1), suf, 0xf << 6, N, WG, REGS, t,
+                     lambda o, tb: out_ok(o, lanes) and tb == tab) for op in range(11, 16)]
+
+
+def analyse_d(r):
+    t1, lanes = r['table_after'], r['out'][8:8 + N]
+    seen = lambda off: sum(t1[off + i] != 0 for i in range(N))
+    return {'before_marker': sum(t1[D_BEFORE + i] == 0x11110000 + i for i in range(N)), 'after_ret_stored': seen(D_RET),
+            'after_r1_stored': seen(D_R1), 'r1_intact': sum(t1[D_R1 + i] == i for i in range(N)),
+            'reenabled_stored': seen(D_REEN), 'harness_stored': sum(x != 0xcdcdcdcd for x in lanes),
+            'ret_values': sorted({t1[D_RET + i] for i in range(N)} | {t1[D_REEN + i] for i in range(N)})[:8]}
+
+
+E_N, E_WG, E_BEFORE, E_AFTER = 128, 64, 3300, 3100   # 2 workgroups x 2 SIMD groups; marker words + gid
+
+
+def probes_e(ops=(11,), before=False, skip=False):
+    """Scope of the op 11-15 stop: only lanes with (gid & 0x21) == 0x21 (odd lanes of the second SIMD group of each
+    workgroup) execute X, inside if_icmp / pop_exec. Afterwards every lane stores 0x22220000 + gid -> E_AFTER + gid."""
+    import record_suite as RS
+    st = RS.agx_loop.store
+    pre, _ = common(1)
+    pre += RS.mov(27, E_AFTER) + RS.e('iadd r21, r1, r27') + RS.mov(27, 0x22220000) + RS.e('iadd r15, r1, r27')
+    if before:   # every lane stores 0x11110000 + gid -> E_BEFORE + gid before the if
+        pre += RS.mov(27, E_BEFORE) + RS.e('iadd r20, r1, r27') + RS.mov(27, 0x11110000) + RS.e('iadd r16, r1, r27')
+        pre += st(16, 8, 20) + RS.e('wait 0')
+    pre += RS.mov(27, 0x21) + RS.e('and r24, r1, r27') + RS.e('if_icmp r0l, ueq, r24, r27, 1')
+    if skip:     # Mesa's if: SIMD groups with no active lane jump over X (8 bytes) and never issue it
+        pre += RS.jnone(6 + 8)
+    suf = RS.e('wait 0') + RS.e('pop_exec r0l, 1') + st(15, 8, 21) + RS.e('wait 0') + RS.e('iadd r2, r14, 0')
+    t = table_b()
+    for i in range(N, E_N):
+        t[i], t[S_WORD + 2 * i], t[S_WORD + 2 * i + 1] = t[i % N], t[S_WORD + 2 * (i % N)], t[S_WORD + 2 * (i % N) + 1]
+    tab = list(t); lanes = []
+    for i in range(E_N):
+        hit = i & 0x21 == 0x21
+        lanes.append(t[i] if hit else 0xdeadbeef)
+        if hit:
+            tab[i] = (t[i] + t[S_WORD + 2 * i]) & 0xffffffff
+        tab[E_AFTER + i] = 0x22220000 + i
+        if before:
+            tab[E_BEFORE + i] = 0x11110000 + i
+    words = 8 + E_N + 8 + 16
+    ok = lambda o, tb: (o[8:8 + E_N] == lanes and o[:8] == [0xcdcdcdcd] * 8 and o[-16:] == [0xa5a50000 + i for i in range(16)]
+                        and len(o) == words and tb == tab)
+    return [PV.Probe(f'E_op{op}_scope' + ('_before' if before else '') + ('_skip' if skip else ''), pre, atomic_bytes(0, 1), atomic_bytes(op, 1), suf, 0xf << 6, E_N, E_WG, REGS, t, ok)
+            for op in ops]
+
+
+def analyse_e(r):
+    t1, lanes = r['table_after'], r['out'][8:8 + E_N]
+    groups = {}
+    for i in range(E_N):
+        key = f'wg{i // E_WG}_simd{(i % E_WG) // 32}_{"exec" if i & 0x21 == 0x21 else ("odd" if i & 1 else "even")}'
+        g = groups.setdefault(key, [0, 0, 0, 0])
+        g[0] += 1; g[1] += t1[E_AFTER + i] == 0x22220000 + i; g[2] += lanes[i] != 0xcdcdcdcd; g[3] += t1[E_BEFORE + i] == 0x11110000 + i
+    return {k: f'{v[3]}/{v[0]} before-marker, {v[1]}/{v[0]} after-marker, {v[2]}/{v[0]} harness store' for k, v in sorted(groups.items())}
+
+
+# ---------------------------------------------------------------------------------------------------------------
 
 def analyse(d):
     rows = []
@@ -190,6 +271,10 @@ def analyse(d):
         r = json.loads(p.read_text())
         if 'fault' in r:
             rows.append({'probe': r['name'], 'fault': r['fault'][:160]}); continue
+        if r['name'].startswith('E_'):
+            rows.append({'probe': r['name'], 'deterministic': r['deterministic'], **analyse_e(r)}); continue
+        if r['name'].startswith('D_'):
+            rows.append({'probe': r['name'], 'deterministic': r['deterministic'], **analyse_d(r)}); continue
         t0, t1, lanes = r['table_in'], r['table_after'], r['out'][8:8 + N]
         changed = [i for i in range(len(t0)) if t0[i] != t1[i]]
         row = {'probe': r['name'], 'deterministic': r['deterministic'], 'changed_words': changed[:80], 'n_changed': len(changed),
@@ -219,12 +304,13 @@ def analyse(d):
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest='cmd', required=True)
-    r = sub.add_parser('run'); r.add_argument('--family', choices=['A', 'B'], required=True)
+    r = sub.add_parser('run'); r.add_argument('--family', choices=['A', 'B', 'D', 'E'], required=True)
     r.add_argument('--only'); r.add_argument('--dry', action='store_true'); r.add_argument('--out', type=Path, default=OUT / 'raw')
     s = sub.add_parser('analyse'); s.add_argument('dir', type=Path, nargs='?', default=OUT / 'raw')
     a = ap.parse_args()
     if a.cmd == 'run':
-        ps = probes_a() if a.family == 'A' else probes_b()
+        PV.cov.install()
+        ps = {'A': probes_a, 'B': probes_b, 'D': probes_d, 'E': lambda: probes_e() + probes_e(before=True) + probes_e(before=True, skip=True)}[a.family]()
         if a.only:
             ps = [p for p in ps if p.name == a.only]
         PV.run(ps, a.out, dry=a.dry)
