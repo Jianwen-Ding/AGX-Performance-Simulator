@@ -70,6 +70,44 @@ impl Default for Launch {
     }
 }
 
+struct Geometry {
+    dims: [u64; 3],
+    workgroups: u64,
+    threads: u32,
+}
+
+impl Launch {
+    /// Check the model's input domain before decoding, tracing or allocating
+    /// workgroup state. This is not a claim of hardware support for every input.
+    pub fn validate(&self) -> Result<(), String> {
+        self.geometry().map(|_| ())
+    }
+
+    fn geometry(&self) -> Result<Geometry, String> {
+        if self.grid.contains(&0) { return Err("grid dimensions must be nonzero (empty dispatches are not modelled)".into()); }
+        let threads = self.wg.iter().try_fold(1u32, |n, &v| n.checked_mul(v)).ok_or("workgroup size overflows")?;
+        if threads == 0 || threads > 1024 { return Err("workgroup must contain 1..1024 threads with nonzero dimensions".into()); }
+        if self.cores == 0 || self.clusters.contains(&0) { return Err("core and cluster counts must be nonzero".into()); }
+        if !self.clock_mhz.is_finite() || self.clock_mhz <= 0.0 { return Err("clock_mhz must be finite and positive".into()); }
+        if !self.dram_gbps.is_finite() || self.dram_gbps <= 0.0 { return Err("dram_gbps must be finite and positive".into()); }
+        for (name, v) in [("launch_ns", self.launch_ns), ("wg_launch_ns", self.wg_launch_ns), ("group_launch_ns", self.group_launch_ns)] {
+            if !v.is_finite() || v < 0.0 { return Err(format!("{} must be finite and nonnegative", name)); }
+        }
+        if self.uniforms.iter().any(|&(u, _)| u >= 256) { return Err("uniform register index exceeds u255".into()); }
+        if self.tg_bytes > self.tg_capacity { return Err("threadgroup memory exceeds the configured per-core capacity".into()); }
+        let (cap, resident) = occupancy(self);
+        let gpw = threads.div_ceil(32);
+        if resident == 0 { return Err(format!("workgroup of {} SIMD groups exceeds the {}-group occupancy limit", gpw, cap)); }
+        let dims: [u64; 3] = std::array::from_fn(|i| self.grid[i].div_ceil(self.wg[i]) as u64);
+        let workgroups = dims.iter().try_fold(1u64, |n, &d| n.checked_mul(d)).ok_or("workgroup count exceeds u64")?;
+        Ok(Geometry { dims, workgroups, threads })
+    }
+}
+
+fn wg_coords(dims: [u64; 3], k: u64) -> [u32; 3] {
+    [(k % dims[0]) as u32, ((k / dims[0]) % dims[1]) as u32, (k / dims[0] / dims[1]) as u32]
+}
+
 #[derive(Clone, Debug, Default)]
 pub struct Report {
     pub workgroups: u64,
@@ -86,20 +124,22 @@ pub struct Report {
     pub warnings: Vec<String>,
 }
 
-/// (resident SIMD groups per core allowed by registers and workgroup size, resident workgroups per core)
+/// (resident SIMD groups per core allowed by registers and workgroup size, resident workgroups per core).
+/// Invalid/impossible resource declarations have zero resident workgroups; never panic on them.
 pub fn occupancy(l: &Launch) -> (u32, u32) {
-    let halves = l.regs.max(8);
-    let mut cap = 96u32.min(2 * (3328 / (2 * halves)));
-    let threads = l.wg[0] * l.wg[1] * l.wg[2];
+    let halves = l.regs.max(8) as u64;
+    let mut cap = 96u32.min((2 * (3328 / (2 * halves))) as u32);
+    let Some(threads) = l.wg.iter().try_fold(1u32, |n, &v| n.checked_mul(v)) else { return (0, 0); };
+    if threads == 0 || threads > 1024 { return (0, 0); }
     if threads <= 32 {
         cap = cap.min(55);
     } else if threads <= 64 {
         cap = cap.min(84);
     }
     let gpw = threads.div_ceil(32);
-    let mut wgs = (cap / gpw).max(1);
+    let mut wgs = cap / gpw;
     if l.tg_bytes > 0 {
-        wgs = wgs.min((l.tg_capacity / l.tg_bytes).max(1));
+        wgs = wgs.min(l.tg_capacity / l.tg_bytes);
     }
     (cap, wgs)
 }
@@ -110,11 +150,9 @@ pub fn simulate(code: &[u8], l: &Launch, p: &Params) -> Result<Report, String> {
 
 /// `simulate` with the SIMD groups' paths from `tracer` (None: `cost::trace_group`).
 pub fn simulate_with(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer>) -> Result<Report, String> {
+    let Geometry { dims, workgroups: n, threads } = l.geometry()?;
     let ins = cost::decode(code, p)?;
     let prepared = tracer.is_none().then(|| cost::PreparedTrace::new(code));
-    let dims: Vec<u32> = (0..3).map(|i| l.grid[i].div_ceil(l.wg[i].max(1))).collect();
-    let n = dims.iter().map(|&d| d as u64).product::<u64>();
-    let threads = l.wg[0] * l.wg[1] * l.wg[2];
     let gpw = threads.div_ceil(32);
     let (cap, r) = occupancy(l);
     let mut rep = Report { workgroups: n, groups_per_wg: gpw, group_cap_per_core: cap, wgs_per_core: r, ..Default::default() };
@@ -132,10 +170,7 @@ pub fn simulate_with(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer
     let mm = MemModel { clock_mhz: l.clock_mhz, active_cores: (cores.min(n)) as f64, warm: false, dram_gbps: l.dram_gbps, ..Default::default() };
     let device_pcs: std::collections::HashSet<usize> =
         ins.iter().filter(|i| i.name == "device_load" || i.name == "device_store").map(|i| i.pc).collect();
-    let wg_coords = |k: u64| -> [u32; 3] {
-        let k = k as u32;
-        [k % dims[0], (k / dims[0]) % dims[1], k / (dims[0] * dims[1])]
-    };
+    let wg_coords = |k| wg_coords(dims, k);
     let sim_wave = |w: u64| -> Result<(u64, f64, Vec<String>), String> {
         let first = w * r as u64;
         let count = (m - first).min(r as u64);
@@ -144,7 +179,7 @@ pub fn simulate_with(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer
         let mut warn = vec![];
         // (workgroup, group, slot) of every SIMD group; their traces are independent (emulated in parallel)
         let jobs: Vec<(u64, u32, u32)> = (0..count).flat_map(|i| (0..gpw).map(move |g| (i, g, i as u32 * gpw + g))).collect();
-        let wg_at = |i: u64| wg_coords(((first + i) * cores).min(n - 1)); // representative workgroups spread over the grid
+        let wg_at = |i: u64| wg_coords((first + i).saturating_mul(cores).min(n - 1)); // representative workgroups spread over the grid
         let traced: Vec<Result<Trace, String>> = match tracer {
             Some(tr) => {
                 let wgs: Vec<u64> = (0..count).collect();
@@ -245,13 +280,15 @@ pub fn simulate_with(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer
     let simulated: u64 = todo.len() as u64;
     total += first_cycles * (waves - simulated.min(waves)) as f64;
     rep.core_cycles = total;
-    rep.launch_core_ns = (m as f64 * l.wg_launch_ns).max((m * gpw as u64) as f64 * l.group_launch_ns);
+    rep.launch_core_ns = (m as f64 * l.wg_launch_ns).max((m as u128 * gpw as u128) as f64 * l.group_launch_ns);
     rep.time_ns = (total / l.clock_mhz * 1000.0).max(rep.launch_core_ns) + l.launch_ns;
+    if !rep.time_ns.is_finite() { return Err("predicted time is non-finite for this launch".into()); }
     Ok(rep)
 }
 
 /// Workgroups on the busiest core: even split over clusters, then over each cluster's cores.
 pub fn busiest_core_wgs(n: u64, l: &Launch) -> u64 {
+    if l.cores == 0 || l.clusters.contains(&0) { return 0; }
     let k = l.clusters.len() as u64;
     if k == 0 || l.clusters.iter().map(|&c| c as u64).sum::<u64>() != l.cores as u64 {
         return n.div_ceil(l.cores as u64);
@@ -259,5 +296,88 @@ pub fn busiest_core_wgs(n: u64, l: &Launch) -> u64 {
     let share = n.div_ceil(k);
     let smallest = *l.clusters.iter().min().unwrap() as u64;
     share.div_ceil(smallest)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn invalid_launches_fail_before_decode_or_external_trace() {
+        let mut cases = vec![];
+        for wg in [[0, 1, 1], [1, 0, 1], [1, 1, 0], [1025, 1, 1], [65536, 65536, 1]] {
+            cases.push((Launch { wg, ..Default::default() }, "workgroup"));
+        }
+        cases.push((Launch { grid: [0, 1, 1], ..Default::default() }, "grid"));
+        cases.push((Launch { grid: [u32::MAX; 3], wg: [1; 3], ..Default::default() }, "workgroup count"));
+        cases.push((Launch { cores: 0, ..Default::default() }, "core"));
+        cases.push((Launch { clusters: vec![0, 38], ..Default::default() }, "cluster"));
+        cases.push((Launch { tg_bytes: 65537, ..Default::default() }, "threadgroup memory"));
+        cases.push((Launch { regs: u32::MAX, ..Default::default() }, "occupancy"));
+        cases.push((Launch { uniforms: vec![(usize::MAX, 0)], ..Default::default() }, "uniform"));
+        for v in [0.0, -1.0, f64::NAN, f64::INFINITY, f64::NEG_INFINITY] {
+            cases.push((Launch { clock_mhz: v, ..Default::default() }, "clock_mhz"));
+            cases.push((Launch { dram_gbps: v, ..Default::default() }, "dram_gbps"));
+        }
+        for v in [-1.0, f64::NAN, f64::INFINITY] {
+            cases.push((Launch { launch_ns: v, ..Default::default() }, "launch_ns"));
+            cases.push((Launch { wg_launch_ns: v, ..Default::default() }, "wg_launch_ns"));
+            cases.push((Launch { group_launch_ns: v, ..Default::default() }, "group_launch_ns"));
+        }
+        let p = Params::new().unwrap();
+        let no_trace = |_: [u32; 3]| -> Result<Vec<Trace>, String> { panic!("invalid launch called external tracer") };
+        for (l, message) in cases {
+            let expected = l.validate().unwrap_err();
+            assert!(expected.contains(message), "{}", expected);
+            assert_eq!(simulate_with(&[0xff], &l, &p, Some(&no_trace)).unwrap_err(), expected);
+        }
+    }
+
+    #[test]
+    fn occupancy_keeps_retained_rules_and_never_invents_a_resident_workgroup() {
+        // Playground occupancy finding: G14C, register-pair allocation and 64 KiB shared memory.
+        for (regs, cap) in [(16, 96), (32, 96), (40, 82), (48, 68), (56, 58), (64, 52), (72, 46),
+                            (80, 40), (96, 34), (128, 26), (160, 20), (192, 16), (248, 12)] {
+            assert_eq!(occupancy(&Launch { regs, wg: [128, 1, 1], ..Default::default() }), (cap, cap / 4));
+        }
+        for (tg_bytes, resident) in [(1024, 24), (4096, 16), (12288, 5), (24576, 2), (32768, 2), (49152, 1), (65536, 1)] {
+            assert_eq!(occupancy(&Launch { regs: 16, wg: [128, 1, 1], tg_bytes, ..Default::default() }), (96, resident));
+        }
+        for wg in [[0; 3], [u32::MAX; 3], [1025, 1, 1]] {
+            assert_eq!(occupancy(&Launch { wg, ..Default::default() }), (0, 0));
+        }
+        assert_eq!(occupancy(&Launch { regs: u32::MAX, ..Default::default() }), (0, 0));
+        assert_eq!(occupancy(&Launch { tg_bytes: 65537, ..Default::default() }).1, 0);
+        assert_eq!(busiest_core_wgs(1, &Launch { cores: 0, ..Default::default() }), 0);
+        assert_eq!(busiest_core_wgs(1, &Launch { clusters: vec![0, 38], ..Default::default() }), 0);
+        // Keep existing custom-core fallback, zero-overhead settings and minimum-register normalization.
+        let l = Launch { cores: 2, regs: 0, launch_ns: 0.0, wg_launch_ns: 0.0, group_launch_ns: 0.0, ..Default::default() };
+        l.validate().unwrap();
+        assert_eq!(busiest_core_wgs(5, &l), 3);
+    }
+
+    #[test]
+    fn large_coordinates_do_not_truncate_to_u32_or_overflow_xy() {
+        let dims = [65536, 65536, 2];
+        assert_eq!(wg_coords(dims, (1u64 << 32) + 65536 + 7), [7, 1, 1]);
+        for k in [0, 65535, 65536, (1u64 << 32) - 1, 1u64 << 32, (1u64 << 33) - 1] {
+            let [x, y, z] = wg_coords(dims, k).map(u64::from);
+            assert_eq!(x + dims[0] * (y + dims[1] * z), k);
+        }
+        let l = Launch { grid: [65536, 65536, 2], wg: [1; 3], cores: 1, clusters: vec![], mem: false, ..Default::default() };
+        let seen = std::sync::Mutex::new(vec![]);
+        let tracer = |wg| { seen.lock().unwrap().push(wg); Ok(vec![Trace { pcs: vec![0], ..Default::default() }]) };
+        let report = simulate_with(&[0x88, 0], &l, &Params::new().unwrap(), Some(&tracer)).unwrap();
+        assert_eq!(report.workgroups, 1u64 << 33);
+        assert_eq!(report.simulated_waves.len(), 2);
+        assert!(seen.lock().unwrap().iter().any(|w| w[2] == 1));
+        assert!(report.time_ns.is_finite()); // synthetic coordinate check, not hardware timing validation
+    }
+
+    #[test]
+    fn finite_inputs_cannot_silently_serialize_an_infinite_time() {
+        let l = Launch { clock_mhz: f64::MIN_POSITIVE, mem: false, ..Default::default() };
+        assert!(simulate(&[0x88, 0], &l, &Params::new().unwrap()).unwrap_err().contains("non-finite"));
+    }
 }
 

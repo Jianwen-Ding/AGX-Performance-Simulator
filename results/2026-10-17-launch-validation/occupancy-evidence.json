@@ -1,0 +1,30 @@
+{
+  "repository": "Jianwen-Ding/Apple-M2-Playground",
+  "commit": "1f43de7679229cc3973f63fd0f5704d45e7c7e40",
+  "files": [
+    {
+      "path": "results/2026-10-11-occupancy/lx128-sweep.json.gz",
+      "sha": "71c252d37c39510369942cf115b1caf984ad25cf"
+    },
+    {
+      "path": "results/2026-10-11-occupancy/lx256-points.json.gz",
+      "sha": "c670a707709d1b5b41d85076a3bbe58eaf9767be"
+    },
+    {
+      "path": "results/2026-10-11-occupancy/lx32-low.json.gz",
+      "sha": "1cd7513649766d75352f6852e85a93b820069dbb"
+    },
+    {
+      "path": "results/2026-10-11-occupancy/lx64-points.json.gz",
+      "sha": "5160e98e10839c502a5fdc020a277f12c379beb4"
+    },
+    {
+      "path": "results/2026-10-11-occupancy/tg-sweep-lx128.json",
+      "sha": "537e2f860275363f92abe2789883aae26a6beff1"
+    },
+    {
+      "path": "results/2026-10-11-occupancy/tg-sweep-lx256.json",
+      "sha": "528b7ec115fdf362a803f22e22a005b4c1b14cad"
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+make: Entering directory '/workspace/scratch/2ff2ed16ef96/Apple-M2-Playground'
+python3 -B scripts/verify_occupancy.py
+ok   128-lane sweep: 30 register counts x 2 repeats
+ok   every point equals min(96, 2*floor(3328/(2g)))
+ok   every per-core counter returned to zero
+ok   32-lane workgroups cap below the register model at low counts (max 57)
+ok   64-lane workgroups follow the model at 48+ halves (16 halves: 84)
+ok   256-lane workgroups follow the model at 48+ halves (16 halves: 96)
+ok   threadgroup memory, 128-lane workgroups: resident groups = min(96, groups/wg * floor(65536 / declared bytes)): 1024:96, 4096:64, 8192:32, 12288:20, 16384:16, 20480:12, 24576:8, 32768:8, 49152:4, 65280:4, 65536:4
+ok   threadgroup memory, 256-lane workgroups: resident groups = min(96, groups/wg * floor(65536 / declared bytes)): 2048:96, 8192:64, 16384:32, 22016:16, 24576:16
+0 failures
+make: Leaving directory '/workspace/scratch/2ff2ed16ef96/Apple-M2-Playground'

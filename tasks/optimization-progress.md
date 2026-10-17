@@ -217,3 +217,33 @@ No hardware observation, semantics, calibration or expected output changed.
 Next: no-change A/A controls and CPU profiling of compact/active-tail regressions,
 performance launch guards, resource replay and real data-dependent profiles.
 New M2 hardware validation remains unavailable.
+
+## 2026-10-17: launch input domain and batch fault isolation
+
+Add `Launch::validate` before decode/tracing; reject zero/overflowing dimensions,
+unrepresentable workgroup counts, invalid topology/resources/uniforms and bad
+timing inputs. Fix occupancy overflow, impossible one-workgroup fallback and
+u32 truncation/XY overflow in large-grid coordinates. Reject non-finite derived
+time. Empty grids now explicitly report not modelled (functional no-op unchanged).
+Keep all valid occupancy/launch rules and custom-core fallback unchanged.
+
+CLI parsing is fallible; malformed JSON/argument arrays produce ordered batch
+errors instead of aborting later jobs. Validate before materializing buffers or
+reading shaders/preambles. Playground's new `verify-simulator-launch` gate checks
+34 invalid jobs, three bad JSON lines and unchanged serial/parallel controls;
+failure injection rejects the old binary even with optimized Python.
+
+Validation: 34 Rust tests/doc checks; 363 exact retained replays; 74 atomic
+replays and independent evidence verification; zero cost-verifier and retained
+occupancy-verifier failures; all 36 complete predictions match the existing hash.
+No hardware evidence, opcode semantics, calibration or expected output changed.
+
+Five-pair ALU dispatch control: 16.678 -> 16.179 ms, but no speedup claim.
+Same-binary A/A dispatch labels differ 4.5% in ratio, and memory A/A ratios span
+0.900-1.078x. Prior regressions remain unresolved; this variability does not
+establish their cause. Raw samples, repros and scope:
+`results/2026-10-17-launch-validation/README.md`.
+
+Next: controlled CPU profiling (perf/valgrind unavailable here), lower-level
+geometry invariants, resource SR replay and data-dependent workloads. New M2
+hardware validation remains unavailable.

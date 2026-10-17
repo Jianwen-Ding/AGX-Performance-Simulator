@@ -1,0 +1,30 @@
+[
+  {
+    "build": "baseline",
+    "optimized_python": false,
+    "returncode": 1,
+    "stdout": "",
+    "stderr": "Traceback (most recent call last):\n  File \"/workspace/scratch/2ff2ed16ef96/Apple-M2-Playground/scripts/check_simulator_launch.py\", line 118, in <module>\n    main()\n  File \"/workspace/scratch/2ff2ed16ef96/Apple-M2-Playground/scripts/check_simulator_launch.py\", line 111, in main\n    result = check(args.run.resolve())\n             ^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/workspace/scratch/2ff2ed16ef96/Apple-M2-Playground/scripts/check_simulator_launch.py\", line 70, in check\n    require(result.returncode == 1 and needle in result.stderr, (args, result.returncode, result.stderr))\n  File \"/workspace/scratch/2ff2ed16ef96/Apple-M2-Playground/scripts/check_simulator_launch.py\", line 16, in require\n    raise AssertionError(detail)\nAssertionError: (['/workspace/scratch/2ff2ed16ef96/agx-launch-check-e7wzh3p1/stop.bin', '--grid', '64', '--wg', '32', '--no-mem', '--wg', '0'], -6, \"\\nthread 'main' (8) panicked at src/dispatch.rs:100:19:\\nattempt to divide by zero\\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\\n\")\n"
+  },
+  {
+    "build": "current",
+    "optimized_python": false,
+    "returncode": 0,
+    "stdout": "34 invalid jobs and 3 malformed JSON lines isolated; valid controls unchanged (1/4 workers); no GPU\n",
+    "stderr": ""
+  },
+  {
+    "build": "baseline",
+    "optimized_python": true,
+    "returncode": 1,
+    "stdout": "",
+    "stderr": "Traceback (most recent call last):\n  File \"/workspace/scratch/2ff2ed16ef96/Apple-M2-Playground/scripts/check_simulator_launch.py\", line 118, in <module>\n    main()\n  File \"/workspace/scratch/2ff2ed16ef96/Apple-M2-Playground/scripts/check_simulator_launch.py\", line 111, in main\n    result = check(args.run.resolve())\n             ^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/workspace/scratch/2ff2ed16ef96/Apple-M2-Playground/scripts/check_simulator_launch.py\", line 70, in check\n    require(result.returncode == 1 and needle in result.stderr, (args, result.returncode, result.stderr))\n  File \"/workspace/scratch/2ff2ed16ef96/Apple-M2-Playground/scripts/check_simulator_launch.py\", line 16, in require\n    raise AssertionError(detail)\nAssertionError: (['/workspace/scratch/2ff2ed16ef96/agx-launch-check-9l8o8n46/stop.bin', '--grid', '64', '--wg', '32', '--no-mem', '--wg', '0'], -6, \"\\nthread 'main' (57) panicked at src/dispatch.rs:100:19:\\nattempt to divide by zero\\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\\n\")\n"
+  },
+  {
+    "build": "current",
+    "optimized_python": true,
+    "returncode": 0,
+    "stdout": "34 invalid jobs and 3 malformed JSON lines isolated; valid controls unchanged (1/4 workers); no GPU\n",
+    "stderr": ""
+  }
+]

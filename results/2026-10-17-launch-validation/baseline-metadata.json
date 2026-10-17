@@ -1,0 +1,10 @@
+{
+  "baseline_commit": "38e13adde4a10dce7e60131c400352b0452d5f6a",
+  "baseline_sha256": {
+    "agx_dispatch": "0860ef5a811baf45115100479c310db601ae3fb18bc5104e038f867ad916c3b3",
+    "cost_trace": "e839e89ac072407441b02ece1c6278925bcfe267fc5fea68814f5e13d7e3fac6",
+    "memory_trace": "88c933f6e7bc3cb2882549aeadccd76ae7566df0a0c383ade127ef8408ed1d3c"
+  },
+  "aa_note": "baseline and current labels use the same executable path and bytes in each no-change experiment",
+  "profiling": "perf and valgrind are not installed; no instruction-level samples collected"
+}

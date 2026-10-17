@@ -1,0 +1,135 @@
+[
+  {
+    "args": [
+      "--wg",
+      "0"
+    ],
+    "baseline": {
+      "returncode": -6,
+      "stdout": "",
+      "stderr": "\nthread 'main' (5) panicked at src/dispatch.rs:100:19:\nattempt to divide by zero\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n"
+    },
+    "current": {
+      "returncode": 1,
+      "stdout": "",
+      "stderr": "agx_dispatch: workgroup must contain 1..1024 threads with nonzero dimensions\n"
+    }
+  },
+  {
+    "args": [
+      "--cores",
+      "0"
+    ],
+    "baseline": {
+      "returncode": -6,
+      "stdout": "",
+      "stderr": "\nthread 'main' (7) panicked at src/dispatch.rs:257:18:\nattempt to divide by zero\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n"
+    },
+    "current": {
+      "returncode": 1,
+      "stdout": "",
+      "stderr": "agx_dispatch: core and cluster counts must be nonzero\n"
+    }
+  },
+  {
+    "args": [
+      "--wg",
+      "65536,65536"
+    ],
+    "baseline": {
+      "returncode": -6,
+      "stdout": "",
+      "stderr": "\nthread 'main' (9) panicked at src/dispatch.rs:100:19:\nattempt to divide by zero\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n"
+    },
+    "current": {
+      "returncode": 1,
+      "stdout": "",
+      "stderr": "agx_dispatch: workgroup size overflows\n"
+    }
+  },
+  {
+    "args": [
+      "--regs",
+      "2147483648"
+    ],
+    "baseline": {
+      "returncode": -6,
+      "stdout": "",
+      "stderr": "\nthread 'main' (11) panicked at src/dispatch.rs:92:33:\nattempt to divide by zero\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n"
+    },
+    "current": {
+      "returncode": 1,
+      "stdout": "",
+      "stderr": "agx_dispatch: workgroup of 1 SIMD groups exceeds the 0-group occupancy limit\n"
+    }
+  },
+  {
+    "args": [
+      "--grid",
+      "1,1,1,2"
+    ],
+    "baseline": {
+      "returncode": 0,
+      "stdout": "{\"time_us\":5.7,\"core_cycles\":1.0,\"clock_mhz\":1398.0,\"workgroups\":1,\"groups_per_wg\":1,\"group_cap_per_core\":52,\"wgs_per_core\":52,\"launch_core_us\":0.1,\"busiest_core_wgs\":1,\"waves\":1,\"simulated_waves\":[[0,1,1.0]],\"launch_us\":5.6,\"warnings\":[],\"paths\":\"cost-emulation\"}\n",
+      "stderr": ""
+    },
+    "current": {
+      "returncode": 1,
+      "stdout": "",
+      "stderr": "agx_dispatch: --grid: expected one to three dimensions\n"
+    }
+  },
+  {
+    "args": [
+      "--clock",
+      "NaN"
+    ],
+    "baseline": {
+      "returncode": 0,
+      "stdout": "{\"time_us\":5.7,\"core_cycles\":1.0,\"clock_mhz\":null,\"workgroups\":1,\"groups_per_wg\":1,\"group_cap_per_core\":52,\"wgs_per_core\":52,\"launch_core_us\":0.1,\"busiest_core_wgs\":1,\"waves\":1,\"simulated_waves\":[[0,1,1.0]],\"launch_us\":5.6,\"warnings\":[],\"paths\":\"cost-emulation\"}\n",
+      "stderr": ""
+    },
+    "current": {
+      "returncode": 1,
+      "stdout": "",
+      "stderr": "agx_dispatch: clock_mhz must be finite and positive\n"
+    }
+  },
+  {
+    "args": [
+      "--grid",
+      "0"
+    ],
+    "baseline": {
+      "returncode": 0,
+      "stdout": "{\"time_us\":5.6,\"core_cycles\":0.0,\"clock_mhz\":1398.0,\"workgroups\":0,\"groups_per_wg\":1,\"group_cap_per_core\":52,\"wgs_per_core\":52,\"launch_core_us\":0.0,\"busiest_core_wgs\":0,\"waves\":1,\"simulated_waves\":[[0,0,0.0]],\"launch_us\":5.6,\"warnings\":[],\"paths\":\"cost-emulation\"}\n",
+      "stderr": ""
+    },
+    "current": {
+      "returncode": 1,
+      "stdout": "",
+      "stderr": "agx_dispatch: grid dimensions must be nonzero (empty dispatches are not modelled)\n"
+    }
+  },
+  {
+    "args": [
+      "--grid",
+      "65536,65536,2",
+      "--wg",
+      "1",
+      "--cores",
+      "1",
+      "--no-mem"
+    ],
+    "baseline": {
+      "returncode": -6,
+      "stdout": "",
+      "stderr": "\nthread 'main' (19) panicked at src/dispatch.rs:137:48:\nattempt to divide by zero\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n"
+    },
+    "current": {
+      "returncode": 0,
+      "stdout": "{\"time_us\":858993464.8,\"core_cycles\":2147483648.0,\"clock_mhz\":1398.0,\"workgroups\":8589934592,\"groups_per_wg\":1,\"group_cap_per_core\":52,\"wgs_per_core\":52,\"launch_core_us\":858993459.2,\"busiest_core_wgs\":8589934592,\"waves\":165191050,\"simulated_waves\":[[0,52,13.0],[165191049,44,11.0]],\"launch_us\":5.6,\"warnings\":[],\"paths\":\"cost-emulation\"}\n",
+      "stderr": ""
+    }
+  }
+]

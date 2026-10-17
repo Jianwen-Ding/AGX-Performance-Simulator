@@ -21,9 +21,16 @@ use agx_sim::cost::{self, Params};
 use agx_sim::dispatch::{self, Launch};
 use agx_sim::func;
 
-fn dims(s: &str) -> [u32; 3] {
-    let v: Vec<u32> = s.split(',').map(|x| x.parse().expect("dimension")).collect();
-    [v[0], *v.get(1).unwrap_or(&1), *v.get(2).unwrap_or(&1)]
+fn number<T: std::str::FromStr>(s: &str, what: &str) -> Result<T, String> {
+    s.parse().map_err(|_| format!("{}: invalid value {:?}", what, s))
+}
+
+fn dims(s: &str) -> Result<[u32; 3], String> {
+    let v: Vec<_> = s.split(',').collect();
+    if !(1..=3).contains(&v.len()) { return Err("expected one to three dimensions".into()); }
+    let mut out = [1; 3];
+    for (i, x) in v.into_iter().enumerate() { out[i] = number(x, "dimension")?; }
+    Ok(out)
 }
 
 fn main() {
@@ -36,17 +43,22 @@ fn main() {
     let mut p = Params::new().unwrap();
     cost::fit_branch(&mut p).unwrap();
     if a[0] == "--batch" {
-        let text = std::fs::read_to_string(a.get(1).expect("--batch JOBS")).expect("jobs file");
-        let jobs: Vec<Vec<String>> = text.lines().filter(|x| !x.trim().is_empty())
-            .map(|x| serde_json::from_str(x).expect("a job is a JSON array of strings")).collect();
+        if a.len() != 2 { eprintln!("agx_dispatch: expected --batch JOBS"); std::process::exit(2); }
+        let text = match std::fs::read_to_string(&a[1]) {
+            Ok(s) => s,
+            Err(e) => { eprintln!("agx_dispatch: {}: {}", a[1], e); std::process::exit(1); }
+        };
+        let jobs: Vec<Result<Vec<String>, String>> = text.lines().enumerate().filter(|(_, x)| !x.trim().is_empty())
+            .map(|(i, x)| serde_json::from_str(x).map_err(|e| format!("batch line {}: expected an argument array: {}", i + 1, e))).collect();
+        if jobs.is_empty() { eprintln!("agx_dispatch: batch contains no jobs"); std::process::exit(1); }
         // one dispatch per core when there are enough of them, each simulating on its own thread; else one at a time,
         // each with the cores to itself
         let outer = jobs.len() >= agx_sim::par::threads();
-        let run = |job: &Vec<String>| {
+        let run = |job: &Result<Vec<String>, String>| {
             if outer {
                 agx_sim::par::set_local_threads(1);
             }
-            run_job(job, &p)
+            match job { Ok(args) => run_job(args, &p), Err(e) => Err(e.clone()) }
         };
         let res: Vec<Result<serde_json::Value, String>> =
             if outer { agx_sim::par::map(&jobs, run) } else { jobs.iter().map(run).collect() };
@@ -73,48 +85,62 @@ fn main() {
 
 /// One dispatch: its arguments as on the command line, the JSON result.
 fn run_job(a: &[String], p: &Params) -> Result<serde_json::Value, String> {
-    let mut code = std::fs::read(&a[0]).map_err(|e| format!("{}: {}", a[0], e))?;
-    trim_padding(&mut code);
+    let path = a.first().ok_or("empty job: expected a shader path")?;
     let mut l = Launch::default();
-    let (mut preamble, mut mem, mut functional) = (None, func::Memory::default(), false);
+    let mut preamble = None;
+    let mut buffers = vec![];
+    enum Buffer { File(String), Allocate(usize) }
     let mut i = 1;
     while i < a.len() {
-        let v = a.get(i + 1).cloned().unwrap_or_default();
-        match a[i].as_str() {
-            "--grid" => l.grid = dims(&v),
-            "--wg" => l.wg = dims(&v),
-            "--regs" => l.regs = v.parse().unwrap(),
-            "--tg-bytes" => l.tg_bytes = v.parse().unwrap(),
-            "--clock" => l.clock_mhz = v.parse().unwrap(),
-            "--cores" => l.cores = v.parse().unwrap(),
-            "--launch-us" => l.launch_ns = v.parse::<f64>().unwrap() * 1000.0,
-            "--max-waves" => l.max_waves = v.parse().unwrap(),
+        let option = a[i].as_str();
+        if option == "--no-mem" { l.mem = false; i += 1; continue; }
+        if !["--grid", "--wg", "--regs", "--tg-bytes", "--clock", "--cores", "--launch-us", "--max-waves", "--uniform", "--preamble", "--map", "--alloc"].contains(&option) {
+            return Err(format!("unknown argument {}", option));
+        }
+        let v = a.get(i + 1).ok_or_else(|| format!("{} requires a value", option))?;
+        match option {
+            "--grid" => l.grid = dims(v).map_err(|e| format!("--grid: {}", e))?,
+            "--wg" => l.wg = dims(v).map_err(|e| format!("--wg: {}", e))?,
+            "--regs" => l.regs = number(v, option)?,
+            "--tg-bytes" => l.tg_bytes = number(v, option)?,
+            "--clock" => l.clock_mhz = number(v, option)?,
+            "--cores" => l.cores = number(v, option)?,
+            "--launch-us" => l.launch_ns = number::<f64>(v, option)? * 1000.0,
+            "--max-waves" => l.max_waves = number(v, option)?,
             "--uniform" => {
-                let (k, x) = v.split_once('=').expect("IDX=VALUE");
-                l.uniforms.push((k.trim_start_matches('u').parse().unwrap(), parse_u32(x)));
+                let (k, x) = v.split_once('=').ok_or("--uniform expects IDX=VALUE")?;
+                l.uniforms.push((number(k.trim_start_matches('u'), "uniform index")?, parse_u32(x)?));
             }
             "--preamble" => {
-                preamble = Some(std::fs::read(&v).map_err(|e| format!("{}: {}", v, e))?);
-                functional = true;
+                preamble = Some(v.clone());
             }
             "--map" | "--alloc" => {
-                let (va, x) = v.split_once('=').expect("VA=FILE or VA=BYTES");
-                let bytes = if a[i] == "--map" { std::fs::read(x).map_err(|e| format!("{}: {}", x, e))? } else { vec![0u8; parse_u32(x) as usize] };
-                mem.map(parse_u64(va), bytes);
-                functional = true;
+                let (va, x) = v.split_once('=').ok_or("--map/--alloc expects VA=FILE or VA=BYTES")?;
+                let b = if option == "--map" { Buffer::File(x.to_string()) } else { Buffer::Allocate(parse_u32(x)? as usize) };
+                buffers.push((parse_u64(va)?, b));
             }
-            "--no-mem" => {
-                l.mem = false;
-                i += 1;
-                continue;
-            }
-            x => return Err(format!("unknown argument {}", x)),
+            _ => unreachable!(),
         }
         i += 2;
     }
+    // Reject invalid geometry/resources before reading shaders/preambles or
+    // materializing mapped buffers. simulate_with repeats this check for API callers.
+    l.validate()?;
+    let mut code = std::fs::read(path).map_err(|e| format!("{}: {}", path, e))?;
+    trim_padding(&mut code);
+    let functional = preamble.is_some() || !buffers.is_empty();
+    let mut mem = func::Memory::default();
+    for (va, b) in buffers {
+        let bytes = match b {
+            Buffer::File(x) => std::fs::read(&x).map_err(|e| format!("{}: {}", x, e))?,
+            Buffer::Allocate(n) => vec![0; n],
+        };
+        mem.map(va, bytes);
+    }
     let d = if functional {
         if let Some(pre) = &preamble {
-            l.uniforms = func::run_preamble(pre, &l.uniforms, &mut mem, 128).map_err(|e| format!("preamble: {}", e))?;
+            let code = std::fs::read(pre).map_err(|e| format!("{}: {}", pre, e))?;
+            l.uniforms = func::run_preamble(&code, &l.uniforms, &mut mem, 128).map_err(|e| format!("preamble: {}", e))?;
         }
         Some(func::Dispatch { code: code.clone(), grid: l.grid, wg: l.wg, shared_bytes: l.tg_bytes, uniforms: l.uniforms.clone(),
                               num_registers: 128, max_steps: l.max_steps as u64, placement: 0,
@@ -162,11 +188,11 @@ mod tests {
     }
 }
 
-fn parse_u64(s: &str) -> u64 {
-    if let Some(h) = s.strip_prefix("0x") { u64::from_str_radix(h, 16).unwrap() } else { s.parse().unwrap() }
+fn parse_u64(s: &str) -> Result<u64, String> {
+    if let Some(h) = s.strip_prefix("0x") { u64::from_str_radix(h, 16).map_err(|_| format!("invalid u64 {:?}", s)) } else { number(s, "u64") }
 }
 
-fn parse_u32(s: &str) -> u32 {
-    if let Some(h) = s.strip_prefix("0x") { u32::from_str_radix(h, 16).unwrap() } else { s.parse().unwrap() }
+fn parse_u32(s: &str) -> Result<u32, String> {
+    if let Some(h) = s.strip_prefix("0x") { u32::from_str_radix(h, 16).map_err(|_| format!("invalid u32 {:?}", s)) } else { number(s, "u32") }
 }
 

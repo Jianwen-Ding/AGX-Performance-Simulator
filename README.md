@@ -26,6 +26,15 @@ make verify-dispatch        # offline: whole-dispatch model against 25 stored di
 (cluster split), traces every SIMD group of that core with its own thread ids, simulates the core with the
 memory hierarchy, and adds launch cost; it prints a JSON report with the predicted time.
 
+Launch inputs are validated before decoding or materializing functional buffers:
+nonzero grid/core dimensions, 1–1024 workgroup threads, representable workgroup
+counts, available configured occupancy/shared memory, uniform indices and finite
+timing inputs. Empty grids are explicitly outside this performance model's input
+domain. In `--batch`, malformed argument arrays and invalid jobs produce ordered
+`{"error": ...}` entries without aborting later jobs; blank lines are ignored,
+and an empty batch fails. These are software input checks, not new hardware limits
+or timing validation for extreme launch dimensions.
+
 ## What is modelled (all parameters measured on this GPU)
 
 | Layer | Model | Accuracy (median error) |
@@ -116,3 +125,4 @@ that memory instead of the cost model's emulation, which is needed for driver-co
 
 Some findings link to experiments, notes and results that stayed in Apple-M2-Playground; those
 links resolve in that repository. Shader capture (`agx_capture.py`) also stays there.
+

@@ -1,0 +1,11 @@
+{
+  "invalid_jobs": 34,
+  "malformed_json_lines": 3,
+  "valid_batch_controls": 3,
+  "batch_workers": [
+    1,
+    4
+  ],
+  "checks": "pass",
+  "hardware_run": false
+}
