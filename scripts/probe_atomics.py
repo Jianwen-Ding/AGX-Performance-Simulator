@@ -536,6 +536,93 @@ def analyse_i(r):
             'r15_old_hi': sum(r15[i] == t0[2 * i + 1] for i in range(N)), 'r15_untouched': sum(x == 0xdeadbeef for x in r15)}
 
 
+# Family T: threadgroup atomic (local_atomic, 0x19, 10-byte form), one currently-zero gap bit at a time on op 1 (sub),
+# looking for a threadgroup float add. Kernel shape of run_drm_tg_atomic.py 'lane' mode: lane i writes T[i] to its
+# threadgroup word (byte 4i), runs the atomic with S = r6 = X[i] (r7 = Y[i]), reads the word back -> table 192 + i.
+
+T_GAP_BITS = [6, 7, 35, 37, 40, 41, 42, 43, 44, 45, 46] + list(range(72, 80))   # applegpu u1, u3, u4, u5 zero bits
+
+
+def mesa_local_atomic(op, R, A, S, ret):
+    """agx_pack.c AGX_OPCODE_LOCAL_ATOMIC: register base, immediate index 0, 10-byte form (run_drm_tg_atomic)"""
+    raw = 0x19 | 1 << 15 | 1 << 36 | 1 << 47 | (1 << 8 if ret else 0) | (R & 63) << 9 | (A & 63) << 16
+    raw |= op << 24 | 1 << 34 | (1 << 38 if ret else 0) | (A >> 6) << 58 | (R >> 6) << 60
+    return raw | S << 64
+
+
+def table_t():
+    t = table_b('tg-atomic-fadd')
+    T = [t[i] for i in range(N)]; X = [t[S_WORD + 2 * i] for i in range(N)]; Y = [t[S_WORD + 2 * i + 1] for i in range(N)]
+    return T + [0] * 32 + X + [0] * 32 + Y + [0] * 32 + [0xcdcdcdcd] * 64
+
+
+def probes_t():
+    import record_suite as RS
+    from run_drm_tg_layout import tg
+    pre = RS.mov(19, 4) + RS.mov(27, 0) + RS.e('imadd r22, r1, r19, r27')
+    for reg, off in ((9, 0), (6, 64), (7, 128)):
+        pre += RS.e(f'iadd r3, r1, {off}') + RS.e(f'device_load 0, i32, x, r{reg}, u8_u9, r3, unsigned')
+    pre += RS.e('wait 0') + RS.mov(5, 0xdeadbeef) + tg(False, 'i32', 9, base=22)
+    suf = RS.e('wait 0') + RS.mov(8, 0) + tg(True, 'i32', 8, base=22) + RS.e('wait 0')
+    suf += RS.e('iadd r3, r1, 192') + RS.agx_loop.store(8, 8, 3) + RS.e('wait 0') + RS.e('iadd r2, r5, 0')
+    t = table_t()
+    tab = list(t); lanes = []
+    for i in range(N):
+        lanes.append(t[i]); tab[192 + i] = (t[i] - t[64 + i]) & 0xffffffff
+    sur = mesa_local_atomic(1, 2 * 5, 2 * 22, 2 * 6, True)
+    return [PV.Probe(f'T_sub_bit{b}', pre, sur.to_bytes(10, 'little'), (sur | 1 << b).to_bytes(10, 'little'), suf, 1 << b,
+                     N, WG, REGS, t, lambda o, tb: out_ok(o, lanes) and tb == tab, shared=2048) for b in T_GAP_BITS]
+
+
+def probes_t2():
+    """where does the bit-6 threadgroup atomic go? Fill all 2 KiB of threadgroup memory with 0x5a5a0000 + word, barrier,
+    then T_sub_bit6's own-word init and atomic, barrier, and dump every word: lane i stores words 16i..16i+15 to table
+    256 + 16i + k (the surrogate run predicts the dump exactly)."""
+    import record_suite as RS
+    from run_drm_tg_layout import tg
+    st = RS.agx_loop.store
+    pre = RS.mov(19, 64) + RS.mov(27, 0) + RS.e('imadd r24, r1, r19, r27')          # r24 = byte 64i (word 16i)
+    for k in range(16):
+        pre += RS.mov(27, 16) + RS.e('imadd r10, r1, r27, 0') + RS.mov(27, 0x5a5a0000 + k) + RS.e('iadd r10, r10, r27')
+        pre += RS.mov(25, 4 * k) + RS.e('iadd r25, r24, r25') + tg(False, 'i32', 10, base=25)
+    pre += RS.e('wait 0') + bytes.fromhex('6800')
+    pre += RS.mov(19, 4) + RS.mov(27, 0) + RS.e('imadd r22, r1, r19, r27')
+    for reg, off in ((9, 0), (6, 64), (7, 128)):
+        pre += RS.e(f'iadd r3, r1, {off}') + RS.e(f'device_load 0, i32, x, r{reg}, u8_u9, r3, unsigned')
+    pre += RS.e('wait 0') + RS.mov(5, 0xdeadbeef) + tg(False, 'i32', 9, base=22)
+    suf = RS.e('wait 0') + bytes.fromhex('6800')
+    for k in range(16):
+        suf += RS.mov(25, 4 * k) + RS.e('iadd r25, r24, r25') + tg(True, 'i32', 8, base=25) + RS.e('wait 0')
+        suf += RS.mov(27, 16) + RS.e('imadd r3, r1, r27, 0') + RS.mov(27, 256 + k) + RS.e('iadd r3, r3, r27') + st(8, 8, 3)
+    suf += RS.e('wait 0') + RS.e('iadd r2, r5, 0')
+    t = table_t() + [0] * 512
+    tg_mem = [0x5a5a0000 + (w % 16) + 16 * (w // 16) for w in range(512)]
+    for i in range(N):
+        tg_mem[i] = t[i]
+    lanes = list(tg_mem[:N])
+    for i in range(N):
+        tg_mem[i] = (tg_mem[i] - t[64 + i]) & 0xffffffff
+    tab = list(t)
+    tab[256:768] = tg_mem
+    sur = mesa_local_atomic(1, 2 * 5, 2 * 22, 2 * 6, True)
+    return [PV.Probe('T2_sub_bit6_tgdump', pre, sur.to_bytes(10, 'little'), (sur | 1 << 6).to_bytes(10, 'little'), suf, 1 << 6,
+                     N, WG, REGS, t, lambda o, tb: out_ok(o, lanes) and tb == tab, shared=2048)]
+
+
+def analyse_t(r):
+    t0, t1, lanes = r['table_in'], r['table_after'], r['out'][8:8 + N]
+    T, X = t0[:N], t0[64:64 + N]
+    got = t1[192:192 + N]
+    nan = lambda x: 0x7fc00000 if x is None else x
+    fits = {'int sub': sum(got[i] == (T[i] - X[i]) & 0xffffffff for i in range(N)),
+            'float add (ftz)': sum(got[i] == nan(fadd_ref(T[i], X[i], True)) for i in range(N)),
+            'float add (ieee)': sum(got[i] == nan(fadd_ref(T[i], X[i])) for i in range(N)),
+            'unchanged': sum(got[i] == T[i] for i in range(N))}
+    return {'tg_word_fits': {k: v for k, v in fits.items() if v}, 'ended': all(x == 0xcdcdcdcd for x in lanes),
+            'returns_old': sum(lanes[i] == T[i] for i in range(N)),
+            'other_table_changes': [k for k in range(len(t0)) if t0[k] != t1[k] and not 192 <= k < 224][:8]}
+
+
 # ---------------------------------------------------------------------------------------------------------------
 
 def records(src):
@@ -552,6 +639,15 @@ def analyse(src):
     for r in records(src):
         if 'fault' in r:
             rows.append({'probe': r['name'], 'fault': r['fault'][:160]}); continue
+        if r['name'].startswith('T2_'):
+            t0, t1 = r['table_in'], r['table_after']
+            init = [0x5a5a0000 + w for w in range(512)]
+            dump = t1[256:768]
+            rows.append({'probe': r['name'], 'deterministic': r['deterministic'], 'returns': sorted(set(r['out'][8:8 + N]))[:4],
+                         'own_words_changed': sum(dump[i] != t0[i] for i in range(N)),
+                         'other_words_changed': [(w, f'{dump[w]:08x}') for w in range(N, 512) if dump[w] != init[w]][:12]}); continue
+        if r['name'].startswith('T_'):
+            rows.append({'probe': r['name'], 'deterministic': r['deterministic'], **analyse_t(r)}); continue
         if r['name'].startswith('I_'):
             rows.append({'probe': r['name'], 'deterministic': r['deterministic'], **analyse_i(r)}); continue
         if r['name'].startswith('H_'):
@@ -593,13 +689,13 @@ def analyse(src):
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest='cmd', required=True)
-    r = sub.add_parser('run'); r.add_argument('--family', choices=['A', 'B', 'D', 'E', 'F', 'G', 'H', 'I'], required=True)
+    r = sub.add_parser('run'); r.add_argument('--family', choices=['A', 'B', 'D', 'E', 'F', 'G', 'H', 'I', 'T', 'T2'], required=True)
     r.add_argument('--only'); r.add_argument('--dry', action='store_true'); r.add_argument('--out', type=Path, default=RAW)
     s = sub.add_parser('analyse'); s.add_argument('dir', type=Path, nargs='?', default=BUNDLE)
     a = ap.parse_args()
     if a.cmd == 'run':
         PV.cov.install()
-        ps = {'A': probes_a, 'B': probes_b, 'D': probes_d, 'E': lambda: probes_e() + probes_e(before=True) + probes_e(before=True, skip=True), 'F': probes_f, 'G': probes_g, 'H': probes_h, 'I': probes_i}[a.family]()
+        ps = {'A': probes_a, 'B': probes_b, 'D': probes_d, 'E': lambda: probes_e() + probes_e(before=True) + probes_e(before=True, skip=True), 'F': probes_f, 'G': probes_g, 'H': probes_h, 'I': probes_i, 'T': probes_t, 'T2': probes_t2}[a.family]()
         if a.only:
             ps = [p for p in ps if p.name == a.only]
         PV.run(ps, a.out, dry=a.dry)
