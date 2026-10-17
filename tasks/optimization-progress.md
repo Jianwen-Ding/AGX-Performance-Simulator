@@ -161,3 +161,29 @@ hash; a new read-only reference checker makes that regression repeatable.
 No hardware evidence, calibration or instruction semantics were changed. Next:
 malformed performance launch guards, cached atomic execution operands and real
 data-dependent memory profiling. Hardware-only timing remains blocked on M2 access.
+
+## 2026-10-17: cached atomic execution and complete integer replay
+
+Cache immutable device/TG atomic fields per visited PC. Fix TG non-CAS operations
+reading an unused compare register; synthetic tests cover all ten operations
+with/without returns at the register boundary, while CAS still requires and
+uses its comparison source. Retained float/u64, suppression and group-termination
+behavior is unchanged. No new hardware semantics or calibration are claimed.
+
+Five alternating checked benchmark pairs: one-active-lane device 5.507 ->
+3.229 ms (1.705x), TG 4.012 -> 2.183 ms (1.838x); 32-lane TG 14.444 ->
+13.050 ms (1.107x), device effectively flat. ALU-only full dispatch is flat,
+but padded single-worker standalone cost tracing is 6.7-13.9% slower over two
+complete control runs. This regression is unresolved; do not claim a general
+speedup. Raw samples, methodology and boundary repro:
+`results/2026-10-17-atomic-execution/README.md`.
+
+Validation: 25 Rust tests/doc checks; 358 exact retained recordings, including
+all 88 standard integer atomic cases (82 more than the previous selection);
+74 variant replays and independent evidence verification; zero cost-verifier
+failures; all 36 complete prediction reports match the unrebaselined reference.
+Playground's new `replay-integer-atomic-suite` target passes all 88 cases.
+
+Next: profile the padded standalone control regression, malformed performance
+launch guards, and real data-dependent memory/atomic workloads. No M2 hardware
+is available, so hardware-only timing remains blocked.

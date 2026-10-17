@@ -159,12 +159,12 @@ enum OpKind {
     Stack { load: bool },
     UniformStore,
     TgMem { load: bool, args: Box<ThreadgroupMem> },
-    Atomic,
+    Atomic(Box<DeviceAtomic>),
     FloatArith,
     CmpSel { float: bool },
     Ballot { float: bool, quad: bool },
     MaskCtl { kind: &'static str, float: bool },
-    TgAtomic,
+    TgAtomic(Box<ThreadgroupAtomic>),
     Round,
     Intl,
     Transcendental,
@@ -194,14 +194,14 @@ fn op_kind(name: &'static str, f: &Fields) -> OpKind {
         "stack_load" | "stack_store" => Stack { load: name == "stack_load" },
         "uniform_store" => UniformStore,
         "threadgroup_load" | "threadgroup_store" => TgMem { load: name == "threadgroup_load", args: Box::new(ThreadgroupMem::new(f)) },
-        "atomic" => Atomic,
+        "atomic" => Atomic(Box::new(DeviceAtomic::new(f))),
         "fadd32" | "fmul32" | "fmadd32" | "fadd16" | "fmul16" | "fmadd16" => FloatArith,
         "icmpsel" | "fcmpsel" => CmpSel { float: name == "fcmpsel" },
         "icmp_ballot" | "fcmp_ballot" | "icmp_quad_ballot" | "fcmp_quad_ballot" => Ballot { float: name.starts_with('f'), quad: name.contains("quad") },
         "if_icmp" | "if_fcmp" | "else_icmp" | "else_fcmp" | "while_icmp" | "while_fcmp" => {
             MaskCtl { kind: name.split('_').next().unwrap(), float: name.ends_with("fcmp") }
         }
-        "threadgroup_atomic" => TgAtomic,
+        "threadgroup_atomic" => TgAtomic(Box::new(ThreadgroupAtomic::new(f))),
         "floor" | "ceil" | "trunc" | "rint" => Round,
         "intl" => Intl,
         "rcp" | "rsqrt" | "rsqrt_special" | "log2" | "exp2" | "sin_pt_1" | "sin_pt_2" => Transcendental,
@@ -621,13 +621,15 @@ fn step_group(g: &mut Group, code: &[u8], cache: &[OnceLock<Box<Info>>], mem: &m
             OpKind::TgMem { load, ref args } => tg_mem(g, args, tg, load)?,
             // Measured only with Mesa's u5=2: ops 11..15 end the whole issuing group,
             // including inactive lanes, without touching memory.
-            OpKind::Atomic if x("op") >= 11 && x("u5") == 2 => return Ok(Stop::Done),
-            OpKind::Atomic => device_atomic(g, f, mem)?,
+            OpKind::Atomic(ref args) => {
+                if args.terminate { return Ok(Stop::Done); }
+                device_atomic(g, args, mem)?;
+            }
             OpKind::FloatArith => fsem::float_arith(desc.name, f, v, &mut g.st)?,
             OpKind::CmpSel { float } => fsem::cmpsel(float, f, v, &mut g.st)?,
             OpKind::Ballot { float, quad } => fsem::ballot(float, quad, f, v, &mut g.st)?,
             OpKind::MaskCtl { kind, float } => fsem::mask_ctl(kind, float, f, v, &mut g.st)?,
-            OpKind::TgAtomic => tg_atomic(g, f, tg)?,
+            OpKind::TgAtomic(ref args) => tg_atomic(g, args, tg)?,
             OpKind::Round => fsem::round_op(desc.name, v, &mut g.st)?,
             OpKind::Intl => fsem::intl(v, &mut g.st)?,
             OpKind::Transcendental => fsem::transcendental(desc.name, f, v, &mut g.st)?,
@@ -915,14 +917,40 @@ fn atomic_op(op: u64, old: u32, v: u32, cmp: u32) -> Result<u32, String> {
     })
 }
 
-fn device_atomic(g: &mut Group, f: &Fields, mem: &mut Memory) -> Result<(), String> {
-    let x = |k: &str| fget(f, k).unwrap_or(0);
-    // fields read once, not per lane (fget searches the field list by name)
-    let (f_at, f_a, f_ot, f_o, f_ou, f_op) = (x("At"), x("A"), x("Ot"), x("O"), x("Ou"), x("op"));
-    let r = (x("R") | x("Rx") << 6) as usize;
-    let ret = x("Rt") != 0;
-    let s = x("S") as usize;
-    let variant = x("u5");
+// Cache only immutable encoding fields, never operands' register values or addresses.
+struct DeviceAtomic {
+    at: u64, a: u64, ot: u64, o: u64, ou: u64, op: u64,
+    r: usize, ret: bool, s: usize, variant: u64, terminate: bool,
+}
+
+impl DeviceAtomic {
+    fn new(f: &Fields) -> Self {
+        let x = |k: &str| fget(f, k).unwrap_or(0);
+        let (op, variant) = (x("op"), x("u5"));
+        Self { at: x("At"), a: x("A"), ot: x("Ot"), o: x("O"), ou: x("Ou"), op,
+            r: (x("R") | x("Rx") << 6) as usize, ret: x("Rt") != 0, s: x("S") as usize,
+            variant, terminate: op >= 11 && variant == 2 }
+    }
+}
+
+struct ThreadgroupAtomic {
+    at: u64, a: u64, ot: u64, o: u64, op: u64,
+    r: usize, ret: bool, s: usize, suppress: bool,
+}
+
+impl ThreadgroupAtomic {
+    fn new(f: &Fields) -> Self {
+        let x = |k: &str| fget(f, k).unwrap_or(0);
+        let op = x("op");
+        Self { at: x("At"), a: x("A"), ot: x("Ot"), o: x("O"), op,
+            r: x("R") as usize, ret: x("Ra") != 0, s: x("S") as usize,
+            suppress: op == 1 && x("u1") == 1 }
+    }
+}
+
+fn device_atomic(g: &mut Group, args: &DeviceAtomic, mem: &mut Memory) -> Result<(), String> {
+    let DeviceAtomic { at: f_at, a: f_a, ot: f_ot, o: f_o, ou: f_ou, op: f_op,
+        r, ret, s, variant, .. } = *args;
     for t in 0..32 {
         if !g.st.exec[t] {
             continue;
@@ -969,15 +997,10 @@ fn atomic_fadd(a: u32, b: u32) -> u32 {
     if v.is_nan() { 0x7fc0_0000 } else { flush(v.to_bits()) }
 }
 
-fn tg_atomic(g: &mut Group, f: &Fields, tg: &mut [u8]) -> Result<(), String> {
-    let x = |k: &str| fget(f, k).unwrap_or(0);
-    // fields read once, not per lane (fget searches the field list by name)
-    let (f_at, f_a, f_ot, f_o, f_op) = (x("At"), x("A"), x("Ot"), x("O"), x("op"));
-    let r = x("R") as usize;
-    let ret = x("Ra") != 0;
-    let s = x("S") as usize;
+fn tg_atomic(g: &mut Group, args: &ThreadgroupAtomic, tg: &mut [u8]) -> Result<(), String> {
+    let ThreadgroupAtomic { at: f_at, a: f_a, ot: f_ot, o: f_o, op: f_op, r, ret, s, suppress } = *args;
     // Recorded sub + gap bit 6 suppresses the access and returns zero.
-    if f_op == 1 && x("u1") == 1 {
+    if suppress {
         if ret {
             for t in 0..32 {
                 if g.st.exec[t] { g.st.set_reg32(r / 2, t, 0)?; }
@@ -997,7 +1020,7 @@ fn tg_atomic(g: &mut Group, f: &Fields, tg: &mut [u8]) -> Result<(), String> {
         }
         let old = u32::from_le_bytes([tg[b], tg[b + 1], tg[b + 2], tg[b + 3]]);
         let v = g.st.get_reg32(s / 2, t)? as u32;
-        let cmp = g.st.get_reg32(s / 2 + 1, t)? as u32;
+        let cmp = if f_op == 3 { g.st.get_reg32(s / 2 + 1, t)? as u32 } else { 0 };
         tg[b..b + 4].copy_from_slice(&atomic_op(f_op, old, v, cmp)?.to_le_bytes());
         if ret {
             g.st.set_reg32(r / 2, t, old as i128)?;
@@ -1022,6 +1045,62 @@ mod tests {
     fn dispatch(code: Vec<u8>, grid: [u32; 3], wg: [u32; 3]) -> Dispatch {
         Dispatch { code, grid, wg, shared_bytes: 0, uniforms: vec![], num_registers: 32,
             max_steps: 1000, placement: 0, launch: Default::default() }
+    }
+
+    fn local_atomic_case(op: u64, ret: bool, source: u32, compare: u32) -> (Dispatch, Memory) {
+        use crate::kernels::{mov, store, tg, tg_atomic_add};
+        let mut code = mov(2, 0);
+        code.extend(mov(3, 10));
+        code.extend(mov(4, 0xaabbccdd));
+        code.extend(mov(5, 0));
+        code.extend(mov(source, 3));
+        if source < 31 { code.extend(mov(source + 1, compare)); }
+        code.extend(tg(false, "i32", 3, Some(5), 0, 1));
+        let atomic = tg_atomic_add(4, 5, source, ret);
+        let n = isa::opcode_to_number(&atomic);
+        let desc = isa::get_instruction_descriptor(n).unwrap();
+        // Mesa's local-atomic op field is bits 24..27. Preserve the original
+        // 10-byte length/control bits instead of allowing encode_fields to shorten it.
+        let encoded = (n & !(15u128 << 24)) | (op as u128) << 24;
+        assert_eq!(fget(&desc.decode_fields(encoded), "op"), Some(op));
+        assert_eq!(desc.decode_size(encoded), atomic.len());
+        code.extend((0..atomic.len()).map(|i| (encoded >> (8 * i)) as u8));
+        code.extend(tg(true, "i32", 8, Some(5), 0, 1));
+        code.extend(store(8, 8, 2));
+        code.extend(mov(2, 1));
+        code.extend(store(4, 8, 2));
+        code.extend([0x88, 0]);
+        let mut d = dispatch(code, [1; 3], [1; 3]);
+        d.shared_bytes = 4;
+        d.uniforms = vec![(8, 0x1000), (9, 0)];
+        let mut mem = Memory::default();
+        mem.map(0x1000, vec![0xcd; 8]);
+        (d, mem)
+    }
+
+    #[test]
+    fn threadgroup_non_cas_does_not_read_an_unused_compare_register() {
+        // Synthetic register-boundary regression; ordinary op semantics are established
+        // by the retained integer-atomic suite, not by a new hardware run here.
+        for (op, expected) in [(0, 13), (1, 7), (2, 3), (4, 3), (5, 3), (6, 10), (7, 10), (8, 2), (9, 11), (10, 9)] {
+            for ret in [false, true] {
+                let (d, mut mem) = local_atomic_case(op, ret, 31, 0);
+                run(&d, &mut mem).unwrap();
+                assert_eq!(mem.words(0x1000, 2).unwrap(), vec![expected, if ret { 10 } else { 0xaabbccdd }], "op={op} ret={ret}");
+            }
+        }
+    }
+
+    #[test]
+    fn threadgroup_cas_still_requires_and_uses_the_compare_register() {
+        for (compare, expected) in [(10, 3), (11, 10)] {
+            let (d, mut mem) = local_atomic_case(3, true, 30, compare);
+            run(&d, &mut mem).unwrap();
+            assert_eq!(mem.words(0x1000, 2).unwrap(), vec![expected, 10]);
+        }
+        let (d, mut mem) = local_atomic_case(3, true, 31, 0);
+        assert!(run(&d, &mut mem).unwrap_err().contains("register"));
+        assert_eq!(mem.words(0x1000, 2).unwrap(), vec![0xcdcdcdcd; 2]);
     }
 
     #[test]

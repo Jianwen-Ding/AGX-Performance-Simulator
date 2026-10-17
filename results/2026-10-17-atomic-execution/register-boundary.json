@@ -1,0 +1,12 @@
+{
+  "baseline": {
+    "returncode": -6,
+    "stdout": "kind=device groups=1 steps=2 lanes=1 repeats=1 median_ms=0.012 checked_words=2 atomics=2\n",
+    "stderr": "\nthread 'main' (5) panicked at examples/atomic_execution.rs:43:49:\ncalled `Result::unwrap()` on an `Err` value: \"IndexError: register\"\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n"
+  },
+  "current": {
+    "returncode": 0,
+    "stdout": "kind=device groups=1 steps=2 lanes=1 repeats=1 median_ms=0.010 checked_words=2 atomics=2\nkind=threadgroup groups=1 steps=2 lanes=1 repeats=1 median_ms=0.014 checked_words=2 atomics=2\n",
+    "stderr": ""
+  }
+}

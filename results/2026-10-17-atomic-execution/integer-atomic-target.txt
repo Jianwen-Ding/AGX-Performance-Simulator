@@ -1,0 +1,8 @@
+make: Entering directory '/workspace/scratch/2ff2ed16ef96/Apple-M2-Playground'
+"/workspace/scratch/2ff2ed16ef96/AGX-Performance-Simulator/rust/target/release/suite_check" "/workspace/scratch/2ff2ed16ef96/tmp/retained-suite" --only atomic -v
+atomic       pass   44 /   44   close    0   mismatch    0   unsupported    0
+total        pass   44 /   44   (44 exact, 0 within 2 ulp)
+"/workspace/scratch/2ff2ed16ef96/AGX-Performance-Simulator/rust/target/release/suite_check" "/workspace/scratch/2ff2ed16ef96/tmp/retained-suite" --only tg_atomic -v
+tg_atomic    pass   44 /   44   close    0   mismatch    0   unsupported    0
+total        pass   44 /   44   (44 exact, 0 within 2 ulp)
+make: Leaving directory '/workspace/scratch/2ff2ed16ef96/Apple-M2-Playground'
