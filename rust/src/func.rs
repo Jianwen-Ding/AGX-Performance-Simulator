@@ -591,6 +591,13 @@ fn step_group_impl<C: InstructionCells>(g: &mut Group, code: &[u8], cache: &C, m
             // on G14C (stage 1 probes). A target outside the program is an error, never a jump.
             OpKind::Call => {
                 let indirect = info.size == 2;
+                // Measured on G14C (empty-mask probes 2026-10-17): with no active
+                // lane, call (direct and register) falls through without
+                // transferring or writing the link — like ret with an empty mask.
+                if !g.st.exec.iter().any(|&active| active) {
+                    g.pc += info.size;
+                    continue;
+                }
                 if indirect && std::env::var("AGX_EXPERIMENTAL_RET").as_deref() != Ok("buffer-pop2") {
                     return Err("call (register form): semantics unknown, not modelled".into());
                 }
