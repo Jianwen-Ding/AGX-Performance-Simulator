@@ -501,7 +501,12 @@ pub fn exec(d: &Desc, f: &Fields, ops: &[Operand], st: &mut CoreState) -> R<()> 
         Ex::PopExec => {
             let n = fx(f, "n")? as i128;
             for t in 0..SIMD_WIDTH {
-                let v = (st.get_reg16(0, t)? - n).max(0);
+                // Measured on G14C (ret-depth probes 2026-10-17): popping more
+                // than the current depth is a no-op (the lane stays masked).
+                // A single `pop_exec 2` therefore does NOT reactivate depth-1
+                // lanes, while two `pop_exec 1`s do.
+                let v0 = st.get_reg16(0, t)?;
+                let v = if n <= v0 { v0 - n } else { v0 };
                 st.set_reg16(0, t, v)?;
             }
             update_exec(st);

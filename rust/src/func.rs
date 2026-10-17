@@ -606,14 +606,37 @@ fn step_group_impl<C: InstructionCells>(g: &mut Group, code: &[u8], cache: &C, m
                     off -= 1 << 32;
                 }
                 let target = if indirect {
-                    if !g.st.exec.iter().all(|&active| active) {
-                        return Err("call register: only all-active uniform targets have been measured".into());
-                    }
+                    // Measured on G14C (divergent-call probes 2026-10-17): lane 0's
+                    // target wins when lane 0 is active; every lane transfers.
+                    // The link is written only for active lanes whose target
+                    // matches; active lanes with a different target are masked
+                    // (they ride along masked and skip callee stores, matching
+                    // the retained PRE bytes in non-matching slots).
+                    // Uniform (including partial-mask) calls transfer with the
+                    // link set for active lanes. Lane 0 inactive + divergent
+                    // active lanes is unmeasured.
+                    // NOTE: divergence is judged over ALL lanes (a masked lane
+                    // holding a stale divergent value still counts), because
+                    // the hardware winner rule reads lane 0's register.
                     let r = x("reg32") as usize;
-                    let value = g.st.get_reg32(r, 0)?;
+                    let first = g.st.get_reg32(r, 0)?;
+                    let mut div = false;
                     for t in 1..32 {
-                        if g.st.get_reg32(r, t)? != value {
-                            return Err("call register: divergent targets not modelled".into());
+                        if g.st.get_reg32(r, t)? != first { div = true; break; }
+                    }
+                    if div && !g.st.exec[0] {
+                        return Err("call register: divergent targets with lane 0 inactive not modelled".into());
+                    }
+                    let value = first;
+                    let link = call_base() + (g.pc + info.size) as i128;
+                    for t in 0..32 {
+                        if g.st.exec[t] {
+                            if g.st.get_reg32(r, t)? == value {
+                                g.st.set_reg32(1, t, link)?;
+                            } else if div {
+                                g.st.set_reg16(0, t, 1)?;
+                                g.st.exec[t] = false;
+                            }
                         }
                     }
                     (value - call_base()) as i64
@@ -621,10 +644,12 @@ fn step_group_impl<C: InstructionCells>(g: &mut Group, code: &[u8], cache: &C, m
                 if target < 0 || target as usize >= code.len() || target % 2 != 0 {
                     return Err(format!("call at {} targets {} outside the program (0..{})", g.pc, target, code.len()));
                 }
-                let link = call_base() + (g.pc + info.size) as i128;
-                for t in 0..32 {
-                    if g.st.exec[t] {
-                        g.st.set_reg32(1, t, link)?;
+                if !indirect {
+                    let link = call_base() + (g.pc + info.size) as i128;
+                    for t in 0..32 {
+                        if g.st.exec[t] {
+                            g.st.set_reg32(1, t, link)?;
+                        }
                     }
                 }
                 g.pc = target as usize;
@@ -636,33 +661,67 @@ fn step_group_impl<C: InstructionCells>(g: &mut Group, code: &[u8], cache: &C, m
                     return Err("ret semantics unresolved outside uniform recorded cases: use AGX_EXPERIMENTAL_RET=buffer-pop2 for the measured buffer-relative target and mask-depth-2 model; value 1 retains the contradicted code-relative hypothesis for offline study only".into());
                 }
                 let r = x("reg32") as usize;
-                let mut tgt: Option<i128> = None;
+                // Divergence is judged over ALL lanes (an inactive lane holding a
+                // stale divergent value still counts), because the hardware winner
+                // rule reads lane 0's register.
+                let mut first_all: Option<i128> = None;
+                let mut div_all = false;
+                for t in 0..32 {
+                    let v = g.st.get_reg32(r, t)? & 0xffff_ffff;
+                    match first_all {
+                        None => first_all = Some(v),
+                        Some(p) if p != v => { div_all = true; break; }
+                        _ => {}
+                    }
+                }
+                let mut first_active: Option<i128> = None;
+                let mut div_active = false;
                 for t in 0..32 {
                     if g.st.exec[t] {
                         let v = g.st.get_reg32(r, t)? & 0xffff_ffff;
-                        match tgt {
-                            None => tgt = Some(v),
-                            Some(p) if p != v => return Err(format!("ret at {}: active lanes disagree on the target (divergent ret not modelled)", g.pc)),
+                        match first_active {
+                            None => first_active = Some(v),
+                            Some(p) if p != v => { div_active = true; break; }
                             _ => {}
                         }
                     }
                 }
-                let Some(v) = tgt else {
-                    g.pc += info.size; // no active lane: falls through
-                    continue;
+                // Measured on G14C (2026-10-17): uniform transfer sets depth 2 on
+                // active lanes and leaves dragged lanes unchanged; divergent transfer
+                // with lane 0 active is a full reconvergence (lane 0's target wins,
+                // every lane lands with depth 2); divergent with lane 0 inactive
+                // falls back to the active consensus if unanimous, else errors.
+                let (v, reconverge) = match (div_all, div_active, first_active) {
+                    (_, _, None) => {
+                        g.pc += info.size; // no active lane: falls through
+                        continue;
+                    }
+                    (false, _, Some(a)) => (a, false),
+                    (true, false, Some(a)) => (a, false),
+                    (true, _, _) if g.st.exec[0] => (g.st.get_reg32(r, 0)? & 0xffff_ffff, true),
+                    _ => return Err(format!("ret at {0}: divergent active lanes with lane 0 inactive not modelled", g.pc)),
                 };
                 let target = if ret_model == "buffer-pop2" { v - call_base() } else { v };
                 if target < 0 || target as usize >= code.len() || target % 2 != 0 {
                     return Err(format!("ret at {} targets {} outside the program (0..{})", g.pc, target, code.len()));
                 }
                 if ret_model == "buffer-pop2" {
-                    if !g.st.exec.iter().all(|&active| active) {
-                        return Err("ret: only all-active uniform targets have been measured".into());
-                    }
-                    for t in 0..32 {
-                        if g.st.exec[t] {
+                    if reconverge {
+                        // Divergent transfer is a full reconvergence: every lane
+                        // lands with depth 2 (measured: nested inner ret drags
+                        // masked lanes through and they skip the first post pop).
+                        for t in 0..32 {
                             g.st.set_reg16(0, t, 2)?;
                             g.st.exec[t] = false;
+                        }
+                    } else {
+                        // Uniform transfer: active lanes get depth 2; dragged
+                        // (inactive) lanes keep their depth (measured 2026-10-17).
+                        for t in 0..32 {
+                            if g.st.exec[t] {
+                                g.st.set_reg16(0, t, 2)?;
+                                g.st.exec[t] = false;
+                            }
                         }
                     }
                 }
