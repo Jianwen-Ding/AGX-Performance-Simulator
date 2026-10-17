@@ -117,6 +117,8 @@ struct Info {
 enum OpKind {
     Stop,
     Jmp { any: bool },
+    Call,
+    Ret,
     TgBarrier,
     Nop,
     Wait,
@@ -147,6 +149,8 @@ fn op_kind(name: &'static str) -> OpKind {
         "nop6" | "fixed18" => Nop,
         "jmp_exec_any" => Jmp { any: true },
         "jmp_exec_none" => Jmp { any: false },
+        "call" => Call,
+        "ret" => Ret,
         "threadgroup_barrier" => TgBarrier,
         "wait" => Wait,
         "memory_barrier" => Nop,
@@ -353,6 +357,12 @@ fn run_workgroup(d: &Dispatch, cache: &mut [Option<Info>], mem: &mut Memory, [wx
     Ok(groups.into_iter().filter_map(|g| g.trace).collect())
 }
 
+/// Link-register base for call / ret: the value `call` stores is `call_base() + offset of the next instruction`.
+/// 0x2000 on G14C (hardware probes C1a-C1c, playground novel-results/2026-10-17-call-ret).
+fn call_base() -> i128 {
+    std::env::var("AGX_CALL_BASE").ok().and_then(|v| i128::from_str_radix(v.trim_start_matches("0x"), if v.starts_with("0x") { 16 } else { 10 }).ok()).unwrap_or(0x2000)
+}
+
 fn decode_at(code: &[u8], pc: usize, nregs: usize) -> Result<Info, String> {
     if is_barrier78(code, pc) {
         return Ok(Info { desc: None, size: 2, fields: vec![], op: None, ops: vec![], vals: vec![], kind: OpKind::Nop });
@@ -414,6 +424,54 @@ fn step_group(g: &mut Group, code: &[u8], cache: &mut [Option<Info>], mem: &mut 
                     off -= 1 << 32;
                 }
                 g.pc = if take { (g.pc as i64 + off) as usize } else { g.pc + info.size };
+                continue;
+            }
+            // call / ret (applegpu pseudocode; no hardware evidence yet, see the playground's remaining-work.md). The link
+            // register is r1; the stored value is AGX_CALL_BASE + the byte offset of the next instruction. The base is 0x2000, measured
+            // on G14C (stage 1 probes). A target outside the program is an error, never a jump.
+            OpKind::Call => {
+                if info.size != 6 {
+                    return Err("call (register form): semantics unknown, not modelled".into());
+                }
+                let mut off = x("off") as i64;
+                if off & (1 << 31) != 0 {
+                    off -= 1 << 32;
+                }
+                let target = g.pc as i64 + off;
+                if target < 0 || target as usize >= code.len() {
+                    return Err(format!("call at {} targets {} outside the program (0..{})", g.pc, target, code.len()));
+                }
+                let link = call_base() + (g.pc + info.size) as i128;
+                for t in 0..32 {
+                    if g.st.exec[t] {
+                        g.st.set_reg32(1, t, link)?;
+                    }
+                }
+                g.pc = target as usize;
+                continue;
+            }
+            OpKind::Ret => {
+                let r = x("reg32") as usize;
+                let mut tgt: Option<i128> = None;
+                for t in 0..32 {
+                    if g.st.exec[t] {
+                        let v = g.st.get_reg32(r, t)? & 0xffff_ffff;
+                        match tgt {
+                            None => tgt = Some(v),
+                            Some(p) if p != v => return Err(format!("ret at {}: active lanes disagree on the target (divergent ret not modelled)", g.pc)),
+                            _ => {}
+                        }
+                    }
+                }
+                let Some(v) = tgt else {
+                    g.pc += info.size; // no active lane: falls through
+                    continue;
+                };
+                let target = v - call_base();
+                if target < 0 || target as usize >= code.len() {
+                    return Err(format!("ret at {} targets {} outside the program (0..{})", g.pc, target, code.len()));
+                }
+                g.pc = target as usize;
                 continue;
             }
             OpKind::TgBarrier => {

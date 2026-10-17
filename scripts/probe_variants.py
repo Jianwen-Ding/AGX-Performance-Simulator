@@ -30,9 +30,13 @@ class Probe:
     allowed: bit mask (int over the instruction) the variant may change. oracle(out, table_after) -> bool for the
     surrogate run."""
 
-    def __init__(self, name, prefix, surrogate, variant, suffix, allowed, n, wg, regs, table, oracle, shared=0):
+    def __init__(self, name, prefix, surrogate, variant, suffix, allowed, n, wg, regs, table, oracle, shared=0,
+                 variant_oracle=None):
+        """variant_oracle: when the simulator can execute the variant itself (call / ret), the variant program must also
+        run to its end in agx_run and satisfy this oracle before it reaches the GPU"""
         self.__dict__.update(name=name, prefix=prefix, surrogate=surrogate, variant=variant, suffix=suffix,
-                             allowed=allowed, n=n, wg=wg, regs=regs, table=table, oracle=oracle, shared=shared)
+                             allowed=allowed, n=n, wg=wg, regs=regs, table=table, oracle=oracle, shared=shared,
+                             variant_oracle=variant_oracle)
 
     def body(self, x):
         return self.prefix + x + self.suffix
@@ -50,6 +54,10 @@ def check(p):
     out, tab = cov.simulate(drm.build_main(p.body(p.surrogate)), p.n, p.wg, p.regs, p.shared, p.table)
     if not p.oracle(out, tab):
         raise RuntimeError(f'{p.name}: the surrogate program does not match its host oracle in agx_run')
+    if p.variant_oracle:
+        vout, vtab = cov.simulate(drm.build_main(p.body(p.variant)), p.n, p.wg, p.regs, p.shared, p.table)
+        if not p.variant_oracle(vout, vtab):
+            raise RuntimeError(f'{p.name}: the variant program does not match its oracle in agx_run')
     return out, tab
 
 
