@@ -370,3 +370,30 @@ uniformity and overflow-safe target conversion; replay the verifier in the full
 offline gate before enabling any broader scope. Keep divergent/partial calls,
 out-of-program behavior and call timing opt-in/unmodelled until evidence exists.
 
+## 2026-10-17: fail-closed threadgroup ending atomics
+
+Retained G14C follow-up covers 27 threadgroup-atomic variants with exact
+before/after controls. Ops 11..15 terminate the issuing SIMD group even when
+its execution mask is empty; a `jmp_exec_none` that skips the instruction lets
+the continuation run. This invalidates the simulator's former generic
+empty-mask early return for these unsupported opcodes.
+
+Functional execution now rejects ops 11..15 before mask handling, preserving
+shared memory rather than pretending to model a terminated group. A focused
+Rust regression checks empty, odd-lane and full masks for all five opcodes.
+The adjacent playground gate reconstructs all 27 programs, simulates every
+complete known-operation control, replays 12 understood variants exactly and
+requires explicit rejection of the 15 ending-opcode records. Six host-watchdog
+tests and three known-good dispatches validate bounded diagnostic capture.
+
+No float shared-memory add, 64-bit shared atomic, inter-group progress rule or
+shared-memory side effect of termination was established. There is no CPU
+benchmark or calibrated timing change; this is a correctness/fail-closed
+improvement only. Hardware probing reported no new fault or hang and kept the
+recovered-event count at 3/30.
+
+Next: observe termination side effects from another group before modelling
+ops 11..15; keep them rejected meanwhile. Add the threadgroup follow-up gate to
+the full offline validation rollup, and continue the disjoint call/return target
+conversion and regression work without weakening default rejection.
+
