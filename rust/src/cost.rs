@@ -937,13 +937,12 @@ pub fn trace_reference(code: &[u8], active: usize, max_steps: usize) -> Result<T
 /// This is not the real-memory functional executor (`func::PreparedDispatch`).
 pub struct PreparedTrace<'a> {
     code: &'a [u8],
-    // Instructions are halfword aligned. Unvisited bytes never allocate a PcInfo.
-    cache: Vec<std::sync::OnceLock<Box<PcInfo>>>,
+    cache: crate::decode_cache::DecodeCache<PcInfo, 2>,
 }
 
 impl<'a> PreparedTrace<'a> {
     pub fn new(code: &'a [u8]) -> Self {
-        Self { code, cache: (0..code.len().div_ceil(2)).map(|_| std::sync::OnceLock::new()).collect() }
+        Self { code, cache: crate::decode_cache::DecodeCache::new(code.len()) }
     }
 
     pub fn trace_group(&self, ctx: &GroupCtx, max_steps: usize) -> Result<Trace, String> {
@@ -951,7 +950,7 @@ impl<'a> PreparedTrace<'a> {
     }
 
     fn decode_at(&self, pc: usize, nregs: usize) -> Result<&PcInfo, String> {
-        let cell = &self.cache[pc / 2];
+        let cell = self.cache.at(pc);
         if cell.get().is_none() {
             let code = self.code;
             let n0 = isa::opcode_to_number(&code[pc..code.len().min(pc + 16)]);

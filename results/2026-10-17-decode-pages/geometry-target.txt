@@ -1,0 +1,5 @@
+make: Entering directory '/workspace/scratch/2ff2ed16ef96/Apple-M2-Playground'
+"/workspace/scratch/2ff2ed16ef96/AGX-Performance-Simulator/rust/target/release/suite_check" "/workspace/scratch/2ff2ed16ef96/tmp/retained-suite" --only geometry -v
+geometry     pass    8 /    8   close    0   mismatch    0   unsupported    0
+total        pass    8 /    8   (8 exact, 0 within 2 ulp)
+make: Leaving directory '/workspace/scratch/2ff2ed16ef96/Apple-M2-Playground'

@@ -1,0 +1,356 @@
+{
+  "pairs": 5,
+  "repeats": 7,
+  "summary": [
+    {
+      "lanes": 1,
+      "kind": "device",
+      "baseline": 2.853,
+      "current": 3.1,
+      "speedup": 0.9203225806451614
+    },
+    {
+      "lanes": 1,
+      "kind": "threadgroup",
+      "baseline": 2.377,
+      "current": 2.391,
+      "speedup": 0.9941447093266415
+    },
+    {
+      "lanes": 32,
+      "kind": "device",
+      "baseline": 39.951,
+      "current": 41.652,
+      "speedup": 0.959161624891962
+    },
+    {
+      "lanes": 32,
+      "kind": "threadgroup",
+      "baseline": 13.032,
+      "current": 12.636,
+      "speedup": 1.0313390313390314
+    }
+  ],
+  "runs": [
+    {
+      "lanes": 1,
+      "pair": 0,
+      "build": "baseline",
+      "kind": "device",
+      "median_ms": 2.853,
+      "output": "kind=device groups=512 steps=128 lanes=1 repeats=7 median_ms=2.853 checked_words=1024 atomics=65536"
+    },
+    {
+      "lanes": 1,
+      "pair": 0,
+      "build": "baseline",
+      "kind": "threadgroup",
+      "median_ms": 2.444,
+      "output": "kind=threadgroup groups=512 steps=128 lanes=1 repeats=7 median_ms=2.444 checked_words=1024 atomics=65536"
+    },
+    {
+      "lanes": 1,
+      "pair": 0,
+      "build": "current",
+      "kind": "device",
+      "median_ms": 3.14,
+      "output": "kind=device groups=512 steps=128 lanes=1 repeats=7 median_ms=3.140 checked_words=1024 atomics=65536"
+    },
+    {
+      "lanes": 1,
+      "pair": 0,
+      "build": "current",
+      "kind": "threadgroup",
+      "median_ms": 2.391,
+      "output": "kind=threadgroup groups=512 steps=128 lanes=1 repeats=7 median_ms=2.391 checked_words=1024 atomics=65536"
+    },
+    {
+      "lanes": 1,
+      "pair": 1,
+      "build": "current",
+      "kind": "device",
+      "median_ms": 3.072,
+      "output": "kind=device groups=512 steps=128 lanes=1 repeats=7 median_ms=3.072 checked_words=1024 atomics=65536"
+    },
+    {
+      "lanes": 1,
+      "pair": 1,
+      "build": "current",
+      "kind": "threadgroup",
+      "median_ms": 2.483,
+      "output": "kind=threadgroup groups=512 steps=128 lanes=1 repeats=7 median_ms=2.483 checked_words=1024 atomics=65536"
+    },
+    {
+      "lanes": 1,
+      "pair": 1,
+      "build": "baseline",
+      "kind": "device",
+      "median_ms": 2.83,
+      "output": "kind=device groups=512 steps=128 lanes=1 repeats=7 median_ms=2.830 checked_words=1024 atomics=65536"
+    },
+    {
+      "lanes": 1,
+      "pair": 1,
+      "build": "baseline",
+      "kind": "threadgroup",
+      "median_ms": 2.327,
+      "output": "kind=threadgroup groups=512 steps=128 lanes=1 repeats=7 median_ms=2.327 checked_words=1024 atomics=65536"
+    },
+    {
+      "lanes": 1,
+      "pair": 2,
+      "build": "baseline",
+      "kind": "device",
+      "median_ms": 2.896,
+      "output": "kind=device groups=512 steps=128 lanes=1 repeats=7 median_ms=2.896 checked_words=1024 atomics=65536"
+    },
+    {
+      "lanes": 1,
+      "pair": 2,
+      "build": "baseline",
+      "kind": "threadgroup",
+      "median_ms": 2.377,
+      "output": "kind=threadgroup groups=512 steps=128 lanes=1 repeats=7 median_ms=2.377 checked_words=1024 atomics=65536"
+    },
+    {
+      "lanes": 1,
+      "pair": 2,
+      "build": "current",
+      "kind": "device",
+      "median_ms": 3.237,
+      "output": "kind=device groups=512 steps=128 lanes=1 repeats=7 median_ms=3.237 checked_words=1024 atomics=65536"
+    },
+    {
+      "lanes": 1,
+      "pair": 2,
+      "build": "current",
+      "kind": "threadgroup",
+      "median_ms": 2.465,
+      "output": "kind=threadgroup groups=512 steps=128 lanes=1 repeats=7 median_ms=2.465 checked_words=1024 atomics=65536"
+    },
+    {
+      "lanes": 1,
+      "pair": 3,
+      "build": "current",
+      "kind": "device",
+      "median_ms": 3.072,
+      "output": "kind=device groups=512 steps=128 lanes=1 repeats=7 median_ms=3.072 checked_words=1024 atomics=65536"
+    },
+    {
+      "lanes": 1,
+      "pair": 3,
+      "build": "current",
+      "kind": "threadgroup",
+      "median_ms": 2.371,
+      "output": "kind=threadgroup groups=512 steps=128 lanes=1 repeats=7 median_ms=2.371 checked_words=1024 atomics=65536"
+    },
+    {
+      "lanes": 1,
+      "pair": 3,
+      "build": "baseline",
+      "kind": "device",
+      "median_ms": 3.079,
+      "output": "kind=device groups=512 steps=128 lanes=1 repeats=7 median_ms=3.079 checked_words=1024 atomics=65536"
+    },
+    {
+      "lanes": 1,
+      "pair": 3,
+      "build": "baseline",
+      "kind": "threadgroup",
+      "median_ms": 2.34,
+      "output": "kind=threadgroup groups=512 steps=128 lanes=1 repeats=7 median_ms=2.340 checked_words=1024 atomics=65536"
+    },
+    {
+      "lanes": 1,
+      "pair": 4,
+      "build": "baseline",
+      "kind": "device",
+      "median_ms": 2.847,
+      "output": "kind=device groups=512 steps=128 lanes=1 repeats=7 median_ms=2.847 checked_words=1024 atomics=65536"
+    },
+    {
+      "lanes": 1,
+      "pair": 4,
+      "build": "baseline",
+      "kind": "threadgroup",
+      "median_ms": 2.392,
+      "output": "kind=threadgroup groups=512 steps=128 lanes=1 repeats=7 median_ms=2.392 checked_words=1024 atomics=65536"
+    },
+    {
+      "lanes": 1,
+      "pair": 4,
+      "build": "current",
+      "kind": "device",
+      "median_ms": 3.1,
+      "output": "kind=device groups=512 steps=128 lanes=1 repeats=7 median_ms=3.100 checked_words=1024 atomics=65536"
+    },
+    {
+      "lanes": 1,
+      "pair": 4,
+      "build": "current",
+      "kind": "threadgroup",
+      "median_ms": 2.386,
+      "output": "kind=threadgroup groups=512 steps=128 lanes=1 repeats=7 median_ms=2.386 checked_words=1024 atomics=65536"
+    },
+    {
+      "lanes": 32,
+      "pair": 0,
+      "build": "baseline",
+      "kind": "device",
+      "median_ms": 39.951,
+      "output": "kind=device groups=512 steps=128 lanes=32 repeats=7 median_ms=39.951 checked_words=32768 atomics=2097152"
+    },
+    {
+      "lanes": 32,
+      "pair": 0,
+      "build": "baseline",
+      "kind": "threadgroup",
+      "median_ms": 12.994,
+      "output": "kind=threadgroup groups=512 steps=128 lanes=32 repeats=7 median_ms=12.994 checked_words=32768 atomics=2097152"
+    },
+    {
+      "lanes": 32,
+      "pair": 0,
+      "build": "current",
+      "kind": "device",
+      "median_ms": 42.055,
+      "output": "kind=device groups=512 steps=128 lanes=32 repeats=7 median_ms=42.055 checked_words=32768 atomics=2097152"
+    },
+    {
+      "lanes": 32,
+      "pair": 0,
+      "build": "current",
+      "kind": "threadgroup",
+      "median_ms": 12.454,
+      "output": "kind=threadgroup groups=512 steps=128 lanes=32 repeats=7 median_ms=12.454 checked_words=32768 atomics=2097152"
+    },
+    {
+      "lanes": 32,
+      "pair": 1,
+      "build": "current",
+      "kind": "device",
+      "median_ms": 40.858,
+      "output": "kind=device groups=512 steps=128 lanes=32 repeats=7 median_ms=40.858 checked_words=32768 atomics=2097152"
+    },
+    {
+      "lanes": 32,
+      "pair": 1,
+      "build": "current",
+      "kind": "threadgroup",
+      "median_ms": 12.636,
+      "output": "kind=threadgroup groups=512 steps=128 lanes=32 repeats=7 median_ms=12.636 checked_words=32768 atomics=2097152"
+    },
+    {
+      "lanes": 32,
+      "pair": 1,
+      "build": "baseline",
+      "kind": "device",
+      "median_ms": 40.091,
+      "output": "kind=device groups=512 steps=128 lanes=32 repeats=7 median_ms=40.091 checked_words=32768 atomics=2097152"
+    },
+    {
+      "lanes": 32,
+      "pair": 1,
+      "build": "baseline",
+      "kind": "threadgroup",
+      "median_ms": 13.032,
+      "output": "kind=threadgroup groups=512 steps=128 lanes=32 repeats=7 median_ms=13.032 checked_words=32768 atomics=2097152"
+    },
+    {
+      "lanes": 32,
+      "pair": 2,
+      "build": "baseline",
+      "kind": "device",
+      "median_ms": 38.916,
+      "output": "kind=device groups=512 steps=128 lanes=32 repeats=7 median_ms=38.916 checked_words=32768 atomics=2097152"
+    },
+    {
+      "lanes": 32,
+      "pair": 2,
+      "build": "baseline",
+      "kind": "threadgroup",
+      "median_ms": 12.912,
+      "output": "kind=threadgroup groups=512 steps=128 lanes=32 repeats=7 median_ms=12.912 checked_words=32768 atomics=2097152"
+    },
+    {
+      "lanes": 32,
+      "pair": 2,
+      "build": "current",
+      "kind": "device",
+      "median_ms": 41.652,
+      "output": "kind=device groups=512 steps=128 lanes=32 repeats=7 median_ms=41.652 checked_words=32768 atomics=2097152"
+    },
+    {
+      "lanes": 32,
+      "pair": 2,
+      "build": "current",
+      "kind": "threadgroup",
+      "median_ms": 12.441,
+      "output": "kind=threadgroup groups=512 steps=128 lanes=32 repeats=7 median_ms=12.441 checked_words=32768 atomics=2097152"
+    },
+    {
+      "lanes": 32,
+      "pair": 3,
+      "build": "current",
+      "kind": "device",
+      "median_ms": 40.399,
+      "output": "kind=device groups=512 steps=128 lanes=32 repeats=7 median_ms=40.399 checked_words=32768 atomics=2097152"
+    },
+    {
+      "lanes": 32,
+      "pair": 3,
+      "build": "current",
+      "kind": "threadgroup",
+      "median_ms": 12.737,
+      "output": "kind=threadgroup groups=512 steps=128 lanes=32 repeats=7 median_ms=12.737 checked_words=32768 atomics=2097152"
+    },
+    {
+      "lanes": 32,
+      "pair": 3,
+      "build": "baseline",
+      "kind": "device",
+      "median_ms": 42.619,
+      "output": "kind=device groups=512 steps=128 lanes=32 repeats=7 median_ms=42.619 checked_words=32768 atomics=2097152"
+    },
+    {
+      "lanes": 32,
+      "pair": 3,
+      "build": "baseline",
+      "kind": "threadgroup",
+      "median_ms": 13.924,
+      "output": "kind=threadgroup groups=512 steps=128 lanes=32 repeats=7 median_ms=13.924 checked_words=32768 atomics=2097152"
+    },
+    {
+      "lanes": 32,
+      "pair": 4,
+      "build": "baseline",
+      "kind": "device",
+      "median_ms": 39.533,
+      "output": "kind=device groups=512 steps=128 lanes=32 repeats=7 median_ms=39.533 checked_words=32768 atomics=2097152"
+    },
+    {
+      "lanes": 32,
+      "pair": 4,
+      "build": "baseline",
+      "kind": "threadgroup",
+      "median_ms": 13.306,
+      "output": "kind=threadgroup groups=512 steps=128 lanes=32 repeats=7 median_ms=13.306 checked_words=32768 atomics=2097152"
+    },
+    {
+      "lanes": 32,
+      "pair": 4,
+      "build": "current",
+      "kind": "device",
+      "median_ms": 42.53,
+      "output": "kind=device groups=512 steps=128 lanes=32 repeats=7 median_ms=42.530 checked_words=32768 atomics=2097152"
+    },
+    {
+      "lanes": 32,
+      "pair": 4,
+      "build": "current",
+      "kind": "threadgroup",
+      "median_ms": 12.982,
+      "output": "kind=threadgroup groups=512 steps=128 lanes=32 repeats=7 median_ms=12.982 checked_words=32768 atomics=2097152"
+    }
+  ]
+}

@@ -187,3 +187,33 @@ Playground's new `replay-integer-atomic-suite` target passes all 88 cases.
 Next: profile the padded standalone control regression, malformed performance
 launch guards, and real data-dependent memory/atomic workloads. No M2 hardware
 is available, so hardware-only timing remains blocked.
+
+## 2026-10-17: bounded decode tables and eight geometry recordings
+
+Replace code-length-proportional decode tables with an 8 KiB dense prefix plus
+lazy 512-byte tail pages. Keep byte indexing in functional execution and halfword
+indexing in cost tracing, existing alignment/error checks, and per-group state.
+Small functional programs retain a specialized original dense lookup loop;
+cache mode is selected once per group/resume. Add boundary/crossing/jump/error
+and concurrent initialization regressions. Two rejected layouts and raw paired
+controls are retained, not silently discarded.
+
+Five alternating checked pairs: at 1 MiB unreachable padding, standalone cost
+tracing 3.699-5.134x and functional tracing 1.171-1.241x faster. Four-worker peak
+RSS is 36.6 -> 8.4 MiB (cost) and 20.0 -> 8.4 MiB (functional). This is not a
+whole-predictor speed claim: cost's standalone benchmark prepares each group.
+ALU full dispatch is 3.7% slower; four-worker coalesced cost memory tracing is
+17.2% slower; long active functional code is 3.6-6.6% slower. These regressions
+remain unresolved. All raw samples and methodology:
+`results/2026-10-17-decode-pages/README.md`.
+
+Validation: 29 Rust tests/doc checks; all 363 selected retained cases exact,
+including five additional geometry cases (all eight now replay); 74 atomic
+variant replays; independent atomic evidence verification; zero cost-verifier
+failures; all 36 complete prediction reports match their existing hash.
+Playground's new `replay-geometry-suite` gate passes all eight recordings.
+No hardware observation, semantics, calibration or expected output changed.
+
+Next: no-change A/A controls and CPU profiling of compact/active-tail regressions,
+performance launch guards, resource replay and real data-dependent profiles.
+New M2 hardware validation remains unavailable.

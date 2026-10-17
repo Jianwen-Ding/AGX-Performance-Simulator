@@ -137,13 +137,33 @@ struct Info {
     access: Option<Box<crate::memtrace::Access>>,
 }
 
-// The byte-indexed table stores only a once-cell and pointer. Instruction records
-// are allocated lazily at visited PCs and shared by independent traced workgroups.
-// Keeping execution state in Group lets every worker reuse the immutable decode.
-type CodeCache = Vec<OnceLock<Box<Info>>>;
+// Instruction cells are shared by independent traced workgroups. Tail
+// pages stay unallocated unless visited; execution state remains in Group.
+enum CodeCache {
+    Dense(Vec<OnceLock<Box<Info>>>),
+    Paged(crate::decode_cache::DecodeCache<Info, 1>),
+}
 
 fn code_cache(bytes: usize) -> CodeCache {
-    (0..bytes).map(|_| OnceLock::new()).collect()
+    if bytes <= 8192 {
+        CodeCache::Dense((0..bytes).map(|_| OnceLock::new()).collect())
+    } else {
+        CodeCache::Paged(crate::decode_cache::DecodeCache::new(bytes))
+    }
+}
+
+trait InstructionCells {
+    fn cell(&self, pc: usize) -> &OnceLock<Box<Info>>;
+}
+
+impl InstructionCells for Vec<OnceLock<Box<Info>>> {
+    #[inline]
+    fn cell(&self, pc: usize) -> &OnceLock<Box<Info>> { &self[pc] }
+}
+
+impl InstructionCells for crate::decode_cache::DecodeCache<Info, 1> {
+    #[inline]
+    fn cell(&self, pc: usize) -> &OnceLock<Box<Info>> { self.at(pc) }
 }
 
 enum OpKind {
@@ -369,7 +389,7 @@ fn placement(d: &Dispatch, wg: [u32; 3], g: u32) -> (u32, u32) {
     (core, slot)
 }
 
-fn run_workgroup(d: &Dispatch, cache: &[OnceLock<Box<Info>>], mem: &mut Memory, [wx, wy, wz]: [u32; 3], record: bool,
+fn run_workgroup(d: &Dispatch, cache: &CodeCache, mem: &mut Memory, [wx, wy, wz]: [u32; 3], record: bool,
                  stats: &mut RunStats) -> Result<Vec<Trace>, String> {
     let code = &d.code;
     let threads = d.wg[0] * d.wg[1] * d.wg[2];
@@ -450,8 +470,18 @@ fn decode_at(code: &[u8], pc: usize, nregs: usize) -> Result<Info, String> {
     Ok(Info { desc: Some(desc), size, fields, op: Some(op), ops, vals, kind, access })
 }
 
-fn step_group(g: &mut Group, code: &[u8], cache: &[OnceLock<Box<Info>>], mem: &mut Memory, tg: &mut [u8], max_steps: u64,
+fn step_group(g: &mut Group, code: &[u8], cache: &CodeCache, mem: &mut Memory, tg: &mut [u8], max_steps: u64,
               stats: &mut RunStats) -> Result<Stop, String> {
+    // Select once per group/resume, not on every instruction. Small programs
+    // retain their original dense hot loop, while padded/large programs page.
+    match cache {
+        CodeCache::Dense(c) => step_group_impl(g, code, c, mem, tg, max_steps, stats),
+        CodeCache::Paged(c) => step_group_impl(g, code, c, mem, tg, max_steps, stats),
+    }
+}
+
+fn step_group_impl<C: InstructionCells>(g: &mut Group, code: &[u8], cache: &C, mem: &mut Memory, tg: &mut [u8], max_steps: u64,
+                                       stats: &mut RunStats) -> Result<Stop, String> {
     let nregs = g.st.reg16s.len(); // 16-bit registers, as Compiled::new expects
     while g.pc < code.len() {
         if g.steps >= max_steps {
@@ -459,14 +489,15 @@ fn step_group(g: &mut Group, code: &[u8], cache: &[OnceLock<Box<Info>>], mem: &m
         }
         g.steps += 1;
         stats.instructions += 1;
-        let info = match cache[g.pc].get() {
+        let cell = cache.cell(g.pc);
+        let info = match cell.get() {
             Some(info) => info,
             None => {
                 let info = Box::new(decode_at(code, g.pc, nregs)?);
                 // Another tracing worker may have decoded this PC concurrently.
                 // Both decodes are identical; retain the first successfully installed one.
-                let _ = cache[g.pc].set(info);
-                cache[g.pc].get().unwrap()
+                let _ = cell.set(info);
+                cell.get().unwrap()
             }
         };
         if let Some(tr) = g.trace.as_mut() {
