@@ -467,7 +467,9 @@ fn step_group(g: &mut Group, code: &[u8], cache: &mut [Option<Info>], mem: &mut 
                     g.pc += info.size; // no active lane: falls through
                     continue;
                 };
-                let target = v - call_base();
+                // ret jumps to code start + register (hardware fault of probe C2a: `ret r1` with the raw link, which
+                // is code_off + pc + 6, fetched past the end of the code buffer). The link is therefore NOT a ret target.
+                let target = v;
                 if target < 0 || target as usize >= code.len() {
                     return Err(format!("ret at {} targets {} outside the program (0..{})", g.pc, target, code.len()));
                 }

@@ -167,8 +167,9 @@ def simulate(code, n, wg, regs, shared, table, dims=None):
                 list(struct.unpack(f'<{len(table)}I', (t / 'tr.bin').read_bytes())))
 
 
-def gate(body):
-    """record_suite.gate on the Rust decoder: every instruction decodes; nothing undecodable or control-transferring"""
+def gate(body, allow=()):
+    """record_suite.gate on the Rust decoder: every instruction decodes; nothing undecodable or control-transferring.
+    `allow` exempts named opcodes for one probe (probe_calls: call / ret, protected by agx_run's bounds-checked model)."""
     install()
     p = 0
     while p < len(body):
@@ -177,7 +178,7 @@ def gate(body):
         i = ASMB.info(body[p:p + 16])
         if i is None:
             raise RuntimeError(f'undecodable at {p}: {body[p:p + 8].hex()}')
-        if i[0].startswith('TODO') or i[0] in ('trap', 'call', 'ret', 'doorbell'):
+        if i[0].startswith('TODO') or (i[0] in ('trap', 'call', 'ret', 'doorbell') and i[0] not in allow):
             raise RuntimeError(f'refusing {i[0]} at {p}')
         p += i[1]
 
