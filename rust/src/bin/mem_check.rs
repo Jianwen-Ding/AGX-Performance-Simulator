@@ -42,10 +42,11 @@ pub fn predict(p: &Params, row: &serde_json::Value, steps: [u32; 2], mm: &MemMod
         }
         }
         let ins = cost::decode(&code, p).unwrap();
+        let prepared = cost::PreparedTrace::new(&code);
         let traces: Vec<cost::Trace> = (0..groups)
             .map(|k| {
                 let ctx = GroupCtx { wg_size: [32 * groups, 1, 1], wg_id: [0, 0, 0], group: k, core: 0, slot: k, uniforms: vec![], launch: Default::default() };
-                cost::trace_group(&code, &ctx, 10_000_000).unwrap()
+                prepared.trace_group(&ctx, 10_000_000).unwrap()
             })
             .collect();
         // another core's workgroup: how many of this core's lines do other cores also use?
@@ -58,7 +59,7 @@ pub fn predict(p: &Params, row: &serde_json::Value, steps: [u32; 2], mm: &MemMod
                     let other: Vec<cost::Trace> = (0..groups)
                         .map(|k| {
                             let ctx = GroupCtx { wg_size: [32 * groups, 1, 1], wg_id: [w, 0, 0], group: k, core: 1, slot: k, uniforms: vec![], launch: Default::default() };
-                            cost::trace_group(&code, &ctx, 10_000_000).unwrap()
+                            prepared.trace_group(&ctx, 10_000_000).unwrap()
                         })
                         .collect();
                     cost::segment_overlap(&traces, &other, &dev)
@@ -120,3 +121,4 @@ fn main() {
     println!("{} failures", fails);
     std::process::exit(if fails > 0 { 1 } else { 0 });
 }
+

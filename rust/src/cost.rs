@@ -900,7 +900,6 @@ struct PcInfo {
     size: usize,
     fields: isa::Fields,
     ops: Vec<Operand>,
-    rs: Vec<Vec<u32>>,
     /// halves of rs[1:] (sources for the taint rules)
     uses: Vec<u32>,
     /// first non-empty rs (the destination for the taint rules)
@@ -918,54 +917,48 @@ struct PcInfo {
 /// agx_cost.trace: dynamic pc sequence for one SIMD group (applegpu emulator; uniforms and memory
 /// read as zero; instructions it cannot execute are skipped and taint their destination).
 pub fn trace(code: &[u8], active: usize, max_steps: usize) -> Result<Trace, String> {
-    trace_impl(code, active, max_steps, false, None)
+    PreparedTrace::new(code).trace_impl(active, max_steps, false, None)
 }
 
 /// `trace` for one SIMD group of a dispatch: `get_sr` returns the group's geometry registers, r1 holds
 /// the global X index, uniforms are preset, and exec starts with the group's real lanes active.
 pub fn trace_group(code: &[u8], ctx: &GroupCtx, max_steps: usize) -> Result<Trace, String> {
-    trace_impl(code, ctx.lanes(), max_steps, false, Some(ctx))
+    PreparedTrace::new(code).trace_group(ctx, max_steps)
 }
 
 /// `trace` driven by the reference interpreter (`isa::exec::exec`) instead of the compiled one.
 pub fn trace_reference(code: &[u8], active: usize, max_steps: usize) -> Result<Trace, String> {
-    trace_impl(code, active, max_steps, true, None)
+    PreparedTrace::new(code).trace_impl(active, max_steps, true, None)
 }
 
-fn trace_impl(code: &[u8], active: usize, max_steps: usize, reference: bool, ctx: Option<&GroupCtx>) -> Result<Trace, String> {
-    let mut st = exec::CoreState::new(128, Some(exec::Memory { base: TABLE_VA, words: vec![0; 65536] }));
-    for t in 0..exec::SIMD_WIDTH {
-        st.set_reg16(0, t, if t < active { 0 } else { 1 })?;
-        st.set_reg32(1, t, t as i128)?;
-        st.exec[t] = t < active;
+/// Shared lazy instruction metadata for the cost model's approximate tracer.
+/// Every invocation still starts with independent registers, taint and zero memory.
+/// This is not the real-memory functional executor (`func::PreparedDispatch`).
+pub struct PreparedTrace<'a> {
+    code: &'a [u8],
+    // Instructions are halfword aligned. Unvisited bytes never allocate a PcInfo.
+    cache: Vec<std::sync::OnceLock<Box<PcInfo>>>,
+}
+
+impl<'a> PreparedTrace<'a> {
+    pub fn new(code: &'a [u8]) -> Self {
+        Self { code, cache: (0..code.len().div_ceil(2)).map(|_| std::sync::OnceLock::new()).collect() }
     }
-    if let Some(c) = ctx {
-        for t in 0..exec::SIMD_WIDTH {
-            st.set_reg32(1, t, c.sr(80, t).unwrap_or(0) as i128)?;
-        }
-        for &(u, v) in &c.uniforms {
-            st.uniforms[2 * u] = (v & 0xffff) as u16;
-            st.uniforms[2 * u + 1] = (v >> 16) as u16;
-        }
+
+    pub fn trace_group(&self, ctx: &GroupCtx, max_steps: usize) -> Result<Trace, String> {
+        self.trace_impl(ctx.lanes(), max_steps, false, Some(ctx))
     }
-    let mut out = Trace::default();
-    let mut tainted = vec![false; 1024];
-    let mut cache: Vec<Option<PcInfo>> = (0..code.len()).map(|_| None).collect();
-    let mut pc: i64 = 0;
-    while pc < code.len() as i64 {
-        if pc < 0 {
-            return Err(format!("trace: negative pc {}", pc));
-        }
-        let upc = pc as usize;
-        if is_barrier78(code, upc) {
-            out.pcs.push(upc);
-            pc += 2;
-            continue;
-        }
-        if cache[upc].is_none() {
-            let n0 = isa::opcode_to_number(&code[upc..code.len().min(upc + 16)]);
-            let desc = isa::get_instruction_descriptor(n0).ok_or_else(|| format!("trace: undecodable instruction at {}", upc))?;
+
+    fn decode_at(&self, pc: usize, nregs: usize) -> Result<&PcInfo, String> {
+        let cell = &self.cache[pc / 2];
+        if cell.get().is_none() {
+            let code = self.code;
+            let n0 = isa::opcode_to_number(&code[pc..code.len().min(pc + 16)]);
+            let desc = isa::get_instruction_descriptor(n0).ok_or_else(|| format!("trace: undecodable instruction at {}", pc))?;
             let size = desc.decode_size(n0);
+            if size > code.len() - pc {
+                return Err(format!("trace: truncated {} at {}: needs {} bytes, has {}", desc.name, pc, size, code.len() - pc));
+            }
             let n = desc.mask_instr(n0);
             let fields = desc.decode_fields(n);
             let stop = matches!(desc.name, "stop" | "trap" | "end_group");
@@ -984,81 +977,130 @@ fn trace_impl(code: &[u8], active: usize, max_steps: usize, reference: bool, ctx
             }
             let check = CONTROL.contains(&desc.name) && !["jmp_exec_any", "jmp_exec_none", "pop_exec"].contains(&desc.name);
             let ureg = ops.iter().any(Operand::is_ureg);
-            let op = isa::compiled::Compiled::new(desc, &fields, &ops, st.reg16s.len());
-            cache[upc] = Some(PcInfo { desc, size, fields, ops, rs, uses, dst, op, stop, jump, off, check, ureg });
+            let op = isa::compiled::Compiled::new(desc, &fields, &ops, nregs);
+            // Concurrent misses can decode independently; only the winning immutable value is retained.
+            let _ = cell.set(Box::new(PcInfo { desc, size, fields, ops, uses, dst, op, stop, jump, off, check, ureg }));
         }
-        let info = cache[upc].as_ref().unwrap();
-        out.pcs.push(upc);
-        if out.pcs.len() > max_steps {
-            return Err("trace step limit (non-terminating loop?)".into());
+        Ok(cell.get().unwrap())
+    }
+
+    fn trace_impl(&self, active: usize, max_steps: usize, reference: bool, ctx: Option<&GroupCtx>) -> Result<Trace, String> {
+        let code = self.code;
+        let mut st = exec::CoreState::new(128, Some(exec::Memory { base: TABLE_VA, words: vec![0; 65536] }));
+        for t in 0..exec::SIMD_WIDTH {
+            st.set_reg16(0, t, if t < active { 0 } else { 1 })?;
+            st.set_reg32(1, t, t as i128)?;
+            st.exec[t] = t < active;
         }
-        if info.stop {
-            break;
-        }
-        if info.check && ((info.ureg && ctx.is_none()) || info.uses.iter().any(|&h| tainted[h as usize])) {
-            let w = format!("pc {}: {} condition depends on a uniform or a skipped result (trip count unknown)", upc, info.desc.name);
-            if !out.warnings.contains(&w) {
-                out.warnings.push(w);
+        if let Some(c) = ctx {
+            for t in 0..exec::SIMD_WIDTH {
+                st.set_reg32(1, t, c.sr(80, t).unwrap_or(0) as i128)?;
             }
-        }
-        if info.jump != 0 {
-            let any = st.exec.iter().any(|&e| e);
-            let take = if info.jump == 1 { any } else { !any };
-            pc = if take { pc + info.off } else { pc + info.size as i64 };
-            continue;
-        }
-        let dname = info.desc.name;
-        if dname == "device_load" || dname == "device_store" {
-            if let Some(sg) = mem_segments(&info.fields, &st) {
-                out.mem.push(((out.pcs.len() - 1) as u32, sg));
-            }
-        } else if dname.starts_with("threadgroup_") && dname != "threadgroup_barrier" {
-            if let Some(w) = tg_words(&info.fields, &st) {
-                out.mem.push(((out.pcs.len() - 1) as u32, w));
-            }
-        } else if dname == "atomic" {
-            if let Some(w) = atomic_words(&info.fields, &st) {
-                out.mem.push(((out.pcs.len() - 1) as u32, w));
-            }
-        }
-        if let (Some(c), "get_sr") = (ctx, dname) {
-            let sr = fget(&info.fields, "SR").unwrap_or(0) as u32;
-            if let (Some(Operand::Reg32(d, _)), Some(_)) = (info.ops.first(), c.sr(sr, 0)) {
-                for t in 0..exec::SIMD_WIDTH {
-                    if st.exec[t] {
-                        st.set_reg32(*d as usize, t, c.sr(sr, t).unwrap() as i128)?;
-                    }
+            for &(u, v) in &c.uniforms {
+                if u >= st.uniforms.len() / 2 {
+                    return Err(format!("trace: uniform register {} out of range", u));
                 }
-                for &h in &info.dst {
-                    tainted[h as usize] = false;
-                }
-                pc += info.size as i64;
+                st.uniforms[2 * u] = (v & 0xffff) as u16;
+                st.uniforms[2 * u + 1] = (v >> 16) as u16;
+            }
+        }
+        let mut out = Trace::default();
+        let mut tainted = vec![false; 1024];
+        let mut pc: i64 = 0;
+        while pc < code.len() as i64 {
+            if pc < 0 {
+                return Err(format!("trace: negative pc {}", pc));
+            }
+            let upc = pc as usize;
+            if upc % 2 != 0 {
+                return Err(format!("trace: unaligned instruction address {}", upc));
+            }
+            // Every executed instruction consumes the budget, including the raw 0x78 barrier.
+            if out.pcs.len() >= max_steps {
+                return Err("trace step limit (non-terminating loop?)".into());
+            }
+            if is_barrier78(code, upc) {
+                out.pcs.push(upc);
+                pc += 2;
                 continue;
             }
-        }
-        let r = if reference { exec::exec(info.desc, &info.fields, &info.ops, &mut st) } else { info.op.exec(&mut st) };
-        match r {
-            Ok(()) => {
-                for &h in &info.dst {
-                    tainted[h as usize] = false;
+            let info = self.decode_at(upc, st.reg16s.len())?;
+            out.pcs.push(upc);
+            if info.stop {
+                break;
+            }
+            if info.check && ((info.ureg && ctx.is_none()) || info.uses.iter().any(|&h| tainted[h as usize])) {
+                let w = format!("pc {}: {} condition depends on a uniform or a skipped result (trip count unknown)", upc, info.desc.name);
+                if !out.warnings.contains(&w) {
+                    out.warnings.push(w);
                 }
-                if info.uses.iter().any(|&h| tainted[h as usize]) {
+            }
+            if info.jump != 0 {
+                let any = st.exec.iter().any(|&e| e);
+                let take = if info.jump == 1 { any } else { !any };
+                if take {
+                    let target = pc as i128 + info.off as i128;
+                    if target < 0 || target >= code.len() as i128 || target % 2 != 0 {
+                        return Err(format!("trace: jump at {} targets {} outside the program or unaligned", upc, target));
+                    }
+                    pc = target as i64;
+                } else {
+                    pc += info.size as i64;
+                }
+                continue;
+            }
+            let dname = info.desc.name;
+            if dname == "device_load" || dname == "device_store" {
+                if let Some(sg) = mem_segments(&info.fields, &st) {
+                    out.mem.push(((out.pcs.len() - 1) as u32, sg));
+                }
+            } else if dname.starts_with("threadgroup_") && dname != "threadgroup_barrier" {
+                if let Some(w) = tg_words(&info.fields, &st) {
+                    out.mem.push(((out.pcs.len() - 1) as u32, w));
+                }
+            } else if dname == "atomic" {
+                if let Some(w) = atomic_words(&info.fields, &st) {
+                    out.mem.push(((out.pcs.len() - 1) as u32, w));
+                }
+            }
+            if let (Some(c), "get_sr") = (ctx, dname) {
+                let sr = fget(&info.fields, "SR").unwrap_or(0) as u32;
+                if let (Some(Operand::Reg32(d, _)), Some(_)) = (info.ops.first(), c.sr(sr, 0)) {
+                    for t in 0..exec::SIMD_WIDTH {
+                        if st.exec[t] {
+                            st.set_reg32(*d as usize, t, c.sr(sr, t).unwrap() as i128)?;
+                        }
+                    }
+                    for &h in &info.dst {
+                        tainted[h as usize] = false;
+                    }
+                    pc += info.size as i64;
+                    continue;
+                }
+            }
+            let r = if reference { exec::exec(info.desc, &info.fields, &info.ops, &mut st) } else { info.op.exec(&mut st) };
+            match r {
+                Ok(()) => {
+                    for &h in &info.dst {
+                        tainted[h as usize] = false;
+                    }
+                    if info.uses.iter().any(|&h| tainted[h as usize]) {
+                        for &h in &info.dst {
+                            tainted[h as usize] = true;
+                        }
+                    }
+                }
+                Err(_) => {
+                    out.skipped.insert(info.desc.name.to_string());
                     for &h in &info.dst {
                         tainted[h as usize] = true;
                     }
                 }
             }
-            Err(_) => {
-                out.skipped.insert(info.desc.name.to_string());
-                for &h in &info.dst {
-                    tainted[h as usize] = true;
-                }
-            }
+            pc += info.size as i64;
         }
-        let _ = &info.rs;
-        pc += info.size as i64;
+        Ok(out)
     }
-    Ok(out)
 }
 
 /// agx_cost.fit_branch: taken-branch penalty so an empty counted-loop trip costs the measured 35.25 units.
@@ -2617,3 +2659,4 @@ pub fn segment_overlap(a: &[Trace], b: &[Trace], device_pcs: &std::collections::
     }
     sa.iter().filter(|x| sb.contains(x)).count() as f64 / sa.len() as f64
 }
+

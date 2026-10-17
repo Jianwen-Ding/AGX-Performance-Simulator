@@ -107,3 +107,32 @@ Next: profile memory-heavy data-dependent loops, consider cached atomic operands
 and shared cost-trace memory decoding, and extend cross-lane/control-flow replay.
 Check the ALU controls when changing decode layout. M2 hardware remains unavailable;
 float/u64 atomic timing still requires real hardware evidence.
+
+## 2026-10-17: shared preparation for performance-model traces
+
+Added `cost::PreparedTrace`: halfword-indexed lazy decode records shared across
+dispatch groups, waves and overlap probes, also reused by `mem_check`. Registers,
+masks, taint and the approximate interpreter's zero memory remain per call.
+No formerly skipped operand or new hardware timing is claimed as supported.
+
+Raw 0x78 barriers now consume the trace instruction budget. Truncated fetches,
+invalid taken jumps and invalid uniform indices fail cleanly. Corrected the
+dispatch timing checker's byte-wise padding trim to preserve the final stop.
+
+Checked five-pair benchmark: full compact ALU dispatch CLI 24.108 -> 15.435 ms
+(1.562x); standalone four-worker padded tracing 17.652 -> 4.566 ms (3.866x),
+observed peak RSS 107,512 -> 8,576 KiB. Compact standalone tracing improved
+12.848 -> 12.157 ms. These are focused workloads, not an overall speed claim.
+Raw paired results and reproduction: `results/2026-10-17-cost-tracing/README.md`.
+
+Validation: 21 Rust tests and doc checks pass; 146 exact retained functional
+replays (all 23 control cases, all 102 memory cases); 74 atomic replays; zero
+cost-model failures. All 36 complete dispatch prediction reports equal the
+baseline exactly; retained dispatch timing check median absolute error 0.048.
+Playground `make replay-control-suite` passes all 23 recordings. Calibration
+and evidence remain unchanged; there is no new M2 hardware validation.
+
+Next: cached cost-trace memory operands, broader cross-lane replay and guards for
+malformed performance launch dimensions. Keep approximate cost-emulation paths
+distinct from real-memory functional traces. Hardware-only timing work remains
+blocked on an M2 device.

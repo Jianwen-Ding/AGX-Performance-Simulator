@@ -111,6 +111,7 @@ pub fn simulate(code: &[u8], l: &Launch, p: &Params) -> Result<Report, String> {
 /// `simulate` with the SIMD groups' paths from `tracer` (None: `cost::trace_group`).
 pub fn simulate_with(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer>) -> Result<Report, String> {
     let ins = cost::decode(code, p)?;
+    let prepared = tracer.is_none().then(|| cost::PreparedTrace::new(code));
     let dims: Vec<u32> = (0..3).map(|i| l.grid[i].div_ceil(l.wg[i].max(1))).collect();
     let n = dims.iter().map(|&d| d as u64).product::<u64>();
     let threads = l.wg[0] * l.wg[1] * l.wg[2];
@@ -159,7 +160,7 @@ pub fn simulate_with(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer
             }
             None => crate::par::map(&jobs, |&(i, g, slot)| {
                 let ctx = GroupCtx { wg_size: l.wg, wg_id: wg_at(i), group: g, core: 0, slot, uniforms: l.uniforms.clone(), launch: cost::SrLaunch { tg_bytes: l.tg_bytes, regs: l.regs, ..Default::default() } };
-                cost::trace_group(code, &ctx, l.max_steps)
+                prepared.as_ref().unwrap().trace_group(&ctx, l.max_steps)
             }),
         };
         for (&(i, _, _), t) in jobs.iter().zip(traced) {
@@ -200,7 +201,7 @@ pub fn simulate_with(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer
                         let gs: Vec<u32> = (0..gpw).collect();
                         let tr = crate::par::map(&gs, |&g| {
                             let ctx = GroupCtx { wg_size: l.wg, wg_id: wg_coords(k), group: g, core: 1, slot: g, uniforms: l.uniforms.clone(), launch: cost::SrLaunch { tg_bytes: l.tg_bytes, regs: l.regs, ..Default::default() } };
-                            cost::trace_group(code, &ctx, l.max_steps)
+                            prepared.as_ref().unwrap().trace_group(&ctx, l.max_steps)
                         }).into_iter().collect::<Result<Vec<_>, _>>()?;
                         ovs.push(cost::segment_overlap(&traces, &tr, &device_pcs));
                     }
@@ -259,3 +260,4 @@ pub fn busiest_core_wgs(n: u64, l: &Launch) -> u64 {
     let smallest = *l.clusters.iter().min().unwrap() as u64;
     share.div_ceil(smallest)
 }
+

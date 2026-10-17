@@ -18,8 +18,9 @@ fn main() {
     let rows = d["rows"].as_array().unwrap();
     let launch = |r: &serde_json::Value| -> (Vec<u8>, Launch) {
         let mut code = std::fs::read(dir.join(r["code"].as_str().unwrap())).unwrap();
-        while code.last() == Some(&0) {
-            code.pop();
+        // Strip whole padding halfwords, not the high byte of the final 0x0088 stop.
+        while code.len() > 2 && code[code.len() - 2..] == [0, 0] {
+            code.truncate(code.len() - 2);
         }
         let g = |k: &str| r[k].as_u64().unwrap() as u32;
         let l = Launch {
@@ -54,3 +55,4 @@ fn main() {
         errs.len(), q(0.5), q(0.9), q(1.0), limit);
     std::process::exit(if ok { 0 } else { 1 });
 }
+
