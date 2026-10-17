@@ -247,3 +247,30 @@ establish their cause. Raw samples, repros and scope:
 Next: controlled CPU profiling (perf/valgrind unavailable here), lower-level
 geometry invariants, resource SR replay and data-dependent workloads. New M2
 hardware validation remains unavailable.
+
+## 2026-10-17: cached functional special-register execution
+
+Cache immutable get_sr selector/destination/width/class at decode. Resolve group-
+uniform values once per execution, keep lane coordinates per lane, and compute
+quad/SIMD ranks/counts from the current mask only. Preserve half-register writes,
+inactive behavior, placement flags and lazy unknown-selector fallback. SR113 is
+still unmodelled; values are not cached across launches/groups/resumes. Remove
+the now-unused duplicate operand vector from functional decode records.
+
+Five alternating checked pairs: uniform SR7/18/19 reads 1.953-3.356x faster;
+quad rank 1.393-1.798x; global-X effectively flat (full mask 1.5% slower).
+ALU full-dispatch control is 2.7% slower and four-worker scattered cost tracing
+17.9% slower; regressions remain open, with no general speedup claim. Raw data,
+scope and reproduction: `results/2026-10-17-special-register-cache/README.md`.
+
+Validation: 36 Rust tests/doc checks; three SR schema/failure tests in normal
+and optimized Python; 363 exact retained replays; all six SR programs / 1,518
+selector-pattern comparisons pass on baseline and current; 74 atomic replays
+and independent verification; launch/batch gate; zero cost-verifier failures;
+all 36 complete predictions match their existing hash. SR replay now fails on
+missing patterns/selectors or incomplete lane values. Playground exposes it as
+`replay-simulator-sr`. No retained evidence, semantics or calibration changed.
+
+Next: lower-level geometry guards, resource-width replay and controlled CPU
+profiling of real data-dependent paths/control regressions. M2 hardware remains
+unavailable; hardware-only timing and unmodelled SR113 remain outside scope.

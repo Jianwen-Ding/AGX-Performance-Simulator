@@ -1,0 +1,24 @@
+ok   results/2026-10-17-atomic-variants/records.json.gz matches the recorded hash
+ok   results/2026-10-17-atomic-variants/drm_compute.c.snapshot matches the recorded hash
+ok   results/2026-10-17-atomic-variants/probe_atomics.py.snapshot matches the recorded hash
+ok   results/2026-10-17-atomic-variants/probe_variants.py.snapshot matches the recorded hash
+ok   74 recorded dispatch pairs, none faulted
+ok   every pair deterministic except the two contention runs
+ok   each variant = Mesa atomic formula (bit 45 clear, bit 46 set) with only op or bits 45-46 changed; whole program ends in stop
+ok   op 3 + u5 = 1, Rt = 0: umin64 on the 64-bit word at base + 4 x index, all 32 lanes (13 lanes where the signed order would differ); no register written
+ok   op 3 + u5 = 1, Rt = 1: umin64 on the 64-bit word at base + 4 x index, all 32 lanes (13 lanes where the signed order would differ); register = 1 if memory changed, else 0
+ok   op 3 + u5 = 3, Rt = 0: umax64 on the 64-bit word at base + 4 x index, all 32 lanes (13 lanes where the signed order would differ); no register written
+ok   op 3 + u5 = 3, Rt = 1: umax64 on the 64-bit word at base + 4 x index, all 32 lanes (13 lanes where the signed order would differ); register = 1 if memory changed, else 0
+ok   op 3 + u5 = 0 is the 32-bit cmpxchg (new r6, compare r7) on all 32 lanes; the 7 lanes set up for a 64-bit compare on r8_r9 were not swapped; old low word returned
+ok   add, xchg, umin, imin, umax, imax, and, or, xor with u5 = 0 / 1 / 3: the plain 32-bit op returning the old word (27 variants)
+ok   sub with u5 = 0: integer sub; with u5 = 1 or 3: float32 add (old + value, nearest even, denormals flushed), old word returned
+ok   float add over 2048 edge / rounding pairs: all match round-to-nearest-even with denormal inputs and results flushed to signed zero (377 NaN results, all 0x7fc00000); 109 lanes contradict the denormal-preserving model; the old word is returned
+ok   1024 lanes add 1.0 to one word: final 1024.0, returns are exactly {0.0, 1.0, ..., 1023.0}
+ok   1024 lanes add mixed values to one word: the returns form one serial chain from 1.0 to the final value (atomic)
+ok   ops 11-15: memory unchanged and the harness store after them never runs (5 ops)
+ok   ops 11-15: a store before the op lands in all 32 lanes; nothing after it runs, even after mov_imm r0l, 0
+ok   op 11 inside an if without jmp_exec_none: every SIMD group issues it and none continues (2 workgroups x 2 groups)
+ok   op 11 inside Mesa's if (jmp_exec_none): groups with no active lane finish; the issuing groups end, inactive lanes included
+ok   threadgroup atomic sub: 18 single gap bits (6-7, 35, 37, 40-46, 72-79 except 6) leave the integer sub and its return unchanged: no threadgroup float add among them
+ok   threadgroup atomic bit 6: returns 0 and no word of the 2 KiB threadgroup memory changes (the access is suppressed)
+0 failures

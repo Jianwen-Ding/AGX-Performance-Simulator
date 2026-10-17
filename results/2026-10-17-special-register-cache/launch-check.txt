@@ -1,0 +1,4 @@
+make: Entering directory '/workspace/scratch/2ff2ed16ef96/Apple-M2-Playground'
+python3 -B scripts/check_simulator_launch.py --run "/workspace/scratch/2ff2ed16ef96/AGX-Performance-Simulator/rust/target/release/agx_dispatch"
+34 invalid jobs and 3 malformed JSON lines isolated; valid controls unchanged (1/4 workers); no GPU
+make: Leaving directory '/workspace/scratch/2ff2ed16ef96/Apple-M2-Playground'

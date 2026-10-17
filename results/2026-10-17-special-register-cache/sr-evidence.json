@@ -1,0 +1,39 @@
+{
+  "repository": "Jianwen-Ding/AGX-Performance-Simulator",
+  "commit": "a0622df34d5f772c92d6f10f034413c1e6f4598c",
+  "files": [
+    {
+      "path": "results/2026-10-16-special-registers/depth1.bin",
+      "sha": "84477c6ae1e346d79e46da76c459867417d48b10"
+    },
+    {
+      "path": "results/2026-10-16-special-registers/depth2.bin",
+      "sha": "3b1b57694af3cccfddf8fb828eadee6548877ee5"
+    },
+    {
+      "path": "results/2026-10-16-special-registers/depth3.bin",
+      "sha": "9d240c3f5012dc2cbf1a0b968c49a2bd5c1491f9"
+    },
+    {
+      "path": "results/2026-10-16-special-registers/hardware.json.gz",
+      "sha": "49357351482c25d569de3c28b909d04370d68852"
+    },
+    {
+      "path": "results/2026-10-16-special-registers/quad-depth2.bin",
+      "sha": "acba4cc2e06c22d8293ce9fbe1fd83d84e1ced8b"
+    },
+    {
+      "path": "results/2026-10-16-special-registers/quad.bin",
+      "sha": "c573446eba895469abffe7c3e450b855f63b0047"
+    },
+    {
+      "path": "results/2026-10-16-special-registers/uniform.bin",
+      "sha": "628b8d6211b9cbd5be162ffe13e2845b111a79db"
+    }
+  ],
+  "comparison_exclusions": [
+    17,
+    20,
+    113
+  ]
+}

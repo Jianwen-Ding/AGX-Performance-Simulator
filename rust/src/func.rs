@@ -129,7 +129,6 @@ struct Info {
     size: usize,
     fields: Fields,
     op: Option<Compiled>,
-    ops: Vec<Operand>,
     /// the value operands (registers, uniforms, immediates) the semantic helpers take, computed once
     vals: Vec<Operand>,
     /// what step_group does with it, decided once from the name instead of on every execution
@@ -174,7 +173,7 @@ enum OpKind {
     TgBarrier,
     Nop,
     Wait,
-    GetSr,
+    GetSr(Box<SpecialRegister>),
     DevMem { load: bool, args: Box<DeviceMem> },
     Stack { load: bool },
     UniformStore,
@@ -194,7 +193,7 @@ enum OpKind {
     Generic,
 }
 
-fn op_kind(name: &'static str, f: &Fields) -> OpKind {
+fn op_kind(name: &'static str, f: &Fields, ops: &[Operand]) -> OpKind {
     use OpKind::*;
     match name {
         "stop" | "trap" | "end_group" => Stop,
@@ -206,7 +205,7 @@ fn op_kind(name: &'static str, f: &Fields) -> OpKind {
         "threadgroup_barrier" => TgBarrier,
         "wait" => Wait,
         "memory_barrier" => Nop,
-        "get_sr" => GetSr,
+        "get_sr" => GetSr(Box::new(SpecialRegister::new(f, ops))),
         // the .TODO encodings differ from the plain ones only in control bits (Mesa emits them for Vulkan-memory-model
         // atomic loads / stores, between memory_barrier sequences); on one sequentially simulated memory they read and
         // write exactly as the plain access does
@@ -452,7 +451,7 @@ fn call_base() -> i128 {
 fn decode_at(code: &[u8], pc: usize, nregs: usize) -> Result<Info, String> {
     if pc % 2 != 0 { return Err(format!("unaligned instruction address {}", pc)); }
     if is_barrier78(code, pc) {
-        return Ok(Info { desc: None, size: 2, fields: vec![], op: None, ops: vec![], vals: vec![], kind: OpKind::Nop, access: None });
+        return Ok(Info { desc: None, size: 2, fields: vec![], op: None, vals: vec![], kind: OpKind::Nop, access: None });
     }
     let n0 = isa::opcode_to_number(&code[pc..code.len().min(pc + 16)]);
     let desc = isa::get_instruction_descriptor(n0).ok_or_else(|| format!("undecodable instruction at {}", pc))?;
@@ -465,9 +464,9 @@ fn decode_at(code: &[u8], pc: usize, nregs: usize) -> Result<Info, String> {
     let ops = if desc.name == "stop" || desc.name == "trap" { vec![] } else { desc.fields_to_operands(&fields)? };
     let op = Compiled::new(desc, &fields, &ops, nregs);
     let vals = vals(&ops);
-    let kind = op_kind(desc.name, &fields);
+    let kind = op_kind(desc.name, &fields, &ops);
     let access = crate::memtrace::Access::decode(desc.name, &fields, true);
-    Ok(Info { desc: Some(desc), size, fields, op: Some(op), ops, vals, kind, access })
+    Ok(Info { desc: Some(desc), size, fields, op: Some(op), vals, kind, access })
 }
 
 fn step_group(g: &mut Group, code: &[u8], cache: &CodeCache, mem: &mut Memory, tg: &mut [u8], max_steps: u64,
@@ -607,45 +606,7 @@ fn step_group_impl<C: InstructionCells>(g: &mut Group, code: &[u8], cache: &C, m
                 }
                 g.pending = keep;
             }
-            OpKind::GetSr => {
-                let sr = x("SR") as u32;
-                stats.placement_read |= sr == 17 || sr == 20;
-                // 32-bit or 16-bit destination (Mesa writes e.g. sr58 to a half register); a half takes the low 16 bits
-                let (dr, half) = match info.ops.first() {
-                    Some(Operand::Reg32(r, _)) => (*r as usize, false),
-                    Some(Operand::Reg16(r, _)) => (*r as usize, true),
-                    _ => return Err("get_sr: unexpected destination".into()),
-                };
-                // SR58 / SR59 (SR56 / SR57 within the quad) are the active thread's index among the active threads and the number of active threads
-                // (Mesa aggregates atomics with them under divergence); with every lane active they equal the launch
-                // geometry's lane index / lane count, which is what the recorded suite covers
-                // SR56 / SR57 are the same within the lane's quad (hardware: nested ifs, playground sr-divergence)
-                let active = g.st.exec.iter().filter(|&&e| e).count() as u32;
-                let mut rank = 0u32;
-                let mut fallback = None;
-                for t in 0..32 {
-                    if g.st.exec[t] {
-                        let q = t & !3;
-                        let v = match sr {
-                            56 => (q..t).filter(|&u| g.st.exec[u]).count() as u32,
-                            57 => (q..q + 4).filter(|&u| g.st.exec[u]).count() as u32,
-                            58 => rank,
-                            59 => active,
-                            // AGX_SR_DEFAULT=V: unmodelled selectors read V (for checking a program's control flow / stores
-                            // offline, e.g. a 256-selector scan, before it runs on the GPU)
-                            _ => match g.ctx.sr(sr, t) {
-                                Some(v) => v,
-                                None => match *fallback.get_or_insert_with(|| std::env::var("AGX_SR_DEFAULT").ok().and_then(|v| v.parse::<u32>().ok())) {
-                                    Some(v) => v,
-                                    None => return Err(format!("get_sr: special register {} not modelled", sr)),
-                                },
-                            },
-                        };
-                        rank += 1;
-                        if half { g.st.set_reg16(dr, t, v as i128)? } else { g.st.set_reg32(dr, t, v as i128)? }
-                    }
-                }
-            }
+            OpKind::GetSr(ref args) => special_register(g, args, stats)?,
             OpKind::DevMem { load, ref args } => device_mem(g, args, mem, load)?,
             OpKind::Stack { load } => stack_mem(g, f, load)?,
             OpKind::UniformStore => uniform_store(g, f)?,
@@ -798,6 +759,72 @@ fn get(st: &CoreState, rt: bool, r: usize, k: usize, t: usize) -> Result<i128, S
 }
 
 // Immutable operand fields are extracted once per visited PC, shared with the decode.
+#[derive(Clone, Copy)]
+enum SrKind { Uniform, Lane, QuadRank, QuadCount, SimdRank, SimdCount }
+
+// Cache encoding metadata only. Values and active-mask-dependent ranks/counts
+// are recomputed at each execution, never retained across groups or resumes.
+struct SpecialRegister {
+    selector: u32,
+    destination: Option<(usize, bool)>, // register index, half-width?
+    kind: SrKind,
+}
+
+impl SpecialRegister {
+    fn new(fields: &Fields, ops: &[Operand]) -> Self {
+        let selector = fget(fields, "SR").unwrap_or(0) as u32;
+        let destination = match ops.first() {
+            Some(Operand::Reg32(r, _)) => Some((*r as usize, false)),
+            Some(Operand::Reg16(r, _)) => Some((*r as usize, true)),
+            _ => None,
+        };
+        let kind = match selector {
+            56 => SrKind::QuadRank, 57 => SrKind::QuadCount,
+            58 => SrKind::SimdRank, 59 => SrKind::SimdCount,
+            16 | 48..=52 | 80..=82 => SrKind::Lane,
+            _ => SrKind::Uniform,
+        };
+        Self { selector, destination, kind }
+    }
+}
+
+fn special_register(g: &mut Group, args: &SpecialRegister, stats: &mut RunStats) -> Result<(), String> {
+    use SrKind::*;
+    let sr = args.selector;
+    stats.placement_read |= sr == 17 || sr == 20;
+    let (dr, half) = args.destination.ok_or("get_sr: unexpected destination")?;
+    let Some(first) = g.st.exec.iter().position(|&active| active) else { return Ok(()); };
+    let mut fallback = None;
+    let mut resolve = |t| g.ctx.sr(sr, t).or_else(|| {
+        // Keep environment fallback lazy and local to this execution. SR113 is
+        // still unmodelled, not frozen into an instruction or dispatch cache.
+        *fallback.get_or_insert_with(|| std::env::var("AGX_SR_DEFAULT").ok().and_then(|v| v.parse::<u32>().ok()))
+    }).ok_or_else(|| format!("get_sr: special register {} not modelled", sr));
+    let uniform = match args.kind {
+        Uniform => resolve(first)?,
+        SimdCount => g.st.exec.iter().filter(|&&active| active).count() as u32,
+        _ => 0,
+    };
+    let counts: [u32; 8] = if matches!(args.kind, QuadCount) {
+        std::array::from_fn(|q| g.st.exec[4 * q..4 * q + 4].iter().filter(|&&active| active).count() as u32)
+    } else { [0; 8] };
+    let mut ranks = [0u32; 8];
+    for t in 0..32 {
+        if !g.st.exec[t] { continue; }
+        let value = match args.kind {
+            Uniform | SimdCount => uniform,
+            Lane => resolve(t)?,
+            QuadCount => counts[t / 4],
+            QuadRank | SimdRank => {
+                let q = if matches!(args.kind, QuadRank) { t / 4 } else { 0 };
+                let rank = ranks[q]; ranks[q] += 1; rank
+            }
+        };
+        if half { g.st.set_reg16(dr, t, value as i128)?; } else { g.st.set_reg32(dr, t, value as i128)?; }
+    }
+    Ok(())
+}
+
 // No register values, lane addresses or execution masks are cached here.
 #[derive(Clone, Copy)]
 struct DeviceMem {
@@ -1072,6 +1099,65 @@ fn vals(ops: &[Operand]) -> Vec<Operand> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn sr_group(mask: u32) -> Group {
+        let mut st = CoreState::new(8, None);
+        for t in 0..32 {
+            st.exec[t] = mask & (1 << t) != 0;
+            st.set_reg32(4, t, 0xaabbccdd).unwrap();
+        }
+        Group { st, ctx: GroupCtx { wg_size: [8, 4, 2], wg_id: [3, 2, 1], group: 1, core: 19, slot: 7, uniforms: vec![],
+            launch: crate::cost::SrLaunch { tg_bytes: 513, regs: 65, context: Some(47), pipeline: Some(0x1080), preamble: false } },
+            pc: 0, done: false, steps: 0, trace: None, stack: vec![], pending: vec![] }
+    }
+
+    #[test]
+    fn cached_special_registers_match_geometry_and_independent_mask_oracles() {
+        for sr in (0u32..256).filter(|&sr| sr != 113) { // hardware time-varying SR113 remains unmodelled
+            for half in [false, true] {
+                let dest = if half { Operand::Reg16(8, 0) } else { Operand::Reg32(4, 0) };
+                let args = SpecialRegister::new(&vec![("SR", sr as u64)], &[dest]);
+                for mask in [0u32, u32::MAX, 0x55555555, 0x80808080, 0x00002001, 0xffff0000, 0x00001fff, 0x80000000] {
+                    let mut g = sr_group(mask);
+                    let mut stats = RunStats::default();
+                    special_register(&mut g, &args, &mut stats).unwrap();
+                    assert_eq!(stats.placement_read, sr == 17 || sr == 20);
+                    for t in 0..32 {
+                        let mut expected = 0xaabbccdd;
+                        if mask & (1 << t) != 0 {
+                            let q = t / 4 * 4;
+                            let value = match sr {
+                                56 => (q..t).filter(|&i| mask & (1 << i) != 0).count() as u32,
+                                57 => (q..q + 4).filter(|&i| mask & (1 << i) != 0).count() as u32,
+                                58 => (0..t).filter(|&i| mask & (1 << i) != 0).count() as u32,
+                                59 => mask.count_ones(),
+                                _ => g.ctx.sr(sr, t).unwrap(),
+                            };
+                            expected = if half { 0xaabb0000 | (value & 0xffff) } else { value };
+                        }
+                        assert_eq!(g.st.get_reg32(4, t).unwrap() as u32, expected, "sr={sr} half={half} mask={mask:x} lane={t}");
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn cached_sr_metadata_does_not_cache_launch_values_or_bypass_destination_errors() {
+        let args = SpecialRegister::new(&vec![("SR", 21)], &[Operand::Reg32(4, 0)]);
+        let mut g = sr_group(1);
+        let mut stats = RunStats::default();
+        for context in [47, 12] {
+            g.ctx.launch.context = Some(context);
+            special_register(&mut g, &args, &mut stats).unwrap();
+            assert_eq!(g.st.get_reg32(4, 0).unwrap(), context as i128);
+        }
+        let unknown = SpecialRegister::new(&vec![("SR", 113)], &[Operand::Reg32(4, 0)]);
+        let mut empty = sr_group(0);
+        special_register(&mut empty, &unknown, &mut stats).unwrap(); // inactive lanes never resolve unknown/fallback values
+        let invalid = SpecialRegister::new(&vec![("SR", 7)], &[]);
+        assert!(special_register(&mut empty, &invalid, &mut stats).unwrap_err().contains("unexpected destination"));
+    }
 
     fn dispatch(code: Vec<u8>, grid: [u32; 3], wg: [u32; 3]) -> Dispatch {
         Dispatch { code, grid, wg, shared_bytes: 0, uniforms: vec![], num_registers: 32,

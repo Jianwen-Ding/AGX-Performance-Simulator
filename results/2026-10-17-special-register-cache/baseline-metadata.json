@@ -1,0 +1,13 @@
+{
+  "baseline_commit": "a0622df34d5f772c92d6f10f034413c1e6f4598c",
+  "compiler": "Rust 1.99.1",
+  "rustflags": "-C linker-features=-lld",
+  "baseline_sha256": {
+    "examples/special_registers": "350c5fa2a5daf83b1ede98368cb0790f01cfe8d9be7ed02245061ede8273fe06",
+    "examples/cost_trace": "cdf41910eed09f84caeedcd14d3eab06b0d1a2ece92203340baa1e71b123e7a8",
+    "examples/memory_trace": "abcff3a4a002b5376184c0d16849c656cbf403e7bfb945dc4ae3f6c2b571328c",
+    "agx_dispatch": "d9a3dbf73872697f5209892974ce4277a3f3ec46d0dc7a6e79b2dee0f75db895",
+    "agx_run": "6e285c851266b748e611e350b0045fb4b6ef98d1e214e3c9a006cb01487e9642"
+  },
+  "example_source_sha256": "184bd2881bda5ae9f05aa2dba58036a08872a69948ee9c8c29f6f4350740a7c4"
+}

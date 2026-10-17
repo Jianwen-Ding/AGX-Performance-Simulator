@@ -1,0 +1,7 @@
+ok   uniform      64 active lanes, 253 selectors
+ok   depth1       32 active lanes, 253 selectors
+ok   depth2       16 active lanes, 253 selectors
+ok   depth3        8 active lanes, 253 selectors
+ok   quad         16 active lanes, 253 selectors
+ok   quad-depth2   8 active lanes, 253 selectors
+1518 selector x pattern comparisons, 0 failures

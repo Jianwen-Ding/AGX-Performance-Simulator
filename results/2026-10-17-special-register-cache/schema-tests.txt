@@ -1,0 +1,8 @@
+test_active_lanes_cannot_be_truncated_duplicated_or_out_of_range (__main__.SchemaTests.test_active_lanes_cannot_be_truncated_duplicated_or_out_of_range) ... ok
+test_empty_or_missing_patterns (__main__.SchemaTests.test_empty_or_missing_patterns) ... ok
+test_missing_selectors_or_short_expected_values (__main__.SchemaTests.test_missing_selectors_or_short_expected_values) ... ok
+
+----------------------------------------------------------------------
+Ran 3 tests in 0.185s
+
+OK

@@ -1,0 +1,10 @@
+make: Entering directory '/workspace/scratch/2ff2ed16ef96/Apple-M2-Playground'
+AGX_RUN="/workspace/scratch/2ff2ed16ef96/AGX-Performance-Simulator/rust/target/release/agx_run" python3 -B "/workspace/scratch/2ff2ed16ef96/AGX-Performance-Simulator/scripts/sr_check.py"
+ok   uniform      64 active lanes, 253 selectors
+ok   depth1       32 active lanes, 253 selectors
+ok   depth2       16 active lanes, 253 selectors
+ok   depth3        8 active lanes, 253 selectors
+ok   quad         16 active lanes, 253 selectors
+ok   quad-depth2   8 active lanes, 253 selectors
+1518 selector x pattern comparisons, 0 failures
+make: Leaving directory '/workspace/scratch/2ff2ed16ef96/Apple-M2-Playground'

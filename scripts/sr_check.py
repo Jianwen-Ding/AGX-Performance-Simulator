@@ -18,13 +18,23 @@ SENTINEL, LANES, OUT_VA, TABLE_VA = 0xcdcdcdcd, 64, 0x1100100000, 0x1100200000
 
 def main():
     hw = json.load(gzip.open(D/'hardware.json.gz', 'rt'))
+    patterns = hw['patterns']
+    expected = {'uniform': 64, 'depth1': 32, 'depth2': 16, 'depth3': 8, 'quad': 16, 'quad-depth2': 8}
+    if set(patterns) != set(expected):
+        raise ValueError('expected all six retained special-register patterns')
+    for name, p in patterns.items():
+        active = p['active_lanes']
+        if len(active) != expected[name] or len(set(active)) != len(active) or any(type(i) is not int or not 0 <= i < LANES for i in active):
+            raise ValueError(f'{name}: invalid/empty active lanes')
+        if set(p['values']) != {str(s) for s in range(256)} or any(len(v) != len(active) for v in p['values'].values()):
+            raise ValueError(f'{name}: missing selectors or incomplete lane values')
     total = bad = 0
     with tempfile.TemporaryDirectory() as tmp:
         tmp = Path(tmp)
         (tmp/'tab.bin').write_bytes(struct.pack('<I', SENTINEL)*(256*LANES))
         out = [SENTINEL]*(LANES+16)+[0xa5a50000+j for j in range(16)]
         (tmp/'out.bin').write_bytes(struct.pack(f'<{len(out)}I', *out))
-        for name, p in hw['patterns'].items():
+        for name, p in patterns.items():
             cmd = [RUN, str(D/f'{name}.bin'), '--grid', str(LANES), '--wg', '32', '--uniform', '4=0', '--uniform', f'5={LANES}',
                    '--uniform', f'6={OUT_VA & 0xffffffff}', '--uniform', f'7={OUT_VA >> 32}', '--uniform', f'8={TABLE_VA & 0xffffffff}',
                    '--uniform', f'9={TABLE_VA >> 32}', '--map', f'{OUT_VA}={tmp/"out.bin"}', '--map', f'{TABLE_VA}={tmp/"tab.bin"}',
@@ -50,8 +60,9 @@ def main():
             print(f'{"ok  " if not miss and inactive_ok else "FAIL"} {name:12s} {len(act):2d} active lanes, 253 selectors'
                   + (f', mismatching {miss}' if miss else '') + ('' if inactive_ok else ', inactive lanes wrote'))
     print(f'{total} selector x pattern comparisons, {bad} failures')
-    return 1 if bad else 0
+    return 1 if bad or total != 1518 else 0
 
 
 if __name__ == '__main__':
     sys.exit(main())
+
