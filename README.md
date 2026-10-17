@@ -126,3 +126,17 @@ that memory instead of the cost model's emulation, which is needed for driver-co
 Some findings link to experiments, notes and results that stayed in Apple-M2-Playground; those
 links resolve in that repository. Shader capture (`agx_capture.py`) also stays there.
 
+
+Uniform call/return probing (2026-10-17): `agx_run` can opt into the measured
+full-SIMD model with `AGX_EXPERIMENTAL_RET=buffer-pop2`. Direct calls write a
+buffer-relative byte link to r1; register calls use a uniform buffer-relative
+target and link to the next two-byte instruction. Return sets the active lanes'
+mask depth to 2, and the continuation must reconverge with `pop_exec r0l, 2`.
+Nested direct calls work with a software-saved link. Partial/divergent returns
+and indirect calls are rejected, as are targets outside the supplied program.
+Default execution continues to reject return and register-call instructions.
+The legacy value `AGX_EXPERIMENTAL_RET=1` is a contradicted hypothesis retained
+for offline comparison, not a hardware validation gate. Run the adjacent
+playground's `make verify-call-ret` for exact reconstruction/replay of the
+hardware recordings, recovered faults and negative scope checks. This models
+functional behavior only; call/return timing is not calibrated.
