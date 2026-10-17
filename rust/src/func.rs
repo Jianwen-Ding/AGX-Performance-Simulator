@@ -560,7 +560,14 @@ fn step_group_impl<C: InstructionCells>(g: &mut Group, code: &[u8], cache: &C, m
         let x = |k: &str| fget(f, k).unwrap_or(0);
         let v = &info.vals;
         match info.kind {
-            OpKind::Stop => return Ok(Stop::Done),
+            OpKind::Stop => {
+                // A return can leave every lane masked until pop_exec reconverges.
+                // The ret-byte-buffer/no-pop hardware pair shows stop is skipped then.
+                if g.st.exec.iter().any(|&active| active)
+                    || std::env::var("AGX_EXPERIMENTAL_RET").as_deref() != Ok("buffer-pop2") {
+                    return Ok(Stop::Done);
+                }
+            }
             OpKind::Jmp { any: want_any } => {
                 let any = g.st.exec.iter().any(|&e| e);
                 let take = if want_any { any } else { !any };
@@ -583,15 +590,28 @@ fn step_group_impl<C: InstructionCells>(g: &mut Group, code: &[u8], cache: &C, m
             // register is r1; the stored value is AGX_CALL_BASE + the byte offset of the next instruction. The base is 0x2000, measured
             // on G14C (stage 1 probes). A target outside the program is an error, never a jump.
             OpKind::Call => {
-                if info.size != 6 {
+                let indirect = info.size == 2;
+                if indirect && std::env::var("AGX_EXPERIMENTAL_RET").as_deref() != Ok("buffer-pop2") {
                     return Err("call (register form): semantics unknown, not modelled".into());
                 }
                 let mut off = x("off") as i64;
                 if off & (1 << 31) != 0 {
                     off -= 1 << 32;
                 }
-                let target = g.pc as i64 + off;
-                if target < 0 || target as usize >= code.len() {
+                let target = if indirect {
+                    if !g.st.exec.iter().all(|&active| active) {
+                        return Err("call register: only all-active uniform targets have been measured".into());
+                    }
+                    let r = x("reg32") as usize;
+                    let value = g.st.get_reg32(r, 0)?;
+                    for t in 1..32 {
+                        if g.st.get_reg32(r, t)? != value {
+                            return Err("call register: divergent targets not modelled".into());
+                        }
+                    }
+                    (value - call_base()) as i64
+                } else { g.pc as i64 + off };
+                if target < 0 || target as usize >= code.len() || target % 2 != 0 {
                     return Err(format!("call at {} targets {} outside the program (0..{})", g.pc, target, code.len()));
                 }
                 let link = call_base() + (g.pc + info.size) as i128;
@@ -604,8 +624,9 @@ fn step_group_impl<C: InstructionCells>(g: &mut Group, code: &[u8], cache: &C, m
                 continue;
             }
             OpKind::Ret => {
-                if std::env::var("AGX_EXPERIMENTAL_RET").as_deref() != Ok("1") {
-                    return Err("ret semantics unresolved: recorded C2b/C2c contradict the code-relative model; AGX_EXPERIMENTAL_RET=1 enables that hypothesis for offline study only, not a hardware validation gate".into());
+                let ret_model = std::env::var("AGX_EXPERIMENTAL_RET").unwrap_or_default();
+                if ret_model != "1" && ret_model != "buffer-pop2" {
+                    return Err("ret semantics unresolved outside uniform recorded cases: use AGX_EXPERIMENTAL_RET=buffer-pop2 for the measured buffer-relative target and mask-depth-2 model; value 1 retains the contradicted code-relative hypothesis for offline study only".into());
                 }
                 let r = x("reg32") as usize;
                 let mut tgt: Option<i128> = None;
@@ -623,11 +644,20 @@ fn step_group_impl<C: InstructionCells>(g: &mut Group, code: &[u8], cache: &C, m
                     g.pc += info.size; // no active lane: falls through
                     continue;
                 };
-                // Unvalidated hypothesis only: target = code start + register.
-                // C2b/C2c did not reach this target on hardware.
-                let target = v;
-                if target < 0 || target as usize >= code.len() {
+                let target = if ret_model == "buffer-pop2" { v - call_base() } else { v };
+                if target < 0 || target as usize >= code.len() || target % 2 != 0 {
                     return Err(format!("ret at {} targets {} outside the program (0..{})", g.pc, target, code.len()));
+                }
+                if ret_model == "buffer-pop2" {
+                    if !g.st.exec.iter().all(|&active| active) {
+                        return Err("ret: only all-active uniform targets have been measured".into());
+                    }
+                    for t in 0..32 {
+                        if g.st.exec[t] {
+                            g.st.set_reg16(0, t, 2)?;
+                            g.st.exec[t] = false;
+                        }
+                    }
                 }
                 g.pc = target as usize;
                 continue;
@@ -683,6 +713,9 @@ fn step_group_impl<C: InstructionCells>(g: &mut Group, code: &[u8], cache: &C, m
             }
         }
         g.pc += info.size;
+    }
+    if std::env::var("AGX_EXPERIMENTAL_RET").as_deref() == Ok("buffer-pop2") {
+        return Err("fell off end of program without an active stop (return needs reconvergence?)".into());
     }
     Ok(Stop::Done)
 }
