@@ -281,6 +281,7 @@ fn norm_store(fmt: u64, v: i128, rt: bool) -> u64 {
 }
 
 pub fn run(d: &Dispatch, mem: &mut Memory) -> Result<RunStats, String> {
+    validate_dispatch(d)?;
     let mut cache: Vec<Option<Info>> = (0..d.code.len()).map(|_| None).collect();
     let dims: Vec<u32> = (0..3).map(|i| d.grid[i].div_ceil(d.wg[i])).collect();
     let mut stats = RunStats::default();
@@ -297,6 +298,7 @@ pub fn run(d: &Dispatch, mem: &mut Memory) -> Result<RunStats, String> {
 /// Dynamic path of every SIMD group of the given workgroups (each run alone from `mem` as it is, with its own copy),
 /// for the cost model: exact control flow and addresses, whatever the data.
 pub fn trace_workgroups(d: &Dispatch, mem: &Memory, wgs: &[[u32; 3]]) -> Result<Vec<Vec<Trace>>, String> {
+    validate_dispatch(d)?;
     crate::par::map(wgs, |&wg| {
         let mut cache: Vec<Option<Info>> = (0..d.code.len()).map(|_| None).collect();
         let mut m = mem.clone();
@@ -304,6 +306,18 @@ pub fn trace_workgroups(d: &Dispatch, mem: &Memory, wgs: &[[u32; 3]]) -> Result<
     })
     .into_iter()
     .collect()
+}
+
+fn validate_dispatch(d: &Dispatch) -> Result<(), String> {
+    let threads = d.wg.iter().try_fold(1u32, |n, &v| n.checked_mul(v))
+        .ok_or("workgroup size overflows")?;
+    if threads == 0 || threads > 1024 {
+        return Err("workgroup must contain 1..1024 threads with nonzero dimensions".into());
+    }
+    if d.uniforms.iter().any(|&(u, _)| u >= 256) {
+        return Err("uniform register index exceeds u255".into());
+    }
+    Ok(())
 }
 
 fn wg_linear(d: &Dispatch, [wx, wy, wz]: [u32; 3]) -> u64 {
@@ -340,8 +354,10 @@ fn run_workgroup(d: &Dispatch, cache: &mut [Option<Info>], mem: &mut Memory, [wx
             let lanes = ctx.lanes();
             for t in 0..32 {
                 // lanes beyond the grid (partial workgroups at the edge) do not exist
-                let gx = wx * d.wg[0] + ((32 * g + t as u32) % d.wg[0]);
-                let exists = t < lanes && gx < d.grid[0];
+                let i = 32 * g + t as u32;
+                let local = [i % d.wg[0], (i / d.wg[0]) % d.wg[1], i / (d.wg[0] * d.wg[1])];
+                let exists = t < lanes && [wx, wy, wz].iter().enumerate().all(|(axis, &w)|
+                    w as u64 * d.wg[axis] as u64 + (local[axis] as u64) < d.grid[axis] as u64);
                 st.exec[t] = exists;
                 let _ = st.set_reg16(0, t, if exists { 0 } else { 1 });
             }
@@ -532,6 +548,7 @@ fn step_group(g: &mut Group, code: &[u8], cache: &mut [Option<Info>], mem: &mut 
                 // SR56 / SR57 are the same within the lane's quad (hardware: nested ifs, playground sr-divergence)
                 let active = g.st.exec.iter().filter(|&&e| e).count() as u32;
                 let mut rank = 0u32;
+                let mut fallback = None;
                 for t in 0..32 {
                     if g.st.exec[t] {
                         let q = t & !3;
@@ -542,9 +559,12 @@ fn step_group(g: &mut Group, code: &[u8], cache: &mut [Option<Info>], mem: &mut 
                             59 => active,
                             // AGX_SR_DEFAULT=V: unmodelled selectors read V (for checking a program's control flow / stores
                             // offline, e.g. a 256-selector scan, before it runs on the GPU)
-                            _ => match (g.ctx.sr(sr, t), std::env::var("AGX_SR_DEFAULT").ok().and_then(|v| v.parse::<u32>().ok())) {
-                                (Some(v), _) | (None, Some(v)) => v,
-                                (None, None) => return Err(format!("get_sr: special register {} not modelled", sr)),
+                            _ => match g.ctx.sr(sr, t) {
+                                Some(v) => v,
+                                None => match *fallback.get_or_insert_with(|| std::env::var("AGX_SR_DEFAULT").ok().and_then(|v| v.parse::<u32>().ok())) {
+                                    Some(v) => v,
+                                    None => return Err(format!("get_sr: special register {} not modelled", sr)),
+                                },
                             },
                         };
                         rank += 1;
@@ -934,6 +954,56 @@ fn vals(ops: &[Operand]) -> Vec<Operand> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn dispatch(code: Vec<u8>, grid: [u32; 3], wg: [u32; 3]) -> Dispatch {
+        Dispatch { code, grid, wg, shared_bytes: 0, uniforms: vec![], num_registers: 32,
+            max_steps: 1000, placement: 0, launch: Default::default() }
+    }
+
+    #[test]
+    fn partial_workgroups_mask_every_axis() {
+        use crate::kernels::{e, get_sr, mov, store};
+        for (grid, wg) in [([5u32, 3, 3], [4u32, 2, 2]), ([5, 7, 3], [4, 5, 2]), ([1, 1, 1], [8, 8, 8])] {
+            let padded: [u32; 3] = std::array::from_fn(|i| grid[i].div_ceil(wg[i]) * wg[i]);
+            let mut code = get_sr(80, 3);
+            code.extend(get_sr(81, 4));
+            code.extend(get_sr(82, 5));
+            code.extend(mov(6, padded[0]));
+            code.extend(mov(7, padded[0] * padded[1]));
+            code.extend(e("imadd r3, r4, r6, r3"));
+            code.extend(e("imadd r3, r5, r7, r3"));
+            code.extend(mov(2, 1));
+            code.extend(store(2, 8, 3));
+            code.extend([0x88, 0]);
+            let mut d = dispatch(code, grid, wg);
+            d.uniforms = vec![(8, 0x1000), (9, 0)];
+            let n = padded.iter().product::<u32>() as usize;
+            let mut mem = Memory::default();
+            mem.map(0x1000, vec![0; 4 * n]);
+            run(&d, &mut mem).unwrap();
+            let words = mem.words(0x1000, n).unwrap();
+            for z in 0..padded[2] { for y in 0..padded[1] { for x in 0..padded[0] {
+                let i = (x + padded[0] * (y + padded[1] * z)) as usize;
+                assert_eq!(words[i], (x < grid[0] && y < grid[1] && z < grid[2]) as u32,
+                    "grid={grid:?} wg={wg:?} at {x},{y},{z}");
+            } } }
+        }
+    }
+
+    #[test]
+    fn invalid_dispatches_return_errors() {
+        for wg in [[0, 1, 1], [1025, 1, 1], [u32::MAX, 2, 1]] {
+            let d = dispatch(vec![], [1, 1, 1], wg);
+            assert!(run(&d, &mut Memory::default()).is_err());
+            assert!(trace_workgroups(&d, &Memory::default(), &[[0; 3]]).is_err());
+        }
+        let mut d = dispatch(vec![], [1; 3], [1; 3]);
+        d.uniforms = vec![(256, 0)];
+        assert!(run(&d, &mut Memory::default()).is_err());
+        d.uniforms.clear();
+        d.grid = [0, 1, 1];
+        assert_eq!(run(&d, &mut Memory::default()).unwrap().instructions, 0);
+    }
 
     #[test]
     fn atomic_float_edges() {
