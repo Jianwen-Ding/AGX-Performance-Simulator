@@ -2,7 +2,7 @@
 """Device atomic encodings outside Mesa's set, run through probe_variants (surroundings checked in agx_run).
 
   probe_atomics.py run   --family A|B [--only NAME] [--dry]    GPU (owner-approved unsafe probes)
-  probe_atomics.py analyse DIR                                  offline: fit models to the recorded words
+  probe_atomics.py analyse [DIR|BUNDLE]                         offline: fit models (default: the playground bundle)
 
 Family A, 64-bit min / max (applegpu: with op = cmpxchg, gap field u5 = bits 45-46 = 1 is umin64, 3 is umax64;
 Mesa always emits u5 = 2): op 3, u5 in {1, 3, 0}, Rt in {0, 1}. Lane i: index r5 = 2i, source r6_r7 = S_i (64-bit).
@@ -22,7 +22,8 @@ import probe_variants as PV                               # noqa: E402
 N, WG, REGS = 32, 32, 64
 S_WORD = 2048                                             # source operands at table words S_WORD + 2i, + 2i + 1
 TABLE_WORDS = 4096
-OUT = ROOT / 'results/2026-10-17-atomic-variants'
+RAW = Path('/scratch/apple-m2-playground/atomic-variants')        # one JSON per probe (resumable)
+BUNDLE = ROOT.parent / 'apple-documentation-playground/results/2026-10-17-atomic-variants/records.json.gz'
 M64 = (1 << 64) - 1
 
 
@@ -537,10 +538,18 @@ def analyse_i(r):
 
 # ---------------------------------------------------------------------------------------------------------------
 
-def analyse(d):
+def records(src):
+    """a directory of per-probe JSON files, or the playground's records.json.gz bundle"""
+    src = Path(src)
+    if src.is_dir():
+        return [json.loads(p.read_text()) for p in sorted(src.glob('*.json'))]
+    import gzip
+    return sorted(json.load(gzip.open(src, 'rt'))['records'], key=lambda r: r['name'])
+
+
+def analyse(src):
     rows = []
-    for p in sorted(Path(d).glob('*.json')):
-        r = json.loads(p.read_text())
+    for r in records(src):
         if 'fault' in r:
             rows.append({'probe': r['name'], 'fault': r['fault'][:160]}); continue
         if r['name'].startswith('I_'):
@@ -585,8 +594,8 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest='cmd', required=True)
     r = sub.add_parser('run'); r.add_argument('--family', choices=['A', 'B', 'D', 'E', 'F', 'G', 'H', 'I'], required=True)
-    r.add_argument('--only'); r.add_argument('--dry', action='store_true'); r.add_argument('--out', type=Path, default=OUT / 'raw')
-    s = sub.add_parser('analyse'); s.add_argument('dir', type=Path, nargs='?', default=OUT / 'raw')
+    r.add_argument('--only'); r.add_argument('--dry', action='store_true'); r.add_argument('--out', type=Path, default=RAW)
+    s = sub.add_parser('analyse'); s.add_argument('dir', type=Path, nargs='?', default=BUNDLE)
     a = ap.parse_args()
     if a.cmd == 'run':
         PV.cov.install()
