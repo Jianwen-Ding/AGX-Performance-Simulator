@@ -146,12 +146,14 @@ impl Src {
     }
 }
 
-/// Source lane of A for each lane of a 10-byte fmadd lane form (`None`: A reads 0). Only the measured subset is
-/// modeled (playground finding 2026-10-11-fmadd-lane-offset); everything else is an error so nothing is silently
-/// guessed: bit 52 (unknown operation), bit 74, combined grouping/cross bits, k > 16 (fmadd32 reads undefined values), grouping/cross modes with k != 1, bits 64-67/69-71 with k != 1, an
-/// fmadd32 lane whose source falls outside its 2-/4-lane group (undefined value), and active lanes whose source
-/// lane is inactive (inactive-source behavior not measured). The cross-half read (bit 68) assumes the source was
-/// written several instructions earlier; an immediate write-to-read gives 0 on hardware and is not modeled.
+/// Source lane of A for each lane of a 10-byte fmadd lane form (`None`: A reads 0). Only the measured subset is modeled
+/// (playground findings 2026-10-11-fmadd-lane-offset and 2026-10-18-fmadd-followups); everything else is an error so nothing
+/// is silently guessed: bit 52 (unknown operation), bit 74, combined grouping/cross bits, k > 16 (fmadd32 reads undefined
+/// values), grouping/cross modes with k != 1, bits 64-67/69-71 with k != 1, and an fmadd32 lane whose source falls outside its
+/// 2-/4-lane group (undefined value). An active lane whose source lane is masked off reads 0 (measured, all k tested).
+/// Timing-dependent behavior is not modeled: the cross-half read (lane 16 reading lane 15) happens on hardware only with bit 68
+/// and at least two instructions after the write of A (about 90% of the time), or whenever a `wait` follows the fmadd even
+/// without bit 68. The model reads 0 across halves without bit 68 and crosses with it.
 fn lane_src(half: bool, l: u64, g: u64, x: u64, exec: &[bool; SIMD_WIDTH]) -> R<[Option<usize>; SIMD_WIDTH]> {
     const B68: u64 = 1 << 4;
     const B72: u64 = 1 << 8;
@@ -183,10 +185,11 @@ fn lane_src(half: bool, l: u64, g: u64, x: u64, exec: &[bool; SIMD_WIDTH]) -> R<
         } else if group <= 4 && !half && exec[t] {
             return Err("unsupported: fmadd32 lane source outside its group reads an undefined value");
         }
+        // Measured (playground 2026-10-18-fmadd-followups): an active lane whose source lane is masked off reads 0.
         if exec[t] {
             if let Some(s) = out[t] {
                 if !exec[s] {
-                    return Err("unsupported: fmadd lane source lane is inactive");
+                    out[t] = None;
                 }
             }
         }
