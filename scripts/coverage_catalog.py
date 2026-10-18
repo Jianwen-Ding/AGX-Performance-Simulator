@@ -321,6 +321,32 @@ def lane_case(t, finding, masked):
     return Case(f'{area}/{_name(t)}', area, finding, 'safe', 'functional', t, build, [(t, None)])
 
 
+# bit 52 of the 8-byte fmadd32: a pow() special-case fixup (playground novel-results/2026-10-18-fma-b52)
+B52_VALS = [0x00000000, 0x80000000, 0x00000001, 0x80000001, 0x007fffff, 0x807fffff, 0x00800000, 0x80800000, 0x3f000000, 0xbf000000,
+            0x3f800000, 0xbf800000, 0x40000000, 0xc0000000, 0x40600000, 0xc0600000, 0x7f7fffff, 0xff7fffff, 0x7f800000, 0xff800000,
+            0x7fc00000, 0xffc00000, 0x7f800001, 0x3fc00000]
+_F = lambda x: struct.unpack('<I', struct.pack('<f', x))[0]
+B52_A2 = [0x00000000, 0x80000000, 0x80000001, 0x80800000, 0xbf000000, 0xbf800000, 0xc0000000, 0xc0600000, 0xff7fffff, 0xff800000,
+          0x3f000000, 0x3f800000, 0x40000000, 0x7f800000, 0x7fc00000, 0xffc00000]
+B52_B2 = [_F(x) for x in (3.0, -3.0, 5.0, 4.0, -4.0, 7.0, 2.0**23+1, 2.0**23+2, 2.0**24, 2.0**24+2, 1.0000001, 0.99999994, 2.5, -2.5, 3.0000002, -7.0)]
+B52_C2 = [0x3f000000, 0xc0000000, 0x00000000, 0x7fc00000]
+
+
+def b52_cases():
+    text = 'fmadd32_b52 r14, r6, r7, r8'
+    sets = [('specials24', [(a, b, c) for a in B52_VALS for b in B52_VALS for c in B52_VALS], 256),
+            ('integers', [(a, b, c) for a in B52_A2 for b in B52_B2 for c in B52_C2], 256)]
+    out = []
+    for name, triples, wg in sets:
+        def build(name=name, triples=triples, wg=wg):
+            RS = _rs()
+            n = len(triples)
+            table = [w for t in triples for w in (*t, 0, 0, 0, 0, 0)] + [0] * (2 * n)
+            return ('fmadd_b52', name, f'{text} over {n} triples ({name})', RS.alu_body(RS.e(text), n), n, wg, 64, 0, table)
+        out.append(Case(f'fmadd_b52/{name}', 'fmadd_b52', 'fma-b52', 'safe', 'functional', f'{text}, {len(triples)} triples ({name})', build, [(text, None)]))
+    return out
+
+
 ITEM_BYTES = {'i8': 1, 'i16': 2, 'i32': 4, 'f16': 2, 'u8norm': 1, 's8norm': 1, 'u16norm': 2, 's16norm': 2}   # packed: 4
 
 
@@ -738,7 +764,7 @@ def build_catalog():
     for n in range(256):
         for geom in (GEOMETRIES_DRM if n in _sr_known() else GEOMETRIES_DRM[:1]):
             cases.append(sr_case(n, geom))
-    cases += control_cases() + barrier_cases() + atomic_cases() + tg_format_cases() + undecoded_cases() + lane_cases()
+    cases += control_cases() + barrier_cases() + atomic_cases() + tg_format_cases() + undecoded_cases() + lane_cases() + b52_cases()
     cases += timing_cases(alu)
     return cases
 

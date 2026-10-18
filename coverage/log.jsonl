@@ -3364,3 +3364,5 @@
 {"case": "fmadd_lane_masked/fmadd16_lane_r14l_r6l_r7l_r8l_0b00010_0b00000000000_0b0", "state": "recorded", "deterministic": true, "utc": "2026-10-18T01:45:37Z"}
 {"case": "fmadd_lane_masked/fmadd16_lane_r14l_r6l_r7l_r8l_0b00100_0b00000000000_0b0", "state": "recorded", "deterministic": true, "utc": "2026-10-18T01:45:37Z"}
 {"case": "fmadd_lane_masked/fmadd16_lane_r14l_r6l_r7l_r8l_0b01000_0b00000000000_0b0", "state": "recorded", "deterministic": true, "utc": "2026-10-18T01:45:37Z"}
+{"case": "fmadd_b52/specials24", "state": "recorded", "deterministic": true, "utc": "2026-10-18T02:15:02Z"}
+{"case": "fmadd_b52/integers", "state": "recorded", "deterministic": true, "utc": "2026-10-18T02:15:02Z"}

@@ -29,6 +29,7 @@ pub enum Ex {
     FMAdd16,
     FMAddLane32,
     FMAddLane16,
+    FMAddB52,
     FAdd32,
     FAdd16,
     FMul32,
@@ -259,8 +260,8 @@ pub fn build() -> Vec<Desc> {
     d.c(0, 6, 0b110110).c(15, 1, 1).c(53, 1, 1).op(float_dst16("D", 60)).op(float_src16("A", 16, 58)).op(float_src16("B", 28, 56));
     d.op(float_src16("C", 40, 54)).op(binary("L", 75, 5)).op(binary("G", 64, 11)).op(binary("X", 52, 1));
     push!(d);
-    // Bit 52 of the 8-byte fmadd32 changes the operation (a select-like result of unknown purpose); not modeled.
-    let mut d = Desc::new("fmadd32_b52", s1(8), 15, E::MaskedTodo, Mn::Sat { alt: None });
+    // Bit 52 of the 8-byte fmadd32: a pow() special-case fixup of C by (A, B) (playground 2026-10-18-fma-b52); modeled by `pow_fixup`.
+    let mut d = Desc::new("fmadd32_b52", s1(8), 15, E::FMAddB52, Mn::Sat { alt: None });
     d.c(0, 6, 0b111010).c(15, 1, 1).c(52, 1, 1).c(53, 1, 0).op(float_dst("D", 60)).op(float_src("A", 16, 58)).op(float_src("B", 28, 56));
     d.op(float_src("C", 40, 54));
     push!(d);

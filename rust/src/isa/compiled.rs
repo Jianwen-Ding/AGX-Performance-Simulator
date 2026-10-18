@@ -121,6 +121,24 @@ impl Src {
     fn size(&self) -> R<u32> {
         self.size.ok_or("get_bit_size on non-register operand")
     }
+    /// The raw 32-bit pattern of a plain 32-bit float source (registers, uniforms, float immediates); `abs` / `neg` modifiers and other
+    /// widths are refused (not measured with the bit-52 form).
+    fn f32_bits(&self, st: &CoreState, t: usize) -> R<u32> {
+        if self.abs || self.neg {
+            return Err("unsupported: fmadd bit 52 with an abs / neg source modifier");
+        }
+        match self.loc {
+            Loc::FImm(x) => Ok((x as f32).to_bits()),
+            Loc::Imm(x) => Ok((x as f32).to_bits()),
+            _ => {
+                if self.size()? != 32 {
+                    return Err("unsupported: fmadd bit 52 with a 16-bit source");
+                }
+                Ok(self.raw(st, t)? as u32)
+            }
+        }
+    }
+
     /// `evaluate_thread_float`
     #[inline(always)]
     fn get_float(&self, st: &CoreState, t: usize) -> R<u64> {
@@ -144,6 +162,64 @@ impl Src {
         }
         Ok(r)
     }
+}
+
+/// Bit 52 of the 8-byte fmadd32 (playground novel-results/2026-10-18-fma-b52, 14,848 hardware triples, 0 exceptions): a pow() special-case fixup.
+/// `c` is the provisional result (pow computed as exp2(B * log2(A)) in the compiler's sequence), (x, y) are A and B. Denormal inputs read as
+/// +-0. C99 pow special cases decide: y = +-0 -> 1; x = 1 -> 1; a NaN y -> C; a NaN x -> C (a NaN with the sign bit set and a finite
+/// non-integer y -> the canonical NaN); y = 1 -> A; a negative x (sign bit set, flushed) with y = -inf/+inf and x = -1 -> 1; a finite
+/// nonzero negative x with a finite non-integer y -> the canonical NaN; a negative x with an odd integer y -> -C (a NaN C gives the
+/// canonical NaN); everything else -> C. C is returned flushed (a denormal C reads as a signed zero), NaN C bit-exact.
+pub fn pow_fixup(x: u32, y: u32, c: u32) -> u32 {
+    const ONE: u32 = 0x3f80_0000;
+    const QNAN: u32 = 0x7fc0_0000;
+    let flush = |v: u32| if v & 0x7f80_0000 == 0 { v & 0x8000_0000 } else { v };
+    let is_nan = |v: u32| v & 0x7f80_0000 == 0x7f80_0000 && v & 0x7f_ffff != 0;
+    let is_inf = |v: u32| v & 0x7fff_ffff == 0x7f80_0000;
+    let (fx, fy) = (flush(x), flush(y));
+    let cc = if is_nan(c) { c } else { flush(c) };
+    // 0 non-integer, 1 odd, 2 even, for a finite y
+    let int_class = |v: u32| -> u8 {
+        let a = f32::from_bits(v).abs();
+        if a >= 16777216.0 {
+            2
+        } else if a != a.floor() {
+            0
+        } else if (a as u64) % 2 == 1 {
+            1
+        } else {
+            2
+        }
+    };
+    if fy & 0x7fff_ffff == 0 || x == ONE {
+        return ONE;
+    }
+    if is_nan(y) {
+        return cc;
+    }
+    if is_nan(x) {
+        if x & 0x8000_0000 != 0 && !is_inf(y) && int_class(y) == 0 {
+            return QNAN;
+        }
+        return cc;
+    }
+    if fy == ONE {
+        return fx;
+    }
+    if fx & 0x8000_0000 != 0 {
+        if x == 0xbf80_0000 && is_inf(y) {
+            return ONE;
+        }
+        let zero_or_inf = fx & 0x7fff_ffff == 0 || is_inf(fx);
+        let k = if is_inf(y) { 2 } else { int_class(y) };
+        if !zero_or_inf && k == 0 {
+            return QNAN;
+        }
+        if k == 1 {
+            return if is_nan(cc) { QNAN } else { cc ^ 0x8000_0000 };
+        }
+    }
+    cc
 }
 
 /// Source lane of A for each lane of a 10-byte fmadd lane form (`None`: A reads 0). Only the measured subset is modeled
@@ -364,6 +440,8 @@ enum K {
     Popcount { a: Src, d: Dst },
     Ffs { a: Src, d: Dst },
     Float { op: Fl, a: Src, b: Src, c: Option<Src>, d: Dst, sat: bool, d16: Option<bool> },
+    /// 8-byte fmadd32 with bit 52: the pow() special-case fixup of C by (A, B); sources must be plain 32-bit (no abs / neg / saturate)
+    PowFixup { a: Src, b: Src, c: Src, d: Dst, plain: bool },
     /// 10-byte fmadd with a lane offset on source A (`lane_src` documents the measured subset)
     FloatLane { half: bool, a: Src, b: Src, c: Src, d: Dst, sat: bool, d16: Option<bool>, l: u64, g: u64, x: u64 },
     Cmpsel { cmp: Cmp, x: Src, y: Src, d: Dst },
@@ -468,6 +546,7 @@ impl Compiled {
                 let c = if matches!(op, Fl::FMAdd32 | Fl::FMAdd16) { Some(src("C")) } else { None };
                 K::Float { op, a: src("A"), b: src("B"), c, d: dst("D"), sat: f(fields, "S") != 0, d16: dsize("D").map(|s| s == 16) }
             }
+            Ex::FMAddB52 => K::PowFixup { a: src("A"), b: src("B"), c: src("C"), d: dst("D"), plain: f(fields, "S") == 0 },
             Ex::FMAddLane32 | Ex::FMAddLane16 => K::FloatLane {
                 half: d.ex == Ex::FMAddLane16, a: src("A"), b: src("B"), c: src("C"), d: dst("D"), sat: f(fields, "S") != 0,
                 d16: dsize("D").map(|s| s == 16), l: f(fields, "L"), g: f(fields, "G"), x: f(fields, "X"),
@@ -674,6 +753,18 @@ impl Compiled {
                 };
                 d.set(st, t, v as i128)
                 })
+            }
+            K::PowFixup { a, b, c, d, plain } => {
+                if !*plain {
+                    return if st.exec.iter().any(|&e| e) { Err("unsupported: fmadd bit 52 with saturate") } else { Ok(()) };
+                }
+                for t in 0..SIMD_WIDTH {
+                    if st.exec[t] {
+                        let (x, y, z) = (a.f32_bits(st, t)?, b.f32_bits(st, t)?, c.f32_bits(st, t)?);
+                        d.set(st, t, pow_fixup(x, y, z) as i128)?;
+                    }
+                }
+                Ok(())
             }
             K::FloatLane { half, a, b, c, d, sat, d16, l, g, x } => {
                 if !st.exec.iter().any(|&e| e) {
@@ -912,5 +1003,42 @@ fn saturate(result: i128, dest_size: u32, signed: bool) -> i128 {
 fn update_exec(st: &mut CoreState) {
     for t in 0..SIMD_WIDTH {
         st.exec[t] = st.reg16s[0][t] == 0;
+    }
+}
+
+#[cfg(test)]
+mod pow_fixup_tests {
+    use super::pow_fixup;
+
+    fn f(x: f32) -> u32 {
+        x.to_bits()
+    }
+
+    #[test]
+    fn pow_special_cases() {
+        let c = f(0.5);
+        // y = +-0 and denormal y -> 1, even for a NaN x and a NaN C
+        assert_eq!(pow_fixup(f(f32::NAN), f(0.0), c), f(1.0));
+        assert_eq!(pow_fixup(f(3.0), 0x0000_0001, c), f(1.0));
+        // x = 1 -> 1 even for a NaN y
+        assert_eq!(pow_fixup(f(1.0), 0x7fc0_0000, c), f(1.0));
+        // y = 1 -> A (a denormal A reads as zero); a NaN A -> C
+        assert_eq!(pow_fixup(f(-2.5), f(1.0), c), f(-2.5));
+        assert_eq!(pow_fixup(0x8000_0001, f(1.0), c), 0x8000_0000);
+        assert_eq!(pow_fixup(0x7fc0_0000, f(1.0), c), c);
+        // negative finite x with a non-integer y -> canonical NaN; with integer y -> C (even) / -C (odd)
+        assert_eq!(pow_fixup(f(-2.0), f(0.5), c), 0x7fc0_0000);
+        assert_eq!(pow_fixup(f(-2.0), f(2.0), c), c);
+        assert_eq!(pow_fixup(f(-2.0), f(3.0), c), f(-0.5));
+        assert_eq!(pow_fixup(f(-2.0), f(16777217.0), c), c);          // 2^24 + 1 rounds to 2^24: even
+        assert_eq!(pow_fixup(f(-2.0), f(8388609.0), c), f(-0.5));      // 2^23 + 1: odd
+        // x = -1 with y = +-inf -> 1; x = -0 or -inf is exempt from the NaN rule
+        assert_eq!(pow_fixup(f(-1.0), f(f32::INFINITY), c), f(1.0));
+        assert_eq!(pow_fixup(0x8000_0000, f(0.5), c), c);
+        assert_eq!(pow_fixup(f(f32::NEG_INFINITY), f(2.5), c), c);
+        // C: denormal flushed with its sign, NaN kept bit for bit, canonical NaN after the sign flip
+        assert_eq!(pow_fixup(f(2.0), f(2.0), 0x8000_0005), 0x8000_0000);
+        assert_eq!(pow_fixup(f(2.0), f(2.0), 0x7f80_0001), 0x7f80_0001);
+        assert_eq!(pow_fixup(f(-2.0), f(3.0), 0xffc0_0000), 0x7fc0_0000);
     }
 }
