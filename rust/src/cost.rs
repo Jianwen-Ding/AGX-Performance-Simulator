@@ -2876,3 +2876,58 @@ mod fence_tests {
         assert_eq!(fence_ticks(0x77, 0), (tk(FENCE_UNMEASURED_NS * CYCLES_PER_NS), true));
     }
 }
+
+/// Cost of one in-shader clock read (`clock()` / `%globaltimer`: `device_barrier_1` + a coherent load of a CPU-written timer line +
+/// `wait 0`), in ns, from the playground's clock-load finding (novel-results/2026-10-18-clock-load): the mean of two sweeps of the median
+/// per-read cost, by lanes reading at once and by the number of timer-line copies (lane's copy = core & (copies - 1)).
+/// The cost is dominated by the load fetching the CPU-written line (~0.5 us) and by contention on one line, so it is a measured table,
+/// not derivable from the fence / load model (which predicts ~0.34 us for the same instructions on GPU-resident data).
+pub const CLOCK_READ_LANES: [usize; 4] = [1, 32, 1024, 65536];
+pub const CLOCK_READ_COPIES: [usize; 5] = [1, 2, 4, 8, 16];
+const CLOCK_READ_NS: [[f64; 5]; 4] = [
+    [896.0, 804.0, 833.0, 798.0, 795.0],
+    [798.0, 839.0, 821.0, 821.0, 771.0],
+    [4985.0, 2283.0, 952.0, 565.0, 777.0],
+    [37345.0, 20167.0, 4098.0, 2283.0, 2476.0],
+];
+
+/// `copies`: timer-line copies the CPU thread maintains (rounded down to a power of two in 1..=16). Between measured lane counts the cost
+/// is interpolated linearly in log2(lanes); beyond 65,536 lanes it stays at the last row.
+pub fn clock_read_ns(active_lanes: usize, copies: usize) -> f64 {
+    let c = CLOCK_READ_COPIES.iter().rposition(|&x| x <= copies.max(1)).unwrap_or(0);
+    let l = active_lanes.max(1) as f64;
+    let x = l.log2();
+    let pts: Vec<(f64, f64)> = CLOCK_READ_LANES.iter().enumerate().map(|(i, &n)| ((n as f64).log2(), CLOCK_READ_NS[i][c])).collect();
+    if x <= pts[0].0 {
+        return pts[0].1;
+    }
+    for w in pts.windows(2) {
+        if x <= w[1].0 {
+            let f = (x - w[0].0) / (w[1].0 - w[0].0);
+            return w[0].1 + f * (w[1].1 - w[0].1);
+        }
+    }
+    pts[pts.len() - 1].1
+}
+
+#[cfg(test)]
+mod clock_tests {
+    use super::*;
+
+    #[test]
+    fn clock_read_table_and_interpolation() {
+        // measured cells are returned exactly
+        assert_eq!(clock_read_ns(1, 1), 896.0);
+        assert_eq!(clock_read_ns(1024, 8), 565.0);
+        assert_eq!(clock_read_ns(65536, 1), 37345.0);
+        // copies round down to a tabulated power of two (3 -> 2), and a single line is far slower under load than per-core copies
+        assert_eq!(clock_read_ns(65536, 3), clock_read_ns(65536, 2));
+        assert!(clock_read_ns(65536, 1) > 10.0 * clock_read_ns(65536, 16));
+        // between 32 and 1,024 lanes (one line) the cost lies between the cells; beyond the table it stays flat
+        let mid = clock_read_ns(181, 1);
+        assert!(mid > 798.0 && mid < 4985.0);
+        assert_eq!(clock_read_ns(1 << 20, 1), 37345.0);
+        // one SIMD group never pays contention
+        assert!(clock_read_ns(32, 1) < 900.0);
+    }
+}
