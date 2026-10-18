@@ -146,6 +146,54 @@ impl Src {
     }
 }
 
+/// Source lane of A for each lane of a 10-byte fmadd lane form (`None`: A reads 0). Only the measured subset is
+/// modeled (playground finding 2026-10-11-fmadd-lane-offset); everything else is an error so nothing is silently
+/// guessed: bit 52 (unknown operation), bit 74, combined grouping/cross bits, k > 16 (fmadd32 reads undefined values), grouping/cross modes with k != 1, bits 64-67/69-71 with k != 1, an
+/// fmadd32 lane whose source falls outside its 2-/4-lane group (undefined value), and active lanes whose source
+/// lane is inactive (inactive-source behavior not measured). The cross-half read (bit 68) assumes the source was
+/// written several instructions earlier; an immediate write-to-read gives 0 on hardware and is not modeled.
+fn lane_src(half: bool, l: u64, g: u64, x: u64, exec: &[bool; SIMD_WIDTH]) -> R<[Option<usize>; SIMD_WIDTH]> {
+    const B68: u64 = 1 << 4;
+    const B72: u64 = 1 << 8;
+    const B73: u64 = 1 << 9;
+    const NOOP: u64 = 0b1111 | (0b111 << 5); // bits 64-67, 69-71
+    if x != 0 {
+        return Err("unsupported: fmadd bit 52 operation");
+    }
+    let extra = g & NOOP;
+    if extra != 0 && (l != 1 || extra.count_ones() != 1 || g & !NOOP != 0) {
+        return Err("unsupported: fmadd lane bits 64-71 outside the measured k=1 single flips");
+    }
+    let mode = g & !NOOP;
+    if l > 16 || (mode != 0 && l != 1) {
+        return Err("unsupported: fmadd lane offset outside the measured set (default mode k <= 16; other modes k = 1)");
+    }
+    let group = match mode {
+        0 | B68 => if mode == B68 { 32 } else { 16 },
+        B72 => 2,
+        B73 => 4,
+        _ => return Err("unsupported: fmadd lane mode bits combination"),
+    };
+    let k = l as usize;
+    let mut out = [None; SIMD_WIDTH];
+    for t in 0..SIMD_WIDTH {
+        let start = t / group * group;
+        if t >= start + k && k < group {
+            out[t] = Some(t - k);
+        } else if group <= 4 && !half && exec[t] {
+            return Err("unsupported: fmadd32 lane source outside its group reads an undefined value");
+        }
+        if exec[t] {
+            if let Some(s) = out[t] {
+                if !exec[s] {
+                    return Err("unsupported: fmadd lane source lane is inactive");
+                }
+            }
+        }
+    }
+    Ok(out)
+}
+
 #[inline(always)]
 fn r16(st: &CoreState, r: usize, t: usize) -> i128 {
     debug_assert!(r < st.reg16s.len() && t < SIMD_WIDTH);
@@ -313,6 +361,8 @@ enum K {
     Popcount { a: Src, d: Dst },
     Ffs { a: Src, d: Dst },
     Float { op: Fl, a: Src, b: Src, c: Option<Src>, d: Dst, sat: bool, d16: Option<bool> },
+    /// 10-byte fmadd with a lane offset on source A (`lane_src` documents the measured subset)
+    FloatLane { half: bool, a: Src, b: Src, c: Src, d: Dst, sat: bool, d16: Option<bool>, l: u64, g: u64, x: u64 },
     Cmpsel { cmp: Cmp, x: Src, y: Src, d: Dst },
     PopExec { n: i128 },
     Mask { ctl: Ctl, cmp: Cmp, n: i128 },
@@ -415,6 +465,10 @@ impl Compiled {
                 let c = if matches!(op, Fl::FMAdd32 | Fl::FMAdd16) { Some(src("C")) } else { None };
                 K::Float { op, a: src("A"), b: src("B"), c, d: dst("D"), sat: f(fields, "S") != 0, d16: dsize("D").map(|s| s == 16) }
             }
+            Ex::FMAddLane32 | Ex::FMAddLane16 => K::FloatLane {
+                half: d.ex == Ex::FMAddLane16, a: src("A"), b: src("B"), c: src("C"), d: dst("D"), sat: f(fields, "S") != 0,
+                d16: dsize("D").map(|s| s == 16), l: f(fields, "L"), g: f(fields, "G"), x: f(fields, "X"),
+            },
             Ex::ICmpsel | Ex::FCmpsel => K::Cmpsel { cmp: cmp(d.ex == Ex::FCmpsel), x: src("X"), y: src("Y"), d: dst("D") },
             Ex::PopExec => K::PopExec { n: f(fields, "n") as i128 },
             Ex::IfCmp { float } => K::Mask { ctl: Ctl::If, cmp: cmp(float), n: f(fields, "n") as i128 },
@@ -617,6 +671,39 @@ impl Compiled {
                 };
                 d.set(st, t, v as i128)
                 })
+            }
+            K::FloatLane { half, a, b, c, d, sat, d16, l, g, x } => {
+                if !st.exec.iter().any(|&e| e) {
+                    return Ok(());
+                }
+                let src_lane = lane_src(*half, *l, *g, *x, &st.exec)?;
+                let d16 = d16.ok_or("get_bit_size")?;
+                // source A is read from other lanes: snapshot every lane before any destination write
+                let mut av = [0u64; SIMD_WIDTH];
+                let mut bv = [0u64; SIMD_WIDTH];
+                let mut cv = [0u64; SIMD_WIDTH];
+                for t in 0..SIMD_WIDTH {
+                    bv[t] = b.get_float(st, t)?;
+                    cv[t] = c.get_float(st, t)?;
+                    av[t] = match src_lane[t] {
+                        Some(s) => a.get_float(st, s)?,
+                        None => 0f64.to_bits(),
+                    };
+                }
+                for t in 0..SIMD_WIDTH {
+                    if st.exec[t] {
+                        let mut r = fma::fma_rto_narrow(av[t], bv[t], cv[t]);
+                        if !*half {
+                            r = fma::f32_to_f64(fma::f64_to_f32(r, true), false);
+                        }
+                        if *sat {
+                            r = fma::saturate64(r);
+                        }
+                        let v = if d16 { fma::f64_to_f16(r, false) } else { fma::f64_to_f32(r, true) };
+                        d.set(st, t, v as i128)?;
+                    }
+                }
+                Ok(())
             }
             K::Cmpsel { cmp, x, y, d } => Self::lanes(st, |st, t| {
                 let v = if cmp.eval(st, t)? { x.get(st, t)? } else { y.get(st, t)? };
