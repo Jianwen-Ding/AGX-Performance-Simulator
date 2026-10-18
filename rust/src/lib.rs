@@ -11,6 +11,7 @@ pub mod kernels;
 mod memtrace;
 pub mod par;
 pub mod pyrandom;
+pub mod texture;
 pub mod transtab;
 
 /// Python `round(x, nd)` followed by `repr` (as `json.dumps` prints it).
