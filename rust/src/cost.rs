@@ -62,6 +62,33 @@ pub const CONTROL: &[&str] = &[
     "if_icmp", "if_fcmp", "else_icmp", "else_fcmp", "while_icmp", "while_fcmp", "pop_exec", "push_exec", "jmp_exec_any",
     "jmp_exec_none", "stop", "trap", "TODO.unk51", "no_var", "end_group",
 ];
+/// Measured cost of the seven Mesa-emitted memory barriers (second byte of the 2-byte `f5xx` encoding) in ns at the top GPU clock:
+/// [back to back, after a coherent device store, after a coherent device load], playground novel-results/2026-10-18-fence-cost
+/// (one SIMD group, unrolled chains with the clock keeper). The context is the last device store / load the group issued before the
+/// fence (kept until a fence pays its penalty, see `fence_ticks`). Other `memory_barrier a, b, c` encodings are not measured and cost the median of the measured ones.
+const FENCE_COSTS_NS: &[(u8, [f64; 3])] = &[
+    (0x96, [85.0, 79.0, 79.0]),    // memory_barrier 1, 2, 9
+    (0x33, [27.0, 13.0, 247.0]),   // unknown_barrier_1 (release)
+    (0x9d, [86.0, 81.0, 306.0]),   // device_barrier_1 (acquire / invalidate)
+    (0x9a, [39.0, 39.0, 40.0]),
+    (0x9e, [99.0, 306.0, 94.0]),
+    (0x03, [21.0, 29.0, 255.0]),
+    (0x99, [91.0, 89.0, 310.0]),
+];
+const FENCE_UNMEASURED_NS: f64 = 85.0;
+/// GPU cycles per ns at the top clock (max_khz 1,398,000)
+const CYCLES_PER_NS: f64 = 1.398;
+
+/// Cost in ticks of a fence in a context (0 = none, 1 = after a store, 2 = after a load) and whether it consumed the context: the
+/// refetch penalty after a load / store is paid once, by the first fence that has one (the seven-barrier sequence after a load costs
+/// 646 ns measured, not 7 penalties), so the context survives fences that pay none.
+fn fence_ticks(code: u8, ctx: usize) -> (i64, bool) {
+    let row = FENCE_COSTS_NS.iter().find(|(c, _)| *c == code).map(|(_, v)| *v);
+    let ns = row.map(|v| v[ctx]).unwrap_or(FENCE_UNMEASURED_NS);
+    let consumed = row.map_or(true, |v| ctx != 0 && v[ctx] > v[0] + 100.0);
+    (tk(ns * CYCLES_PER_NS), consumed)
+}
+
 const BARRIERS: &[&str] = &["threadgroup_barrier", "memory_barrier", "wait_pix", "signal_pix", "TODO.unkE800"];
 const UNIT_GROUPS: &[&[&str]] = &[
     &["iadd", "isub", "iadd_lsl2", "iadd_imm", "iadd_cache"], &["imadd", "imul", "imadd_cache"],
@@ -375,6 +402,8 @@ pub struct Instr {
     pub uniform_src: bool,
     pub loop_bytes: Option<usize>,
     pub wait_run: usize,
+    /// `memory_barrier`: its encoding byte (0x96 = f596, ...), costed from the measured fence table
+    pub fence: Option<u8>,
     /// latency beyond the class row, in real cycles (operand-dependent forms: saturating fp32)
     pub lat_extra: f64,
     /// 32-bit registers read with the `.cache` hint (the `_cache` classes' extra issue cycle applies only when
@@ -420,7 +449,7 @@ pub fn decode(code: &[u8], p: &Params) -> Result<Vec<Instr>, String> {
         if is_barrier78(code, pc) {
             out.push(Instr {
                 pc, size: 2, name: "barrier_4groups".into(), text: "0x78 barrier (aligned 4 SIMD groups)".into(), dst: vec![], src: vec![],
-                reads32: 0, src32: vec![], unit: None, kind: Kind::Barrier, unmeasured: false, slot: 0, cache: false, uniform_src: false,
+                reads32: 0, src32: vec![], unit: None, kind: Kind::Barrier, unmeasured: false, slot: 0, cache: false, uniform_src: false, fence: None,
                 loop_bytes: None, wait_run: 0, lat_extra: 0.0, cache_regs: vec![], late_src: vec![],
             });
             pc += 2;
@@ -438,7 +467,7 @@ pub fn decode(code: &[u8], p: &Params) -> Result<Vec<Instr>, String> {
         let union = |it: &[(&Operand, Vec<u32>)]| set_of(it.iter().flat_map(|(_, r)| r.iter().copied()));
         let mut rec = Instr {
             pc, size, name: String::new(), text: String::new(), dst: vec![], src: vec![], reads32: 0, src32: vec![], unit: None,
-            kind: Kind::Alu, unmeasured: false, slot: 0, cache: false, uniform_src: false, loop_bytes: None, wait_run: 0,
+            kind: Kind::Alu, unmeasured: false, slot: 0, cache: false, uniform_src: false, loop_bytes: None, wait_run: 0, fence: None,
             lat_extra: 0.0, cache_regs: vec![], late_src: vec![],
         };
         let nm = d.name;
@@ -500,6 +529,11 @@ pub fn decode(code: &[u8], p: &Params) -> Result<Vec<Instr>, String> {
         } else if BARRIERS.contains(&nm) {
             rec.kind = Kind::Barrier;
             rec.unmeasured = nm != "threadgroup_barrier";
+            if nm == "memory_barrier" {
+                let code = ((n >> 8) & 0xff) as u8;
+                rec.fence = Some(code);
+                rec.unmeasured = !FENCE_COSTS_NS.iter().any(|(c, _)| *c == code);
+            }
         } else if lookup(ALU, nm).is_some() || is_reduce(nm) {
             rec.kind = Kind::Alu;
             if !regops.is_empty() {
@@ -1312,6 +1346,10 @@ struct SimInstr {
     atomic: bool,
     /// 0 = not a barrier, 1 = whole workgroup (0x68), 2 = aligned 4 SIMD groups (0x78)
     barrier: u8,
+    /// `memory_barrier` encoding byte
+    fence: Option<u8>,
+    /// device_load / device_store (the contexts that change a fence's cost)
+    dev_ctx: u8,
     mem_issue0: i64,
     mem_done: (i64, i64),
     is_jmp_any: bool,
@@ -1650,6 +1688,8 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
                 _ => 0,
             },
             tg_name: is_tg,
+            fence: r.fence,
+            dev_ctx: if r.name.starts_with("device_load") { 2 } else if r.name.starts_with("device_store") { 1 } else { 0 },
             mem_issue0,
             mem_done,
             is_jmp_any: r.name == "jmp_exec_any",
@@ -1793,6 +1833,8 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
     let mut last_alu = vec![NEG_INF; g];
     let mut alu_done = vec![NEG_INF; g];
     let mut last_wait = vec![NEG_INF; g];
+    // per group: the last device store (1) / load (2) issued before the next fence; 0 after a fence or at the start
+    let mut last_mem = vec![0u8; g];
     let mut last_idle_wait = vec![NEG_INF; g];
     let mut sfu_iss = vec![NEG_INF; g];
     let mut sfu_wb = vec![NEG_INF; g];
@@ -2605,7 +2647,16 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
                     }
                 }
                 Kind::Barrier => {
-                    ii = t_;
+                    ii = match r.fence {
+                        Some(code) => {
+                            let (v, consumed) = fence_ticks(code, last_mem[gi] as usize);
+                            if consumed {
+                                last_mem[gi] = 0;
+                            }
+                            v
+                        }
+                        None => t_,
+                    };
                     if r.barrier != 0 {
                         bar_count[gi] += 1;
                         bar_arrive[gi] = None;
@@ -2624,6 +2675,9 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
                         rcache[gi].remove(0);
                     }
                 }
+            }
+            if r.dev_ctx != 0 {
+                last_mem[gi] = r.dev_ctx;
             }
             let occ = t_.max(ii) + branch;
             if r.barrier == 0 {
@@ -2802,3 +2856,23 @@ pub fn segment_overlap(a: &[Trace], b: &[Trace], device_pcs: &std::collections::
     sa.iter().filter(|x| sb.contains(x)).count() as f64 / sa.len() as f64
 }
 
+
+#[cfg(test)]
+mod fence_tests {
+    use super::*;
+
+    #[test]
+    fn measured_fence_costs_and_context_consumption() {
+        // back to back: 85 / 27 / 86 ns at 1.398 cycles per ns, in ticks
+        assert_eq!(fence_ticks(0x96, 0), (tk(85.0 * CYCLES_PER_NS), false));
+        assert_eq!(fence_ticks(0x33, 0), (tk(27.0 * CYCLES_PER_NS), false));
+        // f533 after a load pays the refetch (247 ns) and consumes the context; f596 after a load pays none and keeps it
+        assert_eq!(fence_ticks(0x33, 2), (tk(247.0 * CYCLES_PER_NS), true));
+        assert_eq!(fence_ticks(0x96, 2), (tk(79.0 * CYCLES_PER_NS), false));
+        // f59e is the one that is expensive after a store (306 ns)
+        assert_eq!(fence_ticks(0x9e, 1), (tk(306.0 * CYCLES_PER_NS), true));
+        assert_eq!(fence_ticks(0x9e, 2), (tk(94.0 * CYCLES_PER_NS), false));
+        // an unmeasured encoding costs the default and always consumes
+        assert_eq!(fence_ticks(0x77, 0), (tk(FENCE_UNMEASURED_NS * CYCLES_PER_NS), true));
+    }
+}
