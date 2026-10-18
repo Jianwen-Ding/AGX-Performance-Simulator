@@ -1426,7 +1426,9 @@ impl Default for MemModel {
             active_cores: 38.0,
             l1_bytes: 8 << 10,
             l2_bytes: 256 << 10,
-            slc_bytes: 16 << 20,
+            // shared-cache capacity for streaming reuse. The model's LRU steps at about 1.15 x slc_bytes (19 MiB: 22 MiB), the measured
+            // half-way point of the smooth 14-30 MiB transition is about 21 MiB (playground novel-results/2026-10-18-slc)
+            slc_bytes: 19 << 20,
             l2_extra: 90.0,
             slc_ns: 349.0,
             dram_ns: 388.0,
