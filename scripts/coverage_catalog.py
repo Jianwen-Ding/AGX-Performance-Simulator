@@ -689,7 +689,7 @@ PROPERTY_TARGETS = {
     'fmadd_lane_offset': ['verify-fmadd-decode', 'verify-fmadd-lane', 'verify-fmadd-followups'],
     'stack': ['verify-stack-mesa'],
     'preshader': ['verify-sr-direct', 'verify-preshader'],
-    'imageblock_srs': ['verify-sr-direct'],
+    'imageblock_srs': ['verify-sr-direct', 'verify-imageblock-occ'],
     'memory_ordering': ['verify-memory-ordering', 'verify-sb-lb', 'verify-atomic-release', 'verify-dispatch-visibility', 'verify-tg-litmus', 'verify-fence-cost'],
     'occupancy': ['verify-occupancy', 'verify-occupancy2'],
     'in_shader_clock': ['verify-in-shader-clock', 'verify-clock2'],
