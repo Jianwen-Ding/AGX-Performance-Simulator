@@ -31,8 +31,9 @@ device (`M2 Max G14C B1 (direct DRM)`), the oldest from 2026-10-12, the newest f
   is the slot the process happened to get (1..63, least recently used), so these cases cannot be compared without that slot.
 * 1 x **SR113** (`sr113_1024x1x1_wg256x1x1`): a global power-management state bit that changes during a dispatch; not modelled.
 
-**Not deterministic on hardware** (recorded twice, outputs differ): 25 geometry cases (the placement-dependent SR17 / SR20 / SR21 reads, which the
-suite compares only where they are stable) and 3 control cases (`push_count_1`, `_2`, `_3`: the output words; the cause was not investigated).
+**Not deterministic on hardware** (recorded twice, outputs differ): 25 geometry cases (SR17 x 3, SR20 x 8 and SR21 x 10, which are placement / VM-slot
+dependent and compared only where they are stable, plus SR1 x 2, SR49 x 1 and SR81 x 1, whose cause was not investigated) and 3 control cases
+(`push_count_1`, `_2`, `_3`, an `if_icmp` followed by `pop_exec n`: the output words differ between the two dispatches; the cause was not investigated).
 All other 2,651 cases were identical in both recorded dispatches.
 
 ## Faults
