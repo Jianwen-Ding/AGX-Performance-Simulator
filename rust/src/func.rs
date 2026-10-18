@@ -570,9 +570,19 @@ fn step_group_impl<C: InstructionCells>(g: &mut Group, code: &[u8], cache: &C, m
                     || std::env::var("AGX_EXPERIMENTAL_RET").as_deref() != Ok("buffer-pop2") {
                     return Ok(Stop::Done);
                 }
+                // Depth-1 lanes die at a stop only while some lane is at depth >= 2 (partial-mask-ret).
+                // With every masked lane at depth 1 (ret-byte-buffer) the stop is simply skipped and the
+                // next landing pop reactivates them.
+                let mut skip_kills = false;
                 for t in 0..32 {
-                    if g.st.get_reg16(0, t)? == 1 {
-                        g.st.set_reg16(0, t, 0xffff)?;
+                    let d = g.st.get_reg16(0, t)?;
+                    skip_kills |= (2..0xffff).contains(&d);
+                }
+                if skip_kills {
+                    for t in 0..32 {
+                        if g.st.get_reg16(0, t)? == 1 {
+                            g.st.set_reg16(0, t, 0xffff)?;
+                        }
                     }
                 }
             }
