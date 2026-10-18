@@ -290,6 +290,37 @@ def alu_case(t, finding, risk, masked=False):
     return Case(f'{area}/{_name(t)}', area, finding, risk, 'functional', t, build, [(t, _want(t))])
 
 
+def lane_text(width, k, g=0):
+    """10-byte fmadd lane-offset form (bit 53): k = lane offset (bits 75-79), g = bits 64-74. Only the measured subset
+    (playground 2026-10-11-fmadd-lane-offset, 2026-10-18-fmadd-followups): default 16-lane halves, k <= 16, and for fmadd16
+    the 2- / 4-lane groups (bits 72 / 73) with k = 1. The cross-half read (bit 68) is timing-dependent and is not covered."""
+    regs = ('r14', 'r6', 'r7', 'r8') if width == 32 else ('r14l', 'r6l', 'r7l', 'r8l')
+    return f"fmadd{width}_lane {', '.join(regs)}, 0b{k:05b}, 0b{g:011b}, 0b0"
+
+
+def lane_cases():
+    forms = [(w, k, 0) for w in (32, 16) for k in (0, 1, 2, 4, 8, 15, 16)] + [(16, 1, 1 << 8), (16, 1, 1 << 9)]
+    out = []
+    for w, k, g in forms:
+        t = lane_text(w, k, g)
+        out.append(lane_case(t, 'fmadd-lane-offset', False))
+    for w in (32, 16):
+        for k in (1, 2, 4, 8):
+            out.append(lane_case(lane_text(w, k), 'fmadd-lane-offset', True))
+    return out
+
+
+def lane_case(t, finding, masked):
+    area = 'fmadd_lane_masked' if masked else 'fmadd_lane'
+
+    def build(t=t, masked=masked, area=area):
+        RS = _rs()
+        rng = random.Random('coverage:' + area + t)
+        table = [RS.operand(rng) for _ in range(8 * N)] + [0] * (2 * N)
+        return (area, _name(t), t, RS.alu_body(RS.e(t), N, masked), N, WG, 64, 0, table)
+    return Case(f'{area}/{_name(t)}', area, finding, 'safe', 'functional', t, build, [(t, None)])
+
+
 ITEM_BYTES = {'i8': 1, 'i16': 2, 'i32': 4, 'f16': 2, 'u8norm': 1, 's8norm': 1, 'u16norm': 2, 's16norm': 2}   # packed: 4
 
 
@@ -617,14 +648,26 @@ def timing_cases(alu):
 # ---------------------------------------------------------------------------------------------------------------
 
 MANUAL = [  # behaviours known from findings whose encodings have to be built on the device (raw, not assemblable)
-    ('fmadd_lane_offset', 'fmadd-lane-offset', 'fmadd 10-byte form with the lane-offset operand: build from the finding\'s encoding table'),
-    ('stack', 'stack-via-mesa', 'stack_store / stack_load / stack_get_ptr / stack_adjust: the SPIR-V `spill` workload (spirv/compiled/*/spill) is a Mesa scratch-using shader; record its stack layout on the device (functional values already pass in the simulator)'),
-    ('preshader', 'preshader-execution', 'uniform_store from a preamble (AGX_PRESHADER=1 in tests/drm_compute.c) and the preshader-last rule (sr17-sr32)'),
-    ('imageblock_srs', 'sr12-sr13-sr15-imageblock', 'SR12/SR13/SR15 under imageblock-sized launches'),
-    ('memory_ordering', 'memory-ordering', 'cross-core message passing with f533 (release) vs memory_barrier alone: record outcome counts, not exact words'),
-    ('occupancy', 'occupancy', 'register / threadgroup-memory limits: SR19 / SR18 and resident groups for each regs value'),
-    ('in_shader_clock', 'in-shader-clock', 'CPU-written timer read: monotonic per lane'),
+    ('fmadd_lane_offset', 'fmadd-lane-offset', 'COVERED as areas fmadd_lane / fmadd_lane_masked (24 recorded cases, simulator exact); the timing-dependent cross-half read (bit 68) and bit 52 stay out'),
+    ('stack', 'stack-via-mesa', 'COVERED by the property check: five Mesa-compiled spill / private-array shaders replay in agx_run to the hardware output (needs the Mesa preamble / uniform convention, so not a suite_check case)'),
+    ('preshader', 'preshader-execution', 'COVERED by the property check: uniform file size, one preamble run per core per dispatch, cost (needs AGX_PRESHADER and CDM uniform-count launch parameters)'),
+    ('imageblock_srs', 'sr12-sr13-sr15-imageblock', 'COVERED by the property check (make verify-sr-direct: the shared-word configurations)'),
+    ('memory_ordering', 'memory-ordering', 'COVERED by the property check: outcome counts (MP, SB, LB, atomics, threadgroup, dispatch boundary, fence cost), not exact words'),
+    ('occupancy', 'occupancy', 'COVERED by the property check: resident groups for registers, threadgroup memory, workgroup size and shape'),
+    ('in_shader_clock', 'in-shader-clock', 'COVERED by the property check: monotonic per lane, group-uniform, cost under load'),
 ]
+
+# playground make targets (offline verifiers over retained hardware records) that stand in for the MANUAL items that are not
+# suite_check cases; `coverage.py properties` runs them
+PROPERTY_TARGETS = {
+    'fmadd_lane_offset': ['verify-fmadd-decode', 'verify-fmadd-lane', 'verify-fmadd-followups'],
+    'stack': ['verify-stack-mesa'],
+    'preshader': ['verify-sr-direct', 'verify-preshader'],
+    'imageblock_srs': ['verify-sr-direct'],
+    'memory_ordering': ['verify-memory-ordering', 'verify-sb-lb', 'verify-atomic-release', 'verify-dispatch-visibility', 'verify-tg-litmus', 'verify-fence-cost'],
+    'occupancy': ['verify-occupancy', 'verify-occupancy2'],
+    'in_shader_clock': ['verify-in-shader-clock', 'verify-clock2'],
+}
 
 
 # undecoded opcodes (playground novel-results/2026-10-11-opcode-descriptions, 2026-10-11-sync-and-end-opcodes): only the
@@ -695,7 +738,7 @@ def build_catalog():
     for n in range(256):
         for geom in (GEOMETRIES_DRM if n in _sr_known() else GEOMETRIES_DRM[:1]):
             cases.append(sr_case(n, geom))
-    cases += control_cases() + barrier_cases() + atomic_cases() + tg_format_cases() + undecoded_cases()
+    cases += control_cases() + barrier_cases() + atomic_cases() + tg_format_cases() + undecoded_cases() + lane_cases()
     cases += timing_cases(alu)
     return cases
 

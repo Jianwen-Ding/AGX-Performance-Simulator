@@ -12,7 +12,7 @@ checked against the recordings offline.
 | `coverage/timing/<name>.json` | Recorded instruction-bench results (latency, SIMD issue, per-core throughput). Written by `record`. |
 | `coverage/log.jsonl`, `coverage/faults.json` | Log of every recording outcome, and the cases that faulted. |
 
-## Catalog (4,247 cases)
+## Catalog (4,271 cases)
 
 | Area | Safe | May fault | What it covers |
 |---|---|---|---|
@@ -25,6 +25,7 @@ checked against the recordings offline.
 | `sync` | 5 | 251 | Every `memory_barrier a, b, c`. |
 | `atomic` | 11 | 11 | All 11 device atomics, with uniform base (safe) and register base (may fault). |
 | `undecoded` | 403 | – | The 49 non-faulting undecoded opcodes (playground opcode-descriptions, sync-and-end-opcodes) in the 8 operand encodings that ran there: 31 six-byte no-ops, 0x18 (bit 7 clear), and the 16 ends opcodes plus 0x98 / 0xf8 (also inside a 3-of-4-lane branch). Recorded 2026-10-16 (tasks/safe-08): 403/403 deterministic, simulator exact. |
+| `fmadd_lane` / `fmadd_lane_masked` | 16 / 8 | – | The 10-byte fmadd lane-offset form (measured subset), recorded 2026-10-18; simulator exact. |
 | `bench` | 651 | – | Timing cases: every safe ALU form whose destination and first source have the same width. Each becomes a dependent-chain instruction-bench form. |
 
 **Risk levels:**
@@ -43,17 +44,16 @@ Before any functional case is submitted, `record` runs the exact program in `agx
 layout (`coverage.simulate`): it must finish and, when the case has a host oracle, match it. A refusal is logged as
 `sim-refused` and nothing is submitted. `--no-sim` skips this step.
 
-**Not generated** (`coverage_catalog.MANUAL`): behaviours that need hand-built encodings or a Mesa capture:
+**Former MANUAL items** (`coverage_catalog.MANUAL`), status since 2026-10-18:
 
-- the fmadd lane-offset form;
-- the stack instructions;
-- the preshader;
-- imageblock special registers;
-- cross-core memory ordering;
-- occupancy limits;
-- the in-shader clock.
-
-The task file lists them.
+- **fmadd lane-offset form: recorded cases.** Areas `fmadd_lane` (16 cases: fmadd32 / fmadd16 with k = 0, 1, 2, 4, 8, 15, 16, plus the fp16 2- and
+  4-lane groups) and `fmadd_lane_masked` (8 cases with a quarter of the lanes inactive). Random operands, recorded twice on the GPU (all
+  deterministic), simulator exact. The cross-half read (bit 68) is timing-dependent and bit 52 is unmodeled, so neither is a case.
+- **Not suite_check cases, covered by `coverage.py properties`** (the playground's offline verifiers over retained hardware records;
+  needs the Apple-M2-Playground checkout, `APPLE_PLAYGROUND`): the stack instructions (five Mesa-compiled spill / private-array shaders replayed
+  in `agx_run` to the hardware output), the preshader (uniform file size, runs per dispatch, cost), imageblock special registers, cross-core memory
+  ordering (outcome counts), occupancy limits and the in-shader clock (monotonic per lane, cost under load). These need launch parameters or
+  checks (outcome counts, properties) that the exact-word suite format does not express. `make coverage-properties` runs them all (17 verifiers).
 
 ## Encoding
 

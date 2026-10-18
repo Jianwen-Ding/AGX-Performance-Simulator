@@ -7,6 +7,7 @@ functional simulator / cost model against it.
     coverage.py record   [--area A,B] [--risky] [--redo] [--limit N] [--match REGEX]   hardware: record expected values
     coverage.py check    [--timing]                             offline: suite_check on coverage/expected (+ timing)
     coverage.py status                                          recorded / faulted / pending per area
+    coverage.py properties [--item A,B]                         offline: playground verifiers standing in for the MANUAL items
 
 The catalog (coverage_catalog.py) has no expected values: `record` runs each case twice on the GPU and stores the
 result in the hardware test-suite format (coverage/expected/<area>/<name>.json.gz, same as testsuite/), so
@@ -247,7 +248,7 @@ def cmd_validate(a):
                 B.straight(bench_name(c)); B.loop(bench_name(c), 8, 16, 10)
             else:
                 item = c.build()
-                if len(item) not in (9, 11):
+                if len(item) not in (9, 10, 11):
                     raise ValueError(f'tuple of {len(item)}')
                 cat, name, desc, body, lanes, wg, regs, shared, table = item[:9]
                 if f'{cat}/{name}' != c.id:
@@ -405,10 +406,33 @@ def cmd_status(a):
               f'{ct["may_fault", "pending"]:>11}{ct["safe", "fault"] + ct["may_fault", "fault"]:>8}')
 
 
+def cmd_properties(a):
+    """Run the playground's offline verifiers that stand in for the MANUAL catalog items (property checks over retained hardware
+    records: outcome counts, monotonic reads, occupancy formulas, replays of Mesa shaders). Needs the Apple-M2-Playground checkout
+    (APPLE_PLAYGROUND, default ../apple-documentation-playground) and the Rust binaries (`make rust`)."""
+    install()
+    import coverage_catalog as C
+    pg = Path(os.environ.get('APPLE_PLAYGROUND', ROOT.parent / 'apple-documentation-playground'))
+    if not (pg / 'Makefile').exists():
+        print(f'playground not found at {pg} (set APPLE_PLAYGROUND)')
+        return 2
+    items = [x for x in C.PROPERTY_TARGETS if not a.item or x in a.item.split(',')]
+    bad = 0
+    for item in items:
+        for target in C.PROPERTY_TARGETS[item]:
+            r = subprocess.run(['make', '-s', '-C', str(pg), target], capture_output=True, text=True)
+            ok = r.returncode == 0
+            bad += not ok
+            last = (r.stdout.strip().splitlines() or [''])[-1][:100]
+            print(f'{"PASS" if ok else "FAIL"}  {item:<18}{target:<28}{last}', flush=True)
+    print(json.dumps({'properties': sum(len(C.PROPERTY_TARGETS[i]) for i in items), 'failed': bad}))
+    return 1 if bad else 0
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest='cmd', required=True)
-    for name in ('list', 'validate', 'record', 'check', 'status'):
+    for name in ('list', 'validate', 'record', 'check', 'status', 'properties'):
         p = sub.add_parser(name)
         if name in ('list', 'validate', 'record'):
             p.add_argument('--area'); p.add_argument('--match', help='regex on case ids')
@@ -425,11 +449,13 @@ def main():
             p.add_argument('--no-sim', action='store_true', help='skip the agx_run pre-GPU simulation (not recommended)')
             p.add_argument('--keep-going', action='store_true', help='continue with the next case after a fault (default: stop)')
             p.add_argument('--modes', help='timing modes (default run_bench: latency,simd_issue,gpu)')
+        if name == 'properties':
+            p.add_argument('--item', help='comma list of MANUAL items (default all)')
         if name == 'check':
             p.add_argument('--timing', action='store_true', help='also compare timing cases with the cost model')
             p.add_argument('-v', '--verbose', action='store_true')
     a = ap.parse_args()
-    sys.exit({'list': cmd_list, 'validate': cmd_validate, 'record': cmd_record, 'check': cmd_check, 'status': cmd_status}[a.cmd](a) or 0)
+    sys.exit({'list': cmd_list, 'validate': cmd_validate, 'record': cmd_record, 'check': cmd_check, 'status': cmd_status, 'properties': cmd_properties}[a.cmd](a) or 0)
 
 
 if __name__ == '__main__':

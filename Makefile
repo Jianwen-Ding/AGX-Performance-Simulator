@@ -6,7 +6,7 @@ MESA_VERSION ?= 26.0.3
 MESA_SHIM_DIR ?= $(CURDIR)/../mesa-src
 export CC PROBE_INCLUDE
 
-.PHONY: help verify-conversions verify-float-edges verify-transcendentals verify-sr check rust test verify-cost-model verify-memory-model bench verify-bench cost-calibrate cost-validate suite-check record-suite record-transcendentals coverage-validate coverage-record coverage-check coverage-status spirv-build spirv-run spirv-lavapipe spirv-sim spirv-compile spirv-predict verify-traces spirv-verify asahi-verify
+.PHONY: help verify-conversions verify-float-edges verify-transcendentals verify-sr check rust test verify-cost-model verify-memory-model bench verify-bench cost-calibrate cost-validate suite-check record-suite record-transcendentals coverage-validate coverage-record coverage-check coverage-properties coverage-status spirv-build spirv-run spirv-lavapipe spirv-sim spirv-compile spirv-predict verify-traces spirv-verify asahi-verify
 
 help:
 	@echo 'make rust               Build the model (rust/target/release: agx_cost, agx_predict, verify_cost_model, agx_bench)'
@@ -19,6 +19,7 @@ help:
 	@echo 'make coverage-validate  Offline: build, assemble and gate every coverage case (scripts/coverage_catalog.py)'
 	@echo 'make coverage-record    Hardware: record the safe coverage cases (resumable; tasks/agx-coverage.md)'
 	@echo 'make coverage-check     Offline: simulator and cost model against coverage/expected and coverage/timing'
+	@echo 'make coverage-properties  Playground verifiers that stand in for the non-suite coverage items (needs the playground checkout)'
 	@echo 'make coverage-status    Recorded / pending / faulted coverage cases per area'
 	@echo 'make spirv-build        Compile spirv/shaders (glslangValidator, spirv-val) and the vk_run runner'
 	@echo 'make spirv-run          Hardware (Vulkan): all SPIR-V workloads, both sizes, checked and timed (tasks/spirv-*.md)'
@@ -94,6 +95,9 @@ coverage-record: rust
 
 coverage-check: rust
 	$(PYTHON) -B scripts/coverage.py check --timing
+
+coverage-properties:
+	$(PYTHON) -B scripts/coverage.py properties
 
 coverage-status:
 	$(PYTHON) -B scripts/coverage.py status
