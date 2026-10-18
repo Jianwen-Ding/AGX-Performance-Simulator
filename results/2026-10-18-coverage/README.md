@@ -14,13 +14,14 @@ device (`M2 Max G14C B1 (direct DRM)`), the oldest from 2026-10-12, the newest f
 | control | 75 | 75 | 0 | 0 | 3 |
 | fmadd_lane (new) | 16 | 16 | 0 | 0 | 0 |
 | fmadd_lane_masked (new) | 8 | 8 | 0 | 0 | 0 |
+| fmadd_b52 (new) | 2 | 2 | 0 | 0 | 0 |
 | geometry | 634 | 623 | **11** | 0 | 25 |
 | mem_load | 202 | 202 | 0 | 0 | 0 |
 | mem_store | 194 | 194 | 0 | 0 | 0 |
 | sync | 5 | 5 | 0 | 0 | 0 |
 | threadgroup | 44 | 44 | 0 | 0 | 0 |
 | undecoded | 403 | 403 | 0 | 0 | 0 |
-| **Total** | **2,679** | **2,668 (all exact, 0 within 2 ulp)** | **11** | **0** | **28** |
+| **Total** | **2,681** | **2,670 (all exact, 0 within 2 ulp)** | **11** | **0** | **28** |
 
 **Simulator mismatches by cause: none.** Every case it can run equals the hardware word for word (432 words taken from racing stores and
 3,972 placement-dependent words, SR17 / SR20, are not compared by design).
@@ -34,7 +35,7 @@ device (`M2 Max G14C B1 (direct DRM)`), the oldest from 2026-10-12, the newest f
 **Not deterministic on hardware** (recorded twice, outputs differ): 25 geometry cases (SR17 x 3, SR20 x 8 and SR21 x 10, which are placement / VM-slot
 dependent and compared only where they are stable, plus SR1 x 2, SR49 x 1 and SR81 x 1, whose cause was not investigated) and 3 control cases
 (`push_count_1`, `_2`, `_3`, an `if_icmp` followed by `pop_exec n`: the output words differ between the two dispatches; the cause was not investigated).
-All other 2,651 cases were identical in both recorded dispatches.
+All other 2,653 cases were identical in both recorded dispatches.
 
 ## Faults
 
