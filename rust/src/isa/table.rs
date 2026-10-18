@@ -246,6 +246,17 @@ pub fn build() -> Vec<Desc> {
     d.op(binary("op1", 38, 2)).op(binary("op2", 26, 2));
     push!(d);
     // Float arithmetic
+    // 10-byte lane-offset forms (bit 53 set, bits 64-79 belong to the instruction; playground finding
+    // 2026-10-11-fmadd-lane-offset). Decoded so following code stays in sync; execution is not modeled.
+    // Must precede the plain forms, which would otherwise match with bit 53 set and mis-size it.
+    let mut d = Desc::new("fmadd32_lane", s1(10), 15, E::MaskedTodo, Mn::Sat { alt: None });
+    d.c(0, 6, 0b111010).c(15, 1, 1).c(53, 1, 1).op(float_dst("D", 60)).op(float_src("A", 16, 58)).op(float_src("B", 28, 56));
+    d.op(float_src("C", 40, 54)).op(binary("L", 75, 5)).op(binary("G", 64, 11));
+    push!(d);
+    let mut d = Desc::new("fmadd16_lane", s1(10), 15, E::MaskedTodo, Mn::Sat { alt: None });
+    d.c(0, 6, 0b110110).c(15, 1, 1).c(53, 1, 1).op(float_dst16("D", 60)).op(float_src16("A", 16, 58)).op(float_src16("B", 28, 56));
+    d.op(float_src16("C", 40, 54)).op(binary("L", 75, 5)).op(binary("G", 64, 11));
+    push!(d);
     let mut d = Desc::new("fmadd32", (6, 8), 15, E::FMAdd32, Mn::Sat { alt: None });
     d.c(0, 6, 0b111010).op(float_dst("D", 60)).op(float_src("A", 16, 58)).op(float_src("B", 28, 56)).op(float_src("C", 40, 54));
     push!(d);

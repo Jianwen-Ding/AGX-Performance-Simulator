@@ -339,6 +339,29 @@ mod tests {
         assert_eq!(disassemble_normalized(d, n).unwrap(), text);
     }
 
+    /// Bit 53 of fmadd32/fmadd16 selects the 10-byte lane-offset form; the next instruction must start
+    /// 10 bytes later. Bits 64-79 are set to a nonzero pattern to prove they are consumed.
+    #[test]
+    fn fmadd_lane_form_is_ten_bytes() {
+        for (text, name) in [("fmadd32 r5, r5, r24, r25", "fmadd32_lane"), ("fmadd16 r5l, r5l, r24l, r25l", "fmadd16_lane")] {
+            let mut plain = e(text);
+            plain.resize(8, 0);
+            plain[1] |= 0x80; // bit 15: 8-byte form
+            let mut code = plain.clone();
+            code.extend([0u8; 2]);
+            code[6] |= 1 << (53 - 48);
+            code[9] = 0b0000_1000; // k = 1 (bits 75-79)
+            code.extend(e("wait 0"));
+            let (d, _, size) = decode_one(&code).unwrap();
+            assert_eq!((d.name, size), (name, 10));
+            let (d2, _, size2) = decode_one(&code[size..]).unwrap();
+            assert_eq!((d2.name, size2), ("wait", 2));
+            // without bit 53 the form stays 8 bytes
+            let (d3, _, size3) = decode_one(&plain).unwrap();
+            assert_eq!((d3.name, size3), (&text[..7], 8));
+        }
+    }
+
     #[test]
     fn round_trips() {
         for t in [
