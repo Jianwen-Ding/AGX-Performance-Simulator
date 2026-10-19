@@ -90,7 +90,7 @@ pub fn decode_texdesc(b: &[u8]) -> Result<TexDesc, String> {
         first_level: bits(b, 56, 4) as u32,
         last_level: bits(b, 60, 4) as u32,
         addr: bits(b, 66, 36) << 4,
-        stride: bits(b, 110, 18) << 4,
+        stride: bits(b, 110, 18), // raw field: row pitch is (stride + 1) * 16, see tex_stride
         srgb: bits(b, 108, 1) != 0,
         layout,
     })
@@ -136,12 +136,13 @@ pub fn tex_format(channels: u32, type_: u32) -> Result<(usize, u32), String> {
     Ok((bpp, type_))
 }
 
-/// Byte offset of texel (x, y) in a linear image, or None if out of range.
+/// Byte offset of texel (x, y) relative to the image base, or None if out of range.
+/// The row pitch is (stride field + 1) * 16 (Mesa writes pitch - 16, shr 4).
 pub fn texel_off(desc: &TexDesc, bpp: usize, x: i64, y: i64) -> Option<u64> {
     if !(0 <= x && x < desc.width as i64 && 0 <= y && y < desc.height as i64) {
         return None;
     }
-    Some(desc.addr + y as u64 * desc.stride + x as u64 * bpp as u64)
+    Some(y as u64 * tex_stride(desc) + x as u64 * bpp as u64)
 }
 
 pub fn apply_swizzle(v: [f32; 4], s: [u32; 4]) -> [f32; 4] {
@@ -360,6 +361,50 @@ pub fn apply_swizzle_u32(v: [u32; 4], s: [u32; 4]) -> [u32; 4] {
     o
 }
 
+/// Decoded 24-byte `agx_pbe_packed` descriptor (image-store path): same addressing info as
+/// `TexDesc` at shifted positions; swizzles are 2 bits (R/G/B/A only). Stride is a raw byte
+/// count with Mesa's -16 bias (hk_image_view.c: the driver writes linear pitch minus 16),
+/// so the row pitch is field + 16.
+#[derive(Debug, Clone, PartialEq)]
+pub struct PbeDesc {
+    pub width: u32,
+    pub height: u32,
+    pub addr: u64,
+    pub stride: u64,
+    pub channels: u32,
+    pub type_: u32,
+    pub swizzle: [u32; 4],
+    pub srgb: bool,
+}
+
+pub fn decode_pbe(b: &[u8]) -> Result<PbeDesc, String> {
+    if b.len() < 24 {
+        return Err(format!("pbe descriptor holds {} bytes, need 24", b.len()));
+    }
+    if bits(b, 4, 2) != 0 {
+        return Err("non-linear pbe layout not modelled".into());
+    }
+    if bits(b, 59, 1) != 0 {
+        return Err("compressed pbe not modelled".into());
+    }
+    Ok(PbeDesc {
+        width: bits(b, 24, 14) as u32 + 1,
+        height: bits(b, 38, 14) as u32 + 1,
+        addr: bits(b, 64, 36) << 4,
+        stride: bits(b, 104, 21) + 16,
+        channels: bits(b, 6, 7) as u32,
+        type_: bits(b, 13, 3) as u32,
+        swizzle: [bits(b, 16, 2) as u32, bits(b, 18, 2) as u32, bits(b, 20, 2) as u32, bits(b, 22, 2) as u32],
+        srgb: bits(b, 125, 1) != 0,
+    })
+}
+
+/// Row pitch of a linear texture descriptor: Mesa writes (pitch - 16) >> 4 (hk_image_view.c),
+/// so hardware pitch is field * 16 + 16. Self-consistent with synthesis that writes pitch/16 - 1.
+pub fn tex_stride(desc: &TexDesc) -> u64 {
+    (desc.stride + 1) * 16
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -406,12 +451,12 @@ mod tests {
         put(28, 14, 64 - 1);
         put(42, 14, 32 - 1);
         put(66, 36, 0x123456000 >> 4);
-        put(110, 18, 256 >> 4);
+        put(110, 18, (256 - 16) >> 4); // Mesa writes linear pitch minus 16
         let d = decode_texdesc(&b).unwrap();
         assert_eq!((d.dim, d.channels, d.type_, d.width, d.height), (2, 0x21, 4, 64, 32));
-        assert_eq!((d.addr, d.stride), (0x123456000, 256));
-        assert_eq!(texel_off(&d, 4, 0, 0), Some(0x123456000));
-        assert_eq!(texel_off(&d, 4, 63, 31), Some(0x123456000 + 31 * 256 + 63 * 4));
+        assert_eq!((d.addr, d.stride), (0x123456000, 15));
+        assert_eq!(texel_off(&d, 4, 0, 0), Some(0));
+        assert_eq!(texel_off(&d, 4, 63, 31), Some(31 * 256 + 63 * 4));
         assert_eq!(texel_off(&d, 4, 64, 0), None);
         assert_eq!(texel_float(&[0x00, 0x00, 0x80, 0x3f], 0x21, 4, false).unwrap(), [1.0, 0.0, 0.0, 0.0]);
         assert_eq!(texel_int(&[0xff, 0xff, 0xff, 0xff], 0x21, 2).unwrap(), [0xffffffff, 0, 0, 0]);

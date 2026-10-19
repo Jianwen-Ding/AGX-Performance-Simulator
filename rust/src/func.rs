@@ -29,6 +29,8 @@ pub struct Memory {
     pub samp_state: std::collections::BTreeMap<u32, Vec<u8>>,
     /// every texture/sampler state store and texture access, for discovery: (op, slot, va)
     pub tex_log: Vec<(String, u32, u64)>,
+    /// bindless sampler heap (index -> 8-byte descriptor), populated by the harness
+    pub samp_heap: std::collections::BTreeMap<u32, Vec<u8>>,
 }
 
 impl Memory {
@@ -213,6 +215,8 @@ pub struct TexOp {
     pub bind_ureg: Option<u32>,
     pub bind_reg: Option<(bool, u32)>,
     pub ss: Option<u32>,
+    /// register-form sampler (bindless heap index, or the clamp_0 override): value resolved per lane
+    pub sreg: Option<(bool, u32)>,
     pub coords: Vec<(bool, u32)>,
     pub lod_ureg: Option<u32>,
     pub lod_imm: Option<i64>,
@@ -243,63 +247,62 @@ fn reg_tuple(o: &Operand) -> Option<Vec<(bool, u32)>> {
 }
 
 fn tex_op(ops: &[Operand]) -> TexOp {
-    // Table order: R, U?, T, S?, n, C, lod, D. Phase machine over operand kinds.
-    // Dest is the first register(s); coords the first tuple (or lone reg) after the
-    // texture slot; LOD the first ureg/imm/reg after coords.
+    // Operand order varies by op (texture_sample: R,U?,T,S?,C,lod; image_write: R,C,D,U,T,...).
+    // Order-independent parse: the first register group (lone regs or tuple) is the destination,
+    // the second is the coordinates; slots / bindless base attach wherever they appear.
     let mut a = TexOp::default();
-    let mut phase = 0u32;
+    let mut dest_done = false;
+    let mut coords_done = false;
     for o in ops {
+        if let Some(rs) = reg_tuple(o) {
+            if !dest_done {
+                a.dest = rs;
+                dest_done = true;
+            } else if !coords_done {
+                a.coords = rs;
+                coords_done = true;
+            }
+            continue;
+        }
         match o {
-            Operand::UReg64(n, _) if phase <= 1 => {
-                a.bind_ureg = Some(*n);
-                phase = 2;
+            Operand::UReg64(n, _) => {
+                if a.bind_ureg.is_none() {
+                    a.bind_ureg = Some(*n);
+                }
+                dest_done = true;
             }
             Operand::TextureState(n) => {
                 a.tslot = Some(*n);
-                if phase < 3 {
-                    phase = 3;
-                }
+                dest_done = true;
             }
             Operand::SamplerState(n) => {
                 a.ss = Some(*n);
-                if phase < 4 {
-                    phase = 4;
-                }
             }
             Operand::Reg16(..) | Operand::Reg32(..) => {
-                if phase == 0 {
+                if !dest_done {
                     a.dest.push(reg16_32(o).unwrap());
-                    phase = 1;
-                } else if phase == 2 {
-                    // bindless texture offset register (U base already seen)
+                } else if a.bind_ureg.is_some() && a.tslot.is_none() && a.bind_reg.is_none() {
+                    // bindless texture offset register (uniform base seen, no slot)
                     a.bind_reg = reg16_32(o);
-                    phase = 3;
-                } else if phase == 3 || phase == 4 {
-                    // single-component coords (1D) or bindless sampler (unsupported)
+                } else if a.tslot.is_some() && !coords_done && a.sreg.is_none() {
+                    // register-form sampler (bindless heap index / clamp_0 override).
+                    // NOTE: a lone 1D coordinate register after a slot would land here too;
+                    // 1D sampled coords are not modelled.
+                    a.sreg = reg16_32(o);
+                } else if !coords_done {
                     a.coords.push(reg16_32(o).unwrap());
-                    phase = 5;
-                } else if phase == 5 && a.lod_reg.is_none() {
+                    coords_done = true;
+                } else if a.lod_reg.is_none() {
                     a.lod_reg = reg16_32(o);
                 }
             }
-            Operand::UReg16(n, _) if phase >= 4 && a.lod_ureg.is_none() => {
+            Operand::UReg16(n, _) if a.lod_ureg.is_none() => {
                 a.lod_ureg = Some(*n);
-                phase = 6;
             }
-            Operand::Imm(ImmVal::Int(v), _) if phase >= 4 && a.lod_imm.is_none() => {
+            Operand::Imm(ImmVal::Int(v), _) if a.lod_imm.is_none() => {
                 a.lod_imm = Some(*v);
-                phase = 6;
             }
             _ => {}
-        }
-        if let Some(rs) = reg_tuple(o) {
-            if phase <= 1 {
-                a.dest = rs;
-                phase = 1;
-            } else if phase == 3 || phase == 4 {
-                a.coords = rs;
-                phase = 5;
-            }
         }
     }
     a
@@ -1453,15 +1456,33 @@ fn wrap_mode(samp: &crate::texture::SampDesc, dim: usize) -> Result<u32, String>
     Ok(w)
 }
 
-fn tex_state_store(g: &mut Group, mem: &mut Memory, f: &Fields, ts: u32) -> Result<(), String> {
+/// Base address and byte offset of a tex/sampler_state_store: B (bits 58..63) holds the
+/// offset-is-immediate flag in bit 58 and U = heap uniform (16-bit halves) >> 2 in bits 59..62
+/// (agx_pack.c: U = heap.value >> 2; the heap uniform of set s is halves 4+4s, i.e. 32-bit
+/// uniforms 2+2s — hk_shader.c lower_uniforms). The O field is then an immediate in half-words
+/// (measured: sampler at set+24 reads O=12) or, when bit 58 is clear, a register holding bytes.
+fn state_store_va(g: &Group, f: &Fields) -> Result<(u64, bool), String> {
     let x = |k: &str| fget(f, k).unwrap_or(0);
-    let b = x("B") as usize;
-    let o = x("O") as usize;
-    // first active lane fixes the address (preambles run single-lane)
-    let t = (0..32).find(|&t| g.st.exec[t]).unwrap_or(0);
-    let base = ureg64_pair(g, b as u32)?;
-    let off = g.st.get_reg32(o, t)? as u64;
-    let va = base.wrapping_add(off);
+    let b = x("B");
+    let imm = b & 1 != 0;
+    let heap_32 = ((b >> 1) & 0xF) << 1; // 16-bit halves >> 2, back to 32-bit uniform units
+    let base = g.st.ureg64(heap_32 as usize)? as u64;
+    let o = x("O");
+    let off = if imm {
+        o * 2
+    } else {
+        // first active lane fixes the address (preambles run single-lane)
+        let t = (0..32).find(|&t| g.st.exec[t]).unwrap_or(0);
+        g.st.get_reg32(o as usize, t)? as u64
+    };
+    Ok((base.wrapping_add(off), imm))
+}
+
+fn tex_state_store(g: &mut Group, mem: &mut Memory, f: &Fields, ts: u32) -> Result<(), String> {
+    let (va, imm) = state_store_va(g, f)?;
+    if !imm {
+        return Err("tex_state_store with register offset not modelled".into());
+    }
     let bytes = mem.read_bytes(va, 24)?;
     mem.tex_log.push(("tex".into(), ts, va));
     mem.tex_state.insert(ts, bytes);
@@ -1469,13 +1490,10 @@ fn tex_state_store(g: &mut Group, mem: &mut Memory, f: &Fields, ts: u32) -> Resu
 }
 
 fn samp_state_store(g: &mut Group, mem: &mut Memory, f: &Fields, ss: u32) -> Result<(), String> {
-    let x = |k: &str| fget(f, k).unwrap_or(0);
-    let b = x("B") as usize;
-    let o = x("O") as usize;
-    let t = (0..32).find(|&t| g.st.exec[t]).unwrap_or(0);
-    let base = ureg64_pair(g, b as u32)?;
-    let off = g.st.get_reg32(o, t)? as u64;
-    let va = base.wrapping_add(off);
+    let (va, imm) = state_store_va(g, f)?;
+    if !imm {
+        return Err("sampler_state_store with register offset not modelled".into());
+    }
     let bytes = mem.read_bytes(va, 8)?;
     mem.tex_log.push(("samp".into(), ss, va));
     mem.samp_state.insert(ss, bytes);
@@ -1484,10 +1502,10 @@ fn samp_state_store(g: &mut Group, mem: &mut Memory, f: &Fields, ss: u32) -> Res
 
 fn tex_load(g: &mut Group, mem: &mut Memory, f: &Fields, args: &TexOp) -> Result<(), String> {
     let x = |k: &str| fget(f, k).unwrap_or(0);
-    let mode = x("mode");
-    // 0b1100 texelFetch, 0b1101 image load: direct texel read, no filtering
-    if mode != 0b1100 && mode != 0b1101 {
-        return Err(format!("texture_load mode {:#b} not modelled", mode));
+    // q3 selects the access: 0b1100 texelFetch, 0b1101 image load (direct texel read, no filtering)
+    let q3 = x("q3");
+    if q3 != 0b1100 && q3 != 0b1101 {
+        return Err(format!("texture_load q3 {:#b} not modelled", q3));
     }
     if args.dest.is_empty() || args.coords.len() < 2 {
         return Err("texture_load needs a destination and xy coordinates".into());
@@ -1518,20 +1536,44 @@ fn tex_load(g: &mut Group, mem: &mut Memory, f: &Fields, args: &TexOp) -> Result
     Ok(())
 }
 
+/// Resolve the sampler for a texture_sample: state slot (ss#), or the register form. A register
+/// holds the sampler heap index for the normal path, or the clamp_0 override: negative means no
+/// custom border, i.e. the descriptor's own sampler (hk_nir_lower_descriptors lower_tex). With a
+/// single populated sampler slot that is unambiguous; anything else needs the sampler heap.
+fn resolve_sampler(mem: &mut Memory, g: &Group, args: &TexOp) -> Result<crate::texture::SampDesc, String> {
+    if let Some(ss) = args.ss {
+        let b = mem
+            .samp_state
+            .get(&ss)
+            .ok_or_else(|| format!("sampler state slot {} not written", ss))?;
+        mem.tex_log.push(("sslot".into(), ss, 0));
+        return crate::texture::decode_sampler(b);
+    }
+    let (half, r) = args.sreg.ok_or_else(|| "texture_sample without sampler slot or register".to_string())?;
+    // first active lane; preambles/headers compute one sampler value for the dispatch
+    let t = (0..32).find(|&t| g.st.exec[t]).unwrap_or(0);
+    let raw = if half { g.st.get_reg16(r as usize, t)? } else { g.st.get_reg32(r as usize, t)? };
+    let v = (raw as u16) as i16 as i64;
+    mem.tex_log.push(("sreg".into(), v as u32, 0));
+    if v >= 0 {
+        if let Some(b) = mem.samp_heap.get(&(v as u32)) {
+            return crate::texture::decode_sampler(b);
+        }
+    }
+    if mem.samp_state.len() == 1 {
+        let b = mem.samp_state.values().next().unwrap();
+        return crate::texture::decode_sampler(b);
+    }
+    Err(format!("bindless sampler value {} needs the sampler heap ({} slots known)", v, mem.samp_state.len()))
+}
+
 fn tex_sample(g: &mut Group, mem: &mut Memory, f: &Fields, args: &TexOp) -> Result<(), String> {
     let x = |k: &str| fget(f, k).unwrap_or(0);
-    let mode = x("mode");
-    if mode != 0 && mode != 0b1100 {
-        return Err(format!("texture_sample mode {:#b} not modelled", mode));
+    let q3 = x("q3");
+    if q3 != 0b1100 {
+        return Err(format!("texture_sample q3 {:#b} not modelled", q3));
     }
-    let ss = args
-        .ss
-        .ok_or_else(|| "texture_sample without sampler slot not modelled (bindless sampler)".to_string())?;
-    let samp_bytes = mem
-        .samp_state
-        .get(&ss)
-        .ok_or_else(|| format!("sampler state slot {} not written", ss))?;
-    let samp = crate::texture::decode_sampler(samp_bytes)?;
+    let samp = resolve_sampler(mem, g, args)?;
     if args.dest.len() < 4 {
         return Err("texture_sample needs a vec4 destination".into());
     }
@@ -1559,7 +1601,7 @@ fn tex_sample(g: &mut Group, mem: &mut Memory, f: &Fields, args: &TexOp) -> Resu
         // texel data: read whole image once per dispatch would be nicer; per-sample range read is fine here
         let w = desc.width as usize;
         let h = desc.height as usize;
-        let total = desc.stride as usize * h.max(1);
+        let total = crate::texture::tex_stride(&desc) as usize * h.max(1);
         let texels = mem.read_bytes(desc.addr, total)?;
         let out = if samp.min_filter == 0 && samp.mag_filter == 0 {
             // nearest: floor(u*w), floor(v*h), wrapped
@@ -1588,10 +1630,146 @@ fn tex_sample(g: &mut Group, mem: &mut Memory, f: &Fields, args: &TexOp) -> Resu
     Ok(())
 }
 
+/// One stored texel as bytes: float formats convert (unorm/snorm round-half-even, float32 direct),
+/// integer formats truncate to the element size. Only linear 2D images.
+fn store_texel(channels: u32, type_: u32, srgb: bool, comps: &[u32]) -> Result<Vec<u8>, String> {
+    if srgb {
+        return Err("sRGB image store not modelled".into());
+    }
+    let (ncomps, esize) = match channels {
+        0x00 => (1, 1), // R8
+        0x09 => (1, 2), // R16
+        0x21 => (1, 4), // R32
+        0x23 => (2, 2), // R16G16
+        0x28 => (4, 1), // R8G8B8A8
+        0x32 => (4, 2), // R16G16B16A16
+        0x38 => (4, 4), // R32G32B32A32
+        _ => return Err(format!("image store channels {:#x} not modelled", channels)),
+    };
+    if comps.len() < ncomps {
+        return Err(format!("image store needs {} source regs, has {}", ncomps, comps.len()));
+    }
+    let mut out = vec![0u8; ncomps * esize];
+    for i in 0..ncomps {
+        let b = &mut out[i * esize..(i + 1) * esize];
+        match (type_, esize) {
+            (4, 4) => b.copy_from_slice(&comps[i].to_le_bytes()), // float32 bit pattern
+            (4, _) => return Err("float16 image store not modelled".into()),
+            (0, 1) => b[0] = (f32::from_bits(comps[i]) * 255.0).round_ties_even().clamp(0.0, 255.0) as u8,
+            (0, 2) => {
+                let v = (f32::from_bits(comps[i]) * 65535.0).round_ties_even().clamp(0.0, 65535.0) as u16;
+                b.copy_from_slice(&v.to_le_bytes())
+            }
+            (1, 1) => {
+                let v = (f32::from_bits(comps[i]) * 127.0).round_ties_even().clamp(-128.0, 127.0) as i8;
+                b[0] = v as u8
+            }
+            (2, 1) => b[0] = comps[i] as u8,
+            (3, 1) => b[0] = (comps[i] as i32) as i8 as u8,
+            (2, 2) => b.copy_from_slice(&(comps[i] as u16).to_le_bytes()),
+            (3, 2) => b.copy_from_slice(&((comps[i] as i32) as i16).to_le_bytes()),
+            (2, 4) | (3, 4) => b.copy_from_slice(&comps[i].to_le_bytes()),
+            _ => return Err(format!("image store type {} esize {} not modelled", type_, esize)),
+        }
+    }
+    Ok(out)
+}
+
+fn write_bytes(mem: &mut Memory, mut va: u64, raw: &[u8]) -> Result<(), String> {
+    // Memory::write handles 8 bytes at a time
+    for chunk in raw.chunks(8) {
+        let mut v = 0u64;
+        for (i, b) in chunk.iter().enumerate() {
+            v |= (*b as u64) << (8 * i);
+        }
+        mem.write(va, chunk.len(), v)?;
+        va += chunk.len() as u64;
+    }
+    Ok(())
+}
+
+/// Image addressing shared by slot form (PBE descriptor, as Mesa emits for stores) and the
+/// bindless direct form (texture descriptor at set + offset, offset-in-binding 0 = tex, 24 = pbe).
+struct ImgTarget {
+    addr: u64,
+    stride: u64,
+    width: u32,
+    height: u32,
+    channels: u32,
+    type_: u32,
+    srgb: bool,
+    swizzle: [u32; 4],
+}
+
+fn image_target(mem: &mut Memory, g: &Group, args: &TexOp, lane: usize) -> Result<ImgTarget, String> {
+    if let Some(slot) = args.tslot {
+        let bytes = mem
+            .tex_state
+            .get(&slot)
+            .ok_or_else(|| format!("image_write state slot {} not written", slot))?
+            .clone();
+        // stores address the PBE descriptor (hk lower_image_intrin: writes go through PBE)
+        let d = crate::texture::decode_pbe(&bytes).map_err(|e| format!("slot {} pbe: {}", slot, e))?;
+        mem.tex_log.push(("pbe".into(), slot, d.addr));
+        return Ok(ImgTarget {
+            addr: d.addr,
+            stride: d.stride,
+            width: d.width,
+            height: d.height,
+            channels: d.channels,
+            type_: d.type_,
+            srgb: d.srgb,
+            swizzle: d.swizzle,
+        });
+    }
+    if let Some(u) = args.bind_ureg {
+        let base = ureg64_pair(g, u)?;
+        let off = match args.bind_reg {
+            Some((half, r)) => {
+                if half {
+                    g.st.get_reg16(r as usize, lane)?
+                } else {
+                    g.st.get_reg32(r as usize, lane)?
+                }
+            }
+            None => 0,
+        } as u64;
+        let va = base.wrapping_add(off);
+        let in_binding = off % 48; // hk_storage_image_descriptor is 48 bytes: tex@0, pbe@24
+        let bytes = mem.read_bytes(va, 24)?;
+        mem.tex_log.push(("bind".into(), 0, va));
+        if in_binding == 0 {
+            let d = crate::texture::decode_texdesc(&bytes)?;
+            return Ok(ImgTarget {
+                addr: d.addr,
+                stride: crate::texture::tex_stride(&d),
+                width: d.width,
+                height: d.height,
+                channels: d.channels,
+                type_: d.type_,
+                srgb: d.srgb,
+                swizzle: d.swizzle,
+            });
+        } else if in_binding == 24 {
+            let d = crate::texture::decode_pbe(&bytes)?;
+            return Ok(ImgTarget {
+                addr: d.addr,
+                stride: d.stride,
+                width: d.width,
+                height: d.height,
+                channels: d.channels,
+                type_: d.type_,
+                srgb: d.srgb,
+                swizzle: d.swizzle,
+            });
+        }
+        return Err(format!("image_write direct offset {} not tex/pbe aligned", off));
+    }
+    Err("image_write has neither slot nor bindless base".into())
+}
+
 fn image_write(g: &mut Group, mem: &mut Memory, f: &Fields, args: &TexOp) -> Result<(), String> {
-    let x = |k: &str| fget(f, k).unwrap_or(0);
-    let _ = x;
-    // source regs = dest field position (R holds values to store)
+    // source regs = dest field position (R holds the values to store)
     if args.dest.is_empty() || args.coords.len() < 2 {
         return Err("image_write needs source regs and xy coordinates".into());
     }
@@ -1599,12 +1777,35 @@ fn image_write(g: &mut Group, mem: &mut Memory, f: &Fields, args: &TexOp) -> Res
         if !g.st.exec[t] {
             continue;
         }
-        if args.tslot.is_none() {
-            return Err("image_write without texture slot not modelled yet".into());
+        let img = image_target(mem, g, args, t)?;
+        if img.swizzle != [0, 1, 2, 3] {
+            return Err("image_write with swizzle not modelled".into());
         }
+        let xi = coord_lane(g, &args.coords[0], t)?;
+        let yi = coord_lane(g, &args.coords[1], t)?;
+        if xi < 0 || yi < 0 || xi >= img.width as i64 || yi >= img.height as i64 {
+            return Err("image_write out of range".into());
+        }
+        let (bpp, _) = crate::texture::tex_format(img.channels, img.type_)?;
+        let off = yi as u64 * img.stride + xi as u64 * bpp as u64;
+        let mut comps = vec![0u32; 4];
+        for (i, c) in args.dest.iter().take(4).enumerate() {
+            comps[i] = if c.0 {
+                g.st.get_reg16(c.1 as usize, t)? as u32
+            } else {
+                g.st.get_reg32(c.1 as usize, t)? as u32
+            };
+        }
+        let raw = store_texel(img.channels, img.type_, img.srgb, &comps)?;
+        if off as usize + raw.len() > img.stride as usize * img.height as usize {
+            return Err("image_write past end of image".into());
+        }
+        mem.tex_log.push(("store".into(), 0, img.addr + off));
+        write_bytes(mem, img.addr + off, &raw)?;
     }
-    Err("image_write not yet modelled".into())
+    Ok(())
 }
+
 
 /// value operands (registers, uniforms, immediates) in order, without condition codes and other fields
 fn vals(ops: &[Operand]) -> Vec<Operand> {

@@ -109,9 +109,14 @@ def texture_spec(w, d):
 
 
 def hw_only(w):
-    """workloads using the texture unit, storage images or indirect dispatch: verified on the hardware against the
-    reference only"""
-    return bool(w.textures or w.simages or any(d[0] == 'indirect' for d in w.dispatches))
+    """workloads using indirect dispatch: verified on the hardware against the reference only (the texture unit and
+    storage images are modelled by the simulator since 2026-10-19)"""
+    return any(d[0] == 'indirect' for d in w.dispatches)
+
+
+def no_cost_model(w):
+    """workloads the cycle model does not cover (texture unit / storage images): functional simulation only"""
+    return bool(w.textures or w.simages)
 
 
 def dispatch_spec(d):
@@ -119,7 +124,7 @@ def dispatch_spec(d):
     return f'dispatch_indirect {gy} {gz} {pc.hex() or "-"}' if gx == 'indirect' else f'dispatch {gx} {gy} {gz} {pc.hex() or "-"}'
 
 
-NO_TEXTURE_UNIT = 'texture sampling, image access and indirect dispatch are not modelled by the simulator (hardware verification only)'
+NO_TEXTURE_UNIT = 'indirect dispatch is not modelled by the simulator (hardware verification only)'
 
 
 def wg_of(w, name):
@@ -5221,6 +5226,74 @@ def put_field(mem, word, value, nbytes=4):
     mem[4 * word:4 * word + nbytes] = int(value & ((1 << 8 * nbytes) - 1)).to_bytes(nbytes, 'little')
 
 
+TEX_FORMATS = {'r32f': (0x21, 4, 4), 'rgba8': (0x28, 0, 1), 'r32ui': (0x21, 2, 4)}
+# sampled/storage-image channel enum, type enum, bytes per component
+
+
+def _dset(mem, start, size, v):
+    for i in range(size):
+        if (v >> i) & 1:
+            mem[(start + i) // 8] |= 1 << ((start + i) % 8)
+
+
+def image_texels(fmt, wd, ht, init):
+    """padded texel bytes at a 16-byte row pitch, and (pitch, bytes-per-texel)"""
+    _, _, esize = TEX_FORMATS[fmt]
+    comps = {'r32f': 1, 'r32ui': 1, 'rgba8': 4}[fmt]
+    pitch = ((wd * esize * comps + 15) // 16) * 16
+    raw = np.zeros((ht, pitch), dtype=np.uint8)
+    if init is not None:
+        src = np.ascontiguousarray(init).tobytes()
+        roww = wd * esize * comps
+        for y in range(ht):
+            raw[y, :roww] = np.frombuffer(src[y * roww:(y + 1) * roww], dtype=np.uint8)
+    return pitch, raw.tobytes()
+
+
+def texture_desc(fmt, wd, ht, va, pitch, filt):
+    """64-byte hk_sampled_image_descriptor: tex(24) + sampler(8) + indices, linear 2D"""
+    ch, ty, _ = TEX_FORMATS[fmt]
+    desc = bytearray(64)
+    _dset(desc, 0, 4, 2); _dset(desc, 4, 2, 0); _dset(desc, 6, 7, ch); _dset(desc, 13, 3, ty)
+    for i, s in enumerate((0, 1, 2, 3)):
+        _dset(desc, 16 + 3 * i, 3, s)
+    _dset(desc, 28, 14, wd - 1); _dset(desc, 42, 14, ht - 1)
+    _dset(desc, 66, 36, va >> 4)
+    _dset(desc, 110, 18, (pitch - 16) >> 4)
+    f = 0 if filt == 'nearest' else 1
+    for off, size, v in ((25, 2, f), (23, 2, f), (27, 2, 1), (29, 3, 0), (32, 3, 0), (35, 3, 0)):
+        for i in range(size):
+            if (v >> i) & 1:
+                desc[24 + (off + i) // 8] |= 1 << ((off + i) % 8)
+    struct.pack_into('<H', desc, 32, 28)      # sampler heap slot 0
+    struct.pack_into('<h', desc, 34, -1)      # no custom border
+    return bytes(desc)
+
+
+def storage_desc(fmt, wd, ht, va, pitch):
+    """48-byte hk_storage_image_descriptor: tex(24) + pbe(24), linear 2D"""
+    ch, ty, _ = TEX_FORMATS[fmt]
+    desc = bytearray(48)
+    # texture half: same signature fields as the sampled descriptor
+    _dset(desc, 0, 4, 2); _dset(desc, 4, 2, 0)
+    _dset(desc, 6, 7, ch); _dset(desc, 13, 3, ty)
+    for i, s in enumerate((0, 1, 2, 3)):
+        _dset(desc, 16 + 3 * i, 3, s)
+    _dset(desc, 28, 14, wd - 1); _dset(desc, 42, 14, ht - 1)
+    _dset(desc, 66, 36, va >> 4)
+    _dset(desc, 110, 18, (pitch - 16) >> 4)
+    # pbe half (byte 24): 2-bit swizzles, width/height minus 1, address shr 4, raw stride minus 16
+    B = 24 * 8
+    _dset(desc, B + 0, 4, 2); _dset(desc, B + 4, 2, 0)
+    _dset(desc, B + 6, 7, ch); _dset(desc, B + 13, 3, ty)
+    for i, s in enumerate((0, 1, 2, 3)):
+        _dset(desc, B + 16 + 2 * i, 2, s)
+    _dset(desc, B + 24, 14, wd - 1); _dset(desc, B + 38, 14, ht - 1)
+    _dset(desc, B + 64, 36, va >> 4)
+    _dset(desc, B + 104, 21, pitch - 16)
+    return bytes(desc)
+
+
 class DriverLaunch:
     """Memory and launch arguments for running a workload's driver-compiled code (extract output) on agx_run /
     agx_dispatch: buffers, descriptor set and root table at fixed VAs, the driver's preloaded uniforms (root table,
@@ -5253,6 +5326,20 @@ class DriverLaunch:
                 self.va[key], self.size[key] = nxt, len(data)
                 self.files[key] = work / f'arr{binding}_{e}.bin'; self.files[key].write_bytes(data)
                 nxt += (len(data) + 0xffff) // 0x10000 * 0x10000 + 0x10000
+        self.img = {}
+        for binding, (texels, wd, ht, fmt, filt) in sorted(w.textures.items()):
+            pitch, data = image_texels(fmt, wd, ht, texels)
+            self.va[binding], self.size[binding] = nxt, len(data)
+            self.img[binding] = {'kind': 'sampled', 'wd': wd, 'ht': ht, 'fmt': fmt,
+                                 'filt': filt, 'pitch': pitch}
+            self.files[binding] = work / f'tex{binding}.bin'; self.files[binding].write_bytes(data)
+            nxt += (len(data) + 0xffff) // 0x10000 * 0x10000 + 0x10000
+        for binding, (init, wd, ht, fmt) in sorted(w.simages.items()):
+            pitch, data = image_texels(fmt, wd, ht, init)
+            self.va[binding], self.size[binding] = nxt, len(data)
+            self.img[binding] = {'kind': 'storage', 'wd': wd, 'ht': ht, 'fmt': fmt, 'pitch': pitch}
+            self.files[binding] = work / f'img{binding}.bin'; self.files[binding].write_bytes(data)
+            nxt += (len(data) + 0xffff) // 0x10000 * 0x10000 + 0x10000
         self.set_va, self.root_va, self.gc_va = nxt, nxt + 0x10000, nxt + 0x20000
         d = self.layout['descriptor']
         # as honeykrisp lays out a set: bindings in order, each count x stride after the previous ones (present
@@ -5262,8 +5349,20 @@ class DriverLaunch:
             keys = [f'{binding}.{e}' for e in range(len(w.barrays[binding]))] if binding in w.barrays else [binding]
             for key in keys:
                 slots.append((off, key)); off += d['stride']
+        for binding in sorted(set(w.textures) | set(w.simages)):
+            info = self.img[binding]
+            slots.append((off, binding)); off += 64 if info['kind'] == 'sampled' else 48
         setmem = bytearray(off)
         for off_, key in slots:
+            if key in self.img:
+                info = self.img[key]
+                if info['kind'] == 'sampled':
+                    setmem[off_:off_ + 64] = texture_desc(info['fmt'], info['wd'], info['ht'],
+                                                         self.va[key], info['pitch'], info['filt'])
+                else:
+                    setmem[off_:off_ + 48] = storage_desc(info['fmt'], info['wd'], info['ht'],
+                                                         self.va[key], info['pitch'])
+                continue
             for fld in d['fields']:
                 put_field(setmem, off_ // 4 + fld['word'],
                           root_value(fld['value'].replace(':B', f':{key}'), {'va': self.va, 'size': self.size, 'set_va': self.set_va}), fld.get('bytes', 4))
@@ -5297,7 +5396,7 @@ class DriverLaunch:
             args += ['--uniform', f'{int(u)}={v & 0xffffffff:#x}', '--uniform', f'{int(u) + 1}={v >> 32:#x}']
         for u, v in (self.info or {}).get('uniform_init', {}).items():
             args += ['--uniform', f'{u}={v:#x}']
-        for b in list(self.w.buffers) + [k for k in self.va if isinstance(k, str)]:     # buffers, then descriptor-array elements
+        for b in list(self.w.buffers) + [k for k in self.va if isinstance(k, str)] + sorted(set(self.va) - set(self.w.buffers) - {k for k in self.va if isinstance(k, str)}):
             args += ['--map', f'{self.va[b]:#x}={self.files[b]}']
         return grid, args
 
@@ -5320,11 +5419,14 @@ def cmd_sim(a):
             cmd += ['--max-steps', os.environ['AGX_MAX_STEPS']]
         for b in L.w.buffers:
             cmd += ['--dump', f'{L.va[b]:#x}={L.size[b]}:{L.files[b]}']
+        for b in L.w.simages:
+            cmd += ['--dump', f'{L.va[b]:#x}={L.size[b]}:{L.files[b]}']
         r = subprocess.run(cmd, capture_output=True, text=True)
         if r.returncode:
             sys.exit(f'{a.workload} dispatch {k}: {r.stdout.strip()} {r.stderr.strip()}')
         total += json.loads(r.stdout)['instructions']
     outs = {b: np.fromfile(L.files[b], dtype=np.uint8) for b, (_, rb) in L.w.buffers.items() if rb}
+    outs.update({b: np.fromfile(L.files[b], dtype=np.uint8) for b in L.w.simages})
     ok, detail = L.w.check(outs)
     write_images(L.w, outs, L.work, 'sim_image')
     res = {'workload': a.workload, 'size': a.size, 'simulated_ok': bool(ok), 'functional': detail, 'simulated_instructions': total}
@@ -5348,7 +5450,8 @@ def cmd_predict(a):
     matters where control flow or addresses depend on them). With --code alone: the cost model's own emulation."""
     exe = ROOT / 'rust/target/release/agx_dispatch'
     rows, total = [], 0.0
-    if hw_only(make_workload(a.workload, a.size)):
+    w0 = make_workload(a.workload, a.size)
+    if hw_only(w0) or no_cost_model(w0):
         print(json.dumps({'workload': a.workload, 'size': a.size, 'unsupported': NO_TEXTURE_UNIT}))
         return 0
     if a.code_dir and a.stateful:
