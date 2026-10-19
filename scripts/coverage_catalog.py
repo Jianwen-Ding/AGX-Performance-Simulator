@@ -690,7 +690,7 @@ PROPERTY_TARGETS = {
     'stack': ['verify-stack-mesa'],
     'preshader': ['verify-sr-direct', 'verify-preshader'],
     'imageblock_srs': ['verify-sr-direct', 'verify-imageblock-occ'],
-    'memory_ordering': ['verify-memory-ordering', 'verify-sb-lb', 'verify-atomic-release', 'verify-dispatch-visibility', 'verify-tg-litmus', 'verify-fence-cost'],
+    'memory_ordering': ['verify-memory-ordering', 'verify-sb-lb', 'verify-sb-minimal', 'verify-atomic-release', 'verify-dispatch-visibility', 'verify-tg-litmus', 'verify-fence-cost', 'verify-fence-contention'],
     'occupancy': ['verify-occupancy', 'verify-occupancy2'],
     'in_shader_clock': ['verify-in-shader-clock', 'verify-clock2'],
 }
