@@ -10,7 +10,7 @@
 
 use crate::cost::{is_barrier78, GroupCtx, Trace};
 use crate::fsem;
-use crate::isa::{self, compiled::Compiled, exec::CoreState, fget, Desc, Fields, Operand};
+use crate::isa::{self, compiled::Compiled, exec::CoreState, fget, Desc, Fields, ImmVal, Operand};
 use std::sync::OnceLock;
 
 /// Sparse byte-addressed memory made of mapped regions. Regions are shared copy-on-write: cloning a Memory (one per
@@ -23,6 +23,12 @@ pub struct Memory {
     pub log: Option<std::collections::HashMap<u64, Vec<(u64, u8)>>>,
     /// the SIMD group now running: (linear workgroup index << 16) | group in workgroup
     pub writer: u64,
+    /// texture state slots (24-byte descriptors) written by tex_state_store, read by texture ops
+    pub tex_state: std::collections::BTreeMap<u32, Vec<u8>>,
+    /// sampler state slots (8-byte descriptors) written by sampler_state_store
+    pub samp_state: std::collections::BTreeMap<u32, Vec<u8>>,
+    /// every texture/sampler state store and texture access, for discovery: (op, slot, va)
+    pub tex_log: Vec<(String, u32, u64)>,
 }
 
 impl Memory {
@@ -190,7 +196,113 @@ enum OpKind {
     Convert,
     QuadShuffle,
     CrossLane,
+    TexStateStore { ts: u32 },
+    SampStateStore { ss: u32 },
+    TexLoad { args: Box<TexOp> },
+    TexSample { args: Box<TexOp> },
+    ImageWrite { args: Box<TexOp> },
     Generic,
+}
+
+/// One decoded texture/image instruction: destination regs, texture source (state slot or
+/// bindless uniform base + offset register), sampler slot, coordinate regs and LOD source.
+#[derive(Clone, Debug, Default)]
+pub struct TexOp {
+    pub dest: Vec<(bool, u32)>,
+    pub tslot: Option<u32>,
+    pub bind_ureg: Option<u32>,
+    pub bind_reg: Option<(bool, u32)>,
+    pub ss: Option<u32>,
+    pub coords: Vec<(bool, u32)>,
+    pub lod_ureg: Option<u32>,
+    pub lod_imm: Option<i64>,
+    pub lod_reg: Option<(bool, u32)>,
+    pub mode: u64,
+}
+
+fn reg16_32(o: &Operand) -> Option<(bool, u32)> {
+    match o {
+        Operand::Reg16(r, _) => Some((true, *r)),
+        Operand::Reg32(r, _) => Some((false, *r)),
+        _ => None,
+    }
+}
+
+fn reg_tuple(o: &Operand) -> Option<Vec<(bool, u32)>> {
+    match o {
+        Operand::Tuple(rs, _) => {
+            let v: Vec<(bool, u32)> = rs.iter().filter_map(reg16_32).collect();
+            if v.len() == rs.len() && !v.is_empty() {
+                Some(v)
+            } else {
+                None
+            }
+        }
+        _ => None,
+    }
+}
+
+fn tex_op(ops: &[Operand]) -> TexOp {
+    // Table order: R, U?, T, S?, n, C, lod, D. Phase machine over operand kinds.
+    // Dest is the first register(s); coords the first tuple (or lone reg) after the
+    // texture slot; LOD the first ureg/imm/reg after coords.
+    let mut a = TexOp::default();
+    let mut phase = 0u32;
+    for o in ops {
+        match o {
+            Operand::UReg64(n, _) if phase <= 1 => {
+                a.bind_ureg = Some(*n);
+                phase = 2;
+            }
+            Operand::TextureState(n) => {
+                a.tslot = Some(*n);
+                if phase < 3 {
+                    phase = 3;
+                }
+            }
+            Operand::SamplerState(n) => {
+                a.ss = Some(*n);
+                if phase < 4 {
+                    phase = 4;
+                }
+            }
+            Operand::Reg16(..) | Operand::Reg32(..) => {
+                if phase == 0 {
+                    a.dest.push(reg16_32(o).unwrap());
+                    phase = 1;
+                } else if phase == 2 {
+                    // bindless texture offset register (U base already seen)
+                    a.bind_reg = reg16_32(o);
+                    phase = 3;
+                } else if phase == 3 || phase == 4 {
+                    // single-component coords (1D) or bindless sampler (unsupported)
+                    a.coords.push(reg16_32(o).unwrap());
+                    phase = 5;
+                } else if phase == 5 && a.lod_reg.is_none() {
+                    a.lod_reg = reg16_32(o);
+                }
+            }
+            Operand::UReg16(n, _) if phase >= 4 && a.lod_ureg.is_none() => {
+                a.lod_ureg = Some(*n);
+                phase = 6;
+            }
+            Operand::Imm(ImmVal::Int(v), _) if phase >= 4 && a.lod_imm.is_none() => {
+                a.lod_imm = Some(*v);
+                phase = 6;
+            }
+            _ => {}
+        }
+        if let Some(rs) = reg_tuple(o) {
+            if phase <= 1 {
+                a.dest = rs;
+                phase = 1;
+            } else if phase == 3 || phase == 4 {
+                a.coords = rs;
+                phase = 5;
+            }
+        }
+    }
+    a
 }
 
 fn op_kind(name: &'static str, f: &Fields, ops: &[Operand]) -> OpKind {
@@ -225,6 +337,11 @@ fn op_kind(name: &'static str, f: &Fields, ops: &[Operand]) -> OpKind {
         "intl" => Intl,
         "rcp" | "rsqrt" | "rsqrt_special" | "log2" | "exp2" | "sin_pt_1" | "sin_pt_2" => Transcendental,
         "convert" => Convert,
+        "tex_state_store" => TexStateStore { ts: fget(f, "TS").unwrap_or(0) as u32 },
+        "sampler_state_store" => SampStateStore { ss: fget(f, "SS").unwrap_or(0) as u32 },
+        "texture_load" => TexLoad { args: Box::new(tex_op(ops)) },
+        "texture_sample" => TexSample { args: Box::new(tex_op(ops)) },
+        "image_write" => ImageWrite { args: Box::new(tex_op(ops)) },
         n if n.starts_with("quad_shuffle") => QuadShuffle,
         n if (n.starts_with("simd_") || n.starts_with("quad_")) && !n.starts_with("simd_shuffle") && !n.starts_with("simd_matrix") => CrossLane,
         _ => Generic,
@@ -757,6 +874,11 @@ fn step_group_impl<C: InstructionCells>(g: &mut Group, code: &[u8], cache: &C, m
             OpKind::Ballot { float, quad } => fsem::ballot(float, quad, f, v, &mut g.st)?,
             OpKind::MaskCtl { kind, float } => fsem::mask_ctl(kind, float, f, v, &mut g.st)?,
             OpKind::TgAtomic(ref args) => tg_atomic(g, args, tg)?,
+            OpKind::TexStateStore { ts } => tex_state_store(g, mem, f, ts)?,
+            OpKind::SampStateStore { ss } => samp_state_store(g, mem, f, ss)?,
+            OpKind::TexLoad { ref args } => tex_load(g, mem, f, args.as_ref())?,
+            OpKind::TexSample { ref args } => tex_sample(g, mem, f, args.as_ref())?,
+            OpKind::ImageWrite { ref args } => image_write(g, mem, f, args.as_ref())?,
             OpKind::Round => fsem::round_op(desc.name, v, &mut g.st)?,
             OpKind::Intl => fsem::intl(v, &mut g.st)?,
             OpKind::Transcendental => fsem::transcendental(desc.name, f, v, &mut g.st)?,
@@ -1238,6 +1360,250 @@ fn tg_atomic(g: &mut Group, args: &ThreadgroupAtomic, tg: &mut [u8]) -> Result<(
         }
     }
     Ok(())
+}
+
+/// Texture unit: state slots, descriptor decode and sampling. Semantics measured on hardware
+/// (playground novel-results/2026-10-18-gles-texture, 2026-10-19-texture-edge); descriptor
+/// layouts from Mesa cmdbuf.xml (playground 2026-10-19-mesa-texture-desc).
+
+fn ureg64_pair(g: &Group, u: u32) -> Result<u64, String> {
+    // 64-bit uniform uN:uN+1 (halves 2N .. 2N+3)
+    let h = |i: usize| g.st.uniforms.get(i).copied().unwrap_or(0) as u64;
+    let b = (u as usize) * 2;
+    Ok(h(b) | (h(b + 1) << 16) | (h(b + 2) << 32) | (h(b + 3) << 48))
+}
+
+fn coord_lane(g: &Group, c: &(bool, u32), t: usize) -> Result<i64, String> {
+    Ok(if c.0 { g.st.get_reg16(c.1 as usize, t)? } else { g.st.get_reg32(c.1 as usize, t)? } as i64)
+}
+
+fn dest_write(g: &mut Group, dest: &[(bool, u32)], t: usize, vals: &[u32]) -> Result<(), String> {
+    for (i, v) in vals.iter().enumerate() {
+        if i >= dest.len() {
+            break;
+        }
+        let (half, r) = dest[i];
+        if half {
+            g.st.set_reg16(r as usize, t, *v as i128)?;
+        } else {
+            g.st.set_reg32(r as usize, t, *v as i128)?;
+        }
+    }
+    Ok(())
+}
+
+fn lod_value(g: &Group, args: &TexOp, t: usize) -> Result<f32, String> {
+    if let Some(u) = args.lod_ureg {
+        let bits = g.st.uniforms.get(2 * u as usize).copied().unwrap_or(0);
+        return Ok(crate::texture::f16_to_f32(bits));
+    }
+    if let Some(v) = args.lod_imm {
+        return Ok(v as f32);
+    }
+    if let Some((half, r)) = args.lod_reg {
+        let v = if half { g.st.get_reg16(r as usize, t)? } else { g.st.get_reg32(r as usize, t)? };
+        return Ok(v as i32 as f32);
+    }
+    Ok(0.0)
+}
+
+/// Resolve a texture descriptor: slot form (ts# populated by tex_state_store) or bindless
+/// direct form (uniform base + per-lane byte offset).
+fn resolve_desc(mem: &mut Memory, g: &Group, args: &TexOp, lane: usize) -> Result<crate::texture::TexDesc, String> {
+    let bytes: Vec<u8> = if let Some(slot) = args.tslot {
+        mem.tex_log.push(("load".into(), slot, 0));
+        mem.tex_state
+            .get(&slot)
+            .ok_or_else(|| format!("texture state slot {} not written (tex_state_store missing?)", slot))?
+            .clone()
+    } else if let Some(u) = args.bind_ureg {
+        let base = ureg64_pair(g, u)?;
+        let off = match args.bind_reg {
+            Some((half, r)) => {
+                if half {
+                    g.st.get_reg16(r as usize, lane)?
+                } else {
+                    g.st.get_reg32(r as usize, lane)?
+                }
+            }
+            None => 0,
+        } as u64;
+        let va = base.wrapping_add(off);
+        mem.tex_log.push(("bind".into(), 0, va));
+        mem.read_bytes(va, 24)?
+    } else {
+        return Err("texture op has neither slot nor bindless base".into());
+    };
+    let desc = crate::texture::decode_texdesc(&bytes)?;
+    if desc.dim != 2 {
+        return Err(format!("only 2D textures modelled, got dim {}", desc.dim));
+    }
+    Ok(desc)
+}
+
+fn texel_format(desc: &crate::texture::TexDesc) -> Result<(usize, u32), String> {
+    crate::texture::tex_format(desc.channels, desc.type_)
+}
+
+fn wrap_mode(samp: &crate::texture::SampDesc, dim: usize) -> Result<u32, String> {
+    let w = samp.wrap[dim];
+    if w > 2 {
+        return Err(format!("wrap mode {} (border) not modelled", w));
+    }
+    Ok(w)
+}
+
+fn tex_state_store(g: &mut Group, mem: &mut Memory, f: &Fields, ts: u32) -> Result<(), String> {
+    let x = |k: &str| fget(f, k).unwrap_or(0);
+    let b = x("B") as usize;
+    let o = x("O") as usize;
+    // first active lane fixes the address (preambles run single-lane)
+    let t = (0..32).find(|&t| g.st.exec[t]).unwrap_or(0);
+    let base = ureg64_pair(g, b as u32)?;
+    let off = g.st.get_reg32(o, t)? as u64;
+    let va = base.wrapping_add(off);
+    let bytes = mem.read_bytes(va, 24)?;
+    mem.tex_log.push(("tex".into(), ts, va));
+    mem.tex_state.insert(ts, bytes);
+    Ok(())
+}
+
+fn samp_state_store(g: &mut Group, mem: &mut Memory, f: &Fields, ss: u32) -> Result<(), String> {
+    let x = |k: &str| fget(f, k).unwrap_or(0);
+    let b = x("B") as usize;
+    let o = x("O") as usize;
+    let t = (0..32).find(|&t| g.st.exec[t]).unwrap_or(0);
+    let base = ureg64_pair(g, b as u32)?;
+    let off = g.st.get_reg32(o, t)? as u64;
+    let va = base.wrapping_add(off);
+    let bytes = mem.read_bytes(va, 8)?;
+    mem.tex_log.push(("samp".into(), ss, va));
+    mem.samp_state.insert(ss, bytes);
+    Ok(())
+}
+
+fn tex_load(g: &mut Group, mem: &mut Memory, f: &Fields, args: &TexOp) -> Result<(), String> {
+    let x = |k: &str| fget(f, k).unwrap_or(0);
+    let mode = x("mode");
+    // 0b1100 texelFetch, 0b1101 image load: direct texel read, no filtering
+    if mode != 0b1100 && mode != 0b1101 {
+        return Err(format!("texture_load mode {:#b} not modelled", mode));
+    }
+    if args.dest.is_empty() || args.coords.len() < 2 {
+        return Err("texture_load needs a destination and xy coordinates".into());
+    }
+    for t in 0..32 {
+        if !g.st.exec[t] {
+            continue;
+        }
+        let desc = resolve_desc(mem, g, args, t)?;
+        let (bpp, _) = texel_format(&desc)?;
+        let xi = coord_lane(g, &args.coords[0], t)?;
+        let yi = coord_lane(g, &args.coords[1], t)?;
+        let raw = match crate::texture::texel_off(&desc, bpp, xi, yi) {
+            Some(off) => mem.read_bytes(desc.addr + off, bpp)?,
+            None => vec![0u8; bpp], // texelFetch out of range reads zero (measured)
+        };
+        if desc.type_ == 2 || desc.type_ == 3 {
+            let v = crate::texture::texel_int(&raw, desc.channels, desc.type_)?;
+            let sw = crate::texture::apply_swizzle_u32(v, desc.swizzle);
+            dest_write(g, &args.dest, t, &sw[..args.dest.len().min(4)])?;
+        } else {
+            let v = crate::texture::texel_float(&raw, desc.channels, desc.type_, desc.srgb)?;
+            let sw = crate::texture::apply_swizzle(v, desc.swizzle);
+            let words: Vec<u32> = sw.iter().map(|f| f.to_bits()).collect();
+            dest_write(g, &args.dest, t, &words[..args.dest.len().min(4)])?;
+        }
+    }
+    Ok(())
+}
+
+fn tex_sample(g: &mut Group, mem: &mut Memory, f: &Fields, args: &TexOp) -> Result<(), String> {
+    let x = |k: &str| fget(f, k).unwrap_or(0);
+    let mode = x("mode");
+    if mode != 0 && mode != 0b1100 {
+        return Err(format!("texture_sample mode {:#b} not modelled", mode));
+    }
+    let ss = args
+        .ss
+        .ok_or_else(|| "texture_sample without sampler slot not modelled (bindless sampler)".to_string())?;
+    let samp_bytes = mem
+        .samp_state
+        .get(&ss)
+        .ok_or_else(|| format!("sampler state slot {} not written", ss))?;
+    let samp = crate::texture::decode_sampler(samp_bytes)?;
+    if args.dest.len() < 4 {
+        return Err("texture_sample needs a vec4 destination".into());
+    }
+    if args.coords.len() < 2 {
+        return Err("texture_sample needs xy coordinates".into());
+    }
+    if samp.min_filter > 1 || samp.mag_filter > 1 {
+        return Err("only nearest/linear filtering modelled".into());
+    }
+    for t in 0..32 {
+        if !g.st.exec[t] {
+            continue;
+        }
+        let desc = resolve_desc(mem, g, args, t)?;
+        if desc.first_level != 0 || desc.last_level != 0 {
+            return Err("mipmapped sampling not modelled".into());
+        }
+        let lod = lod_value(g, args, t)?;
+        if lod != 0.0 {
+            return Err(format!("nonzero LOD {} not modelled", lod));
+        }
+        let (bpp, _) = texel_format(&desc)?;
+        let uf = f32::from_bits(coord_lane(g, &args.coords[0], t)? as u32);
+        let vf = f32::from_bits(coord_lane(g, &args.coords[1], t)? as u32);
+        // texel data: read whole image once per dispatch would be nicer; per-sample range read is fine here
+        let w = desc.width as usize;
+        let h = desc.height as usize;
+        let total = desc.stride as usize * h.max(1);
+        let texels = mem.read_bytes(desc.addr, total)?;
+        let out = if samp.min_filter == 0 && samp.mag_filter == 0 {
+            // nearest: floor(u*w), floor(v*h), wrapped
+            let wx = wrap_mode(&samp, 0)?;
+            let wy = wrap_mode(&samp, 1)?;
+            let xi = (uf * w as f32).floor() as i64;
+            let yi = (vf * h as f32).floor() as i64;
+            let ax = crate::texture::apply_wrap(wx, xi as i32, w as i32)
+                .ok_or_else(|| format!("wrap mode {} not modelled", wx))? as i64;
+            let ay = crate::texture::apply_wrap(wy, yi as i32, h as i32)
+                .ok_or_else(|| format!("wrap mode {} not modelled", wy))? as i64;
+            let raw = match crate::texture::texel_off(&desc, bpp, ax, ay) {
+                Some(off) => texels.get(off as usize..off as usize + bpp).unwrap_or(&[][..]).to_vec(),
+                None => vec![0u8; bpp],
+            };
+            let mut rawb = raw;
+            rawb.resize(bpp, 0);
+            let v = crate::texture::texel_float(&rawb, desc.channels, desc.type_, desc.srgb)?;
+            crate::texture::apply_swizzle(v, desc.swizzle)
+        } else {
+            crate::texture::sample_linear(&desc, &samp, &texels, bpp, uf, vf)?
+        };
+        let words: Vec<u32> = out.iter().map(|v| v.to_bits()).collect();
+        dest_write(g, &args.dest, t, &words)?;
+    }
+    Ok(())
+}
+
+fn image_write(g: &mut Group, mem: &mut Memory, f: &Fields, args: &TexOp) -> Result<(), String> {
+    let x = |k: &str| fget(f, k).unwrap_or(0);
+    let _ = x;
+    // source regs = dest field position (R holds values to store)
+    if args.dest.is_empty() || args.coords.len() < 2 {
+        return Err("image_write needs source regs and xy coordinates".into());
+    }
+    for t in 0..32 {
+        if !g.st.exec[t] {
+            continue;
+        }
+        if args.tslot.is_none() {
+            return Err("image_write without texture slot not modelled yet".into());
+        }
+    }
+    Err("image_write not yet modelled".into())
 }
 
 /// value operands (registers, uniforms, immediates) in order, without condition codes and other fields
