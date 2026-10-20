@@ -220,6 +220,13 @@ The consumers are:
   puts each argument pointer in a uniform register pair, and by-value structs need more uniforms or a parameter
   buffer.
 - **Known:** safe-09 measures the uniform file size and the preamble register budget.
+- **What the backend does now (LLVM AGX `AGXPromoteKernelArgs`):**
+  - It passes up to 256 bytes per kernel of by-reference PTX parameters directly in the uniforms (128 halves),
+    plus the 6 halves of `threadgroups_per_grid` and 4 for the global data buffer. Larger or dynamically indexed
+    parameters stay a pointer to a parameter block.
+  - ZLUDA's vectorAdd went from 2 dependent waits and 6 GPRs to 1 wait and 4 GPRs in the simulator.
+  - Please check that a 140-half preload works on the M2 Max (the B2 runner can send any uniform count), and
+    whether a smaller limit is needed.
 - **Open (if safe-09 does not already answer it):**
   - the largest uniform range one dispatch can preload through the USC words;
   - whether preloading many uniforms costs anything at launch;
