@@ -23,8 +23,8 @@ The consumers are:
    and errors a runtime must report.
 4. B10–B13: already covered by existing tasks; the consumers wait on them.
 5. B29 native textures: CUDA textures already work in software, so this is a performance item.
-6. B31 empty-mask instruction cost, B32 asynchronous submit cost (launch batching), B33 vector access alignment
-   and T1 (`agx_cost --uniform`): they decide backend tuning (whether to jump over
+6. B31 empty-mask instruction cost, B32 asynchronous submit cost (launch batching), B33 vector access alignment,
+   B34 stack access cost and wait groups, and T1 (`agx_cost --uniform`): they decide backend tuning (whether to jump over
    short if bodies) and make agx-bench measure bounds-checked kernels.
 
 ## B1. Scratch / stack memory for direct-DRM dispatches (NEW, unsafe)
@@ -800,6 +800,27 @@ Consumed as is:
 - **Deliverable:** for each case, whether the values match the byte-address model, are rounded down, or fault. The
   backend then allows 4-byte-aligned vector accesses where the hardware does and enables the vectorizer.
 - **Safety:** ordinary loads and stores inside allocated buffers; see `safe-probes.md`.
+
+## B34. Stack (scratch) load / store cost and the scoreboard wait groups (NEW, safe once B1 works)
+
+- **Why it matters:** cuBLAS's `agx_sgemm_tile64` runs at the 128-GPR limit and spills, with 46 spill accesses per
+  K-loop iteration. Costed with #7's functional path (one 64x64 tile, K = 256, 32 K steps: 123,937 cycles),
+  every spill reload is a `stack_load` followed at once by `wait 0`. About a dozen such pairs in a row each stall
+  ~2,000 cycles, which is the cost model's guess: `stack_load` / `stack_store` are unmeasured classes. The LLVM
+  AGX backend tracks one scoreboard slot (`AGXInsertWaits`: every load in group 0, at most eight pending). The
+  Sail model's `wait` completes every pending load whatever its group. The cost model does track loads' `g`
+  field per slot.
+- **Probes (after B1's scratch setup works):**
+  1. Latency and throughput of `stack_load` / `stack_store` (i32, and the vector masks), against `device_load`
+     from L1 and DRAM: a dependent chain of 64 stack loads, and 64 independent ones before a single wait.
+  2. Wait groups: issue a slow `device_load` (DRAM miss) with `g = 0` and a `stack_load` (or an L1-hit device
+     load) with `g = 1`, then `wait 1`. Does the wait return before the slow load? How many groups exist (try
+     `g` = 0..7)? Does `wait N` cover only group N, or every group up to N?
+- **Deliverable:** stack access cycles, and the wait-group semantics. The backend then puts spill reloads (and
+  independent loads) in their own groups and batches reloads behind one wait. The cost model and the Sail model
+  get the measured rules.
+- **Safety:** ordinary loads and waits; stack accesses only once B1's scratch configuration is established; see
+  `safe-probes.md`.
 
 ## T1. `agx_cost`: uniform values from the command line (tooling request, no hardware needed; DONE in #7)
 
