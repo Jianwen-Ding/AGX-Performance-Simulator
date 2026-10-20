@@ -834,6 +834,11 @@ Consumed as is:
 
 ## B31. Cost of instructions issued with an empty execution mask (NEW, safe)
 
+- **Done 2026-10-20:** masked ALU (`iadd`, `fmadd32`, `simd_shuffle`) costs about as little as a jump over it (~1-4 ns
+  per instruction); masked `device_load`+`wait` ~13-20 ns (active ~37-41), masked `device_store` ~9-12 ns (more than
+  active; writes nothing), masked `threadgroup_load`+`wait` ~13-16 ns. Drop the jump only over ALU-only bodies.
+  Evidence: playground `results/2026-10-20-b31-empty-mask-cost`.
+
 - **Why it matters:** f50bd88 measured a taken `jmp_exec_none` at 11.48 cycles per group per step against 3.78
   untaken. Mesa leaves out the jump over short blocks; the LLVM AGX backend could do the same for if/else bodies
   of at most N instructions. Under the current cost model that is a net loss: agx-bench G14C cycles total
