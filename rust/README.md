@@ -19,6 +19,21 @@ cargo test --release
 `--annotate` table. Parameters come from `../results/` (override the repository root with
 `AGX_SIM_REPO`).
 
+By default the costed path is the cost model's emulation of one SIMD group, which reads uniforms and memory as
+zero. A branch or loop on a kernel argument (`tid < n`) then takes the zero path, and a loop on loaded data follows
+zeros; `warnings` names such conditions. Launch inputs make the path real:
+
+```sh
+# the group's geometry and arguments: special registers and uniforms as in a launch, memory still zero
+./target/release/agx_cost code.bin --uniform 5=1024 [--wg 128] [--wg-id 3] [--simd-group 1] [--regs H] [--tg-bytes N]
+# plus memory: the path comes from the functional simulator (exact control flow for data-dependent loops)
+./target/release/agx_cost code.bin --uniform 0=0x100000 --map 0x100000=row_ptr.bin --alloc 0x300000=4096 [--grid X]
+```
+
+Uniforms are 32-bit registers (`u4 = 4`), as for `agx_dispatch`; `--map`, `--alloc` and `--preamble` are
+`agx_run`'s. With launch inputs the JSON line gains `"paths": "geometry"` or `"functional"`; without them, the
+output is unchanged.
+
 ## Equivalence with the Python model
 
 > **Since 2026-10-11 the model deliberately differs from the Python version when more than one SIMD

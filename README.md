@@ -15,6 +15,7 @@ cycle by cycle. Predictions are in real cycles (`--units ref` gives reference un
 ```sh
 make rust
 rust/target/release/agx_cost code.bin [--groups G] [--annotate] [--units real|ref]     # one core, G identical groups
+    [--uniform I=V ...] [--wg x,y,z] [--wg-id ...] [--simd-group G] [--map VA=FILE ...]   # that group's real path
 rust/target/release/agx_dispatch code.bin --grid X[,Y,Z] --wg x[,y,z] [--regs HALVES] \
     [--tg-bytes N] [--clock MHZ] [--uniform u5=COUNT ...] [--no-mem]                     # whole dispatch, in us
 make verify-cost-model      # offline: instruction/core model against every stored measurement (~20 s)
