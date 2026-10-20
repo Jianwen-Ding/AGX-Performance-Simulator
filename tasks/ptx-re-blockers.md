@@ -508,6 +508,14 @@ The consumers are:
     it.
   - Deliverable: the maximum differences (f32 should be about 1e-4, f16 about 1e-2), or the first failing call with
     `ZLUDA_AGX_LOG=1`, which names every unimplemented function the program touched.
+  - The rest of cuDNN in f32 (zluda_dnn_agx on `agx_libs/kernels/dnn.mlir`): with PyTorch and
+    `torch.backends.cudnn.enabled = True`, compare against the CPU, forward and backward (`.backward()` on a sum),
+    for `torch.nn.BatchNorm2d(16)` in training mode on a 8 x 16 x 32 x 32 input (also check `running_mean` /
+    `running_var` after three steps), `torch.nn.functional.max_pool2d(x, 3, 2, 1)`, `avg_pool2d` with
+    `count_include_pad` true and false, and `torch.softmax` / `log_softmax` over dim 1. Without PyTorch, any
+    legacy-API program calling `cudnnBatchNormalizationForwardTraining`, `cudnnPoolingForward` and
+    `cudnnSoftmaxForward` will do.
+  - Deliverable: the maximum differences (about 1e-5 expected), or the first failing call with `ZLUDA_AGX_LOG=1`.
 - **Then cuFFT and cuSPARSE**, through `zluda_fft_agx` (`libcufft.so.11`) and `zluda_sparse_agx`
   (`libcusparse.so.12`), built and linked the same way.
   - With PyTorch: `torch.fft.fft(torch.randn(4096, dtype=torch.complex64, device='cuda'))` against the CPU result,
