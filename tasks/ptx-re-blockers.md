@@ -644,6 +644,11 @@ result of the float add is 0x7fc00000 (from the 2026-10-17 records).
 
 ## B26. Threadgroup size versus register count, and the 256-half encoding (NEW, safe except where marked)
 
+- **Done 2026-10-20:** (1) 1,024 threads at 104 halves run correctly, with and without a barrier; (2) Registers field 0
+  = 256 halves (384 threads round-trip r127); (3) 1,024 threads at 112 halves run without a barrier but **hang with a
+  barrier** (killed after 0.50 s, fence status success). The one-threadgroup-fits rule is required. Evidence: playground
+  `results/2026-10-20-b26-threadgroup-registers`.
+
 - **Why it matters:** ZLUDA now reports `CU_FUNC_ATTRIBUTE_MAX_THREADS_PER_BLOCK` from the kernel's registers and
   refuses larger launches with `CUDA_ERROR_LAUNCH_OUT_OF_RESOURCES`. The LLVM AGX backend spills to honour PTX
   `.maxntid` / `.reqntid` / `.maxnreg` (function attributes `agx-max-threads-per-threadgroup`, `agx-max-gprs`).
