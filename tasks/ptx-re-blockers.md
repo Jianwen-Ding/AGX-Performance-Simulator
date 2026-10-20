@@ -451,6 +451,14 @@ The consumers are:
   - any driver function it needed that returned `CUDA_ERROR_NOT_SUPPORTED`.
 
   Such a function goes to the zluda_agx backlog.
+- **Also run `agx_cuda_smoke`** (ZLUDA `zluda_agx`, `cargo build --release -p zluda_agx`). It is the driver-API
+  check, and now also covers unified memory.
+  - zluda_agx maps every GPU buffer on the CPU at its GPU address, with `MAP_FIXED_NOREPLACE` above 64 GiB. That
+    is what makes `cudaMallocManaged` and mapped host memory work.
+  - Report its JSON line, especially `"unified"` (false means the CPU range was taken or the flag was refused) and
+    `"unified_wrong"`.
+  - Report the kernel version (`uname -r`) and page size (`getconf PAGESIZE`).
+  - If `unified` is false, report `strace -e trace=mmap ./agx_cuda_smoke 2>&1 | head` for the failing `mmap`.
 
 ## B24. Device-atomic and barrier corners the compiler and the Sail model refuse until measured (NEW, safe)
 
