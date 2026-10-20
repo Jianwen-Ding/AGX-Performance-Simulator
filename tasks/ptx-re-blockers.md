@@ -23,6 +23,8 @@ The consumers are:
    and errors a runtime must report.
 4. B10–B13: already covered by existing tasks; the consumers wait on them.
 5. B29 native textures: CUDA textures already work in software, so this is a performance item.
+6. B31 empty-mask instruction cost and T1 (`agx_cost --uniform`): they decide backend tuning (whether to jump over
+   short if bodies) and make agx-bench measure bounds-checked kernels.
 
 ## B1. Scratch / stack memory for direct-DRM dispatches (NEW, unsafe)
 
@@ -737,6 +739,22 @@ Consumed as is:
 - at most 4 concurrent commands GPU-wide (so CUDA streams beyond 4 serialise);
 - priority has no effect;
 - the in-shader clock skew and cost (`clock()`, `clock64()`, `%globaltimer`).
+
+## B31. Cost of instructions issued with an empty execution mask (NEW, safe)
+
+- **Why it matters:** f50bd88 measured a taken `jmp_exec_none` at 11.48 cycles per group per step against 3.78
+  untaken. Mesa leaves out the jump over short blocks; the LLVM AGX backend could do the same for if/else bodies
+  of at most N instructions. Under the current cost model that is a net loss: agx-bench G14C cycles total
+  38579 -> 40221, `agx_sgemm_tile64` 7017 -> 7804, `saxpy` 41 -> 116. The model charges instructions issued with
+  no active thread their full latency, including `device_load` + `wait`. Whether the hardware does that is not
+  measured.
+- **Probes (one SIMD group, all threads inactive via a false `if_icmp`, no jump):** a run of 8 and 32 of each of
+  `iadd`, `fmadd32`, `device_load` + `wait 0`, `device_store`, `threadgroup_load` + `wait`, `simd_shuffle`, then
+  `pop_exec`. Compare with the same bodies skipped by `jmp_exec_none`, and with all threads active.
+- **Deliverable:** cycles per instruction class with an empty mask (does a masked-off load issue a memory request,
+  and does its `wait` stall?). The backend then picks the largest N (by class) for which no jump is cheaper, and
+  the cost model gets the same rule.
+- **Safety:** ordinary ALU and memory instructions under a false condition; see `safe-probes.md`.
 
 ## T1. `agx_cost`: uniform values from the command line (tooling request, no hardware needed)
 
