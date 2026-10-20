@@ -684,6 +684,11 @@ result of the float add is 0x7fc00000 (from the 2026-10-17 records).
 
 ## B28. The threadgroup barrier when SIMD-groups have already ended (NEW, safe except where marked)
 
+- **Done 2026-10-20:** the barrier does not wait for ended SIMD groups or lanes: probes 1-4 (group ended before /
+  after one of two barriers, odd groups of 32, lanes stopped under a partial mask) all complete in ~8 us. One
+  1,024-thread threadgroup can use the full 64 KiB of threadgroup memory. Evidence: playground
+  `results/2026-10-20-b28-barrier-after-exit`.
+
 - **Why it matters:** ZLUDA is adding PTX thread-block clusters (`.reqnctapercluster`, `%cluster_ctarank`, `mapa`,
   `shared::cluster`, `barrier.cluster`) by running a cluster of C CTAs as one threadgroup of C x ntid threads, with
   each CTA's shared memory in its own window of threadgroup memory. CTA barriers (`bar.sync`) and cluster barriers
