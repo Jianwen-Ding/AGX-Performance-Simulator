@@ -196,3 +196,21 @@ with addresses prepared before divergence. It adds 17 counterexamples among
 27 programs; combined overflow scope has **35 counterexamples in 54 programs**,
 162 clean completed dispatches. Tested move-spacing and lane-dependent behavior
 are recorded, without a calibrated-cycle or general pipeline implementation.
+
+Default execution now detects IF/push overflow that activates a previously
+masked living lane. Further work is refused until the directly measured
+`wait 0` or `pop_exec r0l, 0` settlement, instead of silently predicting
+immediate activation. This conservative guard also refuses some sufficiently
+spaced programs that hardware accepts; it does not guess a universal spacing
+count. Already-issuing wraps remain supported, and dead/absent lanes cannot
+create activation. The functional mask path now respects the same persistent
+liveness checks as the compiled/reference executors.
+
+`AGX_EXPERIMENTAL_EXEC_OVERFLOW=counter-sync` explicitly retains the old,
+known-incomplete immediate-sync hypothesis for offline comparisons and tightly
+controlled probing. It is not a hardware-accurate activation/timing mode.
+The adjacent [overflow guard report](../apple-documentation-playground/results/2026-10-20-overflow-guard/README.md)
+binds 54 original-program replays: default accepts 11 exact and explicitly
+refuses 43 unresolved programs; the opt-in preserves all 35 counterexamples.
+All 2,403 earlier exact control cases remain exact, 44 library tests pass,
+and both control suites pass with default and return-opt-in settings.

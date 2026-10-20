@@ -671,12 +671,17 @@ fn step_group_impl<C: InstructionCells>(g: &mut Group, code: &[u8], cache: &C, m
             }
         }
         let Some(desc) = info.desc else {
+            g.st.check_overflow_activation(false).map_err(str::to_string)?;
             g.pc += 2; // 0x78 barrier
             return Ok(Stop::Barrier(2));
         };
         let f = &info.fields;
         let x = |k: &str| fget(f, k).unwrap_or(0);
         let v = &info.vals;
+        if !matches!(info.kind, OpKind::Generic) {
+            g.st.check_overflow_activation(matches!(info.kind, OpKind::Wait) && x("i") == 0)
+                .map_err(|e| format!("{} at pc {}", e, g.pc))?;
+        }
         match info.kind {
             OpKind::Stop => {
                 // G14C empty-stop and ret-prepop hardware matrices (2026-10-20):

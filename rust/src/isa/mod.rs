@@ -362,6 +362,75 @@ mod tests {
         }
     }
 
+    fn exec_fixture(text: &str, st: &mut exec::CoreState, executor: u8) -> Result<(), String> {
+        let bytes = assemble_line(text)?;
+        let (d, n, _) = decode_one(&bytes).unwrap();
+        let fields = d.decode_fields(n);
+        let ops = d.fields_to_operands(&fields)?;
+        if executor == 2 && matches!(d.ex, Ex::IfCmp { .. } | Ex::ElseCmp { .. } | Ex::WhileCmp { .. }) {
+            let (kind, float) = d.name.split_once('_').unwrap();
+            let values = vec![ops[0].clone(), ops[2].clone(), ops[3].clone()];
+            crate::fsem::mask_ctl(kind, float == "fcmp", &fields, &values, st)
+        } else if executor > 0 { compiled::Compiled::new(d, &fields, &ops, st.reg16s.len()).exec(st) }
+        else { exec::exec(d, &fields, &ops, st) }
+    }
+
+    #[test]
+    fn masked_overflow_activation_requires_measured_settlement_in_all_executors() {
+        // G14C prepared-index probes: unsynchronized immediate/copy/add and
+        // shuffles can retain old destinations. Refuse that timing-sensitive
+        // scope, rather than inventing an instruction-count/pipeline model.
+        for executor in 0..3 {
+            for n in 1..=3 {
+                for settle in ["wait 0", "pop_exec r0l, 0"] {
+                    let mut st = exec::CoreState::new(8, None);
+                    for t in 0..32 {
+                        st.exec[t] = t == 0;
+                        st.set_reg16(0, t, if t == 0 { 0 } else if t == 1 || t == 3 { 65536 - n } else { 5 }).unwrap();
+                        st.set_reg32(5, t, 0x1234).unwrap();
+                    }
+                    st.live[3] = false;
+                    exec_fixture(&format!("if_fcmp r0l, eq, 0.0, 0.0, {}", n), &mut st, executor).unwrap();
+                    assert!(st.overflow_activation_pending && st.exec[1] && !st.exec[3]);
+                    assert_eq!(st.get_reg16(0, 1).unwrap(), 0);
+                    for text in ["mov_imm r5, 48879, 0b0", "wait 1", "pop_exec r0l, 1"] {
+                        assert_eq!(exec_fixture(text, &mut st, executor).unwrap_err(), exec::EXEC_OVERFLOW_UNRESOLVED);
+                    }
+                    assert!((0..32).all(|t| st.get_reg32(5, t).unwrap() == 0x1234));
+                    exec_fixture(settle, &mut st, executor).unwrap();
+                    assert!(!st.overflow_activation_pending);
+                    exec_fixture("mov_imm r5, 48879, 0b0", &mut st, executor).unwrap();
+                    for t in 0..32 { assert_eq!(st.get_reg32(5, t).unwrap(), if t < 2 { 0xbeef } else { 0x1234 }); }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn already_issuing_overflow_and_explicit_hypothesis_are_distinct() {
+        for executor in 0..3 {
+            for hypothesis in [false, true] {
+                let mut st = exec::CoreState::new(8, None);
+                st.allow_overflow_activation_hypothesis = hypothesis;
+                for t in 0..32 {
+                    st.exec[t] = !hypothesis || t == 0;
+                    st.set_reg16(0, t, if t == 0 { 0 } else if t == 1 { 65535 } else { 5 }).unwrap();
+                    st.set_reg32(5, t, 0x1234).unwrap();
+                }
+                exec_fixture("if_fcmp r0l, eq, 0.0, 0.0, 1", &mut st, executor).unwrap();
+                assert_eq!(st.overflow_activation_pending, hypothesis);
+                exec_fixture("mov_imm r5, 48879, 0b0", &mut st, executor).unwrap();
+                for t in 0..32 { assert_eq!(st.get_reg32(5, t).unwrap(), if t < 2 { 0xbeef } else { 0x1234 }); }
+            }
+            // A wrap in a stopped lane must not create pending activation.
+            let mut st = exec::CoreState::new(8, None);
+            st.live[1] = false; st.exec[1] = false;
+            st.set_reg16(0, 1, 65535).unwrap();
+            exec_fixture("if_fcmp r0l, eq, 0.0, 0.0, 1", &mut st, executor).unwrap();
+            assert!(!st.overflow_activation_pending && !st.exec[1]);
+        }
+    }
+
     #[test]
     fn shuffle_distinguishes_masked_and_stopped_sources_in_both_executors() {
         // Independently measured G14C cases: masked lanes retain low-index

@@ -440,6 +440,7 @@ pub fn ballot(float_cmp: bool, quad: bool, f: &Fields, ops: &[Operand], st: &mut
 
 /// if / else / while exec-mask update (applegpu semantics, r0l nesting counter), any condition code
 pub fn mask_ctl(kind: &str, float_cmp: bool, f: &Fields, ops: &[Operand], st: &mut CoreState) -> R<()> {
+    st.check_overflow_activation(false).map_err(str::to_string)?;
     let n = fget(f, "n").unwrap_or(1) as i128;
     let cc = cc_of(f);
     let k = match kind { "if" => 0u8, "while" => 1, _ => 2 };
@@ -458,6 +459,7 @@ pub fn mask_ctl(kind: &str, float_cmp: bool, f: &Fields, ops: &[Operand], st: &m
         }
     };
     for t in 0..SIMD_WIDTH {
+        if !st.live[t] { continue; }
         let mut v = st.get_reg16(0, t)?;
         match k {
             0 => {
@@ -480,10 +482,13 @@ pub fn mask_ctl(kind: &str, float_cmp: bool, f: &Fields, ops: &[Operand], st: &m
                 }
             }
         }
+        if k == 0 && !st.exec[t] && v > 0xFFFF && v & 0xFFFF == 0 {
+            st.overflow_activation_pending = true;
+        }
         st.set_reg16(0, t, v & 0xffff)?;
     }
     for t in 0..SIMD_WIDTH {
-        st.exec[t] = st.get_reg16(0, t)? == 0;
+        st.exec[t] = st.live[t] && st.get_reg16(0, t)? == 0;
     }
     Ok(())
 }
