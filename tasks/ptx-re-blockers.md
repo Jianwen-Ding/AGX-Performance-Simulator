@@ -387,6 +387,10 @@ The consumers are:
   - `DRM_ASAHI_FEATURE_SOFT_FAULTS` makes shader loads from unmapped memory return 0 and drops stores, so an
     out-of-bounds access may not fault at all.
   - The simulator's harnesses detect hangs with the syncobj wait timeout only.
+- **Done 2026-10-20 (steps 1-5):** faults never fail the fence. A store to VA 2^39 completes normally (soft
+  faults); an undecoded opcode (0x54) and a jump into unmapped USC space complete with status **success** but
+  unwritten timestamps (0 ticks, ~1 ms host). Same queue, new queue, new VM and the next in-order command all work.
+  Runtimes must detect failure from zero timestamps. Evidence: playground `results/2026-10-20-b20-failed-jobs`.
 - **Step 1 done 2026-10-20:** `features` = 1, so soft faults are **on** on this M2 Max (playground
   `results/2026-10-20-b25-gpu-telemetry/params.json`). Out-of-bounds loads return 0 and stores are dropped.
 - **Probe (one at a time; keep the AGX_CLEAN_EXIT recovery ready):**
