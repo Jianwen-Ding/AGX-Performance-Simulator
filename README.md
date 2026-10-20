@@ -137,12 +137,21 @@ Mapped results echo `core_map: "m2"` and `mapped_workgroups`.
 This supplies scheduling state, not a schedule predictor. SR17 slots retain
 their selected default/synthetic behavior. Default execution and the library's
 synthetic `Dispatch::placement` mode remain unchanged. Prepared functional
-traces and `agx_dispatch` do not yet accept this map. The
+traces accept maps through `PreparedDispatch::with_m2_core_map` or
+`func::trace_workgroups_with_m2_core_map`. The prepared object borrows a validated
+immutable map; each requested workgroup still traces independently from fresh
+registers and a snapshot of supplied memory. Decode metadata is shared, while
+core-dependent values and loaded addresses are resolved per trace.
+`agx_dispatch` does not yet accept complete maps. The
 [replay verification](../apple-documentation-playground/novel-results/2026-10-20-observed-core-map-replay/README.md)
 matches 80 complete retained hardware buffers literally, preserves 64 default
 cases against the archived model and independent oracles, and passes three
 targeted library tests and five CLI failure cases. All seven ordinary
-arithmetic regression suites also pass; no hardware was submitted.
+arithmetic regression suites also pass; no hardware was submitted. The
+[prepared-trace verification](../apple-documentation-playground/novel-results/2026-10-20-observed-core-map-tracing/README.md)
+checks all 80 maps against independent lane-address oracles across two memory
+snapshots, reordered/duplicate requests and four CPU tracing workers. Five
+targeted core-map tests now pass. This does not replay concurrent execution.
 
 Some findings link to experiments, notes and results that stayed in Apple-M2-Playground; those
 links resolve in that repository. Shader capture (`agx_capture.py`) also stays there.
@@ -309,5 +318,5 @@ the fixed-lane-count grid. A neighboring-grid cell has 2.23x trial variation
 despite the 1000 us delay, so that protocol is not a general timing guarantee.
 Current default and synthetic functional placement do not predict these
 observed schedules. Optional supplied-core-map replay is now implemented for
-functional execution, preserving existing modes and distinguishing historical
+functional execution and prepared tracing, preserving existing modes and distinguishing historical
 model provenance from the newer replay model. No timing calibration changed.

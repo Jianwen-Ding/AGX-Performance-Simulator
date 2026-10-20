@@ -491,6 +491,12 @@ pub fn trace_workgroups(d: &Dispatch, mem: &Memory, wgs: &[[u32; 3]]) -> Result<
     PreparedDispatch::new(d)?.trace_workgroups(mem, wgs)
 }
 
+/// Trace with supplied M2 Max SR20 identities. Each workgroup still receives
+/// an isolated memory snapshot; this does not replay concurrent execution.
+pub fn trace_workgroups_with_m2_core_map(d: &Dispatch, mem: &Memory, wgs: &[[u32; 3]], cores: &[u32]) -> Result<Vec<Vec<Trace>>, String> {
+    PreparedDispatch::with_m2_core_map(d, cores)?.trace_workgroups(mem, wgs)
+}
+
 /// Reusable, thread-safe lazy decoding for functional traces of one immutable dispatch.
 /// Only instruction metadata is shared: every trace starts with fresh registers,
 /// shared memory, execution masks and a copy-on-write snapshot of the supplied memory.
@@ -498,18 +504,32 @@ pub struct PreparedDispatch<'a> {
     dispatch: &'a Dispatch,
     geometry: Geometry,
     cache: CodeCache,
+    cores: Option<&'a [u32]>,
 }
 
 impl<'a> PreparedDispatch<'a> {
     pub fn new(dispatch: &'a Dispatch) -> Result<Self, String> {
+        Self::prepare(dispatch, None)
+    }
+
+    /// Validate and borrow a fixed observed map for all subsequent traces.
+    /// Values are resolved for each requested workgroup, never cached in the
+    /// shared instruction metadata. SR17 behavior remains selected by Dispatch.
+    pub fn with_m2_core_map(dispatch: &'a Dispatch, cores: &'a [u32]) -> Result<Self, String> {
+        Self::prepare(dispatch, Some(cores))
+    }
+
+    fn prepare(dispatch: &'a Dispatch, cores: Option<&'a [u32]>) -> Result<Self, String> {
         let geometry = validate_dispatch(dispatch)?;
-        Ok(Self { dispatch, geometry, cache: code_cache(dispatch.code.len()) })
+        if let Some(cores) = cores { validate_m2_core_map_geometry(dispatch, &geometry, cores)?; }
+        Ok(Self { dispatch, geometry, cache: code_cache(dispatch.code.len()), cores })
     }
 
     pub fn trace_workgroup(&self, mem: &Memory, wg: [u32; 3]) -> Result<Vec<Trace>, String> {
         self.geometry.check_workgroup(wg)?;
+        let core = self.cores.map(|c| c[self.geometry.linear(wg) as usize]);
         let mut m = mem.clone();
-        run_workgroup(self.dispatch, &self.geometry, &self.cache, &mut m, wg, None, true, &mut RunStats::default())
+        run_workgroup(self.dispatch, &self.geometry, &self.cache, &mut m, wg, core, true, &mut RunStats::default())
     }
 
     pub fn trace_workgroups(&self, mem: &Memory, wgs: &[[u32; 3]]) -> Result<Vec<Vec<Trace>>, String> {
@@ -1889,6 +1909,57 @@ mod tests {
         let (mut d, _, _) = m2_map_fixture(0);
         d.grid = [128, 12, 1];
         validate_m2_core_map(&d, &[0, 16, 32, 48, 0, 16, 32, 48, 0, 16, 32, 48]).unwrap();
+    }
+
+    #[test]
+    fn m2_core_map_prepared_traces_resolve_core_and_loaded_addresses_per_snapshot() {
+        use crate::kernels::{e, get_sr, mov, store};
+        let (mut d, _, cores) = m2_map_fixture(0);let n = d.grid[0];
+        d.code = [get_sr(80, 1), get_sr(20, 2), mov(5, 0),
+            e("device_load 0, i32, x, r4, u10_u11, r5, unsigned"), e("wait 0"),
+            e("imadd r3, r2, r4, r1"), store(2, 8, 3), e("wait 0"), e("stop")].concat();
+        d.uniforms = vec![(8, 0x1000), (9, 0), (10, 0), (11, 16)];
+        let prepared = PreparedDispatch::with_m2_core_map(&d, &cores).unwrap();
+        let legacy = PreparedDispatch::new(&d).unwrap();
+        let wgs: Vec<_> = [11, 0, 8, 7, 3, 11].into_iter().map(|x| [x, 0, 0]).collect();
+        crate::par::set_local_threads(4);
+        for stride in [n, n * 2] {
+            let mut mem = Memory::default();
+            mem.map(0x1000, vec![0x5a; 64 * stride as usize * 4]);
+            mem.map(1u64 << 36, stride.to_le_bytes().to_vec());
+            let before = mem.read_bytes(0x1000, 64 * stride as usize * 4).unwrap();
+            for (batch, supplied) in [(prepared.trace_workgroups(&mem, &wgs).unwrap(), true),
+                (legacy.trace_workgroups(&mem, &wgs).unwrap(), false)] {
+                for (i, traces) in batch.iter().enumerate() {
+                    assert_eq!(traces.len(), 4);
+                    for (g, tr) in traces.iter().enumerate() {
+                        let core = if supplied { cores[wgs[i][0] as usize] } else { 0 };
+                        let first = core as u64 * stride as u64 + wgs[i][0] as u64 * 128 + g as u64 * 32;
+                        let segment = (0x1000 + first * 4) >> 6;
+                        assert_eq!(tr.mem, vec![(3, vec![(1u64 << 36) >> 6]), (6, vec![segment, segment + 1])]);
+                        assert!(tr.skipped.is_empty() && tr.warnings.is_empty());
+                    }
+                }
+            }
+            assert_eq!(mem.read_bytes(0x1000, before.len()).unwrap(), before);
+            assert_eq!(mem.read(1u64 << 36, 4).unwrap(), stride as u64);
+            let fresh = trace_workgroups_with_m2_core_map(&d, &mem, &wgs, &cores).unwrap();
+            let cached = prepared.trace_workgroups(&mem, &wgs).unwrap();
+            for (a, b) in fresh.iter().flatten().zip(cached.iter().flatten()) {
+                assert_eq!(a.pcs, b.pcs);assert_eq!(a.mem, b.mem);
+            }
+        }
+        crate::par::set_local_threads(0);
+    }
+
+    #[test]
+    fn m2_core_map_prepared_validation_rejects_before_tracing() {
+        let (d, mem, mut cores) = m2_map_fixture(0);cores[1] = 16;
+        assert!(PreparedDispatch::with_m2_core_map(&d, &cores).err().unwrap().contains("spans clusters"));
+        assert!(trace_workgroups_with_m2_core_map(&d, &mem, &[[0; 3]], &cores).unwrap_err().contains("spans clusters"));
+        cores[1] = 1;let p = PreparedDispatch::with_m2_core_map(&d, &cores).unwrap();
+        assert!(p.trace_workgroups(&mem, &[[0; 3], [12, 0, 0]]).unwrap_err().contains("outside dispatch"));
+        assert_eq!(mem.read(0x1000, 4).unwrap(), 0x5a5a5a5a);
     }
 
     fn sr_group(mask: u32) -> Group {
