@@ -27,10 +27,6 @@ pub struct Memory {
     pub tex_state: std::collections::BTreeMap<u32, Vec<u8>>,
     /// sampler state slots (8-byte descriptors) written by sampler_state_store
     pub samp_state: std::collections::BTreeMap<u32, Vec<u8>>,
-    /// every texture/sampler state store and texture access, for discovery: (op, slot, va)
-    pub tex_log: Vec<(String, u32, u64)>,
-    /// bindless sampler heap (index -> 8-byte descriptor), populated by the harness
-    pub samp_heap: std::collections::BTreeMap<u32, Vec<u8>>,
 }
 
 impl Memory {
@@ -1414,7 +1410,6 @@ fn lod_value(g: &Group, args: &TexOp, t: usize) -> Result<f32, String> {
 /// direct form (uniform base + per-lane byte offset).
 fn resolve_desc(mem: &mut Memory, g: &Group, args: &TexOp, lane: usize) -> Result<crate::texture::TexDesc, String> {
     let bytes: Vec<u8> = if let Some(slot) = args.tslot {
-        mem.tex_log.push(("load".into(), slot, 0));
         mem.tex_state
             .get(&slot)
             .ok_or_else(|| format!("texture state slot {} not written (tex_state_store missing?)", slot))?
@@ -1432,7 +1427,6 @@ fn resolve_desc(mem: &mut Memory, g: &Group, args: &TexOp, lane: usize) -> Resul
             None => 0,
         } as u64;
         let va = base.wrapping_add(off);
-        mem.tex_log.push(("bind".into(), 0, va));
         mem.read_bytes(va, 24)?
     } else {
         return Err("texture op has neither slot nor bindless base".into());
@@ -1484,7 +1478,6 @@ fn tex_state_store(g: &mut Group, mem: &mut Memory, f: &Fields, ts: u32) -> Resu
         return Err("tex_state_store with register offset not modelled".into());
     }
     let bytes = mem.read_bytes(va, 24)?;
-    mem.tex_log.push(("tex".into(), ts, va));
     mem.tex_state.insert(ts, bytes);
     Ok(())
 }
@@ -1495,7 +1488,6 @@ fn samp_state_store(g: &mut Group, mem: &mut Memory, f: &Fields, ss: u32) -> Res
         return Err("sampler_state_store with register offset not modelled".into());
     }
     let bytes = mem.read_bytes(va, 8)?;
-    mem.tex_log.push(("samp".into(), ss, va));
     mem.samp_state.insert(ss, bytes);
     Ok(())
 }
@@ -1546,25 +1538,25 @@ fn resolve_sampler(mem: &mut Memory, g: &Group, args: &TexOp) -> Result<crate::t
             .samp_state
             .get(&ss)
             .ok_or_else(|| format!("sampler state slot {} not written", ss))?;
-        mem.tex_log.push(("sslot".into(), ss, 0));
         return crate::texture::decode_sampler(b);
     }
     let (half, r) = args.sreg.ok_or_else(|| "texture_sample without sampler slot or register".to_string())?;
-    // first active lane; preambles/headers compute one sampler value for the dispatch
+    // first active lane; the register holds one value per dispatch in practice
     let t = (0..32).find(|&t| g.st.exec[t]).unwrap_or(0);
     let raw = if half { g.st.get_reg16(r as usize, t)? } else { g.st.get_reg32(r as usize, t)? };
     let v = (raw as u16) as i16 as i64;
-    mem.tex_log.push(("sreg".into(), v as u32, 0));
-    if v >= 0 {
-        if let Some(b) = mem.samp_heap.get(&(v as u32)) {
+    if v < 0 {
+        // clamp_0 override: -1 means no custom border, i.e. the descriptor's own sampler.
+        // The descriptor's sampler is the one the preamble stored; if a single slot exists we
+        // use it, otherwise the binding is ambiguous and we error rather than guess.
+        if mem.samp_state.len() == 1 {
+            let b = mem.samp_state.values().next().unwrap();
             return crate::texture::decode_sampler(b);
         }
+        return Err(format!("register sampler index -1 but {} sampler slots populated", mem.samp_state.len()));
     }
-    if mem.samp_state.len() == 1 {
-        let b = mem.samp_state.values().next().unwrap();
-        return crate::texture::decode_sampler(b);
-    }
-    Err(format!("bindless sampler value {} needs the sampler heap ({} slots known)", v, mem.samp_state.len()))
+    // non-negative: a sampler-heap index. The simulator does not model the device heap.
+    Err(format!("register sampler index {} requires the device sampler heap (not modelled)", v))
 }
 
 fn tex_sample(g: &mut Group, mem: &mut Memory, f: &Fields, args: &TexOp) -> Result<(), String> {
@@ -1710,7 +1702,6 @@ fn image_target(mem: &mut Memory, g: &Group, args: &TexOp, lane: usize) -> Resul
             .clone();
         // stores address the PBE descriptor (hk lower_image_intrin: writes go through PBE)
         let d = crate::texture::decode_pbe(&bytes).map_err(|e| format!("slot {} pbe: {}", slot, e))?;
-        mem.tex_log.push(("pbe".into(), slot, d.addr));
         return Ok(ImgTarget {
             addr: d.addr,
             stride: d.stride,
@@ -1735,35 +1726,26 @@ fn image_target(mem: &mut Memory, g: &Group, args: &TexOp, lane: usize) -> Resul
             None => 0,
         } as u64;
         let va = base.wrapping_add(off);
-        let in_binding = off % 48; // hk_storage_image_descriptor is 48 bytes: tex@0, pbe@24
-        let bytes = mem.read_bytes(va, 24)?;
-        mem.tex_log.push(("bind".into(), 0, va));
-        if in_binding == 0 {
-            let d = crate::texture::decode_texdesc(&bytes)?;
-            return Ok(ImgTarget {
-                addr: d.addr,
-                stride: crate::texture::tex_stride(&d),
-                width: d.width,
-                height: d.height,
-                channels: d.channels,
-                type_: d.type_,
-                srgb: d.srgb,
-                swizzle: d.swizzle,
-            });
+        // stores go through the PBE half of hk_storage_image_descriptor (tex at +0, PBE at +24)
+        let in_binding = off % 48;
+        let bytes = if in_binding == 0 {
+            mem.read_bytes(va + 24, 24)?
         } else if in_binding == 24 {
-            let d = crate::texture::decode_pbe(&bytes)?;
-            return Ok(ImgTarget {
-                addr: d.addr,
-                stride: d.stride,
-                width: d.width,
-                height: d.height,
-                channels: d.channels,
-                type_: d.type_,
-                srgb: d.srgb,
-                swizzle: d.swizzle,
-            });
-        }
-        return Err(format!("image_write direct offset {} not tex/pbe aligned", off));
+            mem.read_bytes(va, 24)?
+        } else {
+            return Err(format!("image_write direct offset {} not tex/pbe aligned", off));
+        };
+        let d = crate::texture::decode_pbe(&bytes)?;
+        return Ok(ImgTarget {
+            addr: d.addr,
+            stride: d.stride,
+            width: d.width,
+            height: d.height,
+            channels: d.channels,
+            type_: d.type_,
+            srgb: d.srgb,
+            swizzle: d.swizzle,
+        });
     }
     Err("image_write has neither slot nor bindless base".into())
 }
@@ -1800,7 +1782,6 @@ fn image_write(g: &mut Group, mem: &mut Memory, f: &Fields, args: &TexOp) -> Res
         if off as usize + raw.len() > img.stride as usize * img.height as usize {
             return Err("image_write past end of image".into());
         }
-        mem.tex_log.push(("store".into(), 0, img.addr + off));
         write_bytes(mem, img.addr + off, &raw)?;
     }
     Ok(())
