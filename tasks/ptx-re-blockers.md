@@ -503,6 +503,17 @@ The consumers are:
     it.
   - Deliverable: the maximum differences (f32 should be about 1e-4, f16 about 1e-2), or the first failing call with
     `ZLUDA_AGX_LOG=1`, which names every unimplemented function the program touched.
+- **Then cuFFT and cuSPARSE**, through `zluda_fft_agx` (`libcufft.so.11`) and `zluda_sparse_agx`
+  (`libcusparse.so.12`), built and linked the same way.
+  - With PyTorch: `torch.fft.fft(torch.randn(4096, dtype=torch.complex64, device='cuda'))` against the CPU result,
+    a 2-D `torch.fft.rfft2` of 256 x 256, and `torch.sparse.mm(a.to_sparse_csr(), b)` with a 1000 x 1000 matrix of
+    about 1 % non-zeros and a 1000 x 64 dense b (cuSPARSE SpMM), plus `a.to_sparse_csr() @ v` (SpMV).
+  - Without PyTorch: the `simpleCUFFT` and cuSPARSE `spmv_csr` / `spmm_csr` / `spmv_coo` samples from
+    CUDALibrarySamples.
+  - The transposed and COO SpMV paths add with native f32 atomics (`atomic_rmw addf`, op 1 + bit 45). They also
+    exercise B24 item 1 under contention: report whether results differ between repeated runs beyond f32
+    reassociation (about 1e-5 relative).
+  - Deliverable: the maximum differences, or the first failing call with `ZLUDA_AGX_LOG=1`.
 
 ## B24. Device-atomic and barrier corners the compiler and the Sail model refuse until measured (NEW, safe)
 
