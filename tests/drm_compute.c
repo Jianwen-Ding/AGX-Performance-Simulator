@@ -21,6 +21,7 @@
  *   AGX_WORD0_OR                      bits ORed into CDM launch word 0
  *   AGX_HELPER_DATA, AGX_HELPER_CFG   drm_asahi_helper_program data/cfg ("table" = table VA)
  *   AGX_HELPER_CODE, AGX_HELPER_OFF   helper program file at USC offset AGX_HELPER_OFF (default 0x4000); binary = offset | 1
+ *   AGX_UNIFORM_HALVES                preload uniform halves 0..N-1 (u_k = 0xA0000000|k, u4..u9 as usual), Mesa's split
  *   AGX_SCRATCH_DWORDS                per-thread scratch dwords: Mesa-layout scratch buffer + header (helper.data) and
  *                                     the Registers word spill bucket; needs AGX_HELPER_CODE = Mesa's libagx_helper
  *   AGX_SCRATCH_SUBGROUPS             subgroups per core in the scratch buffer (default 128, Mesa's value)
@@ -200,6 +201,8 @@ int main(int argc, char **argv)
        a header {subgroups, pad, cores[128] of 88 bytes}, one block list of `subgroups` entries per present core,
        then the blocks, aligned to the block size. The helper program (AGX_HELPER_CODE, Mesa's libagx_helper) hands
        blocks out on request; helper.data points at the header. AGX_SCRATCH_DWORDS = per-thread scratch dwords. */
+    const uint32_t uniform_halves = (uint32_t)env("AGX_UNIFORM_HALVES", 0);
+    require(uniform_halves == 0 || (uniform_halves >= 20 && uniform_halves <= 512 && uniform_halves % 2 == 0), "uniform-halves");
     const uint32_t scratch_dwords = (uint32_t)env("AGX_SCRATCH_DWORDS", 0);
     uint32_t spill_bucket = 0;
     struct bo scratch = {0};
@@ -285,8 +288,18 @@ int main(int argc, char **argv)
     }
     for (const char *o = order; *o; o++) {
         if (*o == 'u') {
+            if (uniform_halves) {
+                /* AGX_UNIFORM_HALVES: halves 0..N-1 from data + 0x7000, split as Mesa's agx_usc_uniform: at most 64
+                   halves per word (64 encodes as 0 in the 6-bit size field), tag 0x3d ("Uniform high") from half 256. */
+                for (uint32_t s0 = 0; s0 < uniform_halves; s0 += 64) {
+                    uint32_t n = uniform_halves - s0 < 64 ? uniform_halves - s0 : 64;
+                    uint64_t tag = s0 >= 256 ? 0x3d : 0x1d, va = data.va + 0x7000 + 2ull * s0;
+                    put64(w, tag | ((uint64_t)(s0 & 255) << 8) | ((uint64_t)(n & 63) << 20) | ((va >> 2) << 26)); w += 8;
+                }
+            } else {
             /* USC Uniform: tag 0x1d, start halfs 8 (u4), size 12 halfs (u4..u9), buffer >> 2 at bit 26. */
             put64(w, 0x1dull | (8ull << 8) | (12ull << 20) | ((unif_va >> 2) << 26)); w += 8;
+            }
         } else if (*o == 's') {
             /* USC Shared, none: tag 0x4d, layout vertex/compute 0x24 at bit 10, bytes 65536 -> groups(256) of 8 bits = 0 ("all"). */
             put32(w, (uint32_t)env("AGX_SHARED_WORD", 0x4du | (0x24u << 10))); w += 4;
@@ -312,10 +325,15 @@ int main(int argc, char **argv)
     /* Uniforms u4 = 0, u5 = count, u6_u7 = output VA, u8_u9 = table VA (0 without a table). */
     put32(data.map + 0, 0); put32(data.map + 4, (uint32_t)count); put64(data.map + 8, out_va);
     put64(data.map + 16, table_size ? data.va + table_off : 0);
+    if (uniform_halves) {
+        /* 32-bit uniform k = 0xA0000000 | k, except u4..u9 which carry the values above. */
+        for (uint32_t k = 0; k < uniform_halves / 2; k++) put32(data.map + 0x7000 + 4 * k, 0xA0000000u | k);
+        memcpy(data.map + 0x7000 + 16, data.map, 24);
+    }
 
     /* CDM control stream. */
     uint8_t *c = data.map + cdm_off;
-    put32(c, (1u << 1) | (uint32_t)env("AGX_WORD0_OR", 0)); c += 4;                /* Launch word 0: uniform count groups(64) = 1; direct; block type 0 */
+    put32(c, (((uniform_halves ? (uniform_halves + 63) / 64 : 1) & 7) << 1) | (uint32_t)env("AGX_WORD0_OR", 0)); c += 4;                /* Launch word 0: uniform count groups(64) = 1; direct; block type 0 */
     put32(c, usc_words); c += 4;               /* Launch word 1: pipeline (64 B aligned, USC relative) */
     if (g14x) { put32(c, 0); put32(c + 4, 1u << 30); c += 8; }
     uint32_t gx = (uint32_t)env("AGX_GLOBAL_X", rounded), gy = (uint32_t)env("AGX_GLOBAL_Y", 1), gz = (uint32_t)env("AGX_GLOBAL_Z", 1);

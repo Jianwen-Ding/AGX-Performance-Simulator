@@ -258,6 +258,11 @@ The consumers are:
 
 ## B9. Kernel parameter space and uniform limits (PARTLY COVERED by safe-09)
 
+- **Done 2026-10-20:** the whole 512-half (1 KiB) uniform file preloads correctly (u69 with 140 halves, u127,
+  u128 across the 256-half 'Uniform high' boundary, u255 with 512), in Mesa's words of 64 halves; no measurable
+  launch cost from 20 to 512 halves. Also answers B2b (64 halves per word works). `drm_compute.c`
+  `AGX_UNIFORM_HALVES`. Evidence: playground `results/2026-10-20-b9-uniform-preload`.
+
 - **Needed for:** CUDA passes up to 4 KiB of kernel parameters (32 KiB on recent architectures). The backend's ABI
   puts each argument pointer in a uniform register pair, and by-value structs need more uniforms or a parameter
   buffer.
@@ -443,6 +448,9 @@ The consumers are:
   - the per-dimension grid limits.
 
 ## B23. A real CUDA runtime program on zluda_agx (NEW, safe after B2 step 2 passes)
+
+- **Blocked 2026-10-20:** the owner does not want nvcc / the CUDA toolkit installed on the Asahi machine.
+  (Also found: nvcc 12.9 cannot parse Fedora 42's GCC 15 libstdc++ headers.)
 
 - **Why it matters:** CUDA applications do not call the driver API directly. libcudart's start-up runs first:
   `cuGetProcAddress` for every function, `cuGetExportTable` for the private tables, fat-binary registration, then
