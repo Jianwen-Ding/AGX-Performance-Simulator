@@ -23,7 +23,8 @@ The consumers are:
    and errors a runtime must report.
 4. B10–B13: already covered by existing tasks; the consumers wait on them.
 5. B29 native textures: CUDA textures already work in software, so this is a performance item.
-6. B31 empty-mask instruction cost, B32 asynchronous submit cost (launch batching) and T1 (`agx_cost --uniform`): they decide backend tuning (whether to jump over
+6. B31 empty-mask instruction cost, B32 asynchronous submit cost (launch batching), B33 vector access alignment
+   and T1 (`agx_cost --uniform`): they decide backend tuning (whether to jump over
    short if bodies) and make agx-bench measure bounds-checked kernels.
 
 ## B1. Scratch / stack memory for direct-DRM dispatches (NEW, unsafe)
@@ -782,6 +783,23 @@ Consumed as is:
   (with NONE or a chained barrier) if case 1 costs more than a few µs per launch.
 - **Safety:** the pinned control kernel and existing submit paths; see `safe-probes.md` (safe-04 used the same
   setup).
+
+## B33. Alignment of 64- and 128-bit threadgroup and device accesses (NEW, safe)
+
+- **Why it matters:** PTX's scalar `ld.shared.f32` / `ld.global.f32` promise 4-byte alignment only. LLVM's
+  load/store vectorizer can merge neighbouring 32-bit accesses into one `xy` (or `xyzw`) access, but only if the
+  backend knows such an access is legal at that alignment. In the CUDA samples matrixMul, each thread reads a 16-float
+  row of the A tile from threadgroup memory: 16 loads now, 8 or 4 merged. The Sail model and `agx_run` take
+  threadgroup and device addresses as plain byte addresses (`base + 4 * size * index + size * k`) with no
+  alignment rule. The hardware's rule is not measured.
+- **Probes (one threadgroup, known data):**
+  - `threadgroup_load` / `threadgroup_store` with format i32 and masks `xy` and `xyzw`, at byte bases 0, 4, 8 and 12
+    (mod 16), and with format i16 at bases 0 and 2;
+  - the same for `device_load` / `device_store`, at addresses 0, 4, 8 and 12 mod 16, plus one access that straddles
+    a 64-byte line and a 4 KiB page.
+- **Deliverable:** for each case, whether the values match the byte-address model, are rounded down, or fault. The
+  backend then allows 4-byte-aligned vector accesses where the hardware does and enables the vectorizer.
+- **Safety:** ordinary loads and stores inside allocated buffers; see `safe-probes.md`.
 
 ## T1. `agx_cost`: uniform values from the command line (tooling request, no hardware needed)
 
