@@ -298,6 +298,19 @@ The consumers are:
 
   Plus the cost per instruction against `shuffle up` + `fma`. Once recorded, the native lowering is enabled for G14.
 
+## B19. Bit 45 of the device atomic on two-die parts (M2 Ultra): coherency or variant? (NEW, safe)
+
+- **Why it matters:** Mesa sets bit 45 on every device atomic of a part with more than one die (its
+  `needs_g13x_coherency` also covers `num_dies > 1`), so the LLVM backend does the same for `agx-g14d`. On G14C,
+  though, bit 45 makes `sub` a float32 add and `cmpxchg` a u64 min (2026-10-17-atomic-variants).
+- **What the backend does meanwhile:** it never emits integer `sub` (it adds the negated value). But compare-and-swap,
+  which atomic loads and every CAS loop rely on, would become u64 min on an M2 Ultra if the bit means the same there.
+- **Probe (needs an M2 Ultra, G14D, under Asahi):** on G14D, run Mesa's atomic cmpxchg with and without bit 45, then
+  sub, using the atomic-variants harness.
+- **Deliverable:** which operations bit 45 changes on a two-die part.
+  - If it changes them, the coherency bit needs another field, and both Mesa and the backend need a fix.
+  - If no M2 Ultra is available, record that, and the backend will treat G14D atomics as unverified.
+
 ## B10. Memory ordering (COVERED by safe-10)
 
 The backend and ZLUDA lower PTX `fence.{cta,gpu,sys}`, `membar.*`, `ld.acquire`, `st.release`, `atom.*.acq_rel` from
