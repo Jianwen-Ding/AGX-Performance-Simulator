@@ -299,6 +299,11 @@ The consumers are:
   - Then measure latency and throughput against the 24-shuffle emulation.
 - **Deliverable:** the per-lane layout and exact arithmetic. The `agx.mma` op then gets a native G14 lowering; its
   fixed layout is `r = 4*(t/16) + (t/2)%4`, `c = 4*((t/8)%2) + 2*(t%2)`.
+- **What it costs today (2026-10-20):** cuBLAS's `agx_sgemm_tile64` (a 32x32 tile per SIMD group, K step 8) has
+  1674 instructions on G14C. Its K loop holds 192 hardware shuffles and 46 spill accesses per iteration (81 in the
+  kernel), at the 128-GPR limit. The shuffles come from the emulation, and so does most of the register pressure
+  (gathered rows of A and columns of B). The cost model estimates 7017 cycles per SIMD group; the scheduler
+  variants tried are no better. A native form removes both.
 
 ## B16. The 0x78 barrier: what it orders (PARTLY MEASURED)
 
