@@ -7,6 +7,7 @@ use super::operand::*;
 use super::table::{Desc, Ex};
 
 pub const SIMD_WIDTH: usize = 32;
+pub const EXEC_OVERFLOW_UNRESOLVED: &str = "execution-counter overflow activation spacing unresolved; use wait 0 or pop_exec 0 before further work (AGX_EXPERIMENTAL_EXEC_OVERFLOW=counter-sync keeps the known-incomplete immediate-sync hypothesis)";
 
 pub struct Memory {
     pub base: i128,
@@ -30,6 +31,10 @@ pub struct CoreState {
     pub exec: [bool; SIMD_WIDTH],
     /// Physical lanes still alive; mask reconvergence cannot revive a stopped or absent lane.
     pub live: [bool; SIMD_WIDTH],
+    /// A masked lane wrapped to zero in IF/push; its activation timing is not modelled.
+    pub overflow_activation_pending: bool,
+    /// Explicit hypothesis for tests/experiments; this is not hardware-accurate timing.
+    pub allow_overflow_activation_hypothesis: bool,
     /// 512 16-bit values (u0..u255 are 32-bit; applegpu keeps 256 halves, Mesa uses up to u255); `get_reg64` takes no thread argument.
     pub uniforms: Vec<u16>,
     pub device_memory: Option<Memory>,
@@ -43,9 +48,24 @@ impl CoreState {
             reg16s: vec![[0; SIMD_WIDTH]; num_registers * 2],
             exec: [true; SIMD_WIDTH],
             live: [true; SIMD_WIDTH],
+            overflow_activation_pending: false,
+            allow_overflow_activation_hypothesis: false,
             uniforms: vec![0; 512],
             device_memory,
         }
+    }
+    /// Conservatively refuse instruction-spacing-sensitive overflow activation.
+    /// Only the directly measured wait0/pop0 settlement is accepted by default;
+    /// empirically sufficient ALU spacing is deliberately not guessed here.
+    #[inline]
+    pub fn check_overflow_activation(&mut self, settles: bool) -> Result<(), &'static str> {
+        if settles {
+            self.overflow_activation_pending = false;
+        } else if self.overflow_activation_pending && !self.allow_overflow_activation_hypothesis
+            && std::env::var("AGX_EXPERIMENTAL_EXEC_OVERFLOW").ok().as_deref() != Some("counter-sync") {
+            return Err(EXEC_OVERFLOW_UNRESOLVED);
+        }
+        Ok(())
     }
     #[inline(always)]
     fn idx(&self, r: usize) -> R<usize> {
@@ -497,6 +517,9 @@ fn update_exec(st: &mut CoreState) {
 
 /// `desc.exec(n, corestate)` with the descriptor's pre-decoded fields and operands.
 pub fn exec(d: &Desc, f: &Fields, ops: &[Operand], st: &mut CoreState) -> R<()> {
+    let settles = d.ex == Ex::Wait && fget(f, "i") == Some(0)
+        || d.ex == Ex::PopExec && fget(f, "n") == Some(0);
+    st.check_overflow_activation(settles).map_err(str::to_string)?;
     let c = Ctx { d, f, ops };
     match d.ex {
         Ex::None => Err(format!("AttributeError: {} has no exec", d.name)),
@@ -536,6 +559,9 @@ pub fn exec(d: &Desc, f: &Fields, ops: &[Operand], st: &mut CoreState) -> R<()> 
                             v = if c.compare(float, st, t)? { 0 } else { 1 };
                         }
                     }
+                }
+                if matches!(d.ex, Ex::IfCmp { .. }) && !st.exec[t] && v > 0xFFFF && v & 0xFFFF == 0 {
+                    st.overflow_activation_pending = true;
                 }
                 st.set_reg16(0, t, v)?;
             }

@@ -428,7 +428,7 @@ enum K {
     Raise(&'static str),
     /// raises when some lane is active
     RaiseIfActive(&'static str),
-    Nop,
+    Wait { slot: u64 },
     MovImm { d: Dst, v: i128 },
     GetSr { d: Dst, ok: bool },
     IAdd { a: Src, b: Src, d: Dst, shift: u64, sat: Option<bool>, neg: bool, signed: bool, dsize: Option<u32> },
@@ -484,7 +484,7 @@ impl Compiled {
         let k = match d.ex {
             Ex::None => K::Raise("AttributeError: no exec"),
             Ex::MaskedTodo => K::RaiseIfActive("AssertionError: TODO"),
-            Ex::Wait => K::Nop,
+            Ex::Wait => K::Wait { slot: f(fields, "i") },
             Ex::MovImm(name) => K::MovImm { d: dst("D"), v: f(fields, name) as i128 },
             Ex::GetSr => K::GetSr { d: dst("D"), ok: f(fields, "SR") == 80 },
             Ex::IAdd => {
@@ -637,12 +637,13 @@ impl Compiled {
     }
 
     fn run(&self, st: &mut CoreState) -> R<()> {
+        st.check_overflow_activation(matches!(&self.k, K::Wait { slot: 0 } | K::PopExec { n: 0 }))?;
         match &self.k {
             K::Raise(e) => Err(e),
             K::RaiseIfActive(e) => {
                 if st.exec.iter().any(|&x| x) { Err(e) } else { Ok(()) }
             }
-            K::Nop => Ok(()),
+            K::Wait { .. } => Ok(()),
             K::MovImm { d, v } => Self::lanes(st, |st, t| d.set(st, t, *v)),
             K::GetSr { d, ok } => Self::lanes(st, |st, t| {
                 if *ok { d.set(st, t, t as i128) } else { Err("AssertionError: get_sr TODO".into()) }
@@ -836,6 +837,9 @@ impl Compiled {
                                 v = if cmp.eval(st, t)? { 0 } else { 1 };
                             }
                         }
+                    }
+                    if *ctl == Ctl::If && !st.exec[t] && v > 0xFFFF && v & 0xFFFF == 0 {
+                        st.overflow_activation_pending = true;
                     }
                     st.reg16s[0][t] = (v & 0xFFFF) as u16;
                 }

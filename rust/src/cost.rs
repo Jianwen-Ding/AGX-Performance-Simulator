@@ -722,8 +722,12 @@ pub struct Trace {
     pub pcs: Vec<usize>,
     pub skipped: BTreeSet<String>,
     pub warnings: Vec<String>,
-    /// device loads/stores: (index into `pcs`, distinct 64-byte segments touched by the active lanes)
+    /// Legacy cost inputs: load/store 64-byte segments, atomic/TG word addresses.
     pub mem: Vec<(u32, Vec<u64>)>,
+    /// Functional device footprint: distinct 64-byte segments including the
+    /// complete byte range of each 32/64-bit atomic. No threadgroup addresses.
+    /// Cost-emulated traces may leave this empty.
+    pub device_segments: Vec<(u32, Vec<u64>)>,
 }
 
 /// Where one SIMD group sits in a dispatch: enough to answer `get_sr` for the geometry registers

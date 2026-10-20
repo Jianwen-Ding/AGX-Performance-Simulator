@@ -123,6 +123,62 @@ dispatch over arbitrary memory, including a driver preamble that fills the unifo
 `--preamble` / `--map` / `--alloc` options. With them, the SIMD groups' paths come from the functional simulator over
 that memory instead of the cost model's emulation, which is needed for driver-compiled code and data-dependent loops.
 
+`agx_run --m2-core-map FILE` optionally replays supplied SR20 identities. Append
+it to a complete command with the normal uniforms and memory mappings. FILE
+is a JSON array with one packed M2 Max core ID per workgroup, x varying fastest,
+then y and z. `func::run_with_m2_core_map` is the library equivalent; callers
+running a preamble separately can preflight with `validate_m2_core_map`.
+Length and enabled-core masks are checked before execution. The measured
+aligned eight-workgroup cluster rule is enforced for 1-D whole-workgroup grids
+at sizes 32/64/128/256, including partial final blocks. It is not imposed on
+other geometries. Invalid CLI maps fail before preamble execution or dumps.
+Mapped results echo `core_map: "m2"` and `mapped_workgroups`.
+
+This supplies scheduling state, not a schedule predictor. SR17 slots retain
+their selected default/synthetic behavior. Default execution and the library's
+synthetic `Dispatch::placement` mode remain unchanged. Prepared functional
+traces accept maps through `PreparedDispatch::with_m2_core_map` or
+`func::trace_workgroups_with_m2_core_map`. The prepared object borrows a validated
+immutable map; each requested workgroup still traces independently from fresh
+registers and a snapshot of supplied memory. Decode metadata is shared, while
+core-dependent values and loaded addresses are resolved per trace.
+`agx_dispatch --m2-core-map FILE` now evaluates complete maps through a
+separate exhaustive path (described below). The
+[replay verification](../apple-documentation-playground/novel-results/2026-10-20-observed-core-map-replay/README.md)
+matches 80 complete retained hardware buffers literally, preserves 64 default
+cases against the archived model and independent oracles, and passes three
+targeted library tests and five CLI failure cases. All seven ordinary
+arithmetic regression suites also pass; no hardware was submitted. The
+[prepared-trace verification](../apple-documentation-playground/novel-results/2026-10-20-observed-core-map-tracing/README.md)
+checks all 80 maps against independent lane-address oracles across two memory
+snapshots, reordered/duplicate requests and four CPU tracing workers. Five
+targeted core-map tests now pass. This does not replay concurrent execution.
+
+`agx_dispatch --m2-core-map FILE` uses functional memory mappings/uniforms and
+validates the map before reading shaders/preambles or allocating mapped buffers.
+It requires the 38-core M2 Max profile, rejects `--busiest-core-wgs` and an
+explicit `--max-waves`, and simulates every supplied workgroup in every core's
+partition. `mapped_dispatch::simulate` is the library equivalent. Per-core
+linear workgroup order and occupancy-sized waves are assumptions; no waves are
+extrapolated. The JSON contains `cores` with each partition and wave, actual
+`active_cores`, `critical_core`, `global_device_segments`, `waves_exhaustive`
+and the wave, slot, memory and cache assumptions. The top-level cycle/wave
+fields describe the critical core; `busiest_core_wgs` is the maximum count
+across all cores and can belong to another core.
+
+The device footprint uses all isolated traces. `Trace::device_segments`
+preserves complete atomic byte ranges, including crossing/unaligned 32/64-bit
+accesses, separately from the legacy `Trace::mem` cost inputs. Sharing uses different actual core partitions.
+Texture/image/stack and texture/sampler-descriptor memory traces remain incomplete: those shaders report
+`device_footprint_complete: false` and do not assume SLC residency. Cache state
+restarts per modeled wave. Per-core completion times are combined by their
+maximum plus fixed dispatch overhead; inter-core overlap, slots and frequency
+are not supplied by the map. This is a cost estimate under declared assumptions,
+not a reconstruction of concurrent hardware execution. The
+[cost verification](../apple-documentation-playground/novel-results/2026-10-20-observed-core-map-cost/README.md)
+checks all retained maps, independent partitions/footprints, and unchanged
+legacy default/scalar-peak predictions. No timing parameters were fitted.
+
 Some findings link to experiments, notes and results that stayed in Apple-M2-Playground; those
 links resolve in that repository. Shader capture (`agx_capture.py`) also stays there.
 
@@ -188,3 +244,106 @@ does not. These records remain separate from the exact corpus. No generic
 pipeline rule or calibrated timing correction is implemented yet; use the
 playground's `make verify-overflow-first-shuffle` to check the retained matches
 and explicit mismatches while this execution-state effect is investigated.
+
+The [prepared-index follow-up](../apple-documentation-playground/novel-results/2026-10-20-overflow-register-visibility/README.md)
+extends this limit beyond shuffles: immediate/copy/add can also retain old
+destinations in overflow-activated lanes. The readback persists after wait/drain
+with addresses prepared before divergence. It adds 17 counterexamples among
+27 programs; combined overflow scope has **35 counterexamples in 54 programs**,
+162 clean completed dispatches. Tested move-spacing and lane-dependent behavior
+are recorded, without a calibrated-cycle or general pipeline implementation.
+
+Default execution now detects IF/push overflow that activates a previously
+masked living lane. Further work is refused until the directly measured
+`wait 0` or `pop_exec r0l, 0` settlement, instead of silently predicting
+immediate activation. This conservative guard also refuses some sufficiently
+spaced programs that hardware accepts; it does not guess a universal spacing
+count. Already-issuing wraps remain supported, and dead/absent lanes cannot
+create activation. The functional mask path now respects the same persistent
+liveness checks as the compiled/reference executors.
+
+`AGX_EXPERIMENTAL_EXEC_OVERFLOW=counter-sync` explicitly retains the old,
+known-incomplete immediate-sync hypothesis for offline comparisons and tightly
+controlled probing. It is not a hardware-accurate activation/timing mode.
+The adjacent [overflow guard report](../apple-documentation-playground/results/2026-10-20-overflow-guard/README.md)
+binds 54 original-program replays: default accepts 11 exact and explicitly
+refuses 43 unresolved programs; the opt-in preserves all 35 counterexamples.
+All 2,403 earlier exact control cases remain exact, 44 library tests pass,
+and both control suites pass with default and return-opt-in settings.
+
+An [ordinary integer-add timing follow-up](../apple-documentation-playground/novel-results/2026-10-20-integer-chain-cost/README.md)
+checks 83 straight-line programs, 249 exact recovered dispatches, on AC power.
+Interleaving 1/2/4/8 register chains does not remove the isolated-dispatch
+shortfall: incremental firmware-time slopes are about 3–3.7 times predictions.
+Actual short-dispatch operating frequency and warm-up remain unresolved, so
+this is a documented calibration question, not a justified global latency
+change. Complete distributions and model/source/parameter bindings are retained
+in the playground's `analysis.json`.
+
+The [consecutive-dispatch check](../apple-documentation-playground/novel-results/2026-10-20-integer-chain-train/README.md)
+completed 19 trains and 1,194 dispatches with exact final buffers, passing
+controls and zero faults. First/last-quarter median ratios stay within
+0.991–1.022; slope residuals remain 3.42–3.76 times predictions. Intermediate
+buffers were not captured and operating frequency remains unmeasured.
+The immediate-value/form difference from calibration is a next question;
+these results do not justify a global cost change.
+
+The [matched immediate-value study](../apple-documentation-playground/novel-results/2026-10-20-integer-immediate-cost/README.md)
+adds 26 trains / 1,596 exact recovered dispatches. Eight-chain immediate-1/3
+timings differ by less than 1% in pooled late medians and retain the 3.6x
+incremental gap. Identical one-chain shaders vary by over 2x between trials.
+The model predicts equal cost for both immediate values; it does not model
+these variable timing states. Pooled one-chain ratios are not latency estimates.
+
+The [controlled host-gap study](../apple-documentation-playground/novel-results/2026-10-20-integer-timing-state/README.md)
+completes 39 trains / 2,394 exact recovered dispatches with zero faults.
+Timing can change within one process using identical shaders and buffer
+objects, so fixed allocation effects alone are insufficient. Adding 1000 us
+between submissions gives late medians agreeing within 1.1% across six trials
+per shape, while some early quarters remain faster. Operating frequency is
+still unmeasured; the model has no timing-history correction. This protocol
+is a follow-up validation condition, not a global latency recalibration.
+
+The [controlled-gap length study](../apple-documentation-playground/novel-results/2026-10-20-integer-length-cost/README.md)
+adds 50 trains / 3,180 exact recovered dispatches over 600–33,066-byte shaders.
+Late medians agree within 2.3% across three trials per cell. Adjacent candidate
+slopes remain 2.58–3.78x predictions across the tested lengths, without an
+isolated large jump identifying a cache threshold. The current shaders do not
+measure frequency or per-core assignment; the latter is the next check on the
+38-core launch assumption. No timing calibration changed.
+
+The [arithmetic core-distribution study](../apple-documentation-playground/novel-results/2026-10-20-integer-core-distribution/README.md)
+checks 28 trains / 1,608 recovered dispatches with zero faults: arithmetic and
+guards exact, SR19 allocation tags exact, and every SR20 placement tag valid
+and uniform within its workgroup. All 12 full-size SR20 maps contain all 38
+cores. The busiest core receives 28–33 cumulative workgroups, versus the
+default estimate of 27. This does not measure simultaneous residency.
+
+Append `--busiest-core-wgs N` to an otherwise complete `agx_dispatch` command
+to use a measured peak count (`Launch::busiest_core_wgs_override` in the API).
+The count must be between ceil(workgroups / cores) and workgroups; invalid
+counts fail before shader or mapped-buffer access. The output echoes
+`busiest_core_wgs_input`. This adjusts representative-core waves and launch
+work with distinct sampled workgroup paths. It does not reconstruct a full
+placement map, core-specific paths, memory traffic, concurrency or clock state.
+Using these measured peaks changes predictions by 0.35–17.35%, with a remaining
+2.76–3.06x residual for the corresponding final dispatches. All eight saved
+default predictions are unchanged. Three targeted `observed_peak` library
+tests and the playground's offline core-distribution verifier cover the input.
+
+The [workgroup-geometry study](../apple-documentation-playground/novel-results/2026-10-20-integer-geometry-cost/README.md)
+adds 160 trains / 9,600 recovered dispatches, with exact arithmetic/guards,
+valid tag planes, exact controls and zero faults. All 72 full-size SR20 maps
+preserve one cluster ID within each aligned eight-workgroup block at the
+tested 1-D sizes 32/64/128/256, including seven- and one-workgroup final blocks
+on neighboring grids. This is not a fixed-thread-count pattern or a complete
+scheduler model. Every map contains all 38 known core IDs.
+
+Measured-peak predictions still leave 2.67–3.42x final-dispatch residuals on
+the fixed-lane-count grid. A neighboring-grid cell has 2.23x trial variation
+despite the 1000 us delay, so that protocol is not a general timing guarantee.
+Current default and synthetic functional placement do not predict these
+observed schedules. Optional supplied-core-map replay is now implemented for
+functional execution, prepared tracing and explicit exhaustive cost partitions,
+preserving existing modes and distinguishing historical
+model provenance from the newer replay model. No timing calibration changed.

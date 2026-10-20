@@ -50,6 +50,27 @@ mod tests {
     }
 
     #[test]
+    fn atomic_device_segments_match_independent_byte_oracles_across_masks_and_alignment() {
+        for (op, variant, bytes) in [(0, 2, 4), (3, 1, 8), (3, 3, 8)] {
+            let fields = vec![("At", 0), ("A", 24), ("Ot", 0), ("O", 10), ("Ou", 0), ("op", op), ("u5", variant)];
+            let access = Access::atomic(&fields);
+            for low in 0..64 { for mask in [0u32, 1, u32::MAX, 0x80808080, 0x55555555] {
+                let mut st = CoreState::new(128, None);
+                let mut expected = std::collections::BTreeSet::new();
+                for lane in 0..32 {
+                    st.exec[lane] = mask & (1 << lane) != 0;
+                    let base = 0x4000 + 128 * lane as i128 + low;
+                    let offset = lane as i128 % 3 - 1;
+                    st.set_reg64(12, lane, base).unwrap();st.set_reg32(5, lane, offset).unwrap();
+                    if st.exec[lane] { for byte in 0..bytes { expected.insert(((base + 4 * offset + byte) / 64) as u64); } }
+                }
+                let legacy = access.capture(&st).unwrap();
+                assert_eq!(access.device_segments(&st, &legacy), Some(expected.into_iter().collect()));
+            } }
+        }
+    }
+
+    #[test]
     fn only_device_segments_drop_duplicate_lanes_and_components() {
         let mut st = CoreState::new(128, None);
         for t in 0..32 { st.set_reg64(12, t, 0x1000).unwrap(); }
@@ -103,7 +124,7 @@ pub(crate) struct Access(AccessKind);
 
 enum AccessKind {
     Segments { address: DeviceAddress, item: i128, shift: u64, mask: u64 },
-    Atomic(DeviceAddress),
+    Atomic { address: DeviceAddress, bytes: u64 },
     Threadgroup { address: ThreadgroupAddress, item: i128, mask: u64 },
 }
 
@@ -131,12 +152,36 @@ impl Access {
     }
 
     pub(crate) fn atomic(f: &Fields) -> Self {
-        Self(AccessKind::Atomic(DeviceAddress::new(f)))
+        let op = fget(f, "op").unwrap_or(0);
+        let variant = fget(f, "u5").unwrap_or(0);
+        let bytes = if op >= 11 && variant == 2 { 0 } else if op == 3 && variant & 1 != 0 { 8 } else { 4 };
+        Self(AccessKind::Atomic { address: DeviceAddress::new(f), bytes })
     }
 
     pub(crate) fn threadgroup(f: &Fields) -> Self {
         let item = match fget(f, "F") { Some(1 | 3 | 6 | 7) => 2, Some(2) | None => 4, _ => 1 };
         Self(AccessKind::Threadgroup { address: ThreadgroupAddress::new(f), item, mask: fget(f, "mask").unwrap_or(1) })
+    }
+
+    /// Preserve full byte ranges separately from legacy cost word addresses.
+    /// `captured` is the already calculated legacy access vector.
+    pub(crate) fn device_segments(&self, st: &CoreState, captured: &[u64]) -> Option<Vec<u64>> {
+        match &self.0 {
+            AccessKind::Segments { .. } => Some(captured.to_vec()),
+            AccessKind::Threadgroup { .. } => None,
+            AccessKind::Atomic { address, bytes } => {
+                let mut segments = vec![];
+                if *bytes == 0 { return Some(segments); }
+                for t in 0..SIMD_WIDTH {
+                    if !st.exec[t] { continue; }
+                    let (base, off) = address.eval(st, t)?;
+                    let first = (base + 4 * off) as u64;
+                    let last = first.checked_add(bytes - 1)?;
+                    segments.extend((first >> 6)..=(last >> 6));
+                }
+                segments.sort_unstable();segments.dedup();Some(segments)
+            }
+        }
     }
 
     pub(crate) fn capture(&self, st: &CoreState) -> Option<Vec<u64>> {
@@ -159,7 +204,7 @@ impl Access {
                 segs.dedup();
                 Some(segs)
             }
-            AccessKind::Atomic(address) => {
+            AccessKind::Atomic { address, .. } => {
                 let mut words = Vec::with_capacity(SIMD_WIDTH);
                 for t in 0..SIMD_WIDTH {
                     if st.exec[t] {

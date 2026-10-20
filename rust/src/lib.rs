@@ -8,6 +8,7 @@ pub mod func;
 pub mod fsem;
 pub mod isa;
 pub mod kernels;
+pub mod mapped_dispatch;
 mod memtrace;
 pub mod par;
 pub mod pyrandom;
