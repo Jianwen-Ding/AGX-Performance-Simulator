@@ -171,3 +171,20 @@ conditionally changes counter 0 to masked 2 and counter 1 to active 0; deeper
 counters retain their current execution bits, even if stale after an ordinary
 write. See the adjacent [conditional RET integration](../apple-documentation-playground/results/2026-10-20-ret-stale-model/README.md)
 for 2,277 exact original control replays and 34 corrected counterexamples.
+
+Later unsigned-counter and stale-target measurements extend the exact control
+corpus to 2,403 programs. Sampled low-r0 values through 0xffff retain unsigned
+pop/RET behavior; RET selects the lowest cached issuer before counter updates,
+even with deliberately stale execution and three divergent destinations.
+
+Known functional limit under investigation: counter-increment overflow can
+reactivate a masked lane whose first native shuffle retains its destination
+instead of writing the expected source. The adjacent playground's
+[overflow diagnostic report](../apple-documentation-playground/novel-results/2026-10-20-overflow-first-shuffle/README.md)
+preserves **18 counterexamples** among 27 complete programs. All 81 hardware
+dispatches completed with exact controls and zero faults. Wait0/pop0/a second
+shuffle fixes the tested programs; one intervening ordinary ALU instruction
+does not. These records remain separate from the exact corpus. No generic
+pipeline rule or calibrated timing correction is implemented yet; use the
+playground's `make verify-overflow-first-shuffle` to check the retained matches
+and explicit mismatches while this execution-state effect is investigated.
