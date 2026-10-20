@@ -740,34 +740,22 @@ fn step_group_impl<C: InstructionCells>(g: &mut Group, code: &[u8], cache: &C, m
                     off -= 1 << 32;
                 }
                 let target = if indirect {
-                    // Measured on G14C (divergent-call probes 2026-10-17): lane 0's
-                    // target wins when lane 0 is active; every lane transfers.
-                    // The link is written only for active lanes whose target
-                    // matches; active lanes with a different target are masked
-                    // (they ride along masked and skip callee stores, matching
-                    // the retained PRE bytes in non-matching slots).
-                    // Uniform (including partial-mask) calls transfer with the
-                    // link set for active lanes. Lane 0 inactive + divergent
-                    // active lanes is unmeasured.
-                    // NOTE: divergence is judged over ALL lanes (a masked lane
-                    // holding a stale divergent value still counts), because
-                    // the hardware winner rule reads lane 0's register.
+                    // G14C hardware, playground 2026-10-20 call-winner and
+                    // sparse-control: the lowest active lane selects the PC.
+                    // Every issue-active lane receives the link, including
+                    // nonmatching lanes, which then travel to the callee masked.
+                    // Inactive lanes neither select the target nor receive r1.
                     let r = x("reg32") as usize;
-                    let first = g.st.get_reg32(r, 0)?;
-                    let mut div = false;
-                    for t in 1..32 {
-                        if g.st.get_reg32(r, t)? != first { div = true; break; }
-                    }
-                    if div && !g.st.exec[0] {
-                        return Err("call register: divergent targets with lane 0 inactive not modelled".into());
-                    }
-                    let value = first;
+                    let first = g.st.exec.iter().position(|&active| active).unwrap();
+                    let value = g.st.get_reg32(r, first)?;
                     let link = call_base() + (g.pc + info.size) as i128;
                     for t in 0..32 {
                         if g.st.exec[t] {
-                            if g.st.get_reg32(r, t)? == value {
-                                g.st.set_reg32(1, t, link)?;
-                            } else if div {
+                            // Capture the operand before the implicit write:
+                            // call r1 must compare the original target value.
+                            let matches = g.st.get_reg32(r, t)? == value;
+                            g.st.set_reg32(1, t, link)?;
+                            if !matches {
                                 g.st.set_reg16(0, t, 1)?;
                                 g.st.exec[t] = false;
                             }
@@ -792,35 +780,28 @@ fn step_group_impl<C: InstructionCells>(g: &mut Group, code: &[u8], cache: &C, m
             OpKind::Ret => {
                 let ret_model = std::env::var("AGX_EXPERIMENTAL_RET").unwrap_or_default();
                 if ret_model != "1" && ret_model != "buffer-pop2" {
-                    return Err("ret semantics unresolved outside uniform recorded cases: use AGX_EXPERIMENTAL_RET=buffer-pop2 for the measured buffer-relative target and mask-depth-2 model; value 1 retains the contradicted code-relative hypothesis for offline study only".into());
+                    return Err("ret semantics unresolved without opt-in: use AGX_EXPERIMENTAL_RET=buffer-pop2 for the measured buffer-relative target, lowest-active winner and mask-depth-2 model; value 1 retains the contradicted code-relative hypothesis for offline study only".into());
                 }
                 let r = x("reg32") as usize;
                 let mut first_active: Option<i128> = None;
-                let mut div_active = false;
                 for t in 0..32 {
                     if g.st.exec[t] {
-                        let v = g.st.get_reg32(r, t)? & 0xffff_ffff;
-                        match first_active {
-                            None => first_active = Some(v),
-                            Some(p) if p != v => { div_active = true; break; }
-                            _ => {}
-                        }
+                        first_active = Some(g.st.get_reg32(r, t)? & 0xffff_ffff);
+                        break;
                     }
                 }
                 // Measured on G14C (2026-10-17):
                 // - Empty active mask falls through.
-                // - If all active lanes agree on rX, transfer to that target.
-                // - If active lanes disagree and lane 0 is active, lane 0's rX wins.
+                // - Lowest active lane selects rX even when active operands
+                //   disagree (G14C 2026-10-20 suffix and scattered-mask matrix).
                 // - Active lanes get mask depth 2 (r0l = 2); inactive lanes keep
                 //   their r0l unchanged.
-                let v = match (div_active, first_active) {
-                    (_, None) => {
+                let v = match first_active {
+                    None => {
                         g.pc += info.size; // no active lane: falls through
                         continue;
                     }
-                    (false, Some(a)) => a,
-                    (true, _) if g.st.exec[0] => g.st.get_reg32(r, 0)? & 0xffff_ffff,
-                    _ => return Err(format!("ret at {0}: divergent active lanes with lane 0 inactive not modelled", g.pc)),
+                    Some(a) => a,
                 };
                 let target = if ret_model == "buffer-pop2" { v - call_base() } else { v };
                 if target < 0 || target as usize >= code.len() || target % 2 != 0 {

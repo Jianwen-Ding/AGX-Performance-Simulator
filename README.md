@@ -127,19 +127,14 @@ Some findings link to experiments, notes and results that stayed in Apple-M2-Pla
 links resolve in that repository. Shader capture (`agx_capture.py`) also stays there.
 
 
-Uniform call/return probing (2026-10-17): `agx_run` can opt into the measured
-full-SIMD model with `AGX_EXPERIMENTAL_RET=buffer-pop2`. Direct calls write a
-buffer-relative byte link to r1; register calls use a uniform buffer-relative
-target and link to the next two-byte instruction. Return sets the active lanes'
-mask depth to 2, and the continuation must reconverge with `pop_exec r0l, 2`.
-Nested direct calls work with a software-saved link. Partial/divergent returns
-and indirect calls are rejected, as are targets outside the supplied program.
-Default execution continues to reject return and register-call instructions.
-The legacy value `AGX_EXPERIMENTAL_RET=1` is a contradicted hypothesis retained
-for offline comparison, not a hardware validation gate. Run the adjacent
-playground's `make verify-call-ret` for exact reconstruction/replay of the
-hardware recordings, recovered faults and negative scope checks. This models
-functional behavior only; call/return timing is not calibrated.
+Call/return probing: `agx_run` opts into the measured experimental model with
+`AGX_EXPERIMENTAL_RET=buffer-pop2`. Default execution still rejects return and
+register-call instructions; target bounds checks remain enabled. The legacy
+value `1` is a contradicted hypothesis for offline comparison. Measured scope,
+remaining stop discrepancies and validation of 386 original hardware cases are
+in the adjacent playground's [model integration report](../apple-documentation-playground/results/2026-10-20-control-simulator/README.md).
+Run its `make verify-control-model` and `make verify-call-ret` for exact replay;
+call/return timing remains uncalibrated.
 
 Threadgroup atomic ops 11–15 now reject explicitly even with an empty execution
 mask. Hardware probing found that issuing them stops the group; the old empty-mask
