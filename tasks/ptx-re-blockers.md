@@ -176,6 +176,11 @@ The consumers are:
 
 ## B4. Forward progress inside a SIMD group (NEW, safe with a bounded loop)
 
+- **Done 2026-10-20: never.** The `if` side of a divergent SIMD group runs to completion before the `else` side
+  (whatever the lane counts): spinners in the `if` side never saw a write from `else` lanes in 200,000 trips. Intra-warp
+  spins on the other branch deadlock; ZLUDA must rewrite them or report sm_6x semantics. Evidence: playground
+  `results/2026-10-20-b4-simd-forward-progress`.
+
 - **Needed for:** PTX on `sm_70+` assumes independent thread scheduling. Common CUDA code spins inside a warp, e.g. a
   per-lane lock where one lane holds the lock and another waits. On a SIMT stack machine the waiting lanes can starve
   the holder forever. The backend avoids this for its own wide-atomic emulation (the critical section is inside the
