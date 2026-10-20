@@ -31,6 +31,10 @@ pub struct Launch {
     pub tg_bytes: u32,
     pub tg_capacity: u32,
     pub cores: u32,
+    /// Optional measured peak workgroup count on one core. This controls the
+    /// representative core's waves; it does not prescribe workgroup identities,
+    /// simultaneous residency, active cores or a full placement map.
+    pub busiest_core_wgs_override: Option<u64>,
     pub clock_mhz: f64,
     pub launch_ns: f64,
     pub wg_launch_ns: f64,
@@ -56,6 +60,7 @@ impl Default for Launch {
             tg_bytes: 0,
             tg_capacity: 64 << 10,
             cores: 38,
+            busiest_core_wgs_override: None,
             clock_mhz: 1398.0,
             launch_ns: 5600.0,
             wg_launch_ns: 100.0,
@@ -100,6 +105,11 @@ impl Launch {
         if resident == 0 { return Err(format!("workgroup of {} SIMD groups exceeds the {}-group occupancy limit", gpw, cap)); }
         let dims: [u64; 3] = std::array::from_fn(|i| self.grid[i].div_ceil(self.wg[i]) as u64);
         let workgroups = dims.iter().try_fold(1u64, |n, &d| n.checked_mul(d)).ok_or("workgroup count exceeds u64")?;
+        if let Some(peak) = self.busiest_core_wgs_override {
+            if peak < workgroups.div_ceil(self.cores as u64) || peak > workgroups {
+                return Err("busiest_core_wgs must lie between ceil(workgroups / cores) and workgroups".into());
+            }
+        }
         Ok(Geometry { dims, workgroups, threads })
     }
 }
@@ -163,7 +173,8 @@ pub fn simulate_with(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer
     // all workgroups resident at once: static cluster split; otherwise cores take new workgroups as
     // they free slots, which balances the load (608 and 4096 workgroups: n / cores fits better)
     let m_static = busiest_core_wgs(n, l);
-    let m = if m_static <= r as u64 { m_static } else { n.div_ceil(cores) };
+    let estimated = if m_static <= r as u64 { m_static } else { n.div_ceil(cores) };
+    let m = l.busiest_core_wgs_override.unwrap_or(estimated);
     rep.busiest_core_wgs = m;
     let waves = m.div_ceil(r as u64).max(1);
     rep.waves = waves;
@@ -179,7 +190,18 @@ pub fn simulate_with(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer
         let mut warn = vec![];
         // (workgroup, group, slot) of every SIMD group; their traces are independent (emulated in parallel)
         let jobs: Vec<(u64, u32, u32)> = (0..count).flat_map(|i| (0..gpw).map(move |g| (i, g, i as u32 * gpw + g))).collect();
-        let wg_at = |i: u64| wg_coords((first + i).saturating_mul(cores).min(n - 1)); // representative workgroups spread over the grid
+        let wg_at = |i: u64| {
+            // A measured peak can exceed the balanced estimate. Spread its
+            // representative workgroups distinctly instead of clamping every
+            // extra group onto the final grid coordinate. This is a sample of
+            // workgroup paths, not reconstruction of the observed placement.
+            let k = if l.busiest_core_wgs_override.is_some() {
+                (((first + i) as u128 * n as u128) / m as u128) as u64
+            } else {
+                (first + i).saturating_mul(cores).min(n - 1)
+            };
+            wg_coords(k)
+        };
         let traced: Vec<Result<Trace, String>> = match tracer {
             Some(tr) => {
                 let wgs: Vec<u64> = (0..count).collect();
@@ -300,6 +322,51 @@ pub fn busiest_core_wgs(n: u64, l: &Launch) -> u64 {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn observed_peak_controls_partial_wave_and_launch_work() {
+        let p = Params::new().unwrap();
+        let l = Launch { grid: [131072, 1, 1], wg: [128, 1, 1], mem: false, ..Default::default() };
+        let base = simulate(&[0x88, 0], &l, &p).unwrap();
+        let measured = simulate(&[0x88, 0], &Launch { busiest_core_wgs_override: Some(33), ..l.clone() }, &p).unwrap();
+        assert_eq!((base.workgroups, base.busiest_core_wgs, base.wgs_per_core), (1024, 27, 13));
+        assert_eq!((measured.busiest_core_wgs, measured.waves), (33, 3));
+        assert_eq!(measured.simulated_waves.iter().map(|&(wave, count, _)| (wave, count)).collect::<Vec<_>>(), vec![(0, 13), (2, 7)]);
+        assert_eq!(measured.launch_core_ns, 3300.0);
+        assert!(measured.time_ns >= base.time_ns);
+        let same = simulate(&[0x88, 0], &Launch { busiest_core_wgs_override: Some(27), ..l }, &p).unwrap();
+        assert_eq!((same.time_ns, same.core_cycles, same.waves), (base.time_ns, base.core_cycles, base.waves));
+    }
+
+    #[test]
+    fn observed_peak_rejects_impossible_counts_before_tracing() {
+        let l = Launch { grid: [131072, 1, 1], wg: [128, 1, 1], ..Default::default() };
+        for count in [0, 26, 1025] {
+            let invalid = Launch { busiest_core_wgs_override: Some(count), ..l.clone() };
+            let error = simulate(&[], &invalid, &Params::new().unwrap()).unwrap_err();
+            assert!(error.contains("busiest_core_wgs"));
+        }
+        for count in [27, 33, 1024] {
+            Launch { busiest_core_wgs_override: Some(count), ..l.clone() }.validate().unwrap();
+        }
+    }
+
+    #[test]
+    fn observed_peak_samples_distinct_workgroups_across_waves() {
+        let l = Launch { grid: [131072, 1, 1], wg: [128, 1, 1], mem: false,
+            busiest_core_wgs_override: Some(33), ..Default::default() };
+        let seen = std::sync::Mutex::new(vec![]);
+        let tracer = |wg| {
+            seen.lock().unwrap().push(wg);
+            Ok(vec![Trace { pcs: vec![0], ..Default::default() }; 4])
+        };
+        let r = simulate_with(&[0x88, 0], &l, &Params::new().unwrap(), Some(&tracer)).unwrap();
+        let seen = seen.lock().unwrap();
+        assert_eq!(r.busiest_core_wgs, 33);
+        // The existing model samples the first and last waves: 13 + 7 groups.
+        assert_eq!(seen.len(), 20);
+        assert_eq!(seen.iter().collect::<std::collections::HashSet<_>>().len(), 20);
+        assert!(seen.iter().all(|w| w[0] < 1024 && w[1] == 0 && w[2] == 0));
+    }
     use super::*;
 
     #[test]

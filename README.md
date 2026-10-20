@@ -255,3 +255,22 @@ slopes remain 2.58–3.78x predictions across the tested lengths, without an
 isolated large jump identifying a cache threshold. The current shaders do not
 measure frequency or per-core assignment; the latter is the next check on the
 38-core launch assumption. No timing calibration changed.
+
+The [arithmetic core-distribution study](../apple-documentation-playground/novel-results/2026-10-20-integer-core-distribution/README.md)
+checks 28 trains / 1,608 recovered dispatches with zero faults: arithmetic and
+guards exact, SR19 allocation tags exact, and every SR20 placement tag valid
+and uniform within its workgroup. All 12 full-size SR20 maps contain all 38
+cores. The busiest core receives 28–33 cumulative workgroups, versus the
+default estimate of 27. This does not measure simultaneous residency.
+
+Append `--busiest-core-wgs N` to an otherwise complete `agx_dispatch` command
+to use a measured peak count (`Launch::busiest_core_wgs_override` in the API).
+The count must be between ceil(workgroups / cores) and workgroups; invalid
+counts fail before shader or mapped-buffer access. The output echoes
+`busiest_core_wgs_input`. This adjusts representative-core waves and launch
+work with distinct sampled workgroup paths. It does not reconstruct a full
+placement map, core-specific paths, memory traffic, concurrency or clock state.
+Using these measured peaks changes predictions by 0.35–17.35%, with a remaining
+2.76–3.06x residual for the corresponding final dispatches. All eight saved
+default predictions are unchanged. Three targeted `observed_peak` library
+tests and the playground's offline core-distribution verifier cover the input.

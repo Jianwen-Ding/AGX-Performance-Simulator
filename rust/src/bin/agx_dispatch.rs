@@ -2,6 +2,7 @@
 //!
 //! agx_dispatch code.bin --grid X[,Y,Z] [--wg x[,y,z]] [--regs HALVES] [--tg-bytes N] [--clock MHZ]
 //!              [--cores N] [--launch-us US] [--uniform IDX=VALUE ...] [--no-mem] [--max-waves N]
+//!              [--busiest-core-wgs N] (measured peak count; representative-core sensitivity only)
 //!              [--preamble PRE.bin] [--map VA=FILE ...] [--alloc VA=BYTES ...]
 //!
 //! code.bin is the main shader as submitted (e.g. the direct-DRM harness's control main with a body).
@@ -94,7 +95,7 @@ fn run_job(a: &[String], p: &Params) -> Result<serde_json::Value, String> {
     while i < a.len() {
         let option = a[i].as_str();
         if option == "--no-mem" { l.mem = false; i += 1; continue; }
-        if !["--grid", "--wg", "--regs", "--tg-bytes", "--clock", "--cores", "--launch-us", "--max-waves", "--uniform", "--preamble", "--map", "--alloc"].contains(&option) {
+        if !["--grid", "--wg", "--regs", "--tg-bytes", "--clock", "--cores", "--busiest-core-wgs", "--launch-us", "--max-waves", "--uniform", "--preamble", "--map", "--alloc"].contains(&option) {
             return Err(format!("unknown argument {}", option));
         }
         let v = a.get(i + 1).ok_or_else(|| format!("{} requires a value", option))?;
@@ -105,6 +106,7 @@ fn run_job(a: &[String], p: &Params) -> Result<serde_json::Value, String> {
             "--tg-bytes" => l.tg_bytes = number(v, option)?,
             "--clock" => l.clock_mhz = number(v, option)?,
             "--cores" => l.cores = number(v, option)?,
+            "--busiest-core-wgs" => l.busiest_core_wgs_override = Some(number(v, option)?),
             "--launch-us" => l.launch_ns = number::<f64>(v, option)? * 1000.0,
             "--max-waves" => l.max_waves = number(v, option)?,
             "--uniform" => {
@@ -153,13 +155,17 @@ fn run_job(a: &[String], p: &Params) -> Result<serde_json::Value, String> {
         prepared.as_ref().unwrap().trace_workgroup(&mem, wg)
     };
     let r = dispatch::simulate_with(&code, &l, p, if functional { Some(&tracer) } else { None })?;
-    Ok(serde_json::json!({
+    let mut output = serde_json::json!({
         "time_us": r.time_ns / 1000.0, "core_cycles": r.core_cycles, "clock_mhz": l.clock_mhz,
         "workgroups": r.workgroups, "groups_per_wg": r.groups_per_wg, "group_cap_per_core": r.group_cap_per_core,
         "wgs_per_core": r.wgs_per_core, "launch_core_us": r.launch_core_ns / 1000.0, "busiest_core_wgs": r.busiest_core_wgs, "waves": r.waves,
         "simulated_waves": r.simulated_waves, "launch_us": l.launch_ns / 1000.0, "warnings": r.warnings,
         "paths": if functional { "functional" } else { "cost-emulation" },
-    }))
+    });
+    if let Some(peak) = l.busiest_core_wgs_override {
+        output["busiest_core_wgs_input"] = serde_json::json!(peak);
+    }
+    Ok(output)
 }
 
 fn trim_padding(code: &mut Vec<u8>) {
