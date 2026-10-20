@@ -407,6 +407,41 @@ The consumers are:
   - whether the CDM global size words are thread counts that can exceed 2^31;
   - the per-dimension grid limits.
 
+## B23. A real CUDA runtime program on zluda_agx (NEW, safe after B2 step 2 passes)
+
+- **Why it matters:** CUDA applications do not call the driver API directly. libcudart's start-up runs first:
+  `cuGetProcAddress` for every function, `cuGetExportTable` for the private tables, fat-binary registration, then
+  `cudaMalloc` / `cudaMemcpy` / `<<<>>>`. zluda_agx implements those paths, but they cannot be exercised without
+  a real libcudart.
+- **Steps (on the Asahi machine; nvcc runs without an NVIDIA GPU):**
+  1. Install the CUDA toolkit for Linux aarch64 (SBSA), any 12.x.
+  2. Build a small runtime program with PTX embedded, e.g. cuda-samples `vectorAdd`, or this one:
+
+     ```sh
+     cat > t.cu <<'CU'
+     #include <cstdio>
+     __global__ void k(int *o, int n) { int i = blockIdx.x * blockDim.x + threadIdx.x; if (i < n) o[i] = i * 3; if (i == 5) printf("hello from %d\n", i); }
+     int main() { int *d, h[1000]; cudaMalloc(&d, sizeof h); k<<<4, 256>>>(d, 1000); cudaMemcpy(h, d, sizeof h, cudaMemcpyDeviceToHost);
+       int bad = 0; for (int i = 0; i < 1000; i++) bad += h[i] != i * 3; printf("%s %d bad\n", cudaGetErrorString(cudaGetLastError()), bad); }
+     CU
+     nvcc -gencode arch=compute_80,code=compute_80 t.cu -o t
+     ```
+
+  3. Run it against zluda_agx:
+
+     ```sh
+     mkdir -p lib && ln -sf $PWD/ZLUDA/target/release/libnvcuda_agx.so lib/libcuda.so.1
+     LD_LIBRARY_PATH=$PWD/lib ZLUDA_AGX_ZOC=/path/to/zoc ./t
+     ```
+
+     `zoc` needs the LLVM AGX build. Without it, record how far start-up gets.
+- **Deliverable:**
+  - the program's output;
+  - on failure, the last CUDA call that failed, with `ltrace -e 'cu*'` or `ZLUDA_AGX_LOG` if present;
+  - any driver function it needed that returned `CUDA_ERROR_NOT_SUPPORTED`.
+
+  Such a function goes to the zluda_agx backlog.
+
 ## B10. Memory ordering (COVERED by safe-10)
 
 The backend and ZLUDA lower PTX `fence.{cta,gpu,sys}`, `membar.*`, `ld.acquire`, `st.release`, `atom.*.acq_rel` from
