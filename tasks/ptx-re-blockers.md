@@ -341,6 +341,32 @@ The consumers are:
 
   `agx_runtime/src/error.rs` maps these to CUDA errors and is updated from the result.
 
+## B21. What an executed `trap` (0x0008) does (NEW, unsafe: may fault)
+
+- **Why it matters:**
+  - `llvm.trap`, PTX `trap` and CUDA `assert` compile to `trap`.
+  - CUDA requires the kernel to stop and the launch to fail (`CUDA_ERROR_ASSERT` / `CUDA_ERROR_LAUNCH_FAILED`).
+  - Mesa and the backend only use `trap` as padding after `stop`, so it is never executed in known code.
+  - 2026-10-11-opcode-descriptions pairs it with `stop` (0x88) but did not run it.
+- **What the runtime does meanwhile:**
+  - `__assertfail` writes its message to the printf buffer, sets a flag word, does a release fence and traps.
+  - The host reports the flag as `CUDA_ERROR_ASSERT` even if `trap` turns out to be harmless.
+- **Probe (one SIMD group first, then a full grid):**
+  1. Store a sentinel, then `trap`, then a second store.
+  2. Run it under three masks:
+     - every lane;
+     - odd lanes only, inside Mesa's `if`;
+     - one SIMD group of two workgroups.
+  3. Record for each mask:
+     - which stores land;
+     - whether other SIMD groups and workgroups keep running;
+     - the fence status of the command (B20);
+     - the kernel log;
+     - whether the next submission on the same queue still works.
+- **Deliverable:** `trap` is a no-op, ends the SIMD group like `stop` (with or without the exec mask), or faults the
+  command (with which errno). If it faults, also say whether it can be used for PTX `trap` without losing the
+  queue.
+
 ## B10. Memory ordering (COVERED by safe-10)
 
 The backend and ZLUDA lower PTX `fence.{cta,gpu,sys}`, `membar.*`, `ld.acquire`, `st.release`, `atom.*.acq_rel` from
