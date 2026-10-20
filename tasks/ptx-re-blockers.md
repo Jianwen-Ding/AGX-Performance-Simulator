@@ -218,6 +218,11 @@ The consumers are:
 
 ## B6. Longest single compute command before the firmware times out (NEW, unsafe at the limit)
 
+- **Done 2026-10-20:** no limit for a command that keeps executing: a single compute command ran **79.9 s** (loop
+  maximum) with the correct result, no timeout at any length from 0.44 s up. A deadlocked command (B26's barrier) is
+  ended after ~0.5 s with fence success and zero timestamps. `kernelExecTimeoutEnabled = 0`. `drm_compute.c`
+  `AGX_WAIT_MS`. Evidence: playground `results/2026-10-20-b6-command-duration`.
+
 - **Needed for:** CUDA compute kernels often run for seconds. The runtime must know whether long kernels are killed,
   and must report `kernelExecTimeoutEnabled`.
 - **Probe:**

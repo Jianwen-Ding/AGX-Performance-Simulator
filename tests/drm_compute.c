@@ -21,6 +21,7 @@
  *   AGX_WORD0_OR                      bits ORed into CDM launch word 0
  *   AGX_HELPER_DATA, AGX_HELPER_CFG   drm_asahi_helper_program data/cfg ("table" = table VA)
  *   AGX_HELPER_CODE, AGX_HELPER_OFF   helper program file at USC offset AGX_HELPER_OFF (default 0x4000); binary = offset | 1
+ *   AGX_WAIT_MS                       syncobj wait limit per submission in ms (default 3000)
  *   AGX_UNIFORM_HALVES                preload uniform halves 0..N-1 (u_k = 0xA0000000|k, u4..u9 as usual), Mesa's split
  *   AGX_SCRATCH_DWORDS                per-thread scratch dwords: Mesa-layout scratch buffer + header (helper.data) and
  *                                     the Registers word spill bucket; needs AGX_HELPER_CODE = Mesa's libagx_helper
@@ -390,7 +391,7 @@ int main(int argc, char **argv)
         uint64_t h0 = now_ns();
         io(DRM_IOCTL_ASAHI_SUBMIT, &sub, "submit");
         struct drm_syncobj_wait sw = {.handles = (uint64_t)(uintptr_t)&sc.handle, .count_handles = 1,
-                                      .timeout_nsec = (int64_t)(h0 + 3000000000ull)};
+                                      .timeout_nsec = (int64_t)(h0 + env("AGX_WAIT_MS", 3000) * 1000000ull)};   /* host wait limit */
         int r = ioctl(fd, DRM_IOCTL_SYNCOBJ_WAIT, &sw);
         uint64_t h1 = now_ns();
         io(DRM_IOCTL_ASAHI_GET_TIME, &t1, "get-time");
