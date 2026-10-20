@@ -609,6 +609,29 @@ probe with the atomic-variants harness (`scripts/probe_atomics.py` style, surrog
 - **Deliverable:** the result bits per input and mode. For each mode: does it saturate, what does NaN give, and
   does a negative input to an unsigned mode give 0?
 
+## B28. The threadgroup barrier when SIMD-groups have already ended (NEW, safe except where marked)
+
+- **Why it matters:** ZLUDA is adding PTX thread-block clusters (`.reqnctapercluster`, `%cluster_ctarank`, `mapa`,
+  `shared::cluster`, `barrier.cluster`) by running a cluster of C CTAs as one threadgroup of C x ntid threads, with
+  each CTA's shared memory in its own window of threadgroup memory. CTA barriers (`bar.sync`) and cluster barriers
+  then both become the threadgroup barrier. PTX lets one CTA of a cluster exit while the others still wait at
+  barriers (PTX-formalization `cluster-exit.ptx`; plain `bar.sync` after an early `ret` of whole warps is also
+  common in CUDA code). That is only safe if the hardware barrier stops waiting for SIMD-groups that executed
+  `stop`.
+- **Probes** (one threadgroup, a watchdog on every dispatch, `scripts/run_drm_occupancy.py` style):
+  1. 64 threads (2 SIMD-groups). SIMD-group 1 ends at once; SIMD-group 0 runs `threadgroup_barrier`, then
+     stores a sentinel. Does the dispatch complete with the sentinel written, or hang?
+  2. As 1, with SIMD-group 1 ending after one barrier and SIMD-group 0 running two.
+  3. 1024 threads (32 SIMD-groups), the odd SIMD-groups ending first. Same question.
+  4. Within one SIMD-group: half the lanes end (stop with a partial execution mask), the rest hit the barrier.
+     Does the barrier wait for the ended lanes?
+  5. **UNSAFE if 1-4 hang, run last:** what recovers the GPU after a hung barrier (the timeout path of
+     B13/safe-11)?
+- **Also record:** the largest threadgroup memory a single threadgroup can allocate on G14C (Mesa uses 32 KiB;
+  is more accepted?), which bounds C x per-CTA shared memory.
+- **Deliverable:** completes / hangs for 1-4. If the barrier waits for ended SIMD-groups, the compiler counts
+  arrivals in threadgroup memory instead for kernels that can exit early, and needs to know that.
+
 ## B10. Memory ordering (COVERED by safe-10)
 
 The backend and ZLUDA lower PTX `fence.{cta,gpu,sys}`, `membar.*`, `ld.acquire`, `st.release`, `atom.*.acq_rel` from
