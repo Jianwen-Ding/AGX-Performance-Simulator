@@ -490,6 +490,11 @@ The consumers are:
     CU
     ```
 
+  - Level 1 and 2 (zluda_blas_agx, `agx_libs/kernels/blas.mlir`): with the same handle, also run
+    `cublasSdot`, `cublasSnrm2` (on values near 1e25, whose squares overflow f32), `cublasIsamax` (on a vector
+    whose maximum appears twice: the first index must win), and `cublasSgemv` with `CUBLAS_OP_N` and
+    `CUBLAS_OP_T` on a 1000 x 300 matrix, against a host loop. Run each in host and in device pointer mode.
+    Report any difference above 1e-5 relative, and the time of a 2^24-element `cublasSdot`.
   - Deliverable: the three lines, which should all read `status=0 bad=0`. The values are small integers, so the
     sums are exact. Also report the time of a 2048 x 2048 SGEMM if you can (cudaEvent around the call).
 - **Then cuBLASLt and cuDNN**, through `zluda_blaslt_agx` (`libcublasLt.so.12`) and `zluda_dnn_agx`
