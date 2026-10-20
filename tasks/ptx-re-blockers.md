@@ -738,6 +738,16 @@ Consumed as is:
 - priority has no effect;
 - the in-shader clock skew and cost (`clock()`, `clock64()`, `%globaltimer`).
 
+## T1. `agx_cost`: uniform values from the command line (tooling request, no hardware needed)
+
+- **Why it matters:** `agx_cost` runs a kernel with every uniform register zero. A kernel guarded by `tid < n`, with
+  `n` a uniform, takes `jmp_exec_none` past its body. Its estimate is then the guard alone: since f50bd88 that
+  is 41.2 cycles for llvm/utils/agx-bench `saxpy`, of which 34 are the taken jump. The trace engine already
+  accepts uniforms (`ctx.uniforms` in `cost.rs`), but the CLI cannot set them.
+- **Request:** `agx_cost code.bin --uniform U=V` (repeatable, 32-bit value into uniform pair U), and optionally
+  `--threads N` for the active lanes. agx-bench would then pass the kernel arguments it knows (`n = 32` etc.) and
+  measure the bodies of `saxpy`, `stencil` and `histogram`.
+
 ## Reporting
 
 - Put the evidence in the playground as the other safe tasks do.
