@@ -872,6 +872,10 @@ Consumed as is:
 
 ## B33. Alignment of 64- and 128-bit threadgroup and device accesses (NEW, safe)
 
+- **Done 2026-10-20:** i32 `xy` / `xyzw` device and threadgroup loads and stores at byte offsets 0/4/8/12 mod 16 all
+  match the byte-address model (32/32 lanes each), also across 64-byte lines and 4 KiB pages. 4-byte alignment is
+  enough; enable the vectorizer. Evidence: playground `results/2026-10-20-b33-vector-alignment`.
+
 - **Why it matters:** PTX's scalar `ld.shared.f32` / `ld.global.f32` promise 4-byte alignment only. LLVM's
   load/store vectorizer can merge neighbouring 32-bit accesses into one `xy` (or `xyzw`) access, but only if the
   backend knows such an access is legal at that alignment. In the CUDA samples matrixMul, each thread reads a 16-float
