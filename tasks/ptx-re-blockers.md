@@ -442,6 +442,29 @@ The consumers are:
 
   Such a function goes to the zluda_agx backlog.
 
+## B24. Device-atomic and barrier corners the compiler and the Sail model refuse until measured (NEW, safe)
+
+PTX-formalization's Sail AGX model (sail/agx, updated 2026-10-20) and the LLVM AGX backend now use the measured
+G14C atomic forms. They stop with an error, or avoid the encoding, for these unmeasured corners. Each is a small
+probe with the atomic-variants harness (`scripts/probe_atomics.py` style, surrogate gate first).
+
+1. **`red.add.f32`:** op 1 + bit 45 with Rt = 0 (no result).
+   - Does it add like the Rt = 1 form (same rounding, flushing and contention behaviour)?
+   - The backend keeps a result register for float adds until this is answered. Integer atomics already drop
+     theirs, as Mesa does.
+2. **`umin64` / `umax64` changed flag:** with Rt = 1, what is the flag when the source equals memory, 0 or 1?
+3. **`umin64` / `umax64` operands:**
+   - an address ≡ 4 mod 8 (odd 32-bit index);
+   - contention from 1024 lanes on one word (is the final value the true minimum?);
+   - a GPR base instead of a uniform one.
+4. **Ops 11-15 with bits 45-46 other than Mesa's.** Still "end the SIMD group"?
+5. **`memory_barrier a, b, c` encodings other than the seven the backend emits** (f596 f533 f59a f59e f503 f599
+   f59d). Which are accepted, which are no-ops, and do any hang? Run one per dispatch.
+6. **The 31 six-byte low-`0b11` opcodes** with operand bytes other than those tested: still no-ops?
+7. **G13X:** do `sub` / `cmpxchg` with bit 45 behave differently there? Only if a G13X device is available.
+
+**Deliverable:** one line per item. The Sail model and the backend then enable or keep refusing each form.
+
 ## B10. Memory ordering (COVERED by safe-10)
 
 The backend and ZLUDA lower PTX `fence.{cta,gpu,sys}`, `membar.*`, `ld.acquire`, `st.release`, `atom.*.acq_rel` from
