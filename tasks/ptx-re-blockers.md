@@ -801,7 +801,10 @@ Consumed as is:
   backend then allows 4-byte-aligned vector accesses where the hardware does and enables the vectorizer.
 - **Safety:** ordinary loads and stores inside allocated buffers; see `safe-probes.md`.
 
-## T1. `agx_cost`: uniform values from the command line (tooling request, no hardware needed)
+## T1. `agx_cost`: uniform values from the command line (tooling request, no hardware needed; DONE in #7)
+
+- **Status 2026-10-20:** Jianwen-Ding/AGX-Performance-Simulator#7 adds `--uniform`, the launch geometry and
+  functional paths over mapped memory (`--map` / `--alloc`) to `agx_cost`. The request below is kept for the record.
 
 - **Why it matters:** `agx_cost` runs a kernel with every uniform register zero. A kernel guarded by `tid < n`, with
   `n` a uniform, takes `jmp_exec_none` past its body. Its estimate is then the guard alone: since f50bd88 that
