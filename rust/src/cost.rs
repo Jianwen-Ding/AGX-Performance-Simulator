@@ -1357,6 +1357,8 @@ struct SimInstr {
     mem_issue0: i64,
     mem_done: (i64, i64),
     is_jmp_any: bool,
+    is_jmp: bool,
+    size: usize,
     ctl_bump: bool,
     /// exec-mask instructions other than the loop's while/jmp_exec_any
     exec_stack: bool,
@@ -1575,6 +1577,11 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
     let w16 = tk(p.cal_f("rf_writeback16_real", RF_WRITEBACK16));
     let nc = p.cal.get("result_cache_entries").and_then(Value::as_u64).map(|x| x as usize).unwrap_or(RESULT_CACHE);
     let br = tk(p_branch);
+    // taken forward jumps (if-skip jmp_exec_none, out-of-line jmp_exec_any entries): the same latency as a taken loop
+    // branch, plus a scheduler hold that other groups cannot hide. Fitted 2026-10-20 to constant-condition probes at
+    // 131,072 lanes (apple-documentation-playground novel-results/2026-10-20-fp32-ieee): +7.7 cycles per group per jump.
+    let br_fwd_sched = tk(p.cal_f("branch_forward_sched_real", 33.0));
+    let br_fwd = tk(p.cal_f("branch_forward_taken_real", p_branch));
     let cl = tk(p.cal_f("control_latency", 2.0));
     let ci = tk(p.cal_f("control_issue_cycles", 1.0));
     let wait_idle = tk(p.wait_idle);
@@ -1699,6 +1706,8 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
             mem_issue0,
             mem_done,
             is_jmp_any: r.name == "jmp_exec_any",
+            is_jmp: r.name == "jmp_exec_any" || r.name == "jmp_exec_none",
+            size: r.size,
             exec_stack: matches!(r.name.as_str(), "if_icmp" | "if_fcmp" | "else_icmp" | "else_fcmp" | "pop_exec" | "push_exec" | "jmp_exec_none"),
             ctl_bump: r.src.iter().any(|&h| h != 0),
         });
@@ -2476,6 +2485,7 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
                 port[half] -= need;
             }
             let mut branch = 0i64;
+            let mut fwd_taken = false;
             let ii: i64;
             match r.kind {
                 Kind::Alu => {
@@ -2650,6 +2660,9 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
                     alu_done[gi] = alu_done[gi].max(t + cl);
                     if r.is_jmp_any && nxt[gi] + 1 < npcs[gi] && seqs_pcs[gi][nxt[gi] + 1] < r.pc {
                         branch = br;
+                    } else if r.is_jmp && nxt[gi] + 1 < npcs[gi] && seqs_pcs[gi][nxt[gi] + 1] > r.pc + r.size {
+                        branch = br_fwd; // taken forward jump (if-skip / out-of-line entry): measured 2026-10-20
+                        fwd_taken = true;
                     }
                 }
                 Kind::Barrier => {
@@ -2686,9 +2699,11 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
                 last_mem[gi] = r.dev_ctx;
             }
             let occ = t_.max(ii) + branch;
+            // a taken forward jump also holds its scheduler (throughput, not hidden by other groups; 2026-10-20 probes)
+            let fwd_hold = if fwd_taken { br_fwd_sched } else { 0 };
             if r.barrier == 0 {
                 mask_stale = true;
-                sched_free[sch] = t + if r.kind == Kind::Alu && !r.reduce {
+                sched_free[sch] = t + fwd_hold + if r.kind == Kind::Alu && !r.reduce {
                     t_.max(ii)
                 } else if r.exec_stack && g > 1 {
                     ctl_sched // if/else/push/pop/jmp_exec_none hold their scheduler (divergence dispatches)
