@@ -347,6 +347,11 @@ The consumers are:
 
 ## B16. The 0x78 barrier: what it orders (PARTLY MEASURED)
 
+- **Done 2026-10-20:** 0x78 orders threadgroup and device memory within its 4-group block with no fence
+  (`novel-results/2026-10-20-barrier-bits`); it completes for 64- and 96-thread workgroups, when reached from two code
+  addresses, and under a partial mask. Lower `agx.block_barrier` to 0x78 alone. Evidence: playground
+  `results/2026-10-20-b16-block-barrier`.
+
 - **Known:** playground `barrier-0x68-vs-0x78`. 0x78 synchronizes the aligned 4-SIMD-group (128-thread) block only,
   costs 2.9 ns versus 9.3 ns for 0x68, and releases about 7 cycles after the last arrival versus about 13.
 - **Open:**
