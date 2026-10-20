@@ -459,6 +459,10 @@ The consumers are:
 
 ## B22. Launch limits a CUDA runtime reports (NEW, safe at Metal's limits, unsafe beyond)
 
+- **Done 2026-10-20:** workgroups of 1,024 threads along x, y or z run; 2,048 runs nothing (fence ok, invalid
+  timestamps). Global sizes are 32-bit thread counts: 2^31 and 2^32 - 32 threads along x counted exactly; y and z take
+  65,536+ workgroups (4,194,304 tested). Evidence: playground `results/2026-10-20-b22-launch-limits`.
+
 - **Why it matters:** `cuDeviceGetAttribute` must report:
   - `MAX_THREADS_PER_BLOCK`;
   - `MAX_BLOCK_DIM_X/Y/Z`;
