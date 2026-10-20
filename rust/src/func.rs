@@ -1228,11 +1228,9 @@ fn device_mem(g: &mut Group, args: &DeviceMem, mem: &mut Memory, load: bool) -> 
             if load {
                 let v = mem.read(va, item as usize)?;
                 let v = if norm_format(fmt) { norm_load(fmt, v, rt) } else { v as i128 };
-                if slot != 0 {
-                    deferred.push((rt, r, k, t, v));
-                } else {
-                    put(&mut g.st, rt, r, k, t, v)?;
-                }
+                // every load, in either scoreboard slot, lands at the `wait` on its slot: on the M2 Max a register
+                // read after `wait 1` still sees the old value of a slot-0 load (playground results/2026-10-20-b34-stack-and-waits)
+                deferred.push((rt, r, k, t, v));
             } else {
                 let v = get(&g.st, rt, r, k, t)?;
                 let v = if norm_format(fmt) { norm_store(fmt, v, rt) } else { v as u64 };

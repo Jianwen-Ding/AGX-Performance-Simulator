@@ -904,6 +904,11 @@ Consumed as is:
 
 ## B34. Stack (scratch) load / store cost and the scoreboard wait groups (NEW, safe once B1 works)
 
+- **Done 2026-10-20:** two scoreboard groups (one encoding bit); `wait N` waits for group N only and a register read
+  before its wait returns the old value (simulator fixed to match). Dependent `stack_load`+wait ~33 ns = an L1-hit
+  device load; 16 independent stack loads ~3 ns each behind one wait; `stack_store` ~2 ns. Evidence: playground
+  `results/2026-10-20-b34-stack-and-waits`.
+
 - **Why it matters:** cuBLAS's `agx_sgemm_tile64` runs at the 128-GPR limit and spills, with 46 spill accesses per
   K-loop iteration. Costed with #7's functional path (one 64x64 tile, K = 256, 32 K steps: 123,937 cycles),
   every spill reload is a `stack_load` followed at once by `wait 0`. About a dozen such pairs in a row each stall
