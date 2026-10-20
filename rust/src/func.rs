@@ -803,13 +803,23 @@ fn step_group_impl<C: InstructionCells>(g: &mut Group, code: &[u8], cache: &C, m
                     return Err(format!("ret at {} targets {} outside the program (0..{})", g.pc, target, code.len()));
                 }
                 if ret_model == "buffer-pop2" {
+                    // G14C stale-execution probes (2026-10-20): ordinary r0
+                    // writes can decouple the counter and issuing mask. RET
+                    // updates counter 0/1 and their execution bits conditionally;
+                    // deeper counters retain even a stale active bit. Selection
+                    // and empty-issue fallthrough above still use issuing exec.
                     for t in 0..32 {
-                        if g.st.exec[t] {
-                            g.st.set_reg16(0, t, 2)?;
-                            g.st.exec[t] = false;
-                        } else if g.st.live[t] && g.st.get_reg16(0, t)? == 1 {
-                            g.st.set_reg16(0, t, 0)?;
-                            g.st.exec[t] = true;
+                        if !g.st.live[t] { continue; }
+                        match g.st.get_reg16(0, t)? {
+                            0 => {
+                                g.st.set_reg16(0, t, 2)?;
+                                g.st.exec[t] = false;
+                            }
+                            1 => {
+                                g.st.set_reg16(0, t, 0)?;
+                                g.st.exec[t] = true;
+                            }
+                            _ => {}
                         }
                     }
                 }

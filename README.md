@@ -164,3 +164,10 @@ The same liveness rules are now independently measured and implemented for
 Both interpreter paths pass the measured fixtures. See the adjacent
 [native shuffle integration](../apple-documentation-playground/results/2026-10-20-native-shuffle-model/README.md)
 for exact replay of 1,595 original control programs and 42 passing library tests.
+
+Ordinary r0 writes update counter storage without immediately changing execution.
+A dedicated pop synchronizes execution, including pop_exec 0. Nonempty RET
+conditionally changes counter 0 to masked 2 and counter 1 to active 0; deeper
+counters retain their current execution bits, even if stale after an ordinary
+write. See the adjacent [conditional RET integration](../apple-documentation-playground/results/2026-10-20-ret-stale-model/README.md)
+for 2,277 exact original control replays and 34 corrected counterexamples.
