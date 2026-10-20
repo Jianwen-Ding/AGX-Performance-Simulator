@@ -214,3 +214,12 @@ binds 54 original-program replays: default accepts 11 exact and explicitly
 refuses 43 unresolved programs; the opt-in preserves all 35 counterexamples.
 All 2,403 earlier exact control cases remain exact, 44 library tests pass,
 and both control suites pass with default and return-opt-in settings.
+
+An [ordinary integer-add timing follow-up](../apple-documentation-playground/novel-results/2026-10-20-integer-chain-cost/README.md)
+checks 83 straight-line programs, 249 exact recovered dispatches, on AC power.
+Interleaving 1/2/4/8 register chains does not remove the isolated-dispatch
+shortfall: incremental firmware-time slopes are about 3–3.7 times predictions.
+Actual short-dispatch operating frequency and warm-up remain unresolved, so
+this is a documented calibration question, not a justified global latency
+change. Complete distributions and model/source/parameter bindings are retained
+in the playground's `analysis.json`; consecutive repetitions are the next check.
