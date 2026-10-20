@@ -21,6 +21,7 @@ The consumers are:
 3. **B6 dispatch time limit**, **B8 code region**, **B9 kernel parameter space**, **B20 failed-job reporting**: limits
    and errors a runtime must report.
 4. B10–B13: already covered by existing tasks; the consumers wait on them.
+5. B29 native textures: CUDA textures already work in software, so this is a performance item.
 
 ## B1. Scratch / stack memory for direct-DRM dispatches (NEW, unsafe)
 
@@ -632,6 +633,41 @@ probe with the atomic-variants harness (`scripts/probe_atomics.py` style, surrog
 - **Deliverable:** completes / hangs for 1-4. If the barrier waits for ended SIMD-groups, the compiler counts
   arrivals in threadgroup memory instead for kernels that can exit early, and needs to know that.
 
+## B29. Native texture sampling against ZLUDA's software reference (NEW, safe through Mesa/Vulkan as in safe-05)
+
+- **Why it matters:** ZLUDA can move a texture mode from software to the native `texture_sample` / `texture_load` /
+  `image_write` path only where the hardware gives the result CUDA (and PTX-formalization's model) specifies.
+  safe-05 records the encodings. This item asks for the comparison and for the corners safe-05 does not cover.
+- **Reference:** `ptx/lib/zluda_ptx_impl_agx_tex.c` in Jianwen-Ding/ZLUDA, branch `claude/bold-davinci-46xi9q`. It
+  is plain C; build it on the host and call `__zluda_ptx_impl_agx_tex` with a descriptor (layout documented in
+  the file) to get the expected words for any probe.
+- **Probes** (Vulkan compute shaders as in safe-05; record the result bits, not just pass/fail):
+  1. **Linear filtering weights.** CUDA uses 9-bit fixed point (8 fractional bits, weights in steps of 1/256,
+     rounded to nearest). safe-05's `texfilter` probe found 10 sub-texel bits on G14. For x = i + 0.5 + k/1024
+     (k = 0..1023) over a 2-texel ramp (0.0, 1.0), print the result. Is there any sampler or descriptor state that
+     gives 8-bit weights? If not, ZLUDA keeps linear filtering in software (or accepts the difference behind a flag).
+  2. **Normalized integer reads.** u8 / s8 / u16 / s16 texels read as float: the exact result for every code
+     (exhaustive). Is it v / 255 rounded once, and is s8 -128 clamped to -1.0?
+  3. **Border.** CUDA's border address mode returns the border colour, and ZLUDA currently returns zeros. Which
+     border colours can the G14 sampler hold (transparent black / opaque black / opaque white only, or
+     arbitrary)? This decides whether `CUDA_TEXTURE_DESC.borderColor` can be honoured.
+  4. **Wrap and mirror with unnormalized coordinates.** CUDA clamps them; what does G14 do?
+  5. **Mip LOD.** For `textureGrad` with known gradients, which level and blend weight are chosen? ZLUDA uses
+     λ = ½·log2(max(|dPdx·size|², |dPdy·size|²)), clamped, with a 1/256 blend weight. Also: is the min/max LOD clamp
+     applied before or after the bias?
+  6. **Cubemaps.** The face and in-face coordinates for directions on the face boundaries (|x| = |y|, |x| = |z|,
+     signed zeros). Is there seam filtering across faces? ZLUDA clamps inside the face.
+  7. **Depth compare.** LEQUAL against the first channel, per texel before filtering (ZLUDA's reference)? Which
+     compare functions does the sampler take?
+  8. **Gather (`tld4`).** The order of the four returned texels, and which address mode applies.
+  9. **Pitch-linear images.** CUDA textures over pitched device memory (`CU_RESOURCE_TYPE_PITCH2D`): does the
+     G14 descriptor take a linear layout with an arbitrary row stride, and with what stride alignment? CUDA
+     guarantees 32-byte pitch alignment. Also: 1D linear textures larger than the maximum image width.
+  10. **Formatted surface stores** (`sust.p`): rounding of float → unorm / snorm and saturation of out-of-range
+      integers by `image_write`.
+- **Deliverable:** for each probe, the hardware result next to the reference's, and which descriptor and sampler
+  fields set the behaviour. ZLUDA then uses the native path for the modes that match and keeps software for the rest.
+
 ## B10. Memory ordering (COVERED by safe-10)
 
 The backend and ZLUDA lower PTX `fence.{cta,gpu,sys}`, `membar.*`, `ld.acquire`, `st.release`, `atom.*.acq_rel` from
@@ -653,10 +689,17 @@ please also record:
 - `fma` vs separate `fmul` + `fadd` rounding on the fused path;
 - the ULP error of the hardware `rcp` / `rsqrt` / `div` forms over the fp32 range.
 
-## B12. Textures and surfaces (COVERED by safe-05)
+## B12. Textures and surfaces (COVERED by safe-05; see B29 for what replaces the software path)
 
 Needed by PTX `tex` / `tld4` / `txq` / `suld` / `sust` and CUDA texture / surface objects. The consumers need the
 G14 texture and sampler descriptor layouts and the image memory layouts (linear and twiddled) that safe-05 records.
+
+Status (2026-10-20): ZLUDA now samples textures **in software** (ZLUDA `ptx/lib/zluda_ptx_impl_agx_tex.c`). The
+texture, sampler and surface objects are descriptors in PTX-formalization's encoding, which `cuTexObjectCreate` /
+`cuSurfObjectCreate` write. CUDA arrays are dense device allocations: levels one after another, each holding all
+layers. All PTX-formalization texture and surface tests pass on the simulator. The software path is slow: every
+texel fetch and filter step is integer code plus software fp64. So native sampling is the goal, and B29 lists what
+deciding it needs.
 
 ## B13. Occupancy, clocks, submission (COVERED by safe-04 / safe-11)
 
