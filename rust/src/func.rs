@@ -746,16 +746,20 @@ fn step_group_impl<C: InstructionCells>(g: &mut Group, code: &[u8], cache: &C, m
                     // nonmatching lanes, which then travel to the callee masked.
                     // Inactive lanes neither select the target nor receive r1.
                     let r = x("reg32") as usize;
-                    let first = g.st.exec.iter().position(|&active| active).unwrap();
-                    let value = g.st.get_reg32(r, first)?;
                     let link = call_base() + (g.pc + info.size) as i128;
                     for t in 0..32 {
                         if g.st.exec[t] {
-                            // Capture the operand before the implicit write:
-                            // call r1 must compare the original target value.
-                            let matches = g.st.get_reg32(r, t)? == value;
                             g.st.set_reg32(1, t, link)?;
-                            if !matches {
+                        }
+                    }
+                    // G14C call-r1 probes (2026-10-20): the implicit link is
+                    // visible to target selection and matching. call r1 falls
+                    // through with the original issue-active mask unchanged.
+                    let first = g.st.exec.iter().position(|&active| active).unwrap();
+                    let value = g.st.get_reg32(r, first)?;
+                    for t in 0..32 {
+                        if g.st.exec[t] {
+                            if g.st.get_reg32(r, t)? != value {
                                 g.st.set_reg16(0, t, 1)?;
                                 g.st.exec[t] = false;
                             }
