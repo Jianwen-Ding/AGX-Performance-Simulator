@@ -490,6 +490,27 @@ probe with the atomic-variants harness (`scripts/probe_atomics.py` style, surrog
 - **Deliverable:** the paths and units of each quantity that exists, and which need root. zluda_ml_agx then
   implements `nvmlDeviceGetUtilizationRates`, `GetClockInfo`, `GetTemperature` and `GetPowerUsage` from them.
 
+## B26. Threadgroup size versus register count, and the 256-half encoding (NEW, safe except where marked)
+
+- **Why it matters:** ZLUDA now reports `CU_FUNC_ATTRIBUTE_MAX_THREADS_PER_BLOCK` from the kernel's registers and
+  refuses larger launches with `CUDA_ERROR_LAUNCH_OUT_OF_RESOURCES`. The LLVM AGX backend spills to honour PTX
+  `.maxntid` / `.reqntid` / `.maxnreg` (function attributes `agx-max-threads-per-threadgroup`, `agx-max-gprs`).
+  Both use safe-11's measured per-core budget, min(96, 2 * floor(3328 / (2 * H))) SIMD-groups, with H rounded up to
+  8 halves. They also assume that **one threadgroup must fit in that budget**: 1024 threads at <= 104 halves, 384
+  threads at 256.
+- **Probes** (`scripts/run_drm_occupancy.py`, single threadgroup, a per-SIMD-group atomic counter plus a result
+  check):
+  1. 1024 threads at 104 halves: all 32 SIMD-groups run, and the result is correct. Safe: Mesa's table allows it.
+  2. 384 threads at 256 halves, launch Register count field = 0. Mesa's `__gen_to_groups` encodes 256 halves as 0
+     ("0 means all"), and Mesa ships it on M1/M2. This answers safe-11's "256 declared halves wraps" item. Confirm
+     that 0 means 256 halves: the kernel writes r127 of every thread to memory, and the values are correct.
+     zluda_agx and the backend rely on this.
+  3. **UNSAFE, optional, run last:** one 1024-thread threadgroup at 112 halves, one granule over budget. Does the
+     command fault, hang (watchdog), or run partially? The runtime never issues this, so it only decides how loudly
+     the docs warn.
+- **Deliverable:** pass or fail for 1 and 2, and the outcome of 3 if run. If 1 fails, report the real
+  per-threadgroup limit for each H.
+
 ## B10. Memory ordering (COVERED by safe-10)
 
 The backend and ZLUDA lower PTX `fence.{cta,gpu,sys}`, `membar.*`, `ld.acquire`, `st.release`, `atom.*.acq_rel` from
