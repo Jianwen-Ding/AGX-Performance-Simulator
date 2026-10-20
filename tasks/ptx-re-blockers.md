@@ -216,6 +216,27 @@ The consumers are:
   - the fastest way to read a parameter buffer instead (uniform load from memory).
 - **Deliverable:** the limit and the cost curve, so the backend can choose between uniforms and a parameter buffer.
 
+## B14. Hardware calls for non-inlined functions and recursion (DEPENDS ON unsafe-01)
+
+- **Needed for:**
+  - PTX `call` to non-inlined `.func`s and recursion;
+  - `brx.idx` and function pointers without the if-chain expansion;
+  - keeping very large kernels below code-size limits.
+
+  Today the LLVM AGX backend inlines every function, turns indirect calls into a test against each address-taken
+  function, and rejects recursion.
+- **Known:** unsafe-01 measured uniform, full-32-lane direct, register-indirect and software-saved-link nested calls.
+  Return targets are shader-buffer-relative and the continuation is `pop_exec r0l, 2`.
+- **Open (unsafe-01 items 2-6):** what code generation needs before it can emit calls:
+  - partial-mask and empty-mask calls;
+  - divergent register-call targets;
+  - divergent returns;
+  - nesting depth.
+
+  Calls also need a stack (B1) for saved links and spilled registers.
+- **Deliverable:** the call/return rules for divergent SIMD-groups and their cost, so the backend can emit calls
+  where they pay off.
+
 ## B10. Memory ordering (COVERED by safe-10)
 
 The backend and ZLUDA lower PTX `fence.{cta,gpu,sys}`, `membar.*`, `ld.acquire`, `st.release`, `atom.*.acq_rel` from
