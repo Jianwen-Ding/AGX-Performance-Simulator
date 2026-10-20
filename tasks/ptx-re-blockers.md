@@ -644,6 +644,12 @@ probe with the atomic-variants harness (`scripts/probe_atomics.py` style, surrog
 
 ## B27. Out-of-range and NaN float-to-integer `convert` (NEW, safe)
 
+- **Answered 2026-10-20 by existing hardware data** (playground `novel-results/2026-10-16-conversions`, 1.37 billion
+  inputs, simulator exact): every float-to-integer mode **saturates** (+-inf -> max/min, negative -> 0 for unsigned),
+  **NaN -> 0**, fp32 denormals read as 0, fp16 sources are full IEEE. 8/16-bit signed results are **zero-extended**
+  (sign-extend when the destination is wider). So `FP_TO_[SU]INT_SAT` can be legal for 32-bit results with no clamps;
+  16/8-bit ones need only the sign extension.
+
 - **Why it matters:** PTX's float-to-integer `cvt` saturates (NaN gives 0). The LLVM AGX backend cannot assume that
   `convert f_to_s32` / `f_to_u32` / `f_to_s16` / `f_to_u16` do, so ZLUDA now lowers every such conversion to
   `llvm.fpto[su]i.sat`. That costs two or three extra `fcmpsel` per conversion (the clamps against -2^31, 2^31 - 2^7,
