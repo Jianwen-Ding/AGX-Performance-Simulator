@@ -234,6 +234,11 @@ The consumers are:
 
 ## B8. Code region size, placement and replacement (NEW, safe)
 
+- **Done 2026-10-20:** 1,000 in-place rewrites of code and pipeline words at one USC offset: 0 wrong, 0 stale,
+  with or without the barrier/USC-invalidate word (which costs ~1.8 us). Shaders of 256 MiB and a code address
+  3 GiB into the USC range work. Ring reuse after completion is safe. Evidence: playground
+  `results/2026-10-20-b8-code-region`.
+
 - **Needed for:** module load / unload (`cuModuleLoad`, `cuModuleUnload`) and very large kernels (heavily unrolled
   application code).
 - **Open:**
