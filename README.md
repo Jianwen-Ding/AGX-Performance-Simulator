@@ -274,3 +274,19 @@ Using these measured peaks changes predictions by 0.35–17.35%, with a remainin
 2.76–3.06x residual for the corresponding final dispatches. All eight saved
 default predictions are unchanged. Three targeted `observed_peak` library
 tests and the playground's offline core-distribution verifier cover the input.
+
+The [workgroup-geometry study](../apple-documentation-playground/novel-results/2026-10-20-integer-geometry-cost/README.md)
+adds 160 trains / 9,600 recovered dispatches, with exact arithmetic/guards,
+valid tag planes, exact controls and zero faults. All 72 full-size SR20 maps
+preserve one cluster ID within each aligned eight-workgroup block at the
+tested 1-D sizes 32/64/128/256, including seven- and one-workgroup final blocks
+on neighboring grids. This is not a fixed-thread-count pattern or a complete
+scheduler model. Every map contains all 38 known core IDs.
+
+Measured-peak predictions still leave 2.67–3.42x final-dispatch residuals on
+the fixed-lane-count grid. A neighboring-grid cell has 2.23x trial variation
+despite the 1000 us delay, so that protocol is not a general timing guarantee.
+Current default and synthetic functional placement do not predict these
+observed schedules. Optional supplied-core-map replay is the next scoped
+implementation; it must preserve existing modes and distinguish historical
+model provenance from a newer replay model. No timing calibration changed.
