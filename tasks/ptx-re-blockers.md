@@ -65,7 +65,8 @@ The consumers are:
   - arbitrary uniform values (`--uniform N=VALUE`).
 
   The uniform convention is the one in `AGXUsage.rst`:
-  - each kernel argument is a 64-bit pointer in a uniform register pair, starting at `u0`;
+  - kernel arguments are packed from `u0` (a pointer is a uniform pair); the object's `.agx.kernels` section gives
+    each argument's position;
   - `threadgroups_per_grid` is at the `uN` the assembly comment names;
   - the global data buffer is at `uN_uN+1`.
 - **Probe:**
@@ -100,6 +101,19 @@ The consumers are:
   - **Report:** the PASS / FAIL lines and the JSON line of each run.
   - On a FAIL, compare the CDM and USC bytes with those `drm_compute.c` prints. `agx_runtime`'s layout differs in
     three places: code at USC offset 0x400 of its own object, uniforms from `u0`, and pipeline words at offset 0.
+- **Step 2 (after the three kernels pass): vectorAdd through the CUDA driver API.**
+  - `zluda_agx` on the same ZLUDA branch is `libnvcuda_agx.so`, the CUDA driver API on agx_runtime, with no ROCm.
+  - `agx_cuda_smoke` runs vectorAdd (n = 50000, 256 threads per block) as a CUDA program would: `cuModuleLoadData`,
+    `cuLaunchKernel` with `kernelParams`, events, `cuMemcpyDtoH`.
+  - `tasks/ptx-hw-smoke/cuda/vectoradd_g14c.o` is zoc's output for `vectoradd.ptx`, so no LLVM is needed:
+
+    ```sh
+    cargo build --release -p zluda_agx
+    target/release/agx_cuda_smoke /path/to/AGX-Performance-Simulator/tasks/ptx-hw-smoke/cuda/vectoradd_g14c.o
+    ```
+
+  - **Report:** its JSON line. `"wrong":0` is a pass, and `kernel_ms` is the firmware time between the events.
+  - On an error, the CUDA error name says which call failed.
 - **New open questions found while writing the runner** (they matter for every CUDA launch):
   - **B2a** Does the CDM global size have to be a multiple of the local size, or does the hardware run partial
     workgroups? CUDA grids are always whole blocks, but Mesa may rely on partial ones. The runner rejects
