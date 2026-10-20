@@ -294,8 +294,29 @@ pub fn fetch_texel(
     Some(v)
 }
 
-/// Bilinear sample at normalized (u, v) with sampler wrap modes; the unorm path uses the
-/// measured 12-bit rounding, other formats filter in float32.
+/// Hardware filter weight: the sub-texel fraction rounded half-up to 1/256 (measured 2026-10-20,
+/// 4096/4096 sweep points in x and 1024/1024 in z; weights 0..=256/256).
+pub fn filter_weight(frac: f64) -> f64 {
+    (frac * 256.0 + 0.5).floor() / 256.0
+}
+
+/// Round to the nearest binary16 value (ties to even, subnormals kept) and return it as f32.
+pub fn round_f16(x: f64) -> f32 {
+    if x == 0.0 || !x.is_finite() {
+        return x as f32;
+    }
+    let e = (x.abs().log2().floor() as i32).max(-14);
+    let q = 2f64.powi(e - 10);
+    let n = x / q;
+    let r = n.round();
+    let r = if (n - n.trunc()).abs() == 0.5 { 2.0 * (n / 2.0).round() } else { r };
+    (r * q) as f32
+}
+
+/// Bilinear sample at normalized (u, v) with sampler wrap modes. Weights are quantized by
+/// `filter_weight`; the unorm8 path uses the measured 12-bit rounding, half-float textures round
+/// the result to binary16 (measured 3813/3840, others 1 ulp), other formats return the
+/// float32-rounded exact blend (r32f: 3835/3840, others 1 ulp).
 pub fn sample_linear(
     desc: &TexDesc,
     samp: &SampDesc,
@@ -310,8 +331,8 @@ pub fn sample_linear(
     let y = v as f64 * h - 0.5;
     let x0 = x.floor() as i32;
     let y0 = y.floor() as i32;
-    let fx = x - x0 as f64;
-    let fy = y - y0 as f64;
+    let fx = filter_weight(x - x0 as f64);
+    let fy = filter_weight(y - y0 as f64);
     let wx = samp.wrap[0];
     let wy = samp.wrap[1];
     let t = |dx: i32, dy: i32| -> Result<[f32; 4], String> {
@@ -329,7 +350,7 @@ pub fn sample_linear(
     let c01 = t(0, 1)?;
     let c11 = t(1, 1)?;
     // unorm8 path: exact measured rule (12-bit grid, half-up on 1/16 steps)
-    if desc.channels == 0x28 && desc.type_ == 0 && !desc.srgb {
+    if (desc.channels == 0x28 || desc.channels == 0x00) && desc.type_ == 0 && !desc.srgb {
         let ch = |c: [f32; 4], i: usize| (c[i] * 255.0).round() as u8;
         let mut out = [0.0f32; 4];
         for i in 0..4 {
@@ -340,8 +361,9 @@ pub fn sample_linear(
     let mut out = [0.0f32; 4];
     for i in 0..4 {
         let exact = (c00[i] as f64 * (1.0 - fx) + c10[i] as f64 * fx) * (1.0 - fy)
-            + (c01[i] as f64 * (1.0 - fx) + c11[i] as f64 * fy) * fy;
-        out[i] = exact as f32;
+            + (c01[i] as f64 * (1.0 - fx) + c11[i] as f64 * fx) * fy;
+        let half = desc.type_ == 4 && matches!(desc.channels, 0x09 | 0x23 | 0x32);
+        out[i] = if half { round_f16(exact) } else { exact as f32 };
     }
     Ok(out)
 }
@@ -429,6 +451,17 @@ mod tests {
         assert_eq!(f(0), (92.125f64 * 16.0 / 4080.0) as f32);
         assert_eq!(f(1), f(0));
         assert_eq!(f(2), (92.0625f64 * 16.0 / 4080.0) as f32);
+    }
+
+    #[test]
+    fn filter_weights_measured() {
+        // weight_sweep_r32f: x = 4.5 + k/4096 reads weight floor(k/16 + 0.5)/256; first step at k = 8
+        assert_eq!(filter_weight(7.0 / 4096.0), 0.0);
+        assert_eq!(filter_weight(8.0 / 4096.0), 1.0 / 256.0);
+        assert_eq!(filter_weight(4088.0 / 4096.0), 1.0);
+        assert_eq!(round_f16(1.0 + 1.0 / 2048.0), 1.0); // tie to even
+        assert_eq!(round_f16(1.0 + 3.0 / 2048.0), 1.0 + 2.0 / 1024.0);
+        assert_eq!(round_f16(-0.21636962890625), -0.21630859375); // exact tie, even mantissa
     }
 
     #[test]
