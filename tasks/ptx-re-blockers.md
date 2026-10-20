@@ -372,6 +372,8 @@ The consumers are:
   - `DRM_ASAHI_FEATURE_SOFT_FAULTS` makes shader loads from unmapped memory return 0 and drops stores, so an
     out-of-bounds access may not fault at all.
   - The simulator's harnesses detect hangs with the syncobj wait timeout only.
+- **Step 1 done 2026-10-20:** `features` = 1, so soft faults are **on** on this M2 Max (playground
+  `results/2026-10-20-b25-gpu-telemetry/params.json`). Out-of-bounds loads return 0 and stores are dropped.
 - **Probe (one at a time; keep the AGX_CLEAN_EXIT recovery ready):**
   1. Read the soft-fault bit from `DRM_ASAHI_GET_PARAMS` (`features`) on the M2 Max.
   2. A store to an unbound VA far from every mapping, e.g. 2^39. Record the fence status (sync-file status), dmesg,
@@ -579,6 +581,10 @@ probe with the atomic-variants harness (`scripts/probe_atomics.py` style, surrog
 **Deliverable:** one line per item. The Sail model and the backend then enable or keep refusing each form.
 
 ## B25. GPU telemetry Asahi exposes to userspace (NEW, safe, read-only)
+
+- **Done 2026-10-20:** only `max_frequency_khz` (1,398,000) and in-process busy time (1 GHz command timestamps)
+  are available without root. No current clock, GPU temperature, GPU power rail or runtime-PM counters; Heatpipe
+  Power (uW, `macsmc_hwmon`) is the closest SoC proxy. Evidence: playground `results/2026-10-20-b25-gpu-telemetry`.
 
 - **Why it matters:** NVML users (monitoring tools, PyTorch's `torch.cuda.utilization`, schedulers) query
   utilisation, clocks, temperature and power. ZLUDA's `zluda_ml_agx` returns `NOT_SUPPORTED` for all of them
