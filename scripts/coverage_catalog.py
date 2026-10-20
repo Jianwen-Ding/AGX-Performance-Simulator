@@ -310,8 +310,20 @@ def lane_cases():
     return out
 
 
-def lane_case(t, finding, masked):
-    area = 'fmadd_lane_masked' if masked else 'fmadd_lane'
+def lane_b18_cases():
+    """ptx-re-blockers B18: the remaining forms agx.fma_lane_shift may emit. Every k = 1..15 at the default 16-lane width
+    (both widths), 4-lane segments (bit 73) with k = 1..3 and 2-lane segments (bit 72) with k = 1 for fmadd16 and fmadd32,
+    and partial masks for the k not yet masked. Areas fmadd_lane_b18 and fmadd_lane_b18_masked."""
+    have = {(w, k) for w in (32, 16) for k in (0, 1, 2, 4, 8, 15, 16)}
+    forms = [(w, k, 0, False) for w in (32, 16) for k in range(1, 16) if (w, k) not in have]
+    forms += [(w, k, 1 << 9, False) for w in (32, 16) for k in (1, 2, 3) if not (w == 16 and k == 1)]
+    forms += [(32, 1, 1 << 8, False)]
+    forms += [(w, k, 0, True) for w in (32, 16) for k in (3, 5, 7, 15)]
+    return [lane_case(lane_text(w, k, g), 'fmadd-lane-offset', m, 'fmadd_lane_b18_masked' if m else 'fmadd_lane_b18') for w, k, g, m in forms]
+
+
+def lane_case(t, finding, masked, area=None):
+    area = area or ('fmadd_lane_masked' if masked else 'fmadd_lane')
 
     def build(t=t, masked=masked, area=area):
         RS = _rs()
@@ -764,7 +776,7 @@ def build_catalog():
     for n in range(256):
         for geom in (GEOMETRIES_DRM if n in _sr_known() else GEOMETRIES_DRM[:1]):
             cases.append(sr_case(n, geom))
-    cases += control_cases() + barrier_cases() + atomic_cases() + tg_format_cases() + undecoded_cases() + lane_cases() + b52_cases()
+    cases += control_cases() + barrier_cases() + atomic_cases() + tg_format_cases() + undecoded_cases() + lane_cases() + lane_b18_cases() + b52_cases()
     cases += timing_cases(alu)
     return cases
 

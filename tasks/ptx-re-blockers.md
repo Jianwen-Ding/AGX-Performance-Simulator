@@ -378,6 +378,10 @@ The consumers are:
 
 ## B18. Lane-offset fmadd as a compiler target (FOLLOWS safe-07)
 
+- **In progress 2026-10-20:** the 34 missing forms are in the coverage catalog (areas `fmadd_lane_b18`,
+  `fmadd_lane_b18_masked`: every k = 1..15, 4-/2-lane segments for both widths, more partial masks) and validate offline;
+  **not yet recorded on the GPU** (`coverage.py record --area fmadd_lane_b18,fmadd_lane_b18_masked`). Cost not measured.
+
 - **Known:** fmadd32/fmadd16 bit 53 gives `shuffle_up(a, k) * b + c` within 16-lane halves (bits 72/73 select
   segments of 2 or 4). The cross-half read is timing-dependent, and bit 52 is a `pow()` fixup.
 - **Needed:** recorded coverage cases for the exact forms `agx.fma_lane_shift` will emit:
