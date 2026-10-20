@@ -226,6 +226,16 @@ The consumers are:
 - **Probe:**
   - Run shader A, overwrite the same VA with shader B (different constant), submit again, and read back.
   - Repeat with a fresh VA as the control.
+- **Now load-bearing for every launch:** since ZLUDA 4ee63f1, `agx_runtime` stages each launch's pipeline words in a
+  256 KiB ring in the USC heap, and its uniforms and CDM stream in a 4 MiB data ring. So the same addresses carry
+  different contents as soon as an older command has finished. Mesa recycles its pools similarly, but nothing
+  measured confirms that it is safe.
+  - **Extra probe:** alternate two kernels with different pipeline words (different uniform counts and code
+    offsets) 1,000 times on one queue, with the ring shrunk to 2 KiB (`USC_RING_BYTES`) so that every slot is
+    reused within a few launches.
+  - **Check:** each output matches its own kernel.
+  - **If not:** say which flag or ordering makes the reuse safe. The fallback is per-launch buffer objects, the
+    code before 4ee63f1.
 - **Deliverable:** the limits, and the rule a runtime must follow when reusing code memory.
 
 ## B9. Kernel parameter space and uniform limits (PARTLY COVERED by safe-09)
