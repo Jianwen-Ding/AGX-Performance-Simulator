@@ -398,6 +398,47 @@ mod tests {
     }
 
     #[test]
+    fn relative_shuffle_liveness_in_both_executors() {
+        for kind in ["down", "up", "xor", "rotate_up"] {
+            let code = e(&format!("simd_shuffle_{} r5, r14, r15l", kind));
+            let (d, n, _) = decode_one(&code).unwrap();
+            let fields = d.decode_fields(n);
+            let ops = d.fields_to_operands(&fields).unwrap();
+            // Offset 1 selects stopped even lanes. With offset 2, living odd
+            // targets must be read despite stopped lanes retaining low bit 1.
+            for offset in [1, 2] {
+                for compiled in [false, true] {
+                    let mut st = exec::CoreState::new(32, None);
+                    for t in 0..32 {
+                        st.live[t] = t % 2 == 1;
+                        st.exec[t] = st.live[t];
+                        st.set_reg32(14, t, t as i128).unwrap();
+                        st.set_reg32(15, t, if st.live[t] { offset } else { 1 }).unwrap();
+                        st.set_reg32(5, t, 0xcdcdcdcd).unwrap();
+                    }
+                    if compiled {
+                        compiled::Compiled::new(d, &fields, &ops, st.reg16s.len()).exec(&mut st).unwrap();
+                    } else {
+                        exec::exec(d, &fields, &ops, &mut st).unwrap();
+                    }
+                    for t in 0..32 {
+                        let target = match kind {
+                            "down" => t as i128 + offset,
+                            "up" => t as i128 - offset,
+                            "xor" => t as i128 ^ offset,
+                            _ => (t as i128 - offset).rem_euclid(32),
+                        };
+                        let want = if t % 2 == 0 { 0xcdcdcdcd } else if offset == 1 || !(0..32).contains(&target) {
+                            t as i128
+                        } else { target };
+                        assert_eq!(st.get_reg32(5, t).unwrap(), want, "{} offset {} compiled {} lane {}", kind, offset, compiled, t);
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
     fn round_trips() {
         for t in [
             "iadd r5, r5, r24", "isub r5, r5, r24", "iadd r5, r5, r24, lsl 2", "imadd r5, r5, r25, r24",

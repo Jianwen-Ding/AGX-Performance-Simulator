@@ -885,16 +885,17 @@ impl Compiled {
                 let mut av = [0i128; SIMD_WIDTH];
                 let mut bv = [0i128; SIMD_WIDTH];
                 for t in 0..SIMD_WIDTH {
-                    av[t] = a.get(st, t)?;
+                    if st.live[t] { av[t] = a.get(st, t)?; }
                 }
                 for t in 0..SIMD_WIDTH {
-                    bv[t] = b.get(st, t)?;
+                    if st.live[t] { bv[t] = b.get(st, t)?; }
                 }
                 let mut quads = [[0i128; 4]; 8];
+                let mut quad_live = [[false; 4]; 8];
                 for (qn, qs) in (0..SIMD_WIDTH).step_by(4).enumerate() {
                     let mut q = 0i128;
                     for t in qs..qs + 4 {
-                        q |= bv[t] & 3;
+                        if st.live[t] { q |= bv[t] & 3; }
                     }
                     let q = q as usize;
                     for i in 0..4 {
@@ -904,6 +905,7 @@ impl Compiled {
                             _ => (i as isize - q as isize).rem_euclid(4) as usize,
                         };
                         quads[qn][i] = av[qs + lane];
+                        quad_live[qn][i] = st.live[qs + lane];
                     }
                 }
                 for t in 0..SIMD_WIDTH {
@@ -912,16 +914,17 @@ impl Compiled {
                     }
                     let index = bv[t];
                     let ti = t as i128;
+                    let read = |qn: usize| if quad_live[qn][t & 3] { quads[qn][t & 3] } else { av[t] };
                     let r = match op {
                         Sh::Down => {
-                            if index + ti < 32 { quads[((index + ti) >> 2) as usize][t & 3] } else { av[t] }
+                            if index + ti < 32 { read(((index + ti) >> 2) as usize) } else { av[t] }
                         }
                         Sh::Up => {
-                            if ti - index >= 0 { quads[((ti - index) >> 2) as usize][t & 3] } else { av[t] }
+                            if ti - index >= 0 { read(((ti - index) >> 2) as usize) } else { av[t] }
                         }
-                        Sh::RotateUp => quads[((ti - index).rem_euclid(32) >> 2) as usize][t & 3],
+                        Sh::RotateUp => read(((ti - index).rem_euclid(32) >> 2) as usize),
                         Sh::Xor => {
-                            if (ti ^ index) < 32 { quads[(((ti ^ index) & 31) >> 2) as usize][t & 3] } else { av[t] }
+                            if (ti ^ index) < 32 { read((((ti ^ index) & 31) >> 2) as usize) } else { av[t] }
                         }
                     };
                     d.set(st, t, r)?;

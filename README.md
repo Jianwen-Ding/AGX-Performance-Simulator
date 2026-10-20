@@ -157,3 +157,10 @@ lane's own source value. Both interpreter paths are checked. The adjacent
 playground's [shuffle liveness report](../apple-documentation-playground/results/2026-10-20-shuffle-liveness-model/README.md)
 binds exact replay of 1,115 original hardware programs, retaining the original
 275 counterexamples. Other native shuffle forms remain separate follow-ups.
+
+The same liveness rules are now independently measured and implemented for
+`simd_shuffle_down`, `simd_shuffle_up`, `simd_shuffle_xor` and
+`simd_shuffle_rotate_up`, preserving their quad-low and boundary behavior.
+Both interpreter paths pass the measured fixtures. See the adjacent
+[native shuffle integration](../apple-documentation-playground/results/2026-10-20-native-shuffle-model/README.md)
+for exact replay of 1,595 original control programs and 42 passing library tests.

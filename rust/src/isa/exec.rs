@@ -582,16 +582,17 @@ pub fn exec(d: &Desc, f: &Fields, ops: &[Operand], st: &mut CoreState) -> R<()> 
             let mut av = [0i128; SIMD_WIDTH];
             let mut bv = [0i128; SIMD_WIDTH];
             for t in 0..SIMD_WIDTH {
-                av[t] = c.eval("A", st, t)?;
+                if st.live[t] { av[t] = c.eval("A", st, t)?; }
             }
             for t in 0..SIMD_WIDTH {
-                bv[t] = c.eval("B", st, t)?;
+                if st.live[t] { bv[t] = c.eval("B", st, t)?; }
             }
-            let mut quads = vec![];
-            for qs in (0..SIMD_WIDTH).step_by(4) {
+            let mut quads = [[0i128; 4]; 8];
+            let mut quad_live = [[false; 4]; 8];
+            for (qn, qs) in (0..SIMD_WIDTH).step_by(4).enumerate() {
                 let mut q = 0i128;
                 for t in qs..qs + 4 {
-                    q |= bv[t] & 3;
+                    if st.live[t] { q |= bv[t] & 3; }
                 }
                 let q = q as usize;
                 let lane = |i: usize| match d.ex {
@@ -599,7 +600,10 @@ pub fn exec(d: &Desc, f: &Fields, ops: &[Operand], st: &mut CoreState) -> R<()> 
                     Ex::SimdShuffleXor => (i ^ q) & 3,
                     _ => (i as isize - q as isize).rem_euclid(4) as usize,
                 };
-                quads.push([av[qs + lane(0)], av[qs + lane(1)], av[qs + lane(2)], av[qs + lane(3)]]);
+                for i in 0..4 {
+                    quads[qn][i] = av[qs + lane(i)];
+                    quad_live[qn][i] = st.live[qs + lane(i)];
+                }
             }
             for t in 0..SIMD_WIDTH {
                 if !st.exec[t] {
@@ -607,16 +611,17 @@ pub fn exec(d: &Desc, f: &Fields, ops: &[Operand], st: &mut CoreState) -> R<()> 
                 }
                 let index = bv[t];
                 let ti = t as i128;
+                let read = |qn: usize| if quad_live[qn][t & 3] { quads[qn][t & 3] } else { av[t] };
                 let r = match d.ex {
                     Ex::SimdShuffleDown => {
-                        if index + ti < 32 { quads[((index + ti) >> 2) as usize][t & 3] } else { av[t] }
+                        if index + ti < 32 { read(((index + ti) >> 2) as usize) } else { av[t] }
                     }
                     Ex::SimdShuffleUp => {
-                        if ti - index >= 0 { quads[((ti - index) >> 2) as usize][t & 3] } else { av[t] }
+                        if ti - index >= 0 { read(((ti - index) >> 2) as usize) } else { av[t] }
                     }
-                    Ex::SimdShuffleRotateUp => quads[((ti - index).rem_euclid(32) >> 2) as usize][t & 3],
+                    Ex::SimdShuffleRotateUp => read(((ti - index).rem_euclid(32) >> 2) as usize),
                     _ => {
-                        if (ti ^ index) < 32 { quads[(((ti ^ index) & 31) >> 2) as usize][t & 3] } else { av[t] }
+                        if (ti ^ index) < 32 { read((((ti ^ index) & 31) >> 2) as usize) } else { av[t] }
                     }
                 };
                 c.set("D", st, t, r)?;
