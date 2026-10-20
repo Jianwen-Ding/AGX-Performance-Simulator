@@ -157,6 +157,10 @@ The consumers are:
     else keeps the lock table.
   - **Still open:** the float add's rounding and NaN/denormal behaviour under contention, beyond RNE/FTZ. Also whether
     u64 min/max has a returning form.
+  - **NaN payload (from the Sail PTX difftest, 2026-10-20):** `atom.global.add.f32` with a NaN operand of payload
+    0x7fffffff returns/stores 0x7fc00000 in the simulator; PTX (and the Sail model) keep the payload. Please record
+    the stored word for memory = 1.0 and operand = 0x7fffffff, 0x7f800001, 0xffc00001, and for memory = 0x7fffffff,
+    operand = 1.0. If the hardware canonicalizes, ZLUDA documents it; if not, the simulator needs fixing.
 
 ## B4. Forward progress inside a SIMD group (NEW, safe with a bounded loop)
 
@@ -706,7 +710,12 @@ The open safe-01 items (setp / min non-ftz fix-ups) decide which emulation can b
 please also record:
 - `fneg` / `fabs` of a NaN and a denormal (payload kept? sign only?);
 - `fma` vs separate `fmul` + `fadd` rounding on the fused path;
-- the ULP error of the hardware `rcp` / `rsqrt` / `div` forms over the fp32 range.
+- the ULP error of the hardware `rcp` / `rsqrt` / `div` forms over the fp32 range;
+- `fcmpsel lt` and `fcmpsel eq` on denormal operands under the default flushing mode: is -0x007fffff < +0x00400000,
+  and does each compare equal to 0.0? The generic `minimumnum` expansion picks its operand with `lt` and then fixes
+  up signed zeros by bit pattern. If the compares flush, `min.ftz.f32(-0x007fffff, +0x00400000)` gives +0 where PTX
+  gives -0 (Sail PTX difftest `gen-float-3` k22). The answer decides whether the backend flushes min/max operands
+  first.
 
 ## B12. Textures and surfaces (COVERED by safe-05; see B29 for what replaces the software path)
 
