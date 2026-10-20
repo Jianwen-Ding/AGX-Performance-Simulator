@@ -18,7 +18,8 @@ The consumers are:
 1. **B1 scratch / stack** and **B2 a generic hardware runner**. Without them no real CUDA kernel can run.
 2. **B3 64-bit atomics**, **B4 intra-SIMD-group forward progress**, **B5 cross-workgroup co-residency**,
    **B7 CPU → GPU visibility**: correctness of common CUDA idioms.
-3. **B6 dispatch time limit**, **B8 code region**, **B9 kernel parameter space**: limits a runtime must report.
+3. **B6 dispatch time limit**, **B8 code region**, **B9 kernel parameter space**, **B20 failed-job reporting**: limits
+   and errors a runtime must report.
 4. B10–B13: already covered by existing tasks; the consumers wait on them.
 
 ## B1. Scratch / stack memory for direct-DRM dispatches (NEW, unsafe)
@@ -310,6 +311,31 @@ The consumers are:
 - **Deliverable:** which operations bit 45 changes on a two-die part.
   - If it changes them, the coherency bit needs another field, and both Mesa and the backend need a fix.
   - If no M2 Ultra is available, record that, and the backend will treat G14D atomics as unverified.
+
+## B20. How a failed compute job is reported, and what survives it (NEW, unsafe: needs one fault)
+
+- **Why it matters:**
+  - CUDA must return `CUDA_ERROR_ILLEGAL_ADDRESS` / `CUDA_ERROR_LAUNCH_FAILED` instead of wrong results.
+  - The uAPI has no result buffer for compute commands. ZLUDA's `agx_runtime` therefore exports the out-syncobj as a
+    sync file after the wait and reads its status (`SYNC_IOC_FILE_INFO`, negative errno = failed job).
+  - Which errno each case gives, and whether a later submit on the same queue or VM still works, are unknown.
+- **Known:**
+  - `DRM_ASAHI_FEATURE_SOFT_FAULTS` makes shader loads from unmapped memory return 0 and drops stores, so an
+    out-of-bounds access may not fault at all.
+  - The simulator's harnesses detect hangs with the syncobj wait timeout only.
+- **Probe (one at a time; keep the AGX_CLEAN_EXIT recovery ready):**
+  1. Read the soft-fault bit from `DRM_ASAHI_GET_PARAMS` (`features`) on the M2 Max.
+  2. A store to an unbound VA far from every mapping, e.g. 2^39. Record the fence status (sync-file status), dmesg,
+     and the read-back of a sentinel buffer written by an earlier thread.
+  3. Two instruction faults: an illegal opcode and a jump outside the USC heap.
+  4. After each one: submit the vadd smoke kernel on the same queue, a new queue in the same VM, and a new VM.
+     Record which still succeed.
+- **Deliverable:**
+  - the fence errno per case (fault, illegal instruction, firmware timeout from B6);
+  - whether faults are soft on Asahi's M2 Max configuration;
+  - which objects must be recreated after a failure (queue, VM, file descriptor).
+
+  `agx_runtime/src/error.rs` maps these to CUDA errors and is updated from the result.
 
 ## B10. Memory ordering (COVERED by safe-10)
 
