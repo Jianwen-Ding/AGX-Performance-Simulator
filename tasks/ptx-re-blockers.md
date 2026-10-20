@@ -495,6 +495,11 @@ The consumers are:
     whose maximum appears twice: the first index must win), and `cublasSgemv` with `CUBLAS_OP_N` and
     `CUBLAS_OP_T` on a 1000 x 300 matrix, against a host loop. Run each in host and in device pointer mode.
     Report any difference above 1e-5 relative, and the time of a 2^24-element `cublasSdot`.
+  - Level 3 beyond GEMM: `cublasStrsm` (all side / fill / transpose combinations on a 256 x 256 well-conditioned
+    triangle, then check op(A) X against alpha B), `cublasSsyrk`, `cublasSsymm`, `cublasStrmm` in place (C = B),
+    `cublasSgeam` and `cublasSgemmBatched` with 16 pointer triples (`torch.bmm` uses the strided form instead; a
+    small C program is the simplest check). Also report the time of `cublasStrsm` at 1024 x 1024: it solves one
+    column per thread, so this measures how far it is from a blocked solver.
   - Deliverable: the three lines, which should all read `status=0 bad=0`. The values are small integers, so the
     sums are exact. Also report the time of a 2048 x 2048 SGEMM if you can (cudaEvent around the call).
 - **Then cuBLASLt and cuDNN**, through `zluda_blaslt_agx` (`libcublasLt.so.12`) and `zluda_dnn_agx`
