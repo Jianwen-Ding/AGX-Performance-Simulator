@@ -459,6 +459,10 @@ The consumers are:
     `"unified_wrong"`.
   - Report the kernel version (`uname -r`) and page size (`getconf PAGESIZE`).
   - If `unified` is false, report `strace -e trace=mmap ./agx_cuda_smoke 2>&1 | head` for the failing `mmap`.
+  - Run it once without an argument too, with `zoc` (`cargo build --release -p compiler --no-default-features
+    --features agx`) next to it: it then links two PTX modules with `cuLinkCreate` / `cuLinkAddData` /
+    `cuLinkComplete` and runs the linked kernel. Report `"link_ok"` (true expected; the same kernels pass on
+    `agx_run`).
 - **Also run cuBLAS SGEMM** through ZLUDA's `zluda_blas_agx`:
   - Build it with `ZLUDA_LLVM_BUILD_DIR=... cargo build --release -p zluda_blas_agx`.
   - Link `target/release/libcublas_agx.so` as `lib/libcublas.so.12`, next to the `libcuda.so.1` link.
