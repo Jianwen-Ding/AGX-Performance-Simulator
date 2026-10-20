@@ -367,6 +367,25 @@ The consumers are:
   command (with which errno). If it faults, also say whether it can be used for PTX `trap` without losing the
   queue.
 
+## B22. Launch limits a CUDA runtime reports (NEW, safe at Metal's limits, unsafe beyond)
+
+- **Why it matters:** `cuDeviceGetAttribute` must report:
+  - `MAX_THREADS_PER_BLOCK`;
+  - `MAX_BLOCK_DIM_X/Y/Z`;
+  - `MAX_GRID_DIM_X/Y/Z`.
+
+  `agx_runtime` reports Metal's limits for now: 1024 threads per threadgroup, [1024, 1024, 64], and 2^32 − 1 threads
+  per grid dimension.
+- **Probe with the B2 runner:**
+  - local sizes 1024, 1024x1 and 1x1024, then (only if those pass) 2048;
+  - global sizes of 2^31 and 2^32 − 32 threads along x, with a kernel that counts its threadgroups with an atomic;
+  - for y and z, 65535 and 65536 threadgroups.
+- **Deliverable:**
+  - the largest accepted local size per dimension and in total, and what happens beyond it (rejected by the
+    kernel, fault, or silent wrap);
+  - whether the CDM global size words are thread counts that can exceed 2^31;
+  - the per-dimension grid limits.
+
 ## B10. Memory ordering (COVERED by safe-10)
 
 The backend and ZLUDA lower PTX `fence.{cta,gpu,sys}`, `membar.*`, `ld.acquire`, `st.release`, `atom.*.acq_rel` from
