@@ -668,9 +668,20 @@ fn call_base() -> i128 {
     std::env::var("AGX_CALL_BASE").ok().and_then(|v| i128::from_str_radix(v.trim_start_matches("0x"), if v.starts_with("0x") { 16 } else { 10 }).ok()).unwrap_or(0x2000)
 }
 
+/// In Mesa ISA mode (`isa::mesa`), fails on an instruction Mesa's compiler would not emit.
+pub(crate) fn mesa_check(code: &[u8], pc: usize, size: usize, name: &str) -> Result<(), String> {
+    match isa::mesa::mode() {
+        Some(g) => isa::mesa::check(&code[pc..pc + size], g)
+            .map(|_| ())
+            .map_err(|e| format!("{} at {} is not an instruction Mesa emits for {:?} (--mesa-isa): {}", name, pc, g, e)),
+        None => Ok(()),
+    }
+}
+
 fn decode_at(code: &[u8], pc: usize, nregs: usize) -> Result<Info, String> {
     if pc % 2 != 0 { return Err(format!("unaligned instruction address {}", pc)); }
     if is_barrier78(code, pc) {
+        mesa_check(code, pc, 2, "barrier_4groups")?;
         return Ok(Info { desc: None, size: 2, fields: vec![], op: None, vals: vec![], kind: OpKind::Nop, access: None });
     }
     let n0 = isa::opcode_to_number(&code[pc..code.len().min(pc + 16)]);
@@ -679,6 +690,7 @@ fn decode_at(code: &[u8], pc: usize, nregs: usize) -> Result<Info, String> {
     if size > code.len() - pc {
         return Err(format!("truncated {} at {}: needs {} bytes, has {}", desc.name, pc, size, code.len() - pc));
     }
+    mesa_check(code, pc, size, desc.name)?;
     let n = desc.mask_instr(n0);
     let fields = desc.decode_fields(n);
     let ops = if desc.name == "stop" || desc.name == "trap" { vec![] } else { desc.fields_to_operands(&fields)? };

@@ -6,6 +6,8 @@ pub mod compiled;
 pub mod desc;
 pub mod exec;
 pub mod fma;
+pub mod mesa;
+mod mesa_table;
 pub mod operand;
 pub mod table;
 

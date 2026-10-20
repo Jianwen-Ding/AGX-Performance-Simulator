@@ -447,6 +447,7 @@ pub fn decode(code: &[u8], p: &Params) -> Result<Vec<Instr>, String> {
     let mut pc = 0;
     while pc < code.len() {
         if is_barrier78(code, pc) {
+            crate::func::mesa_check(code, pc, 2, "barrier_4groups")?;
             out.push(Instr {
                 pc, size: 2, name: "barrier_4groups".into(), text: "0x78 barrier (aligned 4 SIMD groups)".into(), dst: vec![], src: vec![],
                 reads32: 0, src32: vec![], unit: None, kind: Kind::Barrier, unmeasured: false, slot: 0, cache: false, uniform_src: false, fence: None,
@@ -458,6 +459,9 @@ pub fn decode(code: &[u8], p: &Params) -> Result<Vec<Instr>, String> {
         let n0 = isa::opcode_to_number(&code[pc..code.len().min(pc + 16)]);
         let d = isa::get_instruction_descriptor(n0).ok_or_else(|| format!("undecodable instruction at {}", pc))?;
         let size = d.decode_size(n0);
+        if pc + size <= code.len() {
+            crate::func::mesa_check(code, pc, size, d.name)?;
+        }
         let n = if size >= 16 { n0 } else { n0 & ((1u128 << (8 * size)) - 1) };
         let ops = d.decode_operands(n)?;
         let mut name = d.name.to_string();

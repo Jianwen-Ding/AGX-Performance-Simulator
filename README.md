@@ -124,6 +124,16 @@ dispatch over arbitrary memory, including a driver preamble that fills the unifo
 `--preamble` / `--map` / `--alloc` options. With them, the SIMD groups' paths come from the functional simulator over
 that memory instead of the cost model's emulation, which is needed for driver-compiled code and data-dependent loops.
 
+Mesa ISA mode: `agx_run`, `agx_dispatch` and `agx_cost` take `--mesa-isa GPU` (`g13`, `g13x`, `g14`, `g14d`, or an LLVM
+processor such as `agx-g14c`; `AGX_MESA_ISA=GPU` does the same for every tool). The functional simulator then fails on
+the first executed instruction that Mesa's asahi compiler would not emit for that GPU, and the cost model on any
+instruction of the program, naming the closest Mesa form and the field that differs. M1 (G13) code runs in this mode
+with the G14 semantics and cost model, as everywhere else in the simulator; the two generations differ in Mesa's output
+only in bit 45 of device atomics (set for multi-cluster G13, `g13x`, and two-die parts, `g14d`). The forms are generated
+by `llvm/utils/agx-mesa-isa/mesa_isa.py` in the LLVM AGX fork into `rust/src/isa/mesa_table.rs`;
+`rust/src/isa/mesa_corpus.txt` holds instructions packed by Mesa's own `agx_pack.c`, which the tests check are accepted.
+The LLVM backend's `mesa-isa` feature emits only these forms.
+
 `agx_run --m2-core-map FILE` optionally replays supplied SR20 identities. Append
 it to a complete command with the normal uniforms and memory mappings. FILE
 is a JSON array with one packed M2 Max core ID per workgroup, x varying fastest,
