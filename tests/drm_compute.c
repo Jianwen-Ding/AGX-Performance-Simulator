@@ -21,6 +21,7 @@
  *   AGX_WORD0_OR                      bits ORed into CDM launch word 0
  *   AGX_HELPER_DATA, AGX_HELPER_CFG   drm_asahi_helper_program data/cfg ("table" = table VA)
  *   AGX_HELPER_CODE, AGX_HELPER_OFF   helper program file at USC offset AGX_HELPER_OFF (default 0x4000); binary = offset | 1
+ *   AGX_TRAIN[_BATCH,_BARRIER]        N launches without waiting, k commands per SUBMIT, barrier single|none|free
  *   AGX_WAIT_MS                       syncobj wait limit per submission in ms (default 3000)
  *   AGX_UNIFORM_HALVES                preload uniform halves 0..N-1 (u_k = 0xA0000000|k, u4..u9 as usual), Mesa's split
  *   AGX_SCRATCH_DWORDS                per-thread scratch dwords: Mesa-layout scratch buffer + header (helper.data) and
@@ -367,6 +368,62 @@ int main(int argc, char **argv)
         atomic_store(&clock_run, 1);
         require(pthread_create(&clock_tid, NULL, clock_thread, NULL) == 0, "cpu-clock-thread");
         while (clock_words[0] == 0) ;   /* running before the first submit */
+    }
+    /* AGX_TRAIN=N: N launches of the same command without waiting in between, AGX_TRAIN_BATCH commands per SUBMIT
+       (1..64), AGX_TRAIN_BARRIER = single (every command waits for the previous ones: cdm_barrier 0 on the first of a
+       submit, i within it), none (first of a submit 0, the rest DRM_ASAHI_BARRIER_NONE) or free (all NONE). One
+       timestamp slot per command; one wait for the last submit. Prints per-submit ioctl time and the command gaps. */
+    const uint32_t train = (uint32_t)env("AGX_TRAIN", 0);
+    if (train) {
+        const uint32_t batch = (uint32_t)env("AGX_TRAIN_BATCH", 1);
+        const char *bm = getenv("AGX_TRAIN_BARRIER"); if (!bm || !*bm) bm = "single";
+        require(train <= 1000 && batch >= 1 && batch <= 64, "train");
+        for (uint32_t j = 0; j < words; j++) out[j] = j < words - 16 ? 0xcdcdcdcdu : 0xa5a50000u + j - (words - 16);
+        memset(tsb.map, 0, 16 * 1000 > page ? page : 16 * 1000);
+        struct tcmd { struct drm_asahi_cmd_header h; struct drm_asahi_cmd_compute c; };
+        static struct tcmd cmds[64];
+        uint64_t ioctl_ns = 0, h0 = now_ns();
+        uint32_t submits = 0;
+        for (uint32_t k0 = 0; k0 < train; k0 += batch) {
+            uint32_t nb = train - k0 < batch ? train - k0 : batch;
+            for (uint32_t i = 0; i < nb; i++) {
+                uint32_t slot = 16 * (k0 + i);
+                uint16_t bar = !strcmp(bm, "free") ? DRM_ASAHI_BARRIER_NONE : i == 0 ? 0 : !strcmp(bm, "single") ? (uint16_t)i : DRM_ASAHI_BARRIER_NONE;
+                cmds[i] = (struct tcmd){
+                    .h = {.cmd_type = DRM_ASAHI_CMD_COMPUTE, .size = sizeof(struct drm_asahi_cmd_compute),
+                          .vdm_barrier = DRM_ASAHI_BARRIER_NONE, .cdm_barrier = bar},
+                    .c = {.cdm_ctrl_stream_base = cdm_va, .cdm_ctrl_stream_end = cdm_end,
+                          .ts = {.start = {.handle = bo_ts.object_handle, .offset = slot},
+                                 .end = {.handle = bo_ts.object_handle, .offset = slot + 8}}}};
+            }
+            int last = k0 + nb >= train;
+            struct drm_asahi_sync out_sync = {.sync_type = DRM_ASAHI_SYNC_SYNCOBJ, .handle = sc.handle};
+            struct drm_asahi_submit sub = {.syncs = last ? (uint64_t)(uintptr_t)&out_sync : 0, .cmdbuf = (uint64_t)(uintptr_t)cmds,
+                                           .queue_id = qc.queue_id, .out_sync_count = last ? 1 : 0,
+                                           .cmdbuf_size = (uint32_t)(nb * sizeof(struct tcmd))};
+            uint64_t a = now_ns();
+            io(DRM_IOCTL_ASAHI_SUBMIT, &sub, "submit");
+            ioctl_ns += now_ns() - a; submits++;
+        }
+        struct drm_syncobj_wait sw = {.handles = (uint64_t)(uintptr_t)&sc.handle, .count_handles = 1,
+                                      .timeout_nsec = (int64_t)(now_ns() + env("AGX_WAIT_MS", 3000) * 1000000ull)};
+        int r = ioctl(fd, DRM_IOCTL_SYNCOBJ_WAIT, &sw);
+        uint64_t h1 = now_ns();
+        uint64_t first = UINT64_MAX, lastend = 0, gapsum = 0, gapmax = 0; uint32_t zero = 0, overlaps = 0;
+        for (uint32_t k = 0; k < train; k++) {
+            uint64_t t[2]; memcpy(t, tsb.map + 16 * k, 16);
+            if (!t[0] || !t[1]) { zero++; continue; }
+            if (t[0] < first) first = t[0];
+            if (t[1] > lastend) lastend = t[1];
+            if (k) { uint64_t p[2]; memcpy(p, tsb.map + 16 * (k - 1), 16);
+                     if (p[1] && t[0] < p[1]) overlaps++; else if (p[1]) { uint64_t g = t[0] - p[1]; gapsum += g; if (g > gapmax) gapmax = g; } }
+        }
+        printf("{\"train\":%u,\"batch\":%u,\"barrier\":\"%s\",\"submits\":%u,\"wait\":%d,\"host_ns\":%" PRIu64 ",\"ioctl_ns_per_submit\":%" PRIu64
+               ",\"fw_span_ns\":%" PRIu64 ",\"gap_mean_ns\":%" PRIu64 ",\"gap_max_ns\":%" PRIu64 ",\"overlapping\":%u,\"unstamped\":%u}\n",
+               train, batch, bm, submits, r, h1 - h0, ioctl_ns / submits, lastend > first ? lastend - first : 0,
+               train > 1 + overlaps + zero ? gapsum / (train - 1 - overlaps - zero) : 0, gapmax, overlaps, zero);
+        require(r == 0, "syncobj-wait");
+        reps = 0;
     }
     for (unsigned long rep = 0; rep < reps; rep++) {
         for (uint32_t j = 0; j < words; j++) out[j] = j < words - 16 ? 0xcdcdcdcdu : 0xa5a50000u + j - (words - 16);

@@ -855,6 +855,12 @@ Consumed as is:
 
 ## B32. Asynchronous submit cost: one command per SUBMIT against batches (NEW, safe)
 
+- **Done 2026-10-20:** ~20-27 us host cost per command either way (a 64-command SUBMIT takes ~1-1.8 ms in the
+  kernel); batching cuts the firmware gap (2.6-11 vs 16-22 us) but saves at most ~20% per launch. 1,000 launches of a
+  non-atomic counter on one queue are exact with every barrier policy including all-NONE: commands never overlap and
+  see each other's writes. Keep one SUBMIT per launch. `drm_compute.c` `AGX_TRAIN*`. Evidence: playground
+  `results/2026-10-20-b32-submit-batching`.
+
 - **Why it matters:** zluda_agx submits one compute command per `cuLaunchKernel` (`agx_runtime` `Queue::submit_compute`,
   `cdm_barrier = 0`, a timeline point per command), without waiting. `2026-10-16-commands-per-submit` showed 64
   commands in one SUBMIT finishing in 0.55 ms, against ~7 ms as 64 *synchronous* submits. What a back-to-back
