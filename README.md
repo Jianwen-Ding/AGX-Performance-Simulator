@@ -142,7 +142,8 @@ traces accept maps through `PreparedDispatch::with_m2_core_map` or
 immutable map; each requested workgroup still traces independently from fresh
 registers and a snapshot of supplied memory. Decode metadata is shared, while
 core-dependent values and loaded addresses are resolved per trace.
-`agx_dispatch` does not yet accept complete maps. The
+`agx_dispatch --m2-core-map FILE` now evaluates complete maps through a
+separate exhaustive path (described below). The
 [replay verification](../apple-documentation-playground/novel-results/2026-10-20-observed-core-map-replay/README.md)
 matches 80 complete retained hardware buffers literally, preserves 64 default
 cases against the archived model and independent oracles, and passes three
@@ -152,6 +153,31 @@ arithmetic regression suites also pass; no hardware was submitted. The
 checks all 80 maps against independent lane-address oracles across two memory
 snapshots, reordered/duplicate requests and four CPU tracing workers. Five
 targeted core-map tests now pass. This does not replay concurrent execution.
+
+`agx_dispatch --m2-core-map FILE` uses functional memory mappings/uniforms and
+validates the map before reading shaders/preambles or allocating mapped buffers.
+It requires the 38-core M2 Max profile, rejects `--busiest-core-wgs` and an
+explicit `--max-waves`, and simulates every supplied workgroup in every core's
+partition. `mapped_dispatch::simulate` is the library equivalent. Per-core
+linear workgroup order and occupancy-sized waves are assumptions; no waves are
+extrapolated. The JSON contains `cores` with each partition and wave, actual
+`active_cores`, `critical_core`, `global_device_segments`, `waves_exhaustive`
+and the wave, slot, memory and cache assumptions. The top-level cycle/wave
+fields describe the critical core; `busiest_core_wgs` is the maximum count
+across all cores and can belong to another core.
+
+The device footprint uses all isolated traces. `Trace::device_segments`
+preserves complete atomic byte ranges, including crossing/unaligned 32/64-bit
+accesses, separately from the legacy `Trace::mem` cost inputs. Sharing uses different actual core partitions.
+Texture/image/stack and texture/sampler-descriptor memory traces remain incomplete: those shaders report
+`device_footprint_complete: false` and do not assume SLC residency. Cache state
+restarts per modeled wave. Per-core completion times are combined by their
+maximum plus fixed dispatch overhead; inter-core overlap, slots and frequency
+are not supplied by the map. This is a cost estimate under declared assumptions,
+not a reconstruction of concurrent hardware execution. The
+[cost verification](../apple-documentation-playground/novel-results/2026-10-20-observed-core-map-cost/README.md)
+checks all retained maps, independent partitions/footprints, and unchanged
+legacy default/scalar-peak predictions. No timing parameters were fitted.
 
 Some findings link to experiments, notes and results that stayed in Apple-M2-Playground; those
 links resolve in that repository. Shader capture (`agx_capture.py`) also stays there.
@@ -318,5 +344,6 @@ the fixed-lane-count grid. A neighboring-grid cell has 2.23x trial variation
 despite the 1000 us delay, so that protocol is not a general timing guarantee.
 Current default and synthetic functional placement do not predict these
 observed schedules. Optional supplied-core-map replay is now implemented for
-functional execution and prepared tracing, preserving existing modes and distinguishing historical
+functional execution, prepared tracing and explicit exhaustive cost partitions,
+preserving existing modes and distinguishing historical
 model provenance from the newer replay model. No timing calibration changed.

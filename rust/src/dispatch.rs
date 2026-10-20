@@ -46,7 +46,8 @@ pub struct Launch {
     /// effective DRAM bandwidth of a whole dispatch (GB/s): 360 fits the streaming and reduction dispatches;
     /// steady per-core streaming (mem_probes) reaches ~410
     pub dram_gbps: f64,
-    /// simulate at most this many distinct waves (first, last); others are extrapolated
+    /// Representative-core path only: simulate at most this many distinct waves
+    /// (first, last); others are extrapolated. The supplied-map path is exhaustive.
     pub max_waves: usize,
     pub max_steps: usize,
 }

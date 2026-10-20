@@ -730,6 +730,9 @@ fn step_group_impl<C: InstructionCells>(g: &mut Group, code: &[u8], cache: &C, m
             let at = (tr.pcs.len() - 1) as u32;
             let touched = info.access.as_ref().and_then(|a| a.capture(&g.st));
             if let Some(w) = touched {
+                if let Some(segments) = info.access.as_ref().and_then(|a| a.device_segments(&g.st, &w)) {
+                    tr.device_segments.push((at, segments));
+                }
                 tr.mem.push((at, w));
             }
         }
