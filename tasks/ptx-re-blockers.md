@@ -433,6 +433,10 @@ The consumers are:
 
 ## B21. What an executed `trap` (0x0008) does (NEW, unsafe: may fault)
 
+- **Done 2026-10-20: a no-op.** With all lanes, odd lanes under a partial mask, or one SIMD group of two workgroups,
+  every store after `trap` lands, the command ends normally and the queue keeps working. `trap` cannot implement PTX
+  `trap`; keep the flag-word path. Evidence: playground `results/2026-10-20-b21-trap`.
+
 - **Why it matters:**
   - `llvm.trap`, PTX `trap` and CUDA `assert` compile to `trap`.
   - CUDA requires the kernel to stop and the launch to fail (`CUDA_ERROR_ASSERT` / `CUDA_ERROR_LAUNCH_FAILED`).
