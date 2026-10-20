@@ -492,6 +492,17 @@ The consumers are:
 
   - Deliverable: the three lines, which should all read `status=0 bad=0`. The values are small integers, so the
     sums are exact. Also report the time of a 2048 x 2048 SGEMM if you can (cudaEvent around the call).
+- **Then cuBLASLt and cuDNN**, through `zluda_blaslt_agx` (`libcublasLt.so.12`) and `zluda_dnn_agx`
+  (`libcudnn.so.9`). Both are built like zluda_blas_agx. Link them next to the others.
+  - If PyTorch for aarch64 with CUDA can be installed (it runs without an NVIDIA GPU only through these
+    libraries), run:
+    `python -c "import torch; a=torch.randn(256,512,device='cuda'); b=torch.randn(512,128,device='cuda');
+    print((a@b - (a.cpu()@b.cpu()).cuda()).abs().max())"` (cuBLASLt / cuBLAS). Also run a 3x3
+    `torch.nn.functional.conv2d` against the CPU result, in float32 and float16 (cuDNN).
+  - Otherwise build cuDNN's `conv_sample` from cudnn-samples, or any small legacy-API convolution program, and run
+    it.
+  - Deliverable: the maximum differences (f32 should be about 1e-4, f16 about 1e-2), or the first failing call with
+    `ZLUDA_AGX_LOG=1`, which names every unimplemented function the program touched.
 
 ## B24. Device-atomic and barrier corners the compiler and the Sail model refuse until measured (NEW, safe)
 
