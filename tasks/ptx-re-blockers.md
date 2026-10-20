@@ -198,6 +198,11 @@ The consumers are:
 
 ## B5. Co-residency and progress across workgroups (NEW, safe with a bounded loop)
 
+- **Done 2026-10-20:** a whole grid is reliably co-resident only up to ~12-15 workgroups per core (32-thread: 576
+  workgroups in 15/15 runs, flaky from 608; 128-thread: 456 in all runs, fails at 494 = the register limit). Rule:
+  W <= 38 x min(15, floor(S/g) - 1). Above it, late workgroups start only when others exit. Evidence: playground
+  `results/2026-10-20-b5-coresidency`.
+
 - **Needed for:**
   - cooperative launches (`cudaLaunchCooperativeKernel`, `grid.sync()`);
   - persistent-kernel and producer / consumer patterns across blocks.
@@ -731,6 +736,10 @@ result of the float add is 0x7fc00000 (from the 2026-10-17 records).
   fields set the behaviour. ZLUDA then uses the native path for the modes that match and keeps software for the rest.
 
 ## B30. Forward progress of threadgroups that spin on device memory (NEW, safe except where marked)
+
+- **Done 2026-10-20 (from the B5 probe, which spins with a device atomic per iteration):** non-resident workgroups
+  start only after a spinner exits, so spinners at full residency block a later setter forever. ZLUDA must cap
+  TMEM-using CTAs to the B5 co-resident count. Evidence: playground `results/2026-10-20-b5-coresidency`.
 
 - **Why it matters:** ZLUDA emulates the `tcgen05` tensor memory (256 KiB per CTA) with a pool of four slabs in
   device memory (`ptx/lib/zluda_ptx_impl_agx_cvt.c`, ZLUDA branch `claude/bold-davinci-46xi9q`). A CTA whose first
