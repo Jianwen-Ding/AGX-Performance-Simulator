@@ -21,6 +21,10 @@
  *   AGX_WORD0_OR                      bits ORed into CDM launch word 0
  *   AGX_HELPER_DATA, AGX_HELPER_CFG   drm_asahi_helper_program data/cfg ("table" = table VA)
  *   AGX_HELPER_CODE, AGX_HELPER_OFF   helper program file at USC offset AGX_HELPER_OFF (default 0x4000); binary = offset | 1
+ *   AGX_SCRATCH_DWORDS                per-thread scratch dwords: Mesa-layout scratch buffer + header (helper.data) and
+ *                                     the Registers word spill bucket; needs AGX_HELPER_CODE = Mesa's libagx_helper
+ *   AGX_SCRATCH_SUBGROUPS             subgroups per core in the scratch buffer (default 128, Mesa's value)
+ *   AGX_SCRATCH_DUMP[_ALL]            write the scratch header (or, with _ALL=1, the whole buffer) after the run
  *   AGX_SAMPLER_COUNT                 sampler_count with sampler_heap = zeroed data page at +0x6000
  *   AGX_PRIORITY                      queue priority (0 low, 1 medium)
  *   AGX_USC_ORDER                     order of USC pipeline words (default "ushrn")
@@ -192,6 +196,59 @@ int main(int argc, char **argv)
                                               .handle = tsb.handle, .range = page};
     io(DRM_IOCTL_ASAHI_GEM_BIND_OBJECT, &bo_ts, "bind-timestamps");
 
+    /* Optional scratch (stack) memory, laid out exactly as Mesa's agx_scratch.c (src/asahi/lib, Mesa 25.x):
+       a header {subgroups, pad, cores[128] of 88 bytes}, one block list of `subgroups` entries per present core,
+       then the blocks, aligned to the block size. The helper program (AGX_HELPER_CODE, Mesa's libagx_helper) hands
+       blocks out on request; helper.data points at the header. AGX_SCRATCH_DWORDS = per-thread scratch dwords. */
+    const uint32_t scratch_dwords = (uint32_t)env("AGX_SCRATCH_DWORDS", 0);
+    uint32_t spill_bucket = 0;
+    struct bo scratch = {0};
+    uint64_t scratch_hdr_bytes = 0;
+    if (scratch_dwords) {
+        require(helper_size > 0, "scratch-needs-helper");
+        require(scratch_dwords <= (8u << 12) * 4, "scratch-dwords");
+        uint32_t units = (scratch_dwords + 7) / 8, lg2 = 0, lg2c = 0;
+        while ((1u << (lg2 + 1)) <= units) lg2++;
+        while ((1u << lg2c) < units) lg2c++;
+        spill_bucket = 1 + lg2c; if (spill_bucket > 15) spill_bucket = 15;     /* agx_scratch_get_bucket */
+        uint32_t log4 = lg2 / 2, blocks = (scratch_dwords + (8u << (2 * log4)) - 1) / (8u << (2 * log4));
+        if (log4 > 6) { log4--; blocks = 4; } else if (blocks == 4) { log4++; blocks = 1; }   /* agx_scratch_get_spill_size */
+        const uint32_t subgroups = (uint32_t)env("AGX_SCRATCH_SUBGROUPS", 128);
+        require(subgroups >= 1 && subgroups <= 128, "scratch-subgroups");
+        const uint64_t block_dwords = 8ull << (2 * log4), block_bytes = 32 * 4 * block_dwords;
+        unsigned ncores = 0;
+        for (unsigned cl = 0; cl < p.num_clusters_total; cl++) ncores += (unsigned)__builtin_popcountll(p.core_masks[cl]);
+        const uint64_t hdr = 8 + 128 * 88, blocklist_off = hdr;
+        const uint64_t blocks_off = (hdr + (uint64_t)subgroups * 16 * ncores + block_bytes - 1) / block_bytes * block_bytes;
+        const uint64_t core_alloc = block_bytes * blocks * subgroups;
+        const uint64_t total = (blocks_off + core_alloc * ncores + page - 1) & ~(page - 1);
+        const uint64_t align = block_bytes > page ? block_bytes : page;
+        const uint64_t sva = (data_base + (1ull << 30) + align - 1) & ~(align - 1);
+        require(sva + total < vc.kernel_start && total <= (4ull << 30), "scratch-layout");
+        scratch = bo_create(total, vc.vm_id, sva, DRM_ASAHI_BIND_READ | DRM_ASAHI_BIND_WRITE);
+        scratch_hdr_bytes = blocks_off;
+        put32(scratch.map, subgroups);
+        uint64_t bl_gpu = sva + blocklist_off, blocks_gpu = sva + blocks_off;
+        uint8_t *bl_cpu = scratch.map + blocklist_off;
+        unsigned cpc = 1; while (cpc < p.num_cores_per_cluster) cpc <<= 1;
+        for (unsigned core_id = 0; core_id < 128; core_id++) {
+            unsigned cl = core_id / cpc, co = core_id % cpc;
+            if (cl >= p.num_clusters_total) break;
+            if (co >= p.num_cores_per_cluster || !(p.core_masks[cl] & (1ull << co))) continue;
+            put64(scratch.map + 8 + (uint64_t)core_id * 88, bl_gpu);
+            for (unsigned sg = 0; sg < subgroups; sg++) {
+                uint32_t base = (uint32_t)(blocks_gpu >> 8), stride = (uint32_t)(block_bytes >> 8);
+                put32(bl_cpu + 0, ((1u << (log4 + 1)) - 1) | base);
+                for (unsigned b = 1; b <= 3; b++) put32(bl_cpu + 4 * b, blocks >= b + 1 ? (1u | (base + b * stride)) : 0);
+                bl_cpu += 16; blocks_gpu += block_bytes * blocks;
+            }
+            bl_gpu += 16ull * subgroups;
+        }
+        printf("{\"scratch\":{\"dwords\":%u,\"bucket\":%u,\"log4\":%u,\"blocks\":%u,\"block_bytes\":%" PRIu64 ",\"subgroups\":%u,"
+               "\"cores\":%u,\"va\":%" PRIu64 ",\"bytes\":%" PRIu64 "}}\n",
+               scratch_dwords, spill_bucket, log4, blocks, block_bytes, subgroups, ncores, sva, total);
+    }
+
     if (tf) {
         require(fread(data.map + table_off, 1, table_size, tf) == table_size && fclose(tf) == 0, "table-read");
         printf("{\"table\":{\"bytes\":%" PRIu64 ",\"va\":%" PRIu64 "}}\n", table_size, data.va + table_off);
@@ -238,7 +295,8 @@ int main(int argc, char **argv)
             uint64_t sh = 0x0dull | ((env("AGX_SHADER_UNK2", 3) & 63) << 10) | ((uint64_t)code_off << 16); memcpy(w, &sh, 6); w += 6;
         } else if (*o == 'r') {
             /* USC Registers: tag 0x8d, register count groups(8) at bit 8 (5 bits, 0 = 256), unk_4 = 1 at bit 24. */
-            uint32_t rc = (uint32_t)((gprs + 7) / 8) & 31; put32(w, 0x8du | (rc << 8) | (1u << 24)); w += 4;
+            /* Spill size at bit 18 (4 bits) = Mesa's scratch bucket when AGX_SCRATCH_DWORDS is set. */
+            uint32_t rc = (uint32_t)((gprs + 7) / 8) & 31; put32(w, 0x8du | (rc << 8) | (spill_bucket << 18) | (1u << 24)); w += 4;
         } else if (*o == 'n' && !preshader) {
             /* USC No preshader: tag 0x88 (2 bytes). */
             w[0] = 0x88; w[1] = 0; w += 2;
@@ -301,7 +359,8 @@ int main(int argc, char **argv)
                   .ts = {.start = {.handle = bo_ts.object_handle, .offset = 0},
                          .end = {.handle = bo_ts.object_handle, .offset = 8}},
                   .helper = {.binary = helper_binary, .cfg = (uint32_t)env("AGX_HELPER_CFG", 0),
-                             .data = (getenv("AGX_HELPER_DATA") && !strcmp(getenv("AGX_HELPER_DATA"), "table")) ? data.va + table_off : env("AGX_HELPER_DATA", 0)},
+                             .data = (getenv("AGX_HELPER_DATA") && !strcmp(getenv("AGX_HELPER_DATA"), "table")) ? data.va + table_off
+                                     : env("AGX_HELPER_DATA", scratch_dwords ? scratch.va : 0)},
                   .sampler_count = (uint32_t)env("AGX_SAMPLER_COUNT", 0),
                   .sampler_heap = env("AGX_SAMPLER_COUNT", 0) ? data.va + 0x6000 : 0},
         };
@@ -344,9 +403,23 @@ int main(int argc, char **argv)
     io(DRM_IOCTL_ASAHI_QUEUE_DESTROY, &qd, "queue-destroy");
     /* Release every buffer object explicitly: leaving them to process exit leaks their shmem in the kernel
        (playground notes/failed-approaches.md, 2026-10-16: ~55 GB over ~20,000 runs). AGX_CLEAN_EXIT=0 restores the old exit. */
+    if (scratch_dwords) {
+        /* Per-core helper counters (alloc_cur, alloc_max, alloc_failed) show whether the helper ran and balanced. */
+        const char *sd = getenv("AGX_SCRATCH_DUMP");
+        if (sd && *sd) {   /* AGX_SCRATCH_DUMP_ALL=1 writes the whole buffer (blocks too), else the header and block lists */
+            uint64_t n = env("AGX_SCRATCH_DUMP_ALL", 0) ? scratch.size : scratch_hdr_bytes;
+            FILE *o = fopen(sd, "wb"); require(o && fwrite(scratch.map, 1, n, o) == n && fclose(o) == 0, "scratch-dump");
+        }
+        uint32_t cur = 0, mx = 0, failed = 0, cores_used = 0;
+        for (unsigned c = 0; c < 128; c++) {
+            uint32_t v[3]; memcpy(v, scratch.map + 8 + (uint64_t)c * 88 + 8, 12);
+            cur += v[0]; failed += v[2]; if (v[1] > mx) mx = v[1]; cores_used += v[1] > 0;
+        }
+        printf("{\"scratch_after\":{\"alloc_cur_sum\":%u,\"alloc_max\":%u,\"alloc_failed\":%u,\"cores_used\":%u}}\n", cur, mx, failed, cores_used);
+    }
     if (env("AGX_CLEAN_EXIT", 1)) {
-        struct bo *bs[3] = {&usc, &data, &tsb};
-        for (int i = 0; i < 3; i++) {
+        struct bo *bs[4] = {&usc, &data, &tsb, &scratch};
+        for (int i = 0; i < (scratch_dwords ? 4 : 3); i++) {
             require(munmap(bs[i]->map, bs[i]->size) == 0, "munmap");
             struct drm_gem_close gcl = {.handle = bs[i]->handle};
             io(DRM_IOCTL_GEM_CLOSE, &gcl, "gem-close");

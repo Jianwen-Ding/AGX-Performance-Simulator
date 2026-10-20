@@ -29,6 +29,11 @@ The consumers are:
 
 ## B1. Scratch / stack memory for direct-DRM dispatches (NEW, unsafe)
 
+- **Done 2026-10-20:** works with Mesa's own `libagx_helper` (captured by an LD_PRELOAD trace of Mesa) and Mesa's
+  scratch header. `drm_compute.c` `AGX_SCRATCH_DWORDS=N` + `AGX_HELPER_CODE`; Registers word spill bucket at bits
+  18-21. 80 and 1,036 dwords per thread, up to 65,536 threads on 38 cores, 0 wrong, 0 hangs. Per-thread layout:
+  `(adjust_words - 1 - offset/4) * 128 + 4 * lane`. Evidence: playground `results/2026-10-20-b1-direct-drm-scratch`.
+
 - **Needed for:**
   - PTX `.local` memory and `alloca`;
   - register spills (the backend spills to scratch);
