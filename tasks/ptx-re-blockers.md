@@ -74,6 +74,40 @@ The consumers are:
   - Control: one of the `llvm/test/CodeGen/AGX` kernels, e.g. a vector add, compiled by our backend.
 - **Deliverable:** the runner, with one compiler-generated kernel recorded as a coverage case, so its output can be
   checked against `agx_run` and the Sail model.
+- **Status 2026-10-20: a runner now exists, hardware run requested.** Jianwen-Ding/ZLUDA branch
+  `claude/bold-davinci-46xi9q` has:
+  - `agx_runtime`, a Rust port of `drm_compute.c`. Its unit tests pin the exact USC and CDM bytes recorded in
+    Apple-M2-Playground `experiments/baseline/direct-drm-compute.md`.
+  - `agx_run_hw`, which takes `agx_run`'s command line.
+
+  It has not run on a GPU yet. To run it on the M2:
+
+  ```sh
+  git clone -b claude/bold-davinci-46xi9q https://github.com/Jianwen-Ding/ZLUDA && cd ZLUDA
+  cargo build --release -p agx_runtime          # needs only Rust and libc; no LLVM, ROCm or Mesa
+  RUNNER=$PWD/target/release/agx_run_hw sh /path/to/AGX-Performance-Simulator/tasks/ptx-hw-smoke/run_smoke.sh
+  ```
+
+  `tasks/ptx-hw-smoke/` holds three kernels compiled by the LLVM AGX backend (`-mcpu=agx-g14c`). Each comes as
+  `.ll` source, `.s` and the `.text` `.bin`:
+  - `vadd`: three pointer arguments;
+  - `ids2d`: a 2D grid, thread and threadgroup positions, a divergent branch;
+  - `tgrev`: 256 bytes of threadgroup memory, a barrier, and a device atomic.
+
+  `expected/` was recorded with `agx_run` (`run_smoke.sh --record`) and checked against an independent Python
+  oracle. Each kernel was run in `agx_run` first and terminates there.
+  - **Report:** the PASS / FAIL lines and the JSON line of each run.
+  - On a FAIL, compare the CDM and USC bytes with those `drm_compute.c` prints. `agx_runtime`'s layout differs in
+    three places: code at USC offset 0x400 of its own object, uniforms from `u0`, and pipeline words at offset 0.
+- **New open questions found while writing the runner** (they matter for every CUDA launch):
+  - **B2a** Does the CDM global size have to be a multiple of the local size, or does the hardware run partial
+    workgroups? CUDA grids are always whole blocks, but Mesa may rely on partial ones. The runner rejects
+    non-multiples.
+  - **B2b** How wide is the USC Uniform word's size field (bit 20)? 8 and 12 halves are measured. The runtime splits
+    ranges into words of 32 halves; one word per 64 halves would halve the word count. B9 asks for the limit.
+  - **B2c** With no threadgroup memory, the Shared word encodes 64 KiB ("all"). Does that limit occupancy to one
+    workgroup per core for kernels that use no threadgroup memory? If it does, what is the correct "none" encoding?
+    safe-11 measured `floor(65536 / declared bytes)` for kernels that do declare some.
 
 ## B3. Native 64-bit device atomics (NEW, safe)
 
