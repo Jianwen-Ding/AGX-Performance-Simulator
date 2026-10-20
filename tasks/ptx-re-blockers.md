@@ -23,7 +23,7 @@ The consumers are:
    and errors a runtime must report.
 4. B10–B13: already covered by existing tasks; the consumers wait on them.
 5. B29 native textures: CUDA textures already work in software, so this is a performance item.
-6. B31 empty-mask instruction cost and T1 (`agx_cost --uniform`): they decide backend tuning (whether to jump over
+6. B31 empty-mask instruction cost, B32 asynchronous submit cost (launch batching) and T1 (`agx_cost --uniform`): they decide backend tuning (whether to jump over
    short if bodies) and make agx-bench measure bounds-checked kernels.
 
 ## B1. Scratch / stack memory for direct-DRM dispatches (NEW, unsafe)
@@ -760,6 +760,28 @@ Consumed as is:
   and does its `wait` stall?). The backend then picks the largest N (by class) for which no jump is cheaper, and
   the cost model gets the same rule.
 - **Safety:** ordinary ALU and memory instructions under a false condition; see `safe-probes.md`.
+
+## B32. Asynchronous submit cost: one command per SUBMIT against batches (NEW, safe)
+
+- **Why it matters:** zluda_agx submits one compute command per `cuLaunchKernel` (`agx_runtime` `Queue::submit_compute`,
+  `cdm_barrier = 0`, a timeline point per command), without waiting. `2026-10-16-commands-per-submit` showed 64
+  commands in one SUBMIT finishing in 0.55 ms, against ~7 ms as 64 *synchronous* submits. What a back-to-back
+  *asynchronous* submit costs (ioctl plus firmware scheduling) is not measured. Batching the launches of a stream
+  into one SUBMIT changes the fences (one point per batch) and needs a flush at every synchronization point. It is
+  worth it only if the per-submit cost is large against a short kernel.
+- **Probes:** the control kernel (5.6 µs) launched N = 1, 8, 64, 512 times:
+  1. one SUBMIT per launch, no waits, then one wait for the last point;
+  2. batches of up to 64 commands per SUBMIT (`cdm_barrier = NONE` after the first);
+  3. like 2 with chained barriers.
+
+  Record the host wall time, the firmware first-start to last-end span, and the gap between consecutive commands
+  (start of k+1 minus end of k) for each. Also record the CPU time of each `DRM_IOCTL_ASAHI_SUBMIT` call.
+- **Also, for correctness without barriers:** command k+1 reads what command k wrote (a dependent pair, 1,000
+  times). Does `cdm_barrier = NONE` still order memory between consecutive commands of one queue?
+- **Deliverable:** µs per launch for 1-3 at each N, and whether NONE keeps memory order. zluda_agx then batches
+  (with NONE or a chained barrier) if case 1 costs more than a few µs per launch.
+- **Safety:** the pinned control kernel and existing submit paths; see `safe-probes.md` (safe-04 used the same
+  setup).
 
 ## T1. `agx_cost`: uniform values from the command line (tooling request, no hardware needed)
 
