@@ -459,6 +459,39 @@ The consumers are:
     `"unified_wrong"`.
   - Report the kernel version (`uname -r`) and page size (`getconf PAGESIZE`).
   - If `unified` is false, report `strace -e trace=mmap ./agx_cuda_smoke 2>&1 | head` for the failing `mmap`.
+- **Also run cuBLAS SGEMM** through ZLUDA's `zluda_blas_agx`:
+  - Build it with `ZLUDA_LLVM_BUILD_DIR=... cargo build --release -p zluda_blas_agx`.
+  - Link `target/release/libcublas_agx.so` as `lib/libcublas.so.12`, next to the `libcuda.so.1` link.
+  - Build this program with `nvcc t2.cu -lcublas -o t2` and run it as in step 3:
+
+    ```sh
+    cat > t2.cu <<'CU'
+    #include <cstdio>
+    #include <vector>
+    #include <cublas_v2.h>
+    int main() {
+      for (int n : {64, 128, 100}) {           // 64 and 128 take the tiled kernel, 100 the generic one
+        std::vector<float> a(n * n), b(n * n), c(n * n);
+        for (int i = 0; i < n * n; i++) { a[i] = (i % 7) - 3; b[i] = (i % 5) - 2; }
+        float *da, *db, *dc; cudaMalloc(&da, 4 * n * n); cudaMalloc(&db, 4 * n * n); cudaMalloc(&dc, 4 * n * n);
+        cudaMemcpy(da, a.data(), 4 * n * n, cudaMemcpyHostToDevice); cudaMemcpy(db, b.data(), 4 * n * n, cudaMemcpyHostToDevice);
+        cublasHandle_t h; cublasCreate(&h); float one = 1, zero = 0;
+        cublasStatus_t st = cublasSgemm(h, CUBLAS_OP_N, CUBLAS_OP_N, n, n, n, &one, da, n, db, n, &zero, dc, n);
+        cudaMemcpy(c.data(), dc, 4 * n * n, cudaMemcpyDeviceToHost);
+        int bad = 0;
+        for (int i = 0; i < n; i++) for (int j = 0; j < n; j++) {
+          float s = 0; for (int k = 0; k < n; k++) s += a[i + k * n] * b[k + j * n];
+          bad += c[i + j * n] != s;
+        }
+        printf("n=%d status=%d bad=%d\n", n, st, bad);
+        cublasDestroy(h);
+      }
+    }
+    CU
+    ```
+
+  - Deliverable: the three lines, which should all read `status=0 bad=0`. The values are small integers, so the
+    sums are exact. Also report the time of a 2048 x 2048 SGEMM if you can (cudaEvent around the call).
 
 ## B24. Device-atomic and barrier corners the compiler and the Sail model refuse until measured (NEW, safe)
 
