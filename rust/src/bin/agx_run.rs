@@ -10,6 +10,8 @@
 //! main shader's uniforms. --dump writes a region back after the run. Prints one JSON line (instructions, groups,
 //! uniforms after the preamble). --alloc-regs / --vm-slot / --pipeline give what get_sr SR19 (register allocation, 16-bit
 //! registers), SR21 (VM slot) and SR32 (USC offset of the pipeline words) read; without them those reads are errors.
+//! --m2-core-map FILE supplies a JSON array of packed M2 Max SR20 IDs, one per linear workgroup.
+//! It replays supplied placement, leaving SR17 slots and default placement unchanged when omitted.
 
 use agx_sim::func::{self, Dispatch, Memory};
 
@@ -35,6 +37,7 @@ fn main() {
     let code = std::fs::read(&a[0]).unwrap_or_else(|e| die(&format!("{}: {}", a[0], e)));
     let (mut grid, mut wg, mut shared, mut regs, mut max_steps) = ([1u32, 1, 1], [1u32, 1, 1], 0u32, 128usize, 100_000_000u64);
     let (mut preamble, mut uniforms, mut dumps) = (None, vec![], vec![]);
+    let mut core_map: Option<Vec<u32>> = None;
     let mut mem = Memory::default();
     let mut launch = agx_sim::cost::SrLaunch::default();
     let mut i = 1;
@@ -50,6 +53,10 @@ fn main() {
             "--alloc-regs" => launch.regs = num(&v) as u32,
             "--vm-slot" => launch.context = Some(num(&v) as u32),
             "--pipeline" => launch.pipeline = Some(num(&v) as u32),
+            "--m2-core-map" => {
+                let bytes = std::fs::read(&v).unwrap_or_else(|e| die(&format!("{}: {}", v, e)));
+                core_map = Some(serde_json::from_slice(&bytes).unwrap_or_else(|e| die(&format!("M2 core map: {}", e))));
+            }
             "--preamble" => preamble = Some(std::fs::read(&v).unwrap_or_else(|e| die(&format!("{}: {}", v, e)))),
             "--uniform" => {
                 let (k, x) = kv();
@@ -76,18 +83,24 @@ fn main() {
     while code.len() > 2 && code[code.len() - 2..] == [0, 0] {
         code.truncate(code.len() - 2); // trailing padding
     }
+    let mut d = Dispatch { code, grid, wg, shared_bytes: shared, uniforms: uniforms.clone(), num_registers: regs, max_steps, placement: 0,
+                  launch: agx_sim::cost::SrLaunch { tg_bytes: shared, ..launch } };
+    if let Some(cores) = &core_map { func::validate_m2_core_map(&d, cores).unwrap_or_else(|e| die(&e)); }
     let after = match &preamble {
         Some(p) => Some(func::run_preamble(p, &uniforms, &mut mem, regs).unwrap_or_else(|e| die(&format!("preamble: {}", e)))),
         None => None,
     };
-    let d = Dispatch { code, grid, wg, shared_bytes: shared, uniforms: after.clone().unwrap_or(uniforms), num_registers: regs, max_steps, placement: 0,
-                  launch: agx_sim::cost::SrLaunch { tg_bytes: shared, ..launch } };
-    let st = func::run(&d, &mut mem).unwrap_or_else(|e| die(&e));
+    d.uniforms = after.clone().unwrap_or(uniforms);
+    let st = match &core_map {
+        Some(cores) => func::run_with_m2_core_map(&d, &mut mem, cores),
+        None => func::run(&d, &mut mem),
+    }.unwrap_or_else(|e| die(&e));
     for (va, n, f) in &dumps {
         let b = mem.read_bytes(*va, *n).unwrap_or_else(|e| die(&e));
         std::fs::write(f, b).unwrap_or_else(|e| die(&format!("{}: {}", f, e)));
     }
     let u: Vec<String> = after.unwrap_or_default().iter().filter(|(_, v)| *v != 0).map(|(k, v)| format!("\"u{}\":{}", k, v)).collect();
-    println!("{{\"instructions\":{},\"groups\":{},\"preamble_uniforms\":{{{}}}}}", st.instructions, st.groups, u.join(","));
+    let provenance = core_map.as_ref().map(|c| format!(",\"core_map\":\"m2\",\"mapped_workgroups\":{}", c.len())).unwrap_or_default();
+    println!("{{\"instructions\":{},\"groups\":{},\"preamble_uniforms\":{{{}}}{}}}", st.instructions, st.groups, u.join(","), provenance);
 }
 

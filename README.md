@@ -123,6 +123,27 @@ dispatch over arbitrary memory, including a driver preamble that fills the unifo
 `--preamble` / `--map` / `--alloc` options. With them, the SIMD groups' paths come from the functional simulator over
 that memory instead of the cost model's emulation, which is needed for driver-compiled code and data-dependent loops.
 
+`agx_run --m2-core-map FILE` optionally replays supplied SR20 identities. Append
+it to a complete command with the normal uniforms and memory mappings. FILE
+is a JSON array with one packed M2 Max core ID per workgroup, x varying fastest,
+then y and z. `func::run_with_m2_core_map` is the library equivalent; callers
+running a preamble separately can preflight with `validate_m2_core_map`.
+Length and enabled-core masks are checked before execution. The measured
+aligned eight-workgroup cluster rule is enforced for 1-D whole-workgroup grids
+at sizes 32/64/128/256, including partial final blocks. It is not imposed on
+other geometries. Invalid CLI maps fail before preamble execution or dumps.
+Mapped results echo `core_map: "m2"` and `mapped_workgroups`.
+
+This supplies scheduling state, not a schedule predictor. SR17 slots retain
+their selected default/synthetic behavior. Default execution and the library's
+synthetic `Dispatch::placement` mode remain unchanged. Prepared functional
+traces and `agx_dispatch` do not yet accept this map. The
+[replay verification](../apple-documentation-playground/novel-results/2026-10-20-observed-core-map-replay/README.md)
+matches 80 complete retained hardware buffers literally, preserves 64 default
+cases against the archived model and independent oracles, and passes three
+targeted library tests and five CLI failure cases. All seven ordinary
+arithmetic regression suites also pass; no hardware was submitted.
+
 Some findings link to experiments, notes and results that stayed in Apple-M2-Playground; those
 links resolve in that repository. Shader capture (`agx_capture.py`) also stays there.
 
@@ -287,6 +308,6 @@ Measured-peak predictions still leave 2.67–3.42x final-dispatch residuals on
 the fixed-lane-count grid. A neighboring-grid cell has 2.23x trial variation
 despite the 1000 us delay, so that protocol is not a general timing guarantee.
 Current default and synthetic functional placement do not predict these
-observed schedules. Optional supplied-core-map replay is the next scoped
-implementation; it must preserve existing modes and distinguish historical
-model provenance from a newer replay model. No timing calibration changed.
+observed schedules. Optional supplied-core-map replay is now implemented for
+functional execution, preserving existing modes and distinguishing historical
+model provenance from the newer replay model. No timing calibration changed.

@@ -428,7 +428,48 @@ fn norm_store(fmt: u64, v: i128, rt: bool) -> u64 {
 }
 
 pub fn run(d: &Dispatch, mem: &mut Memory) -> Result<RunStats, String> {
+    run_with_optional_core_map(d, mem, None)
+}
+
+/// Replay supplied M2 Max SR20 identities, one per linear workgroup. This is
+/// scheduling input, not a placement predictor; SR17 slots remain unchanged.
+pub fn run_with_m2_core_map(d: &Dispatch, mem: &mut Memory, cores: &[u32]) -> Result<RunStats, String> {
+    run_with_optional_core_map(d, mem, Some(cores))
+}
+
+/// Validate before shader/preamble execution or mutations of mapped memory.
+pub fn validate_m2_core_map(d: &Dispatch, cores: &[u32]) -> Result<(), String> {
+    validate_m2_core_map_geometry(d, &validate_dispatch(d)?, cores)
+}
+
+fn validate_m2_core_map_geometry(d: &Dispatch, geometry: &Geometry, cores: &[u32]) -> Result<(), String> {
+    let count = geometry.dims.iter().fold(1u128, |n, &v| n * v as u128);
+    if cores.len() as u128 != count {
+        return Err(format!("M2 core map has {} entries, expected {} workgroups", cores.len(), count));
+    }
+    const MASKS: [u32; 4] = [0x3ff, 0x1ff, 0x1ff, 0x3ff];
+    for (i, &core) in cores.iter().enumerate() {
+        let cluster = (core >> 4) as usize;
+        if cluster >= MASKS.len() || MASKS[cluster] & (1 << (core & 15)) == 0 {
+            return Err(format!("M2 core map workgroup {} has disabled core ID {}", i, core));
+        }
+    }
+    // Observed on 1-D, whole-workgroup grids at these four local sizes.
+    // Do not impose this spatial constraint on unmeasured geometries.
+    if d.grid[1..] == [1, 1] && d.wg[1..] == [1, 1]
+        && matches!(d.wg[0], 32 | 64 | 128 | 256) && d.grid[0] % d.wg[0] == 0 {
+        for (i, block) in cores.chunks(8).enumerate() {
+            if block.iter().any(|core| core >> 4 != block[0] >> 4) {
+                return Err(format!("M2 core map aligned eight-workgroup block {} spans clusters", i));
+            }
+        }
+    }
+    Ok(())
+}
+
+fn run_with_optional_core_map(d: &Dispatch, mem: &mut Memory, cores: Option<&[u32]>) -> Result<RunStats, String> {
     let geometry = validate_dispatch(d)?;
+    if let Some(cores) = cores { validate_m2_core_map_geometry(d, &geometry, cores)?; }
     if geometry.dims.contains(&0) { return Ok(RunStats::default()); }
     let cache = code_cache(d.code.len());
     let dims = geometry.dims;
@@ -436,7 +477,8 @@ pub fn run(d: &Dispatch, mem: &mut Memory) -> Result<RunStats, String> {
     for wz in 0..dims[2] {
         for wy in 0..dims[1] {
             for wx in 0..dims[0] {
-                run_workgroup(d, &geometry, &cache, mem, [wx, wy, wz], false, &mut stats)?;
+                let core = cores.map(|c| c[geometry.linear([wx, wy, wz]) as usize]);
+                run_workgroup(d, &geometry, &cache, mem, [wx, wy, wz], core, false, &mut stats)?;
             }
         }
     }
@@ -467,7 +509,7 @@ impl<'a> PreparedDispatch<'a> {
     pub fn trace_workgroup(&self, mem: &Memory, wg: [u32; 3]) -> Result<Vec<Trace>, String> {
         self.geometry.check_workgroup(wg)?;
         let mut m = mem.clone();
-        run_workgroup(self.dispatch, &self.geometry, &self.cache, &mut m, wg, true, &mut RunStats::default())
+        run_workgroup(self.dispatch, &self.geometry, &self.cache, &mut m, wg, None, true, &mut RunStats::default())
     }
 
     pub fn trace_workgroups(&self, mem: &Memory, wgs: &[[u32; 3]]) -> Result<Vec<Vec<Trace>>, String> {
@@ -543,7 +585,7 @@ fn placement(d: &Dispatch, geometry: &Geometry, w: u64, g: u32) -> (u32, u32) {
     (core, slot)
 }
 
-fn run_workgroup(d: &Dispatch, geometry: &Geometry, cache: &CodeCache, mem: &mut Memory, [wx, wy, wz]: [u32; 3], record: bool,
+fn run_workgroup(d: &Dispatch, geometry: &Geometry, cache: &CodeCache, mem: &mut Memory, [wx, wy, wz]: [u32; 3], core_override: Option<u32>, record: bool,
                  stats: &mut RunStats) -> Result<Vec<Trace>, String> {
     let code = &d.code;
     let gpw = geometry.groups;
@@ -553,6 +595,7 @@ fn run_workgroup(d: &Dispatch, geometry: &Geometry, cache: &CodeCache, mem: &mut
     let mut groups: Vec<Group> = (0..gpw)
         .map(|g| {
             let (core, slot) = placement(d, geometry, linear, g);
+            let core = core_override.unwrap_or(core);
             let ctx = GroupCtx { wg_size: d.wg, wg_id: [wx, wy, wz], group: g, core, slot, uniforms: d.uniforms.clone(), launch: d.launch };
             let mut st = CoreState::new(d.num_registers, None);
             let lanes = ctx.lanes();
@@ -1795,6 +1838,58 @@ fn vals(ops: &[Operand]) -> Vec<Operand> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn m2_map_fixture(seed: u32) -> (Dispatch, Memory, Vec<u32>) {
+        use crate::kernels::{e, get_sr, store};
+        let n = 12 * 128u32;
+        let code = [get_sr(80, 1), get_sr(20, 2), store(2, 8, 1), e("wait 0"),
+            get_sr(17, 3), store(3, 10, 1), e("wait 0"), e("stop")].concat();
+        let d = Dispatch { code, grid: [n, 1, 1], wg: [128, 1, 1], shared_bytes: 0,
+            uniforms: vec![(8, 0x1000), (9, 0), (10, 0x1000 + n * 4), (11, 0)],
+            num_registers: 8, max_steps: 100, placement: seed, launch: Default::default() };
+        let mut mem = Memory::default();mem.map(0x1000, vec![0x5a; n as usize * 8]);
+        (d, mem, vec![0, 1, 2, 3, 4, 5, 6, 7, 16, 17, 18, 19])
+    }
+
+    #[test]
+    fn m2_core_map_replays_all_lanes_and_keeps_default_and_synthetic_slots() {
+        for seed in [0, 7] {
+            let (d, mem, cores) = m2_map_fixture(seed);let n = d.grid[0] as usize;
+            let mut original = mem.clone();let old = run(&d, &mut original).unwrap();
+            let mut replay = mem;let new = run_with_m2_core_map(&d, &mut replay, &cores).unwrap();
+            assert_eq!((new.instructions, new.groups), (old.instructions, old.groups));
+            let original = original.words(0x1000, n * 2).unwrap();let replay = replay.words(0x1000, n * 2).unwrap();
+            let synthetic_cores = [8, 15, 22, 29, 36, 43, 50, 7, 14, 21, 28, 35];
+            for lane in 0..n {
+                let wg = lane / 128;let group = lane % 128 / 32;
+                assert_eq!(original[lane], if seed == 0 { 0 } else { synthetic_cores[wg] });
+                assert_eq!(replay[lane], cores[wg]);
+                let slot = if seed == 0 { group } else { group + [8, 12, 4][wg % 3] } as u32;
+                assert_eq!(original[n + lane], slot);assert_eq!(replay[n + lane], slot);
+            }
+        }
+    }
+
+    #[test]
+    fn m2_core_map_rejects_bad_input_before_any_memory_writes() {
+        let (d, mem, cores) = m2_map_fixture(0);
+        let mut wrong_core = cores.clone();wrong_core[0] = 15;
+        let mut disabled = cores.clone();disabled[0] = 25;
+        let mut mixed = cores.clone();mixed[1] = 16;
+        for (map, reason) in [(vec![], "entries"), (wrong_core, "disabled"), (disabled, "disabled"), (mixed, "spans clusters")] {
+            let mut m = mem.clone();let before = m.read_bytes(0x1000, 12 * 128 * 8).unwrap();
+            assert!(run_with_m2_core_map(&d, &mut m, &map).unwrap_err().contains(reason));
+            assert_eq!(m.read_bytes(0x1000, before.len()).unwrap(), before);
+        }
+        validate_m2_core_map(&d, &cores).unwrap(); // includes a valid four-workgroup tail
+    }
+
+    #[test]
+    fn m2_core_map_does_not_impose_1d_blocks_on_other_geometry() {
+        let (mut d, _, _) = m2_map_fixture(0);
+        d.grid = [128, 12, 1];
+        validate_m2_core_map(&d, &[0, 16, 32, 48, 0, 16, 32, 48, 0, 16, 32, 48]).unwrap();
+    }
 
     fn sr_group(mask: u32) -> Group {
         let mut st = CoreState::new(8, None);
