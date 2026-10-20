@@ -229,6 +229,11 @@ The consumers are:
 
 ## B7. CPU → GPU visibility during a dispatch (NEW, safe with a bounded loop)
 
+- **Done 2026-10-20:** only `f59d` + coherent `device_load` (Mesa u4 = 7) sees host writes mid-dispatch (all 64
+  lanes, ~0.69 us per read); plain loads, coherent loads without the fence, `f59d` + plain loads and returning device
+  atomics see nothing, with or without CPU cache cleans. `ld.volatile/acquire.sys` = f59d + coherent load. Evidence:
+  playground `results/2026-10-20-b7-cpu-to-gpu` (and `novel-results/2026-10-16-cpu-gpu-visibility` for latency).
+
 - **Needed for:**
   - host-mapped pinned memory (`cudaHostAlloc` with `cudaHostAllocMapped`);
   - managed memory;
