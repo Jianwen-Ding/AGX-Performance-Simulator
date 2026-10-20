@@ -188,3 +188,11 @@ does not. These records remain separate from the exact corpus. No generic
 pipeline rule or calibrated timing correction is implemented yet; use the
 playground's `make verify-overflow-first-shuffle` to check the retained matches
 and explicit mismatches while this execution-state effect is investigated.
+
+The [prepared-index follow-up](../apple-documentation-playground/novel-results/2026-10-20-overflow-register-visibility/README.md)
+extends this limit beyond shuffles: immediate/copy/add can also retain old
+destinations in overflow-activated lanes. The readback persists after wait/drain
+with addresses prepared before divergence. It adds 17 counterexamples among
+27 programs; combined overflow scope has **35 counterexamples in 54 programs**,
+162 clean completed dispatches. Tested move-spacing and lane-dependent behavior
+are recorded, without a calibrated-cycle or general pipeline implementation.
