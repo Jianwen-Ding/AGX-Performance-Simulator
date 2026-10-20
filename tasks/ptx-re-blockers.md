@@ -330,6 +330,10 @@ The consumers are:
   3. Two instruction faults: an illegal opcode and a jump outside the USC heap.
   4. After each one: submit the vadd smoke kernel on the same queue, a new queue in the same VM, and a new VM.
      Record which still succeed.
+  5. The runner signals a **timeline** syncobj point per command and reads the status by exporting that point
+     (`DRM_IOCTL_SYNCOBJ_HANDLE_TO_FD` with `EXPORT_SYNC_FILE` and `point`). Check that the exported status of a
+     faulted command's point is negative, and that the next command's point, which waited on it in queue order,
+     reports its own status, not the earlier error.
 - **Deliverable:**
   - the fence errno per case (fault, illegal instruction, firmware timeout from B6);
   - whether faults are soft on Asahi's M2 Max configuration;
