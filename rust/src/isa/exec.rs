@@ -28,6 +28,8 @@ impl Memory {
 pub struct CoreState {
     pub reg16s: Vec<[u16; SIMD_WIDTH]>,
     pub exec: [bool; SIMD_WIDTH],
+    /// Physical lanes still alive; mask reconvergence cannot revive a stopped or absent lane.
+    pub live: [bool; SIMD_WIDTH],
     /// 512 16-bit values (u0..u255 are 32-bit; applegpu keeps 256 halves, Mesa uses up to u255); `get_reg64` takes no thread argument.
     pub uniforms: Vec<u16>,
     pub device_memory: Option<Memory>,
@@ -40,6 +42,7 @@ impl CoreState {
         CoreState {
             reg16s: vec![[0; SIMD_WIDTH]; num_registers * 2],
             exec: [true; SIMD_WIDTH],
+            live: [true; SIMD_WIDTH],
             uniforms: vec![0; 512],
             device_memory,
         }
@@ -488,7 +491,7 @@ fn device_load(c: &Ctx, st: &mut CoreState, t: usize) -> R<()> {
 
 fn update_exec(st: &mut CoreState) {
     for t in 0..SIMD_WIDTH {
-        st.exec[t] = st.reg16s[0][t] == 0;
+        st.exec[t] = st.live[t] && st.reg16s[0][t] == 0;
     }
 }
 
@@ -501,6 +504,7 @@ pub fn exec(d: &Desc, f: &Fields, ops: &[Operand], st: &mut CoreState) -> R<()> 
         Ex::PopExec => {
             let n = fx(f, "n")? as i128;
             for t in 0..SIMD_WIDTH {
+                if !st.live[t] { continue; }
                 let v = (st.get_reg16(0, t)? - n).max(0);
                 st.set_reg16(0, t, v)?;
             }
@@ -510,6 +514,7 @@ pub fn exec(d: &Desc, f: &Fields, ops: &[Operand], st: &mut CoreState) -> R<()> 
         Ex::IfCmp { float } | Ex::WhileCmp { float } | Ex::ElseCmp { float } => {
             let n = fx(f, "n")? as i128;
             for t in 0..SIMD_WIDTH {
+                if !st.live[t] { continue; }
                 let mut v = st.get_reg16(0, t)?;
                 match d.ex {
                     Ex::IfCmp { .. } => {

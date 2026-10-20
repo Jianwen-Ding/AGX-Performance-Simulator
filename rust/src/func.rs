@@ -562,6 +562,7 @@ fn run_workgroup(d: &Dispatch, geometry: &Geometry, cache: &CodeCache, mem: &mut
                 let local = [i % d.wg[0], (i / d.wg[0]) % d.wg[1], i / (d.wg[0] * d.wg[1])];
                 let exists = t < lanes && [wx, wy, wz].iter().enumerate().all(|(axis, &w)|
                     w as u64 * d.wg[axis] as u64 + (local[axis] as u64) < d.grid[axis] as u64);
+                st.live[t] = exists;
                 st.exec[t] = exists;
                 let _ = st.set_reg16(0, t, if exists { 0 } else { 1 });
             }
@@ -640,6 +641,7 @@ fn step_group(g: &mut Group, code: &[u8], cache: &CodeCache, mem: &mut Memory, t
 #[inline(never)]
 fn step_group_impl<C: InstructionCells>(g: &mut Group, code: &[u8], cache: &C, mem: &mut Memory, tg: &mut [u8], max_steps: u64,
                                        stats: &mut RunStats) -> Result<Stop, String> {
+    if !g.st.live.iter().any(|&live| live) { return Ok(Stop::Done); }
     let nregs = g.st.reg16s.len(); // 16-bit registers, as Compiled::new expects
     while g.pc < code.len() {
         if g.steps >= max_steps {
@@ -677,29 +679,17 @@ fn step_group_impl<C: InstructionCells>(g: &mut Group, code: &[u8], cache: &C, m
         let v = &info.vals;
         match info.kind {
             OpKind::Stop => {
-                // A return can leave every lane masked until pop_exec reconverges.
-                // The ret-byte-buffer/no-pop hardware pair shows stop is skipped by
-                // returning lanes (r0l == 2), while partial-mask-ret shows lanes at
-                // outer mask depth (r0l == 1) do not reactivate after sliding across
-                // stop into pop_exec 2.
-                if g.st.exec.iter().any(|&active| active)
-                    || std::env::var("AGX_EXPERIMENTAL_RET").as_deref() != Ok("buffer-pop2") {
-                    return Ok(Stop::Done);
-                }
-                // Depth-1 lanes die at a stop only while some lane is at depth >= 2 (partial-mask-ret).
-                // With every masked lane at depth 1 (ret-byte-buffer) the stop is simply skipped and the
-                // next landing pop reactivates them.
-                let mut skip_kills = false;
+                // G14C empty-stop and ret-prepop hardware matrices (2026-10-20):
+                // stop ends issuing lanes; masked survivors continue through it.
+                // An empty stop is a no-op, independent of nesting depth.
                 for t in 0..32 {
-                    let d = g.st.get_reg16(0, t)?;
-                    skip_kills |= (2..0xffff).contains(&d);
-                }
-                if skip_kills {
-                    for t in 0..32 {
-                        if g.st.get_reg16(0, t)? == 1 {
-                            g.st.set_reg16(0, t, 0xffff)?;
-                        }
+                    if g.st.exec[t] {
+                        g.st.live[t] = false;
+                        g.st.exec[t] = false;
                     }
+                }
+                if !g.st.live.iter().any(|&live| live) {
+                    return Ok(Stop::Done);
                 }
             }
             OpKind::Jmp { any: want_any } => {
@@ -798,8 +788,9 @@ fn step_group_impl<C: InstructionCells>(g: &mut Group, code: &[u8], cache: &C, m
                 // - Empty active mask falls through.
                 // - Lowest active lane selects rX even when active operands
                 //   disagree (G14C 2026-10-20 suffix and scattered-mask matrix).
-                // - Active lanes get mask depth 2 (r0l = 2); inactive lanes keep
-                //   their r0l unchanged.
+                // - Nonempty return maps depth 0 -> 2, depth 1 -> 0, and
+                //   leaves deeper live lanes unchanged (measured through depth 4).
+                //   Empty-issued return does not transform any counters.
                 let v = match first_active {
                     None => {
                         g.pc += info.size; // no active lane: falls through
@@ -816,6 +807,9 @@ fn step_group_impl<C: InstructionCells>(g: &mut Group, code: &[u8], cache: &C, m
                         if g.st.exec[t] {
                             g.st.set_reg16(0, t, 2)?;
                             g.st.exec[t] = false;
+                        } else if g.st.live[t] && g.st.get_reg16(0, t)? == 1 {
+                            g.st.set_reg16(0, t, 0)?;
+                            g.st.exec[t] = true;
                         }
                     }
                 }
@@ -975,6 +969,7 @@ pub fn run_preamble(code: &[u8], uniforms: &[(usize, u32)], mem: &mut Memory, nu
                           launch: crate::cost::SrLaunch { preamble: true, ..Default::default() } };
     let mut st = CoreState::new(num_registers, None);
     for t in 0..32 {
+        st.live[t] = t == 0;
         st.exec[t] = t == 0;
         let _ = st.set_reg16(0, t, if t == 0 { 0 } else { 1 });
     }

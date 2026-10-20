@@ -131,10 +131,15 @@ Call/return probing: `agx_run` opts into the measured experimental model with
 `AGX_EXPERIMENTAL_RET=buffer-pop2`. Default execution still rejects return and
 register-call instructions; target bounds checks remain enabled. The legacy
 value `1` is a contradicted hypothesis for offline comparison. Measured scope,
-remaining stop discrepancies and validation of 386 original hardware cases are
+return/stop corrections and validation of 570 original hardware cases are
 in the adjacent playground's [model integration report](../apple-documentation-playground/results/2026-10-20-control-simulator/README.md).
 Run its `make verify-control-model` and `make verify-call-ret` for exact replay;
-call/return timing remains uncalibrated.
+call/return timing remains uncalibrated. Nonempty return maps effective mask
+depths 0 -> 2 and 1 -> 0, preserving deeper lanes (measured through depth 4).
+Empty-issued return falls through without changing counters. Stop terminates
+issuing lanes while masked live lanes continue; later mask operations cannot
+revive stopped or nonexistent lanes. See the adjacent playground
+[return/stop integration report](../apple-documentation-playground/results/2026-10-20-ret-stop-model/README.md).
 
 Threadgroup atomic ops 11–15 now reject explicitly even with an empty execution
 mask. Hardware probing found that issuing them stops the group; the old empty-mask

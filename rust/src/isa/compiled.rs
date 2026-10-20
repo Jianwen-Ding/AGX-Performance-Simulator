@@ -805,6 +805,7 @@ impl Compiled {
             }),
             K::PopExec { n } => {
                 for t in 0..SIMD_WIDTH {
+                    if !st.live[t] { continue; }
                     let v = (st.reg16s[0][t] as i128 - n).max(0);
                     st.reg16s[0][t] = (v & 0xFFFF) as u16;
                 }
@@ -813,6 +814,7 @@ impl Compiled {
             }
             K::Mask { ctl, cmp, n } => {
                 for t in 0..SIMD_WIDTH {
+                    if !st.live[t] { continue; }
                     let mut v = st.reg16s[0][t] as i128;
                     match ctl {
                         Ctl::If => {
@@ -1002,7 +1004,7 @@ fn saturate(result: i128, dest_size: u32, signed: bool) -> i128 {
 
 fn update_exec(st: &mut CoreState) {
     for t in 0..SIMD_WIDTH {
-        st.exec[t] = st.reg16s[0][t] == 0;
+        st.exec[t] = st.live[t] && st.reg16s[0][t] == 0;
     }
 }
 
