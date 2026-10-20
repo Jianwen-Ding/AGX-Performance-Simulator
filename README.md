@@ -222,4 +222,12 @@ shortfall: incremental firmware-time slopes are about 3–3.7 times predictions.
 Actual short-dispatch operating frequency and warm-up remain unresolved, so
 this is a documented calibration question, not a justified global latency
 change. Complete distributions and model/source/parameter bindings are retained
-in the playground's `analysis.json`; consecutive repetitions are the next check.
+in the playground's `analysis.json`.
+
+The [consecutive-dispatch check](../apple-documentation-playground/novel-results/2026-10-20-integer-chain-train/README.md)
+completed 19 trains and 1,194 dispatches with exact final buffers, passing
+controls and zero faults. First/last-quarter median ratios stay within
+0.991–1.022; slope residuals remain 3.42–3.76 times predictions. Intermediate
+buffers were not captured and operating frequency remains unmeasured.
+The immediate-value/form difference from calibration is a next question;
+these results do not justify a global cost change.
