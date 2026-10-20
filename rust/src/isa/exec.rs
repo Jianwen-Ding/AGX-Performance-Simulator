@@ -557,18 +557,22 @@ pub fn exec(d: &Desc, f: &Fields, ops: &[Operand], st: &mut CoreState) -> R<()> 
             Ok(())
         }
         Ex::SimdShuffle => {
-            let mut quad_values = vec![];
-            for qs in (0..SIMD_WIDTH).step_by(4) {
+            let mut quad_values = [0i128; 8];
+            let mut quad_live = [false; 8];
+            for (qn, qs) in (0..SIMD_WIDTH).step_by(4).enumerate() {
                 let mut qi = 0usize;
                 for t in qs..qs + 4 {
-                    qi |= (c.eval("B", st, t)? & 3) as usize;
+                    if st.live[t] { qi |= (c.eval("B", st, t)? & 3) as usize; }
                 }
-                quad_values.push(c.eval("A", st, qs + qi)?);
+                quad_live[qn] = st.live[qs + qi];
+                if quad_live[qn] { quad_values[qn] = c.eval("A", st, qs + qi)?; }
             }
             for t in 0..SIMD_WIDTH {
                 if st.exec[t] {
                     let index = c.eval("B", st, t)?;
-                    let r = if index < SIMD_WIDTH as i128 { quad_values[(index >> 2) as usize] } else { c.eval("A", st, t)? };
+                    let r = if index < SIMD_WIDTH as i128 && quad_live[(index >> 2) as usize] {
+                        quad_values[(index >> 2) as usize]
+                    } else { c.eval("A", st, t)? };
                     c.set("D", st, t, r)?;
                 }
             }

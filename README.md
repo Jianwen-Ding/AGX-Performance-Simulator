@@ -149,3 +149,11 @@ so a complete functional model remains pending. In the adjacent playground,
 complete surrogate, replays 12 understood variants, and checks rejection of the
 15 ending-opcode cases. `make test-probe-watchdog` there tests bounded timeout
 handling and partial evidence retention without submitting GPU work.
+
+The functional `simd_shuffle` model distinguishes masking from termination:
+masked living lanes contribute low index bits and remain readable; stopped
+lanes do not contribute to the quad OR, and selecting one returns the issuing
+lane's own source value. Both interpreter paths are checked. The adjacent
+playground's [shuffle liveness report](../apple-documentation-playground/results/2026-10-20-shuffle-liveness-model/README.md)
+binds exact replay of 1,115 original hardware programs, retaining the original
+275 counterexamples. Other native shuffle forms remain separate follow-ups.

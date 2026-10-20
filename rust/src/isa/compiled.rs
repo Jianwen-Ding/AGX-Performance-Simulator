@@ -857,18 +857,25 @@ impl Compiled {
                 Ok(())
             }
             K::SimdShuffle { a, b, d } => {
+                // G14C stopped-source/index-OR matrices (2026-10-20): masked
+                // living lanes contribute, stopped lanes do not. A selected
+                // stopped source falls back to the issuing lane's own A.
                 let mut quad_values = [0i128; 8];
+                let mut quad_live = [false; 8];
                 for (qi_out, qs) in (0..SIMD_WIDTH).step_by(4).enumerate() {
                     let mut qi = 0usize;
                     for t in qs..qs + 4 {
-                        qi |= (b.get(st, t)? & 3) as usize;
+                        if st.live[t] { qi |= (b.get(st, t)? & 3) as usize; }
                     }
-                    quad_values[qi_out] = a.get(st, qs + qi)?;
+                    quad_live[qi_out] = st.live[qs + qi];
+                    if quad_live[qi_out] { quad_values[qi_out] = a.get(st, qs + qi)?; }
                 }
                 for t in 0..SIMD_WIDTH {
                     if st.exec[t] {
                         let index = b.get(st, t)?;
-                        let r = if index < SIMD_WIDTH as i128 { quad_values[(index >> 2) as usize] } else { a.get(st, t)? };
+                        let r = if index < SIMD_WIDTH as i128 && quad_live[(index >> 2) as usize] {
+                            quad_values[(index >> 2) as usize]
+                        } else { a.get(st, t)? };
                         d.set(st, t, r)?;
                     }
                 }

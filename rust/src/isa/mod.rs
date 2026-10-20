@@ -363,6 +363,41 @@ mod tests {
     }
 
     #[test]
+    fn shuffle_distinguishes_masked_and_stopped_sources_in_both_executors() {
+        // Independently measured G14C cases: masked lanes retain low-index
+        // contributions; stopped ones do not. A stopped selected source yields
+        // each issuing lane's own payload, while a masked live source is read.
+        let code = e("simd_shuffle r5, r14, r15l");
+        let (d, n, _) = decode_one(&code).unwrap();
+        let fields = d.decode_fields(n);
+        let ops = d.fields_to_operands(&fields).unwrap();
+        for (stopped, divergent_index, expected_source) in [
+            (false, true, Some(3)), (true, true, None),
+            (false, false, Some(2)), (true, false, None),
+        ] {
+            for compiled in [false, true] {
+                let mut st = exec::CoreState::new(32, None);
+                for t in 0..32 {
+                    st.live[t] = !stopped || t % 2 == 1;
+                    st.exec[t] = t % 2 == 1;
+                    st.set_reg32(14, t, t as i128).unwrap();
+                    st.set_reg32(15, t, if divergent_index { if t % 2 == 0 { 3 } else { 0 } } else { 2 }).unwrap();
+                    st.set_reg32(5, t, 0xcdcdcdcd).unwrap();
+                }
+                if compiled {
+                    compiled::Compiled::new(d, &fields, &ops, st.reg16s.len()).exec(&mut st).unwrap();
+                } else {
+                    exec::exec(d, &fields, &ops, &mut st).unwrap();
+                }
+                for t in 0..32 {
+                    let want = if t % 2 == 0 { 0xcdcdcdcd } else { expected_source.unwrap_or(t) as i128 };
+                    assert_eq!(st.get_reg32(5, t).unwrap(), want);
+                }
+            }
+        }
+    }
+
+    #[test]
     fn round_trips() {
         for t in [
             "iadd r5, r5, r24", "isub r5, r5, r24", "iadd r5, r5, r24, lsl 2", "imadd r5, r5, r25, r24",
