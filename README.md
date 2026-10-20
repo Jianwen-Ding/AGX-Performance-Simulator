@@ -247,3 +247,11 @@ between submissions gives late medians agreeing within 1.1% across six trials
 per shape, while some early quarters remain faster. Operating frequency is
 still unmeasured; the model has no timing-history correction. This protocol
 is a follow-up validation condition, not a global latency recalibration.
+
+The [controlled-gap length study](../apple-documentation-playground/novel-results/2026-10-20-integer-length-cost/README.md)
+adds 50 trains / 3,180 exact recovered dispatches over 600–33,066-byte shaders.
+Late medians agree within 2.3% across three trials per cell. Adjacent candidate
+slopes remain 2.58–3.78x predictions across the tested lengths, without an
+isolated large jump identifying a cache threshold. The current shaders do not
+measure frequency or per-core assignment; the latter is the next check on the
+38-core launch assumption. No timing calibration changed.
