@@ -602,6 +602,12 @@ probe with the atomic-variants harness (`scripts/probe_atomics.py` style, surrog
 
 **Deliverable:** one line per item. The Sail model and the backend then enable or keep refusing each form.
 
+**Done 2026-10-20 (items 1-4), playground `results/2026-10-20-b24-atomic-corners`:** (1) `red.add.f32` (Rt = 0) is
+identical to the returning float add; (2) the u64 min/max changed flag is 0 on equality (`new != old`); (3) an
+address = 4 mod 8 makes u64 min/max a silent no-op, 1,024-lane contention gives the exact min/max, a GPR base works;
+(4) ops 11-15 with bits 45-46 = 0/1/3 all end the SIMD group with no memory effect. B3's NaN question: every NaN
+result of the float add is 0x7fc00000 (from the 2026-10-17 records).
+
 ## B25. GPU telemetry Asahi exposes to userspace (NEW, safe, read-only)
 
 - **Done 2026-10-20:** only `max_frequency_khz` (1,398,000) and in-process busy time (1 GHz command timestamps)

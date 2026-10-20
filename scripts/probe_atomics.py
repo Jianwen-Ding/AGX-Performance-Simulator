@@ -218,6 +218,18 @@ def analyse_d(r):
             'ret_values': sorted({t1[D_RET + i] for i in range(N)} | {t1[D_REEN + i] for i in range(N)})[:8]}
 
 
+def probes_k():
+    """ptx-re-blockers B24 item 4: family D's markers with ops 11-15 at bits 45-46 other than Mesa's (u5 = 0, 1, 3)"""
+    out = []
+    for p in probes_d():
+        op = int(p.name[len('D_op'):].split('_')[0])
+        for u5 in (0, 1, 3):
+            q = PV.Probe(f'K_op{op}_u5{u5}_rt1', p.prefix, p.surrogate, atomic_bytes(op, 1, u5), p.suffix, 0xf << 6 | 3 << 45,
+                         p.n, p.wg, p.regs, p.table, p.oracle)
+            out.append(q)
+    return out
+
+
 E_N, E_WG, E_BEFORE, E_AFTER = 128, 64, 3300, 3100   # 2 workgroups x 2 SIMD groups; marker words + gid
 
 
@@ -536,6 +548,100 @@ def analyse_i(r):
             'r15_old_hi': sum(r15[i] == t0[2 * i + 1] for i in range(N)), 'r15_untouched': sum(x == 0xdeadbeef for x in r15)}
 
 
+# Family J (ptx-re-blockers B24 items 1-3): the float add without a result, and the 64-bit min / max with an equal
+# source, an odd 32-bit index, 1024-lane contention on one pair, and a GPR base. Variants differ from their Mesa
+# surrogate only in bits 45-46, as in families A and G.
+
+def probes_j():
+    import record_suite as RS
+    out = []
+    # 1. red.add.f32: G's edge pairs with Rt = 0 (surrogate: integer sub without a result)
+    pre, suf = common(1)
+    for part in (0, 1):
+        t = table_g(part)
+        tab = list(t)
+        for i in range(G_N):
+            tab[i] = (t[i] - t[S_WORD + 2 * i]) & 0xffffffff
+        words = 8 + G_N + 8 + 16
+        ok = lambda o, tb, tab=tab: (len(o) == words and o[8:8 + G_N] == [0xdeadbeef] * G_N and o[:8] == [0xcdcdcdcd] * 8
+                                     and o[-16:] == [0xa5a50000 + i for i in range(16)] and tb == tab)
+        out.append(PV.Probe(f'J_redfadd_rt0_{part}', pre, atomic_bytes(1, 0, 2), atomic_bytes(1, 0, 1), suf, 3 << 45, G_N, 64,
+                            REGS, t, ok))
+    # 2. 64-bit min / max with source == memory on every lane (the changed flag on equality), Rt = 1 and 0
+    pre, suf = common(2)
+    t = table_a('atomic64-equal')
+    for i in range(N):
+        t[S_WORD + 2 * i], t[S_WORD + 2 * i + 1] = t[2 * i], t[2 * i + 1]
+    for ret in (1, 0):
+        lanes, tab = surrogate_a_oracle(t, ret)
+        for u5 in (1, 3):
+            out.append(PV.Probe(f'J_u64_equal_u5{u5}_rt{ret}', pre, atomic_bytes(3, ret, 2), atomic_bytes(3, ret, u5), suf,
+                                3 << 45, N, WG, REGS, t, lambda o, tb, lanes=lanes, tab=tab: out_ok(o, lanes) and tb == tab))
+    # 3a. odd 32-bit index: lane i uses word index 2i + 1 (byte address = 4 mod 8)
+    pre_odd = pre + RS.mov(27, 1) + RS.e('iadd r5, r5, r27')
+    t = table_a('atomic64-odd')
+    tab = list(t); lanes = []
+    for i in range(N):
+        w = 2 * i + 1; old = tab[w]; lanes.append(old)
+        if old == t[S_WORD + 2 * i + 1]:
+            tab[w] = t[S_WORD + 2 * i]
+    for u5 in (1, 3):
+        out.append(PV.Probe(f'J_u64_odd_u5{u5}', pre_odd, atomic_bytes(3, 1, 2), atomic_bytes(3, 1, u5), suf, 3 << 45, N, WG,
+                            REGS, t, lambda o, tb, lanes=lanes, tab=tab: out_ok(o, lanes) and tb == tab))
+    # 3b. contention: 1024 lanes on pair 0, Rt = 0. The surrogate's 32-bit compare (r7 = source high word) never
+    # matches memory's low word 0xffffffff - 1, so the surrogate changes nothing.
+    pre0, suf0 = common(0)
+    rng = random.Random('atomic64-contend')
+    t = [0] * (S_WORD + 2 * G_N)
+    t[0], t[1] = 0xfffffffe, 0x80000000
+    for i in range(G_N):
+        s = rng.getrandbits(64)
+        if s >> 32 == 0xfffffffe: s ^= 1 << 40
+        t[S_WORD + 2 * i], t[S_WORD + 2 * i + 1] = s & 0xffffffff, s >> 32
+    words = 8 + G_N + 8 + 16
+    ok = lambda o, tb, t=t: (len(o) == words and o[8:8 + G_N] == [0xdeadbeef] * G_N and tb == t
+                             and o[-16:] == [0xa5a50000 + i for i in range(16)])
+    for u5 in (1, 3):
+        out.append(PV.Probe(f'J_u64_contend_u5{u5}', pre0, atomic_bytes(3, 0, 2), atomic_bytes(3, 0, u5), suf0, 3 << 45, G_N, 64,
+                            REGS, t, ok))
+    # 3c. GPR base: the table address in r10_r11 (At = 0) instead of u8_u9
+    import run_drm_atomic as DA
+    pre_g = pre + RS.e('iadd r10, u8, 0') + RS.e('iadd r11, u9, 0')
+    t = table_a('atomic64-gpr')
+    lanes, tab = surrogate_a_oracle(t, 1)
+    raw = DA.mesa_atomic(3, 2 * 14, 2 * 10, 2 * 5, 2 * 6, 1, uniform_base=False)
+    for u5 in (1, 3):
+        sur = raw.to_bytes(8, 'little'); var = (raw & ~(3 << 45) | u5 << 45).to_bytes(8, 'little')
+        out.append(PV.Probe(f'J_u64_gprbase_u5{u5}', pre_g, sur, var, suf, 3 << 45, N, WG, REGS, t,
+                            lambda o, tb, lanes=lanes, tab=tab: out_ok(o, lanes) and tb == tab))
+    return out
+
+
+def analyse_j(r):
+    name, t0, t1 = r['name'], r['table_in'], r['table_after']
+    if name.startswith('J_redfadd'):
+        bad = [i for i in range(G_N) if (fadd_ref(t0[i], t0[S_WORD + 2 * i], True) or 0x7fc00000) != t1[i]]
+        return {'ftz_ieee_with_canonical_nan_match': G_N - len(bad), 'mismatch': [(f'{t0[i]:08x}', f'{t0[S_WORD + 2 * i]:08x}', f'{t1[i]:08x}') for i in bad[:6]],
+                'lanes_untouched': sum(x == 0xdeadbeef for x in r['out'][8:8 + G_N])}
+    if name.startswith('J_u64_contend'):
+        vals = [(t0[S_WORD + 2 * i + 1] << 32) | t0[S_WORD + 2 * i] for i in range(G_N)] + [(t0[1] << 32) | t0[0]]
+        want = (min if 'u51' in name else max)(vals)
+        got = (t1[1] << 32) | t1[0]
+        return {'final': f'{got:016x}', 'want': f'{want:016x}', 'exact': got == want,
+                'other_words_changed': [w for w in range(2, len(t0)) if t0[w] != t1[w]][:10]}
+    mn = 'u51' in name
+    odd = name.startswith('J_u64_odd')
+    rows = {'memory_exact': 0, 'ret': []}
+    for i in range(N):
+        w = 2 * i + 1 if odd else 2 * i
+        v = (t0[w + 1] << 32) | t0[w]; s = (t0[S_WORD + 2 * i + 1] << 32) | t0[S_WORD + 2 * i]
+        r_ = min(v, s) if mn else max(v, s)
+        rows['memory_exact'] += ((t1[w + 1] << 32) | t1[w]) == r_
+    rows['ret'] = sorted(set(f'{x:08x}' for x in r['out'][8:8 + N]))[:8]
+    rows['other_words_changed'] = [w for w in range(len(t0)) if t0[w] != t1[w] and not (w < 2 * N + 2)][:10]
+    return rows
+
+
 # Family T: threadgroup atomic (local_atomic, 0x19, 10-byte form), one currently-zero gap bit at a time on op 1 (sub),
 # looking for a threadgroup float add. Kernel shape of run_drm_tg_atomic.py 'lane' mode: lane i writes T[i] to its
 # threadgroup word (byte 4i), runs the atomic with S = r6 = X[i] (r7 = Y[i]), reads the word back -> table 192 + i.
@@ -689,13 +795,13 @@ def analyse(src):
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest='cmd', required=True)
-    r = sub.add_parser('run'); r.add_argument('--family', choices=['A', 'B', 'D', 'E', 'F', 'G', 'H', 'I', 'T', 'T2'], required=True)
+    r = sub.add_parser('run'); r.add_argument('--family', choices=['A', 'B', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'T', 'T2'], required=True)
     r.add_argument('--only'); r.add_argument('--dry', action='store_true'); r.add_argument('--out', type=Path, default=RAW)
     s = sub.add_parser('analyse'); s.add_argument('dir', type=Path, nargs='?', default=BUNDLE)
     a = ap.parse_args()
     if a.cmd == 'run':
         PV.cov.install()
-        ps = {'A': probes_a, 'B': probes_b, 'D': probes_d, 'E': lambda: probes_e() + probes_e(before=True) + probes_e(before=True, skip=True), 'F': probes_f, 'G': probes_g, 'H': probes_h, 'I': probes_i, 'T': probes_t, 'T2': probes_t2}[a.family]()
+        ps = {'A': probes_a, 'B': probes_b, 'D': probes_d, 'E': lambda: probes_e() + probes_e(before=True) + probes_e(before=True, skip=True), 'F': probes_f, 'G': probes_g, 'H': probes_h, 'I': probes_i, 'J': probes_j, 'K': probes_k, 'T': probes_t, 'T2': probes_t2}[a.family]()
         if a.only:
             ps = [p for p in ps if p.name == a.only]
         PV.run(ps, a.out, dry=a.dry)
