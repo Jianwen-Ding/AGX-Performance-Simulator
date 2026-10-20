@@ -11,3 +11,5 @@ spirv/compiled/**/predict-*/
 spirv/compiled/**/sim-*/
 spirv/expected/**/predict-*/
 spirv/expected/**/sim-*/
+/tasks/ptx-hw-smoke/inputs/
+/tasks/ptx-hw-smoke/out/

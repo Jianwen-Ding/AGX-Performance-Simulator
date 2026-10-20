@@ -81,7 +81,11 @@ The consumers are:
   - Control: one of the `llvm/test/CodeGen/AGX` kernels, e.g. a vector add, compiled by our backend.
 - **Deliverable:** the runner, with one compiler-generated kernel recorded as a coverage case, so its output can be
   checked against `agx_run` and the Sail model.
-- **Status 2026-10-20: a runner now exists, hardware run requested.** Jianwen-Ding/ZLUDA branch
+- **Done 2026-10-20 (steps 1 and 2 pass on the M2 Max):** `run_smoke.sh` with `agx_run_hw` gives PASS for vadd,
+  ids2d, tgrev and tgrev-count. `agx_cuda_smoke` gives `"wrong":0` (graph, unified and copy2d also 0),
+  `kernel_ms` 0.067. zluda_agx needed a 3-line aarch64 `c_char` fix to build. Evidence:
+  playground `results/2026-10-20-b2-hw-runner`. B2a-B2c remain open.
+- **Status 2026-10-20 (before the run): a runner now exists, hardware run requested.** Jianwen-Ding/ZLUDA branch
   `claude/bold-davinci-46xi9q` has:
   - `agx_runtime`, a Rust port of `drm_compute.c`. Its unit tests pin the exact USC and CDM bytes recorded in
     Apple-M2-Playground `experiments/baseline/direct-drm-compute.md`.
