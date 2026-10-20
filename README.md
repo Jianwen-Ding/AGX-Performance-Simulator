@@ -231,3 +231,10 @@ controls and zero faults. First/last-quarter median ratios stay within
 buffers were not captured and operating frequency remains unmeasured.
 The immediate-value/form difference from calibration is a next question;
 these results do not justify a global cost change.
+
+The [matched immediate-value study](../apple-documentation-playground/novel-results/2026-10-20-integer-immediate-cost/README.md)
+adds 26 trains / 1,596 exact recovered dispatches. Eight-chain immediate-1/3
+timings differ by less than 1% in pooled late medians and retain the 3.6x
+incremental gap. Identical one-chain shaders vary by over 2x between trials.
+The model predicts equal cost for both immediate values; it does not model
+these variable timing states. Pooled one-chain ratios are not latency estimates.
