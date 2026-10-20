@@ -181,7 +181,7 @@ Known functional limit under investigation: counter-increment overflow can
 reactivate a masked lane whose first native shuffle retains its destination
 instead of writing the expected source. The adjacent playground's
 [overflow diagnostic report](../apple-documentation-playground/novel-results/2026-10-20-overflow-first-shuffle/README.md)
-preserves **15 counterexamples** among 23 complete programs. All 69 hardware
+preserves **18 counterexamples** among 27 complete programs. All 81 hardware
 dispatches completed with exact controls and zero faults. Wait0/pop0/a second
 shuffle fixes the tested programs; one intervening ordinary ALU instruction
 does not. These records remain separate from the exact corpus. No generic
