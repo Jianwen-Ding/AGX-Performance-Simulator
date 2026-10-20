@@ -596,6 +596,19 @@ probe with the atomic-variants harness (`scripts/probe_atomics.py` style, surrog
 - **Deliverable:** pass or fail for 1 and 2, and the outcome of 3 if run. If 1 fails, report the real
   per-threadgroup limit for each H.
 
+## B27. Out-of-range and NaN float-to-integer `convert` (NEW, safe)
+
+- **Why it matters:** PTX's float-to-integer `cvt` saturates (NaN gives 0). The LLVM AGX backend cannot assume that
+  `convert f_to_s32` / `f_to_u32` / `f_to_s16` / `f_to_u16` do, so ZLUDA now lowers every such conversion to
+  `llvm.fpto[su]i.sat`. That costs two or three extra `fcmpsel` per conversion (the clamps against -2^31, 2^31 - 2^7,
+  2^32 - 2^8 and the NaN check). If the hardware already saturates, the backend can make `FP_TO_[SU]INT_SAT` legal
+  and drop them.
+- **Probes** (one kernel, `convert` of each mode, rtz and rte, from f32 and f16 sources, to s32, u32, s16 and u16):
+  inputs +-0, +-1.5, 2^31 - 128, 2^31, 2^32, 1e20, -1e20, -1.0 (to unsigned), +-inf, quiet and signalling NaNs
+  of both signs, and the largest denormal.
+- **Deliverable:** the result bits per input and mode. For each mode: does it saturate, what does NaN give, and
+  does a negative input to an unsigned mode give 0?
+
 ## B10. Memory ordering (COVERED by safe-10)
 
 The backend and ZLUDA lower PTX `fence.{cta,gpu,sys}`, `membar.*`, `ld.acquire`, `st.release`, `atom.*.acq_rel` from
