@@ -132,6 +132,15 @@ The consumers are:
   - the encoding table, or a recorded "no native 64-bit atomics";
   - a contention test showing atomicity.
 
+- **Status 2026-10-20, partly answered by existing findings** (playground `2026-10-17-atomic-variants`, `atom64`):
+  - On G14C, bit 45 of the device atomic turns `sub` into a float32 add and `cmpxchg` into u64 min/max without a
+    returned old value.
+  - There is no 64-bit add, CAS or exchange, and no threadgroup float add.
+  - The LLVM backend will lower `atomicrmw fadd f32` and unused-result `atomicrmw umin/umax i64` to these. Everything
+    else keeps the lock table.
+  - **Still open:** the float add's rounding and NaN/denormal behaviour under contention, beyond RNE/FTZ. Also whether
+    u64 min/max has a returning form.
+
 ## B4. Forward progress inside a SIMD group (NEW, safe with a bounded loop)
 
 - **Needed for:** PTX on `sm_70+` assumes independent thread scheduling. Common CUDA code spins inside a warp, e.g. a
@@ -236,6 +245,58 @@ The consumers are:
   Calls also need a stack (B1) for saved links and spilled registers.
 - **Deliverable:** the call/return rules for divergent SIMD-groups and their cost, so the backend can emit calls
   where they pay off.
+
+## B15. `simd_matrix_fmadd16/32` on G14C: operand map and cost (NEW, safe once gated)
+
+- **Needed for:** every GEMM, convolution and attention kernel. The 8x8 SIMD-group matrix multiply-accumulate is
+  emulated today with 24 shuffles + 16 FMAs per tile, because the native form's operands are unmapped on G14C.
+  - The form is 0x6f with bit 27 set (applegpu `simd_matrix_fmadd16/32`, paired D/A/B/C).
+  - The playground reached it (`2026-10-11-subop-spaces`) but neither mapped its operands nor timed it.
+- **Probe:**
+  - Start from a Mesa-compiled `simdgroup_matrix` shader (Vulkan cooperative matrix, if Mesa exposes it on G14).
+    Otherwise use applegpu's encoding with A = identity and B = a known matrix.
+  - Record which lane holds which element of A, B, C and D, and the accumulation order (fused, and in which k order).
+  - Then measure latency and throughput against the 24-shuffle emulation.
+- **Deliverable:** the per-lane layout and exact arithmetic. The `agx.mma` op then gets a native G14 lowering; its
+  fixed layout is `r = 4*(t/16) + (t/2)%4`, `c = 4*((t/8)%2) + 2*(t%2)`.
+
+## B16. The 0x78 barrier: what it orders (PARTLY MEASURED)
+
+- **Known:** playground `barrier-0x68-vs-0x78`. 0x78 synchronizes the aligned 4-SIMD-group (128-thread) block only,
+  costs 2.9 ns versus 9.3 ns for 0x68, and releases about 7 cycles after the last arrival versus about 13.
+- **Open:**
+  - Does it order threadgroup memory between the SIMD-groups of the block, like 0x68? A tg-litmus run with 0x78 as
+    the only barrier would answer it.
+  - What happens when a block is partly outside a workgroup smaller than 128 threads?
+  - Is it safe in divergent control flow?
+- **Needed for:** `agx.block_barrier`, which library kernels use for 2x2-SIMD-group tiles. Until this is answered it
+  is lowered to 0x78 plus a threadgroup-memory fence.
+
+## B17. `async_load` / `copy_1d` / `copy_2d` (NEW, unsafe)
+
+- **Needed for:** prefetching operand tiles into threadgroup memory while computing, i.e. double buffering.
+  - Apple's M5 guidance says such staging is unnecessary for peak GEMM there.
+  - On G14 it may still pay for convolutions and FFT.
+- **Known:** never run on G14C. Earlier attempts hung, and the form needs scratch/helper setup (playground
+  `docs/isa-coverage.md`).
+- **Open:**
+  - the setup it needs (shared with B1);
+  - its operand map;
+  - whether it overlaps with ALU work;
+  - how completion is signalled.
+- **Priority:** low until B1 is done. The dialect does not expose it yet.
+
+## B18. Lane-offset fmadd as a compiler target (FOLLOWS safe-07)
+
+- **Known:** fmadd32/fmadd16 bit 53 gives `shuffle_up(a, k) * b + c` within 16-lane halves (bits 72/73 select
+  segments of 2 or 4). The cross-half read is timing-dependent, and bit 52 is a `pow()` fixup.
+- **Needed:** recorded coverage cases for the exact forms `agx.fma_lane_shift` will emit:
+  - k = 1..15;
+  - segment widths 16, 4 and 2;
+  - fmadd32 and fmadd16;
+  - partial masks.
+
+  Plus the cost per instruction against `shuffle up` + `fma`. Once recorded, the native lowering is enabled for G14.
 
 ## B10. Memory ordering (COVERED by safe-10)
 
