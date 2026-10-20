@@ -475,6 +475,21 @@ probe with the atomic-variants harness (`scripts/probe_atomics.py` style, surrog
 
 **Deliverable:** one line per item. The Sail model and the backend then enable or keep refusing each form.
 
+## B25. GPU telemetry Asahi exposes to userspace (NEW, safe, read-only)
+
+- **Why it matters:** NVML users (monitoring tools, PyTorch's `torch.cuda.utilization`, schedulers) query
+  utilisation, clocks, temperature and power. ZLUDA's `zluda_ml_agx` returns `NOT_SUPPORTED` for all of them
+  for now.
+- **Probe (no GPU work needed):** on the M2 Max under Asahi, list and read:
+  - `/sys/class/drm/card*/device/` and `/sys/class/devfreq/*`: current and possible GPU frequencies, and any
+    busy-time counters;
+  - `/sys/class/hwmon/*`: names and labels; which sensors belong to the GPU die or the GPU power rail;
+  - any `debugfs` files of the `asahi` DRM driver readable without root;
+  - whether `DRM_ASAHI_GET_TIME` or the firmware timestamps can give a busy fraction, e.g. summed command time
+    over a wall-clock interval.
+- **Deliverable:** the paths and units of each quantity that exists, and which need root. zluda_ml_agx then
+  implements `nvmlDeviceGetUtilizationRates`, `GetClockInfo`, `GetTemperature` and `GetPowerUsage` from them.
+
 ## B10. Memory ordering (COVERED by safe-10)
 
 The backend and ZLUDA lower PTX `fence.{cta,gpu,sys}`, `membar.*`, `ld.acquire`, `st.release`, `atom.*.acq_rel` from
