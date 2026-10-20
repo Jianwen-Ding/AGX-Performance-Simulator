@@ -17,7 +17,8 @@ The consumers are:
 
 1. **B1 scratch / stack** and **B2 a generic hardware runner**. Without them no real CUDA kernel can run.
 2. **B3 64-bit atomics**, **B4 intra-SIMD-group forward progress**, **B5 cross-workgroup co-residency**,
-   **B7 CPU → GPU visibility**: correctness of common CUDA idioms.
+   **B7 CPU → GPU visibility**, **B30 forward progress of spinning threadgroups** (the `tcgen05` tensor memory
+   pool): correctness of common CUDA idioms.
 3. **B6 dispatch time limit**, **B8 code region**, **B9 kernel parameter space**, **B20 failed-job reporting**: limits
    and errors a runtime must report.
 4. B10–B13: already covered by existing tasks; the consumers wait on them.
@@ -667,6 +668,24 @@ probe with the atomic-variants harness (`scripts/probe_atomics.py` style, surrog
       integers by `image_write`.
 - **Deliverable:** for each probe, the hardware result next to the reference's, and which descriptor and sampler
   fields set the behaviour. ZLUDA then uses the native path for the modes that match and keeps software for the rest.
+
+## B30. Forward progress of threadgroups that spin on device memory (NEW, safe except where marked)
+
+- **Why it matters:** ZLUDA emulates the `tcgen05` tensor memory (256 KiB per CTA) with a pool of four slabs in
+  device memory (`ptx/lib/zluda_ptx_impl_agx_cvt.c`, ZLUDA branch `claude/bold-davinci-46xi9q`). A CTA whose first
+  `tcgen05.alloc` finds no free slab spins on a device word (atomic compare-and-swap in a loop) until a CTA that
+  holds one frees it. That is only correct if a spinning threadgroup cannot keep the holder from running: the
+  holder may be on the same core, or waiting for a core the spinners occupy. The `mbarrier.try_wait` loops of the
+  TMA and `tcgen05.commit` paths depend on the same guarantee within a threadgroup.
+- **Probes** (one compute kernel each; device memory zeroed; a 10 s timeout per run):
+  1. Grid of 2 threadgroups x 32 threads: threadgroup 1 spins until a device word is 1; threadgroup 0 sets it
+     after 10^6 iterations of a loop. Completes?
+  2. As 1 with the grid at the measured maximum residency (all cores full of spinners) plus one setter launched
+     last (highest threadgroup index). Completes, and after how long?
+  3. As 2 with the spin loop containing a device atomic on every iteration (as ZLUDA's) versus a plain load.
+  4. **UNSAFE if 1-3 hang, run last:** what recovers the GPU (the timeout path of B13 / safe-11)?
+- **Deliverable:** completes / hangs and the time for 1-3. If 2 hangs, ZLUDA bounds the TMEM-using CTAs in flight
+  at launch (the runtime can split the grid) instead of spinning; record the residency limit it should use.
 
 ## B10. Memory ordering (COVERED by safe-10)
 
