@@ -86,7 +86,7 @@ Rules: [safe-probes.md](safe-probes.md). Before any GPU work: `scripts/gpu_safet
 
 | Item | Status | Left to do |
 | --- | --- | --- |
-| B29 native sampling | mostly done | Probes 4, 9: run `scripts/run_vk_b29.py` (written, built); simulator texture unit still lacks compare / LOD clamps / pixel coords. |
+| B29 native sampling | done | All 10 probes answered except the LOD-bias order; simulator texture unit still lacks compare / LOD clamps / pixel coords. |
 
 ## Runtime, VMs and memory
 
@@ -139,7 +139,7 @@ Rules: [safe-probes.md](safe-probes.md). Before any GPU work: `scripts/gpu_safet
 Prepared and gated in agx_run, **not yet run on the GPU** (run them in this order; each is safe-class):
 - B10 IRIW: **ran 2026-10-21, the kernel faults on the GPU (zero timestamps) though agx_run accepts it**; bisect before retrying.
 - B24 item 6: **ran 2026-10-21: `0309ffffffff` hung (recovered); these opcodes are not no-ops for all operand bytes; sweep stopped.** The simulator should stop treating arbitrary operand bytes as no-ops.
-- B29 probes 4 / 9: `scripts/run_vk_b29.py` (harness `tests/vulkan_texture.c`, build to /scratch/agxsim-runs/vkt).
+- B29 probes 4 / 9: **ran 2026-10-21, both pass** (see results/2026-10-21-b29-texture-corners).
 - B44 (one instruction fault + one firmware-ended deadlock, as B20 / B26): `/scratch/ZLUDA/agx_runtime/examples/b44_isolation.rs`
   with `/scratch/agxsim-runs/b44/{control,op54,deadlock}.bin` (`results/2026-10-21-b44-vm-isolation/build.py`); run
   `b44_isolation /scratch/agxsim-runs/b44 vms` then `queues`.

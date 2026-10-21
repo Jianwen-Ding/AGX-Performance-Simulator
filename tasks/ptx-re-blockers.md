@@ -814,8 +814,8 @@ result of the float add is 0x7fc00000 (from the 2026-10-17 records).
 - **Mostly done 2026-10-21:** probes 1, 2, 3, 6, 8 were answered by earlier findings; new: depth compare is
   `ref OP texel` (all 8 functions) and PCF under linear filtering; textureGrad lambda = log2(max gradient length * size);
   MIN/MAX_LOD clamp before level selection; image stores round (unorm / snorm, snorm clamps to -127) and integer stores
-  saturate. **Open:** probes 4 (unnormalized coordinates) and 9 (pitch-linear): Vulkan harness written, not run; LOD bias
-  order. Evidence: playground `results/2026-10-21-b29-texture-corners`.
+  saturate. Probes 4 and 9 (Vulkan, same day): unnormalized coordinates with clamp / border match CUDA exactly (88/88 x 4);
+  pitch-linear images work at every 16-byte-multiple row pitch (264/264), not at 132 / 136. Only the LOD-bias order is untested. Evidence: playground `results/2026-10-21-b29-texture-corners`.
 
 - **Why it matters:** ZLUDA can move a texture mode from software to the native `texture_sample` / `texture_load` /
   `image_write` path only where the hardware gives the result CUDA (and PTX-formalization's model) specifies.
