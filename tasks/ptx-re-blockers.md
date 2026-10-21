@@ -1029,6 +1029,10 @@ Consumed as is:
 
 ## B38. Several VMs and queues in one process (NEW, safe)
 
+- **Done 2026-10-21:** no limit reached: 2,048 VMs (1 queue each) or 2,048 queues on one VM in one process, all
+  alive, every async launch correct. VMs share the 63 hardware slots (bound only while they have work). Priorities:
+  only LOW / MEDIUM accepted, no effect (safe-04). Evidence: playground `results/2026-10-21-b38-vms-queues`.
+
 - **Why it matters:** ZLUDA has one context; real CUDA contexts (each with its own allocations and streams) may get a
   VM each, and every stream is a queue. The limits are not known.
 - **Probes:** in one process, create 2, 4, 16 VMs and 1, 16, 64, 256 queues (on one VM and spread), run a kernel on
@@ -1078,6 +1082,11 @@ Consumed as is:
 - **Safety:** ordinary work; watch memory.
 
 ## B43. How commands of different VMs share the GPU (NEW, safe)
+
+- **Done 2026-10-21:** commands of two VMs run concurrently on the same cores, interleaved by workgroup slot: two
+  full-GPU 0.84 s kernels started together both took 1.49 s and ended 26 ns apart; no per-VM time slicing, no
+  preemption (a short kernel runs when a slot frees), no visible switch cost. SR21: one slot per VM, 63 recycled.
+  Evidence: playground `results/2026-10-21-b43-vm-scheduling`.
 
 - **Why it matters:** the simulator is getting several contexts (VMs) that run together, and ZLUDA real CUDA contexts
   (one VM each, or one VM shared). How the firmware schedules compute commands of different VMs decides both the
