@@ -369,6 +369,12 @@ Branch `claude/bold-davinci-46xi9q` of Jianwen-Ding/ZLUDA and Jianwen-Ding/llvm-
 
 ## B15. `simd_matrix_fmadd16/32` on G14C: operand map and cost (NEW, safe once gated)
 
+- **Done 2026-10-21:** run through `probe_variants.py` (surrogate-gated, 0 faults). Layout: element q = 2 lane + slot,
+  row = ((q >> 2) & 3) + 4 (q >> 5), col = (q & 3) + 4 ((q >> 4) & 1), the same for A, B, C, D and both widths (= the
+  `agx.mma` layout); D = A B + C computed as an **in-order chain of 8 fmas** (k = 0..7, rounded each step), exact on
+  7,680 / 7,680 elements for fp32 and fp16. Cost: 16.2 cycles latency, 15.5 issue, ~134 FMA / cycle / core (3x scalar
+  fma, ~5x the emulation per tile). Evidence: playground `results/2026-10-21-b15-simd-matrix`.
+
 - **Needed for:** every GEMM, convolution and attention kernel. The 8x8 SIMD-group matrix multiply-accumulate is
   emulated today with 24 shuffles + 16 FMAs per tile, because the native form's operands are unmapped on G14C.
   - The form is 0x6f with bit 27 set (applegpu `simd_matrix_fmadd16/32`, paired D/A/B/C).

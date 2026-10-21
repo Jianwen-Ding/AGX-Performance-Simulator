@@ -68,6 +68,10 @@ OPS = {
     # B18: fmadd with source A read from lane i - k (16-lane halves; coverage areas fmadd_lane_b18*)
     'fmadd32_lane1':     ('fmadd32_lane r{d}, r{d}, r21, r20, 0b00001, 0b00000000000, 0b0', 'simd'),
     'fmadd32_lane15':    ('fmadd32_lane r{d}, r{d}, r21, r20, 0b01111, 0b00000000000, 0b0', 'simd'),
+    # B15: 8x8 SIMD-group matrix multiply-accumulate (operands paired; D feeds back as A for the dependent chain;
+    # the int64 class steps chain registers by 2 so pairs do not overlap)
+    'simd_matrix_fmadd32': ('simd_matrix_fmadd32 r{d}_r{d1}, r{d}_r{d1}, r20_r21, r20_r21', 'int64'),
+    'simd_matrix_fmadd16': ('simd_matrix_fmadd16 r{d}l_r{d}h, r{d}l_r{d}h, r20l_r20h, r22l_r22h', 'simd'),
     'fmadd16_lane1':     ('fmadd16_lane r{d}l, r{d}l, r21l, r20l, 0b00001, 0b00000000000, 0b0', 'simd'),
     'simd_iadd':         ('simd_iadd r{d}, r{d}', 'simd'),
     'simd_prefix_iadd':  ('simd_prefix_iadd r{d}, r{d}', 'simd'),

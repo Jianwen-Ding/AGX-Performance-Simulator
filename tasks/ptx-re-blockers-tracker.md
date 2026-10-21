@@ -62,7 +62,7 @@ Rules: [safe-probes.md](safe-probes.md). Before any GPU work: `scripts/gpu_safet
 | Item | Status | Left to do |
 | --- | --- | --- |
 | B14 calls and recursion | unsafe | unsafe-01 items 2-6: partial / empty-mask calls, divergent targets and returns, nesting depth. Follow unsafe-01's staged plan only. |
-| B15 `simd_matrix_fmadd` | open | Mesa cooperative-matrix capture first, otherwise applegpu's encoding; lane map, accumulation order, cost. New encoding, so emulator gate and coverage first. |
+| B15 `simd_matrix_fmadd` | done | Layout = agx.mma layout; in-order fma chain; 16 cycles; ~3x scalar fma throughput. |
 | B16 0x78 barrier | done | |
 | B17 `async_load` / `copy_*` | unsafe | Low priority; needs B1's helper setup. Earlier attempts hung. |
 | B18 lane-offset fmadd | done | 28 recorded exact + 6 via probe_variants (fp32 segment-boundary lanes undefined); 1.75x latency vs shuffle+fma. |
