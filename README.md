@@ -134,6 +134,12 @@ by `llvm/utils/agx-mesa-isa/mesa_isa.py` in the LLVM AGX fork into `rust/src/isa
 `rust/src/isa/mesa_corpus.txt` holds instructions packed by Mesa's own `agx_pack.c`, which the tests check are accepted.
 The LLVM backend's `agx-strict` feature emits only these forms.
 
+Checked mode and fault replay: kernels built with the LLVM backend's `agx-checked` feature (ZLUDA's `zoc
+--agx-checked`) run on `agx_run` like any other once their hidden arguments are passed as uniforms;
+`llvm/utils/agx-checked/run_checked.py` in the LLVM fork does that and decodes the error record. ZLUDA's `zluda_agx`
+saves a launch that faulted on the GPU (`ZLUDA_AGX_DUMP=DIR`) as the kernel's code, its uniforms and the memory it can
+reach, with a `replay.sh` that runs it here: `AGX_RUN=rust/target/release/agx_run DIR/<pid>-<command>/replay.sh`.
+
 `agx_run --m2-core-map FILE` optionally replays supplied SR20 identities. Append
 it to a complete command with the normal uniforms and memory mappings. FILE
 is a JSON array with one packed M2 Max core ID per workgroup, x varying fastest,
