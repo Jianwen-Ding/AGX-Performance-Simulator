@@ -94,7 +94,7 @@ Rules: [safe-probes.md](safe-probes.md). Before any GPU work: `scripts/gpu_safet
 | --- | --- | --- |
 | B36 dma-buf IPC | done | dma-buf IPC works; no userptr import. |
 | B38 VMs and queues per process | done | No limit up to 2,048 VMs / 2,048 queues; 63 VM slots recycled; only LOW/MEDIUM priority. |
-| B39 largest allocation | open | 1 / 4 / 16 / 32 GiB BOs and the total; stop at the first failure and watch memory. |
+| B39 largest allocation | done | 32 GiB single / 40 GiB total fine; free = MemAvailable. |
 | B42 context teardown | needs tools | ZLUDA has no real contexts yet. The raw-DRM part (create / destroy VM + queue 1,000 times) can run now. |
 | B43 scheduling between VMs | done | Concurrent, slot-interleaved, no slicing or preemption. |
 | B44 isolation of faults and deadlocks | unsafe | One soft fault and one firmware-ended deadlock (as B20 / B26). |

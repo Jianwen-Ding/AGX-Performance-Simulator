@@ -1049,6 +1049,11 @@ Consumed as is:
 
 ## B39. Largest allocation and address range (NEW, safe)
 
+- **Done 2026-10-21:** no limit below physical memory: one 32 GiB object and 40 GiB in total bound and were written
+  by the GPU at their last page (stopped at a 10 GiB MemAvailable floor on purpose). VM: 512 GiB, ~412 GiB of data VA.
+  The UAPI reports no memory figures: report free = MemAvailable, total = MemTotal. Evidence: playground
+  `results/2026-10-21-b39-allocation-limits`.
+
 - **Why it matters:** `cuMemAlloc` of tens of GiB on a 64 GiB M2 Max, and `cuMemGetInfo` (ZLUDA reports a fixed
   share of RAM).
 - **Probes:** allocate and bind single BOs of 1, 4, 16, 32 GiB and a kernel that touches the last page; the total
