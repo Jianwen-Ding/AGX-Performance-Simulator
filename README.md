@@ -123,6 +123,9 @@ Other offline tools: `agx_asm` (assembler / decoder / raw field edits on stdin),
 dispatch over arbitrary memory, including a driver preamble that fills the uniforms). `agx_dispatch` takes the same
 `--preamble` / `--map` / `--alloc` options. With them, the SIMD groups' paths come from the functional simulator over
 that memory instead of the cost model's emulation, which is needed for driver-compiled code and data-dependent loops.
+`agx_run --lines OBJ.o [--lines-offset N]` reads the DWARF line table of the AGX object the code came from (`llc`
+with debug locations, `zoc --lineinfo`); every error names the PC of the failing instruction, and with a line table
+also its `"source"` (`rust/src/lines.rs`).
 
 Strict mode: `agx_run`, `agx_dispatch` and `agx_cost` take `--agx-strict GPU` (`g13`, `g13x`, `g14`, `g14d`, or an LLVM
 processor such as `agx-g14c`; `AGX_STRICT=GPU` does the same for every tool). The functional simulator then fails on

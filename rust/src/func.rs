@@ -707,10 +707,12 @@ fn step_group(g: &mut Group, code: &[u8], cache: &CodeCache, mem: &mut Memory, t
               stats: &mut RunStats) -> Result<Stop, String> {
     // Select once per group/resume, not on every instruction. Small programs
     // retain their original dense hot loop, while padded/large programs page.
-    match cache {
+    let r = match cache {
         CodeCache::Dense(c) => step_group_impl(g, code, c, mem, tg, max_steps, stats),
         CodeCache::Paged(c) => step_group_impl(g, code, c, mem, tg, max_steps, stats),
-    }
+    };
+    // Every error names the PC of the instruction that failed (agx_run --lines maps it to a source line).
+    r.map_err(|e| if e.contains(" at pc ") { e } else { format!("{} at pc {}", e, g.pc) })
 }
 
 // Keep the large interpreter loop out of workgroup setup/barrier scheduling.
