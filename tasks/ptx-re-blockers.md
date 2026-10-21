@@ -844,6 +844,12 @@ result of the float add is 0x7fc00000 (from the 2026-10-17 records).
 
 ## B10. Memory ordering (COVERED by safe-10)
 
+- **Done 2026-10-21 (write-up, no new run):** the PTX -> AGX sequence per scope, from the safe-10 findings and B7 /
+  B16 / B45: cta needs nothing (0x68 for bar.sync orders memory by itself); gpu release = f533, acquire = wait + f59d,
+  fence.sc = f533 f59a f596; atomics are not releases; sys = coherent store + f533 (to the host) and f59d + coherent
+  load (from the host). Open: IRIW, ld.relaxed specifics. Table: playground
+  `results/2026-10-21-b10-ordering-sequences`.
+
 The backend and ZLUDA lower PTX `fence.{cta,gpu,sys}`, `membar.*`, `ld.acquire`, `st.release`, `atom.*.acq_rel` from
 safe-10's results. Once safe-10's litmus tests are done, please also list the exact instruction sequence each scope
 needs. Add the `.sys` scope too, which combines safe-10 with B7.
