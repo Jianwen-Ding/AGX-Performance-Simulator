@@ -86,7 +86,7 @@ Rules: [safe-probes.md](safe-probes.md). Before any GPU work: `scripts/gpu_safet
 
 | Item | Status | Left to do |
 | --- | --- | --- |
-| B29 native sampling | open | Ten Vulkan probes against `zluda_ptx_impl_agx_tex.c`. Needs a SPIR-V path (no glslang here; check safe-05's runners). |
+| B29 native sampling | mostly done | Probes 4, 9: run `scripts/run_vk_b29.py` (written, built); simulator texture unit still lacks compare / LOD clamps / pixel coords. |
 
 ## Runtime, VMs and memory
 
@@ -133,3 +133,15 @@ Rules: [safe-probes.md](safe-probes.md). Before any GPU work: `scripts/gpu_safet
 | B35 SR113 power-state bit | not modelled by design (time-varying) |
 | B38 / B43 / B45 several VMs: concurrent, no implicit order, shared objects | **added 2026-10-21** to `agx_device`: cross-queue / cross-VM `wait_for`, `share` (one object in two VMs); whole commands in policy order = a legal outcome for synchronized programs |
 | B8 correction: the USC invalidate is needed for deep queues | todo: a runtime-level rule (ZLUDA), nothing for agx_run to execute |
+
+## Hand-off (2026-10-21, end of session)
+
+Prepared and gated in agx_run, **not yet run on the GPU** (run them in this order; each is safe-class):
+- B10 IRIW: playground `results/2026-10-21-b10-iriw/iriw.py gpu 65536 16 3 fenced` (and `plain`).
+- B24 item 6: `results/2026-10-21-b24-nop6-operands/b24n.py gpu` (248 operand variants of the 31 six-byte no-ops).
+- B29 probes 4 / 9: `scripts/run_vk_b29.py` (harness `tests/vulkan_texture.c`, build to /scratch/agxsim-runs/vkt).
+- B44 (one instruction fault + one firmware-ended deadlock, as B20 / B26): `/scratch/ZLUDA/agx_runtime/examples/b44_isolation.rs`
+  with `/scratch/agxsim-runs/b44/{control,op54,deadlock}.bin` (`results/2026-10-21-b44-vm-isolation/build.py`); run
+  `b44_isolation /scratch/agxsim-runs/b44 vms` then `queues`.
+Needs the owner: B17 (async_load, hung before) and B24 item 5 (memory_barrier sweep). Blocked: B19 (M2 Ultra), B23 / B41
+(CUDA binaries built elsewhere). Simulator follow-ups: texture compare / LOD clamps / pixel coordinates (B29).

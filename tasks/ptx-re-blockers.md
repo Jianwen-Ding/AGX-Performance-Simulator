@@ -806,6 +806,12 @@ result of the float add is 0x7fc00000 (from the 2026-10-17 records).
 
 ## B29. Native texture sampling against ZLUDA's software reference (NEW, safe through Mesa/Vulkan as in safe-05)
 
+- **Mostly done 2026-10-21:** probes 1, 2, 3, 6, 8 were answered by earlier findings; new: depth compare is
+  `ref OP texel` (all 8 functions) and PCF under linear filtering; textureGrad lambda = log2(max gradient length * size);
+  MIN/MAX_LOD clamp before level selection; image stores round (unorm / snorm, snorm clamps to -127) and integer stores
+  saturate. **Open:** probes 4 (unnormalized coordinates) and 9 (pitch-linear): Vulkan harness written, not run; LOD bias
+  order. Evidence: playground `results/2026-10-21-b29-texture-corners`.
+
 - **Why it matters:** ZLUDA can move a texture mode from software to the native `texture_sample` / `texture_load` /
   `image_write` path only where the hardware gives the result CUDA (and PTX-formalization's model) specifies.
   safe-05 records the encodings. This item asks for the comparison and for the corners safe-05 does not cover.
