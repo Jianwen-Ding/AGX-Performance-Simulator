@@ -968,6 +968,12 @@ Consumed as is:
 
 ## B35. A clock a shader can read: `%clock`, `%clock64`, `%globaltimer`, `nanosleep` (NEW, safe)
 
+- **Done 2026-10-21: no SR is a clock.** All 256 selectors read twice 0.96 ms apart in one thread: only SR113 (the
+  power-state bit) changed. A shader can read time only through the CPU-written `CNTVCT_EL0` timer (f59d + coherent
+  load, 41.7 ns ticks, 0.6-1 us per read; `novel-results/2026-10-11-in-shader-clock`, `2026-10-18-clock-load`): use it
+  for `%globaltimer`, a coarse `clock64()` and a bounded `nanosleep`; there is no cycle counter. Evidence: playground
+  `results/2026-10-21-b35-shader-clock`.
+
 - **Why it matters:** ZLUDA reads `%clock`/`%clock64` as 0 and `nanosleep` does not sleep, because no timer the
   shader can read is known. CUDA code uses `clock64()` for timing loops, spin-wait backoff and benchmarks
   (e.g. the CUDA samples' `clock`), and `%globaltimer` for wall time.
@@ -1092,6 +1098,12 @@ Consumed as is:
 - **Safety:** ordinary loads and stores.
 
 ## B46. Worst-case relative error of `rcp` and `rsqrt` (NEW, safe)
+
+- **Done 2026-10-21:** rcp max **0.7496 ulp** (rel 2^-23.42), rsqrt / rsqrt_special **0.8177 ulp** (rel 2^-23.42) over
+  every significand (the recorded [1, 2) / [1, 4) tables), and the same in every binade (776,195 GPU inputs, 0
+  mismatches against the scaled tables). ~19 % of results are 1 ulp off correctly rounded; the simulator already uses
+  the measured tables. The backend's 2^-19.7 margin holds with ~9 bits to spare. Denormal inputs give +-inf; results
+  below 2^-126 flush to +-0. Evidence: playground `results/2026-10-21-b46-rcp-rsqrt-error`.
 
 - **Why it matters:** the backend's software `double` division and square root (llvm-project d3c8d974d) seed a
   fixed-point Newton iteration with `rcp` / `rsqrt` on a `float` of 24 significant bits in [2^23, 2^24) and stay

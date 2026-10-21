@@ -78,8 +78,8 @@ Rules: [safe-probes.md](safe-probes.md). Before any GPU work: `scripts/gpu_safet
 | B32 submit batching | done | |
 | B33 vector alignment | done | |
 | B34 stack cost and wait groups | done | |
-| B35 shader clock | open | Read the known and neighbouring SRs around a bounded delay; compare with the 1 GHz timestamps. |
-| B46 `rcp` / `rsqrt` error | open | 2^24 inputs in [1, 4) plus exponent and denormal samples, max ulp. |
+| B35 shader clock | done | No SR clock; use the CPU-written timer; `results/2026-10-21-b35-shader-clock`. |
+| B46 `rcp` / `rsqrt` error | done | 0.75 / 0.82 ulp max, exponent-independent; `results/2026-10-21-b46-rcp-rsqrt-error`. |
 | B47 7-bit shift amounts | done | Low 7 bits of the amount, as modelled; `results/2026-10-21-b47-shift-amounts`. |
 
 ## Textures
