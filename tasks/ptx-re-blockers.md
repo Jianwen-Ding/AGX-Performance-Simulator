@@ -419,10 +419,12 @@ Branch `claude/bold-davinci-46xi9q` of Jianwen-Ding/ZLUDA and Jianwen-Ding/llvm-
 
 ## B18. Lane-offset fmadd as a compiler target (FOLLOWS safe-07)
 
-- **Done 2026-10-21:** all 34 forms recorded on the GPU and exact in `suite_check` (fmadd_lane_b18 20/20,
-  fmadd_lane_b18_masked 8/8; 6 names were already recorded). Cost: `fmadd32_lane` 3.9 cycles dependent, 2.48 issue,
-  30.9 lanes/clk/core (any k) against 6.84 / ~4.0 / 26.1 for `shuffle up` + `fma`: enable the native lowering.
-  Evidence: playground `results/2026-10-21-b18-fmadd-lane`.
+- **Done 2026-10-21:** 28 of the 34 forms recorded on the GPU and exact in `suite_check` (fmadd_lane_b18 20/20,
+  fmadd_lane_b18_masked 8/8). The 6 the simulator cannot gate (segment modes with k >= 2; fmadd32 in segment modes) ran
+  through `probe_variants.py`: in-segment lanes read lane i - k exactly for every k; lanes whose source is outside the
+  segment read 0 (fmadd16) or an **undefined, run-to-run varying value (fmadd32)**, so the compiler must discard or
+  mask them. Cost: `fmadd32_lane` 3.9 cycles dependent, 2.48 issue, 30.9 lanes/clk/core (any k) against 6.84 / ~4.0 /
+  26.1 for `shuffle up` + `fma`: enable the native lowering. Evidence: playground `results/2026-10-21-b18-fmadd-lane`.
 
 - **In progress 2026-10-20:** the 34 missing forms are in the coverage catalog (areas `fmadd_lane_b18`,
   `fmadd_lane_b18_masked`: every k = 1..15, 4-/2-lane segments for both widths, more partial masks) and validate offline;
