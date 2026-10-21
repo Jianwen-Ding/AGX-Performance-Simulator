@@ -1098,6 +1098,17 @@ Consumed as is:
   real results and the backend's margin is confirmed or widened.
 - **Safety:** arithmetic only.
 
+## B47. Shift amounts of 32 to 127 in `bfi`, `bfeil`, `extr` and `asr` on G14 (NEW, safe)
+
+- **Why it matters:** since llvm-project's "64-bit values as halves" change, 64-bit shifts by a variable amount
+  rely on these instructions taking a 7-bit amount, as dougallj's applegpu documents for G13 and the simulator
+  models: `bfi 0, x, s` and `bfeil 0, x, s` give 0 for s in 32..127, `extr lo, hi, s` gives `((hi:lo) >> s)` for
+  s up to 63 (and 64 gives 0), `asr x, s` fills with the sign bit from 32 on. A logical `lshr i64` is two `extr`s.
+- **Probe:** for s in 0..127 and the values 0x80000001, 0xffffffff, 0x12345678 (and `extr` with a second register
+  0x9abcdef0), run each instruction with a register amount; compare with the formulas above.
+- **Deliverable:** pass, or the actual rule (amount masked to 5 or 6 bits?), so the backend can mask.
+- **Safety:** arithmetic only.
+
 ## T1. `agx_cost`: uniform values from the command line (tooling request, no hardware needed; DONE in #7)
 
 - **Status 2026-10-20:** Jianwen-Ding/AGX-Performance-Simulator#7 adds `--uniform`, the launch geometry and
