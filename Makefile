@@ -6,7 +6,7 @@ MESA_VERSION ?= 26.0.3
 MESA_SHIM_DIR ?= $(CURDIR)/../mesa-src
 export CC PROBE_INCLUDE
 
-.PHONY: help verify-conversions verify-float-edges verify-transcendentals verify-sr check rust test verify-cost-model verify-memory-model bench verify-bench cost-calibrate cost-validate suite-check record-suite record-transcendentals coverage-validate coverage-record coverage-check coverage-properties coverage-status spirv-build spirv-run spirv-lavapipe spirv-sim spirv-compile spirv-predict verify-traces spirv-verify asahi-verify
+.PHONY: help verify-conversions verify-float-edges verify-transcendentals verify-sr check rust test verify-cost-model verify-simd-matrix verify-memory-model bench verify-bench cost-calibrate cost-validate suite-check record-suite record-transcendentals coverage-validate coverage-record coverage-check coverage-properties coverage-status spirv-build spirv-run spirv-lavapipe spirv-sim spirv-compile spirv-predict verify-traces spirv-verify asahi-verify
 
 help:
 	@echo 'make rust               Build the model (rust/target/release: agx_cost, agx_predict, verify_cost_model, agx_bench)'
@@ -51,6 +51,10 @@ test:
 verify-cost-model: rust
 	rust/target/release/verify_cost_model > /tmp/agx-verify-cost-model.txt
 	$(PYTHON) -c "import sys; a = open('/tmp/agx-verify-cost-model.txt').read(); b = open('results/2026-10-11-cost-model/verify-output.txt').read(); print('identical to verify-output.txt' if a == b else 'DIFFERS from verify-output.txt'); sys.exit(a != b)"
+
+verify-simd-matrix: rust
+	# B15: replay the hardware simd_matrix_fmadd32 / 16 records in agx_run (11,520 words must match)
+	$(PYTHON) scripts/verify_simd_matrix.py
 
 verify-memory-model: rust
 	# mem_check simulates full-size caches in every worker thread; with one thread per core it drove the host into a

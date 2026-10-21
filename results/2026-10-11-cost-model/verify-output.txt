@@ -1,6 +1,6 @@
-ok   bench (FIT) latency: median |err| 0.004 (limit 0.03), p90 0.007, max 0.053
-ok   bench (FIT) simd_issue: median |err| 0.007 (limit 0.04), p90 0.044, max 0.046
-ok   bench (FIT) gpu: median |err| 0.040 (limit 0.06), p90 0.185, max 1.044
+ok   bench (FIT) latency: median |err| 0.004 (limit 0.03), p90 0.006, max 0.053
+ok   bench (FIT) simd_issue: median |err| 0.006 (limit 0.04), p90 0.044, max 0.046
+ok   bench (FIT) gpu: median |err| 0.036 (limit 0.06), p90 0.169, max 1.044
 ok   rotation (FIT, 32-bit forms): median |err| 0.017, max 0.119
 info rotation (fadd16): median |err| 0.029, max 0.338 (16-bit writeback not modelled beyond D=9)
 info empty loop trip: measured 35.25, predicted 35.27 (reference units)

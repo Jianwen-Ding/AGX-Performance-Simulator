@@ -191,8 +191,18 @@ pub const OPS: &[(&str, &str, &str)] = &[
     ("fcmp_ballot", "fcmp_ballot r{d}, lt, r{d}, r20", "simd"),
 ];
 
+/// bench_ops.EXTRA_OPS: forms benchmarked after the random-kernel pool was fixed; looked up by `op`, never drawn by `pool`.
+pub const EXTRA_OPS: &[(&str, &str, &str)] = &[
+    ("simd_shuffle_up1", "simd_shuffle_up r{d}, r{d}, 1", "simd"),
+    ("simd_matrix_fmadd32", "simd_matrix_fmadd32 r{d}_r{d1}, r{d}_r{d1}, r20_r21, r20_r21", "int64"),
+    ("simd_matrix_fmadd16", "simd_matrix_fmadd16 r{d}l_r{d}h, r{d}l_r{d}h, r20l_r20h, r22l_r22h", "simd"),
+    ("fmadd32_lane1", "fmadd32_lane r{d}, r{d}, r21, r20, 0b00001, 0b00000000000, 0b0", "simd"),
+    ("fmadd32_lane15", "fmadd32_lane r{d}, r{d}, r21, r20, 0b01111, 0b00000000000, 0b0", "simd"),
+    ("fmadd16_lane1", "fmadd16_lane r{d}l, r{d}l, r21l, r20l, 0b00001, 0b00000000000, 0b0", "simd"),
+];
+
 pub fn op(name: &str) -> (&'static str, &'static str) {
-    OPS.iter().find(|o| o.0 == name).map(|o| (o.1, o.2)).unwrap_or_else(|| panic!("unknown bench op {}", name))
+    OPS.iter().chain(EXTRA_OPS).find(|o| o.0 == name).map(|o| (o.1, o.2)).unwrap_or_else(|| panic!("unknown bench op {}", name))
 }
 
 fn consts_of(cls: &str) -> [u32; 4] {

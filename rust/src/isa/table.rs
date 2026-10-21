@@ -29,6 +29,9 @@ pub enum Ex {
     FMAdd16,
     FMAddLane32,
     FMAddLane16,
+    /// simd_matrix_fmadd32 / 16: 8x8 multiply-accumulate across the SIMD group (B15)
+    SimdMatrix32,
+    SimdMatrix16,
     FMAddB52,
     FAdd32,
     FAdd16,
@@ -385,8 +388,8 @@ pub fn build() -> Vec<Desc> {
         d.c(47, 1, b47).c(38, 2, b38).c(26, 2, 0b01);
         push!(d);
     }
-    for (name, b26) in [("simd_matrix_fmadd32", 1), ("simd_matrix_fmadd16", 0)] {
-        let mut d = Desc::new(name, s1(8), 15, E::MaskedTodo, Mn::Plain);
+    for (name, b26, ex) in [("simd_matrix_fmadd32", 1, E::SimdMatrix32), ("simd_matrix_fmadd16", 0, E::SimdMatrix16)] {
+        let mut d = Desc::new(name, s1(8), 15, ex, Mn::Plain);
         d.c(0, 7, 0x6f).c(15, 1, 0).c(27, 1, 1).c(26, 1, b26).op(paired_alu_dst("D", 60));
         d.op(paired_float_src("A", 16, 58, Some(52))).op(paired_float_src("B", 28, 56, None));
         d.op(paired_float_src("C", 40, 54, None)).c(63, 1, 1);

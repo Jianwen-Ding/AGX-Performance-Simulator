@@ -230,6 +230,12 @@ pub fn pow_fixup(x: u32, y: u32, c: u32) -> u32 {
 /// Timing-dependent behavior is not modeled: the cross-half read (lane 16 reading lane 15) happens on hardware only with bit 68
 /// and at least two instructions after the write of A (about 90% of the time), or whenever a `wait` follows the fmadd even
 /// without bit 68. The model reads 0 across halves without bit 68 and crosses with it.
+/// Row and column of element q = 2 lane + slot of a simd_matrix_fmadd operand (the same for A, B, C, D and both widths;
+/// measured with one-hot matrices, playground results/2026-10-21-b15-simd-matrix).
+fn mma_rc(q: usize) -> (usize, usize) {
+    (((q >> 2) & 3) + 4 * (q >> 5), (q & 3) + 4 * ((q >> 4) & 1))
+}
+
 fn lane_src(half: bool, l: u64, g: u64, x: u64, exec: &[bool; SIMD_WIDTH]) -> R<[Option<usize>; SIMD_WIDTH]> {
     const B68: u64 = 1 << 4;
     const B72: u64 = 1 << 8;
@@ -243,8 +249,11 @@ fn lane_src(half: bool, l: u64, g: u64, x: u64, exec: &[bool; SIMD_WIDTH]) -> R<
         return Err("unsupported: fmadd lane bits 64-71 outside the measured k=1 single flips");
     }
     let mode = g & !NOOP;
-    if l > 16 || (mode != 0 && l != 1) {
-        return Err("unsupported: fmadd lane offset outside the measured set (default mode k <= 16; other modes k = 1)");
+    // measured: default mode k <= 16; B68 k = 1; 2-lane segments k = 1; 4-lane segments k = 1..3 (B18, playground
+    // results/2026-10-21-b18-fmadd-lane: in-segment lanes read lane t - k, fp16 lanes whose source is outside read 0)
+    let max_k = match mode { 0 => 16, B72 => 1, B73 => 3, _ => 1 };
+    if l > max_k {
+        return Err("unsupported: fmadd lane offset outside the measured set (default mode k <= 16; 4-lane segments k <= 3; other modes k = 1)");
     }
     let group = match mode {
         0 | B68 => if mode == B68 { 32 } else { 16 },
@@ -442,6 +451,9 @@ enum K {
     Float { op: Fl, a: Src, b: Src, c: Option<Src>, d: Dst, sat: bool, d16: Option<bool> },
     /// 8-byte fmadd32 with bit 52: the pow() special-case fixup of C by (A, B); sources must be plain 32-bit (no abs / neg / saturate)
     PowFixup { a: Src, b: Src, c: Src, d: Dst, plain: bool },
+    /// simd_matrix_fmadd32 / 16 (B15): D = A B + C on 8x8 matrices spread over the SIMD group, each operand a register
+    /// pair (fp32: two registers; fp16: the two halves of one), so element q = 2 lane + slot (`mma_rc`)
+    Matrix { half: bool, a: [Src; 2], b: [Src; 2], c: [Src; 2], d: [Dst; 2], plain: bool },
     /// 10-byte fmadd with a lane offset on source A (`lane_src` documents the measured subset)
     FloatLane { half: bool, a: Src, b: Src, c: Src, d: Dst, sat: bool, d16: Option<bool>, l: u64, g: u64, x: u64 },
     Cmpsel { cmp: Cmp, x: Src, y: Src, d: Dst },
@@ -547,6 +559,26 @@ impl Compiled {
                 K::Float { op, a: src("A"), b: src("B"), c, d: dst("D"), sat: f(fields, "S") != 0, d16: dsize("D").map(|s| s == 16) }
             }
             Ex::FMAddB52 => K::PowFixup { a: src("A"), b: src("B"), c: src("C"), d: dst("D"), plain: f(fields, "S") == 0 },
+            Ex::SimdMatrix32 | Ex::SimdMatrix16 => {
+                // the paired operands decode to 2-register tuples: one Src / Dst per slot
+                let pair_src = |name: &str| -> ([Src; 2], bool) {
+                    match get(name) {
+                        Some((kind, Operand::Tuple(v, fl))) if v.len() == 2 => {
+                            ([Src::new(kind, &v[0], nh), Src::new(kind, &v[1], nh)], fl & (F_ABS | F_NEG) == 0)
+                        }
+                        _ => {
+                            let bad = Src { loc: Loc::Bad("NotImplementedError: matrix operand"), size: None, sx: false, abs: false, neg: false };
+                            ([bad.clone(), bad], true)
+                        }
+                    }
+                };
+                let pair_dst = match get("D") {
+                    Some((_, Operand::Tuple(v, _))) if v.len() == 2 => [Dst::new(&v[0], nh), Dst::new(&v[1], nh)],
+                    _ => [Dst::Bad("NotImplementedError: matrix operand"), Dst::Bad("NotImplementedError: matrix operand")],
+                };
+                let ((a, pa), (b, pb), (c, pc)) = (pair_src("A"), pair_src("B"), pair_src("C"));
+                K::Matrix { half: d.ex == Ex::SimdMatrix16, a, b, c, d: pair_dst, plain: pa && pb && pc }
+            }
             Ex::FMAddLane32 | Ex::FMAddLane16 => K::FloatLane {
                 half: d.ex == Ex::FMAddLane16, a: src("A"), b: src("B"), c: src("C"), d: dst("D"), sat: f(fields, "S") != 0,
                 d16: dsize("D").map(|s| s == 16), l: f(fields, "L"), g: f(fields, "G"), x: f(fields, "X"),
@@ -764,6 +796,48 @@ impl Compiled {
                         let (x, y, z) = (a.f32_bits(st, t)?, b.f32_bits(st, t)?, c.f32_bits(st, t)?);
                         d.set(st, t, pow_fixup(x, y, z) as i128)?;
                     }
+                }
+                Ok(())
+            }
+            K::Matrix { half, a, b, c, d, plain } => {
+                if !st.exec.iter().any(|&e| e) {
+                    return Ok(());
+                }
+                // measured with all 32 lanes active and plain operands only (playground results/2026-10-21-b15-simd-matrix)
+                if !st.exec.iter().all(|&e| e) {
+                    return Err("unsupported: simd_matrix_fmadd under a partial execution mask (unmeasured)");
+                }
+                if !*plain {
+                    return Err("unsupported: simd_matrix_fmadd with source modifiers (unmeasured)");
+                }
+                // element (row, col) -> value, as f64 bits of the operand type (fp32 inputs flushed like the fp32 unit)
+                let load = |m: &[Src; 2]| -> R<[[u64; 8]; 8]> {
+                    let mut v = [[0u64; 8]; 8];
+                    for q in 0..64 {
+                        let (r, cc) = mma_rc(q);
+                        let bits = m[q % 2].raw(st, q / 2)? as u64;
+                        v[r][cc] = if *half { fma::f16_to_f64(bits & 0xffff, false) } else { fma::f32_to_f64(bits & 0xffff_ffff, true) };
+                    }
+                    Ok(v)
+                };
+                let (av, bv, cv) = (load(a)?, load(b)?, load(c)?);
+                for q in 0..64 {
+                    let (r, cc) = mma_rc(q);
+                    // an in-order chain of fused multiply-adds over k, rounded to the operand type at every step:
+                    // exact on 7,680 / 7,680 random elements for each width
+                    let mut acc = cv[r][cc];
+                    let mut out = 0u64;
+                    for k in 0..8 {
+                        let x = fma::fma_rto_narrow(av[r][k], bv[k][cc], acc);
+                        if *half {
+                            out = fma::f64_to_f16(x, false);
+                            acc = fma::f16_to_f64(out, false);
+                        } else {
+                            out = fma::f64_to_f32(fma::f32_to_f64(fma::f64_to_f32(x, true), false), true);
+                            acc = fma::f32_to_f64(out, true);
+                        }
+                    }
+                    d[q % 2].set(st, q / 2, out as i128)?;
                 }
                 Ok(())
             }

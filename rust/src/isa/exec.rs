@@ -658,7 +658,7 @@ pub fn exec(d: &Desc, f: &Fields, ops: &[Operand], st: &mut CoreState) -> R<()> 
             // MaskedInstructionDesc.exec: exec_thread on each active lane in order
             for t in 0..SIMD_WIDTH {
                 if st.exec[t] {
-                    if matches!(ex, Ex::MaskedTodo | Ex::FMAddLane32 | Ex::FMAddLane16 | Ex::FMAddB52) {
+                    if matches!(ex, Ex::MaskedTodo | Ex::FMAddLane32 | Ex::FMAddLane16 | Ex::FMAddB52 | Ex::SimdMatrix32 | Ex::SimdMatrix16) {
                         return Err("AssertionError: TODO".into());
                     }
                     exec_thread(&c, ex, st, t)?;

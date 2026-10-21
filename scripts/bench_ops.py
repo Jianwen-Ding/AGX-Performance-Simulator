@@ -64,6 +64,19 @@ OPS = {
     'simd_shuffle_down': ('simd_shuffle_down r{d}, r{d}, r22l', 'simd'),
     'simd_shuffle_xor':  ('simd_shuffle_xor r{d}, r{d}, r22l', 'simd'),
     'quad_shuffle':      ('quad_shuffle r{d}, r{d}, r22l', 'simd'),
+    'simd_iadd':         ('simd_iadd r{d}, r{d}', 'simd'),
+    'simd_prefix_iadd':  ('simd_prefix_iadd r{d}, r{d}', 'simd'),
+    'simd_fadd':         ('simd_fadd r{d}, r{d}', 'simd'),
+    'simd_min.u':        ('simd_min.u r{d}, r{d}', 'simd'),
+    'quad_iadd':         ('quad_iadd r{d}, r{d}', 'simd'),
+    'icmp_ballot':       ('icmp_ballot r{d}, ult, r{d}, r20', 'simd'),
+    'fcmp_ballot':       ('fcmp_ballot r{d}, lt, r{d}, r20', 'simd'),
+}
+
+# Forms measured after the random-kernel pools were fixed (2026-10-21, B15 / B18). They are kept out of OPS because
+# cost_hw.POOL and the Rust kernels::pool() draw random kernels from OPS: adding to it would change every stored random
+# kernel. run_bench.py and the cost model look them up here too.
+EXTRA_OPS = {
     'simd_shuffle_up1':  ('simd_shuffle_up r{d}, r{d}, 1', 'simd'),
     # B18: fmadd with source A read from lane i - k (16-lane halves; coverage areas fmadd_lane_b18*)
     'fmadd32_lane1':     ('fmadd32_lane r{d}, r{d}, r21, r20, 0b00001, 0b00000000000, 0b0', 'simd'),
@@ -73,11 +86,4 @@ OPS = {
     'simd_matrix_fmadd32': ('simd_matrix_fmadd32 r{d}_r{d1}, r{d}_r{d1}, r20_r21, r20_r21', 'int64'),
     'simd_matrix_fmadd16': ('simd_matrix_fmadd16 r{d}l_r{d}h, r{d}l_r{d}h, r20l_r20h, r22l_r22h', 'simd'),
     'fmadd16_lane1':     ('fmadd16_lane r{d}l, r{d}l, r21l, r20l, 0b00001, 0b00000000000, 0b0', 'simd'),
-    'simd_iadd':         ('simd_iadd r{d}, r{d}', 'simd'),
-    'simd_prefix_iadd':  ('simd_prefix_iadd r{d}, r{d}', 'simd'),
-    'simd_fadd':         ('simd_fadd r{d}, r{d}', 'simd'),
-    'simd_min.u':        ('simd_min.u r{d}, r{d}', 'simd'),
-    'quad_iadd':         ('quad_iadd r{d}, r{d}', 'simd'),
-    'icmp_ballot':       ('icmp_ballot r{d}, ult, r{d}, r20', 'simd'),
-    'fcmp_ballot':       ('fcmp_ballot r{d}, lt, r{d}, r20', 'simd'),
 }

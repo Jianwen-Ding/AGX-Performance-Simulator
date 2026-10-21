@@ -30,7 +30,8 @@ import argparse, json, os, statistics, struct, subprocess, sys, time
 from pathlib import Path
 import agx_loop, gpu_safety, run_drm_compute as drm
 import run_agx_timestamps as chains
-from bench_ops import OPS
+from bench_ops import OPS, EXTRA_OPS
+OPS = {**OPS, **EXTRA_OPS}   # a copy: bench_ops.OPS (the random-kernel pool's source) is unchanged
 
 REPO = Path(__file__).resolve().parents[1]
 mov = chains.mov_imm

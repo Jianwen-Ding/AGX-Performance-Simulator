@@ -37,16 +37,19 @@ const ALU: &[(&str, &str)] = &[
     ("ceil", "floor"), ("trunc", "floor"), ("rint", "rint"), ("rcp", "rcp"), ("rsqrt", "rsqrt"),
     ("rsqrt_special", "rsqrt_special"), ("log2", "log2"), ("exp2", "exp2"), ("sin_pt_1", "sin_pt_1"),
     ("sin_pt_2", "sin_pt_2"), ("funop", "floor"), ("dfdx", "sin_pt_1"), ("dfdy", "sin_pt_1"),
-    ("simd_shuffle", "simd_shuffle"), ("simd_shuffle_down", "simd_shuffle_down"), ("simd_shuffle_up", "simd_shuffle_down"),
+    ("simd_shuffle", "simd_shuffle"), ("simd_shuffle_down", "simd_shuffle_down"), ("simd_shuffle_up", "simd_shuffle_up1"),
     ("simd_shuffle_xor", "simd_shuffle_xor"), ("simd_shuffle_rotate_up", "simd_shuffle_down"),
     ("simd_shuf_op", "simd_shuffle"), ("quad_shuffle", "quad_shuffle"), ("quad_shuffle_down", "quad_shuffle"),
     ("quad_shuffle_up", "quad_shuffle"), ("quad_shuffle_xor", "quad_shuffle"), ("quad_shuffle_rotate_up", "quad_shuffle"),
     ("icmp_ballot", "icmp_ballot"), ("fcmp_ballot", "fcmp_ballot"), ("icmp_quad_ballot", "quad_shuffle"),
     ("fcmp_quad_ballot", "quad_shuffle"), ("get_sr", "get_sr"), ("TODO.sr_thing", "get_sr"),
+    // B18 / B15 (2026-10-21): the lane-offset fmadd (any k costs the same) and the 8x8 SIMD-group matrix fmadd
+    ("fmadd32_lane", "fmadd32_lane1"), ("fmadd16_lane", "fmadd16_lane1"),
+    ("simd_matrix_fmadd32", "simd_matrix_fmadd32"), ("simd_matrix_fmadd16", "simd_matrix_fmadd16"),
 ];
 const UNMEASURED_ALU: &[&str] = &[
     "fixed18",
-    "iunop", "ceil", "trunc", "funop", "dfdx", "dfdy", "simd_shuffle_up", "simd_shuffle_rotate_up", "simd_shuf_op",
+    "iunop", "ceil", "trunc", "funop", "dfdx", "dfdy", "simd_shuffle_rotate_up", "simd_shuf_op",
     "quad_shuffle_down", "quad_shuffle_up", "quad_shuffle_xor", "quad_shuffle_rotate_up", "TODO.sr_thing",
 ];
 const LOADS: &[&str] = &[
