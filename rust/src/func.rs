@@ -738,6 +738,9 @@ fn step_group_impl<C: InstructionCells>(g: &mut Group, code: &[u8], cache: &C, m
         if let Some(tr) = g.trace.as_mut() {
             // as cost::trace_group records it: every pc (barriers, jumps and the stop included) and, before the
             // access executes, the device segments / threadgroup words / atomic words of the active lanes
+            if !g.st.exec.iter().any(|&e| e) {
+                tr.masked.push(tr.pcs.len() as u32);
+            }
             tr.pcs.push(g.pc);
             let at = (tr.pcs.len() - 1) as u32;
             let touched = info.access.as_ref().and_then(|a| a.capture(&g.st));
@@ -1959,7 +1962,7 @@ mod tests {
             let fresh = trace_workgroups_with_m2_core_map(&d, &mem, &wgs, &cores).unwrap();
             let cached = prepared.trace_workgroups(&mem, &wgs).unwrap();
             for (a, b) in fresh.iter().flatten().zip(cached.iter().flatten()) {
-                assert_eq!(a.pcs, b.pcs);assert_eq!(a.mem, b.mem);
+                assert_eq!(a.pcs, b.pcs);assert_eq!(a.mem, b.mem);assert_eq!(a.masked, b.masked);
             }
         }
         crate::par::set_local_threads(0);
@@ -2142,6 +2145,7 @@ mod tests {
                 let (a, b) = (&batch[i][0], &fresh[0][0]);
                 assert_eq!(a.pcs, b.pcs);
                 assert_eq!(a.mem, b.mem);
+                assert_eq!(a.masked, b.masked);
                 assert_eq!(a.skipped, b.skipped);
                 assert_eq!(a.warnings, b.warnings);
                 if i > 0 { assert!(a.pcs.len() > batch[i - 1][0].pcs.len()); }

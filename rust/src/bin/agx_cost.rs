@@ -179,7 +179,7 @@ fn main() {
         if p.branch.is_none() {
             cost::fit_branch(&mut p)?;
         }
-        let (cyc, stats) = cost::simulate(&ins, &tr.pcs, &p, groups, true)?;
+        let (cyc, stats) = cost::simulate_trace(&ins, &tr, &p, groups, true)?;
         let stats = stats.unwrap();
         let scale = if units == "real" { 1.0 } else { 1.0 / REAL_CYCLES_PER_UNIT };
         let mut unmeasured: Vec<String> = ins.iter().filter(|r| r.unmeasured).map(|r| r.name.clone()).collect();

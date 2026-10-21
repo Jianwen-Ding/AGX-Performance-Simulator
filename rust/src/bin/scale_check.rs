@@ -35,13 +35,14 @@ fn main() {
                 let ins = cost::decode(&code, &p).unwrap();
                 let tr = cost::trace(&code, 32, 1_000_000).unwrap();
                 if idle.is_empty() {
-                    return cost::simulate(&ins, &tr.pcs, &p, g, false).unwrap().0;
+                    return cost::simulate_trace(&ins, &tr, &p, g, false).unwrap().0;
                 }
                 // idle groups run one trip (separate code with the same layout) and then stay out of the way
                 let short = kernels::bench_loop(op, ch, s, 1);
                 let trs = cost::trace(&short, 32, 1_000_000).unwrap();
                 let seqs: Vec<&[usize]> = (0..g as u64).map(|k| if idle.contains(&k) { trs.pcs.as_slice() } else { tr.pcs.as_slice() }).collect();
-                cost::simulate_groups(&ins, &seqs, None, &p, false, None).unwrap().0
+                let masked: Vec<&[u32]> = (0..g as u64).map(|k| if idle.contains(&k) { trs.masked.as_slice() } else { tr.masked.as_slice() }).collect();
+                cost::simulate_groups(&ins, &seqs, Some(&masked), None, &p, false, None).unwrap().0
             };
             to_ref(sim(steps[1]) - sim(steps[0])) / (t_ * (steps[1] - steps[0])) as f64
         });

@@ -71,7 +71,8 @@ pub fn predict(p: &Params, row: &serde_json::Value, steps: [u32; 2], mm: &MemMod
         let mm = &mm;
         let seqs: Vec<&[usize]> = traces.iter().map(|t| t.pcs.as_slice()).collect();
         let mems: Vec<&[(u32, Vec<u64>)]> = traces.iter().map(|t| t.mem.as_slice()).collect();
-        cyc[i] = cost::simulate_groups(&ins, &seqs, Some((&mems, mm)), p, false, None).unwrap().0;
+        let masked: Vec<&[u32]> = traces.iter().map(|t| t.masked.as_slice()).collect();
+        cyc[i] = cost::simulate_groups(&ins, &seqs, Some(&masked), Some((&mems, mm)), p, false, None).unwrap().0;
     }
     to_ref(cyc[1] - cyc[0]) / (trips * (steps[1] - steps[0])) as f64
 }

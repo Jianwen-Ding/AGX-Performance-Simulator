@@ -233,6 +233,7 @@ pub fn simulate_with(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer
         }
         let seqs: Vec<&[usize]> = traces.iter().map(|t| t.pcs.as_slice()).collect();
         let mems: Vec<&[(u32, Vec<u64>)]> = traces.iter().map(|t| t.mem.as_slice()).collect();
+        let masked: Vec<&[u32]> = traces.iter().map(|t| t.masked.as_slice()).collect();
         // GPU-wide device footprint: this wave's distinct segments, scaled to the busiest core's workgroups and
         // to every active core; if it fits the system-level cache, the data is taken to be resident there
         let mut distinct: std::collections::HashSet<u64> = Default::default();
@@ -274,7 +275,7 @@ pub fn simulate_with(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer
         let footprint = footprint / (1.0 + (cores.min(n) as f64 - 1.0) * sharing);
         let mm = MemModel { resident_slc: footprint <= mm.slc_bytes as f64, sharing, ..mm.clone() };
         let mem = if l.mem { Some((mems.as_slice(), &mm)) } else { None };
-        let c = cost::simulate_groups(&ins, &seqs, mem, p, false, Some(&wg_of))?.0;
+        let c = cost::simulate_groups(&ins, &seqs, Some(&masked), mem, p, false, Some(&wg_of))?.0;
         Ok((count, c, warn))
     };
     let mut todo: Vec<u64> = vec![0];

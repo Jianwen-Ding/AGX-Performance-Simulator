@@ -11,7 +11,7 @@ fn sim(path: &str, p: &Params, groups: usize) -> Result<f64, String> {
     let code = std::fs::read(path).map_err(|e| format!("{}: {}", path, e))?;
     let ins = cost::decode(&code, p)?;
     let tr = cost::trace(&code, 32, 500_000)?;
-    Ok(cost::simulate(&ins, &tr.pcs, p, groups, false)?.0)
+    Ok(cost::simulate_trace(&ins, &tr, p, groups, false)?.0)
 }
 
 fn main() {
