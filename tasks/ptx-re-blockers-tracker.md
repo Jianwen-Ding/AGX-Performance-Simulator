@@ -65,7 +65,7 @@ Rules: [safe-probes.md](safe-probes.md). Before any GPU work: `scripts/gpu_safet
 | B15 `simd_matrix_fmadd` | open | Mesa cooperative-matrix capture first, otherwise applegpu's encoding; lane map, accumulation order, cost. New encoding, so emulator gate and coverage first. |
 | B16 0x78 barrier | done | |
 | B17 `async_load` / `copy_*` | unsafe | Low priority; needs B1's helper setup. Earlier attempts hung. |
-| B18 lane-offset fmadd | open | `coverage.py record --area fmadd_lane_b18,fmadd_lane_b18_masked` on the GPU, then cost against `shuffle up` + `fma`. |
+| B18 lane-offset fmadd | done | Recorded 34/34 exact; 1.75x latency, 1.18x throughput vs shuffle+fma. |
 | B19 bit 45 on M2 Ultra | blocked | No G14D. Record that; the backend treats G14D atomics as unverified. |
 | B21 `trap` | done | |
 | B22 launch limits | done | |

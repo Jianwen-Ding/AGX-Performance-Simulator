@@ -64,6 +64,11 @@ OPS = {
     'simd_shuffle_down': ('simd_shuffle_down r{d}, r{d}, r22l', 'simd'),
     'simd_shuffle_xor':  ('simd_shuffle_xor r{d}, r{d}, r22l', 'simd'),
     'quad_shuffle':      ('quad_shuffle r{d}, r{d}, r22l', 'simd'),
+    'simd_shuffle_up1':  ('simd_shuffle_up r{d}, r{d}, 1', 'simd'),
+    # B18: fmadd with source A read from lane i - k (16-lane halves; coverage areas fmadd_lane_b18*)
+    'fmadd32_lane1':     ('fmadd32_lane r{d}, r{d}, r21, r20, 0b00001, 0b00000000000, 0b0', 'simd'),
+    'fmadd32_lane15':    ('fmadd32_lane r{d}, r{d}, r21, r20, 0b01111, 0b00000000000, 0b0', 'simd'),
+    'fmadd16_lane1':     ('fmadd16_lane r{d}l, r{d}l, r21l, r20l, 0b00001, 0b00000000000, 0b0', 'simd'),
     'simd_iadd':         ('simd_iadd r{d}, r{d}', 'simd'),
     'simd_prefix_iadd':  ('simd_prefix_iadd r{d}, r{d}', 'simd'),
     'simd_fadd':         ('simd_fadd r{d}, r{d}', 'simd'),
