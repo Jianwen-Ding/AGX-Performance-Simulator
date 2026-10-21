@@ -27,6 +27,25 @@ The consumers are:
    B34 stack access cost and wait groups, and T1 (`agx_cost --uniform`): they decide backend tuning (whether to jump over
    short if bodies) and make agx-bench measure bounds-checked kernels.
 
+## Where the answers went (2026-10-21)
+
+Branch `claude/bold-davinci-46xi9q` of Jianwen-Ding/ZLUDA and Jianwen-Ding/llvm-project:
+
+| Item | Integrated as |
+| --- | --- |
+| B1 | `agx_runtime/src/scratch.rs`: Mesa's `libagx_helper` and scratch layout, the Registers word's bucket; header checked against the run's dump. Not yet run on hardware. |
+| B4 | ZLUDA docs: no independent thread scheduling within a warp. |
+| B5, B30 | `cuOccupancyMaxActiveBlocksPerMultiprocessor` reports min(15, floor(S/g) - 1) CTAs per core; docs on grid barriers and the tensor-memory slab wait. |
+| B7 | backend: host-coherent device accesses with f59d / f533 and the coherent bits. |
+| B16 | backend `block-barrier` feature (G14), `llvm.agx.block.barrier`; MLIR `agx.block_barrier` native on G14 (portable in strict mode and on G13). |
+| B20 | `Queue::wait` fails a signalled command whose timestamps are both 0 (`CUDA_ERROR_LAUNCH_FAILED`). |
+| B21 | ZLUDA docs: `trap` does nothing; the assert flag word reports the failure. |
+| B22 | block dims [1024, 1024, 1024]; launches checked against grid * block < 2^32 per dimension. |
+| B26 | ZLUDA docs: the one-threadgroup-fits rule and the 0 = 256 halves encoding are confirmed. |
+| B27 | backend: `llvm.fpto[su]i.sat` to i32 / i16 is one `convert`. |
+| B31 | backend: no `jmp_exec_none` over at most 4 ALU instructions (`-agx-max-unskipped-instrs`). |
+| B33 | not used yet: the backend has no legal vector types to vectorize memory accesses with. |
+
 ## B1. Scratch / stack memory for direct-DRM dispatches (NEW, unsafe)
 
 - **Done 2026-10-20:** works with Mesa's own `libagx_helper` (captured by an LD_PRELOAD trace of Mesa) and Mesa's

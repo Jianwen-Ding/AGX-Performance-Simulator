@@ -78,6 +78,11 @@ const FENCE_COSTS_NS: &[(u8, [f64; 3])] = &[
 const FENCE_UNMEASURED_NS: f64 = 85.0;
 /// GPU cycles per ns at the top clock (max_khz 1,398,000)
 const CYCLES_PER_NS: f64 = 1.398;
+/// Cost in ns of a memory instruction issued with an empty execution mask: a load's (and its wait's) scoreboard
+/// latency, a store's issue interval (B31 measurement, see `simulate_groups`).
+const MASKED_DEVICE_LOAD_NS: f64 = 11.1;
+const MASKED_TG_LOAD_NS: f64 = 12.1;
+const MASKED_DEVICE_STORE_NS: f64 = 9.7;
 
 /// Cost in ticks of a fence in a context (0 = none, 1 = after a store, 2 = after a load) and whether it consumed the context: the
 /// refetch penalty after a load / store is paid once, by the first fence that has one (the seven-barrier sequence after a load costs
@@ -447,6 +452,7 @@ pub fn decode(code: &[u8], p: &Params) -> Result<Vec<Instr>, String> {
     let mut pc = 0;
     while pc < code.len() {
         if is_barrier78(code, pc) {
+            crate::func::mesa_check(code, pc, 2, "barrier_4groups")?;
             out.push(Instr {
                 pc, size: 2, name: "barrier_4groups".into(), text: "0x78 barrier (aligned 4 SIMD groups)".into(), dst: vec![], src: vec![],
                 reads32: 0, src32: vec![], unit: None, kind: Kind::Barrier, unmeasured: false, slot: 0, cache: false, uniform_src: false, fence: None,
@@ -458,6 +464,9 @@ pub fn decode(code: &[u8], p: &Params) -> Result<Vec<Instr>, String> {
         let n0 = isa::opcode_to_number(&code[pc..code.len().min(pc + 16)]);
         let d = isa::get_instruction_descriptor(n0).ok_or_else(|| format!("undecodable instruction at {}", pc))?;
         let size = d.decode_size(n0);
+        if pc + size <= code.len() {
+            crate::func::mesa_check(code, pc, size, d.name)?;
+        }
         let n = if size >= 16 { n0 } else { n0 & ((1u128 << (8 * size)) - 1) };
         let ops = d.decode_operands(n)?;
         let mut name = d.name.to_string();
@@ -728,6 +737,10 @@ pub struct Trace {
     /// complete byte range of each 32/64-bit atomic. No threadgroup addresses.
     /// Cost-emulated traces may leave this empty.
     pub device_segments: Vec<(u32, Vec<u64>)>,
+    /// Steps (indices into `pcs`, ascending) issued while the group's execution mask was empty: no lane active, as
+    /// for an if body the code does not jump over. The scheduler charges the measured masked costs to them
+    /// (`simulate_groups`); empty for most traces.
+    pub masked: Vec<u32>,
 }
 
 /// Where one SIMD group sits in a dispatch: enough to answer `get_sr` for the geometry registers
@@ -1216,6 +1229,9 @@ impl<'a> PreparedTrace<'a> {
             if out.pcs.len() >= max_steps {
                 return Err("trace step limit (non-terminating loop?)".into());
             }
+            if !st.exec.iter().any(|&e| e) {
+                out.masked.push(out.pcs.len() as u32);
+            }
             if is_barrier78(code, upc) {
                 out.pcs.push(upc);
                 pc += 2;
@@ -1291,7 +1307,7 @@ pub fn fit_branch(p: &mut Params) -> Result<f64, String> {
         let code = crate::kernels::counted(&[], t, true, crate::kernels::DEFAULT_CONSTS);
         let ins = decode(&code, p)?;
         let tr = trace(&code, 32, 500_000)?;
-        c[i] = simulate(&ins, &tr.pcs, p, 1, false)?.0;
+        c[i] = simulate_trace(&ins, &tr, p, 1, false)?.0;
     }
     let target = p
         .cal
@@ -1362,6 +1378,9 @@ struct SimInstr {
     ctl_bump: bool,
     /// exec-mask instructions other than the loop's while/jmp_exec_any
     exec_stack: bool,
+    /// cost class when issued with an empty execution mask: 0 = as active (control, wait, barriers, atomics and the
+    /// unmeasured memory instructions), 1 = ALU, 2 = device load, 3 = device store, 4 = threadgroup load
+    masked_cls: u8,
 }
 
 struct Bucket {
@@ -1549,7 +1568,15 @@ impl Lru {
 pub fn simulate(instrs: &[Instr], pcs: &[usize], p: &Params, groups: usize, detail: bool)
     -> Result<(f64, Option<HashMap<usize, PcStats>>), String> {
     let seqs: Vec<&[usize]> = (0..groups).map(|_| pcs).collect();
-    simulate_groups(instrs, &seqs, None, p, detail, None)
+    simulate_groups(instrs, &seqs, None, None, p, detail, None)
+}
+
+/// `simulate` of a trace: its pc sequence and its empty-mask steps (`Trace::masked`).
+pub fn simulate_trace(instrs: &[Instr], tr: &Trace, p: &Params, groups: usize, detail: bool)
+    -> Result<(f64, Option<HashMap<usize, PcStats>>), String> {
+    let seqs: Vec<&[usize]> = (0..groups).map(|_| tr.pcs.as_slice()).collect();
+    let masked: Vec<&[u32]> = (0..groups).map(|_| tr.masked.as_slice()).collect();
+    simulate_groups(instrs, &seqs, Some(&masked), None, p, detail, None)
 }
 
 /// One core running one SIMD group per entry of `seqs` (dynamic pc sequences, e.g. from `trace_group`).
@@ -1557,8 +1584,10 @@ pub fn simulate(instrs: &[Instr], pcs: &[usize], p: &Params, groups: usize, deta
 /// memory hierarchy; without it they use the L1-hit rules only (as `simulate`).
 /// `wg_of`: workgroup of each group (barrier scope; None = all groups in one workgroup). Groups of a
 /// workgroup are listed in SIMD-group order.
-pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&[(u32, Vec<u64>)]], &MemModel)>, p: &Params,
-    detail: bool, wg_of: Option<&[u32]>) -> Result<(f64, Option<HashMap<usize, PcStats>>), String> {
+/// `masked`: each group's `Trace::masked` (steps issued with an empty execution mask; None = no such step).
+pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: Option<&[&[u32]]>,
+    mem: Option<(&[&[(u32, Vec<u64>)]], &MemModel)>, p: &Params, detail: bool, wg_of: Option<&[u32]>)
+    -> Result<(f64, Option<HashMap<usize, PcStats>>), String> {
     let groups = seqs_pcs.len();
     let wg: Vec<u32> = wg_of.map(|w| w.to_vec()).unwrap_or_else(|| vec![0; groups]);
     let local: Vec<usize> = (0..groups).map(|i| (0..i).filter(|&j| wg[j] == wg[i]).count()).collect();
@@ -1609,6 +1638,20 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
     let bar78 = tk(7.1 * REAL_CYCLES_PER_UNIT);
     // a group arrives once its ALU results have drained (4 iadds before each barrier: 42 vs 13 units)
     let bar_drain = tk(24.0 * REAL_CYCLES_PER_UNIT);
+    // Instructions issued with an empty execution mask (playground results/2026-10-20-b31-empty-mask-cost, rerun.jsonl:
+    // one SIMD group, an if body of 32 copies that no lane enters, issued without a jump; per instruction, the median
+    // over three interleaved rounds of (no jump - jmp_exec_none over the body) + the jump's own 11.48 cycles / 32).
+    // A masked ALU instruction costs about nothing more than jumping over it (iadd 0.2 / 2.3 / 0.4 ns, fmadd32 -2.3 /
+    // 1.1 / -0.5 ns, simd_shuffle 0.2 ns in the first pass): one issue cycle, no unit, no result latency and no
+    // dependency stall. Masked memory instructions keep a large part of their cost: device_load + wait 0
+    // 10.0 / 17.2 / 11.1 ns (active ~37-41 ns) and threadgroup_load + wait 0 12.1 / 11.5 / 14.8 ns (active ~23-28),
+    // modelled as a load completing on its scoreboard slot that much later (the wait still waits; no data moves);
+    // device_store 9.9 / 9.7 / 6.6 ns (more than an active one; it writes nothing), modelled as its issue interval.
+    // ns x CYCLES_PER_NS, as the fence table. Unmeasured memory classes (atomics, threadgroup stores) cost as active.
+    let masked_alu = tk(p.cal_f("masked_alu_issue_real", 1.0));
+    let masked_load = tk(p.cal_f("masked_device_load_real", MASKED_DEVICE_LOAD_NS * CYCLES_PER_NS));
+    let masked_tg_load = tk(p.cal_f("masked_tg_load_real", MASKED_TG_LOAD_NS * CYCLES_PER_NS));
+    let masked_store = tk(p.cal_f("masked_device_store_real", MASKED_DEVICE_STORE_NS * CYCLES_PER_NS));
     let ctl_sched = tk(std::env::var("AGX_CTL_SCHED").ok().and_then(|v| v.parse::<f64>().ok()).unwrap_or(3.0) * REAL_CYCLES_PER_UNIT);
 
     // ---- resolve units and buckets
@@ -1710,6 +1753,13 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
             size: r.size,
             exec_stack: matches!(r.name.as_str(), "if_icmp" | "if_fcmp" | "else_icmp" | "else_fcmp" | "pop_exec" | "push_exec" | "jmp_exec_none"),
             ctl_bump: r.src.iter().any(|&h| h != 0),
+            masked_cls: match (r.kind, r.name.as_str()) {
+                (Kind::Alu, _) => 1,
+                (Kind::Load, "device_load" | "device_load.TODO") => 2,
+                (Kind::Store, "device_store" | "device_store.TODO") => 3,
+                (Kind::Load, "threadgroup_load") => 4,
+                _ => 0,
+            },
         });
     }
     let mut seqs: Vec<Vec<usize>> = vec![];
@@ -1721,6 +1771,24 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
     for pcs in seqs_pcs {
         seqs.push(pcs.iter().map(|&pc| pc_index.get(pc).copied().flatten().ok_or_else(|| format!("KeyError: pc {}", pc))).collect::<Result<_, _>>()?);
     }
+    // per group: whether each step was issued with an empty execution mask (empty when none was)
+    let mut mflag: Vec<Vec<bool>> = vec![vec![]; groups];
+    if let Some(ms) = masked {
+        if ms.len() != groups {
+            return Err(format!("simulate_groups: {} masked-step lists for {} groups", ms.len(), groups));
+        }
+        for (gi, list) in ms.iter().enumerate() {
+            if list.is_empty() {
+                continue;
+            }
+            let mut f = vec![false; seqs[gi].len()];
+            for &k in list.iter() {
+                *f.get_mut(k as usize).ok_or_else(|| format!("simulate_groups: masked step {} beyond the trace", k))? = true;
+            }
+            mflag[gi] = f;
+        }
+    }
+    let is_masked = |gi: usize, step: usize, r: &SimInstr| r.masked_cls != 0 && mflag[gi].get(step).copied().unwrap_or(false);
     // ---- memory hierarchy state (one core)
     struct MemState {
         l1: Lru,
@@ -1947,8 +2015,13 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
             // in `elig` are all unblocked.
             let ri = seqs[gi][nxt[gi]];
             let r = &sim[ri];
+            // a masked ALU instruction reads no operand: no dependency stall
             let sr = match sr_cache[gi] {
                 Some(v) => v,
+                None if r.masked_cls == 1 && is_masked(gi, nxt[gi], r) => {
+                    sr_cache[gi] = Some(NEG_INF);
+                    NEG_INF
+                }
                 None => {
                     let mut sr = 0i64;
                     let mut any = false;
@@ -2109,12 +2182,13 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
             }
             let ri = seqs[gi][nxt[gi]];
             let r = &sim[ri];
+            let msk = is_masked(gi, nxt[gi], r);
             if issue_tok < t_ {
                 wake!(t + 1);
                 retest.push(Retest::Issue);
                 continue;
             }
-            if r.unit.is_some() {
+            if r.unit.is_some() && !msk {
                 let b = r.bucket;
                 if tok[b].is_none() {
                     tok[b] = Some(buckets[b].init);
@@ -2171,7 +2245,7 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
                     continue;
                 }
             }
-            if r.ndst == 1 || r.ndst == 2 {
+            if (r.ndst == 1 || r.ndst == 2) && !msk {
                 // partial-write hazard: max over hazard registers of t0 + 2 cycles (blocks while > t);
                 // per-group state only, cached like src_ready
                 let h = match blk_cache[gi] {
@@ -2196,7 +2270,7 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
                     continue;
                 }
             }
-            if r.sfu_op {
+            if r.sfu_op && !msk {
                 let l_ = r.lat;
                 let mut gate = (sfu_iss[gi] + sfu_spacing).max(sfu_wb[gi] + sfu_wb_gap - l_).max(if r.sfu_slow.is_some() {
                     sfu_slow[gi]
@@ -2212,7 +2286,7 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
                     continue;
                 }
             }
-            if g > 1 && r.wide_cost.is_some() {
+            if g > 1 && r.wide_cost.is_some() && !msk {
                 let gate = core_fast[half].max(core_slow[half]);
                 if gate > t {
                     wake!(gate);
@@ -2300,7 +2374,7 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
             }
             // device memory: segments of this dynamic instruction, level of each, bandwidth tokens
             let mut mem_charge: Option<([f64; 5], i64, Vec<u64>)> = None;
-            if let Some(m) = ms.as_mut() {
+            if let (Some(m), false) = (ms.as_mut(), msk) {
                 let dev = !r.atomic && ((r.kind == Kind::Load && !r.tgop && !r.tg_name) || (r.kind == Kind::Store && !r.tg_name));
                 if dev && !memv.is_empty() {
                     ff_ok = false; // the visit records the core's last load lines
@@ -2365,7 +2439,7 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
             // register-file writeback: a write that evicts a register from the group's result cache needs a
             // writeback slot (core: ~2 per reference cycle; 9-16 rotating destinations at 32 groups)
             let mut evict = 0usize;
-            if matches!(r.kind, Kind::Alu | Kind::Load) && !r.dst.is_empty() {
+            if matches!(r.kind, Kind::Alu | Kind::Load) && !r.dst.is_empty() && !msk {
                 // counted on a shadow cache that evicts a random one of its 3 oldest entries (9 / 10 / 12 / 16
                 // rotating destinations evict on 60 / 68 / 87 / 100% of writes; LRU would evict on all)
                 let fresh = r.dst_regs.iter().filter(|reg| !wbc[gi].contains(reg)).count();
@@ -2378,7 +2452,7 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
             }
             // ---- issue at tick t
             wb_tok -= evict as f64;
-            if matches!(r.kind, Kind::Alu | Kind::Load) {
+            if matches!(r.kind, Kind::Alu | Kind::Load) && !msk {
                 for &reg in &r.dst_regs {
                     // recency order (oldest first); a miss evicts a random one of the 3 oldest entries
                     if let Some(pos) = wbc[gi].iter().position(|&x| x == reg) {
@@ -2393,7 +2467,7 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
             }
             issue_tok -= t_;
             let mut pipe_extra = 0i64;
-            if let (Some(m), Some((_, mm))) = (ms.as_mut(), mem) {
+            if let (Some(m), Some((_, mm)), false) = (ms.as_mut(), mem, msk) {
                 if (r.tg_name && r.barrier == 0) || r.atomic {
                     let mv = memv[gi];
                     while m.cur[gi] < mv.len() && (mv[m.cur[gi]].0 as usize) < nxt[gi] {
@@ -2475,7 +2549,7 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
                 m.epoch += 1;
             }
             let mem_extra = mem_charge.as_ref().map(|c| c.1).unwrap_or(0) + pipe_extra;
-            if r.unit.is_some() {
+            if r.unit.is_some() && !msk {
                 let b = r.bucket;
                 tok[b] = Some(tok[b].unwrap() - r.cost);
                 if !in_refill[b] && tok[b] != Some(buckets[b].capmax) {
@@ -2487,6 +2561,18 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
             let mut branch = 0i64;
             let mut fwd_taken = false;
             let ii: i64;
+            if msk {
+                // empty execution mask (constants above): no unit, no result, no memory access
+                ii = match r.masked_cls {
+                    1 => masked_alu,
+                    3 => masked_store,
+                    _ => t_,
+                };
+                if r.masked_cls == 2 || r.masked_cls == 4 {
+                    let done = t + if r.masked_cls == 2 { masked_load } else { masked_tg_load };
+                    slots[gi][r.slot] = Some(slots[gi][r.slot].map_or(done, |m| m.max(done)));
+                }
+            } else {
             match r.kind {
                 Kind::Alu => {
                     let lat = r.lat;
@@ -2682,7 +2768,8 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
                     }
                 }
             }
-            if matches!(r.kind, Kind::Alu | Kind::Load) && !r.dst.is_empty() {
+            }
+            if matches!(r.kind, Kind::Alu | Kind::Load) && !r.dst.is_empty() && !msk {
                 for &reg in &r.dst_regs {
                     if let Some(pos) = rcache[gi].iter().position(|&x| x == reg) {
                         rcache[gi].remove(pos);
@@ -2695,7 +2782,7 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], mem: Option<(&[&
                     }
                 }
             }
-            if r.dev_ctx != 0 {
+            if r.dev_ctx != 0 && !msk {
                 last_mem[gi] = r.dev_ctx;
             }
             let occ = t_.max(ii) + branch;

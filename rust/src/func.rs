@@ -668,9 +668,20 @@ fn call_base() -> i128 {
     std::env::var("AGX_CALL_BASE").ok().and_then(|v| i128::from_str_radix(v.trim_start_matches("0x"), if v.starts_with("0x") { 16 } else { 10 }).ok()).unwrap_or(0x2000)
 }
 
+/// In strict mode (`isa::mesa`), fails on an instruction Mesa's compiler would not emit.
+pub(crate) fn mesa_check(code: &[u8], pc: usize, size: usize, name: &str) -> Result<(), String> {
+    match isa::mesa::mode() {
+        Some(g) => isa::mesa::check(&code[pc..pc + size], g)
+            .map(|_| ())
+            .map_err(|e| format!("{} at {} is not an instruction Mesa emits for {:?} (--agx-strict): {}", name, pc, g, e)),
+        None => Ok(()),
+    }
+}
+
 fn decode_at(code: &[u8], pc: usize, nregs: usize) -> Result<Info, String> {
     if pc % 2 != 0 { return Err(format!("unaligned instruction address {}", pc)); }
     if is_barrier78(code, pc) {
+        mesa_check(code, pc, 2, "barrier_4groups")?;
         return Ok(Info { desc: None, size: 2, fields: vec![], op: None, vals: vec![], kind: OpKind::Nop, access: None });
     }
     let n0 = isa::opcode_to_number(&code[pc..code.len().min(pc + 16)]);
@@ -679,6 +690,7 @@ fn decode_at(code: &[u8], pc: usize, nregs: usize) -> Result<Info, String> {
     if size > code.len() - pc {
         return Err(format!("truncated {} at {}: needs {} bytes, has {}", desc.name, pc, size, code.len() - pc));
     }
+    mesa_check(code, pc, size, desc.name)?;
     let n = desc.mask_instr(n0);
     let fields = desc.decode_fields(n);
     let ops = if desc.name == "stop" || desc.name == "trap" { vec![] } else { desc.fields_to_operands(&fields)? };
@@ -726,6 +738,9 @@ fn step_group_impl<C: InstructionCells>(g: &mut Group, code: &[u8], cache: &C, m
         if let Some(tr) = g.trace.as_mut() {
             // as cost::trace_group records it: every pc (barriers, jumps and the stop included) and, before the
             // access executes, the device segments / threadgroup words / atomic words of the active lanes
+            if !g.st.exec.iter().any(|&e| e) {
+                tr.masked.push(tr.pcs.len() as u32);
+            }
             tr.pcs.push(g.pc);
             let at = (tr.pcs.len() - 1) as u32;
             let touched = info.access.as_ref().and_then(|a| a.capture(&g.st));
@@ -1947,7 +1962,7 @@ mod tests {
             let fresh = trace_workgroups_with_m2_core_map(&d, &mem, &wgs, &cores).unwrap();
             let cached = prepared.trace_workgroups(&mem, &wgs).unwrap();
             for (a, b) in fresh.iter().flatten().zip(cached.iter().flatten()) {
-                assert_eq!(a.pcs, b.pcs);assert_eq!(a.mem, b.mem);
+                assert_eq!(a.pcs, b.pcs);assert_eq!(a.mem, b.mem);assert_eq!(a.masked, b.masked);
             }
         }
         crate::par::set_local_threads(0);
@@ -2130,6 +2145,7 @@ mod tests {
                 let (a, b) = (&batch[i][0], &fresh[0][0]);
                 assert_eq!(a.pcs, b.pcs);
                 assert_eq!(a.mem, b.mem);
+                assert_eq!(a.masked, b.masked);
                 assert_eq!(a.skipped, b.skipped);
                 assert_eq!(a.warnings, b.warnings);
                 if i > 0 { assert!(a.pcs.len() > batch[i - 1][0].pcs.len()); }

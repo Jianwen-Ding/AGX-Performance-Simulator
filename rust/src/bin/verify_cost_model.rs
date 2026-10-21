@@ -74,7 +74,7 @@ impl V {
     fn sim(&self, code: &[u8], groups: usize) -> f64 {
         let ins = cost::decode(code, &self.p).unwrap();
         let tr = cost::trace(code, 32, 500_000).unwrap();
-        let c = cost::simulate(&ins, &tr.pcs, &self.p, groups, false).unwrap().0;
+        let c = cost::simulate_trace(&ins, &tr, &self.p, groups, false).unwrap().0;
         if let Some(x) = &self.export {
             let mut x = x.borrow_mut();
             if x.1.insert((code.to_vec(), groups)) {

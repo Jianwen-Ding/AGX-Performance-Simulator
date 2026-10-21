@@ -107,6 +107,7 @@ pub fn simulate(d: &Dispatch, mem: &Memory, l: &Launch, p: &Params, cores: &[u32
             let ts: Vec<_> = chunk.iter().flat_map(|&i| traces[i].iter()).collect();
             let seqs: Vec<&[usize]> = ts.iter().map(|t| t.pcs.as_slice()).collect();
             let mems: Vec<&[(u32, Vec<u64>)]> = ts.iter().map(|t| t.mem.as_slice()).collect();
+            let masked: Vec<&[u32]> = ts.iter().map(|t| t.masked.as_slice()).collect();
             let mut segments = HashSet::new();
             for t in &ts { segments.extend(segments_of(t)); }
             let sharing = if segments.is_empty() || partitions.len() == 1 { 0.0 } else {
@@ -115,7 +116,7 @@ pub fn simulate(d: &Dispatch, mem: &Memory, l: &Launch, p: &Params, cores: &[u32
             };
             let wave_mem = MemModel { sharing, resident_slc, ..mm.clone() };
             let wg_of: Vec<u32> = (0..chunk.len()).flat_map(|i| std::iter::repeat_n(i as u32, gpw as usize)).collect();
-            let cycles = cost::simulate_groups(&ins, &seqs, l.mem.then_some((mems.as_slice(), &wave_mem)), p, false, Some(&wg_of))?.0;
+            let cycles = cost::simulate_groups(&ins, &seqs, Some(&masked), l.mem.then_some((mems.as_slice(), &wave_mem)), p, false, Some(&wg_of))?.0;
             total += cycles;
             waves.push(Wave { index, workgroups: chunk.iter().map(|&i| i as u64).collect(), cycles, sharing });
         }

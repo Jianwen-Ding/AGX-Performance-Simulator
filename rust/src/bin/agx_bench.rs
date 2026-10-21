@@ -32,9 +32,9 @@ fn main() {
             let t1 = Instant::now();
             let tr = cost::trace(code, 32, 500_000).unwrap();
             let t2 = Instant::now();
-            check += cost::simulate(&ins, &tr.pcs, &p, 1, false).unwrap().0;
+            check += cost::simulate_trace(&ins, &tr, &p, 1, false).unwrap().0;
             let t3 = Instant::now();
-            check += cost::simulate(&ins, &tr.pcs, &p, 4, false).unwrap().0;
+            check += cost::simulate_trace(&ins, &tr, &p, 4, false).unwrap().0;
             let t4 = Instant::now();
             td += (t1 - t0).as_secs_f64();
             tt += (t2 - t1).as_secs_f64();

@@ -1,6 +1,7 @@
 //! `agx-cost code.bin [--groups G] [--annotate] [--units real|ref] [--allow-unknown] [--load-latency N]`
 //!         `[--uniform IDX=VALUE ...] [--wg x[,y,z]] [--wg-id x[,y,z]] [--simd-group G] [--grid X[,Y,Z]]`
 //!         `[--regs HALVES] [--tg-bytes N] [--map VA=FILE ...] [--alloc VA=BYTES ...] [--preamble PRE.bin]`
+//!         `[--agx-strict GPU]`
 //!
 //! Drop-in replacement for `python3 scripts/agx_cost.py`: same arguments, same JSON line and the
 //! same `--annotate` table.
@@ -17,6 +18,9 @@
 //!   loops. `--grid` (default: just large enough for `--wg-id`) sets the dispatch the workgroup belongs to.
 //!
 //! With launch inputs the JSON line also has `"paths"`: `"geometry"` or `"functional"`.
+//!
+//! `--agx-strict GPU` (g13, g13x, g14, g14d; or `AGX_STRICT=GPU`) fails on any instruction Mesa's compiler would
+//! not emit for that GPU (`agx_sim::isa::mesa`).
 
 use agx_sim::cost::{self, GroupCtx, Params, SrLaunch, REAL_CYCLES_PER_UNIT};
 use agx_sim::{func, py_round_repr};
@@ -26,6 +30,7 @@ fn usage() -> ! {
     eprintln!("usage: agx-cost code.bin [--groups G] [--load-latency CYCLES] [--units real|ref] [--allow-unknown] [--annotate]");
     eprintln!("                [--uniform IDX=VALUE] [--wg x,y,z] [--wg-id x,y,z] [--simd-group G] [--grid X,Y,Z]");
     eprintln!("                [--regs HALVES] [--tg-bytes N] [--map VA=FILE] [--alloc VA=BYTES] [--preamble PRE.bin]");
+    eprintln!("                [--agx-strict g13|g13x|g14|g14d]");
     exit(2)
 }
 
@@ -155,6 +160,10 @@ fn main() {
                 l.buffers.push((va, b));
             }
             "--preamble" => l.preamble = Some(value()),
+            "--agx-strict" => {
+                let g = agx_sim::isa::mesa::MesaGen::parse(&value()).unwrap_or_else(|e| { eprintln!("agx-cost: {}", e); exit(2) });
+                agx_sim::isa::mesa::set_mode(Some(g));
+            }
             "-h" | "--help" => usage(),
             _ if code_path.is_none() && !a.starts_with("--") => code_path = Some(a),
             _ => usage(),
@@ -170,7 +179,7 @@ fn main() {
         if p.branch.is_none() {
             cost::fit_branch(&mut p)?;
         }
-        let (cyc, stats) = cost::simulate(&ins, &tr.pcs, &p, groups, true)?;
+        let (cyc, stats) = cost::simulate_trace(&ins, &tr, &p, groups, true)?;
         let stats = stats.unwrap();
         let scale = if units == "real" { 1.0 } else { 1.0 / REAL_CYCLES_PER_UNIT };
         let mut unmeasured: Vec<String> = ins.iter().filter(|r| r.unmeasured).map(|r| r.name.clone()).collect();
