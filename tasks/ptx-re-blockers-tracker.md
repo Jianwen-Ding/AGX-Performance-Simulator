@@ -61,7 +61,7 @@ Rules: [safe-probes.md](safe-probes.md). Before any GPU work: `scripts/gpu_safet
 
 | Item | Status | Left to do |
 | --- | --- | --- |
-| B14 calls and recursion | unsafe | unsafe-01 items 2-6: partial / empty-mask calls, divergent targets and returns, nesting depth. Follow unsafe-01's staged plan only. |
+| B14 calls and recursion | done | All unsafe-01 call/ret cases measured; simulator replays 570 programs exactly. |
 | B15 `simd_matrix_fmadd` | done | Layout = agx.mma layout; in-order fma chain; 16 cycles; ~3x scalar fma throughput. |
 | B16 0x78 barrier | done | |
 | B17 `async_load` / `copy_*` | unsafe | Low priority; needs B1's helper setup. Earlier attempts hung. |
@@ -129,6 +129,7 @@ Rules: [safe-probes.md](safe-probes.md). Before any GPU work: `scripts/gpu_safet
 | B15 `simd_matrix_fmadd32/16` layout and in-order fma chain | **added 2026-10-21** (`K::Matrix`; `make verify-simd-matrix`: 11,520 hardware words exact); cost rows added |
 | B18 lane-offset fmadd, 4-lane segments k <= 3 | **added 2026-10-21** (fp16 boundary lanes read 0; fp32 boundary lanes stay refused as undefined); cost rows added |
 | B18 / B15 / `simd_shuffle_up` instruction costs | **added 2026-10-21** (bench rows in `results/2026-10-11-instruction-bench/bench.json.gz`, forms in `bench_ops.EXTRA_OPS`) |
+| B14 calls / returns (all masks, divergence, nesting) | yes (`results/2026-10-20-ret-stop-model`: 570 programs exact) |
 | B35 SR113 power-state bit | not modelled by design (time-varying) |
 | B38 / B43 / B45 several VMs: concurrent, no implicit order, shared objects | **added 2026-10-21** to `agx_device`: cross-queue / cross-VM `wait_for`, `share` (one object in two VMs); whole commands in policy order = a legal outcome for synchronized programs |
 | B8 correction: the USC invalidate is needed for deep queues | todo: a runtime-level rule (ZLUDA), nothing for agx_run to execute |

@@ -352,6 +352,15 @@ Branch `claude/bold-davinci-46xi9q` of Jianwen-Ding/ZLUDA and Jianwen-Ding/llvm-
 
 ## B14. Hardware calls for non-inlined functions and recursion (DEPENDS ON unsafe-01)
 
+- **Done (2026-10-17 .. 20, recorded 2026-10-21):** every item of unsafe-01 is measured, owner-authorized, 0 unrecovered
+  faults (playground `notes/call-return-handoff.md`, A-G DONE): `ret rX` uses its operand; partial-mask calls and
+  returns reconverge with one `pop_exec r0l, 2` (return maps depth 0 -> 2, 1 -> 0, deeper unchanged); empty-mask
+  call / ret fall through; divergent register-call targets: lowest active wins, others travel masked; divergent returns:
+  lane 0 (else lowest active) wins for all lanes; nesting (direct / indirect, saved links), placement independence
+  (buffer-relative links); cost ~26 ns per call/ret pair steady state. The simulator models all of it
+  (`results/2026-10-20-ret-stop-model`: 570 retained programs exact). Do not put an indirect target in r1
+  (`call r1` overwrites it with the link first).
+
 - **Needed for:**
   - PTX `call` to non-inlined `.func`s and recursion;
   - `brx.idx` and function pointers without the if-chain expansion;
