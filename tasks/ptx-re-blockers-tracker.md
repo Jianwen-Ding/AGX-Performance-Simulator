@@ -1,0 +1,119 @@
+# Task ptx-re-blockers-tracker: every blocker in one checklist
+
+Tracks the items of [ptx-re-blockers.md](ptx-re-blockers.md) until each is done or recorded as blocked. The details,
+probes and deliverables stay in that file; this one only says where each item stands and what is left. Update the
+row (and the item's "Done" note in ptx-re-blockers.md) when an item moves.
+
+Status: **done**, **open** (safe, can run now), **needs tools** (safe, but a missing build or program stops it),
+**unsafe** (needs the owner's approval and the hang budget), **blocked** (needs hardware or a decision we do not have).
+
+Rules: [safe-probes.md](safe-probes.md). Before any GPU work: `scripts/gpu_safety.py status`, the power source,
+`free -g` >= 8 GB available, and an `agx_run` emulator gate. Evidence goes in the playground's `results/`.
+
+## Environment on 2026-10-21
+
+- Toolchain: `source /scratch/agxsim-deps/env.sh` (Rust in `/scratch/rust`, Mesa headers, venv). No root.
+- ZLUDA: `/scratch/ZLUDA` (master 8357395 plus a local aarch64 `c_char` patch). The owner said **do not push ZLUDA**;
+  ZLUDA issues go to the playground's `notes/zluda-issues.md`.
+- Not on this machine: the LLVM AGX build (`llc`, `zoc`), nvcc (the owner does not want it installed), an M2 Ultra,
+  a G13X device.
+- Hang budget: 0/30 on boot 1178a36a.
+
+## Priority 1: nothing runs without them
+
+| Item | Status | Left to do |
+| --- | --- | --- |
+| B1 scratch / stack | done (drm_compute) | Run ZLUDA's `agx_runtime/src/scratch.rs` path on the GPU with a spilling kernel. |
+| B2 hardware runner | done | Sub-items below. |
+| B2a partial workgroups | open | Global size not a multiple of the local size: rejected, rounded, or partial workgroups? Gate in `agx_run`, one small dispatch. |
+| B2b Uniform word size | done (B9) | Mark answered. 64 halves per word work; `agx_runtime` still splits at 32 (ZLUDA note, not pushed). |
+| B2c Shared "none" encoding | open | Occupancy with 64 KiB + `uses_shared_memory = 0` against a small declared size and Mesa's encoding. |
+
+## Priority 2: correctness of common CUDA idioms
+
+| Item | Status | Left to do |
+| --- | --- | --- |
+| B3 64-bit atomics | done (mostly) | Float add rounding and denormals under contention; whether u64 min/max has a returning form. NaN is answered (0x7fc00000). |
+| B4 intra-SIMD-group progress | done | |
+| B5 co-residency | done | |
+| B7 CPU → GPU visibility | done | |
+| B30 spinning threadgroups | done | |
+
+## Priority 3: limits and errors a runtime reports
+
+| Item | Status | Left to do |
+| --- | --- | --- |
+| B6 dispatch time limit | done | |
+| B8 code region | done | |
+| B9 parameter space | done | |
+| B20 failed-job reporting | done | |
+
+## Covered by other tasks
+
+| Item | Status | Left to do |
+| --- | --- | --- |
+| B10 memory ordering | open (write-up) | From safe-10: the exact instruction sequence per scope (cta / gpu / sys, with B7 for `.sys`). |
+| B11 numeric semantics | open | `fneg` / `fabs` of NaN and denormals; `fma` against `fmul` + `fadd`; `fcmpsel lt/eq` on denormals; ULP of `div` (`rcp` / `rsqrt` are in B46). |
+| B12 textures | covered | See B29. |
+| B13 occupancy, clocks, submission | covered | |
+
+## Compiler targets and ISA corners
+
+| Item | Status | Left to do |
+| --- | --- | --- |
+| B14 calls and recursion | unsafe | unsafe-01 items 2-6: partial / empty-mask calls, divergent targets and returns, nesting depth. Follow unsafe-01's staged plan only. |
+| B15 `simd_matrix_fmadd` | open | Mesa cooperative-matrix capture first, otherwise applegpu's encoding; lane map, accumulation order, cost. New encoding, so emulator gate and coverage first. |
+| B16 0x78 barrier | done | |
+| B17 `async_load` / `copy_*` | unsafe | Low priority; needs B1's helper setup. Earlier attempts hung. |
+| B18 lane-offset fmadd | open | `coverage.py record --area fmadd_lane_b18,fmadd_lane_b18_masked` on the GPU, then cost against `shuffle up` + `fma`. |
+| B19 bit 45 on M2 Ultra | blocked | No G14D. Record that; the backend treats G14D atomics as unverified. |
+| B21 `trap` | done | |
+| B22 launch limits | done | |
+| B24 atomic / barrier corners | done 1-4 | 5: unsafe `memory_barrier` sweep (owner approval). 6: six-byte low-`0b11` opcodes with new operand bytes. 7: blocked (no G13X). |
+| B25 telemetry | done | |
+| B26 registers vs threadgroup size | done | |
+| B27 float-to-int convert | done | |
+| B28 barrier after exit | done | |
+| B31 empty-mask cost | done | |
+| B32 submit batching | done | |
+| B33 vector alignment | done | |
+| B34 stack cost and wait groups | done | |
+| B35 shader clock | open | Read the known and neighbouring SRs around a bounded delay; compare with the 1 GHz timestamps. |
+| B46 `rcp` / `rsqrt` error | open | 2^24 inputs in [1, 4) plus exponent and denormal samples, max ulp. |
+| B47 7-bit shift amounts | open | s = 0..127 for `bfi`, `bfeil`, `extr`, `asr`. |
+
+## Textures
+
+| Item | Status | Left to do |
+| --- | --- | --- |
+| B29 native sampling | open | Ten Vulkan probes against `zluda_ptx_impl_agx_tex.c`. Needs a SPIR-V path (no glslang here; check safe-05's runners). |
+
+## Runtime, VMs and memory
+
+| Item | Status | Left to do |
+| --- | --- | --- |
+| B36 dma-buf IPC | open | Export, import in a second process, bind, read; try a user-pointer import. |
+| B38 VMs and queues per process | open | 2 / 4 / 16 VMs, 1 / 16 / 64 / 256 queues, priorities. |
+| B39 largest allocation | open | 1 / 4 / 16 / 32 GiB BOs and the total; stop at the first failure and watch memory. |
+| B42 context teardown | needs tools | ZLUDA has no real contexts yet. The raw-DRM part (create / destroy VM + queue 1,000 times) can run now. |
+| B43 scheduling between VMs | open | Long + short kernels on two VMs; two full-GPU kernels; SR21 per VM. |
+| B44 isolation of faults and deadlocks | unsafe | One soft fault and one firmware-ended deadlock (as B20 / B26). |
+| B45 shared BO between VMs | open | After B36: one BO in two VMs, ordering between queues. |
+
+## Whole programs and tooling
+
+| Item | Status | Left to do |
+| --- | --- | --- |
+| B23 CUDA runtime program | blocked | The owner does not want nvcc on this machine. |
+| B37 checked mode on hardware | needs tools | The LLVM AGX build (`agx-checked` kernels); not on this machine. |
+| B40 cost model against hardware | needs tools | The `agx_libs` kernels compiled by `zoc`; not on this machine. |
+| B41 prebuilt CUDA programs | blocked | Needs aarch64 CUDA sample binaries built elsewhere. |
+| T1 `agx_cost --uniform` | done (#7) | |
+
+## Order of work
+
+1. Safe and ready now: B2a, B2c, B47, B46, B35, B11, B3 rest, B18, B38, B43, B36, B45, B39, B42 (raw DRM), B1 on
+   `agx_runtime`, B10 write-up.
+2. Then B15 and B29, which need new capture paths.
+3. Unsafe, only with the owner's approval: B44, B24-5, B14, B17.
+4. Blocked: B19, B23, B41; and B37, B40 until an LLVM AGX build exists here.
