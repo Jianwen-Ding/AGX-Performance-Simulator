@@ -106,7 +106,7 @@ Rules: [safe-probes.md](safe-probes.md). Before any GPU work: `scripts/gpu_safet
 | --- | --- | --- |
 | B23 CUDA runtime program | blocked | The owner does not want nvcc on this machine. |
 | B37 checked mode on hardware | done | 17/17 + 7 controls on GPU; 1.56-1.59x; claimed record stops later launches. |
-| B40 cost model against hardware | needs tools | The `agx_libs` kernels compiled by `zoc`; not on this machine. |
+| B40 cost model against hardware | done | 817/819 correct; model ~2x low (1.15 short, 4.6 long) on battery; outliers listed. |
 | B41 prebuilt CUDA programs | blocked | Needs aarch64 CUDA sample binaries built elsewhere. |
 | T1 `agx_cost --uniform` | done (#7) | |
 

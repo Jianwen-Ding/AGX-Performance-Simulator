@@ -1100,6 +1100,12 @@ Consumed as is:
 
 ## B40. The simulator's cost model against the hardware on whole library kernels (NEW, safe)
 
+- **Done 2026-10-21 (on battery power):** 817 / 819 agx_libs cases correct on the GPU (`sgemm tile64` spills and
+  `agx_run_hw` has no scratch). Over 1,538 warm launches, measured / `agx_dispatch`-predicted time is median 2.02
+  (p10 1.08, p90 4.97): 1.15 under 10 us, 2.05 at 10-50 us, 4.63 above 50 us; worst a single-workgroup rand (11x) and
+  blasc (8.8x) kernel. Battery clock (~2.1x below top under sustained load) explains part of the long-kernel gap; repeat
+  on AC before tuning. Evidence: playground `results/2026-10-21-b40-cost-model-vs-hw`.
+
 - **Why it matters:** ZLUDA's library kernels (agx_libs: sgemm, hgemm, conv, fft, sparse, dnn) and backend choices are
   tuned with the simulator's cycle estimates; f64 is emulated in software and costed only by the model.
 - **Probe:** run `agx_libs/kernels/test_kernels.py`'s kernels through `agx_run_hw` with timestamps, and the same
