@@ -1043,6 +1043,11 @@ Consumed as is:
 
 ## B37. Checked mode on the hardware: cost and the early return (NEW, safe)
 
+- **Done 2026-10-21 (LLVM fork and zoc built locally):** (1) all 17 G14C `zluda_tests.py` cases and 7 controls pass on
+  the GPU through `agx_run_hw` with the same records as the simulator (the G13 strict variants are simulator-only);
+  (2) checked / unchecked firmware time 1.56-1.59 (median) for a 2^22-thread copy; (3) with the record already claimed,
+  every bug kernel stores nothing. Evidence: playground `results/2026-10-21-b37-checked-mode`.
+
 - **Why it matters:** ZLUDA's checked mode (`ZLUDA_AGX_CHECKED=1`, LLVM `agx-checked`) is validated only on this
   simulator, which estimates about 1.5x the cycles of an unchecked build. Once a kernel reports a bad access, later
   launches of the module must see the record's `claimed` word and return at once.
