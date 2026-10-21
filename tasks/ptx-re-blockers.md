@@ -831,6 +831,12 @@ needs. Add the `.sys` scope too, which combines safe-10 with B7.
 
 ## B11. Numeric semantics (COVERED by safe-01, open items there)
 
+- **Done 2026-10-21:** `.neg` / `.abs` are arithmetic: any NaN -> canonical 0x7fc00000 (0x7e00 for f16), fp32
+  denormals flush to a zero with the new sign, f16 denormals kept (playground `results/2026-10-21-b11-neg-abs-modifiers`):
+  non-ftz `fneg` / `fabs` must stay integer bit ops. `fma` is fused (`2026-10-11-float-semantics`). Compares read
+  denormals as +-0, so -0x007fffff < +0x00400000 is false and both equal 0.0: flush min/max operands only via the
+  integer-key fix-up (`2026-10-18-fcmp`, `2026-10-19-setp-extra`). rcp / rsqrt: B46; div: `2026-10-20-fdiv32`.
+
 The backend's opt-in strict IEEE mode emulates in software whatever the hardware does not do exactly:
 - denormal flushing;
 - NaN canonicalization;

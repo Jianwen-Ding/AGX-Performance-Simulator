@@ -53,7 +53,7 @@ Rules: [safe-probes.md](safe-probes.md). Before any GPU work: `scripts/gpu_safet
 | Item | Status | Left to do |
 | --- | --- | --- |
 | B10 memory ordering | open (write-up) | From safe-10: the exact instruction sequence per scope (cta / gpu / sys, with B7 for `.sys`). |
-| B11 numeric semantics | open | `fneg` / `fabs` of NaN and denormals; `fma` against `fmul` + `fadd`; `fcmpsel lt/eq` on denormals; ULP of `div` (`rcp` / `rsqrt` are in B46). |
+| B11 numeric semantics | done | Modifiers canonicalize NaN and flush fp32 denormals; rest answered by existing findings. |
 | B12 textures | covered | See B29. |
 | B13 occupancy, clocks, submission | covered | |
 
