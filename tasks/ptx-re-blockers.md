@@ -53,6 +53,10 @@ Branch `claude/bold-davinci-46xi9q` of Jianwen-Ding/ZLUDA and Jianwen-Ding/llvm-
 
 ## B1. Scratch / stack memory for direct-DRM dispatches (NEW, unsafe)
 
+- **Done 2026-10-21 (ZLUDA path):** a zoc-compiled PTX kernel with a 1 KiB dynamically indexed `.local` array
+  (1,072-byte stack, `stack_store` / `stack_load`) runs through `cuModuleLoadData` / `cuLaunchKernel` with zluda_agx's
+  own scratch setup: 4,096 and 262,144 threads, 0 wrong. Evidence: playground `results/2026-10-21-b1-zluda-scratch`.
+
 - **Done 2026-10-20:** works with Mesa's own `libagx_helper` (captured by an LD_PRELOAD trace of Mesa) and Mesa's
   scratch header. `drm_compute.c` `AGX_SCRATCH_DWORDS=N` + `AGX_HELPER_CODE`; Registers word spill bucket at bits
   18-21. 80 and 1,036 dwords per thread, up to 65,536 threads on 38 cores, 0 wrong, 0 hangs. Per-thread layout:

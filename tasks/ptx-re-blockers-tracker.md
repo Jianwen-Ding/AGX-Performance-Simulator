@@ -23,7 +23,7 @@ Rules: [safe-probes.md](safe-probes.md). Before any GPU work: `scripts/gpu_safet
 
 | Item | Status | Left to do |
 | --- | --- | --- |
-| B1 scratch / stack | done (drm_compute) | Run ZLUDA's `agx_runtime/src/scratch.rs` path on the GPU with a spilling kernel. |
+| B1 scratch / stack | done | drm_compute and ZLUDA's own scratch path both pass on the GPU (262,144 threads). |
 | B2 hardware runner | done | Sub-items below. |
 | B2a partial workgroups | done | Partial workgroups run in every dimension (exact thread counts); `results/2026-10-21-b2a-partial-workgroups`. |
 | B2b Uniform word size | done (B9) | 64 halves per word work; `agx_runtime` still splits at 32 (ZLUDA note, not pushed). |
