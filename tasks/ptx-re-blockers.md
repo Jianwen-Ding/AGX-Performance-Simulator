@@ -28,7 +28,8 @@ The consumers are:
    short if bodies) and make agx-bench measure bounds-checked kernels.
 7. Added 2026-10-21: **B41 prebuilt CUDA programs** (unblocks B23), **B37 checked mode on hardware**, **B35 a shader
    clock**, B38 VMs and queues per process, B39 allocation limits, B42 context teardown (after ZLUDA's real
-   contexts), B36 IPC through dma-buf, B40 cost model against measured library kernels.
+   contexts), B36 IPC through dma-buf, B40 cost model against measured library kernels; and for the simulator's
+   multiple contexts **B43 scheduling between VMs**, B44 isolation of faults and deadlocks, B45 shared BOs between VMs.
 
 ## Where the answers went (2026-10-21)
 
@@ -1044,6 +1045,45 @@ Consumed as is:
   launch still running at destroy (CUDA waits for it).
 - **Deliverable:** no wrong results, no leaked GPU memory (DRM's reported usage stable), no hang.
 - **Safety:** ordinary work; watch memory.
+
+## B43. How commands of different VMs share the GPU (NEW, safe)
+
+- **Why it matters:** the simulator is getting several contexts (VMs) that run together, and ZLUDA real CUDA contexts
+  (one VM each, or one VM shared). How the firmware schedules compute commands of different VMs decides both the
+  model and whether separate VMs cost throughput.
+- **Probes** (B38's setup: two processes or two VMs in one process, each with its own queue):
+  1. a long kernel (B6's loop, ~1 s) on VM A, then a short one on VM B: does B's finish before A's (concurrent or time
+     sliced) or after (serialized)? Repeat with the two on one VM, two queues.
+  2. two long kernels that each fill every core: total time against one alone (core sharing or slicing), and the
+     timestamps of each.
+  3. SR21 (context) read by kernels of each VM, with 2, 4, 16 VMs alive: which values appear, and whether they are
+     reused after a VM is destroyed.
+- **Deliverable:** overlap or not, the slice length if slicing, SR21 per VM, and the cost of switching (the gap in the
+  timestamps).
+- **Safety:** ordinary bounded kernels.
+
+## B44. Isolation between VMs when one faults or deadlocks (NEW, unsafe: needs one fault and one deadlock)
+
+- **Why it matters:** a context's fault must not disturb another's results (CUDA keeps errors per context), and the
+  simulator's multi-context mode needs the hardware's behaviour as its default.
+- **Probes:**
+  1. VM A stores to an unmapped VA (soft fault, B20) while VM B runs a checksum kernel: B's result and timestamps,
+     A's fence and timestamps.
+  2. VM A deadlocks at a barrier (B26's case, ended by the firmware after ~0.5 s) while VM B runs a stream of short
+     kernels: are B's delayed during those 0.5 s, and are its results right?
+  3. Same as 1 and 2 with A and B on two queues of one VM.
+- **Deliverable:** whether faults and deadlocks stay within their VM (or queue), and the delay others see.
+- **Safety:** one soft fault and one firmware-ended deadlock, as in B20 and B26.
+
+## B45. Memory visibility between VMs sharing one buffer object (NEW, safe; FOLLOWS B36)
+
+- **Why it matters:** contexts sharing memory (CUDA IPC, peer-style access within one process, a library context next
+  to the application's) bind the same GEM object in two VMs.
+- **Probes:** bind one BO in VMs A and B at different VAs; A writes, B reads in a later command (and in a concurrent
+  one with B7's coherent loads); record what B sees and whether ordering between the two queues needs a fence
+  (syncobj wait) or is implied.
+- **Deliverable:** the ordering rule between VMs, so ZLUDA and the simulator synchronize the same way.
+- **Safety:** ordinary loads and stores.
 
 ## T1. `agx_cost`: uniform values from the command line (tooling request, no hardware needed; DONE in #7)
 
