@@ -291,6 +291,10 @@ Branch `claude/bold-davinci-46xi9q` of Jianwen-Ding/ZLUDA and Jianwen-Ding/llvm-
 
 ## B8. Code region size, placement and replacement (NEW, safe)
 
+- **Correction 2026-10-21 (B42):** ring reuse is **not** safe without the USC invalidate once launches queue deep:
+  zluda_agx's back-to-back pipeline words in the USC ring fault with 45+ queued launches and pass with the invalidate on
+  every command (playground `results/2026-10-21-b42-context-teardown`). Emit it on every command, as Mesa does.
+
 - **Done 2026-10-20:** 1,000 in-place rewrites of code and pipeline words at one USC offset: 0 wrong, 0 stale,
   with or without the barrier/USC-invalidate word (which costs ~1.8 us). Shaders of 256 MiB and a code address
   3 GiB into the USC range work. Ring reuse after completion is safe. Evidence: playground
@@ -1082,6 +1086,13 @@ Consumed as is:
 - **Safety:** as B23.
 
 ## B42. `cudaDeviceReset` and context teardown on the hardware (NEW, safe once ZLUDA has real contexts)
+
+- **Done 2026-10-21 (on ZLUDA master 7a6d979, real contexts; two bugs found and fixed locally):** 1,000 create /
+  load / launch / destroy cycles, 100 destroys with 200 launches queued (destroy waits, ~1.8 ms) and 100 primary resets
+  all pass with no leak, after fixing (1) a kernel shmem leak that survives process exit (~5 MiB per context: the VM
+  was destroyed before the objects bound in it) and (2) faults with 45+ queued launches (stale pipeline words in the
+  USC ring without the USC invalidate; Mesa always emits it). Patch and evidence: playground
+  `results/2026-10-21-b42-context-teardown`; ZLUDA notes 10-11.
 
 - **Why it matters:** ZLUDA is adding real contexts (destroy frees allocations, modules and queues;
   `cuDevicePrimaryCtxReset`). Freeing queues and VMs with work recently finished, and reusing USC memory after a
