@@ -7,6 +7,8 @@ row (and the item's "Done" note in ptx-re-blockers.md) when an item moves.
 Status: **done**, **open** (safe, can run now), **needs tools** (safe, but a missing build or program stops it),
 **unsafe** (needs the owner's approval and the hang budget), **blocked** (needs hardware or a decision we do not have).
 
+ZLUDA issues found by these probes: [zluda-issues.md](zluda-issues.md).
+
 Rules: [safe-probes.md](safe-probes.md). Before any GPU work: `scripts/gpu_safety.py status`, the power source,
 `free -g` >= 8 GB available, and an `agx_run` emulator gate. Evidence goes in the playground's `results/`.
 

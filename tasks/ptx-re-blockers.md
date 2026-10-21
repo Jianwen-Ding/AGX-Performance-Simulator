@@ -1,7 +1,7 @@
 # Task ptx-re-blockers: hardware facts the PTX → AGX stack is blocked on
 
 Read [safe-probes.md](safe-probes.md) first. The status of every item is tracked in
-[ptx-re-blockers-tracker.md](ptx-re-blockers-tracker.md).
+[ptx-re-blockers-tracker.md](ptx-re-blockers-tracker.md); ZLUDA issues they found are in [zluda-issues.md](zluda-issues.md).
 
 **Goal:** one list of every reverse-engineering question that blocks running CUDA/PTX on the M2 Max (G14C) through
 ZLUDA → LLVM AGX backend → a direct-DRM runtime. Everything else in that stack can be built offline against this
