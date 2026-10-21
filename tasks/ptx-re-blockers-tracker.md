@@ -97,7 +97,7 @@ Rules: [safe-probes.md](safe-probes.md). Before any GPU work: `scripts/gpu_safet
 | B39 largest allocation | done | 32 GiB single / 40 GiB total fine; free = MemAvailable. |
 | B42 context teardown | done | Pass after 2 fixes (teardown leak; USC barrier needed for deep queues). |
 | B43 scheduling between VMs | done | Concurrent, slot-interleaved, no slicing or preemption. |
-| B44 isolation of faults and deadlocks | unsafe | One soft fault and one firmware-ended deadlock (as B20 / B26). |
+| B44 isolation of faults and deadlocks | done | Isolated per VM and per queue; others finish on time during a 0.5 s deadlock. |
 | B45 shared BO between VMs | done | Syncobj wait needed and sufficient; no implicit order between VMs. |
 
 ## Whole programs and tooling
@@ -140,8 +140,6 @@ Prepared and gated in agx_run, **not yet run on the GPU** (run them in this orde
 - B10 IRIW: **ran 2026-10-21, the kernel faults on the GPU (zero timestamps) though agx_run accepts it**; bisect before retrying.
 - B24 item 6: **ran 2026-10-21: `0309ffffffff` hung (recovered); these opcodes are not no-ops for all operand bytes; sweep stopped.** The simulator should stop treating arbitrary operand bytes as no-ops.
 - B29 probes 4 / 9: **ran 2026-10-21, both pass** (see results/2026-10-21-b29-texture-corners).
-- B44 (one instruction fault + one firmware-ended deadlock, as B20 / B26): `/scratch/ZLUDA/agx_runtime/examples/b44_isolation.rs`
-  with `/scratch/agxsim-runs/b44/{control,op54,deadlock}.bin` (`results/2026-10-21-b44-vm-isolation/build.py`); run
-  `b44_isolation /scratch/agxsim-runs/b44 vms` then `queues`.
+- B44: **ran 2026-10-21, isolated** (results/2026-10-21-b44-vm-isolation).
 Needs the owner: B17 (async_load, hung before) and B24 item 5 (memory_barrier sweep). Blocked: B19 (M2 Ultra), B23 / B41
 (CUDA binaries built elsewhere). Simulator follow-ups: texture compare / LOD clamps / pixel coordinates (B29).

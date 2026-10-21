@@ -1174,6 +1174,11 @@ Consumed as is:
 
 ## B44. Isolation between VMs when one faults or deadlocks (NEW, unsafe: needs one fault and one deadlock)
 
+- **Done 2026-10-21:** with VM (or queue) A faulting (op54, zero timestamps) or deadlocked (B26's barrier, ended after
+  ~0.5 s), B's 20 control kernels on another VM or another queue of the same VM were all correct and finished within
+  ~1-2 ms; a control passed afterwards. Faults and deadlocks are isolated. Evidence: playground
+  `results/2026-10-21-b44-vm-isolation`.
+
 - **Why it matters:** a context's fault must not disturb another's results (CUDA keeps errors per context), and the
   simulator's multi-context mode needs the hardware's behaviour as its default.
 - **Probes:**
