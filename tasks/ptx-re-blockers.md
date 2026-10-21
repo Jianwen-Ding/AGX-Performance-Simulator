@@ -1005,6 +1005,11 @@ Consumed as is:
 
 ## B36. Sharing GPU memory across processes and with the host (NEW, safe)
 
+- **Done 2026-10-21:** dma-buf IPC works: an object exported with PRIME_HANDLE_TO_FD, imported in a forked process with its
+  own fd and VM, binds like any other; GPU and CPU accesses on both sides agree after completion. No user-pointer
+  import exists (11 ioctls, no `/dev/udmabuf`), so `cuMemHostRegister` must copy. Evidence: playground
+  `results/2026-10-21-b36-b45-shared-memory` (agx_runtime patch there, not pushed).
+
 - **Why it matters:** ZLUDA has no `cuIpcGetMemHandle`/`cuIpcOpenMemHandle` (used by multi-process training and
   NCCL-style code) and `cuMemHostRegister` cannot map existing host memory into the GPU.
 - **Probes:**
@@ -1116,6 +1121,10 @@ Consumed as is:
 - **Safety:** one soft fault and one firmware-ended deadlock, as in B20 and B26.
 
 ## B45. Memory visibility between VMs sharing one buffer object (NEW, safe; FOLLOWS B36)
+
+- **Done 2026-10-21:** one object in two VMs: a reader on VM B sees all of VM A's writes after a host wait or a
+  syncobj wait on A's point (~130 us hand-over), and none when submitted unordered (the two run concurrently). Order
+  between VMs is only what syncobj waits give. Evidence: playground `results/2026-10-21-b36-b45-shared-memory`.
 
 - **Why it matters:** contexts sharing memory (CUDA IPC, peer-style access within one process, a library context next
   to the application's) bind the same GEM object in two VMs.
