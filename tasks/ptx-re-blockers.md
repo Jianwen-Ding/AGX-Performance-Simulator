@@ -26,6 +26,9 @@ The consumers are:
 6. B31 empty-mask instruction cost, B32 asynchronous submit cost (launch batching), B33 vector access alignment,
    B34 stack access cost and wait groups, and T1 (`agx_cost --uniform`): they decide backend tuning (whether to jump over
    short if bodies) and make agx-bench measure bounds-checked kernels.
+7. Added 2026-10-21: **B41 prebuilt CUDA programs** (unblocks B23), **B37 checked mode on hardware**, **B35 a shader
+   clock**, B38 VMs and queues per process, B39 allocation limits, B42 context teardown (after ZLUDA's real
+   contexts), B36 IPC through dma-buf, B40 cost model against measured library kernels.
 
 ## Where the answers went (2026-10-21)
 
@@ -955,6 +958,92 @@ Consumed as is:
   get the measured rules.
 - **Safety:** ordinary loads and waits; stack accesses only once B1's scratch configuration is established; see
   `safe-probes.md`.
+
+## B35. A clock a shader can read: `%clock`, `%clock64`, `%globaltimer`, `nanosleep` (NEW, safe)
+
+- **Why it matters:** ZLUDA reads `%clock`/`%clock64` as 0 and `nanosleep` does not sleep, because no timer the
+  shader can read is known. CUDA code uses `clock64()` for timing loops, spin-wait backoff and benchmarks
+  (e.g. the CUDA samples' `clock`), and `%globaltimer` for wall time.
+- **Probe:** read every special register the decoder knows (and the unknown SR numbers next to them) twice in one
+  thread, with a bounded delay loop between the reads, and record which change, by how much per iteration, whether
+  they agree across SIMD-groups and cores, and whether one matches the 1 GHz command timestamps (B25).
+- **Deliverable:** the SR (if any) of a cycle counter and of a global timer, its rate and width; or that none
+  exists, in which case ZLUDA keeps 0 and documents it.
+- **Safety:** reads only; one threadgroup, bounded loop.
+
+## B36. Sharing GPU memory across processes and with the host (NEW, safe)
+
+- **Why it matters:** ZLUDA has no `cuIpcGetMemHandle`/`cuIpcOpenMemHandle` (used by multi-process training and
+  NCCL-style code) and `cuMemHostRegister` cannot map existing host memory into the GPU.
+- **Probes:**
+  1. Export an Asahi GEM object as a dma-buf (`DRM_IOCTL_PRIME_HANDLE_TO_FD`), import it in a second process
+     (`PRIME_FD_TO_HANDLE`), bind it in that process's VM and run a kernel that reads what the first wrote.
+  2. Whether the Asahi UAPI accepts any user-pointer import (it is not expected to); record the error.
+- **Deliverable:** whether IPC can be built on dma-buf, and what binding an imported object needs.
+- **Safety:** ordinary allocation and binding; two processes.
+
+## B37. Checked mode on the hardware: cost and the early return (NEW, safe)
+
+- **Why it matters:** ZLUDA's checked mode (`ZLUDA_AGX_CHECKED=1`, LLVM `agx-checked`) is validated only on this
+  simulator, which estimates about 1.5x the cycles of an unchecked build. Once a kernel reports a bad access, later
+  launches of the module must see the record's `claimed` word and return at once.
+- **Probes:** `llvm/utils/agx-checked/zluda_tests.py`'s kernels built checked and unchecked through `agx_run_hw`:
+  1. the same records (kind, address, thread, block) as in the simulator for every bug case;
+  2. kernel time checked against unchecked for the in-bounds kernels and agx-bench's set;
+  3. a second launch after a reported error, without zeroing the record, does no store.
+- **Deliverable:** pass/fail per case, the time ratios, and whether (3) holds.
+- **Safety:** checked kernels never touch the bad address; the unchecked builds of the bug cases do (soft faults,
+  B20), so run them last.
+
+## B38. Several VMs and queues in one process (NEW, safe)
+
+- **Why it matters:** ZLUDA has one context; real CUDA contexts (each with its own allocations and streams) may get a
+  VM each, and every stream is a queue. The limits are not known.
+- **Probes:** in one process, create 2, 4, 16 VMs and 1, 16, 64, 256 queues (on one VM and spread), run a kernel on
+  each, and record which creations fail and with what error; also queue priorities (LOW..REALTIME) and whether a
+  higher-priority queue's short kernel finishes before a running lower-priority long one
+  (`cuStreamCreateWithPriority`).
+- **Deliverable:** the limits, and whether priorities change scheduling.
+- **Safety:** creation and small kernels only.
+
+## B39. Largest allocation and address range (NEW, safe)
+
+- **Why it matters:** `cuMemAlloc` of tens of GiB on a 64 GiB M2 Max, and `cuMemGetInfo` (ZLUDA reports a fixed
+  share of RAM).
+- **Probes:** allocate and bind single BOs of 1, 4, 16, 32 GiB and a kernel that touches the last page; the total
+  across many BOs until failure; record what the DRM reports as available.
+- **Deliverable:** the largest single and total allocation, the error at the limit, and a free-memory figure the
+  runtime can report.
+- **Safety:** may push the machine into memory pressure at the limit; stop at the first failure.
+
+## B40. The simulator's cost model against the hardware on whole library kernels (NEW, safe)
+
+- **Why it matters:** ZLUDA's library kernels (agx_libs: sgemm, hgemm, conv, fft, sparse, dnn) and backend choices are
+  tuned with the simulator's cycle estimates; f64 is emulated in software and costed only by the model.
+- **Probe:** run `agx_libs/kernels/test_kernels.py`'s kernels through `agx_run_hw` with timestamps, and the same
+  launches in `agx_cost`; also the f64 add/mul/fma/div kernels of `ptx/tools/agx_f64_check.py`.
+- **Deliverable:** measured time against estimated cycles per kernel (the ratio, and the worst outliers).
+- **Safety:** ordinary kernels.
+
+## B41. Prebuilt CUDA programs instead of nvcc on the Asahi machine (FOLLOWS B23)
+
+- **Why it matters:** B23 is blocked because nvcc is not wanted on the Asahi machine. CUDA binaries built elsewhere
+  (x86 or aarch64 Linux with a CUDA toolkit) carry PTX in their fat binaries, which ZLUDA compiles.
+- **Probe:** run aarch64 Linux builds of the CUDA samples (vectorAdd, matrixMul, reduction, simpleCUBLAS,
+  simpleCUFFT, cuSolver-free ones) with `LD_LIBRARY_PATH` pointing at ZLUDA's libraries, `-gencode` with
+  `compute_XX` PTX included; record pass/fail and the first failing call (`ZLUDA_AGX_LOG=1`).
+- **Deliverable:** the per-sample results; this answers B23.
+- **Safety:** as B23.
+
+## B42. `cudaDeviceReset` and context teardown on the hardware (NEW, safe once ZLUDA has real contexts)
+
+- **Why it matters:** ZLUDA is adding real contexts (destroy frees allocations, modules and queues;
+  `cuDevicePrimaryCtxReset`). Freeing queues and VMs with work recently finished, and reusing USC memory after a
+  module unload, must not leave stale state.
+- **Probe:** 1,000 cycles of create context, load a module, launch, synchronise, destroy; then the same with a
+  launch still running at destroy (CUDA waits for it).
+- **Deliverable:** no wrong results, no leaked GPU memory (DRM's reported usage stable), no hang.
+- **Safety:** ordinary work; watch memory.
 
 ## T1. `agx_cost`: uniform values from the command line (tooling request, no hardware needed; DONE in #7)
 
