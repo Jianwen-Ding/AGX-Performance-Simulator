@@ -72,6 +72,12 @@ impl Memory {
         }
         Ok(())
     }
+    /// Overwrite a mapped byte range (one region) in bulk.
+    pub fn write_bytes(&mut self, va: u64, bytes: &[u8]) -> Result<(), String> {
+        let (i, o) = self.find(va, bytes.len() as u64).ok_or_else(|| format!("write to unmapped address {:#x}", va))?;
+        std::sync::Arc::make_mut(&mut self.regions[i].1)[o..o + bytes.len()].copy_from_slice(bytes);
+        Ok(())
+    }
     /// `write` from a device store, also recorded in `log` when logging is on
     pub fn store(&mut self, va: u64, len: usize, v: u64) -> Result<(), String> {
         self.write(va, len, v)?;

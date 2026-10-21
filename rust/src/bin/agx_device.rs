@@ -11,11 +11,15 @@
 //!     "map": {"0x10000": "in.bin"}, "alloc": {"0x20000": 4096},
 //!     "dump": [["0x20000", 4096, "out.bin"]],
 //!     "queues": [[{"code": "k.bin", "grid": [64, 1, 1], "wg": [32, 1, 1], "shared": 0, "regs": 128,
-//!                  "max_steps": 100000000, "uniforms": {"8": 65536, "9": 0}, "preamble": "pre.bin"}]]}]}
+//!                  "max_steps": 100000000, "uniforms": {"8": 65536, "9": 0}, "preamble": "pre.bin",
+//!                  "wait_for": [[1, 0, 2]]}]]}],
+//!  "share": [[0, "0x20000", 1, "0x80000", 4096]]}
 //! ```
 //!
 //! Each context has its own memory (`map` from a file, `alloc` zero-filled), its VM slot (what SR21 reads) and its
-//! queues; commands of a queue run in order. Prints one JSON line per command in the order the device ran them
+//! queues; commands of a queue run in order. `wait_for` lists the (context, queue, point) a command waits for (the
+//! only order between queues and VMs, as on the hardware); `share` binds a context's bytes in another context at its
+//! own address (one buffer object in two VMs). Prints one JSON line per command in the order the device ran them
 //! (`context`, `queue`, `point`, `start`, `end`, `instructions`, `groups`, `fault`), then writes the dumps. A faulted
 //! command (unmapped access, step limit) has `fault` set and both timestamps 0, and the others still run. Exits 1 if
 //! any command faulted.
@@ -80,7 +84,17 @@ fn command(dir: &Path, c: &Value, vm_slot: Option<u32>) -> Command {
         placement: 0,
         launch: agx_sim::cost::SrLaunch { tg_bytes: shared, context: vm_slot, ..Default::default() },
     };
-    Command { dispatch, preamble: c.get("preamble").map(|p| read(dir, p)) }
+    let wait_for = c
+        .get("wait_for")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .map(|w| {
+            let w = w.as_array().filter(|w| w.len() == 3).unwrap_or_else(|| die("a wait is [CONTEXT, QUEUE, POINT]"));
+            (num(&w[0]) as usize, num(&w[1]) as usize, num(&w[2]))
+        })
+        .collect();
+    Command { dispatch, preamble: c.get("preamble").map(|p| read(dir, p)), wait_for }
 }
 
 fn main() {
@@ -126,6 +140,11 @@ fn main() {
                 dev.submit(ctx, queue, command(dir, cmd, vm_slot));
             }
         }
+    }
+    for sh in spec.get("share").and_then(Value::as_array).into_iter().flatten() {
+        let v = sh.as_array().filter(|v| v.len() == 5).unwrap_or_else(|| die("a share is [CTX_A, VA_A, CTX_B, VA_B, BYTES]"));
+        dev.share(num(&v[0]) as usize, num(&v[1]), num(&v[2]) as usize, num(&v[3]), num(&v[4]) as usize)
+            .unwrap_or_else(|e| die(&format!("share: {e}")));
     }
     let done = dev.run();
     for d in &done {

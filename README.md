@@ -140,8 +140,11 @@ The LLVM backend's `agx-strict` feature emits only these forms.
 Multiple contexts: `agx_device SPEC.json` (library: `agx_sim::device`) runs several contexts (GPU VMs) on one
 simulated GPU, each with its own memory, VM slot (what SR21 reads) and queues of dispatches; commands of a queue run in
 order, and a command that faults (unmapped access, step limit) is reported with both timestamps 0 while the others run
-on. How the hardware interleaves commands of different VMs is not measured yet (`tasks/ptx-re-blockers.md` B43-B45), so
-the order is a policy: `round-robin` (default) or `submission`. Memory shared between VMs is not modelled.
+on. On the hardware, commands of different VMs run concurrently with their workgroups interleaved, and nothing orders
+them except a syncobj wait (`tasks/ptx-re-blockers.md` B43, B45); here a command's `wait_for` points give that order,
+and among runnable commands a policy picks one (`round-robin`, default, or `submission`): for any program that
+synchronizes, this is one of the hardware's outcomes. `share` binds one context's bytes in another at its own address
+(one buffer object in two VMs, B36 / B45).
 
 Checked mode and fault replay: kernels built with the LLVM backend's `agx-checked` feature (ZLUDA's `zoc
 --agx-checked`) run on `agx_run` like any other once their hidden arguments are passed as uniforms;

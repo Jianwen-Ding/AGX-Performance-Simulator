@@ -130,5 +130,5 @@ Rules: [safe-probes.md](safe-probes.md). Before any GPU work: `scripts/gpu_safet
 | B18 lane-offset fmadd, 4-lane segments k <= 3 | **added 2026-10-21** (fp16 boundary lanes read 0; fp32 boundary lanes stay refused as undefined); cost rows added |
 | B18 / B15 / `simd_shuffle_up` instruction costs | **added 2026-10-21** (bench rows in `results/2026-10-11-instruction-bench/bench.json.gz`, forms in `bench_ops.EXTRA_OPS`) |
 | B35 SR113 power-state bit | not modelled by design (time-varying) |
-| B38 / B43 / B45 several VMs: concurrent, no implicit order, 63 VM slots | todo: the multi-context mode should share workgroup slots across VMs, order only through syncobj waits |
+| B38 / B43 / B45 several VMs: concurrent, no implicit order, shared objects | **added 2026-10-21** to `agx_device`: cross-queue / cross-VM `wait_for`, `share` (one object in two VMs); whole commands in policy order = a legal outcome for synchronized programs |
 | B8 correction: the USC invalidate is needed for deep queues | todo: a runtime-level rule (ZLUDA), nothing for agx_run to execute |
