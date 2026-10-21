@@ -26,6 +26,10 @@ The consumers are:
 6. B31 empty-mask instruction cost, B32 asynchronous submit cost (launch batching), B33 vector access alignment,
    B34 stack access cost and wait groups, and T1 (`agx_cost --uniform`): they decide backend tuning (whether to jump over
    short if bodies) and make agx-bench measure bounds-checked kernels.
+7. Added 2026-10-21: **B41 prebuilt CUDA programs** (unblocks B23), **B37 checked mode on hardware**, **B35 a shader
+   clock**, B38 VMs and queues per process, B39 allocation limits, B42 context teardown (after ZLUDA's real
+   contexts), B36 IPC through dma-buf, B40 cost model against measured library kernels; and for the simulator's
+   multiple contexts **B43 scheduling between VMs**, B44 isolation of faults and deadlocks, B45 shared BOs between VMs.
 
 ## Where the answers went (2026-10-21)
 
@@ -955,6 +959,155 @@ Consumed as is:
   get the measured rules.
 - **Safety:** ordinary loads and waits; stack accesses only once B1's scratch configuration is established; see
   `safe-probes.md`.
+
+## B35. A clock a shader can read: `%clock`, `%clock64`, `%globaltimer`, `nanosleep` (NEW, safe)
+
+- **Why it matters:** ZLUDA reads `%clock`/`%clock64` as 0 and `nanosleep` does not sleep, because no timer the
+  shader can read is known. CUDA code uses `clock64()` for timing loops, spin-wait backoff and benchmarks
+  (e.g. the CUDA samples' `clock`), and `%globaltimer` for wall time.
+- **Probe:** read every special register the decoder knows (and the unknown SR numbers next to them) twice in one
+  thread, with a bounded delay loop between the reads, and record which change, by how much per iteration, whether
+  they agree across SIMD-groups and cores, and whether one matches the 1 GHz command timestamps (B25).
+- **Deliverable:** the SR (if any) of a cycle counter and of a global timer, its rate and width; or that none
+  exists, in which case ZLUDA keeps 0 and documents it.
+- **Safety:** reads only; one threadgroup, bounded loop.
+
+## B36. Sharing GPU memory across processes and with the host (NEW, safe)
+
+- **Why it matters:** ZLUDA has no `cuIpcGetMemHandle`/`cuIpcOpenMemHandle` (used by multi-process training and
+  NCCL-style code) and `cuMemHostRegister` cannot map existing host memory into the GPU.
+- **Probes:**
+  1. Export an Asahi GEM object as a dma-buf (`DRM_IOCTL_PRIME_HANDLE_TO_FD`), import it in a second process
+     (`PRIME_FD_TO_HANDLE`), bind it in that process's VM and run a kernel that reads what the first wrote.
+  2. Whether the Asahi UAPI accepts any user-pointer import (it is not expected to); record the error.
+- **Deliverable:** whether IPC can be built on dma-buf, and what binding an imported object needs.
+- **Safety:** ordinary allocation and binding; two processes.
+
+## B37. Checked mode on the hardware: cost and the early return (NEW, safe)
+
+- **Why it matters:** ZLUDA's checked mode (`ZLUDA_AGX_CHECKED=1`, LLVM `agx-checked`) is validated only on this
+  simulator, which estimates about 1.5x the cycles of an unchecked build. Once a kernel reports a bad access, later
+  launches of the module must see the record's `claimed` word and return at once.
+- **Probes:** `llvm/utils/agx-checked/zluda_tests.py`'s kernels built checked and unchecked through `agx_run_hw`:
+  1. the same records (kind, address, thread, block) as in the simulator for every bug case;
+  2. kernel time checked against unchecked for the in-bounds kernels and agx-bench's set;
+  3. a second launch after a reported error, without zeroing the record, does no store.
+- **Deliverable:** pass/fail per case, the time ratios, and whether (3) holds.
+- **Safety:** checked kernels never touch the bad address; the unchecked builds of the bug cases do (soft faults,
+  B20), so run them last.
+
+## B38. Several VMs and queues in one process (NEW, safe)
+
+- **Why it matters:** ZLUDA has one context; real CUDA contexts (each with its own allocations and streams) may get a
+  VM each, and every stream is a queue. The limits are not known.
+- **Probes:** in one process, create 2, 4, 16 VMs and 1, 16, 64, 256 queues (on one VM and spread), run a kernel on
+  each, and record which creations fail and with what error; also queue priorities (LOW..REALTIME) and whether a
+  higher-priority queue's short kernel finishes before a running lower-priority long one
+  (`cuStreamCreateWithPriority`).
+- **Deliverable:** the limits, and whether priorities change scheduling.
+- **Safety:** creation and small kernels only.
+
+## B39. Largest allocation and address range (NEW, safe)
+
+- **Why it matters:** `cuMemAlloc` of tens of GiB on a 64 GiB M2 Max, and `cuMemGetInfo` (ZLUDA reports a fixed
+  share of RAM).
+- **Probes:** allocate and bind single BOs of 1, 4, 16, 32 GiB and a kernel that touches the last page; the total
+  across many BOs until failure; record what the DRM reports as available.
+- **Deliverable:** the largest single and total allocation, the error at the limit, and a free-memory figure the
+  runtime can report.
+- **Safety:** may push the machine into memory pressure at the limit; stop at the first failure.
+
+## B40. The simulator's cost model against the hardware on whole library kernels (NEW, safe)
+
+- **Why it matters:** ZLUDA's library kernels (agx_libs: sgemm, hgemm, conv, fft, sparse, dnn) and backend choices are
+  tuned with the simulator's cycle estimates; f64 is emulated in software and costed only by the model.
+- **Probe:** run `agx_libs/kernels/test_kernels.py`'s kernels through `agx_run_hw` with timestamps, and the same
+  launches in `agx_cost`; also the f64 add/mul/fma/div kernels of `ptx/tools/agx_f64_check.py`.
+- **Deliverable:** measured time against estimated cycles per kernel (the ratio, and the worst outliers).
+- **Safety:** ordinary kernels.
+
+## B41. Prebuilt CUDA programs instead of nvcc on the Asahi machine (FOLLOWS B23)
+
+- **Why it matters:** B23 is blocked because nvcc is not wanted on the Asahi machine. CUDA binaries built elsewhere
+  (x86 or aarch64 Linux with a CUDA toolkit) carry PTX in their fat binaries, which ZLUDA compiles.
+- **Probe:** run aarch64 Linux builds of the CUDA samples (vectorAdd, matrixMul, reduction, simpleCUBLAS,
+  simpleCUFFT, cuSolver-free ones) with `LD_LIBRARY_PATH` pointing at ZLUDA's libraries, `-gencode` with
+  `compute_XX` PTX included; record pass/fail and the first failing call (`ZLUDA_AGX_LOG=1`).
+- **Deliverable:** the per-sample results; this answers B23.
+- **Safety:** as B23.
+
+## B42. `cudaDeviceReset` and context teardown on the hardware (NEW, safe once ZLUDA has real contexts)
+
+- **Why it matters:** ZLUDA is adding real contexts (destroy frees allocations, modules and queues;
+  `cuDevicePrimaryCtxReset`). Freeing queues and VMs with work recently finished, and reusing USC memory after a
+  module unload, must not leave stale state.
+- **Probe:** 1,000 cycles of create context, load a module, launch, synchronise, destroy; then the same with a
+  launch still running at destroy (CUDA waits for it).
+- **Deliverable:** no wrong results, no leaked GPU memory (DRM's reported usage stable), no hang.
+- **Safety:** ordinary work; watch memory.
+
+## B43. How commands of different VMs share the GPU (NEW, safe)
+
+- **Why it matters:** the simulator is getting several contexts (VMs) that run together, and ZLUDA real CUDA contexts
+  (one VM each, or one VM shared). How the firmware schedules compute commands of different VMs decides both the
+  model and whether separate VMs cost throughput.
+- **Probes** (B38's setup: two processes or two VMs in one process, each with its own queue):
+  1. a long kernel (B6's loop, ~1 s) on VM A, then a short one on VM B: does B's finish before A's (concurrent or time
+     sliced) or after (serialized)? Repeat with the two on one VM, two queues.
+  2. two long kernels that each fill every core: total time against one alone (core sharing or slicing), and the
+     timestamps of each.
+  3. SR21 (context) read by kernels of each VM, with 2, 4, 16 VMs alive: which values appear, and whether they are
+     reused after a VM is destroyed.
+- **Deliverable:** overlap or not, the slice length if slicing, SR21 per VM, and the cost of switching (the gap in the
+  timestamps).
+- **Safety:** ordinary bounded kernels.
+
+## B44. Isolation between VMs when one faults or deadlocks (NEW, unsafe: needs one fault and one deadlock)
+
+- **Why it matters:** a context's fault must not disturb another's results (CUDA keeps errors per context), and the
+  simulator's multi-context mode needs the hardware's behaviour as its default.
+- **Probes:**
+  1. VM A stores to an unmapped VA (soft fault, B20) while VM B runs a checksum kernel: B's result and timestamps,
+     A's fence and timestamps.
+  2. VM A deadlocks at a barrier (B26's case, ended by the firmware after ~0.5 s) while VM B runs a stream of short
+     kernels: are B's delayed during those 0.5 s, and are its results right?
+  3. Same as 1 and 2 with A and B on two queues of one VM.
+- **Deliverable:** whether faults and deadlocks stay within their VM (or queue), and the delay others see.
+- **Safety:** one soft fault and one firmware-ended deadlock, as in B20 and B26.
+
+## B45. Memory visibility between VMs sharing one buffer object (NEW, safe; FOLLOWS B36)
+
+- **Why it matters:** contexts sharing memory (CUDA IPC, peer-style access within one process, a library context next
+  to the application's) bind the same GEM object in two VMs.
+- **Probes:** bind one BO in VMs A and B at different VAs; A writes, B reads in a later command (and in a concurrent
+  one with B7's coherent loads); record what B sees and whether ordering between the two queues needs a fence
+  (syncobj wait) or is implied.
+- **Deliverable:** the ordering rule between VMs, so ZLUDA and the simulator synchronize the same way.
+- **Safety:** ordinary loads and stores.
+
+## B46. Worst-case relative error of `rcp` and `rsqrt` (NEW, safe)
+
+- **Why it matters:** the backend's software `double` division and square root (llvm-project d3c8d974d) seed a
+  fixed-point Newton iteration with `rcp` / `rsqrt` on a `float` of 24 significant bits in [2^23, 2^24) and stay
+  bit-exact while the estimate is within about 2^-19.7 (some 10 ulp) of the exact value. The `float` division of
+  AGXStrictFP also assumes "a few ulp". The simulator models both as correctly rounded.
+- **Probes:** every `float` in [1, 4) (2^24 values: covers every significand and both exponent parities) through
+  `rcp` and `rsqrt`; record the maximum error in ulp against an exact reference and the inputs where it occurs.
+  Repeat for a sample of exponents and for denormal inputs.
+- **Deliverable:** the two maximum errors (and whether they depend on the exponent), so the simulator can model the
+  real results and the backend's margin is confirmed or widened.
+- **Safety:** arithmetic only.
+
+## B47. Shift amounts of 32 to 127 in `bfi`, `bfeil`, `extr` and `asr` on G14 (NEW, safe)
+
+- **Why it matters:** since llvm-project's "64-bit values as halves" change, 64-bit shifts by a variable amount
+  rely on these instructions taking a 7-bit amount, as dougallj's applegpu documents for G13 and the simulator
+  models: `bfi 0, x, s` and `bfeil 0, x, s` give 0 for s in 32..127, `extr lo, hi, s` gives `((hi:lo) >> s)` for
+  s up to 63 (and 64 gives 0), `asr x, s` fills with the sign bit from 32 on. A logical `lshr i64` is two `extr`s.
+- **Probe:** for s in 0..127 and the values 0x80000001, 0xffffffff, 0x12345678 (and `extr` with a second register
+  0x9abcdef0), run each instruction with a register amount; compare with the formulas above.
+- **Deliverable:** pass, or the actual rule (amount masked to 5 or 6 bits?), so the backend can mask.
+- **Safety:** arithmetic only.
 
 ## T1. `agx_cost`: uniform values from the command line (tooling request, no hardware needed; DONE in #7)
 

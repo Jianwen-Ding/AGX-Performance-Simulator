@@ -12,6 +12,9 @@
 //! registers), SR21 (VM slot) and SR32 (USC offset of the pipeline words) read; without them those reads are errors.
 //! --m2-core-map FILE supplies a JSON array of packed M2 Max SR20 IDs, one per linear workgroup.
 //! It replays supplied placement, leaving SR17 slots and default placement unchanged when omitted.
+//! --lines OBJ.o reads the DWARF line table of the AGX object the code is the .text of (llc output with debug
+//! locations); an error at a PC then also prints that PC's source location (`"source":"file:line:column"`).
+//! --lines-offset N is where MAIN.bin starts in that object's .text (a kernel cut out of a module).
 //! --agx-strict GPU (g13, g13x, g14, g14d; or AGX_STRICT=GPU) fails on the first executed instruction that Mesa's
 //! compiler would not emit for that GPU (`agx_sim::isa::mesa`).
 
@@ -40,6 +43,8 @@ fn main() {
     let (mut grid, mut wg, mut shared, mut regs, mut max_steps) = ([1u32, 1, 1], [1u32, 1, 1], 0u32, 128usize, 100_000_000u64);
     let (mut preamble, mut uniforms, mut dumps) = (None, vec![], vec![]);
     let mut core_map: Option<Vec<u32>> = None;
+    let mut lines: Option<agx_sim::lines::LineTable> = None;
+    let mut lines_offset = 0u64;
     let mut mem = Memory::default();
     let mut launch = agx_sim::cost::SrLaunch::default();
     let mut i = 1;
@@ -60,6 +65,11 @@ fn main() {
                 let bytes = std::fs::read(&v).unwrap_or_else(|e| die(&format!("{}: {}", v, e)));
                 core_map = Some(serde_json::from_slice(&bytes).unwrap_or_else(|e| die(&format!("M2 core map: {}", e))));
             }
+            "--lines" => {
+                let elf = std::fs::read(&v).unwrap_or_else(|e| die(&format!("{}: {}", v, e)));
+                lines = Some(agx_sim::lines::LineTable::from_elf(&elf).unwrap_or_else(|e| die(&format!("{}: {}", v, e))));
+            }
+            "--lines-offset" => lines_offset = num(&v),
             "--preamble" => preamble = Some(std::fs::read(&v).unwrap_or_else(|e| die(&format!("{}: {}", v, e)))),
             "--uniform" => {
                 let (k, x) = kv();
@@ -97,7 +107,16 @@ fn main() {
     let st = match &core_map {
         Some(cores) => func::run_with_m2_core_map(&d, &mut mem, cores),
         None => func::run(&d, &mut mem),
-    }.unwrap_or_else(|e| die(&e));
+    }.unwrap_or_else(|e| {
+        let at = lines.as_ref().zip(agx_sim::lines::error_pc(&e)).and_then(|(t, pc)| t.describe(pc + lines_offset));
+        match at {
+            Some(src) => {
+                println!("{{\"error\":{},\"source\":{}}}", serde_json::to_string(&e).unwrap(), serde_json::to_string(&src).unwrap());
+                std::process::exit(1)
+            }
+            None => die(&e),
+        }
+    });
     for (va, n, f) in &dumps {
         let b = mem.read_bytes(*va, *n).unwrap_or_else(|e| die(&e));
         std::fs::write(f, b).unwrap_or_else(|e| die(&format!("{}: {}", f, e)));

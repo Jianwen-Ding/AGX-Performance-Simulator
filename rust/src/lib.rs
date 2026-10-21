@@ -3,11 +3,13 @@
 
 pub mod cost;
 mod decode_cache;
+pub mod device;
 pub mod dispatch;
 pub mod func;
 pub mod fsem;
 pub mod isa;
 pub mod kernels;
+pub mod lines;
 pub mod mapped_dispatch;
 mod memtrace;
 pub mod par;

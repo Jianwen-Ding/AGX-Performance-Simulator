@@ -123,6 +123,9 @@ Other offline tools: `agx_asm` (assembler / decoder / raw field edits on stdin),
 dispatch over arbitrary memory, including a driver preamble that fills the uniforms). `agx_dispatch` takes the same
 `--preamble` / `--map` / `--alloc` options. With them, the SIMD groups' paths come from the functional simulator over
 that memory instead of the cost model's emulation, which is needed for driver-compiled code and data-dependent loops.
+`agx_run --lines OBJ.o [--lines-offset N]` reads the DWARF line table of the AGX object the code came from (`llc`
+with debug locations, `zoc --lineinfo`); every error names the PC of the failing instruction, and with a line table
+also its `"source"` (`rust/src/lines.rs`).
 
 Strict mode: `agx_run`, `agx_dispatch` and `agx_cost` take `--agx-strict GPU` (`g13`, `g13x`, `g14`, `g14d`, or an LLVM
 processor such as `agx-g14c`; `AGX_STRICT=GPU` does the same for every tool). The functional simulator then fails on
@@ -133,6 +136,18 @@ only in bit 45 of device atomics (set for multi-cluster G13, `g13x`, and two-die
 by `llvm/utils/agx-mesa-isa/mesa_isa.py` in the LLVM AGX fork into `rust/src/isa/mesa_table.rs`;
 `rust/src/isa/mesa_corpus.txt` holds instructions packed by Mesa's own `agx_pack.c`, which the tests check are accepted.
 The LLVM backend's `agx-strict` feature emits only these forms.
+
+Multiple contexts: `agx_device SPEC.json` (library: `agx_sim::device`) runs several contexts (GPU VMs) on one
+simulated GPU, each with its own memory, VM slot (what SR21 reads) and queues of dispatches; commands of a queue run in
+order, and a command that faults (unmapped access, step limit) is reported with both timestamps 0 while the others run
+on. How the hardware interleaves commands of different VMs is not measured yet (`tasks/ptx-re-blockers.md` B43-B45), so
+the order is a policy: `round-robin` (default) or `submission`. Memory shared between VMs is not modelled.
+
+Checked mode and fault replay: kernels built with the LLVM backend's `agx-checked` feature (ZLUDA's `zoc
+--agx-checked`) run on `agx_run` like any other once their hidden arguments are passed as uniforms;
+`llvm/utils/agx-checked/run_checked.py` in the LLVM fork does that and decodes the error record. ZLUDA's `zluda_agx`
+saves a launch that faulted on the GPU (`ZLUDA_AGX_DUMP=DIR`) as the kernel's code, its uniforms and the memory it can
+reach, with a `replay.sh` that runs it here: `AGX_RUN=rust/target/release/agx_run DIR/<pid>-<command>/replay.sh`.
 
 `agx_run --m2-core-map FILE` optionally replays supplied SR20 identities. Append
 it to a complete command with the normal uniforms and memory mappings. FILE
