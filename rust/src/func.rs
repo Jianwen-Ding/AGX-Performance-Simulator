@@ -1331,7 +1331,9 @@ impl DeviceAtomic {
         let (op, variant) = (x("op"), x("u5"));
         Self { at: x("At"), a: x("A"), ot: x("Ot"), o: x("O"), ou: x("Ou"), op,
             r: (x("R") | x("Rx") << 6) as usize, ret: x("Rt") != 0, s: x("S") as usize,
-            variant, terminate: op >= 11 && variant == 2 }
+            // ops 11-15 end the SIMD group with no memory effect, whatever bits 45-46 hold (measured with 0, 1, 2
+            // and 3 on the M2 Max: ptx-re-blockers B24)
+            variant, terminate: op >= 11 }
     }
 }
 
@@ -1367,12 +1369,18 @@ fn device_atomic(g: &mut Group, args: &DeviceAtomic, mem: &mut Memory) -> Result
         let va = (base + 4 * off) as u64;
         let result = if f_op == 3 && variant & 1 != 0 {
             // G14C: bit 45 selects u64 min/max; the index still scales by four.
-            // Rt returns a changed flag, rather than the old memory value.
-            let old = mem.read(va, 8)?;
-            let v = g.st.get_reg64(s / 2, t)? as u64;
-            let new = if variant & 2 != 0 { old.max(v) } else { old.min(v) };
-            mem.write(va, 8, new)?;
-            (new != old) as u32
+            // Rt returns a changed flag (0 when equal), rather than the old memory value. At an address that is 4
+            // mod 8 it is a silent no-op (B24); its flag is taken as 0.
+            if va % 8 != 0 {
+                mem.read(va, 4)?;
+                0
+            } else {
+                let old = mem.read(va, 8)?;
+                let v = g.st.get_reg64(s / 2, t)? as u64;
+                let new = if variant & 2 != 0 { old.max(v) } else { old.min(v) };
+                mem.write(va, 8, new)?;
+                (new != old) as u32
+            }
         } else {
             let old = mem.read(va, 4)? as u32;
             let v = g.st.get_reg32(s / 2, t)? as u32;
@@ -2234,6 +2242,56 @@ mod tests {
         d.uniforms.clear();
         d.grid = [0, 1, 1];
         assert_eq!(run(&d, &mut Memory::default()).unwrap().instructions, 0);
+    }
+
+    /// An 8-byte device atomic (bytes from the LLVM AGX backend) with fields changed through its descriptor.
+    fn atomic_with(bytes: [u8; 8], fields: &[(&'static str, i64)]) -> Vec<u8> {
+        let n = crate::isa::opcode_to_number(&bytes);
+        let d = crate::isa::get_instruction_descriptor(n).expect("atomic decodes");
+        let mut f: std::collections::HashMap<&'static str, i64> =
+            d.decode_fields(n).into_iter().map(|(k, v)| (k, v as i64)).collect();
+        for &(k, v) in fields {
+            assert!(f.contains_key(k), "no field {k}");
+            f.insert(k, v);
+        }
+        let x = d.encode_fields(&f).expect("atomic encodes");
+        (0..8).map(|i| (x >> (8 * i)) as u8).collect()
+    }
+
+    // B24 on the M2 Max: u64 min at an address 4 mod 8 is a silent no-op, and ops 11-15 end the SIMD group with no
+    // memory effect whatever bits 45-46 hold.
+    #[test]
+    fn device_atomic_corners_follow_the_hardware() {
+        use crate::kernels::{e, mov, store};
+        // r2_r3 = u2_u3; atomic cmpxchg u64 min (mode 3), no result, at u0_u1
+        let umin = [e("mov r2, u2"), e("mov r3, u3"),
+            vec![0xd5, 0x00, 0x00, 0x8d, 0x00, 0x30, 0x04, 0x00], e("stop")].concat();
+        for (offset, want) in [(0u64, [5u64, 100]), (4, [100, 100])] {
+            let mut mem = Memory::default();
+            mem.map(0x1000, [100u64, 100].iter().flat_map(|v| v.to_le_bytes()).collect());
+            let va = 0x1000 + offset;
+            let d = Dispatch { code: umin.clone(), grid: [1, 1, 1], wg: [1, 1, 1], shared_bytes: 0,
+                uniforms: vec![(0, va as u32), (1, 0), (2, 5), (3, 0)], num_registers: 8, max_steps: 100,
+                placement: 0, launch: Default::default() };
+            run(&d, &mut mem).unwrap();
+            let got = [mem.read(0x1000, 8).unwrap(), mem.read(0x1008, 8).unwrap()];
+            assert_eq!(got, want, "u64 min at offset {offset}");
+        }
+        // atomic add r1 at u0_u1, as op 11 with each variant: neither it nor the store after it runs
+        let add = [0x15, 0x00, 0x00, 0x8d, 0x00, 0x50, 0x02, 0x00];
+        for variant in [0, 1, 2, 3] {
+            let code = [mov(1, 7), mov(5, 0), mov(6, 77), atomic_with(add, &[("op", 11), ("u5", variant)]),
+                store(6, 8, 5), e("wait 0"), e("stop")].concat();
+            let mut mem = Memory::default();
+            mem.map(0x1000, vec![0; 8]);
+            mem.map(0x2000, vec![0; 4]);
+            let d = Dispatch { code, grid: [1, 1, 1], wg: [1, 1, 1], shared_bytes: 0,
+                uniforms: vec![(0, 0x1000), (1, 0), (8, 0x2000), (9, 0)], num_registers: 8, max_steps: 100,
+                placement: 0, launch: Default::default() };
+            run(&d, &mut mem).unwrap_or_else(|e| panic!("variant {variant}: {e}"));
+            assert_eq!(mem.read(0x1000, 4).unwrap(), 0, "variant {variant}: no memory effect");
+            assert_eq!(mem.read(0x2000, 4).unwrap(), 0, "variant {variant}: the group ended");
+        }
     }
 
     #[test]
