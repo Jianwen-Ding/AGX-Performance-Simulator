@@ -706,6 +706,11 @@ probe with the atomic-variants harness (`scripts/probe_atomics.py` style, surrog
 
 **Deliverable:** one line per item. The Sail model and the backend then enable or keep refusing each form.
 
+**Item 6, 2026-10-21:** not no-ops for all operands: `0309ffffffff` (opcode 0x03, operand bytes ff) **hung** (3 s
+wait timeout; control afterwards passed). Only the recorded operand bytes are established; sweep stopped
+(playground `results/2026-10-21-b24-nop6-operands`). **B10 IRIW** probe faults on the GPU (zero timestamps) though
+agx_run accepts it: open (`results/2026-10-21-b10-iriw`).
+
 **Done 2026-10-20 (items 1-4), playground `results/2026-10-20-b24-atomic-corners`:** (1) `red.add.f32` (Rt = 0) is
 identical to the returning float add; (2) the u64 min/max changed flag is 0 on equality (`new != old`); (3) an
 address = 4 mod 8 makes u64 min/max a silent no-op, 1,024-lane contention gives the exact min/max, a GPR base works;

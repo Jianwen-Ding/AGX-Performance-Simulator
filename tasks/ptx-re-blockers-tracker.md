@@ -137,8 +137,8 @@ Rules: [safe-probes.md](safe-probes.md). Before any GPU work: `scripts/gpu_safet
 ## Hand-off (2026-10-21, end of session)
 
 Prepared and gated in agx_run, **not yet run on the GPU** (run them in this order; each is safe-class):
-- B10 IRIW: playground `results/2026-10-21-b10-iriw/iriw.py gpu 65536 16 3 fenced` (and `plain`).
-- B24 item 6: `results/2026-10-21-b24-nop6-operands/b24n.py gpu` (248 operand variants of the 31 six-byte no-ops).
+- B10 IRIW: **ran 2026-10-21, the kernel faults on the GPU (zero timestamps) though agx_run accepts it**; bisect before retrying.
+- B24 item 6: **ran 2026-10-21: `0309ffffffff` hung (recovered); these opcodes are not no-ops for all operand bytes; sweep stopped.** The simulator should stop treating arbitrary operand bytes as no-ops.
 - B29 probes 4 / 9: `scripts/run_vk_b29.py` (harness `tests/vulkan_texture.c`, build to /scratch/agxsim-runs/vkt).
 - B44 (one instruction fault + one firmware-ended deadlock, as B20 / B26): `/scratch/ZLUDA/agx_runtime/examples/b44_isolation.rs`
   with `/scratch/agxsim-runs/b44/{control,op54,deadlock}.bin` (`results/2026-10-21-b44-vm-isolation/build.py`); run
