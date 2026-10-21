@@ -1085,6 +1085,19 @@ Consumed as is:
 - **Deliverable:** the ordering rule between VMs, so ZLUDA and the simulator synchronize the same way.
 - **Safety:** ordinary loads and stores.
 
+## B46. Worst-case relative error of `rcp` and `rsqrt` (NEW, safe)
+
+- **Why it matters:** the backend's software `double` division and square root (llvm-project d3c8d974d) seed a
+  fixed-point Newton iteration with `rcp` / `rsqrt` on a `float` of 24 significant bits in [2^23, 2^24) and stay
+  bit-exact while the estimate is within about 2^-19.7 (some 10 ulp) of the exact value. The `float` division of
+  AGXStrictFP also assumes "a few ulp". The simulator models both as correctly rounded.
+- **Probes:** every `float` in [1, 4) (2^24 values: covers every significand and both exponent parities) through
+  `rcp` and `rsqrt`; record the maximum error in ulp against an exact reference and the inputs where it occurs.
+  Repeat for a sample of exponents and for denormal inputs.
+- **Deliverable:** the two maximum errors (and whether they depend on the exponent), so the simulator can model the
+  real results and the backend's margin is confirmed or widened.
+- **Safety:** arithmetic only.
+
 ## T1. `agx_cost`: uniform values from the command line (tooling request, no hardware needed; DONE in #7)
 
 - **Status 2026-10-20:** Jianwen-Ding/AGX-Performance-Simulator#7 adds `--uniform`, the launch geometry and
