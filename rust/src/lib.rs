@@ -3,6 +3,7 @@
 
 pub mod cost;
 mod decode_cache;
+pub mod device;
 pub mod dispatch;
 pub mod func;
 pub mod fsem;

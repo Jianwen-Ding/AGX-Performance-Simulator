@@ -134,6 +134,12 @@ by `llvm/utils/agx-mesa-isa/mesa_isa.py` in the LLVM AGX fork into `rust/src/isa
 `rust/src/isa/mesa_corpus.txt` holds instructions packed by Mesa's own `agx_pack.c`, which the tests check are accepted.
 The LLVM backend's `agx-strict` feature emits only these forms.
 
+Multiple contexts: `agx_device SPEC.json` (library: `agx_sim::device`) runs several contexts (GPU VMs) on one
+simulated GPU, each with its own memory, VM slot (what SR21 reads) and queues of dispatches; commands of a queue run in
+order, and a command that faults (unmapped access, step limit) is reported with both timestamps 0 while the others run
+on. How the hardware interleaves commands of different VMs is not measured yet (`tasks/ptx-re-blockers.md` B43-B45), so
+the order is a policy: `round-robin` (default) or `submission`. Memory shared between VMs is not modelled.
+
 Checked mode and fault replay: kernels built with the LLVM backend's `agx-checked` feature (ZLUDA's `zoc
 --agx-checked`) run on `agx_run` like any other once their hidden arguments are passed as uniforms;
 `llvm/utils/agx-checked/run_checked.py` in the LLVM fork does that and decodes the error record. ZLUDA's `zluda_agx`
