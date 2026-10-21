@@ -12,7 +12,7 @@
 //! registers), SR21 (VM slot) and SR32 (USC offset of the pipeline words) read; without them those reads are errors.
 //! --m2-core-map FILE supplies a JSON array of packed M2 Max SR20 IDs, one per linear workgroup.
 //! It replays supplied placement, leaving SR17 slots and default placement unchanged when omitted.
-//! --mesa-isa GPU (g13, g13x, g14, g14d; or AGX_MESA_ISA=GPU) fails on the first executed instruction that Mesa's
+//! --agx-strict GPU (g13, g13x, g14, g14d; or AGX_STRICT=GPU) fails on the first executed instruction that Mesa's
 //! compiler would not emit for that GPU (`agx_sim::isa::mesa`).
 
 use agx_sim::func::{self, Dispatch, Memory};
@@ -55,7 +55,7 @@ fn main() {
             "--alloc-regs" => launch.regs = num(&v) as u32,
             "--vm-slot" => launch.context = Some(num(&v) as u32),
             "--pipeline" => launch.pipeline = Some(num(&v) as u32),
-            "--mesa-isa" => agx_sim::isa::mesa::set_mode(Some(agx_sim::isa::mesa::MesaGen::parse(&v).unwrap_or_else(|e| die(&e)))),
+            "--agx-strict" => agx_sim::isa::mesa::set_mode(Some(agx_sim::isa::mesa::MesaGen::parse(&v).unwrap_or_else(|e| die(&e)))),
             "--m2-core-map" => {
                 let bytes = std::fs::read(&v).unwrap_or_else(|e| die(&format!("{}: {}", v, e)));
                 core_map = Some(serde_json::from_slice(&bytes).unwrap_or_else(|e| die(&format!("M2 core map: {}", e))));

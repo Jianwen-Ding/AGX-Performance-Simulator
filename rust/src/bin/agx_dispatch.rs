@@ -4,7 +4,7 @@
 //!              [--cores N] [--launch-us US] [--uniform IDX=VALUE ...] [--no-mem] [--max-waves N]
 //!              [--m2-core-map FILE] (supplied M2 core IDs; exhaustive isolated waves)
 //!              [--busiest-core-wgs N] (measured peak count; representative-core sensitivity only)
-//!              [--preamble PRE.bin] [--map VA=FILE ...] [--alloc VA=BYTES ...] [--mesa-isa GPU]
+//!              [--preamble PRE.bin] [--map VA=FILE ...] [--alloc VA=BYTES ...] [--agx-strict GPU]
 //!
 //! code.bin is the main shader as submitted (e.g. the direct-DRM harness's control main with a body).
 //! Uniforms are 32-bit uniform registers (u4 = 4); the harness uses u4 = 0, u5 = count, u6_u7 = output,
@@ -14,7 +14,7 @@
 //! over that memory (`func::trace_workgroups`) instead of the cost model's emulation, which reads memory as zero:
 //! needed for driver-compiled code (the preamble fills the uniforms from the root table) and data-dependent loops.
 //!
-//! --mesa-isa GPU (g13, g13x, g14, g14d; or AGX_MESA_ISA=GPU) fails on instructions Mesa's compiler would not
+//! --agx-strict GPU (g13, g13x, g14, g14d; or AGX_STRICT=GPU) fails on instructions Mesa's compiler would not
 //! emit for that GPU (`agx_sim::isa::mesa`).
 //!
 //! agx_dispatch --batch JOBS: JOBS has one dispatch per line, as a JSON array of the arguments above. The model's
@@ -101,7 +101,7 @@ fn run_job(a: &[String], p: &Params) -> Result<serde_json::Value, String> {
     while i < a.len() {
         let option = a[i].as_str();
         if option == "--no-mem" { l.mem = false; i += 1; continue; }
-        if !["--grid", "--wg", "--regs", "--tg-bytes", "--clock", "--cores", "--busiest-core-wgs", "--m2-core-map", "--launch-us", "--max-waves", "--uniform", "--preamble", "--map", "--alloc", "--mesa-isa"].contains(&option) {
+        if !["--grid", "--wg", "--regs", "--tg-bytes", "--clock", "--cores", "--busiest-core-wgs", "--m2-core-map", "--launch-us", "--max-waves", "--uniform", "--preamble", "--map", "--alloc", "--agx-strict"].contains(&option) {
             return Err(format!("unknown argument {}", option));
         }
         let v = a.get(i + 1).ok_or_else(|| format!("{} requires a value", option))?;
@@ -116,7 +116,7 @@ fn run_job(a: &[String], p: &Params) -> Result<serde_json::Value, String> {
             "--launch-us" => l.launch_ns = number::<f64>(v, option)? * 1000.0,
             "--max-waves" => { l.max_waves = number(v, option)?; max_waves_explicit = true; },
             "--m2-core-map" => core_map_path = Some(v.clone()),
-            "--mesa-isa" => agx_sim::isa::mesa::set_mode(Some(agx_sim::isa::mesa::MesaGen::parse(v)?)),
+            "--agx-strict" => agx_sim::isa::mesa::set_mode(Some(agx_sim::isa::mesa::MesaGen::parse(v)?)),
             "--uniform" => {
                 let (k, x) = v.split_once('=').ok_or("--uniform expects IDX=VALUE")?;
                 l.uniforms.push((number(k.trim_start_matches('u'), "uniform index")?, parse_u32(x)?));

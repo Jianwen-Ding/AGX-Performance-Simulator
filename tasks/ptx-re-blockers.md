@@ -37,7 +37,7 @@ Branch `claude/bold-davinci-46xi9q` of Jianwen-Ding/ZLUDA and Jianwen-Ding/llvm-
 | B4 | ZLUDA docs: no independent thread scheduling within a warp. |
 | B5, B30 | `cuOccupancyMaxActiveBlocksPerMultiprocessor` reports min(15, floor(S/g) - 1) CTAs per core; docs on grid barriers and the tensor-memory slab wait. |
 | B7 | backend: host-coherent device accesses with f59d / f533 and the coherent bits. |
-| B16 | backend `block-barrier` feature (G14), `llvm.agx.block.barrier`; MLIR `agx.block_barrier` native on G14 (portable in Mesa ISA mode and on G13). |
+| B16 | backend `block-barrier` feature (G14), `llvm.agx.block.barrier`; MLIR `agx.block_barrier` native on G14 (portable in strict mode and on G13). |
 | B20 | `Queue::wait` fails a signalled command whose timestamps are both 0 (`CUDA_ERROR_LAUNCH_FAILED`). |
 | B21 | ZLUDA docs: `trap` does nothing; the assert flag word reports the failure. |
 | B22 | block dims [1024, 1024, 1024]; launches checked against grid * block < 2^32 per dimension. |

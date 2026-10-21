@@ -668,12 +668,12 @@ fn call_base() -> i128 {
     std::env::var("AGX_CALL_BASE").ok().and_then(|v| i128::from_str_radix(v.trim_start_matches("0x"), if v.starts_with("0x") { 16 } else { 10 }).ok()).unwrap_or(0x2000)
 }
 
-/// In Mesa ISA mode (`isa::mesa`), fails on an instruction Mesa's compiler would not emit.
+/// In strict mode (`isa::mesa`), fails on an instruction Mesa's compiler would not emit.
 pub(crate) fn mesa_check(code: &[u8], pc: usize, size: usize, name: &str) -> Result<(), String> {
     match isa::mesa::mode() {
         Some(g) => isa::mesa::check(&code[pc..pc + size], g)
             .map(|_| ())
-            .map_err(|e| format!("{} at {} is not an instruction Mesa emits for {:?} (--mesa-isa): {}", name, pc, g, e)),
+            .map_err(|e| format!("{} at {} is not an instruction Mesa emits for {:?} (--agx-strict): {}", name, pc, g, e)),
         None => Ok(()),
     }
 }

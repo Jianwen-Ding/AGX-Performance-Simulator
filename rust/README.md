@@ -115,7 +115,7 @@ skips refilling token buckets that are already at their cap.
 
 | file | contents |
 | --- | --- |
-| `src/isa/` | applegpu port: descriptor table, operands, assembler, emulator (`exec.rs` reference, `compiled.rs` fast), `fma.rs` soft float; `mesa.rs` the Mesa ISA mode check (`--mesa-isa`) over the generated `mesa_table.rs` |
+| `src/isa/` | applegpu port: descriptor table, operands, assembler, emulator (`exec.rs` reference, `compiled.rs` fast), `fma.rs` soft float; `mesa.rs` the strict mode check (`--agx-strict`) over the generated `mesa_table.rs` |
 | `src/cost.rs` | Params, decode classification, mark_loops, trace / trace_group (per-group SRs and memory segments), fit_branch, simulate / simulate_groups, MemModel |
 | `src/dispatch.rs` | whole-dispatch model (occupancy, placement, launch, waves) |
 | `src/kernels.rs` | counted / bench loops, store and threadgroup encodings, random kernels |

@@ -1,7 +1,7 @@
 //! `agx-cost code.bin [--groups G] [--annotate] [--units real|ref] [--allow-unknown] [--load-latency N]`
 //!         `[--uniform IDX=VALUE ...] [--wg x[,y,z]] [--wg-id x[,y,z]] [--simd-group G] [--grid X[,Y,Z]]`
 //!         `[--regs HALVES] [--tg-bytes N] [--map VA=FILE ...] [--alloc VA=BYTES ...] [--preamble PRE.bin]`
-//!         `[--mesa-isa GPU]`
+//!         `[--agx-strict GPU]`
 //!
 //! Drop-in replacement for `python3 scripts/agx_cost.py`: same arguments, same JSON line and the
 //! same `--annotate` table.
@@ -19,7 +19,7 @@
 //!
 //! With launch inputs the JSON line also has `"paths"`: `"geometry"` or `"functional"`.
 //!
-//! `--mesa-isa GPU` (g13, g13x, g14, g14d; or `AGX_MESA_ISA=GPU`) fails on any instruction Mesa's compiler would
+//! `--agx-strict GPU` (g13, g13x, g14, g14d; or `AGX_STRICT=GPU`) fails on any instruction Mesa's compiler would
 //! not emit for that GPU (`agx_sim::isa::mesa`).
 
 use agx_sim::cost::{self, GroupCtx, Params, SrLaunch, REAL_CYCLES_PER_UNIT};
@@ -30,7 +30,7 @@ fn usage() -> ! {
     eprintln!("usage: agx-cost code.bin [--groups G] [--load-latency CYCLES] [--units real|ref] [--allow-unknown] [--annotate]");
     eprintln!("                [--uniform IDX=VALUE] [--wg x,y,z] [--wg-id x,y,z] [--simd-group G] [--grid X,Y,Z]");
     eprintln!("                [--regs HALVES] [--tg-bytes N] [--map VA=FILE] [--alloc VA=BYTES] [--preamble PRE.bin]");
-    eprintln!("                [--mesa-isa g13|g13x|g14|g14d]");
+    eprintln!("                [--agx-strict g13|g13x|g14|g14d]");
     exit(2)
 }
 
@@ -160,7 +160,7 @@ fn main() {
                 l.buffers.push((va, b));
             }
             "--preamble" => l.preamble = Some(value()),
-            "--mesa-isa" => {
+            "--agx-strict" => {
                 let g = agx_sim::isa::mesa::MesaGen::parse(&value()).unwrap_or_else(|e| { eprintln!("agx-cost: {}", e); exit(2) });
                 agx_sim::isa::mesa::set_mode(Some(g));
             }

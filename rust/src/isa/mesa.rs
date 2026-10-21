@@ -1,11 +1,11 @@
-//! Mesa ISA mode: only the instruction forms Mesa's asahi compiler emits for G13 (M1) and G14 (M2).
+//! Strict mode: only the instruction forms Mesa's asahi compiler emits for G13 (M1) and G14 (M2).
 //!
 //! The forms come from `llvm/utils/agx-mesa-isa/mesa_isa.py` in the LLVM AGX fork, which reads them off Mesa's
 //! packer (`src/asahi/compiler/agx_pack.c`) and the operand values its compiler creates; `mesa_table.rs` is generated
 //! from it. A form is one opcode at one length: its fields must hold values Mesa packs and every other bit must equal
 //! the form's fixed value. The checker here follows `check_form` in that script and `AGXMesaISA.cpp` in the backend.
 //!
-//! `agx_run`, `agx_dispatch` and `agx_cost` take `--mesa-isa GEN` (or `AGX_MESA_ISA=GEN`): the functional simulator
+//! `agx_run`, `agx_dispatch` and `agx_cost` take `--agx-strict GEN` (or `AGX_STRICT=GEN`): the functional simulator
 //! then fails on the first executed instruction Mesa would not emit, and the cost model on any instruction of the
 //! program.
 
@@ -31,7 +31,7 @@ impl MesaGen {
             "g13x" | "g13s" | "g13c" | "g13d" => MesaGen::G13X,
             "g14" | "g14g" | "g14s" | "g14c" => MesaGen::G14,
             "g14d" => MesaGen::G14D,
-            _ => return Err(format!("--mesa-isa: unknown GPU {:?} (g13, g13x, g14, g14d or agx-g1Nx)", s)),
+            _ => return Err(format!("--agx-strict: unknown GPU {:?} (g13, g13x, g14, g14d or agx-g1Nx)", s)),
         })
     }
 }
@@ -59,12 +59,12 @@ use super::mesa_table::{FIELDS, FORMS, SETS};
 
 static MODE: AtomicU8 = AtomicU8::new(u8::MAX);
 
-/// Selects Mesa ISA mode for this process (None turns it off).
+/// Selects strict mode for this process (None turns it off).
 pub fn set_mode(g: Option<MesaGen>) {
     MODE.store(g.map_or(u8::MAX, |g| g as u8), Ordering::Relaxed);
 }
 
-/// The selected mode: `set_mode`, else the `AGX_MESA_ISA` environment variable.
+/// The selected mode: `set_mode`, else the `AGX_STRICT` environment variable.
 pub fn mode() -> Option<MesaGen> {
     static ENV: std::sync::OnceLock<Option<MesaGen>> = std::sync::OnceLock::new();
     match MODE.load(Ordering::Relaxed) {
@@ -73,17 +73,17 @@ pub fn mode() -> Option<MesaGen> {
         2 => Some(MesaGen::G14),
         3 => Some(MesaGen::G14D),
         _ => *ENV.get_or_init(|| {
-            std::env::var("AGX_MESA_ISA").ok().filter(|v| !v.is_empty()).map(|v| {
-                MesaGen::parse(&v).unwrap_or_else(|e| panic!("AGX_MESA_ISA: {}", e))
+            std::env::var("AGX_STRICT").ok().filter(|v| !v.is_empty()).map(|v| {
+                MesaGen::parse(&v).unwrap_or_else(|e| panic!("AGX_STRICT: {}", e))
             })
         }),
     }
 }
 
-/// Handles the `--mesa-isa GEN` option of the tools: returns true when `a[i]` was it.
+/// Handles the `--agx-strict GEN` option of the tools: returns true when `a[i]` was it.
 pub fn take_option(a: &[String], i: usize) -> Result<bool, String> {
-    if a[i] != "--mesa-isa" { return Ok(false); }
-    let v = a.get(i + 1).ok_or("--mesa-isa needs a GPU (g13, g13x, g14, g14d)")?;
+    if a[i] != "--agx-strict" { return Ok(false); }
+    let v = a.get(i + 1).ok_or("--agx-strict needs a GPU (g13, g13x, g14, g14d)")?;
     set_mode(Some(MesaGen::parse(v)?));
     Ok(true)
 }
