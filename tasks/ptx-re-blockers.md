@@ -169,6 +169,14 @@ Branch `claude/bold-davinci-46xi9q` of Jianwen-Ding/ZLUDA and Jianwen-Ding/llvm-
 
 ## B3. Native 64-bit device atomics (NEW, safe)
 
+- **Done 2026-10-21 (from existing records; no new run needed):** the float add (op 1 + bit 45) rounds to nearest
+  even and flushes denormal inputs and results to sign-preserving zero on 2,048 edge / rounding pairs, and is atomic
+  under contention (1,024 lanes adding 1.0 end at exactly 1024.0; mixed addends return one serial chain)
+  (`novel-results/2026-10-17-atomic-variants`). NaN results are 0x7fc00000 (B24). u64 min / max has **no form that
+  returns the old value**: Rt = 1 returns a changed flag (new != old, B24 item 2); ZLUDA rebuilds a returning
+  `atom.min/max.u64` from the flag or keeps the lock table. Throughput of the float add under contention is
+  unmeasured (performance only).
+
 - **Needed for:**
   - PTX `atom.{add,min,max,and,or,xor,exch,cas}.b64/u64/s64` and `red.*.64`;
   - CUDA `atomicAdd(unsigned long long*)` and 64-bit CAS loops.

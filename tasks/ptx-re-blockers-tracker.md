@@ -33,7 +33,7 @@ Rules: [safe-probes.md](safe-probes.md). Before any GPU work: `scripts/gpu_safet
 
 | Item | Status | Left to do |
 | --- | --- | --- |
-| B3 64-bit atomics | done (mostly) | Float add rounding and denormals under contention; whether u64 min/max has a returning form. NaN is answered (0x7fc00000). |
+| B3 64-bit atomics | done | Contention atomic, RNE + FTZ, canonical NaN; u64 min/max returns only a changed flag. |
 | B4 intra-SIMD-group progress | done | |
 | B5 co-residency | done | |
 | B7 CPU → GPU visibility | done | |
