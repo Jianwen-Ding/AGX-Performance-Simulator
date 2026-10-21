@@ -307,8 +307,10 @@ fn tex_op(ops: &[Operand]) -> TexOp {
 fn op_kind(name: &'static str, f: &Fields, ops: &[Operand]) -> OpKind {
     use OpKind::*;
     match name {
-        "stop" | "trap" | "end_group" => Stop,
-        "nop6" | "fixed18" => Nop,
+        "stop" | "end_group" => Stop,
+        // Measured on G14C (ptx-re-blockers B21, playground results/2026-10-20-b21-trap): an executed trap does
+        // nothing; the stores after it land and the command ends normally.
+        "nop6" | "fixed18" | "trap" => Nop,
         "jmp_exec_any" => Jmp { any: true },
         "jmp_exec_none" => Jmp { any: false },
         "call" => Call,
