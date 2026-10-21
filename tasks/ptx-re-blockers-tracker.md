@@ -25,9 +25,9 @@ Rules: [safe-probes.md](safe-probes.md). Before any GPU work: `scripts/gpu_safet
 | --- | --- | --- |
 | B1 scratch / stack | done (drm_compute) | Run ZLUDA's `agx_runtime/src/scratch.rs` path on the GPU with a spilling kernel. |
 | B2 hardware runner | done | Sub-items below. |
-| B2a partial workgroups | open | Global size not a multiple of the local size: rejected, rounded, or partial workgroups? Gate in `agx_run`, one small dispatch. |
-| B2b Uniform word size | done (B9) | Mark answered. 64 halves per word work; `agx_runtime` still splits at 32 (ZLUDA note, not pushed). |
-| B2c Shared "none" encoding | open | Occupancy with 64 KiB + `uses_shared_memory = 0` against a small declared size and Mesa's encoding. |
+| B2a partial workgroups | done | Partial workgroups run in every dimension (exact thread counts); `results/2026-10-21-b2a-partial-workgroups`. |
+| B2b Uniform word size | done (B9) | 64 halves per word work; `agx_runtime` still splits at 32 (ZLUDA note, not pushed). |
+| B2c Shared "none" encoding | done | Existing occupancy data used that word: 96 groups / ~55 workgroups per core, no limit. |
 
 ## Priority 2: correctness of common CUDA idioms
 
@@ -80,7 +80,7 @@ Rules: [safe-probes.md](safe-probes.md). Before any GPU work: `scripts/gpu_safet
 | B34 stack cost and wait groups | done | |
 | B35 shader clock | open | Read the known and neighbouring SRs around a bounded delay; compare with the 1 GHz timestamps. |
 | B46 `rcp` / `rsqrt` error | open | 2^24 inputs in [1, 4) plus exponent and denormal samples, max ulp. |
-| B47 7-bit shift amounts | open | s = 0..127 for `bfi`, `bfeil`, `extr`, `asr`. |
+| B47 7-bit shift amounts | done | Low 7 bits of the amount, as modelled; `results/2026-10-21-b47-shift-amounts`. |
 
 ## Textures
 

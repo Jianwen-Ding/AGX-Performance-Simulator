@@ -153,6 +153,11 @@ Branch `claude/bold-davinci-46xi9q` of Jianwen-Ding/ZLUDA and Jianwen-Ding/llvm-
   - **Report:** its JSON line. `"wrong":0` is a pass, and `kernel_ms` is the firmware time between the events.
   - On an error, the CUDA error name says which call failed.
 - **New open questions found while writing the runner** (they matter for every CUDA launch):
+  - **Done 2026-10-21 (B2a, B2c; B2b by B9):** B2a: the hardware runs partial workgroups in x, y and z (global 100 /
+    local 32 runs exactly 100 threads; 7x7x7 / 4x4x4 runs 343); the runner need not reject non-multiples. B2c: the
+    "none" Shared word (bit 8 clear) is what the 2026-10-18 occupancy study ran its 0 KiB cells with, reaching 96
+    SIMD groups and ~55 workgroups per core: no occupancy limit. Evidence: playground
+    `results/2026-10-21-b2a-partial-workgroups`.
   - **B2a** Does the CDM global size have to be a multiple of the local size, or does the hardware run partial
     workgroups? CUDA grids are always whole blocks, but Mesa may rely on partial ones. The runner rejects
     non-multiples.
@@ -1100,6 +1105,10 @@ Consumed as is:
 - **Safety:** arithmetic only.
 
 ## B47. Shift amounts of 32 to 127 in `bfi`, `bfeil`, `extr` and `asr` on G14 (NEW, safe)
+
+- **Done 2026-10-21: pass.** Every form takes the low 7 bits of a register amount (amounts 0..255 tested, bits 7+
+  ignored) and matches the formulas below and the simulator word for word (18 cases x 256 amounts). The backend needs
+  no masking. Evidence: playground `results/2026-10-21-b47-shift-amounts`.
 
 - **Why it matters:** since llvm-project's "64-bit values as halves" change, 64-bit shifts by a variable amount
   rely on these instructions taking a 7-bit amount, as dougallj's applegpu documents for G13 and the simulator
