@@ -1,6 +1,6 @@
 //! `agx_device`: several contexts (GPU VMs) with queues of dispatches on one simulated GPU (`agx_sim::device`).
 //!
-//! agx_device SPEC.json [--policy round-robin|submission] [--agx-strict GPU]
+//! agx_device SPEC.json [--policy round-robin|submission] [--timing] [--agx-strict GPU]
 //!
 //! SPEC is a JSON object; file names in it are relative to its directory:
 //!
@@ -23,8 +23,11 @@
 //! (`context`, `queue`, `point`, `start`, `end`, `instructions`, `groups`, `fault`), then writes the dumps. A faulted
 //! command (unmapped access, step limit) has `fault` set and both timestamps 0, and the others still run. Exits 1 if
 //! any command faulted.
+//!
+//! `--timing` adds `start_ns` and `end_ns`: each command's time alone from the dispatch model, with the commands
+//! running at once sharing the GPU as measured (B43, B45: `agx_sim::device::Timing`).
 
-use agx_sim::device::{Command, Device, Policy};
+use agx_sim::device::{Command, Device, Policy, Timing};
 use agx_sim::func::{Dispatch, Memory};
 use serde_json::Value;
 use std::path::Path;
@@ -100,15 +103,21 @@ fn command(dir: &Path, c: &Value, vm_slot: Option<u32>) -> Command {
 fn main() {
     let a: Vec<String> = std::env::args().skip(1).collect();
     let Some(spec_path) = a.first().filter(|s| !s.starts_with('-')) else {
-        eprintln!("usage: agx_device SPEC.json [--policy round-robin|submission] [--agx-strict GPU]");
+        eprintln!("usage: agx_device SPEC.json [--policy round-robin|submission] [--timing] [--agx-strict GPU]");
         std::process::exit(2);
     };
     let text = std::fs::read(spec_path).unwrap_or_else(|e| die(&format!("{spec_path}: {e}")));
     let spec: Value = serde_json::from_slice(&text).unwrap_or_else(|e| die(&format!("{spec_path}: {e}")));
     let dir = Path::new(spec_path).parent().unwrap_or(Path::new("."));
     let mut policy = spec.get("policy").and_then(Value::as_str).map(|p| Policy::parse(p).unwrap_or_else(|e| die(&e)));
+    let mut timing = false;
     let mut i = 1;
     while i < a.len() {
+        if a[i] == "--timing" {
+            timing = true;
+            i += 1;
+            continue;
+        }
         let v = a.get(i + 1).unwrap_or_else(|| die(&format!("{} needs a value", a[i])));
         match a[i].as_str() {
             "--policy" => policy = Some(Policy::parse(v).unwrap_or_else(|e| die(&e))),
@@ -118,6 +127,13 @@ fn main() {
         i += 2;
     }
     let mut dev = Device::new(policy.unwrap_or_default());
+    if timing {
+        let mut params = agx_sim::cost::Params::new().unwrap_or_else(|e| die(&e));
+        if params.branch.is_none() {
+            agx_sim::cost::fit_branch(&mut params).unwrap_or_else(|e| die(&e));
+        }
+        dev.timing = Some(Timing::new(params));
+    }
     let mut dumps = Vec::new();
     for c in spec.get("contexts").and_then(Value::as_array).unwrap_or_else(|| die("the spec needs contexts")) {
         let mut mem = Memory::default();
@@ -148,8 +164,9 @@ fn main() {
     }
     let done = dev.run();
     for d in &done {
+        let time = d.time_ns.map_or(String::new(), |(s, e)| format!(",\"start_ns\":{s},\"end_ns\":{e}"));
         println!(
-            "{{\"context\":{},\"queue\":{},\"point\":{},\"start\":{},\"end\":{},\"instructions\":{},\"groups\":{},\"fault\":{}}}",
+            "{{\"context\":{},\"queue\":{},\"point\":{},\"start\":{},\"end\":{},\"instructions\":{},\"groups\":{},\"fault\":{}{}}}",
             d.context,
             d.queue,
             d.point,
@@ -157,7 +174,8 @@ fn main() {
             d.end,
             d.instructions,
             d.groups,
-            d.fault.as_ref().map_or("null".to_string(), |f| serde_json::to_string(f).unwrap())
+            d.fault.as_ref().map_or("null".to_string(), |f| serde_json::to_string(f).unwrap()),
+            time
         );
     }
     for (ctx, va, n, f) in dumps {
