@@ -1,6 +1,7 @@
 //! Texture-unit conversion rules measured on the M2 Max through Mesa's GLES driver (playground
-//! novel-results/2026-10-18-gles-texture). Pure functions only: not yet wired to `texture_load` / `texture_sample`,
-//! which also need a texture / sampler descriptor decoder.
+//! novel-results/2026-10-18-gles-texture), and the texture / sampler descriptor decoders that `texture_load`,
+//! `texture_sample` and `image_write` (func.rs) use: linear 1D and 2D images, nearest and linear filtering, clamp to
+//! edge, repeat, mirrored repeat and clamp to a transparent black border, normalized or pixel coordinates.
 
 /// unorm8 -> float: `k / 255`.
 pub fn unorm8(k: u8) -> f32 {
@@ -103,6 +104,9 @@ pub struct SampDesc {
     pub mag_filter: u32,
     pub mip_filter: u32,
     pub wrap: [u32; 3],
+    /// unnormalized coordinates (texels, not fractions of the extent)
+    pub pixel: bool,
+    pub compare: bool,
     pub border: u32,
 }
 
@@ -115,6 +119,8 @@ pub fn decode_sampler(b: &[u8]) -> Result<SampDesc, String> {
         mag_filter: bits(b, 23, 2) as u32,
         mip_filter: bits(b, 27, 2) as u32,
         wrap: [bits(b, 29, 3) as u32, bits(b, 32, 3) as u32, bits(b, 35, 3) as u32],
+        pixel: bits(b, 38, 1) != 0,
+        compare: bits(b, 42, 1) != 0,
         border: bits(b, 55, 2) as u32,
     })
 }
@@ -126,8 +132,10 @@ pub fn tex_format(channels: u32, type_: u32) -> Result<(usize, u32), String> {
         0x00 => 1, // R8
         0x09 => 2, // R16
         0x21 => 4, // R32
+        0x0A => 2, // R8G8
         0x23 => 4, // R16G16
         0x28 => 4, // R8G8B8A8
+        0x31 => 8, // R32G32
         0x32 => 8, // R16G16B16A16
         0x38 => 16, // R32G32B32A32
         _ => return Err(format!("channels {:#x} not modelled", channels)),
@@ -178,8 +186,10 @@ pub fn texel_float(raw: &[u8], channels: u32, type_: u32, srgb: bool) -> Result<
         0x00 => (1, 1), // R8
         0x09 => (1, 2), // R16
         0x21 => (1, 4), // R32
+        0x0A => (2, 1), // R8G8
         0x23 => (2, 2), // R16G16
         0x28 => (4, 1), // R8G8B8A8
+        0x31 => (2, 4), // R32G32
         0x32 => (4, 2), // R16G16B16A16
         0x38 => (4, 4), // R32G32B32A32
         _ => return Err(format!("channels {:#x} not modelled", channels)),
@@ -227,8 +237,10 @@ pub fn texel_int(raw: &[u8], channels: u32, type_: u32) -> Result<[u32; 4], Stri
         0x00 => (1, 1),
         0x09 => (1, 2),
         0x21 => (1, 4),
+        0x0A => (2, 1),
         0x23 => (2, 2),
         0x28 => (4, 1),
+        0x31 => (2, 4),
         0x32 => (4, 2),
         0x38 => (4, 4),
         _ => return Err(format!("channels {:#x} not modelled", channels)),
@@ -265,6 +277,18 @@ pub fn apply_wrap(mode: u32, x: i32, n: i32) -> Option<i32> {
         // 3 = clamp-to-border, 4 = GL clamp, 5 = mirrored clamp: need the border colour
         _ => None,
     }
+}
+
+/// The texel index of `x` under wrap mode `mode`, or None for a border texel: clamp to border (3) with the
+/// transparent black border colour (0), outside [0, n). Other border colours and modes 4 and 5 are not modelled.
+pub fn wrap_or_border(samp: &SampDesc, mode: u32, x: i32, n: i32) -> Result<Option<i32>, String> {
+    if mode == 3 {
+        if samp.border != 0 {
+            return Err(format!("border colour {} not modelled", samp.border));
+        }
+        return Ok((0..n).contains(&x).then_some(x));
+    }
+    apply_wrap(mode, x, n).map(Some).ok_or_else(|| format!("wrap mode {} not modelled", mode))
 }
 
 /// Nearest-neighbour sample of texel (x, y) with wrapping; out of range without wrapping
@@ -325,8 +349,7 @@ pub fn sample_linear(
     u: f32,
     v: f32,
 ) -> Result<[f32; 4], String> {
-    let w = desc.width as f64;
-    let h = desc.height as f64;
+    let (w, h) = if samp.pixel { (1.0, 1.0) } else { (desc.width as f64, desc.height as f64) };
     let x = u as f64 * w - 0.5;
     let y = v as f64 * h - 0.5;
     let x0 = x.floor() as i32;
@@ -336,10 +359,10 @@ pub fn sample_linear(
     let wx = samp.wrap[0];
     let wy = samp.wrap[1];
     let t = |dx: i32, dy: i32| -> Result<[f32; 4], String> {
-        let xi = apply_wrap(wx, x0 + dx, desc.width as i32)
-            .ok_or_else(|| format!("wrap mode {} not modelled", wx))? as i64;
-        let yi = apply_wrap(wy, y0 + dy, desc.height as i32)
-            .ok_or_else(|| format!("wrap mode {} not modelled", wy))? as i64;
+        let (Some(xi), Some(yi)) = (wrap_or_border(samp, wx, x0 + dx, desc.width as i32)?, wrap_or_border(samp, wy, y0 + dy, desc.height as i32)?) else {
+            return Ok([0.0; 4]);
+        };
+        let (xi, yi) = (xi as i64, yi as i64);
         let off = texel_off(desc, bpp, xi, yi).ok_or("texel out of range")? as usize;
         let raw = texels.get(off..off + bpp).ok_or("texel out of image")?;
         let c = texel_float(raw, desc.channels, desc.type_, desc.srgb)?;
