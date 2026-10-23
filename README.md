@@ -26,6 +26,8 @@ make verify-dispatch        # offline: whole-dispatch model against 25 stored di
 `agx_dispatch` computes occupancy (register file, workgroup size), places workgroups on the busiest core
 (cluster split), traces every SIMD group of that core with its own thread ids, simulates the core with the
 memory hierarchy, and adds launch cost; it prints a JSON report with the predicted time.
+`dispatch::co_resident_workgroups` separately provides the lower B5 progress bound used by ZLUDA's occupancy
+launch recommendation; the wave model retains physical occupancy.
 
 Launch inputs are validated before decoding or materializing functional buffers:
 nonzero grid/core dimensions, 1–1024 workgroup threads, representable workgroup

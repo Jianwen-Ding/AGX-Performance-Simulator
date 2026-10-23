@@ -158,6 +158,22 @@ pub fn occupancy(l: &Launch) -> (u32, u32) {
     (cap, wgs)
 }
 
+/// Workgroups per core guaranteed to make progress together in the bounded
+/// B5 probe. This is a concurrency bound for cooperative launches, not the
+/// physical occupancy used by the throughput wave model above.
+pub fn co_resident_workgroups(l: &Launch) -> u32 {
+    let Some(threads) = l.wg.iter().try_fold(1u32, |n, &v| n.checked_mul(v)) else { return 0; };
+    if threads == 0 || threads > 1024 { return 0; }
+    let halves = (l.regs.max(8) as u64).div_ceil(8) * 8;
+    let cap = (2 * (1664 / halves)).min(96) as u32;
+    let fit = cap / threads.div_ceil(32);
+    let mut guaranteed = if fit <= 1 { fit } else { (fit - 1).min(15) };
+    if l.tg_bytes > 0 {
+        guaranteed = guaranteed.min(l.tg_capacity / l.tg_bytes);
+    }
+    guaranteed
+}
+
 pub fn simulate(code: &[u8], l: &Launch, p: &Params) -> Result<Report, String> {
     simulate_with(code, l, p, None)
 }
@@ -441,6 +457,20 @@ mod tests {
         let l = Launch { cores: 2, regs: 0, launch_ns: 0.0, wg_launch_ns: 0.0, group_launch_ns: 0.0, ..Default::default() };
         l.validate().unwrap();
         assert_eq!(busiest_core_wgs(5, &l), 3);
+    }
+
+    #[test]
+    fn co_residency_uses_the_b5_progress_bound_without_changing_wave_occupancy() {
+        let one_group = Launch { regs: 16, wg: [32, 1, 1], ..Default::default() };
+        assert_eq!(occupancy(&one_group).1, 55);
+        assert_eq!(co_resident_workgroups(&one_group), 15);
+        let four_groups = Launch { regs: 64, wg: [128, 1, 1], ..Default::default() };
+        assert_eq!(occupancy(&four_groups).1, 13);
+        assert_eq!(co_resident_workgroups(&four_groups), 12);
+        let shared = Launch { tg_bytes: 32768, ..one_group };
+        assert_eq!(co_resident_workgroups(&shared), 2);
+        let rounded_registers = Launch { regs: 33, wg: [512, 1, 1], ..Default::default() };
+        assert_eq!(co_resident_workgroups(&rounded_registers), 4);
     }
 
     #[test]

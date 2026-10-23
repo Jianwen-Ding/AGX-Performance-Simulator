@@ -243,6 +243,12 @@ Branch `claude/bold-davinci-46xi9q` of Jianwen-Ding/ZLUDA and Jianwen-Ding/llvm-
   workgroups in 15/15 runs, flaky from 608; 128-thread: 456 in all runs, fails at 494 = the register limit). Rule:
   W <= 38 x min(15, floor(S/g) - 1). Above it, late workgroups start only when others exit. Evidence: playground
   `results/2026-10-20-b5-coresidency`.
+- **Runtime use 2026-10-23:** ZLUDA's `cuOccupancyMaxPotentialBlockSize` now searches block sizes using this
+  co-residency bound and the 64 KiB threadgroup-memory limit, then returns blocks per core times the device's core
+  count as a minimum grid size. This is a heuristic for a guaranteed concurrent launch shape. The simulator exposes
+  the same lower bound as `dispatch::co_resident_workgroups` while `dispatch::occupancy` remains a physical
+  throughput-capacity estimate; substituting the lower progress bound into its wave model would understate
+  throughput. The Blender lazy-compile probe has not produced a GPU timing comparison for the recommendation.
 
 - **Needed for:**
   - cooperative launches (`cudaLaunchCooperativeKernel`, `grid.sync()`);
@@ -378,6 +384,10 @@ Branch `claude/bold-davinci-46xi9q` of Jianwen-Ding/ZLUDA and Jianwen-Ding/llvm-
   evidence, not hardware validation or calibrated call timing. Nested/indirect calls, unbounded
   frames and final benchmark use remain open. The Cycles IR call-shape and compile probes are in
   playground `results/2026-10-23-blender-llvm-call-profile`.
+  A subsequent GlobalDCE pass removes unused outlined functions after inlining. In the camera-only Cycles
+  probe, the surviving kernel's 44,222 code bytes were identical while standalone AGX `llc` fell from 6.729
+  to 0.484 seconds; this changes compiler work and object size, not simulator instruction costs. See playground
+  `results/2026-10-23-blender-lazy-kernels` for the bounded headless and end-to-end `zoc` measurements.
 - **Known:** unsafe-01 measured uniform, full-32-lane direct, register-indirect and software-saved-link nested calls.
   Return targets are shader-buffer-relative and the continuation is `pop_exec r0l, 2`.
 - **Open (unsafe-01 items 2-6):** what code generation needs before it can emit calls:
