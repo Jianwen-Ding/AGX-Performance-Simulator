@@ -230,6 +230,14 @@ issuing lanes while masked live lanes continue; later mask operations cannot
 revive stopped or nonexistent lanes. See the adjacent playground
 [return/stop integration report](../apple-documentation-playground/results/2026-10-20-ret-stop-model/README.md).
 
+`make verify-llvm-call-ret` is an offline cross-check with LLVM's G14C MC
+assembler (`LLVM_MC` and `LLVM_OBJCOPY` select the tools). It checks the exact
+direct-call/return bytes and replays their control flow through `agx_run` in
+the measured opt-in mode. This does not validate LLVM's future callable-function
+ABI or calibrate call timing.
+The Blender call/return compiler probe and its hardware fault/recovery record
+are in the [playground report](../apple-documentation-playground/results/2026-10-23-blender-call-compile/README.md).
+
 Threadgroup atomic ops 11–15 now reject explicitly even with an empty execution
 mask. Hardware probing found that issuing them stops the group; the old empty-mask
 skip was incorrect. Shared-memory side effects before termination are unmeasured,
