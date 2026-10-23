@@ -1,0 +1,30 @@
+.version 7.0
+.target sm_75
+.address_size 64
+.visible .entry d(.param .u64 pin, .param .u64 pout, .param .u32 n)
+{
+    .reg .u32 %i, %n, %x, %y, %q1, %r1, %q2, %r2;
+    .reg .u64 %a, %b, %o;
+    .reg .pred %p;
+    mov.u32 %i, %ctaid.x;
+    mad.lo.u32 %i, %i, %ntid.x, %tid.x;
+    ld.param.u32 %n, [n];
+    setp.ge.u32 %p, %i, %n;
+    @%p bra DONE;
+    ld.param.u64 %a, [pin];
+    ld.param.u64 %b, [pout];
+    cvta.to.global.u64 %a, %a;
+    cvta.to.global.u64 %b, %b;
+    mul.wide.u32 %o, %i, 8;
+    add.u64 %a, %a, %o;
+    ld.global.v2.u32 {%x, %y}, [%a];
+    div.s32 %q1, %x, %y;
+    rem.s32 %r1, %x, %y;
+    div.u32 %q2, %x, %y;
+    rem.u32 %r2, %x, %y;
+    mul.wide.u32 %o, %i, 16;
+    add.u64 %b, %b, %o;
+    st.global.v4.u32 [%b], {%q1, %r1, %q2, %r2};
+DONE:
+    ret;
+}

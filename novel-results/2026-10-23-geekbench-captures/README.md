@@ -175,3 +175,11 @@ Workgroup placement (`probes/m.ptx`: each workgroup records `%smid`, the core in
 cluster 3 take two); the busiest core then has 2, 2, 2, 2, 3, 3, 4, 5, 7 and 8 workgroups for 39, 48, 57, 64, 76,
 96, 114, 152, 228 and 304 workgroups, which the simulator's cluster split (10, 9, 9, 10 cores) reproduces except
 304 (9). Core indices are 0-9, 16-25, 32-41 and 48-57; workgroups arrive in runs of about 8 per cluster.
+
+## Compiler regression check on captures
+
+`speccheck.py --vs-captured` runs the code the current compiler generates for each captured launch against the code
+that ran in the capture's run (an older compiler) on the same memory. After the threadgroup address offsets and the
+16-byte threadgroup unrolling (llvm-project f4c3a027740c): 89 of 95 captures give the same output
+(`compiler-regression-tgaddr.txt`; the others: `hough_scores` races plain stores to the same bins, `hough_lines` and
+`nonmax_suppression` append through atomics, three stale captures fault with either code).

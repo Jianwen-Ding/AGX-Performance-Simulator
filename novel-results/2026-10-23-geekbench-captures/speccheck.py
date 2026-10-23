@@ -11,6 +11,8 @@ ap = argparse.ArgumentParser()
 ap.add_argument('caps', nargs='+'); ap.add_argument('--b2b', type=int, default=100)
 ap.add_argument('--sim', action='store_true', help='also time both codes with agx_dispatch (the simulator)')
 ap.add_argument('--dispatch', default='/scratch/agxsim-target/release/agx_dispatch')
+ap.add_argument('--vs-captured', action='store_true', help='compare the generic code with the captured code (the '
+                'compiler of the run) instead of the specialized code: a regression check of the compiler')
 a = ap.parse_args()
 spec = importlib.util.spec_from_file_location('fc', '/save/workspace/ZLUDA/ptx/tools/agx_ptx_formalization_check.py')
 fc = importlib.util.module_from_spec(spec); spec.loader.exec_module(fc)
@@ -83,6 +85,8 @@ for cap in a.caps:
         sp = os.path.join(t, 's', mod); open(sp, 'w').write(r.stdout)
         gen, lg = code_of(os.path.join(G, 'ptx', mod), kernel, f'{t}/g')
         spc, ls = code_of(sp, kernel, f'{t}/s')
+        if a.vs_captured:
+            spc, ls = os.path.join(cap, 'code.bin'), lg
         if sorted(lg) != sorted(ls):
             print(f'{os.path.basename(cap.rstrip("/")):50s} not checked: layout {set(lg) - set(ls)} -> {set(ls) - set(lg)}'); continue
         out = subprocess.run(['python3', '-I', f'{G}/tools/capvariant.py', cap, gen, spc, '--b2b', str(a.b2b)],
