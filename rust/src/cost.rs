@@ -97,6 +97,10 @@ fn fence_ticks(code: u8, ctx: usize) -> (i64, bool) {
     (tk(ns * CYCLES_PER_NS), consumed)
 }
 
+/// Kernels with more code than this are taken to fetch instructions from beyond the instruction cache (see the taken
+/// forward jump's scheduler hold).
+const FETCH_BOUND_CODE_BYTES: usize = 16 << 10;
+
 const BARRIERS: &[&str] = &["threadgroup_barrier", "memory_barrier", "wait_pix", "signal_pix", "TODO.unkE800"];
 const UNIT_GROUPS: &[&[&str]] = &[
     &["iadd", "isub", "iadd_lsl2", "iadd_imm", "iadd_cache"], &["imadd", "imul", "imadd_cache"],
@@ -1616,7 +1620,18 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: Option<&
     // taken forward jumps (if-skip jmp_exec_none, out-of-line jmp_exec_any entries): the same latency as a taken loop
     // branch, plus a scheduler hold that other groups cannot hide. Fitted 2026-10-20 to constant-condition probes at
     // 131,072 lanes (apple-documentation-playground novel-results/2026-10-20-fp32-ieee): +7.7 cycles per group per jump.
-    let br_fwd_sched = tk(p.cal_f("branch_forward_sched_real", 33.0));
+    // The hold was fitted to 40 KB straight-line probes, which are instruction-fetch-bound: a taken jump breaks
+    // sequential fetch through code the instruction cache cannot keep. In a loop whose code stays cached (16
+    // KB or less here, a guess between the two measured cases) a taken jump over 1 to 32 instructions costs what an
+    // untaken one does at 40 groups per core (2026-10-23 k_ifk probes: 580-595 cycles per 8 if-skips per group
+    // either way, novel-results/2026-10-23-geekbench-captures)
+    let code_bytes = instrs.iter().map(|i| i.pc + i.size).max().unwrap_or(0);
+    let br_fwd_sched = if code_bytes > FETCH_BOUND_CODE_BYTES {
+        tk(p.cal_f("branch_forward_sched_real", 33.0))
+    } else {
+        tk(std::env::var("AGX_BR_FWD_CACHED").ok().and_then(|v| v.parse::<f64>().ok())
+            .unwrap_or_else(|| p.cal_f("branch_forward_sched_cached_real", 0.0)))
+    };
     let br_fwd = tk(p.cal_f("branch_forward_taken_real", p_branch));
     let cl = tk(p.cal_f("control_latency", 2.0));
     let ci = tk(p.cal_f("control_issue_cycles", 1.0));

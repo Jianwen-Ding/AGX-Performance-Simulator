@@ -192,3 +192,19 @@ instead of -28%) and overestimates both (2 waves of 54 one-group workgroups on t
 open gap). The other run-13 captures time the same with either code on both (`speccheck.py --vs-captured --sim`).
 Measurement note: `capvariant.py` now runs a warm-up first, since the first code timed after the idle time of
 compiling ran at a low clock (+50..100%).
+
+## Taken forward jumps in cached loops (cost.rs, 2026-10-23)
+
+`k_ifk*.ptx`: 8 if-blocks per iteration whose condition is always false (a taken `jmp_exec_none` over 1-32 stores).
+Hardware: 387 cycles per iteration at 4 groups per core, 580-595 at 40, whatever the size of the skipped body. The
+simulator gave 393 and 3,591 (+518%): the 33-cycle scheduler hold of a taken forward jump was fitted to 40 KB
+straight-line probes (playground 2026-10-20-fp32-ieee), which are instruction-fetch-bound. It now applies only to
+kernels with more than 16 KB of code (`FETCH_BOUND_CODE_BYTES`, a guess between the two measured cases); smaller
+kernels get `branch_forward_sched_cached_real` (0; `AGX_BR_FWD_CACHED` to experiment). k_ifk1 at 40 groups: 951
+(+64%; the rest is the 3-unit `if`/`pop_exec` hold, which lower values fit here but make particle worse).
+
+`gridsweep.py` (a capture with fewer workgroups) on `particle`'s current code, 200 back-to-back runs: hardware 49 /
+50 / 70 / 90 / 113-126 us at 1140 / 1520 / 2052 / 3078 / 4096 workgroups; the simulator before 56 / 67 / 94 / 135 /
+179 us (+13..+50%), after 39 / 57 / 77 / 103 us at 1520..4096 (-14..-20%). verify-dispatch: median error 0.054 ->
+0.048, p90 0.135 -> 0.092, max 0.686 -> 0.215; verify-cost-model output identical; mem_check and tgcheck unchanged.
+Open: at 1-2 workgroups per core the simulator is ~44% fast on particle (latency of its loads past L1).
