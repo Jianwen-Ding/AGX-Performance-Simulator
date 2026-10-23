@@ -7,7 +7,7 @@ MESA_SHIM_DIR ?= $(CURDIR)/../mesa-src
 export CC PROBE_INCLUDE
 
 .PHONY: help verify-conversions verify-float-edges verify-transcendentals verify-sr check rust test verify-cost-model verify-simd-matrix verify-memory-model bench verify-bench cost-calibrate cost-validate suite-check record-suite record-transcendentals coverage-validate coverage-record coverage-check coverage-properties coverage-status spirv-build spirv-run spirv-lavapipe spirv-sim spirv-compile spirv-predict verify-traces spirv-verify asahi-verify
-.PHONY: verify-llvm-call-ret
+.PHONY: verify-llvm-call-ret verify-llvm-leaf-call
 
 help:
 	@echo 'make rust               Build the model (rust/target/release: agx_cost, agx_predict, verify_cost_model, agx_bench)'
@@ -79,6 +79,9 @@ verify-dispatch: rust
 
 verify-llvm-call-ret: rust
 	$(PYTHON) scripts/verify_llvm_call_ret.py
+
+verify-llvm-leaf-call: rust
+	$(PYTHON) scripts/verify_llvm_leaf_call.py
 
 check:
 	$(PYTHON) -B -m py_compile scripts/*.py

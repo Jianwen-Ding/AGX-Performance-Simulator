@@ -366,8 +366,12 @@ Branch `claude/bold-davinci-46xi9q` of Jianwen-Ding/ZLUDA and Jianwen-Ding/llvm-
   - `brx.idx` and function pointers without the if-chain expansion;
   - keeping very large kernels below code-size limits.
 
-  Today the LLVM AGX backend inlines every function, turns indirect calls into a test against each address-taken
-  function, and rejects recursion.
+  The default LLVM AGX path still inlines every function, turns indirect calls into a test against each
+  address-taken function, and lowers recursion to an explicit state machine. An opt-in
+  `-agx-experimental-leaf-calls` path now emits direct calls only for argument-free void leaves called
+  from a kernel entry block. `make verify-llvm-leaf-call` compiles the IR fixture and checks the emitted
+  call/return/reconvergence and final store in the simulator. This path lacks mask reservation,
+  register preservation and per-function stack frames; it is not enabled for ZLUDA benchmarks.
 - **Known:** unsafe-01 measured uniform, full-32-lane direct, register-indirect and software-saved-link nested calls.
   Return targets are shader-buffer-relative and the continuation is `pop_exec r0l, 2`.
 - **Open (unsafe-01 items 2-6):** what code generation needs before it can emit calls:
