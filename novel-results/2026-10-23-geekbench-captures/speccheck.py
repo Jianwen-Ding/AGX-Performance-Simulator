@@ -4,11 +4,13 @@ the capture's memory (capvariant.py): the output hashes must match; prints both 
 
 speccheck.py CAPDIR... [--b2b N]
 """
-import sys, os, re, subprocess, tempfile, argparse, importlib.util, ast
+import sys, os, re, subprocess, tempfile, argparse, importlib.util, ast, json, shlex
 
 G = '/scratch/geekbench-extract'
 ap = argparse.ArgumentParser()
 ap.add_argument('caps', nargs='+'); ap.add_argument('--b2b', type=int, default=100)
+ap.add_argument('--sim', action='store_true', help='also time both codes with agx_dispatch (the simulator)')
+ap.add_argument('--dispatch', default='/scratch/agxsim-target/release/agx_dispatch')
 a = ap.parse_args()
 spec = importlib.util.spec_from_file_location('fc', '/save/workspace/ZLUDA/ptx/tools/agx_ptx_formalization_check.py')
 fc = importlib.util.module_from_spec(spec); spec.loader.exec_module(fc)
@@ -29,18 +31,46 @@ def code_of(ptx_path, kernel, t):
     body = asm[asm.index(kernel + ':'):]
     gprs = int(re.search(r'general purpose registers: (\d+) x 32-bit', body).group(1))
     # the uniform layout (arguments, texture heap, grid size): the capture's uniforms are the generic code's
-    layout = re.findall(r'// (uniform registers: .*|texture heap at .*|sampler heap at .*)', body[:2000])
+    header = []
+    for l in body.splitlines()[1:]:
+        if not l.strip().startswith('//'): break
+        header.append(l)
+    layout = re.findall(r'// (uniform registers: .*|texture heap at .*|sampler heap at .*)', '\n'.join(header))
+    # the global data's symbols (zluda_agx specializes only when they are laid out alike)
+    syms = subprocess.run(['/scratch/llvm-agx-build/bin/llvm-readelf', '-sW', obj], capture_output=True, text=True).stdout
+    layout += sorted(l.split()[1] + ':' + l.split()[2] + ':' + l.split()[7] for l in syms.splitlines() if ' OBJECT ' in l)
     return f'{out}:{2 * gprs}', layout
 
+def simulate(cap, code_halves):
+    code, _, halves = code_halves.partition(':')
+    line = [l for l in open(os.path.join(cap, 'replay.sh')) if 'exec' in l][0]
+    args = shlex.split(line.split('agx_run}"', 1)[1])[:-1]
+    out, i = [], 0
+    while i < len(args):
+        if args[i] == '--dump': i += 2; continue
+        if args[i] == '--shared': out += ['--tg-bytes', args[i + 1]]; i += 2; continue
+        out.append(code if args[i] == 'code.bin' else args[i]); i += 1
+    regs = max(int(open(os.path.join(cap, 'regs.txt')).read()), int(halves or 0))
+    r = subprocess.run([a.dispatch] + out + ['--regs', str(regs)], capture_output=True, text=True, cwd=cap, timeout=1800)
+    return json.loads(r.stdout.strip().splitlines()[-1]).get('time_us')
+
+sims = []
 bad = 0
 for cap in a.caps:
     line = open(os.path.join(cap, 'replay.sh')).read().splitlines()[2]
     m = re.search(r'kernel (\S+) grid \((.*?)\) block \((.*?)\).*arguments (\[.*\])', line)
     kernel, block, vals = m.group(1), [int(x) for x in m.group(3).split(',')], ast.literal_eval(m.group(4))
-    mod = next(f for f, s in modules.items() if re.search(r'\.entry\s+' + re.escape(kernel) + r'\s*\(', s))
+    # the module of the kernel (some names are in several): the parameter count, then the captured code
+    cands = [f for f, s in modules.items() if re.search(r'\.entry\s+' + re.escape(kernel) + r'\s*\(', s)]
+    nparams = lambda f: len(re.search(r'\.entry\s+' + re.escape(kernel) + r'\s*\((.*?)\)', modules[f], re.S).group(1).split(','))
+    cands = [f for f in cands if nparams(f) == len(vals)] or cands
+    if len(cands) > 1:
+        with tempfile.TemporaryDirectory() as t:
+            captured = open(os.path.join(cap, 'code.bin'), 'rb').read()
+            same = [f for f in cands if open(code_of(os.path.join(G, 'ptx', f), kernel, t)[0].split(':')[0], 'rb').read() == captured]
+        cands = same or cands
+    mod = cands[0]
     src = modules[mod]
-    if re.search(r'^\.(visible |extern |weak )?\.?(global|const) ', src, re.M):
-        print(f'{os.path.basename(cap.rstrip("/")):50s} skipped: module globals (not specialized by zluda_agx)'); continue
     ent = re.search(r'\.entry\s+' + re.escape(kernel) + r'\s*\((.*?)\)', src, re.S).group(1)
     sizes = [SIZES[re.search(r'\.param\s+\.(\w+)', p).group(1)] for p in ent.split(',')]
     hexargs = [int(v).to_bytes(n, 'little').hex() for v, n in zip(vals, sizes)]
@@ -53,8 +83,8 @@ for cap in a.caps:
         sp = os.path.join(t, 's', mod); open(sp, 'w').write(r.stdout)
         gen, lg = code_of(os.path.join(G, 'ptx', mod), kernel, f'{t}/g')
         spc, ls = code_of(sp, kernel, f'{t}/s')
-        if lg != ls:
-            print(f'{os.path.basename(cap.rstrip("/")):50s} not checked: uniform layout {lg} -> {ls}'); continue
+        if sorted(lg) != sorted(ls):
+            print(f'{os.path.basename(cap.rstrip("/")):50s} not checked: layout {set(lg) - set(ls)} -> {set(ls) - set(lg)}'); continue
         out = subprocess.run(['python3', '-I', f'{G}/tools/capvariant.py', cap, gen, spc, '--b2b', str(a.b2b)],
                              capture_output=True, text=True).stdout.splitlines()
         res = [re.search(r'([\d.]+) us\s+hash (\w+)', l) for l in out]
@@ -63,6 +93,18 @@ for cap in a.caps:
         (tg, hg), (ts, hs) = [(float(x.group(1)), x.group(2)) for x in res]
         ok = hg == hs
         bad += not ok
+        simtxt = ''
+        if a.sim and ok:
+            sg, ss = simulate(cap, gen), simulate(cap, spc)
+            if sg and ss:
+                sims.append((ts / tg, ss / sg))
+                simtxt = f'  sim {sg:9.1f} -> {ss:9.1f} us {ss / sg - 1:+5.0%}'
         print(f'{os.path.basename(cap.rstrip('/')):50s} generic {tg:9.1f} us  specialized {ts:9.1f} us  {ts / tg - 1:+5.0%}  '
-              f'{"same" if ok else "DIFFERENT " + hg + " " + hs}', flush=True)
+              f'{"same" if ok else "DIFFERENT " + hg + " " + hs}{simtxt}', flush=True)
 print(f'{len(a.caps)} captures, {bad} mismatches or failures')
+if sims:
+    import statistics
+    err = [abs(sr - hr) for hr, sr in sims]
+    agree = sum((hr < 0.97) == (sr < 0.97) for hr, sr in sims)
+    print(f'simulator: speedup ratio |sim - hw| median {statistics.median(err):.2f}, '
+          f'agrees on a >3% speedup in {agree} of {len(sims)}')

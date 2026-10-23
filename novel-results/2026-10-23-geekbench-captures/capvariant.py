@@ -36,10 +36,11 @@ for code in a.codes:
         base = [a.run_hw] + out + ['--regs', halves, '--timeout-ms', '10000']
         r1 = subprocess.run(base, capture_output=True, text=True, timeout=600)
         h = hashlib.sha256(b''.join(open(f, 'rb').read() for f in dumps if os.path.exists(f))).hexdigest()[:16]
+        each = ' '.join(hashlib.sha256(open(f, 'rb').read()).hexdigest()[:8] if os.path.exists(f) else '-' for f in dumps)
         nodump = [x for j, x in enumerate(base) if not (x == '--dump' or (j > 0 and base[j - 1] == '--dump'))]
         r2 = subprocess.run(nodump + ['--back-to-back', str(a.b2b)], capture_output=True, text=True, timeout=600)
         try:
             us = json.loads(r2.stdout.strip().splitlines()[-1])['b2b_median_fw_ns'] / 1e3
-            print(f'{os.path.basename(code):30s} {us:10.1f} us  hash {h}', flush=True)
+            print(f'{os.path.basename(code):30s} {us:10.1f} us  hash {h}  regions {each}', flush=True)
         except Exception:
             print(f'{os.path.basename(code):30s} FAILED {(r1.stdout + r2.stdout + r2.stderr)[-200:]}', flush=True)

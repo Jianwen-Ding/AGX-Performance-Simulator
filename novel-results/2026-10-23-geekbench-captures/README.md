@@ -135,3 +135,43 @@ arithmetic: two `imadd` become `bfi`/`or` sequences). Findings on the way:
 - Geekbench chooses block sizes by timing launches: if those run generic code and later ones specialized, it may pick a
   slower configuration (run 19: `build_patches_padding` 1268 instead of 596 ms); specializations in the compilation
   cache are now used from the first launch.
+
+## Simulator on specialized code; ALU throughput against occupancy
+
+`speccheck.py --sim` also times both codes in `agx_dispatch`. On the 7 run-13 captures it agrees with the hardware on
+which specializations are faster (6 of 7) but finds smaller gains: the specialized code is predicted well
+(`build_patches_padding` 11.7 vs 12.5 us) and the generic code too fast (21.7 vs 61.8 us), whose difference is mostly
+32-bit division by kernel arguments (a 32-instruction dependent sequence of `icmpsel`, `imadd`, `convert`, `rcp`).
+
+`aluocc.py` times a loop (`probes/dv.ptx`: one such division and an add per iteration) with 256 and 2048 iterations on
+the GPU (`agx_run_hw --back-to-back`, firmware times) and in the simulator, for grids that put 2 to 72 SIMD groups on
+the busiest core (cycles per iteration on that core, 1398 MHz):
+
+| grid x block | groups (busiest core) | division loop hw | sim | `xs.ptx` (16 `bfeil` + 16 `xor`) hw | sim |
+|---|---|---|---|---|---|
+| 38 x 32 | 2 | 108.1 | 104.5 (-3%) | 113.0 | 117.1 (+4%) |
+| 38 x 64 | 4 | 113.1 | 104.6 (-8%) | 114.0 | 117.1 (+3%) |
+| 19 x 128 | 4 | 113.2 | 104.6 (-8%) | 114.1 | 117.1 (+3%) |
+| 38 x 128 | 8 | 231.4 | 123.0 (-47%) | 196.0 | 147.1 (-25%) |
+| 152 x 32 | 5 | 122.5 | 104.6 (-15%) | 127.2 | 132.5 (+4%) |
+| 304 x 32 | 9 | 231.3 | 142.0 (-39%) | 195.9 | 178.7 (-9%) |
+| 76 x 128 | 12 | 231.3 | 167.7 (-27%) | 196.0 | 205.4 (+5%) |
+| 152 x 128 | 20 | 327.6 | 273.6 (-16%) | 321.3 | 339.4 (+6%) |
+| 152 x 256 | 40 | 662.1 | 546.1 (-18%) | 649.1 | 678.5 (+5%) |
+| 304 x 256 | 72 | 1238.8 | 984.1 (-21%) | 1046.5 | 1217.7 (+16%) |
+
+Two gaps: (1) 38 x 128 and 304 x 32 (8 and 9 groups on the busiest core by the cluster split) take as long as 76 x 128
+(12 groups) with both loops: the busiest core holds more than the split gives, or two groups that share a scheduler
+interleave worse than modeled. (2) The division loop is 16-21% slower than modeled from 20 groups on, while the
+shift/xor loop matches. Per instruction at 40 groups per core (`probes/k_*.ptx`, 16 of one instruction per
+iteration in 8 independent chains): `icmpsel` hw 259.9 vs sim 338.1 cycles (+30%: the hardware issues ~2.5 per
+cycle per core), `imadd` 646.4 vs 672.3, `convert` 642.3 vs 672.3, `rcp` 972.5 vs 1024.1 (all within 5%); at 4
+groups `mul.hi.u32` (a 32 x 32 -> 64 `imadd` and an `iadd`) 112.0 vs 77.6 (-31%: its latency is longer than
+modeled) and `rcp` 109.9 vs 99.4. Summing the measured per-instruction costs of the division loop gives ~17.9
+cycles per group per iteration against 16.5 measured: the hardware overlaps the units' work less than the model.
+
+Workgroup placement (`probes/m.ptx`: each workgroup records `%smid`, the core index, while spinning;
+`wgmap-placement.txt`): up to 32 workgroups of 128 threads each get their own core; 38 use 34 cores (4 cores of
+cluster 3 take two); the busiest core then has 2, 2, 2, 2, 3, 3, 4, 5, 7 and 8 workgroups for 39, 48, 57, 64, 76,
+96, 114, 152, 228 and 304 workgroups, which the simulator's cluster split (10, 9, 9, 10 cores) reproduces except
+304 (9). Core indices are 0-9, 16-25, 32-41 and 48-57; workgroups arrive in runs of about 8 per cluster.
