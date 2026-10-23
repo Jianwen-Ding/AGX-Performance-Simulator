@@ -1,0 +1,73 @@
+.version 7.0
+.target sm_75
+.address_size 64
+.visible .entry dv(.param .u64 pout, .param .u32 d, .param .u32 iters)
+{
+    .reg .u32 %i, %d, %n, %k;
+    .reg .u64 %b, %o;
+    .reg .pred %q;
+    .reg .u32 %a<8>;
+    .reg .pred %p<8>;
+    mov.u32 %i, %ctaid.x;
+    mad.lo.u32 %i, %i, %ntid.x, %tid.x;
+    ld.param.u32 %d, [d];
+    ld.param.u32 %n, [iters];
+    add.u32 %a0, %i, 0;
+    add.u32 %a1, %i, 1;
+    add.u32 %a2, %i, 2;
+    add.u32 %a3, %i, 3;
+    add.u32 %a4, %i, 4;
+    add.u32 %a5, %i, 5;
+    add.u32 %a6, %i, 6;
+    add.u32 %a7, %i, 7;
+    mov.u32 %k, 0;
+LOOP:
+    setp.lt.s32 %p0, %a0, %d;
+    selp.b32 %a0, %a0, %d, %p0;
+    setp.gt.s32 %p0, %a0, %i;
+    selp.b32 %a0, %i, %a0, %p0;
+    setp.lt.s32 %p1, %a1, %d;
+    selp.b32 %a1, %a1, %d, %p1;
+    setp.gt.s32 %p1, %a1, %i;
+    selp.b32 %a1, %i, %a1, %p1;
+    setp.lt.s32 %p2, %a2, %d;
+    selp.b32 %a2, %a2, %d, %p2;
+    setp.gt.s32 %p2, %a2, %i;
+    selp.b32 %a2, %i, %a2, %p2;
+    setp.lt.s32 %p3, %a3, %d;
+    selp.b32 %a3, %a3, %d, %p3;
+    setp.gt.s32 %p3, %a3, %i;
+    selp.b32 %a3, %i, %a3, %p3;
+    setp.lt.s32 %p4, %a4, %d;
+    selp.b32 %a4, %a4, %d, %p4;
+    setp.gt.s32 %p4, %a4, %i;
+    selp.b32 %a4, %i, %a4, %p4;
+    setp.lt.s32 %p5, %a5, %d;
+    selp.b32 %a5, %a5, %d, %p5;
+    setp.gt.s32 %p5, %a5, %i;
+    selp.b32 %a5, %i, %a5, %p5;
+    setp.lt.s32 %p6, %a6, %d;
+    selp.b32 %a6, %a6, %d, %p6;
+    setp.gt.s32 %p6, %a6, %i;
+    selp.b32 %a6, %i, %a6, %p6;
+    setp.lt.s32 %p7, %a7, %d;
+    selp.b32 %a7, %a7, %d, %p7;
+    setp.gt.s32 %p7, %a7, %i;
+    selp.b32 %a7, %i, %a7, %p7;
+    add.u32 %k, %k, 1;
+    setp.lt.u32 %q, %k, %n;
+    @%q bra LOOP;
+    add.u32 %a0, %a0, %a1;
+    add.u32 %a0, %a0, %a2;
+    add.u32 %a0, %a0, %a3;
+    add.u32 %a0, %a0, %a4;
+    add.u32 %a0, %a0, %a5;
+    add.u32 %a0, %a0, %a6;
+    add.u32 %a0, %a0, %a7;
+    ld.param.u64 %b, [pout];
+    cvta.to.global.u64 %b, %b;
+    mul.wide.u32 %o, %i, 4;
+    add.u64 %b, %b, %o;
+    st.global.u32 [%b], %a0;
+    ret;
+}

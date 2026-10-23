@@ -1,0 +1,27 @@
+.version 7.0
+.target sm_75
+.address_size 64
+.visible .entry m(.param .u64 pout, .param .u32 spin)
+{
+    .reg .u32 %t, %c, %s, %k, %n;
+    .reg .u64 %b, %o;
+    .reg .pred %p;
+    mov.u32 %t, %tid.x;
+    mov.u32 %c, %ctaid.x;
+    mov.u32 %s, %smid;
+    ld.param.u32 %n, [spin];
+    mov.u32 %k, 0;
+LOOP:
+    add.u32 %k, %k, 1;
+    setp.lt.u32 %p, %k, %n;
+    @%p bra LOOP;
+    setp.ne.u32 %p, %t, 0;
+    @%p bra DONE;
+    ld.param.u64 %b, [pout];
+    cvta.to.global.u64 %b, %b;
+    mul.wide.u32 %o, %c, 4;
+    add.u64 %b, %b, %o;
+    st.global.u32 [%b], %s;
+DONE:
+    ret;
+}

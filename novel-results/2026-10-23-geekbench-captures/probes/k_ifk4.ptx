@@ -1,0 +1,126 @@
+.version 7.0
+.target sm_75
+.address_size 64
+.visible .entry dv(.param .u64 pout, .param .u32 d, .param .u32 iters)
+{
+    .reg .u32 %i, %dd, %n, %k;
+    .reg .u64 %b, %o;
+    .reg .pred %q;
+    .reg .f32 %x0, %d0, %r0, %x1, %d1, %r1, %x2, %d2, %r2, %x3, %d3, %r3, %x4, %d4, %r4, %x5, %d5, %r5, %x6, %d6, %r6, %x7, %d7, %r7, %c;
+    .reg .pred %p0, %p1, %p2, %p3, %p4, %p5, %p6, %p7;
+    mov.u32 %i, %ctaid.x;
+    mad.lo.u32 %i, %i, %ntid.x, %tid.x;
+    ld.param.u32 %dd, [d];
+    ld.param.u32 %n, [iters];
+    ld.param.u64 %b, [pout];
+    cvta.to.global.u64 %b, %b;
+    cvt.rn.f32.u32 %c, %dd;
+    mul.f32 %c, %c, 0f00000000;
+    cvt.rn.f32.u32 %x0, %i;
+    add.f32 %x0, %x0, 0f3F800000;
+    cvt.rn.f32.u32 %x1, %i;
+    add.f32 %x1, %x1, 0f3F800000;
+    cvt.rn.f32.u32 %x2, %i;
+    add.f32 %x2, %x2, 0f3F800000;
+    cvt.rn.f32.u32 %x3, %i;
+    add.f32 %x3, %x3, 0f3F800000;
+    cvt.rn.f32.u32 %x4, %i;
+    add.f32 %x4, %x4, 0f3F800000;
+    cvt.rn.f32.u32 %x5, %i;
+    add.f32 %x5, %x5, 0f3F800000;
+    cvt.rn.f32.u32 %x6, %i;
+    add.f32 %x6, %x6, 0f3F800000;
+    cvt.rn.f32.u32 %x7, %i;
+    add.f32 %x7, %x7, 0f3F800000;
+    mov.u32 %k, 0;
+LOOP:
+    mul.f32 %d0, %x0, %x0;
+    setp.lt.f32 %p0, %d0, %c;
+    @!%p0 bra SKIP0;
+    st.global.f32 [%b+0], %x0;
+    st.global.f32 [%b+4], %x0;
+    st.global.f32 [%b+8], %x0;
+    st.global.f32 [%b+12], %x0;
+SKIP0:
+    add.f32 %x0, %x0, 0f3F000000;
+    mul.f32 %d1, %x1, %x1;
+    setp.lt.f32 %p1, %d1, %c;
+    @!%p1 bra SKIP1;
+    st.global.f32 [%b+256], %x1;
+    st.global.f32 [%b+260], %x1;
+    st.global.f32 [%b+264], %x1;
+    st.global.f32 [%b+268], %x1;
+SKIP1:
+    add.f32 %x1, %x1, 0f3F000000;
+    mul.f32 %d2, %x2, %x2;
+    setp.lt.f32 %p2, %d2, %c;
+    @!%p2 bra SKIP2;
+    st.global.f32 [%b+512], %x2;
+    st.global.f32 [%b+516], %x2;
+    st.global.f32 [%b+520], %x2;
+    st.global.f32 [%b+524], %x2;
+SKIP2:
+    add.f32 %x2, %x2, 0f3F000000;
+    mul.f32 %d3, %x3, %x3;
+    setp.lt.f32 %p3, %d3, %c;
+    @!%p3 bra SKIP3;
+    st.global.f32 [%b+768], %x3;
+    st.global.f32 [%b+772], %x3;
+    st.global.f32 [%b+776], %x3;
+    st.global.f32 [%b+780], %x3;
+SKIP3:
+    add.f32 %x3, %x3, 0f3F000000;
+    mul.f32 %d4, %x4, %x4;
+    setp.lt.f32 %p4, %d4, %c;
+    @!%p4 bra SKIP4;
+    st.global.f32 [%b+1024], %x4;
+    st.global.f32 [%b+1028], %x4;
+    st.global.f32 [%b+1032], %x4;
+    st.global.f32 [%b+1036], %x4;
+SKIP4:
+    add.f32 %x4, %x4, 0f3F000000;
+    mul.f32 %d5, %x5, %x5;
+    setp.lt.f32 %p5, %d5, %c;
+    @!%p5 bra SKIP5;
+    st.global.f32 [%b+1280], %x5;
+    st.global.f32 [%b+1284], %x5;
+    st.global.f32 [%b+1288], %x5;
+    st.global.f32 [%b+1292], %x5;
+SKIP5:
+    add.f32 %x5, %x5, 0f3F000000;
+    mul.f32 %d6, %x6, %x6;
+    setp.lt.f32 %p6, %d6, %c;
+    @!%p6 bra SKIP6;
+    st.global.f32 [%b+1536], %x6;
+    st.global.f32 [%b+1540], %x6;
+    st.global.f32 [%b+1544], %x6;
+    st.global.f32 [%b+1548], %x6;
+SKIP6:
+    add.f32 %x6, %x6, 0f3F000000;
+    mul.f32 %d7, %x7, %x7;
+    setp.lt.f32 %p7, %d7, %c;
+    @!%p7 bra SKIP7;
+    st.global.f32 [%b+1792], %x7;
+    st.global.f32 [%b+1796], %x7;
+    st.global.f32 [%b+1800], %x7;
+    st.global.f32 [%b+1804], %x7;
+SKIP7:
+    add.f32 %x7, %x7, 0f3F000000;
+    add.u32 %k, %k, 1;
+    setp.lt.u32 %q, %k, %n;
+    @%q bra LOOP;
+    add.f32 %x0, %x0, %x1;
+    add.f32 %x0, %x0, %x2;
+    add.f32 %x0, %x0, %x3;
+    add.f32 %x0, %x0, %x4;
+    add.f32 %x0, %x0, %x5;
+    add.f32 %x0, %x0, %x6;
+    add.f32 %x0, %x0, %x7;
+    mul.wide.u32 %o, %i, 4;
+    add.u64 %b, %b, %o;
+    st.global.f32 [%b+0], %x0;
+    st.global.f32 [%b+4], %x0;
+    st.global.f32 [%b+8], %x0;
+    st.global.f32 [%b+12], %x0;
+    ret;
+}

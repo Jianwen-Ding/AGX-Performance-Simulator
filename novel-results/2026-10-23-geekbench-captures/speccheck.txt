@@ -1,0 +1,96 @@
+84200-cap105517-particle                           generic     205.5 us  specialized     168.0 us   -18%  same
+84200-cap1160-gemm_non_block_size_bias             generic      81.4 us  specialized      46.4 us   -43%  same
+84200-cap491-depthwise_convolution_2d              generic      92.8 us  specialized      31.2 us   -66%  same
+84200-cap51-build_patches_padding                  generic      61.9 us  specialized      12.6 us   -80%  same
+84200-cap99286-convolve_horizontal                 skipped: module globals (not specialized by zluda_agx)
+84200-cap99706-convolve_vertical                   skipped: module globals (not specialized by zluda_agx)
+84200-cap999-gemm_block_size_bias                  generic     123.6 us  specialized      54.5 us   -56%  same
+44778-cap1004-activation_linear                    generic      13.8 us  specialized      13.8 us    +0%  same
+44778-cap1140-add                                  generic       8.8 us  specialized       9.0 us    +2%  same
+44778-cap1273-gemm_block_size_bias                 generic     123.5 us  specialized      64.4 us   -48%  same
+44778-cap1400-global_average_pooling_2d            generic     136.3 us  specialized     117.8 us   -14%  same
+44778-cap1520-reshape                              generic       6.3 us  specialized       6.2 us    -2%  same
+44778-cap1642-activation_relu                      generic       6.4 us  specialized       6.4 us    +0%  same
+44778-cap1762-resize_bilinear                      generic      29.6 us  specialized      18.6 us   -37%  same
+44778-cap21-build_patches_padding                  generic      61.3 us  specialized      18.1 us   -70%  same
+44778-cap2185-concat_axis_3                        generic      15.7 us  specialized      14.1 us   -10%  same
+44778-cap245994-grayscale                          generic    1017.0 us  specialized    1015.8 us    -0%  same
+44778-cap246414-blur_gray                          skipped: module globals (not specialized by zluda_agx)
+44778-cap246834-gradient                           skipped: module globals (not specialized by zluda_agx)
+44778-cap247254-canny_nonmax_suppression           skipped: module globals (not specialized by zluda_agx)
+44778-cap247674-hysteresis                         skipped: module globals (not specialized by zluda_agx)
+44778-cap248094-edge_map                           skipped: module globals (not specialized by zluda_agx)
+44778-cap248514-hough_scores                       skipped: module globals (not specialized by zluda_agx)
+44778-cap248934-hough_lines                        skipped: module globals (not specialized by zluda_agx)
+44778-cap249354-image_rotate                       skipped: module globals (not specialized by zluda_agx)
+44778-cap249994-convolve_horizontal                skipped: module globals (not specialized by zluda_agx)
+44778-cap250414-convolve_vertical                  skipped: module globals (not specialized by zluda_agx)
+44778-cap250835-convolve_2d                        skipped: module globals (not specialized by zluda_agx)
+44778-cap251255-pixel_filter                       skipped: module globals (not specialized by zluda_agx)
+44778-cap251675-blend                              skipped: module globals (not specialized by zluda_agx)
+44778-cap252095-calculate_gray_color               skipped: module globals (not specialized by zluda_agx)
+44778-cap252515-find_min_and_max                   skipped: module globals (not specialized by zluda_agx)
+44778-cap252635-normalize_color_histogram          skipped: module globals (not specialized by zluda_agx)
+44778-cap253055-manual_normalization               skipped: module globals (not specialized by zluda_agx)
+44778-cap254157-color_look_up_tetrahedral          generic     178.9 us  specialized     235.2 us   +31%  same
+44778-cap255836-raw_process                        generic     372.0 us  specialized     369.6 us    -1%  same
+44778-cap256676-build_histograms                   generic     402.3 us  specialized     386.2 us    -4%  same
+44778-cap256844-find_max_brightness                generic      29.5 us  specialized      29.5 us    +0%  same
+44778-cap256988-correct_brightness                 generic     573.1 us  specialized     573.5 us    +0%  same
+44778-cap259508-quantize                           generic     583.3 us  specialized     586.2 us    +0%  same
+44778-cap260488-normalize_image                    skipped: module globals (not specialized by zluda_agx)
+44778-cap262168-layered_gradient                   skipped: module globals (not specialized by zluda_agx)
+44778-cap262592-copy_data_to_cube                  skipped: module globals (not specialized by zluda_agx)
+44778-cap263102-scale_pyramid                      skipped: module globals (not specialized by zluda_agx)
+44778-cap2633-bilinear_rgba                        generic      18.4 us  specialized      18.3 us    -1%  same
+44778-cap263522-fast_corners                       skipped: module globals (not specialized by zluda_agx)
+44778-cap263606-nonmax_suppression                 skipped: module globals (not specialized by zluda_agx)
+44778-cap263630-compute_keypoints                  skipped: module globals (not specialized by zluda_agx)
+44778-cap263750-sort_keypoints                     skipped: module globals (not specialized by zluda_agx)
+44778-cap263870-calculate_descriptors              skipped: module globals (not specialized by zluda_agx)
+44778-cap264160-transpose                          skipped: module globals (not specialized by zluda_agx)
+44778-cap264600-knn_match                          skipped: module globals (not specialized by zluda_agx)
+44778-cap264997-gemm_non_block_size                generic    8109.9 us  specialized    7937.4 us    -2%  same
+44778-cap270700-generate_rays                      FAILED ['m08_generate_rays.bin          FAILED {"error":"GPU job failed: Bad address (os error 14)"}', '{"error":"GPU job failed: Bad address (os error 14)"}', '', 'm08_generate_rays.bin          FAILED {"error":"GPU job failed: Bad address (os error 14)"}', '{"error":"GPU job failed: Bad address (os error 14)"}', '']
+44778-cap270820-trace_bvh                          FAILED ['m08_generate_rays.bin          FAILED {"error":"GPU job failed: Bad address (os error 14)"}', '{"error":"GPU job failed: Bad address (os error 14)"}', '', 'm08_generate_rays.bin              1087.0 us  hash fec9e181c29a32ef']
+44778-cap270920-miss                               generic    3519.1 us  specialized    3496.4 us    -1%  same
+44778-cap271000-clear_counter                      generic       5.7 us  specialized       5.8 us    +2%  same
+44778-cap271141-trace_bvh_shadow                   generic      92.1 us  specialized      86.6 us    -6%  same
+44778-cap271261-accumulate_direct_samples          generic      84.6 us  specialized      89.5 us    +6%  same
+44778-cap271365-hit_surface                        generic      29.7 us  specialized      28.8 us    -3%  same
+44778-cap271402-resolve_radiance                   generic     117.7 us  specialized     852.5 us  +624%  same
+44778-cap272422-particle                           generic     205.6 us  specialized     153.0 us   -26%  same
+44778-cap294104-initialize_dye                     generic    1100.5 us  specialized    1018.5 us    -7%  same
+44778-cap294524-initialize_velocities              generic     137.8 us  specialized     121.8 us   -12%  same
+44778-cap294944-curl                               generic      56.5 us  specialized      56.4 us    -0%  same
+44778-cap295364-vorticity                          generic      63.0 us  specialized      75.5 us   +20%  same
+44778-cap295784-pressure_solver_prep               generic      75.0 us  specialized      63.5 us   -15%  same
+44778-cap296204-pressure_solver                    generic      59.2 us  specialized      59.2 us    +0%  same
+44778-cap296643-gradient_subtraction               generic      62.4 us  specialized      62.5 us    +0%  same
+44778-cap297063-velocity_advection                 generic      62.6 us  specialized      63.0 us    +1%  same
+44778-cap297483-dye_advection                      generic     255.0 us  specialized     229.5 us   -10%  same
+44778-cap3053-import_image_rgba_to_rgb             generic       9.4 us  specialized       9.3 us    -1%  same
+44778-cap3473-export_image_grayscale               generic      35.9 us  specialized      20.1 us   -44%  same
+44778-cap3893-bilinear_grayscale                   generic      99.0 us  specialized      99.7 us    +1%  same
+44778-cap40793-pad                                 generic     462.9 us  specialized     438.3 us    -5%  same
+44778-cap42025-build_patches                       generic      11.8 us  specialized       7.7 us   -35%  same
+44778-cap42571-activation_softmax_stride_2         generic       6.8 us  specialized       6.8 us    +0%  same
+44778-cap42695-nearest_neighbor                    generic      14.1 us  specialized      12.4 us   -12%  same
+44778-cap4313-replace_alpha                        skipped: module globals (not specialized by zluda_agx)
+44778-cap43177-concat_axis_1                       generic      27.3 us  specialized      24.3 us   -11%  same
+44778-cap44034-decode_anchors                      generic       6.9 us  specialized       6.8 us    -1%  same
+44778-cap44058-face_descriptors                    generic      35.1 us  specialized      35.0 us    -0%  same
+44778-cap44082-apply_filter                        generic      29.0 us  specialized      25.5 us   -12%  same
+44778-cap461-activation_relu6                      generic      18.5 us  specialized      18.4 us    -1%  same
+44778-cap4733-composite                            skipped: module globals (not specialized by zluda_agx)
+44778-cap5353-activation_softmax                   generic     199.1 us  specialized     177.4 us   -11%  same
+44778-cap581-depthwise_convolution_2d              generic      92.5 us  specialized      26.4 us   -71%  same
+44778-cap8814-convolve_horizontal_wide             skipped: module globals (not specialized by zluda_agx)
+44778-cap8815-convolve_vertical_wide               skipped: module globals (not specialized by zluda_agx)
+44778-cap95415-depth_to_space                      generic     161.9 us  specialized     113.4 us   -30%  same
+44778-cap95538-logistic                            generic      12.8 us  specialized      12.8 us    +0%  same
+44778-cap95658-import_image_rgba_to_rgb_zero_to_one generic       7.1 us  specialized       7.0 us    -1%  same
+44778-cap96078-add_inference_output                generic      94.9 us  specialized      94.6 us    -0%  same
+44778-cap96594-aggregate_inference_outputs         generic      62.3 us  specialized      57.9 us    -7%  same
+44778-cap983-gemm_non_block_size_bias              generic      81.8 us  specialized      77.2 us    -6%  same
+95 captures, 2 mismatches or failures

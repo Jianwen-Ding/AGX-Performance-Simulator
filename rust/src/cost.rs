@@ -97,6 +97,10 @@ fn fence_ticks(code: u8, ctx: usize) -> (i64, bool) {
     (tk(ns * CYCLES_PER_NS), consumed)
 }
 
+/// Kernels with more code than this are taken to fetch instructions from beyond the instruction cache (see the taken
+/// forward jump's scheduler hold).
+const FETCH_BOUND_CODE_BYTES: usize = 16 << 10;
+
 const BARRIERS: &[&str] = &["threadgroup_barrier", "memory_barrier", "wait_pix", "signal_pix", "TODO.unkE800"];
 const UNIT_GROUPS: &[&[&str]] = &[
     &["iadd", "isub", "iadd_lsl2", "iadd_imm", "iadd_cache"], &["imadd", "imul", "imadd_cache"],
@@ -1439,6 +1443,9 @@ pub struct MemModel {
     /// bank-conflict way (core: max(1, conflict degree) per instruction)
     pub tg_group_load: f64,
     pub tg_group_store: f64,
+    /// threadgroup loads: reference cycles of the core's threadgroup pipeline per access (times the conflict degree);
+    /// 1.0 by default, AGX_TG_CORE_LOAD for experiments (with AGX_TG_GATE)
+    pub tg_core_load: f64,
     /// threadgroup atomics, one group back to back (no return / return)
     pub tg_group_atomic: f64,
     pub tg_group_atomic_ret: f64,
@@ -1473,7 +1480,8 @@ impl Default for MemModel {
             atomic_min: 6.9,
             atomic_per_seg: 1.7,
             atomic_same_word_rate: 0.89,   // playground novel-results/2026-10-16-atomic-contention: 0.86 ns per lane-op on one word at 1,398 MHz
-            tg_group_load: 31.0,
+            tg_group_load: std::env::var("AGX_TG_GROUP_LOAD").ok().and_then(|v| v.parse().ok()).unwrap_or(31.0),
+            tg_core_load: std::env::var("AGX_TG_CORE_LOAD").ok().and_then(|v| v.parse().ok()).unwrap_or(1.0),
             tg_group_store: 24.0,
             tg_group_atomic: 4.8,
             tg_group_atomic_ret: 5.75,
@@ -1612,7 +1620,18 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: Option<&
     // taken forward jumps (if-skip jmp_exec_none, out-of-line jmp_exec_any entries): the same latency as a taken loop
     // branch, plus a scheduler hold that other groups cannot hide. Fitted 2026-10-20 to constant-condition probes at
     // 131,072 lanes (apple-documentation-playground novel-results/2026-10-20-fp32-ieee): +7.7 cycles per group per jump.
-    let br_fwd_sched = tk(p.cal_f("branch_forward_sched_real", 33.0));
+    // The hold was fitted to 40 KB straight-line probes, which are instruction-fetch-bound: a taken jump breaks
+    // sequential fetch through code the instruction cache cannot keep. In a loop whose code stays cached (16
+    // KB or less here, a guess between the two measured cases) a taken jump over 1 to 32 instructions costs what an
+    // untaken one does at 40 groups per core (2026-10-23 k_ifk probes: 580-595 cycles per 8 if-skips per group
+    // either way, novel-results/2026-10-23-geekbench-captures)
+    let code_bytes = instrs.iter().map(|i| i.pc + i.size).max().unwrap_or(0);
+    let br_fwd_sched = if code_bytes > FETCH_BOUND_CODE_BYTES {
+        tk(p.cal_f("branch_forward_sched_real", 33.0))
+    } else {
+        tk(std::env::var("AGX_BR_FWD_CACHED").ok().and_then(|v| v.parse::<f64>().ok())
+            .unwrap_or_else(|| p.cal_f("branch_forward_sched_cached_real", 0.0)))
+    };
     let br_fwd = tk(p.cal_f("branch_forward_taken_real", p_branch));
     let cl = tk(p.cal_f("control_latency", 2.0));
     let ci = tk(p.cal_f("control_issue_cycles", 1.0));
@@ -1819,6 +1838,7 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: Option<&
     // AGX_CHARGE_WRITEBACK=1: a store also takes DRAM bandwidth for its lines when the working set does not fit the
     // SLC, even if they were just loaded (the dirty lines must be written back). Off by default: no hardware data
     // yet (applications notes 66-67: adamw, stream).
+    let tg_gate = std::env::var("AGX_TG_GATE").map_or(false, |v| v == "1");
     let charge_writeback = std::env::var("AGX_CHARGE_WRITEBACK").map_or(false, |v| v == "1")
         && mem.is_some_and(|(_, m)| !m.resident_slc);
     let mut ms: Option<MemState> = mem.map(|(_, m)| {
@@ -2375,6 +2395,24 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: Option<&
                     _ => {}
                 }
             }
+            // threadgroup loads and stores issue one at a time per group and at the core's threadgroup rate: back-to-
+            // back loads whose results nothing reads take ~32.6 cycles per load per group at up to 16 groups per core
+            // and ~2.1 cycles per load per core at 32 (M2 Max, novel-results/2026-10-23-geekbench-captures); the
+            // pipelines' occupancy (charged below) delays the next access, not only this one's result
+            // EXPERIMENT (AGX_TG_GATE=1, off by default): it fits whole-dispatch times of threadgroup-load loops
+            // better (tgcheck.py: median error 41% -> 31% with AGX_TG_CORE_LOAD=1.5) but not the stored in-shader
+            // per-step measurements (tg.json: 29.5%), which keep ~31 cycles per step per group at 32 groups while the
+            // dispatch takes twice as long: not all 32 groups seem to progress at once.
+            if let (Some(m), false, true) = (ms.as_mut(), msk, tg_gate) {
+                if r.tg_name && r.barrier == 0 && !r.atomic && matches!(r.kind, Kind::Load | Kind::Store) && !memv.is_empty() {
+                    let until = m.tg_group_free[gi].max(m.tg_free);
+                    if until > t {
+                        ff_ok = false;
+                        wake!(until);
+                        continue;
+                    }
+                }
+            }
             // device memory: segments of this dynamic instruction, level of each, bandwidth tokens
             let mut mem_charge: Option<([f64; 5], i64, Vec<u64>)> = None;
             if let (Some(m), false) = (ms.as_mut(), msk) {
@@ -2525,7 +2563,8 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: Option<&
                             let gstart = t.max(m.tg_group_free[gi]);
                             m.tg_group_free[gi] = gstart + tk(own * k);
                             let gextra = m.tg_group_free[gi] - t - tk(own * k);
-                            (tk(degree as f64 * k), tk(k) - gextra.max(0), &mut m.tg_free)
+                            let per = if !tga && r.kind == Kind::Load { mm.tg_core_load } else { 1.0 };
+                            (tk(degree as f64 * per * k), tk(k) - gextra.max(0), &mut m.tg_free)
                         };
                         let start = t.max(*free);
                         *free = start + occ;

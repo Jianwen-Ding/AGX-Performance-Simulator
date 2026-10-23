@@ -9,7 +9,10 @@
 //!   38..608 workgroups of 64 and 256 lanes). That core sets the time.
 //! * That core runs its workgroups in waves of `wgs_per_core`; each simulated wave traces every SIMD group
 //!   with its own geometry (`cost::trace_group`) and runs `cost::simulate_groups` with the memory model.
-//!   With many waves only the first and the last are simulated and the rest extrapolated from the first.
+//!   With many waves, `max_waves` of them are simulated (the first, the last, the middle, then 1, 3, 7, ...) and
+//!   the others interpolated linearly between the nearest simulated full waves: a grid whose work is concentrated
+//!   in its first workgroups (threads past a data-dependent count exit at once: Geekbench 7's sort_keypoints,
+//!   compute_keypoints, nonmax_suppression) is not taken to cost its first wave every time.
 //! * Launching costs the busiest core max(`wg_launch_ns` per workgroup, `group_launch_ns` per SIMD group)
 //!   (empty kernels over 4M-16M threads); it overlaps execution, so the core time is the larger of the two.
 //! * time = core time + `launch_ns` (fixed per-dispatch overhead, 5.6 us for a 32-thread empty dispatch).
@@ -46,8 +49,8 @@ pub struct Launch {
     /// effective DRAM bandwidth of a whole dispatch (GB/s): 360 fits the streaming and reduction dispatches;
     /// steady per-core streaming (mem_probes) reaches ~410
     pub dram_gbps: f64,
-    /// Representative-core path only: simulate at most this many distinct waves
-    /// (first, last); others are extrapolated. The supplied-map path is exhaustive.
+    /// Representative-core path only: simulate at most this many distinct waves (first, last, middle, then 1, 3, 7,
+    /// 15, ...); others are interpolated. The supplied-map path is exhaustive.
     pub max_waves: usize,
     pub max_steps: usize,
 }
@@ -70,7 +73,7 @@ impl Default for Launch {
             uniforms: vec![],
             mem: true,
             dram_gbps: std::env::var("AGX_DRAM_GBPS").ok().and_then(|v| v.parse().ok()).unwrap_or(360.0),
-            max_waves: 2,
+            max_waves: 8,
             max_steps: 20_000_000,
         }
     }
@@ -278,12 +281,16 @@ pub fn simulate_with(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer
         let c = cost::simulate_groups(&ins, &seqs, Some(&masked), mem, p, false, Some(&wg_of))?.0;
         Ok((count, c, warn))
     };
+    // the first and last waves, the middle, then densely after the first (2^k - 1): data-dependent counts put the
+    // work at the start of the grid
     let mut todo: Vec<u64> = vec![0];
-    if waves > 1 {
-        todo.push(waves - 1);
+    let dense = (1..63).map(|k| (1u64 << k) - 1).take_while(|&w| w < waves);
+    for w in [waves - 1, waves / 2].into_iter().chain(dense) {
+        if !todo.contains(&w) {
+            todo.push(w);
+        }
     }
     todo.truncate(l.max_waves.max(1));
-    let mut first_cycles = 0.0;
     let mut total = 0.0;
     // the simulated waves are independent: run them concurrently (results combined in wave order)
     let results = crate::par::map(&todo, |&w| sim_wave(w));
@@ -295,14 +302,24 @@ pub fn simulate_with(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer
             }
         }
         rep.simulated_waves.push((w, count, c));
-        if w == 0 {
-            first_cycles = c;
-        }
         total += c;
     }
-    // waves not simulated cost as much as the first
-    let simulated: u64 = todo.len() as u64;
-    total += first_cycles * (waves - simulated.min(waves)) as f64;
+    // a wave not simulated: linear between the nearest simulated full waves (the last one is partial when m is not
+    // a multiple of r), else as the nearest one
+    let mut full: Vec<(u64, f64)> =
+        rep.simulated_waves.iter().filter(|&&(w, count, _)| count == r as u64 || w + 1 < waves).map(|&(w, _, c)| (w, c)).collect();
+    full.sort_by_key(|&(w, _)| w);
+    // between two simulated full waves s0 < s1: the k = s1 - s0 - 1 waves in between sum to
+    // k c0 + (c1 - c0) (1 + ... + k) / (s1 - s0); after the last simulated full wave, as that one
+    for pair in full.windows(2) {
+        let ((s0, c0), (s1, c1)) = (pair[0], pair[1]);
+        let k = (s1 - s0 - 1) as f64;
+        total += k * c0 + (c1 - c0) * (k * (k + 1.0) / 2.0) / (s1 - s0) as f64;
+    }
+    if let Some(&(s_last, c_last)) = full.last() {
+        let after = waves - s_last - 1 - todo.iter().filter(|&&w| w > s_last).count() as u64;
+        total += c_last * after as f64;
+    }
     rep.core_cycles = total;
     rep.launch_core_ns = (m as f64 * l.wg_launch_ns).max((m as u128 * gpw as u128) as f64 * l.group_launch_ns);
     rep.time_ns = (total / l.clock_mhz * 1000.0).max(rep.launch_core_ns) + l.launch_ns;
@@ -332,7 +349,8 @@ mod tests {
         let measured = simulate(&[0x88, 0], &Launch { busiest_core_wgs_override: Some(33), ..l.clone() }, &p).unwrap();
         assert_eq!((base.workgroups, base.busiest_core_wgs, base.wgs_per_core), (1024, 27, 13));
         assert_eq!((measured.busiest_core_wgs, measured.waves), (33, 3));
-        assert_eq!(measured.simulated_waves.iter().map(|&(wave, count, _)| (wave, count)).collect::<Vec<_>>(), vec![(0, 13), (2, 7)]);
+        // the first, the last (partial) and the middle wave
+        assert_eq!(measured.simulated_waves.iter().map(|&(wave, count, _)| (wave, count)).collect::<Vec<_>>(), vec![(0, 13), (2, 7), (1, 13)]);
         assert_eq!(measured.launch_core_ns, 3300.0);
         assert!(measured.time_ns >= base.time_ns);
         let same = simulate(&[0x88, 0], &Launch { busiest_core_wgs_override: Some(27), ..l }, &p).unwrap();
@@ -364,9 +382,9 @@ mod tests {
         let r = simulate_with(&[0x88, 0], &l, &Params::new().unwrap(), Some(&tracer)).unwrap();
         let seen = seen.lock().unwrap();
         assert_eq!(r.busiest_core_wgs, 33);
-        // The existing model samples the first and last waves: 13 + 7 groups.
-        assert_eq!(seen.len(), 20);
-        assert_eq!(seen.iter().collect::<std::collections::HashSet<_>>().len(), 20);
+        // The model samples the first, last and middle waves: 13 + 7 + 13 workgroups, all distinct.
+        assert_eq!(seen.len(), 33);
+        assert_eq!(seen.iter().collect::<std::collections::HashSet<_>>().len(), 33);
         assert!(seen.iter().all(|w| w[0] < 1024 && w[1] == 0 && w[2] == 0));
     }
     use super::*;
@@ -438,7 +456,7 @@ mod tests {
         let tracer = |wg| { seen.lock().unwrap().push(wg); Ok(vec![Trace { pcs: vec![0], ..Default::default() }]) };
         let report = simulate_with(&[0x88, 0], &l, &Params::new().unwrap(), Some(&tracer)).unwrap();
         assert_eq!(report.workgroups, 1u64 << 33);
-        assert_eq!(report.simulated_waves.len(), 2);
+        assert_eq!(report.simulated_waves.len(), 8);
         assert!(seen.lock().unwrap().iter().any(|w| w[2] == 1));
         assert!(report.time_ns.is_finite()); // synthetic coordinate check, not hardware timing validation
     }
