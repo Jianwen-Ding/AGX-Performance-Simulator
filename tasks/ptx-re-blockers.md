@@ -368,10 +368,15 @@ Branch `claude/bold-davinci-46xi9q` of Jianwen-Ding/ZLUDA and Jianwen-Ding/llvm-
 
   The default LLVM AGX path still inlines every function, turns indirect calls into a test against each
   address-taken function, and lowers recursion to an explicit state machine. An opt-in
-  `-agx-experimental-leaf-calls` path now emits direct calls only for argument-free void leaves called
-  from a kernel entry block. `make verify-llvm-leaf-call` compiles the IR fixture and checks the emitted
-  call/return/reconvergence and final store in the simulator. This path lacks mask reservation,
-  register preservation and per-function stack frames; it is not enabled for ZLUDA benchmarks.
+  `-agx-experimental-leaf-calls` path now emits direct calls for single-block leaves with zero or one i32 argument
+  and zero or one i32 result, called from a kernel entry block. `make verify-llvm-leaf-call` compiles
+  two IR fixtures and checks the balanced mask reserve, call/return/reconvergence, scalar result,
+  caller spill/reload and final stores in the simulator. The call clobber mask protects values live
+  across it, and AGXInsertWaits drains pending loads before the call. It still lacks a general ABI
+  and separate per-function stack frames; non-kernel spill frames are rejected under the option.
+  It is not enabled for ZLUDA benchmarks. The Blender
+  Cycles LLVM IR has no one-i32-argument function definition, so this experiment cannot shorten
+  that module's compile by itself (playground `results/2026-10-23-blender-llvm-call-profile`).
 - **Known:** unsafe-01 measured uniform, full-32-lane direct, register-indirect and software-saved-link nested calls.
   Return targets are shader-buffer-relative and the continuation is `pop_exec r0l, 2`.
 - **Open (unsafe-01 items 2-6):** what code generation needs before it can emit calls:
