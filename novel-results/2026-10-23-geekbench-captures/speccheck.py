@@ -54,7 +54,11 @@ def simulate(cap, code_halves):
         out.append(code if args[i] == 'code.bin' else args[i]); i += 1
     regs = max(int(open(os.path.join(cap, 'regs.txt')).read()), int(halves or 0))
     r = subprocess.run([a.dispatch] + out + ['--regs', str(regs)], capture_output=True, text=True, cwd=cap, timeout=1800)
-    return json.loads(r.stdout.strip().splitlines()[-1]).get('time_us')
+    try:
+        return json.loads(r.stdout.strip().splitlines()[-1]).get('time_us')
+    except Exception:
+        print(f'  sim failed: {(r.stdout + r.stderr)[-300:]}', file=sys.stderr)
+        return None
 
 sims = []
 bad = 0
@@ -86,7 +90,7 @@ for cap in a.caps:
         gen, lg = code_of(os.path.join(G, 'ptx', mod), kernel, f'{t}/g')
         spc, ls = code_of(sp, kernel, f'{t}/s')
         if a.vs_captured:
-            spc, ls = os.path.join(cap, 'code.bin'), lg
+            spc, ls = os.path.abspath(os.path.join(cap, 'code.bin')), lg
         if sorted(lg) != sorted(ls):
             print(f'{os.path.basename(cap.rstrip("/")):50s} not checked: layout {set(lg) - set(ls)} -> {set(ls) - set(lg)}'); continue
         out = subprocess.run(['python3', '-I', f'{G}/tools/capvariant.py', cap, gen, spc, '--b2b', str(a.b2b)],

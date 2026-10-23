@@ -16,6 +16,7 @@ cap = os.path.abspath(a.cap)
 line = [l for l in open(os.path.join(cap, 'replay.sh')) if 'exec' in l][0]
 args = shlex.split(line.split('agx_run}"', 1)[1])[:-1]
 regs = open(os.path.join(cap, 'regs.txt')).read().strip()
+warmed = False
 for code in a.codes:
     code, _, own = code.partition(':')
     code = os.path.abspath(code)
@@ -38,6 +39,10 @@ for code in a.codes:
         h = hashlib.sha256(b''.join(open(f, 'rb').read() for f in dumps if os.path.exists(f))).hexdigest()[:16]
         each = ' '.join(hashlib.sha256(open(f, 'rb').read()).hexdigest()[:8] if os.path.exists(f) else '-' for f in dumps)
         nodump = [x for j, x in enumerate(base) if not (x == '--dump' or (j > 0 and base[j - 1] == '--dump'))]
+        if not warmed:
+            # the GPU clock is low after the idle time of compiling: the first code would be timed slow
+            subprocess.run(nodump + ['--back-to-back', '400'], capture_output=True, text=True, timeout=600)
+            warmed = True
         r2 = subprocess.run(nodump + ['--back-to-back', str(a.b2b)], capture_output=True, text=True, timeout=600)
         try:
             us = json.loads(r2.stdout.strip().splitlines()[-1])['b2b_median_fw_ns'] / 1e3

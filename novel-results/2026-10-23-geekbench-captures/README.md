@@ -183,3 +183,12 @@ that ran in the capture's run (an older compiler) on the same memory. After the 
 16-byte threadgroup unrolling (llvm-project f4c3a027740c): 89 of 95 captures give the same output
 (`compiler-regression-tgaddr.txt`; the others: `hough_scores` races plain stores to the same bins, `hough_lines` and
 `nonmax_suppression` append through atomics, three stale captures fault with either code).
+
+## Hoisted all-pairs loads (llvm-project bdadb1eb5b56), simulator
+
+`particle` with the loads of its unrolled copies issued together: the current generic code takes 110 us on the run-13
+capture against 153 us for the code that ran then (same output); the simulator predicts 179 against 197 us (-9%
+instead of -28%) and overestimates both (2 waves of 54 one-group workgroups on the busiest core; wave overlap is an
+open gap). The other run-13 captures time the same with either code on both (`speccheck.py --vs-captured --sim`).
+Measurement note: `capvariant.py` now runs a warm-up first, since the first code timed after the idle time of
+compiling ran at a low clock (+50..100%).
