@@ -112,5 +112,26 @@ default) makes threadgroup loads and stores wait for the group's previous access
 `AGX_TG_CORE_LOAD` sets the core's reference cycles per load: with 1.5, tgcheck's median error is 31% (21 of 47 within
 25%; low-occupancy loops whose loads feed fadds stay too slow, +55 to +195%), but the stored in-shader set (tg.json)
 fails at 29.5%: a model must have groups that each keep ~31 cycles per access while the core holds more of them than
-progress at once. To do: reconcile the two measurements, then a threadgroup-load issue model with the
-run-length effect, then the open gaps above.
+progress at once. To do: a threadgroup-load issue model with that occupancy limit and the run-length effect, then
+the open gaps above.
+
+## Launch-time specialization (ZLUDA 6197520)
+
+zluda_agx compiles kernels again with their scalar arguments and block size as constants once a launch repeats
+(`docs/src/agx.md`). Geekbench GPU time (`fastsum.py`, 10th percentile per launch configuration): 35.75 -> 29.92 s.
+`speccheck.py` runs the generic and the specialized code of each captured launch on the capture's memory
+(`capvariant.py`): 59 captures give bit-identical outputs (`speccheck.txt`); per launch, gemm -43..-56%, im2col
+(`build_patches_padding`) -70..-80%, depthwise convolution -66..-71%, `color_look_up_tetrahedral` +10% (index
+arithmetic: two `imadd` become `bfi`/`or` sequences). Findings on the way:
+
+- A kernel run with fewer registers allocated than its code uses faults (`Bad address`), also when only the upper part
+  of a vector load's destination (`xyzw` into `r22_r23_r24_r25` with 24 allocated) is past the allocation. A capture's
+  `regs.txt` is in 16-bit halves of the code that ran; `capvariant.py CODE.bin:HALVES` raises it for other code.
+- A capture's uniforms are laid out for the code that ran: a module without textures has no texture heap uniform, so
+  its arguments start at `u0` rather than `u2` (speccheck skips those).
+- `div.approx` with constant operands folded to the exact quotient and gave other bits than the hardware reciprocal
+  (`dye_advection`); it now always uses the hardware's (ZLUDA `llvm.agx.rcp.f32`).
+- Immediate offsets on `xyzw` device loads (4, 16, 20, 32 elements) read the same words as register offsets.
+- Geekbench chooses block sizes by timing launches: if those run generic code and later ones specialized, it may pick a
+  slower configuration (run 19: `build_patches_padding` 1268 instead of 596 ms); specializations in the compilation
+  cache are now used from the first launch.
