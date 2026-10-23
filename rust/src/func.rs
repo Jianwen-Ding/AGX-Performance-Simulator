@@ -27,6 +27,9 @@ pub struct Memory {
     pub tex_state: std::collections::BTreeMap<u32, Vec<u8>>,
     /// sampler state slots (8-byte descriptors) written by sampler_state_store
     pub samp_state: std::collections::BTreeMap<u32, Vec<u8>>,
+    /// the command's sampler heap (drm_asahi_cmd_compute sampler_heap / sampler_count): 8-byte sampler descriptors a
+    /// register sampler index selects
+    pub sampler_heap: Option<(u64, u32)>,
 }
 
 impl Memory {
@@ -248,7 +251,7 @@ fn reg_tuple(o: &Operand) -> Option<Vec<(bool, u32)>> {
     }
 }
 
-fn tex_op(ops: &[Operand]) -> TexOp {
+fn tex_op(ops: &[Operand], sampler_reg: bool) -> TexOp {
     // Operand order varies by op (texture_sample: R,U?,T,S?,C,lod; image_write: R,C,D,U,T,...).
     // Order-independent parse: the first register group (lone regs or tuple) is the destination,
     // the second is the coordinates; slots / bindless base attach wherever they appear.
@@ -286,6 +289,9 @@ fn tex_op(ops: &[Operand]) -> TexOp {
                 } else if a.bind_ureg.is_some() && a.tslot.is_none() && a.bind_reg.is_none() {
                     // bindless texture offset register (uniform base seen, no slot)
                     a.bind_reg = reg16_32(o);
+                } else if sampler_reg && a.bind_reg.is_some() && !coords_done && a.sreg.is_none() {
+                    // bindless texture with a register sampler (St = 1): a sampler heap index
+                    a.sreg = reg16_32(o);
                 } else if a.tslot.is_some() && !coords_done && a.sreg.is_none() {
                     // register-form sampler (bindless heap index / clamp_0 override).
                     // NOTE: a lone 1D coordinate register after a slot would land here too;
@@ -346,9 +352,9 @@ fn op_kind(name: &'static str, f: &Fields, ops: &[Operand]) -> OpKind {
         "convert" => Convert,
         "tex_state_store" => TexStateStore { ts: fget(f, "TS").unwrap_or(0) as u32 },
         "sampler_state_store" => SampStateStore { ss: fget(f, "SS").unwrap_or(0) as u32 },
-        "texture_load" => TexLoad { args: Box::new(tex_op(ops)) },
-        "texture_sample" => TexSample { args: Box::new(tex_op(ops)) },
-        "image_write" => ImageWrite { args: Box::new(tex_op(ops)) },
+        "texture_load" => TexLoad { args: Box::new(tex_op(ops, fget(f, "St") == Some(1))) },
+        "texture_sample" => TexSample { args: Box::new(tex_op(ops, fget(f, "St") == Some(1))) },
+        "image_write" => ImageWrite { args: Box::new(tex_op(ops, false)) },
         n if n.starts_with("quad_shuffle") => QuadShuffle,
         n if (n.starts_with("simd_") || n.starts_with("quad_")) && !n.starts_with("simd_shuffle") && !n.starts_with("simd_matrix") => CrossLane,
         _ => Generic,
@@ -1524,8 +1530,8 @@ fn resolve_desc(mem: &mut Memory, g: &Group, args: &TexOp, lane: usize) -> Resul
         return Err("texture op has neither slot nor bindless base".into());
     };
     let desc = crate::texture::decode_texdesc(&bytes)?;
-    if desc.dim != 2 {
-        return Err(format!("only 2D textures modelled, got dim {}", desc.dim));
+    if desc.dim != 0 && desc.dim != 2 {
+        return Err(format!("only 1D and 2D textures modelled, got dim {}", desc.dim));
     }
     Ok(desc)
 }
@@ -1534,13 +1540,6 @@ fn texel_format(desc: &crate::texture::TexDesc) -> Result<(usize, u32), String> 
     crate::texture::tex_format(desc.channels, desc.type_)
 }
 
-fn wrap_mode(samp: &crate::texture::SampDesc, dim: usize) -> Result<u32, String> {
-    let w = samp.wrap[dim];
-    if w > 2 {
-        return Err(format!("wrap mode {} (border) not modelled", w));
-    }
-    Ok(w)
-}
 
 /// Base address and byte offset of a tex/sampler_state_store: B (bits 58..63) holds the
 /// offset-is-immediate flag in bit 58 and U = heap uniform (16-bit halves) >> 2 in bits 59..62
@@ -1624,7 +1623,7 @@ fn tex_load(g: &mut Group, mem: &mut Memory, f: &Fields, args: &TexOp) -> Result
 /// holds the sampler heap index for the normal path, or the clamp_0 override: negative means no
 /// custom border, i.e. the descriptor's own sampler (hk_nir_lower_descriptors lower_tex). With a
 /// single populated sampler slot that is unambiguous; anything else needs the sampler heap.
-fn resolve_sampler(mem: &mut Memory, g: &Group, args: &TexOp) -> Result<crate::texture::SampDesc, String> {
+fn resolve_sampler(mem: &mut Memory, g: &Group, args: &TexOp, lane: usize) -> Result<crate::texture::SampDesc, String> {
     if let Some(ss) = args.ss {
         let b = mem
             .samp_state
@@ -1633,9 +1632,8 @@ fn resolve_sampler(mem: &mut Memory, g: &Group, args: &TexOp) -> Result<crate::t
         return crate::texture::decode_sampler(b);
     }
     let (half, r) = args.sreg.ok_or_else(|| "texture_sample without sampler slot or register".to_string())?;
-    // first active lane; the register holds one value per dispatch in practice
-    let t = (0..32).find(|&t| g.st.exec[t]).unwrap_or(0);
-    let raw = if half { g.st.get_reg16(r as usize, t)? } else { g.st.get_reg32(r as usize, t)? };
+    // each lane's own index (bindless samplers may differ between lanes)
+    let raw = if half { g.st.get_reg16(r as usize, lane)? } else { g.st.get_reg32(r as usize, lane)? };
     let v = (raw as u16) as i16 as i64;
     if v < 0 {
         // clamp_0 override: -1 means no custom border, i.e. the descriptor's own sampler.
@@ -1647,8 +1645,15 @@ fn resolve_sampler(mem: &mut Memory, g: &Group, args: &TexOp) -> Result<crate::t
         }
         return Err(format!("register sampler index -1 but {} sampler slots populated", mem.samp_state.len()));
     }
-    // non-negative: a sampler-heap index. The simulator does not model the device heap.
-    Err(format!("register sampler index {} requires the device sampler heap (not modelled)", v))
+    // non-negative: an index into the command's sampler heap
+    let Some((heap, count)) = mem.sampler_heap else {
+        return Err(format!("register sampler index {} but the command has no sampler heap", v));
+    };
+    if v as u64 >= count as u64 {
+        return Err(format!("sampler index {} outside the sampler heap of {}", v, count));
+    }
+    let b = mem.read_bytes(heap + 8 * v as u64, 8)?;
+    crate::texture::decode_sampler(&b)
 }
 
 fn tex_sample(g: &mut Group, mem: &mut Memory, f: &Fields, args: &TexOp) -> Result<(), String> {
@@ -1657,19 +1662,22 @@ fn tex_sample(g: &mut Group, mem: &mut Memory, f: &Fields, args: &TexOp) -> Resu
     if q3 != 0b1100 {
         return Err(format!("texture_sample q3 {:#b} not modelled", q3));
     }
-    let samp = resolve_sampler(mem, g, args)?;
     if args.dest.len() < 4 {
         return Err("texture_sample needs a vec4 destination".into());
     }
-    if args.coords.len() < 2 {
-        return Err("texture_sample needs xy coordinates".into());
-    }
-    if samp.min_filter > 1 || samp.mag_filter > 1 {
-        return Err("only nearest/linear filtering modelled".into());
+    if args.coords.is_empty() {
+        return Err("texture_sample needs coordinates".into());
     }
     for t in 0..32 {
         if !g.st.exec[t] {
             continue;
+        }
+        let samp = resolve_sampler(mem, g, args, t)?;
+        if samp.compare {
+            return Err("depth compare not modelled".into());
+        }
+        if samp.min_filter > 1 || samp.mag_filter > 1 {
+            return Err("only nearest/linear filtering modelled".into());
         }
         let desc = resolve_desc(mem, g, args, t)?;
         if desc.first_level != 0 || desc.last_level != 0 {
@@ -1679,36 +1687,58 @@ fn tex_sample(g: &mut Group, mem: &mut Memory, f: &Fields, args: &TexOp) -> Resu
         if lod != 0.0 {
             return Err(format!("nonzero LOD {} not modelled", lod));
         }
+        let one_d = desc.dim == 0;
+        if one_d && desc.height != 1 {
+            return Err("1D texture with a height".into());
+        }
+        if !one_d && args.coords.len() < 2 {
+            return Err("texture_sample needs xy coordinates".into());
+        }
         let (bpp, _) = texel_format(&desc)?;
         let uf = f32::from_bits(coord_lane(g, &args.coords[0], t)? as u32);
-        let vf = f32::from_bits(coord_lane(g, &args.coords[1], t)? as u32);
-        // texel data: read whole image once per dispatch would be nicer; per-sample range read is fine here
+        // a 1D texture is one row: the centre of it
+        let vf = if one_d {
+            0.5
+        } else {
+            f32::from_bits(coord_lane(g, &args.coords[1], t)? as u32)
+        };
         let w = desc.width as usize;
         let h = desc.height as usize;
         let total = crate::texture::tex_stride(&desc) as usize * h.max(1);
-        let texels = mem.read_bytes(desc.addr, total)?;
-        let out = if samp.min_filter == 0 && samp.mag_filter == 0 {
-            // nearest: floor(u*w), floor(v*h), wrapped
-            let wx = wrap_mode(&samp, 0)?;
-            let wy = wrap_mode(&samp, 1)?;
-            let xi = (uf * w as f32).floor() as i64;
-            let yi = (vf * h as f32).floor() as i64;
-            let ax = crate::texture::apply_wrap(wx, xi as i32, w as i32)
-                .ok_or_else(|| format!("wrap mode {} not modelled", wx))? as i64;
-            let ay = crate::texture::apply_wrap(wy, yi as i32, h as i32)
-                .ok_or_else(|| format!("wrap mode {} not modelled", wy))? as i64;
-            let raw = match crate::texture::texel_off(&desc, bpp, ax, ay) {
-                Some(off) => texels.get(off as usize..off as usize + bpp).unwrap_or(&[][..]).to_vec(),
-                None => vec![0u8; bpp],
+        let texels = mem.read_bytes(desc.addr, total.max(w * bpp))?;
+        let integer = desc.type_ == 2 || desc.type_ == 3;
+        if integer && (samp.min_filter != 0 || samp.mag_filter != 0) {
+            return Err("linear filtering of an integer texture".into());
+        }
+        let words: Vec<u32> = if samp.min_filter == 0 && samp.mag_filter == 0 {
+            // nearest: floor(u*w), floor(v*h) (floor of the texel coordinate when unnormalized), wrapped
+            let (sw, sh) = if samp.pixel { (1.0, 1.0) } else { (w as f32, h as f32) };
+            let xi = (uf * sw).floor() as i32;
+            let yi = (vf * sh).floor() as i32;
+            let ax = crate::texture::wrap_or_border(&samp, samp.wrap[0], xi, w as i32)?;
+            let ay = crate::texture::wrap_or_border(&samp, samp.wrap[1], yi, h as i32)?;
+            let raw = match (ax, ay) {
+                (Some(ax), Some(ay)) => crate::texture::texel_off(&desc, bpp, ax as i64, ay as i64)
+                    .map(|off| texels.get(off as usize..off as usize + bpp).unwrap_or(&[][..]).to_vec()),
+                _ => None,
             };
-            let mut rawb = raw;
-            rawb.resize(bpp, 0);
-            let v = crate::texture::texel_float(&rawb, desc.channels, desc.type_, desc.srgb)?;
-            crate::texture::apply_swizzle(v, desc.swizzle)
+            match raw {
+                // the border colour (transparent black), not swizzled
+                None => vec![0; 4],
+                Some(mut raw) => {
+                    raw.resize(bpp, 0);
+                    if integer {
+                        let v = crate::texture::texel_int(&raw, desc.channels, desc.type_)?;
+                        crate::texture::apply_swizzle_u32(v, desc.swizzle).to_vec()
+                    } else {
+                        let v = crate::texture::texel_float(&raw, desc.channels, desc.type_, desc.srgb)?;
+                        crate::texture::apply_swizzle(v, desc.swizzle).iter().map(|v| v.to_bits()).collect()
+                    }
+                }
+            }
         } else {
-            crate::texture::sample_linear(&desc, &samp, &texels, bpp, uf, vf)?
+            crate::texture::sample_linear(&desc, &samp, &texels, bpp, uf, vf)?.iter().map(|v| v.to_bits()).collect()
         };
-        let words: Vec<u32> = out.iter().map(|v| v.to_bits()).collect();
         dest_write(g, &args.dest, t, &words)?;
     }
     Ok(())
@@ -1892,6 +1922,120 @@ fn vals(ops: &[Operand]) -> Vec<Operand> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // Bindless texture_sample as the LLVM AGX backend emits it (llvm.agx.texture.sample): channels to
+    // r7_r8_r9_r10, descriptor at u0_u1 + r4, register sampler r3l (heap index), coordinates r5 (1D) or r5_r6.
+    fn sample_kernel(dim2: bool, x: f32, y: f32, offset: u32, sampler: u32) -> Vec<u8> {
+        use crate::kernels::{e, get_sr, mov, store};
+        let sample = [0x31, 0x1d, 0x0a, 0x00, 0xc8, if dim2 { 0x62 } else { 0x60 }, 0x0f, 0x46];
+        [get_sr(80, 1), mov(4, offset), mov(3, sampler), mov(5, x.to_bits()), mov(6, y.to_bits()), sample.to_vec(),
+         e("wait 0"), store(7, 8, 1), store(8, 10, 1), store(9, 12, 1), store(10, 14, 1), e("wait 0"), e("stop")]
+            .concat()
+    }
+
+    fn put(b: &mut [u8], start: u32, size: u32, v: u64) {
+        for i in 0..size {
+            if (v >> i) & 1 != 0 {
+                b[((start + i) / 8) as usize] |= 1 << ((start + i) % 8);
+            }
+        }
+    }
+
+    /// A linear texture descriptor (Mesa cmdbuf.xml Texture): dimension, channels, type, swizzle, size, address
+    /// and row pitch (written as pitch - 16 >> 4).
+    fn tex_desc(dim: u64, channels: u64, type_: u64, swizzle: [u64; 4], w: u64, h: u64, addr: u64, pitch: u64) -> Vec<u8> {
+        let mut b = vec![0u8; 24];
+        put(&mut b, 0, 4, dim);
+        put(&mut b, 6, 7, channels);
+        put(&mut b, 13, 3, type_);
+        for (i, sw) in swizzle.iter().enumerate() {
+            put(&mut b, 16 + 3 * i as u32, 3, *sw);
+        }
+        put(&mut b, 28, 14, w - 1);
+        put(&mut b, 42, 14, h - 1);
+        put(&mut b, 66, 36, addr >> 4);
+        put(&mut b, 110, 18, (pitch - 16) >> 4);
+        b
+    }
+
+    /// A sampler descriptor (Mesa cmdbuf.xml Sampler): filter (both), wrap (all three), pixel coordinates.
+    fn sampler_desc(filter: u64, wrap: u64, pixel: bool) -> Vec<u8> {
+        let mut b = vec![0u8; 8];
+        put(&mut b, 23, 2, filter);
+        put(&mut b, 25, 2, filter);
+        for i in 0..3 {
+            put(&mut b, 29 + 3 * i, 3, wrap);
+        }
+        put(&mut b, 38, 1, pixel as u64);
+        b
+    }
+
+    const HEAP: u64 = 0x10000;
+    const TEXELS: u64 = 0x20000;
+    const SAMPLERS: u64 = 0x30000;
+    const OUT: u64 = 0x40000;
+
+    /// Runs one sample with the descriptor at HEAP + 48 and the samplers at SAMPLERS; returns lane 0's channels.
+    fn sample(code: Vec<u8>, desc: Vec<u8>, texels: Vec<u8>, samplers: &[Vec<u8>]) -> Result<[u32; 4], String> {
+        let mut uniforms = vec![(0, HEAP as u32), (1, 0)];
+        for c in 0..4u64 {
+            uniforms.extend([(8 + 2 * c as usize, (OUT + 128 * c) as u32), (9 + 2 * c as usize, 0)]);
+        }
+        let d = Dispatch { code, grid: [32, 1, 1], wg: [32, 1, 1], shared_bytes: 0, uniforms, num_registers: 16,
+                           max_steps: 1000, placement: 0, launch: Default::default() };
+        let mut mem = Memory::default();
+        let mut heap = vec![0u8; 48];
+        heap.extend(desc);
+        mem.map(HEAP, heap);
+        mem.map(TEXELS, texels);
+        mem.map(SAMPLERS, samplers.concat());
+        mem.map(OUT, vec![0; 512]);
+        mem.sampler_heap = Some((SAMPLERS, samplers.len() as u32));
+        run(&d, &mut mem)?;
+        let w = mem.words(OUT, 128)?;
+        Ok([w[0], w[32], w[64], w[96]])
+    }
+
+    fn floats(v: &[f32]) -> Vec<u8> {
+        v.iter().flat_map(|x| x.to_le_bytes()).collect()
+    }
+
+    #[test]
+    fn bindless_texture_sample_with_a_sampler_heap() {
+        // 16 x 4 R32F, pitch 64 bytes, swizzle R001; sampler 1: nearest, clamp to edge, normalized
+        let texels = floats(&(0..64).map(|i| i as f32).collect::<Vec<_>>());
+        let desc = tex_desc(2, 0x21, 4, [0, 5, 5, 4], 16, 4, TEXELS, 64);
+        let samplers = [sampler_desc(1, 0, false), sampler_desc(0, 0, false), sampler_desc(0, 3, true)];
+        let f = |x: f32| x.to_bits();
+        // (0.3, 0.6) -> texel (4, 2)
+        let r = sample(sample_kernel(true, 0.3, 0.6, 48, 1), desc.clone(), texels.clone(), &samplers).unwrap();
+        assert_eq!(r, [f(36.0), 0, 0, f(1.0)]);
+        // clamped to the edge
+        let r = sample(sample_kernel(true, 1.7, -0.2, 48, 1), desc.clone(), texels.clone(), &samplers).unwrap();
+        assert_eq!(r[0], f(15.0));
+        // sampler 2: unnormalized coordinates, clamp to border (transparent black)
+        let r = sample(sample_kernel(true, 5.5, 2.2, 48, 2), desc.clone(), texels.clone(), &samplers).unwrap();
+        assert_eq!(r[0], f(37.0));
+        let r = sample(sample_kernel(true, 16.5, 2.2, 48, 2), desc.clone(), texels.clone(), &samplers).unwrap();
+        assert_eq!(r, [0; 4]);
+        // an index past the heap is an error
+        let e = sample(sample_kernel(true, 0.5, 0.5, 48, 3), desc, texels, &samplers).unwrap_err();
+        assert!(e.contains("outside the sampler heap"), "{e}");
+    }
+
+    #[test]
+    fn texture_sample_1d_linear_and_integer_formats() {
+        // 1D R32F of 8 texels, linear: 2.75 / 8 is texel 2.25, weight 0.25
+        let desc = tex_desc(0, 0x21, 4, [0, 5, 5, 4], 8, 1, TEXELS, 32);
+        let texels = floats(&(0..8).map(|i| 10.0 * i as f32).collect::<Vec<_>>());
+        let r = sample(sample_kernel(false, 2.75 / 8.0, 0.0, 48, 0), desc, texels, &[sampler_desc(1, 0, false)]).unwrap();
+        assert_eq!(r, [22.5f32.to_bits(), 0, 0, 1.0f32.to_bits()]);
+        // 2D R8G8 uint, swizzle RG01: integers, the integer 1 for alpha
+        let desc = tex_desc(2, 0x0A, 2, [0, 1, 5, 4], 8, 2, TEXELS, 16);
+        let texels: Vec<u8> = (0..32).collect();
+        let r = sample(sample_kernel(true, 3.5 / 8.0, 0.75, 48, 0), desc, texels, &[sampler_desc(0, 0, false)]).unwrap();
+        assert_eq!(r, [22, 23, 0, 1]);
+    }
 
     fn m2_map_fixture(seed: u32) -> (Dispatch, Memory, Vec<u32>) {
         use crate::kernels::{e, get_sr, store};

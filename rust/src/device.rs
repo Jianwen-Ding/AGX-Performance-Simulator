@@ -14,7 +14,16 @@
 //! [`Policy::Submission`] the earliest submitted runnable one. Within a queue, commands always run in order and see
 //! each other's writes (B32). One buffer object bound in two contexts ([`Device::share`], B36 / B45) is the same
 //! memory at each context's own address.
+//!
+//! Timing ([`Device::timing`], off by default): each command's time alone comes from the dispatch model
+//! ([`crate::dispatch`], on the path the functional run takes), and the commands share the GPU as B43 measured: a
+//! command starts once its queue's previous command and the points it waits for have ended (plus B45's hand-over for
+//! a wait on another queue), runs at full speed while the commands running together need no more than the GPU's
+//! workgroup slots, and otherwise all of them slow down alike, by the slots they need over what the GPU has, less
+//! the throughput interleaving gains ([`Timing::sharing_gain`]); there is no time slicing and no switch cost.
 
+use crate::cost::Params;
+use crate::dispatch;
 use crate::func::{self, Dispatch, Memory};
 
 /// One command: a dispatch, optionally after a preamble whose stored uniforms become the dispatch's.
@@ -67,6 +76,25 @@ impl Policy {
     }
 }
 
+/// The timing model of [`Device::run`].
+#[derive(Clone, Debug)]
+pub struct Timing {
+    pub params: Params,
+    /// The GPU: cores, clock, launch costs (the `grid`, `wg`, `regs`, `tg_bytes` and `uniforms` are each command's).
+    pub launch: dispatch::Launch,
+    /// Combined throughput of commands that together need more workgroup slots than the GPU has, relative to one of
+    /// them alone: two full-GPU 0.84 s kernels took 1.49 s together (B43), 2 x 0.84 / 1.49.
+    pub sharing_gain: f64,
+    /// From the end of a command to the start of a command of another queue that waits for it (B45: ~130 us).
+    pub wait_ns: f64,
+}
+
+impl Timing {
+    pub fn new(params: Params) -> Timing {
+        Timing { params, launch: dispatch::Launch::default(), sharing_gain: 2.0 * 0.84 / 1.49, wait_ns: 130_000.0 }
+    }
+}
+
 /// What happened to one command.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Completion {
@@ -84,6 +112,9 @@ pub struct Completion {
     pub groups: u64,
     /// Why the command failed, if it did.
     pub fault: Option<String>,
+    /// With [`Device::timing`]: when it started and ended, in nanoseconds (a faulted command takes no time); None for a
+    /// command the dispatch model cannot cost (counted as taking no time).
+    pub time_ns: Option<(u64, u64)>,
 }
 
 #[derive(Debug, Default)]
@@ -93,6 +124,7 @@ pub struct Device {
     /// (context, queue) of each submitted command, in submission order.
     submitted: Vec<(usize, usize)>,
     pub shares: Vec<Share>,
+    pub timing: Option<Timing>,
 }
 
 impl Device {
@@ -194,11 +226,92 @@ impl Device {
         order
     }
 
+    /// The time of `d` alone on the GPU in nanoseconds, and the fraction of the GPU's workgroup slots it fills.
+    fn time_alone(t: &Timing, d: &Dispatch, mem: &Memory) -> Result<(f64, f64), String> {
+        let mut l = t.launch.clone();
+        (l.grid, l.wg, l.tg_bytes, l.uniforms) = (d.grid, d.wg, d.shared_bytes, d.uniforms.clone());
+        if d.launch.regs != 0 {
+            l.regs = d.launch.regs;
+        }
+        let prepared = func::PreparedDispatch::new(d)?;
+        let tracer = |wg: [u32; 3]| prepared.trace_workgroup(mem, wg);
+        let r = dispatch::simulate_with(&d.code, &l, &t.params, Some(&tracer))?;
+        let slots = l.cores as f64 * r.wgs_per_core.max(1) as f64;
+        Ok((r.time_ns, (r.workgroups as f64 / slots).min(1.0)))
+    }
+
+    /// Start and end of each command of `order` (B43's sharing, see the module documentation), given its time alone
+    /// and slot fraction.
+    fn overlap(&self, t: &Timing, order: &[(usize, usize, usize)], alone: &[(f64, f64)]) -> Vec<(f64, f64)> {
+        let index: std::collections::HashMap<(usize, usize, usize), usize> =
+            order.iter().enumerate().map(|(n, &k)| (k, n)).collect();
+        // what each command waits for: the previous command of its queue (no hand-over) and its wait points
+        let deps: Vec<Vec<(usize, f64)>> = order
+            .iter()
+            .map(|&(c, q, i)| {
+                let mut v = Vec::new();
+                if i > 0 {
+                    v.extend(index.get(&(c, q, i - 1)).map(|&n| (n, 0.0)));
+                }
+                for &(wc, wq, p) in &self.contexts[c].queues[q][i].wait_for {
+                    if p >= 1 {
+                        let hand_over = if (wc, wq) == (c, q) { 0.0 } else { t.wait_ns };
+                        v.extend(index.get(&(wc, wq, p as usize - 1)).map(|&n| (n, hand_over)));
+                    }
+                }
+                v
+            })
+            .collect();
+        let n = order.len();
+        let (mut start, mut end) = (vec![f64::NAN; n], vec![f64::NAN; n]);
+        let mut left: Vec<f64> = alone.iter().map(|a| a.0).collect();
+        let mut running: Vec<usize> = Vec::new();
+        let mut now = 0.0f64;
+        loop {
+            // commands whose dependencies have all ended: their release times
+            let release = |k: usize| -> Option<f64> {
+                deps[k].iter().try_fold(0.0f64, |r, &(d, h)| (!end[d].is_nan()).then(|| r.max(end[d] + h)))
+            };
+            for k in 0..n {
+                if start[k].is_nan() && release(k).is_some_and(|r| r <= now) {
+                    start[k] = now;
+                    running.push(k);
+                }
+            }
+            let need: f64 = running.iter().map(|&k| alone[k].1).sum();
+            let speed = if need <= 1.0 { 1.0 } else { (t.sharing_gain / need).min(1.0) };
+            let finish = running.iter().map(|&k| now + left[k] / speed).fold(f64::INFINITY, f64::min);
+            let next_release = (0..n)
+                .filter(|&k| start[k].is_nan())
+                .filter_map(release)
+                .filter(|&r| r > now)
+                .fold(f64::INFINITY, f64::min);
+            let next = finish.min(next_release);
+            if !next.is_finite() {
+                break;
+            }
+            for &k in &running {
+                left[k] -= (next - now) * speed;
+            }
+            now = next;
+            running.retain(|&k| {
+                let done = left[k] <= 1e-9 * alone[k].0.max(1.0);
+                if done {
+                    end[k] = now;
+                }
+                !done
+            });
+        }
+        start.into_iter().zip(end).map(|(s, e)| (if s.is_nan() { 0.0 } else { s }, if e.is_nan() { 0.0 } else { e })).collect()
+    }
+
     /// Runs every queued command and empties the queues.
     pub fn run(&mut self) -> Vec<Completion> {
         let order = self.schedule();
         let mut clock = 0u64;
         let mut out = Vec::with_capacity(order.len());
+        // per command run: (time alone, slot fraction), for the timing model
+        let mut alone = Vec::with_capacity(order.len());
         for (n, &(c, q, i)) in order.iter().enumerate() {
             let ctx = &mut self.contexts[c];
             let cmd = &ctx.queues[q][i];
@@ -206,10 +319,15 @@ impl Device {
             if d.launch.context.is_none() {
                 d.launch.context = ctx.vm_slot;
             }
+            let mut cost = None;
             let r = (|| {
                 if let Some(p) = &cmd.preamble {
                     d.uniforms = func::run_preamble(p, &d.uniforms, &mut ctx.memory, d.num_registers)
                         .map_err(|e| format!("preamble: {e}"))?;
+                }
+                // the timing does not change what runs: a command the dispatch model cannot cost has no time
+                if let Some(t) = &self.timing {
+                    cost = Some(Self::time_alone(t, &d, &ctx.memory));
                 }
                 func::run(&d, &mut ctx.memory)
             })();
@@ -223,6 +341,7 @@ impl Device {
                 instructions: 0,
                 groups: 0,
                 fault: None,
+                time_ns: None,
             };
             match r {
                 Ok(st) => {
@@ -237,7 +356,15 @@ impl Device {
             if let Err(e) = self.propagate(c) {
                 done.fault.get_or_insert(format!("shared object: {e}"));
             }
+            let costed = done.fault.is_some() || matches!(cost, Some(Ok(_)));
+            alone.push((if done.fault.is_some() { None } else { cost.and_then(Result::ok) }, costed));
             out.push(done);
+        }
+        if let Some(t) = &self.timing {
+            let times = self.overlap(t, &order, &alone.iter().map(|a| a.0.unwrap_or_default()).collect::<Vec<_>>());
+            for ((done, time), &(_, costed)) in out.iter_mut().zip(times).zip(&alone) {
+                done.time_ns = costed.then(|| (time.0.round() as u64, time.1.round() as u64));
+            }
         }
         // commands whose waits were never met did not run: report them as faults (fence never signalled)
         for (c, ctx) in self.contexts.iter().enumerate() {
@@ -254,6 +381,7 @@ impl Device {
                             instructions: 0,
                             groups: 0,
                             fault: Some("not run: waits for a point that is never signalled".into()),
+                            time_ns: None,
                         });
                     }
                 }
@@ -427,5 +555,78 @@ mod tests {
         }
         let ran: Vec<(usize, usize, u64)> = dev.run().iter().map(|d| (d.context, d.queue, d.point)).collect();
         assert_eq!(ran, [(b, 0, 1), (a, 0, 1), (a, q, 1), (a, 0, 2)]);
+    }
+
+    fn timing() -> Timing {
+        Timing::new(Params::new().unwrap())
+    }
+
+    // the overlap model on given times alone (ns) and slot fractions, for commands submitted as (context, queue)
+    fn overlap(dev: &mut Device, cmds: &[(usize, usize, Vec<(usize, usize, u64)>)], alone: &[(f64, f64)]) -> Vec<(f64, f64)> {
+        for (c, q, w) in cmds {
+            let mut cmd = store_value(1, BUF);
+            cmd.wait_for = w.clone();
+            dev.submit(*c, *q, cmd);
+        }
+        let order = dev.schedule();
+        let alone: Vec<(f64, f64)> = order
+            .iter()
+            .map(|k| alone[cmds.iter().enumerate().filter(|(_, x)| (x.0, x.1) == (k.0, k.1)).nth(k.2).unwrap().0])
+            .collect();
+        let times = dev.overlap(&timing(), &order, &alone);
+        let mut by_cmd = vec![(0.0, 0.0); cmds.len()];
+        for (k, t) in order.iter().zip(times) {
+            by_cmd[cmds.iter().enumerate().filter(|(_, x)| (x.0, x.1) == (k.0, k.1)).nth(k.2).unwrap().0] = t;
+        }
+        by_cmd
+    }
+
+    #[test]
+    fn full_gpu_commands_of_two_contexts_share_it_as_measured() {
+        // B43: two full-GPU 0.84 s kernels started together both take 1.49 s and end together
+        let mut dev = Device::new(Policy::RoundRobin);
+        let (a, b) = (dev.create_context(memory(), None), dev.create_context(memory(), None));
+        let t = overlap(&mut dev, &[(a, 0, vec![]), (b, 0, vec![])], &[(0.84e9, 1.0), (0.84e9, 1.0)]);
+        for (s, e) in t {
+            assert_eq!(s, 0.0);
+            assert!((e - 1.49e9).abs() < 1e3, "{e}");
+        }
+    }
+
+    #[test]
+    fn a_small_command_beside_another_is_not_slowed_down() {
+        let mut dev = Device::new(Policy::RoundRobin);
+        let (a, b) = (dev.create_context(memory(), None), dev.create_context(memory(), None));
+        let t = overlap(&mut dev, &[(a, 0, vec![]), (b, 0, vec![])], &[(1e6, 0.5), (2e5, 0.25)]);
+        assert_eq!(t, [(0.0, 1e6), (0.0, 2e5)]);
+    }
+
+    #[test]
+    fn a_queue_runs_its_commands_one_after_another_and_a_wait_costs_the_hand_over() {
+        let mut dev = Device::new(Policy::RoundRobin);
+        let (a, b) = (dev.create_context(memory(), None), dev.create_context(memory(), None));
+        let t = overlap(&mut dev, &[(a, 0, vec![]), (a, 0, vec![]), (b, 0, vec![(a, 0, 1)])], &[(1e6, 1.0), (1e6, 1.0), (1e6, 0.5)]);
+        assert_eq!(t[0], (0.0, 1e6));
+        assert_eq!(t[1].0, 1e6, "the second command of a's queue starts when the first ends");
+        assert_eq!(t[2].0, 1e6 + 130_000.0, "b starts a hand-over after the point it waits for");
+        assert!(t[1].1 > 2e6, "the two overlap and share the GPU");
+    }
+
+    #[test]
+    fn timed_commands_get_the_dispatch_model_time() {
+        let mut dev = Device::new(Policy::RoundRobin);
+        dev.timing = Some(timing());
+        let a = dev.create_context(memory(), None);
+        let b = dev.create_context(memory(), None);
+        dev.submit(a, 0, store_value(1, BUF));
+        dev.submit(b, 0, store_value(2, BUF));
+        dev.submit(a, 0, store_value(3, 0x20000));
+        let done = dev.run();
+        let (s0, e0) = done[0].time_ns.unwrap();
+        assert!(e0 > s0 && s0 == 0, "{done:?}");
+        assert_eq!(done[1].time_ns.unwrap().0, 0, "the other context's command runs at the same time");
+        assert!(done[2].fault.is_some());
+        let (s2, e2) = done[2].time_ns.unwrap();
+        assert_eq!((s2, e2), (e0, e0), "a faulted command takes no time");
     }
 }

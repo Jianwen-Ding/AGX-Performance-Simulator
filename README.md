@@ -144,7 +144,10 @@ on. On the hardware, commands of different VMs run concurrently with their workg
 them except a syncobj wait (`tasks/ptx-re-blockers.md` B43, B45); here a command's `wait_for` points give that order,
 and among runnable commands a policy picks one (`round-robin`, default, or `submission`): for any program that
 synchronizes, this is one of the hardware's outcomes. `share` binds one context's bytes in another at its own address
-(one buffer object in two VMs, B36 / B45).
+(one buffer object in two VMs, B36 / B45). `--timing` gives each command a start and end in nanoseconds: its time
+alone from the dispatch model, with the commands that run at once sharing the GPU as B43 measured (full speed while
+they need no more workgroup slots than the GPU has, otherwise all slowed alike, two full-GPU kernels taking 1.77 times
+as long; no time slicing or switch cost) and B45's ~130 us hand-over after a wait on another queue.
 
 Checked mode and fault replay: kernels built with the LLVM backend's `agx-checked` feature (ZLUDA's `zoc
 --agx-checked`) run on `agx_run` like any other once their hidden arguments are passed as uniforms;

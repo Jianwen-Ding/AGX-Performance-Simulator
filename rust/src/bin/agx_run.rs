@@ -2,7 +2,7 @@
 //!
 //! agx_run MAIN.bin --grid X[,Y,Z] --wg x[,y,z] [--preamble PRE.bin] [--shared BYTES] [--regs N]
 //!         [--uniform I=V ...] [--map VA=FILE ...] [--alloc VA=BYTES ...] [--dump VA=BYTES:FILE ...] [--max-steps N]
-//!         [--alloc-regs N] [--vm-slot N] [--pipeline OFFSET]
+//!         [--alloc-regs N] [--vm-slot N] [--pipeline OFFSET] [--sampler-heap VA=COUNT]
 //!
 //! Memory regions are mapped at the given virtual addresses (hex with 0x, or decimal): --map from a file's bytes,
 //! --alloc zero-filled. --uniform sets 32-bit uniform registers (u0_u1 = 0,1 for the root-table pointer of a Mesa
@@ -10,6 +10,8 @@
 //! main shader's uniforms. --dump writes a region back after the run. Prints one JSON line (instructions, groups,
 //! uniforms after the preamble). --alloc-regs / --vm-slot / --pipeline give what get_sr SR19 (register allocation, 16-bit
 //! registers), SR21 (VM slot) and SR32 (USC offset of the pipeline words) read; without them those reads are errors.
+//! --sampler-heap is the command's sampler heap (drm_asahi_cmd_compute sampler_heap / sampler_count): COUNT 8-byte
+//! sampler descriptors at VA, which a texture_sample's register sampler index selects.
 //! --m2-core-map FILE supplies a JSON array of packed M2 Max SR20 IDs, one per linear workgroup.
 //! It replays supplied placement, leaving SR17 slots and default placement unchanged when omitted.
 //! --lines OBJ.o reads the DWARF line table of the AGX object the code is the .text of (llc output with debug
@@ -58,6 +60,10 @@ fn main() {
             "--regs" => regs = num(&v) as usize,
             "--max-steps" => max_steps = num(&v),
             "--alloc-regs" => launch.regs = num(&v) as u32,
+            "--sampler-heap" => {
+                let (va, count) = v.split_once('=').unwrap_or_else(|| die("--sampler-heap expects VA=COUNT"));
+                mem.sampler_heap = Some((num(va), num(count) as u32));
+            }
             "--vm-slot" => launch.context = Some(num(&v) as u32),
             "--pipeline" => launch.pipeline = Some(num(&v) as u32),
             "--agx-strict" => agx_sim::isa::mesa::set_mode(Some(agx_sim::isa::mesa::MesaGen::parse(&v).unwrap_or_else(|e| die(&e)))),
