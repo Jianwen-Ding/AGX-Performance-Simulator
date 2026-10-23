@@ -1619,6 +1619,9 @@ fn tex_load(g: &mut Group, mem: &mut Memory, f: &Fields, args: &TexOp) -> Result
     Ok(())
 }
 
+/// Register sampler indices from this one on select the command's sampler heap.
+const SAMPLER_HEAP_BASE: i64 = 28;
+
 /// Resolve the sampler for a texture_sample: state slot (ss#), or the register form. A register
 /// holds the sampler heap index for the normal path, or the clamp_0 override: negative means no
 /// custom border, i.e. the descriptor's own sampler (hk_nir_lower_descriptors lower_tex). With a
@@ -1645,9 +1648,19 @@ fn resolve_sampler(mem: &mut Memory, g: &Group, args: &TexOp, lane: usize) -> Re
         }
         return Err(format!("register sampler index -1 but {} sampler slots populated", mem.samp_state.len()));
     }
-    // non-negative: an index into the command's sampler heap
+    // below 28: a sampler state slot; from 28 on: entry v - 28 of the command's sampler heap (Mesa's Honeykrisp
+    // stores heap index + 28, hk_descriptor_set.c; on the M2 Max a texture_sample with heap index 0 as its sampler
+    // reads zeros, with 28 the texels: ZLUDA agx_texture_check, 2026-10-23)
+    if v < SAMPLER_HEAP_BASE {
+        let b = mem
+            .samp_state
+            .get(&(v as u32))
+            .ok_or_else(|| format!("register sampler index {} is sampler state slot {}, not written (heap samplers are {} + index)", v, v, SAMPLER_HEAP_BASE))?;
+        return crate::texture::decode_sampler(b);
+    }
+    let v = v - SAMPLER_HEAP_BASE;
     let Some((heap, count)) = mem.sampler_heap else {
-        return Err(format!("register sampler index {} but the command has no sampler heap", v));
+        return Err(format!("register sampler heap index {} but the command has no sampler heap", v));
     };
     if v as u64 >= count as u64 {
         return Err(format!("sampler index {} outside the sampler heap of {}", v, count));
@@ -2008,19 +2021,23 @@ mod tests {
         let samplers = [sampler_desc(1, 0, false), sampler_desc(0, 0, false), sampler_desc(0, 3, true)];
         let f = |x: f32| x.to_bits();
         // (0.3, 0.6) -> texel (4, 2)
-        let r = sample(sample_kernel(true, 0.3, 0.6, 48, 1), desc.clone(), texels.clone(), &samplers).unwrap();
+        // heap samplers are 28 + their index
+        let r = sample(sample_kernel(true, 0.3, 0.6, 48, 29), desc.clone(), texels.clone(), &samplers).unwrap();
         assert_eq!(r, [f(36.0), 0, 0, f(1.0)]);
         // clamped to the edge
-        let r = sample(sample_kernel(true, 1.7, -0.2, 48, 1), desc.clone(), texels.clone(), &samplers).unwrap();
+        let r = sample(sample_kernel(true, 1.7, -0.2, 48, 29), desc.clone(), texels.clone(), &samplers).unwrap();
         assert_eq!(r[0], f(15.0));
         // sampler 2: unnormalized coordinates, clamp to border (transparent black)
-        let r = sample(sample_kernel(true, 5.5, 2.2, 48, 2), desc.clone(), texels.clone(), &samplers).unwrap();
+        let r = sample(sample_kernel(true, 5.5, 2.2, 48, 30), desc.clone(), texels.clone(), &samplers).unwrap();
         assert_eq!(r[0], f(37.0));
-        let r = sample(sample_kernel(true, 16.5, 2.2, 48, 2), desc.clone(), texels.clone(), &samplers).unwrap();
+        let r = sample(sample_kernel(true, 16.5, 2.2, 48, 30), desc.clone(), texels.clone(), &samplers).unwrap();
         assert_eq!(r, [0; 4]);
         // an index past the heap is an error
-        let e = sample(sample_kernel(true, 0.5, 0.5, 48, 3), desc, texels, &samplers).unwrap_err();
+        let e = sample(sample_kernel(true, 0.5, 0.5, 48, 31), desc.clone(), texels.clone(), &samplers).unwrap_err();
         assert!(e.contains("outside the sampler heap"), "{e}");
+        // a heap index used as such (1) is sampler state slot 1, which nothing wrote
+        let e = sample(sample_kernel(true, 0.5, 0.5, 48, 1), desc, texels, &samplers).unwrap_err();
+        assert!(e.contains("state slot 1"), "{e}");
     }
 
     #[test]
@@ -2028,12 +2045,12 @@ mod tests {
         // 1D R32F of 8 texels, linear: 2.75 / 8 is texel 2.25, weight 0.25
         let desc = tex_desc(0, 0x21, 4, [0, 5, 5, 4], 8, 1, TEXELS, 32);
         let texels = floats(&(0..8).map(|i| 10.0 * i as f32).collect::<Vec<_>>());
-        let r = sample(sample_kernel(false, 2.75 / 8.0, 0.0, 48, 0), desc, texels, &[sampler_desc(1, 0, false)]).unwrap();
+        let r = sample(sample_kernel(false, 2.75 / 8.0, 0.0, 48, 28), desc, texels, &[sampler_desc(1, 0, false)]).unwrap();
         assert_eq!(r, [22.5f32.to_bits(), 0, 0, 1.0f32.to_bits()]);
         // 2D R8G8 uint, swizzle RG01: integers, the integer 1 for alpha
         let desc = tex_desc(2, 0x0A, 2, [0, 1, 5, 4], 8, 2, TEXELS, 16);
         let texels: Vec<u8> = (0..32).collect();
-        let r = sample(sample_kernel(true, 3.5 / 8.0, 0.75, 48, 0), desc, texels, &[sampler_desc(0, 0, false)]).unwrap();
+        let r = sample(sample_kernel(true, 3.5 / 8.0, 0.75, 48, 28), desc, texels, &[sampler_desc(0, 0, false)]).unwrap();
         assert_eq!(r, [22, 23, 0, 1]);
     }
 
