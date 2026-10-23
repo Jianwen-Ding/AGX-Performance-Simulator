@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Compile LLVM's opt-in leaf-call fixture and replay its code in AGXsim."""
+"""Compile LLVM's opt-in call fixtures and replay their code in AGXsim."""
 
 import json
 import os
@@ -15,6 +15,7 @@ SCALAR_SOURCE = ROOT.parent / 'llvm-project/llvm/test/CodeGen/AGX/experimental-l
 AGGREGATE_SOURCE = ROOT.parent / 'llvm-project/llvm/test/CodeGen/AGX/experimental-call-aggregate.ll'
 MASKED_SOURCE = ROOT.parent / 'llvm-project/llvm/test/CodeGen/AGX/experimental-call-masked.ll'
 FRAMES_SOURCE = ROOT.parent / 'llvm-project/llvm/test/CodeGen/AGX/experimental-call-frames.ll'
+NESTED_SOURCE = ROOT.parent / 'llvm-project/llvm/test/CodeGen/AGX/experimental-nested-call.ll'
 LLC = os.environ.get('LLVM_LLC', 'llc')
 OBJCOPY = os.environ.get('LLVM_OBJCOPY', 'llvm-objcopy')
 AGX_RUN = os.environ.get('AGX_RUN', str(ROOT / 'rust/target/release/agx_run'))
@@ -100,4 +101,21 @@ with tempfile.TemporaryDirectory() as directory:
     actual = json.loads(result.stdout)
     assert actual['groups'] == 1 and actual['instructions'] > 10, actual
     assert frames_dump.read_bytes() == struct.pack('<II', 42, 127), frames_dump.read_bytes().hex()
-    print('LLVM calls, aggregates, masked control and separate simulator frames: pass')
+
+    nested_obj = work / 'nested.o'
+    nested_code = work / 'nested.bin'
+    nested_dump = work / 'nested-dump.bin'
+    subprocess.run([LLC, '-mtriple=agx', '-mcpu=agx-g14c',
+                    '-agx-experimental-leaf-calls', '-verify-machineinstrs',
+                    '-filetype=obj', str(NESTED_SOURCE), '-o', str(nested_obj)],
+                   check=True)
+    subprocess.run([OBJCOPY, '--dump-section', f'.text={nested_code}',
+                    str(nested_obj), str(work / 'nested-copy.o')], check=True)
+    result = subprocess.run([AGX_RUN, str(nested_code), '--grid', '1,1,1',
+                             '--wg', '32,1,1', '--alloc', '8192=4096',
+                             '--dump', f'8192=4:{nested_dump}', '--max-steps', '1000'],
+                            check=True, capture_output=True, text=True, env=env)
+    actual = json.loads(result.stdout)
+    assert actual['groups'] == 1 and actual['instructions'] > 10, actual
+    assert nested_dump.read_bytes() == struct.pack('<I', 13), nested_dump.read_bytes().hex()
+    print('LLVM calls, aggregates, masked control, nested links and separate simulator frames: pass')
