@@ -208,3 +208,24 @@ kernels get `branch_forward_sched_cached_real` (0; `AGX_BR_FWD_CACHED` to experi
 179 us (+13..+50%), after 39 / 57 / 77 / 103 us at 1520..4096 (-14..-20%). verify-dispatch: median error 0.054 ->
 0.048, p90 0.135 -> 0.092, max 0.686 -> 0.215; verify-cost-model output identical; mem_check and tgcheck unchanged.
 Open: at 1-2 workgroups per core the simulator is ~44% fast on particle (latency of its loads past L1).
+
+## Geekbench GEMM B-tile transpose (2026-10-23)
+
+ZLUDA's guarded specialization of the exact `gemm_block_size_bias` PTX template rearranges B in its 8 KiB
+threadgroup allocation so a pair of `xy` loads replaces four scalar loads per inner iteration. The transform is
+limited to a 32×4 block and a full-template fingerprint after masking two dimension constants. The capture
+`/scratch/geekbench-extract/captures/run13/84200-cap999-gemm_block_size_bias` (grid 1×18, scalar parameters
+576, 32, 192)
+replayed with all four output-region hashes identical. `capvariant.py` with 200 back-to-back launches measured
+33.0 µs for baseline code and 30.8 µs for the transformed PTX compiled by `zoc` (-6.7%). An assembly form that
+combines four B reads into one `xyzw` load measured 29.5 µs (-10.6%) on that same capture; it is not shipped.
+
+For Geekbench's dominant M=2304, N=64, K=576 shape, `agx_bench_kernel` timed the original and transformed PTX
+objects at 103.6 and 100.1 µs firmware median (-3.4%), with the same output hash. The functional simulator also
+matched all 589,824 output bytes on deterministic nonzero inputs. The performance simulator predicted
+149.8 → 131.2 µs (-12.4%) for this shape, substantially overestimating both the absolute cost and the gain.
+Alternating warm ZLUDA driver runs with `ZLUDA_AGX_GEMM_TILE=0`/`1`, after both variants were cached, measured
+99.08/95.54/99.13/95.46 µs, again with identical output hashes. The first two cold-cache runs timed the generic
+code (~220 µs) before background specialization completed and are excluded from this comparison.
+The model was not retuned to these two points: its known threadgroup-load occupancy and run-length gaps above
+remain the likely explanation. Treat this as a measured accuracy gap when evaluating further GEMM variants.
