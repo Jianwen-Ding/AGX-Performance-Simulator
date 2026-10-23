@@ -368,15 +368,16 @@ Branch `claude/bold-davinci-46xi9q` of Jianwen-Ding/ZLUDA and Jianwen-Ding/llvm-
 
   The default LLVM AGX path still inlines every function, turns indirect calls into a test against each
   address-taken function, and lowers recursion to an explicit state machine. An opt-in
-  `-agx-experimental-leaf-calls` path now emits direct calls for single-block leaves with zero or one i32 argument
-  and zero or one i32 result, called from a kernel entry block. `make verify-llvm-leaf-call` compiles
-  two IR fixtures and checks the balanced mask reserve, call/return/reconvergence, scalar result,
-  caller spill/reload and final stores in the simulator. The call clobber mask protects values live
-  across it, and AGXInsertWaits drains pending loads before the call. It still lacks a general ABI
-  and separate per-function stack frames; non-kernel spill frames are rejected under the option.
-  It is not enabled for ZLUDA benchmarks. The Blender
-  Cycles LLVM IR has no one-i32-argument function definition, so this experiment cannot shorten
-  that module's compile by itself (playground `results/2026-10-23-blender-llvm-call-profile`).
+  `-agx-experimental-leaf-calls` now keeps eligible leaf functions uninlined and passes up to 28
+  legalized 32-bit argument slots in r2..r29, including i64 and array pieces. Returns use the same
+  window. Calls may occur under a partial execution mask; balanced reserve/pop and a scheduling
+  boundary keep `pop_exec` immediately after return, including after register allocation. Kernel
+  and leaf spill frames occupy separate bounded 4 KiB regions of one scratch allocation; non-nested
+  leaf calls only. `make verify-llvm-leaf-call` compiles five fixtures and checks the result against
+  the simulator, including 32 divergent lanes and caller/callee spills. This is offline functional
+  evidence, not hardware validation or calibrated call timing. Nested/indirect calls, unbounded
+  frames and final benchmark use remain open. The Cycles IR call-shape and compile probes are in
+  playground `results/2026-10-23-blender-llvm-call-profile`.
 - **Known:** unsafe-01 measured uniform, full-32-lane direct, register-indirect and software-saved-link nested calls.
   Return targets are shader-buffer-relative and the continuation is `pop_exec r0l, 2`.
 - **Open (unsafe-01 items 2-6):** what code generation needs before it can emit calls:

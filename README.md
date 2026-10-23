@@ -236,12 +236,12 @@ direct-call/return bytes and replays their control flow through `agx_run` in
 the measured opt-in mode. This does not validate LLVM's future callable-function
 ABI or calibrate call timing.
 `make verify-llvm-leaf-call` additionally compiles LLVM's experimental
-void and scalar leaf fixtures. It checks the balanced mask reserve, call
-target, return, caller spill/reload and final stores through the simulator.
-Set `LLVM_LLC` and
-`LLVM_OBJCOPY` to the matching AGX build. This covers a full-mask entry call;
-the compiler option remains unsuitable for general device functions or
-benchmark timing.
+void, scalar, aggregate, masked and separate-frame call fixtures. It checks
+the balanced mask reserve, call target, return, caller spill/reload and final
+stores through the simulator, including a 32-lane divergent call.
+Set `LLVM_LLC` and `LLVM_OBJCOPY` to the matching AGX build. The compiler
+option remains unsuitable for nested or indirect calls and
+benchmark timing. The simulator's call cost is not calibrated here.
 The Blender call/return compiler probe and its hardware fault/recovery record
 are in the [playground report](../apple-documentation-playground/results/2026-10-23-blender-call-compile/README.md).
 
