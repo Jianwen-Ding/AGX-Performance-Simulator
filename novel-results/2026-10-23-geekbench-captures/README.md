@@ -99,6 +99,18 @@ More probe loops (512 iterations of 8 `x` threadgroup loads, whole-dispatch time
 methods disagree by 2.2x at 32 groups and have not been reconciled (the next step is one kernel under both harnesses).
 Setting instruction bit 15 (set in Mesa's 8-byte form) on the 6-byte short form makes the load fault.
 
+Reconciled: `mem_probes.py`'s own tgload kernel, timed by the firmware instead of in-shader timestamps, also takes
+2.4x longer at 32 groups per core than at 4 (1,945 -> 4,630 us) while its in-shader per-step cycles stay 31.4: each
+group progresses at the same rate, but not all 32 at once. The same 32 groups per core as 1 workgroup of 1024
+threads, 2 of 512, 4 of 256 and 8 of 128 take 207, 145, 203 and 207 us; 16 groups per core (1 x 512 or 2 x 256) take
+106 and 102 us, the same as 4 groups (101 us): up to 16 groups no slowdown at all.
+
 `tgcheck.py` (47 cases: these loops, the GEMM ablations and the PTX probe matrix) gives the current model a median
-error of 41% (4 within 10%). To do: reconcile the two measurements, then a threadgroup-load issue model with the
+error of 41% (4 within 10%). The model charged the threadgroup pipelines' occupancy to the access's result latency only,
+so back-to-back loads whose results nothing reads cost only their issue slot. `AGX_TG_GATE=1` (experimental, off by
+default) makes threadgroup loads and stores wait for the group's previous access and the core's pipeline, and
+`AGX_TG_CORE_LOAD` sets the core's reference cycles per load: with 1.5, tgcheck's median error is 31% (21 of 47 within
+25%; low-occupancy loops whose loads feed fadds stay too slow, +55 to +195%), but the stored in-shader set (tg.json)
+fails at 29.5%: a model must have groups that each keep ~31 cycles per access while the core holds more of them than
+progress at once. To do: reconcile the two measurements, then a threadgroup-load issue model with the
 run-length effect, then the open gaps above.
