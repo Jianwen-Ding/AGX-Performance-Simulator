@@ -44,6 +44,11 @@ simulate slower than the first).
   (one or two waves; a fixed per-workgroup or per-wave cost seems missing).
 * Texture sampling: `miss` (path tracer; one `tex.2d` of a hardware-described texture) -90%.
 * Global atomics on a histogram: `hough_scores` +43%, `build_histograms` +48%.
+* No instruction class explains the errors (`classmix.py`: correlation of each class's dynamic share with log(hw/sim)
+  within +-0.30 over the 85 launches). The error follows the number of waves instead (correlation -0.39 with log of the
+  busiest core's waves): median hw/sim 1.19 for launches under 30 us, 1.15 for 30-100 us, 1.04 for 0.3-1 ms, 0.88
+  above 1 ms. A fixed cost per launch or wave seems missing for short dispatches, and consecutive waves overlap on the
+  hardware (workgroups start as slots free) where the model adds them end to end.
 
 ## Threadgroup loads in compiled code (gemm_block_size_bias)
 
