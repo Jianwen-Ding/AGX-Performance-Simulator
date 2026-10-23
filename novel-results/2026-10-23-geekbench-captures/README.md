@@ -91,4 +91,14 @@ The model has no such interaction (its predictions on the probe matrix are -41% 
 number of groups). Also measured: `xyzw` threadgroup loads at addresses that are only 4-byte aligned read the right
 words (hardware and functional simulator).
 
-To do: a threadgroup-load issue model with the run-length effect, then the open gaps above.
+More probe loops (512 iterations of 8 `x` threadgroup loads, whole-dispatch times through the driver, slope over 4096 /
+8192 / 16384 iterations): broadcast or per-lane addresses, immediate indices 0-7 or 0, one base register or eight, a
+`wait 0` after the 8 loads or none: all the same, **23 ns per load per group at 4 groups per core and 49 ns at 32**
+(0.46 loads per cycle per core at 1398 MHz). `mem_probes.py --kind tgload` (in-shader timestamps, the difference of
+32- and 128-step loops) gives 31.4 cycles per step at both 4 and 32 groups, i.e. 1.02 loads per cycle at 32: the two
+methods disagree by 2.2x at 32 groups and have not been reconciled (the next step is one kernel under both harnesses).
+Setting instruction bit 15 (set in Mesa's 8-byte form) on the 6-byte short form makes the load fault.
+
+`tgcheck.py` (47 cases: these loops, the GEMM ablations and the PTX probe matrix) gives the current model a median
+error of 41% (4 within 10%). To do: reconcile the two measurements, then a threadgroup-load issue model with the
+run-length effect, then the open gaps above.
