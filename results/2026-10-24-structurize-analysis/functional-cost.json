@@ -1,0 +1,250 @@
+[
+  {
+    "cpu": "agx-g13g",
+    "kernel": "uniform_first",
+    "code_bytes": 54,
+    "same_code_execution_cost": true,
+    "cases": [
+      {
+        "condition": 0,
+        "output": 42,
+        "execution": {
+          "instructions": 7,
+          "groups": 1,
+          "preamble_uniforms": {}
+        },
+        "cost": {
+          "instructions": 15,
+          "dynamic": 7,
+          "groups": 1,
+          "units": "real",
+          "cycles": 43.6,
+          "emulator_skipped": [],
+          "warnings": [],
+          "unmeasured_classes": [],
+          "paths": "functional"
+        }
+      },
+      {
+        "condition": 1,
+        "output": 99,
+        "execution": {
+          "instructions": 5,
+          "groups": 1,
+          "preamble_uniforms": {}
+        },
+        "cost": {
+          "instructions": 15,
+          "dynamic": 5,
+          "groups": 1,
+          "units": "real",
+          "cycles": 38.0,
+          "emulator_skipped": [],
+          "warnings": [],
+          "unmeasured_classes": [],
+          "paths": "functional"
+        }
+      }
+    ]
+  },
+  {
+    "cpu": "agx-g13g",
+    "kernel": "divergent",
+    "code_bytes": 58,
+    "same_code_execution_cost": true,
+    "cases": [
+      {
+        "condition": 0,
+        "output": 42,
+        "execution": {
+          "instructions": 8,
+          "groups": 1,
+          "preamble_uniforms": {}
+        },
+        "cost": {
+          "instructions": 16,
+          "dynamic": 8,
+          "groups": 1,
+          "units": "real",
+          "cycles": 46.7,
+          "emulator_skipped": [],
+          "warnings": [],
+          "unmeasured_classes": [],
+          "paths": "functional"
+        }
+      }
+    ]
+  },
+  {
+    "cpu": "agx-g13g",
+    "kernel": "uniform_last",
+    "code_bytes": 54,
+    "same_code_execution_cost": true,
+    "cases": [
+      {
+        "condition": 0,
+        "output": 24,
+        "execution": {
+          "instructions": 7,
+          "groups": 1,
+          "preamble_uniforms": {}
+        },
+        "cost": {
+          "instructions": 15,
+          "dynamic": 7,
+          "groups": 1,
+          "units": "real",
+          "cycles": 43.6,
+          "emulator_skipped": [],
+          "warnings": [],
+          "unmeasured_classes": [],
+          "paths": "functional"
+        }
+      },
+      {
+        "condition": 1,
+        "output": 99,
+        "execution": {
+          "instructions": 5,
+          "groups": 1,
+          "preamble_uniforms": {}
+        },
+        "cost": {
+          "instructions": 15,
+          "dynamic": 5,
+          "groups": 1,
+          "units": "real",
+          "cycles": 38.0,
+          "emulator_skipped": [],
+          "warnings": [],
+          "unmeasured_classes": [],
+          "paths": "functional"
+        }
+      }
+    ]
+  },
+  {
+    "cpu": "agx-g14c",
+    "kernel": "uniform_first",
+    "code_bytes": 54,
+    "same_code_execution_cost": true,
+    "cases": [
+      {
+        "condition": 0,
+        "output": 42,
+        "execution": {
+          "instructions": 7,
+          "groups": 1,
+          "preamble_uniforms": {}
+        },
+        "cost": {
+          "instructions": 15,
+          "dynamic": 7,
+          "groups": 1,
+          "units": "real",
+          "cycles": 43.6,
+          "emulator_skipped": [],
+          "warnings": [],
+          "unmeasured_classes": [],
+          "paths": "functional"
+        }
+      },
+      {
+        "condition": 1,
+        "output": 99,
+        "execution": {
+          "instructions": 5,
+          "groups": 1,
+          "preamble_uniforms": {}
+        },
+        "cost": {
+          "instructions": 15,
+          "dynamic": 5,
+          "groups": 1,
+          "units": "real",
+          "cycles": 38.0,
+          "emulator_skipped": [],
+          "warnings": [],
+          "unmeasured_classes": [],
+          "paths": "functional"
+        }
+      }
+    ]
+  },
+  {
+    "cpu": "agx-g14c",
+    "kernel": "divergent",
+    "code_bytes": 58,
+    "same_code_execution_cost": true,
+    "cases": [
+      {
+        "condition": 0,
+        "output": 42,
+        "execution": {
+          "instructions": 8,
+          "groups": 1,
+          "preamble_uniforms": {}
+        },
+        "cost": {
+          "instructions": 16,
+          "dynamic": 8,
+          "groups": 1,
+          "units": "real",
+          "cycles": 46.7,
+          "emulator_skipped": [],
+          "warnings": [],
+          "unmeasured_classes": [],
+          "paths": "functional"
+        }
+      }
+    ]
+  },
+  {
+    "cpu": "agx-g14c",
+    "kernel": "uniform_last",
+    "code_bytes": 54,
+    "same_code_execution_cost": true,
+    "cases": [
+      {
+        "condition": 0,
+        "output": 24,
+        "execution": {
+          "instructions": 7,
+          "groups": 1,
+          "preamble_uniforms": {}
+        },
+        "cost": {
+          "instructions": 15,
+          "dynamic": 7,
+          "groups": 1,
+          "units": "real",
+          "cycles": 43.6,
+          "emulator_skipped": [],
+          "warnings": [],
+          "unmeasured_classes": [],
+          "paths": "functional"
+        }
+      },
+      {
+        "condition": 1,
+        "output": 99,
+        "execution": {
+          "instructions": 5,
+          "groups": 1,
+          "preamble_uniforms": {}
+        },
+        "cost": {
+          "instructions": 15,
+          "dynamic": 5,
+          "groups": 1,
+          "units": "real",
+          "cycles": 38.0,
+          "emulator_skipped": [],
+          "warnings": [],
+          "unmeasured_classes": [],
+          "paths": "functional"
+        }
+      }
+    ]
+  }
+]
