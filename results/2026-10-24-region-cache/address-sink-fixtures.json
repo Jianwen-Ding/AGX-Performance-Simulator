@@ -1,0 +1,38 @@
+[
+  {
+    "cpu": "agx-g13g",
+    "fixture": "sink-addresses",
+    "bytes": 108,
+    "sha256": "65fe786fe65a78451c730d90d1e54df8118d4c2b4dd1ab6b28eef94b63d38131"
+  },
+  {
+    "cpu": "agx-g13g",
+    "fixture": "sink-divergent",
+    "bytes": 130,
+    "sha256": "bc9c8c60145f39ddd6533202b1acc0d21585eccb36a80d27c472fb603a7ea270"
+  },
+  {
+    "cpu": "agx-g13g",
+    "fixture": "threadgroup-address-offsets",
+    "bytes": 176,
+    "sha256": "4b114a70e55b5e06c6b56794ab15705f4efac620698accfc1e1d59ab2146c557"
+  },
+  {
+    "cpu": "agx-g14c",
+    "fixture": "sink-addresses",
+    "bytes": 108,
+    "sha256": "65fe786fe65a78451c730d90d1e54df8118d4c2b4dd1ab6b28eef94b63d38131"
+  },
+  {
+    "cpu": "agx-g14c",
+    "fixture": "sink-divergent",
+    "bytes": 130,
+    "sha256": "bc9c8c60145f39ddd6533202b1acc0d21585eccb36a80d27c472fb603a7ea270"
+  },
+  {
+    "cpu": "agx-g14c",
+    "fixture": "threadgroup-address-offsets",
+    "bytes": 176,
+    "sha256": "4b114a70e55b5e06c6b56794ab15705f4efac620698accfc1e1d59ab2146c557"
+  }
+]
