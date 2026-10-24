@@ -11,6 +11,7 @@ export CC PROBE_INCLUDE
 .PHONY: verify-llvm-pruning
 .PHONY: verify-llvm-shuffle-analysis
 .PHONY: verify-llvm-structurize-analysis
+.PHONY: verify-llvm-region-cache
 .PHONY: verify-cdm-ordering
 
 help:
@@ -44,6 +45,7 @@ help:
 	@echo 'make verify-llvm-pruning Offline: early LLVM pruning preserves live code, execution and predicted cost'
 	@echo 'make verify-llvm-shuffle-analysis Offline: matrix lowering with lane-dependent inputs on G13/G14'
 	@echo 'make verify-llvm-structurize-analysis Offline: conditional structurization analysis on G13/G14'
+	@echo 'make verify-llvm-region-cache Offline: nested-region cache invalidation on G13/G14'
 	@echo 'make verify-cdm-ordering Hardware: runtime CDM batching ordering check from the sibling playground'
 	@echo 'make check              Offline: Python syntax check of the hardware scripts'
 	@echo 'make verify-bench       Offline: check the retained instruction-bench evidence'
@@ -99,6 +101,9 @@ verify-llvm-shuffle-analysis: rust
 
 verify-llvm-structurize-analysis: rust
 	$(PYTHON) scripts/verify_llvm_structurize_analysis.py
+
+verify-llvm-region-cache: rust
+	$(PYTHON) scripts/verify_llvm_region_cache.py
 
 verify-cdm-ordering:
 	$(PYTHON) ../apple-documentation-playground/scripts/verify_cdm_batch.py

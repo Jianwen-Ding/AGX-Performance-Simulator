@@ -1,0 +1,176 @@
+[
+  {
+    "cpu": "agx-g13g",
+    "code_bytes": 256,
+    "baseline_checked": true,
+    "cases": [
+      {
+        "n": 0,
+        "outputs_checked": 32,
+        "execution": {
+          "instructions": 23,
+          "groups": 1,
+          "preamble_uniforms": {}
+        },
+        "cost": {
+          "instructions": 46,
+          "dynamic": 23,
+          "groups": 1,
+          "units": "real",
+          "cycles": 103.9,
+          "emulator_skipped": [],
+          "warnings": [],
+          "unmeasured_classes": [],
+          "paths": "functional"
+        }
+      },
+      {
+        "n": 1,
+        "outputs_checked": 32,
+        "execution": {
+          "instructions": 46,
+          "groups": 1,
+          "preamble_uniforms": {}
+        },
+        "cost": {
+          "instructions": 46,
+          "dynamic": 46,
+          "groups": 1,
+          "units": "real",
+          "cycles": 165.9,
+          "emulator_skipped": [],
+          "warnings": [],
+          "unmeasured_classes": [],
+          "paths": "functional"
+        }
+      },
+      {
+        "n": 4,
+        "outputs_checked": 32,
+        "execution": {
+          "instructions": 115,
+          "groups": 1,
+          "preamble_uniforms": {}
+        },
+        "cost": {
+          "instructions": 46,
+          "dynamic": 115,
+          "groups": 1,
+          "units": "real",
+          "cycles": 351.9,
+          "emulator_skipped": [],
+          "warnings": [],
+          "unmeasured_classes": [],
+          "paths": "functional"
+        }
+      },
+      {
+        "n": 9,
+        "outputs_checked": 32,
+        "execution": {
+          "instructions": 230,
+          "groups": 1,
+          "preamble_uniforms": {}
+        },
+        "cost": {
+          "instructions": 46,
+          "dynamic": 230,
+          "groups": 1,
+          "units": "real",
+          "cycles": 661.9,
+          "emulator_skipped": [],
+          "warnings": [],
+          "unmeasured_classes": [],
+          "paths": "functional"
+        }
+      }
+    ]
+  },
+  {
+    "cpu": "agx-g14c",
+    "code_bytes": 256,
+    "baseline_checked": true,
+    "cases": [
+      {
+        "n": 0,
+        "outputs_checked": 32,
+        "execution": {
+          "instructions": 23,
+          "groups": 1,
+          "preamble_uniforms": {}
+        },
+        "cost": {
+          "instructions": 46,
+          "dynamic": 23,
+          "groups": 1,
+          "units": "real",
+          "cycles": 103.9,
+          "emulator_skipped": [],
+          "warnings": [],
+          "unmeasured_classes": [],
+          "paths": "functional"
+        }
+      },
+      {
+        "n": 1,
+        "outputs_checked": 32,
+        "execution": {
+          "instructions": 46,
+          "groups": 1,
+          "preamble_uniforms": {}
+        },
+        "cost": {
+          "instructions": 46,
+          "dynamic": 46,
+          "groups": 1,
+          "units": "real",
+          "cycles": 165.9,
+          "emulator_skipped": [],
+          "warnings": [],
+          "unmeasured_classes": [],
+          "paths": "functional"
+        }
+      },
+      {
+        "n": 4,
+        "outputs_checked": 32,
+        "execution": {
+          "instructions": 115,
+          "groups": 1,
+          "preamble_uniforms": {}
+        },
+        "cost": {
+          "instructions": 46,
+          "dynamic": 115,
+          "groups": 1,
+          "units": "real",
+          "cycles": 351.9,
+          "emulator_skipped": [],
+          "warnings": [],
+          "unmeasured_classes": [],
+          "paths": "functional"
+        }
+      },
+      {
+        "n": 9,
+        "outputs_checked": 32,
+        "execution": {
+          "instructions": 230,
+          "groups": 1,
+          "preamble_uniforms": {}
+        },
+        "cost": {
+          "instructions": 46,
+          "dynamic": 230,
+          "groups": 1,
+          "units": "real",
+          "cycles": 661.9,
+          "emulator_skipped": [],
+          "warnings": [],
+          "unmeasured_classes": [],
+          "paths": "functional"
+        }
+      }
+    ]
+  }
+]
