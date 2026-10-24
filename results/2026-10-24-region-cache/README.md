@@ -56,7 +56,8 @@ On the Blender surface checkpoint, address sinking now finishes in 1.367
 seconds; the earlier resumed compilation timed out at 240 seconds while
 still in that pass. A 50,000-candidate authored compilation fixture reduces
 the pass from 0.2248 to 0.0045 seconds with byte-identical intermediate IR.
-These are host compiler costs, outside the simulator cost model. Full Blender
-compilation now exposes an unsupported constant generic-to-private pointer
-cast; a small reproducer fails on both compilers, so rendering is not yet
-validated. No shader timing parameters were adjusted.
+These are host compiler costs, outside the simulator cost model. A resumed Blender
+MIR checkpoint exposes an unsupported constant generic-to-private pointer
+cast, reproduced on both compilers. The original full-source compile still
+exceeds a 150-second check without a diagnostic; this does not establish its
+sole remaining blocker. Rendering is not yet validated. No shader timing parameters were adjusted.
