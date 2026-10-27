@@ -28,18 +28,26 @@ are linked where they already cover part of it.
    the policy (gather only while busy, MAX_BATCH 64) be tuned offline
    ([safe-04-driver-submission.md](safe-04-driver-submission.md)). Graph batching measured on hardware traded
    generation throughput for prompt throughput in Qwen: the cause is not modelled.
+5. **Memory access after ALU work (`mem_quiet_device_store_ref` 33.6, `mem_quiet_load_ref` 20).** The AGX backend
+   now clusters device and threadgroup stores in the machine scheduler (`AGXMemCluster.cpp`) on the strength of
+   this stall alone: ZLUDA PTX tests -0.8%, agx_libs -9.5% in `agx_cost`, much of it in the tile GEMM epilogue.
+   Worth confirming on hardware: whether a store right after an ALU instruction really waits ~34 cycles while
+   back-to-back stores issue every ~3, whether a `wait` or a load between them resets it, and whether the same holds
+   for threadgroup stores (no kernel changed when only those were clustered). Load clustering is net worse in the
+   model (+0.6% on agx_libs, loads complete later) and stays off. A post-RA scheduler was also tried: both LLVM
+   post-RA schedulers spread the stores again (+1% to +3% total), so post-RA scheduling stays disabled.
 
 ## Functional model / encodings
 
-5. **fmadd lane-offset form** ([safe-07-fmadd-lane-offset.md](safe-07-fmadd-lane-offset.md)). Not modelled, so the
+6. **fmadd lane-offset form** ([safe-07-fmadd-lane-offset.md](safe-07-fmadd-lane-offset.md)). Not modelled, so the
    AGX backend cannot pattern-match `shuffle_up` + `fma` into it (ZLUDA task 3.2) and test the result. Needed: the
    coverage cases and functional support for bits 53 / 68 / 72 / 73 / 75-79.
-6. **Atomic bit 45 on multi-die chips (ZLUDA T5).** The backend sets it for `multi-die-coherency` (G13S/C/D, G14D);
+7. **Atomic bit 45 on multi-die chips (ZLUDA T5).** The backend sets it for `multi-die-coherency` (G13S/C/D, G14D);
    the simulator (G14C model) decodes it on `cmpxchg` as the u64 min/max variant, so the sparse atomic SpMV kernels
    fail in the simulator on those chips. Needed: a run on an M1 Pro/Max/Ultra or M2 Ultra.
-7. **Device-coherent, not host-coherent, accesses (ZLUDA T3).** AIR's device-coherent loads and stores are emitted
+8. **Device-coherent, not host-coherent, accesses (ZLUDA T3).** AIR's device-coherent loads and stores are emitted
    as the volatile (host-coherent) form; a device-scope cache control, if one exists, would be cheaper
    ([safe-10-memory-ordering.md](safe-10-memory-ordering.md)).
-8. **Software f64 cost.** The AGX backend's emulated double add / mul / fma / div / sqrt are 183 / 189 / 412 / 284 /
+9. **Software f64 cost.** The AGX backend's emulated double add / mul / fma / div / sqrt are 183 / 189 / 412 / 284 /
    297 instructions, mostly `icmpsel` chains and 64-bit shifts on 32-bit halves. A cycle (not instruction) comparison
    of variants needs the 2-cycle cmpsel issue and 64-bit iadd costs right in `agx_cost`.
