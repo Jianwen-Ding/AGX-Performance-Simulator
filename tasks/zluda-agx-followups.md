@@ -33,8 +33,10 @@ are linked where they already cover part of it.
    this stall alone: ZLUDA PTX tests -0.8%, agx_libs -9.5% in `agx_cost`, much of it in the tile GEMM epilogue.
    Worth confirming on hardware: whether a store right after an ALU instruction really waits ~34 cycles while
    back-to-back stores issue every ~3, whether a `wait` or a load between them resets it, and whether the same holds
-   for threadgroup stores (no kernel changed when only those were clustered). Load clustering is net worse in the
-   model (+0.6% on agx_libs, loads complete later) and stays off. A post-RA scheduler was also tried: both LLVM
+   for threadgroup stores (no kernel changed when only those were clustered). Device loads are clustered too since
+   agx-bench gained real-world kernels (decode attention -34%, q4_0 mat-vec -28% in the model): the same
+   `mem_quiet_load_ref` question applies, and whether 8-16 loads in a row issue as the model says. Threadgroup load
+   clustering stays off only because it raises tiled SGEMM from 70 to 77 GPRs, which the model cannot price (item 2). A post-RA scheduler was also tried: both LLVM
    post-RA schedulers spread the stores again (+1% to +3% total), so post-RA scheduling stays disabled.
 
 ## Functional model / encodings
