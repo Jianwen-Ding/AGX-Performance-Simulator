@@ -39,17 +39,26 @@ are linked where they already cover part of it.
    clustering stays off only because it raises tiled SGEMM from 70 to 77 GPRs, which the model cannot price (item 2). A post-RA scheduler was also tried: both LLVM
    post-RA schedulers spread the stores again (+1% to +3% total), so post-RA scheduling stays disabled.
 
+6. **Same-address atomics from one SIMD-group.** `agx_cost` prices 32 lanes' atomics to one word like 32 to
+   distinct words, so the AGX backend's atomic optimizer (`-agx-atomic-optimizer`: one atomic of the group's
+   reduction) costs more in the model (agx-bench `cuda_compact` +41% cycles). Needed: a measurement of 1, 2, 8, 32
+   lanes adding to one word vs. distinct words, device and threadgroup memory.
+
 ## Functional model / encodings
 
-6. **fmadd lane-offset form** ([safe-07-fmadd-lane-offset.md](safe-07-fmadd-lane-offset.md)). Not modelled, so the
+7. **fmadd lane-offset form** ([safe-07-fmadd-lane-offset.md](safe-07-fmadd-lane-offset.md)). Not modelled, so the
    AGX backend cannot pattern-match `shuffle_up` + `fma` into it (ZLUDA task 3.2) and test the result. Needed: the
    coverage cases and functional support for bits 53 / 68 / 72 / 73 / 75-79.
-7. **Atomic bit 45 on multi-die chips (ZLUDA T5).** The backend sets it for `multi-die-coherency` (G13S/C/D, G14D);
+8. **Atomic bit 45 on multi-die chips (ZLUDA T5).** The backend sets it for `multi-die-coherency` (G13S/C/D, G14D);
    the simulator (G14C model) decodes it on `cmpxchg` as the u64 min/max variant, so the sparse atomic SpMV kernels
    fail in the simulator on those chips. Needed: a run on an M1 Pro/Max/Ultra or M2 Ultra.
-8. **Device-coherent, not host-coherent, accesses (ZLUDA T3).** AIR's device-coherent loads and stores are emitted
+9. **Device-coherent, not host-coherent, accesses (ZLUDA T3).** AIR's device-coherent loads and stores are emitted
    as the volatile (host-coherent) form; a device-scope cache control, if one exists, would be cheaper
    ([safe-10-memory-ordering.md](safe-10-memory-ordering.md)).
-9. **Software f64 cost.** The AGX backend's emulated double add / mul / fma / div / sqrt are 183 / 189 / 412 / 284 /
+10. **Software f64 cost.** The AGX backend's emulated double add / mul / fma / div / sqrt are 183 / 189 / 412 / 284 /
    297 instructions, mostly `icmpsel` chains and 64-bit shifts on 32-bit halves. A cycle (not instruction) comparison
    of variants needs the 2-cycle cmpsel issue and 64-bit iadd costs right in `agx_cost`.
+11. **Active-thread special registers.** In `agx_run`, `active_thread_index_in_simdgroup` (sr58) and
+    `total_active_threads_in_simdgroup` (sr59) disagree with `ballot`: with one active thread sr59 read 11, with 32
+    it read 1 (PTX-formalization atomics.ptx / launch-maxntid-total.ptx under the atomic optimizer). The backend
+    now derives both from the ballot; the emulation (or the register numbering) needs checking against hardware.
