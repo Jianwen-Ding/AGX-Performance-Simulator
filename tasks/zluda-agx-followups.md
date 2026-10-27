@@ -44,6 +44,14 @@ are linked where they already cover part of it.
    reduction) costs more in the model (agx-bench `cuda_compact` +41% cycles). Needed: a measurement of 1, 2, 8, 32
    lanes adding to one word vs. distinct words, device and threadgroup memory.
 
+12. **Uniform register sources and preload size.** ZLUDA now compiles kernels with the AGX backend's
+    `-agx-uniform-constants`, which reads wide 32-bit constants from preloaded uniforms (`.agx.kernels` extension 6)
+    instead of `mov_imm` into GPRs. In the model this cuts 2-16 GPRs and gives -1..-2.4% tput geomean, because
+    `agx_cost` charges nothing for a uniform source operand and nothing for more preloaded uniforms. Need to know:
+    is a uniform source as fast as a GPR one for every ALU class (f16, f32, int, cmpsel)? Do more uniform words slow
+    the dispatch or the start of each workgroup? Is there a uniform-file limit on resident workgroups?
+    (llvm-project agx-bench EXPERIMENTS.md, entry A15.)
+
 ## Functional model / encodings
 
 7. **fmadd lane-offset form** ([safe-07-fmadd-lane-offset.md](safe-07-fmadd-lane-offset.md)). Not modelled, so the
