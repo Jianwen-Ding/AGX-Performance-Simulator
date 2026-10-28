@@ -64,6 +64,11 @@ are linked where they already cover part of it.
     divisor (permute4d: 46 -> 60 GPRs) is -8% tput in the model because 60 GPRs still fit the same resident
     groups. On hardware the extra registers could cost occupancy on kernels nearer a register boundary; worth
     measuring permute4d-like index math with 2-4 runtime divisors.
+15. **Alignment of 8- and 16-bit vector accesses (extends B33).** B33 measured i32 `xy` / `xyzw` at any 4-byte
+    alignment. Are i16-format `xy` / `xyzw` device loads correct at 2-byte alignment (and i8 `xy` / `xyzw` at any
+    byte), also across 64-byte lines and pages? With the AGX backend's `-agx-element-aligned-vectors` (off) the model
+    gives q8_matvec -54% cycles, attn_decode -14% tput (12 -> 3 loads), f16 tile GEMMs up to -17% tput
+    (llvm-project agx-bench EXPERIMENTS.md R23): the largest gain left that rests on one hardware fact.
 
 ## Functional model / encodings
 
