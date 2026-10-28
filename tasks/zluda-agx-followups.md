@@ -74,7 +74,8 @@ are linked where they already cover part of it.
     count, and the loop is costed as not running (warning "if_icmp condition depends on ... a skipped result"). agx_libs'
     convolutions now compute their loop ranges with ceiling divisions (EXPERIMENTS.md A28): agx-bench reported -99%
     for bwd_filter, which is this, not the change. Needed: emulate `rcp` and the int/float converts (exactly as the
-    hardware rounds), or warn louder when a costed loop's trip count is unknown.
+    hardware rounds) in the default trace, or warn louder when a costed loop's trip count is unknown. (Mapping any
+    buffer, `--alloc`, switches to the functional trace, which runs them: agx-bench's lib_shapes.py does.)
 
 ## Functional model / encodings
 
