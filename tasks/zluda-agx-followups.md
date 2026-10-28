@@ -52,6 +52,19 @@ are linked where they already cover part of it.
     the dispatch or the start of each workgroup? Is there a uniform-file limit on resident workgroups?
     (llvm-project agx-bench EXPERIMENTS.md, entry A15.)
 
+13. **Vector stores whose sources need copies, and bfeil's pipe.** Two AGX backend choices rest on model costs
+    that need a hardware check. (a) A vector store whose lanes are loaded values in another order needs a register
+    copy, and the model then charges the store-after-ALU stall (item 5): split into scalar stores, `ld_st_offset`
+    is -37% cycles (AGXVectorAccesses, EXPERIMENTS.md L4-E1; threadgroup stores are not split, their split costs
+    an address register). (b) `bfeil` with a mask replaces a shift and an `and` (A22), but where the shift has
+    other uses the model prefers the cheaper `and` (fma_bf16x2 +10% tput otherwise): `bfeil` is in the
+    WriteIMul class. Needed: whether a 2- or 4-lane device store straight after a move stalls as long as after
+    arithmetic, and `bfeil`'s issue rate against `and` / `bitop`.
+14. **Shared divisor reciprocals and register pressure (A20).** Computing a 32-bit divisor's reciprocal once per
+    divisor (permute4d: 46 -> 60 GPRs) is -8% tput in the model because 60 GPRs still fit the same resident
+    groups. On hardware the extra registers could cost occupancy on kernels nearer a register boundary; worth
+    measuring permute4d-like index math with 2-4 runtime divisors.
+
 ## Functional model / encodings
 
 7. **fmadd lane-offset form** ([safe-07-fmadd-lane-offset.md](safe-07-fmadd-lane-offset.md)). Not modelled, so the
