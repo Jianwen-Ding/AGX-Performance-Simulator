@@ -69,6 +69,12 @@ are linked where they already cover part of it.
     byte), also across 64-byte lines and pages? With the AGX backend's `-agx-element-aligned-vectors` (off) the model
     gives q8_matvec -54% cycles, attn_decode -14% tput (12 -> 3 loads), f16 tile GEMMs up to -17% tput
     (llvm-project agx-bench EXPERIMENTS.md R23): the largest gain left that rests on one hardware fact.
+16. **Trip counts computed by a division.** `agx_cost` skips `rcp` and `convert` (emulator_skipped), so a loop whose
+    bounds come from an integer division (the backend's 32-bit division uses the f32 reciprocal) has an unknown trip
+    count, and the loop is costed as not running (warning "if_icmp condition depends on ... a skipped result"). agx_libs'
+    convolutions now compute their loop ranges with ceiling divisions (EXPERIMENTS.md A28): agx-bench reported -99%
+    for bwd_filter, which is this, not the change. Needed: emulate `rcp` and the int/float converts (exactly as the
+    hardware rounds), or warn louder when a costed loop's trip count is unknown.
 
 ## Functional model / encodings
 
