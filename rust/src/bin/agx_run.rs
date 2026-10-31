@@ -19,6 +19,9 @@
 //! --lines-offset N is where MAIN.bin starts in that object's .text (a kernel cut out of a module).
 //! --agx-strict GPU (g13, g13x, g14, g14d; or AGX_STRICT=GPU) fails on the first executed instruction that Mesa's
 //! compiler would not emit for that GPU (`agx_sim::isa::mesa`).
+//! --trace-pcs X,Y,Z:FILE writes the instruction trace of workgroup (X, Y, Z) to FILE before the run: one line per
+//! executed instruction, `GROUP PC` (SIMD group in the workgroup, byte offset in MAIN.bin), from `func::trace_workgroups`
+//! over the memory as the dispatch finds it (after the preamble).
 
 use agx_sim::func::{self, Dispatch, Memory};
 
@@ -47,6 +50,7 @@ fn main() {
     let mut core_map: Option<Vec<u32>> = None;
     let mut lines: Option<agx_sim::lines::LineTable> = None;
     let mut lines_offset = 0u64;
+    let mut trace_pcs: Option<([u32; 3], String)> = None;
     let mut mem = Memory::default();
     let mut launch = agx_sim::cost::SrLaunch::default();
     let mut i = 1;
@@ -76,6 +80,10 @@ fn main() {
                 lines = Some(agx_sim::lines::LineTable::from_elf(&elf).unwrap_or_else(|e| die(&format!("{}: {}", v, e))));
             }
             "--lines-offset" => lines_offset = num(&v),
+            "--trace-pcs" => {
+                let (wg, f) = v.split_once(':').unwrap_or_else(|| die("--trace-pcs expects X,Y,Z:FILE"));
+                trace_pcs = Some((dims(wg), f.to_string()));
+            }
             "--preamble" => preamble = Some(std::fs::read(&v).unwrap_or_else(|e| die(&format!("{}: {}", v, e)))),
             "--uniform" => {
                 let (k, x) = kv();
@@ -110,6 +118,16 @@ fn main() {
         None => None,
     };
     d.uniforms = after.clone().unwrap_or(uniforms);
+    if let Some((wg, f)) = &trace_pcs {
+        let traces = func::trace_workgroups(&d, &mem, &[*wg]).unwrap_or_else(|e| die(&format!("trace: {}", e))).remove(0);
+        let mut out = String::new();
+        for (group, t) in traces.iter().enumerate() {
+            for pc in &t.pcs {
+                out.push_str(&format!("{} {}\n", group, pc));
+            }
+        }
+        std::fs::write(f, out).unwrap_or_else(|e| die(&format!("{}: {}", f, e)));
+    }
     let st = match &core_map {
         Some(cores) => func::run_with_m2_core_map(&d, &mut mem, cores),
         None => func::run(&d, &mut mem),
