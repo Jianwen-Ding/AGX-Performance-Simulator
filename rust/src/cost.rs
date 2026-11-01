@@ -1841,6 +1841,9 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: Option<&
         /// latency beyond L1 of a load whose slowest line is a first touch in the dispatch found in the SLC
         /// (`first_touch_dram`)
         first_extra: i64,
+        /// lines a load has missed for, with the tick its latency beyond L1 ends: a load by another group that finds
+        /// them before then waits for that fetch, not an L1 hit (`AGX_INFLIGHT=0`: no such wait)
+        inflight: HashMap<u64, i64>,
         cur: Vec<usize>,
         /// L1 load / store pipelines: busy until (ticks); a load's or store's segments pass in order
         l1_free: [i64; 2],
@@ -1884,6 +1887,7 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: Option<&
             .then(Default::default);
     let mut profile_prev: i64 = 0;
     let first_touch_dram = mem.is_some_and(|(_, m)| m.resident_slc && m.first_touch_dram);
+    let inflight_on = std::env::var("AGX_INFLIGHT").map_or(true, |v| v != "0");
     let charge_writeback = std::env::var("AGX_CHARGE_WRITEBACK").map_or(false, |v| v == "1")
         && mem.is_some_and(|(_, m)| !m.resident_slc);
     let mut ms: Option<MemState> = mem.map(|(_, m)| {
@@ -1904,6 +1908,7 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: Option<&
             cap,
             extra: [0, tk(m.l2_extra), ns(m.slc_ns), ns(m.dram_ns)],
             first_extra: ns(m.first_touch_ns),
+            inflight: Default::default(),
             cur: vec![0; groups],
             l1_free: [0, 0],
             tg_free: 0,
@@ -2678,7 +2683,15 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: Option<&
                     }
                 }
             }
-            if let (Some(m), Some((need, _, segs))) = (ms.as_mut(), mem_charge.as_ref()) {
+            let mut inflight_extra = 0i64;
+            if let (Some(m), Some((need, lx, segs))) = (ms.as_mut(), mem_charge.as_ref()) {
+                // hardware: cores and groups asking for a line that is still on its way each wait for it (128 groups
+                // summing the same two columns as fast as their own: playground novel-results/2026-11-01-first-touch-chains)
+                if r.kind == Kind::Load && inflight_on {
+                    if let Some(&ready) = segs.iter().filter_map(|sg| m.inflight.get(sg)).max() {
+                        inflight_extra = (ready - t).max(0);
+                    }
+                }
                 for i in 2..5 {
                     m.tok[i] -= need[i].min(m.cap[i]);
                 }
@@ -2689,6 +2702,13 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: Option<&
                 let start = t.max(m.l1_free[k]);
                 m.l1_free[k] = start + occ;
                 pipe_extra = (m.l1_free[k] - t - occ_min).max(0);
+                if r.kind == Kind::Load && inflight_on && *lx > 0 {
+                    let done = t + lx + pipe_extra;
+                    for &sg in segs {
+                        let e = m.inflight.entry(sg).or_insert(0);
+                        *e = (*e).max(done);
+                    }
+                }
                 for &sg in segs {
                     m.l1.touch(sg);
                     m.l2.touch(sg);
@@ -2696,7 +2716,7 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: Option<&
                 }
                 m.epoch += 1;
             }
-            let mem_extra = mem_charge.as_ref().map(|c| c.1).unwrap_or(0) + pipe_extra;
+            let mem_extra = (mem_charge.as_ref().map(|c| c.1).unwrap_or(0) + pipe_extra).max(inflight_extra);
             if r.unit.is_some() && !msk {
                 let b = r.bucket;
                 tok[b] = Some(tok[b].unwrap() - r.cost);

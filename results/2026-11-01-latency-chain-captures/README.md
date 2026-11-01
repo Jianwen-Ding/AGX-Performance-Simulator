@@ -74,5 +74,15 @@ touch found in the SLC; in-command SLC hits keep 349. Column sum 4096 rows 53.1 
 (260 ns: 9.9; 349: 10.3). dispatch_check, verify_cost_model, mem_check and the unit tests are unchanged (none
 reaches the SLC latency).
 
+## Lines in flight: other groups wait for them (`inflight`)
+
+Hardware: 128 groups summing the same two columns take as long as 128 groups summing their own (16.3 vs 16.5 us at
+1024 rows, 45.8 vs 46.8 at 4096; 1216 groups 14.8 us), playground results/2026-11-01-gpu-written-lines colsum_shared.
+The model put a missed line in the caches at issue, so every other group asking for it before it arrived hit L1:
+7.6 / 21.4 / 5.9 us. Now a missed line is in flight until its latency ends and a load finding it then waits for it
+(`AGX_INFLIGHT=0`: the old behaviour): 13.9 / 46.7 / 14.0 us; private-column probes unchanged. trsm block -34 ->
+-9%. Evaluation: 40 captures 10.5 -> 10.3 (within 25%: 36 -> 38), new8 4.6 -> 5.1, lat8 9.9 -> 6.8, **all 56 9.6 ->
+9.0**. Unit tests, dispatch_check, verify_cost_model, mem_check, scale_check unchanged.
+
 Captures: /scratch/perf-goal/sim/chase/s{0,64,16384}, /scratch/perf-goal/sim/cap4 (regenerable: the playground's
 chase.ptx with agx_bench_kernel; ZLUDA's qrbench / eigbench / l2bench with ZLUDA_AGX_CAPTURE, SKIP 5, MAX 1).
