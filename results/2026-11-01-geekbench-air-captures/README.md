@@ -51,7 +51,13 @@ median of 3 runs of 1000 back to back) against `agx_dispatch --launch-profile zl
   -> 23.0 us (GPU 26.5), tg2 17.0 (17.8), gemm_block_size_bias +43% -> -2%, depthwise_convolution_2d +24% -> +1%,
   calibration checks unchanged. Not the default: llama.cpp's shared-memory reductions (soft_max, mul_mat_vec_q/_f)
   then come out 13-27% fast and gemm_non_block_size_bias -26%, an undercount the stale deferral had offset (all 40
-  captures: mean |error| 10.5% -> 12.1%, median 8% both). Next: what those reductions cost that the model lacks.
+  captures: mean |error| 10.5% -> 12.1%, median 8% both). In llama.cpp's mul_mat_vec_q<Q5_1> (hw 26.3 us, model 25.7
+  default / 19.3 settled) the settled time is all in the reduction after the barrier (by instruction kind, ticks
+  before issue, default -> settled: fadd32 35177 -> 10601, simd_shuffle_xor 14581 -> 1739, device_store 6141 -> 336,
+  if_icmp 5856 -> 416; the main loop's imadd / asr / bfi unchanged): the partial sums exchanged through threadgroup
+  memory and reduced with shuffles cost the GPU something the stale deferral stood in for. Next: a microbenchmark of
+  that sequence (threadgroup store, barrier, threadgroup load, shuffle reduction) with 2 and 4 groups.
+  (`AGX_ISSUE_PROFILE_SKIP` skips the cost model's own calibration calls, `AGX_ISSUE_PROFILE_ROWS` lists more rows.)
 - Open: gemm_block_size_bias +43% (several workgroups on one core modelled as overlapping less than they do, the
   known gap); blur_gray, image_rotate, hough_scores +27-38% (hundreds of waves, each simulated with its own latency,
   which the hardware overlaps); particle -22%; depthwise_convolution_2d +24%.

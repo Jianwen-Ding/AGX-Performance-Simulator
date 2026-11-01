@@ -1849,6 +1849,13 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: Option<&
             && seqs_pcs.first().is_some_and(|q| {
                 q.len() >= std::env::var("AGX_ISSUE_PROFILE_MIN").ok().and_then(|v| v.parse().ok()).unwrap_or(1000)
             })
+            && {
+                // AGX_ISSUE_PROFILE_SKIP=N: the first N qualifying calls are not profiled (the cost model's own
+                // calibration loops run before a dispatch's waves)
+                static SEEN: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+                let skip = std::env::var("AGX_ISSUE_PROFILE_SKIP").ok().and_then(|v| v.parse().ok()).unwrap_or(0);
+                SEEN.fetch_add(1, std::sync::atomic::Ordering::SeqCst) >= skip
+            }
             && !PROFILED.swap(true, std::sync::atomic::Ordering::SeqCst))
             .then(Default::default);
     let mut profile_prev: i64 = 0;
@@ -3010,7 +3017,8 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: Option<&
         let mut rows: Vec<_> = p.into_iter().collect();
         rows.sort_by_key(|r| std::cmp::Reverse(r.1 .0));
         eprintln!("issue profile, SIMD group 0: {sum} ticks before issues");
-        for (pc, (time, n)) in rows.iter().take(25) {
+        let shown = std::env::var("AGX_ISSUE_PROFILE_ROWS").ok().and_then(|v| v.parse().ok()).unwrap_or(25);
+        for (pc, (time, n)) in rows.iter().take(shown) {
             eprintln!("  pc {pc:6} {:<20} {n:6}x {time:10} ({:.1}%)", names.get(pc).unwrap_or(&"?"), *time as f64 / sum.max(1) as f64 * 100.0);
         }
     }
