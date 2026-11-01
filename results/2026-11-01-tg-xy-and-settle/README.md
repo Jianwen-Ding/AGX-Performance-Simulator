@@ -70,3 +70,13 @@ Evaluation (tree8 = these slopes, now in evalset_captures.sh): default 56: 9.0, 
 9.5 / 12.8 / **9.9**; settle + pipe 9.5 / 12.0 / 9.8. Settle-on-read is now the default (`AGX_TG_SETTLE_ON_READ=0`:
 the old deferral). Open: the one-shot reduction tails at the end of mul_mat_vec_q / soft_max / gemm_non_block
 (-15..-27%), which the deferral had been standing in for; the looping probes do not reproduce their cost.
+
+## One-shot tail probe: modelled within ~10%; the four kernels' gap is not a generic tail
+
+Playground oneshot.ptx (mul_mat_vec_q's shape: streaming phase, then group 1's partials through shared memory,
+bar.sync, C shuffle trees, lane 0 stores C floats; 448 workgroups of 64), hw at --back-to-back 3000: tail0 / tail1 /
+tail8 at 8 iterations 6.4-7.0 / 6.5-7.0 / 7.1-7.4 us, tail8 at 32: 16.2-17.3; model 5.8 / 6.0 / 6.8 / 15.0 (old
+deferral 5.8 / 6.2 / 7.1 / 15.4). The tail costs ~0.6 us on hardware, 0.8 modelled: fine. Whatever the deferral
+stood in for in mul_mat_vec_q / soft_max / gemm_non_block is specific to them (their loads, their ALU between
+shuffles), not the store-barrier-shuffle-store tail. Note: short probes need --back-to-back >= 3000 (playground
+2026-11-01-short-kernel-b2b-noise).
