@@ -298,21 +298,25 @@ pub fn simulate_with(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer
         Ok((traces, wg_of, warn))
         };
         let (mut traces, wg_of, mut warn) = build(w * r as u64)?;
-        let next_wave = |traces: &mut Vec<Trace>, warn: &mut Vec<String>| -> Result<bool, String> {
+        let next_wave = |traces: &mut Vec<Trace>, warn: &mut Vec<String>| -> Result<u64, String> {
         // `chain_waves`: each slot runs this wave's workgroup and then the next wave's (the GPU starts a workgroup in
         // a slot as soon as the previous one ends, so one wave's loads run under the other's tail), simulated
         // together, half the cycles each (AGX_CHAIN_WAVES=0 / 1 overrides)
-        let chained = std::env::var("AGX_CHAIN_WAVES").map_or(l.chain_waves, |v| v == "1") && w + 1 < waves
-            && m - (w + 1) * r as u64 >= count;
-        if chained {
-            let (next, _, warn2) = build((w + 1) * r as u64)?;
-            warn.extend(warn2);
-            for (t, t2) in traces.iter_mut().zip(next) {
-                let off = t.pcs.len() as u32;
-                t.pcs.extend(t2.pcs);
-                t.mem.extend(t2.mem.into_iter().map(|(s, v)| (s + off, v)));
-                t.device_segments.extend(t2.device_segments.into_iter().map(|(s, v)| (s + off, v)));
-                t.masked.extend(t2.masked.into_iter().map(|s| s + off));
+        // AGX_CHAIN_DEPTH=k (experiment, default 2): k waves per slot, 1/k of the cycles each
+        let depth = std::env::var("AGX_CHAIN_DEPTH").ok().and_then(|v| v.parse::<u64>().ok()).unwrap_or(2).max(2);
+        let mut chained = 1u64;
+        if std::env::var("AGX_CHAIN_WAVES").map_or(l.chain_waves, |v| v == "1") {
+            while chained < depth && w + chained < waves && m - (w + chained) * r as u64 >= count {
+                let (next, _, warn2) = build((w + chained) * r as u64)?;
+                warn.extend(warn2);
+                for (t, t2) in traces.iter_mut().zip(next) {
+                    let off = t.pcs.len() as u32;
+                    t.pcs.extend(t2.pcs);
+                    t.mem.extend(t2.mem.into_iter().map(|(s, v)| (s + off, v)));
+                    t.device_segments.extend(t2.device_segments.into_iter().map(|(s, v)| (s + off, v)));
+                    t.masked.extend(t2.masked.into_iter().map(|s| s + off));
+                }
+                chained += 1;
             }
         }
             Ok(chained)
@@ -396,7 +400,7 @@ pub fn simulate_with(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer
         let masked: Vec<&[u32]> = traces.iter().map(|t| t.masked.as_slice()).collect();
         let mem = if l.mem { Some((mems.as_slice(), &mm)) } else { None };
         let c = cost::simulate_groups(&ins, &seqs, Some(&masked), mem, p, false, Some(&wg_of))?.0;
-        Ok((count, if chained { c / 2.0 } else { c }, warn))
+        Ok((count, c / chained as f64, warn))
     };
     // the first and last waves, the middle, then densely after the first (2^k - 1): data-dependent counts put the
     // work at the start of the grid
