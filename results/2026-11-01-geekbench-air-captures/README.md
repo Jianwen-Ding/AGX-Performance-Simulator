@@ -67,6 +67,13 @@ median of 3 runs of 1000 back to back) against `agx_dispatch --launch-profile zl
   GPU's time grows 1.55x from 5 to 12 workgroups per core, the settled model's only 1.11x. What the stale deferral
   supplied is contention between many resident groups; next, a model of that (shared issue or register-file
   bandwidth at high occupancy) measured on its own.
+  Correction from a finer sweep (6 / 7 / 8 / 10 / 12 workgroups per core): GPU 16.9-18.4 / 19.1 / 19.6 / 23.5 / 26.3
+  us; default 17.35 / 21.2 / 21.9 / 23.8 / 25.7; settled 17.35 / 17.35 / 17.35 / 17.35 / 19.3 (the same with later
+  waves cold). The settled model is flat because its execution time falls under the instruction-fetch floor (138
+  code lines x 104 ns + launch + writes = 17.35 us) until 12 workgroups per core: it is not occupancy contention but
+  the settled model's execution of this kernel being too short in every wave, hidden by the floor at low
+  occupancy. That disagrees with red.ptx, where the settle rule is the more accurate one; the difference between
+  the two (mul_mat_vec_q's device loads and waits around the threadgroup exchange) is the open question.
   (`AGX_ISSUE_PROFILE_SKIP` skips the cost model's own calibration calls, `AGX_ISSUE_PROFILE_ROWS` lists more rows.)
 - Open: gemm_block_size_bias +43% (several workgroups on one core modelled as overlapping less than they do, the
   known gap); blur_gray, image_rotate, hough_scores +27-38% (hundreds of waves, each simulated with its own latency,
