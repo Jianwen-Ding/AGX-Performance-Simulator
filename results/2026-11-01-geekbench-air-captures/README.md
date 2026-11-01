@@ -55,8 +55,12 @@ median of 3 runs of 1000 back to back) against `agx_dispatch --launch-profile zl
   default / 19.3 settled) the settled time is all in the reduction after the barrier (by instruction kind, ticks
   before issue, default -> settled: fadd32 35177 -> 10601, simd_shuffle_xor 14581 -> 1739, device_store 6141 -> 336,
   if_icmp 5856 -> 416; the main loop's imadd / asr / bfi unchanged): the partial sums exchanged through threadgroup
-  memory and reduced with shuffles cost the GPU something the stale deferral stood in for. Next: a microbenchmark of
-  that sequence (threadgroup store, barrier, threadgroup load, shuffle reduction) with 2 and 4 groups.
+  memory and reduced with shuffles cost the GPU something the stale deferral stood in for. Measured (`red.ptx`: 200
+  rounds of FMA, threadgroup store, barrier, another group's partial loaded, 5 butterfly shuffles + adds, barrier;
+  38 workgroups): 2 groups 56.1 us, 4 groups 57.7 us on the GPU; the model 72.2 / 72.7 by default (+29%), 60.9 / 61.7
+  with AGX_TG_SETTLE_ON_READ (+8%). So the reduction sequence itself is better with the settle rule; what makes the
+  llama.cpp kernels fast under it is elsewhere (their device loads and waits, or the stores at their end), which the
+  stale deferral's overcharge offset. The rule stays opt-in until that is found.
   (`AGX_ISSUE_PROFILE_SKIP` skips the cost model's own calibration calls, `AGX_ISSUE_PROFILE_ROWS` lists more rows.)
 - Open: gemm_block_size_bias +43% (several workgroups on one core modelled as overlapping less than they do, the
   known gap); blur_gray, image_rotate, hough_scores +27-38% (hundreds of waves, each simulated with its own latency,
