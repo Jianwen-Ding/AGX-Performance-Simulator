@@ -1839,6 +1839,7 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: Option<&
     // SLC, even if they were just loaded (the dirty lines must be written back). Off by default: no hardware data
     // yet (applications notes 66-67: adamw, stream).
     let tg_gate = std::env::var("AGX_TG_GATE").map_or(false, |v| v == "1");
+    let settle_on_read = std::env::var("AGX_TG_SETTLE_ON_READ").is_ok_and(|v| v == "1");
     // AGX_ISSUE_PROFILE=1: for SIMD group 0 of the first call whose group 0 runs AGX_ISSUE_PROFILE_MIN (1000) instructions or more (the
     // dispatch's own calls, not the cost model's smaller ones before them), the time before each instruction's issue (since the
     // group's previous issue), summed by PC, printed to stderr: where the model's time goes
@@ -2669,6 +2670,20 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: Option<&
                     // directly here
                     // Settled entries (pushed at least once) always move to t + lat here; they are merged per
                     // (slot, instruction) with the largest lat, which gives the same maxima as one push each.
+                    // a threadgroup load whose result this instruction reads has completed (the instruction issues with its
+                    // sources ready): ALU work no longer defers it. Without this, loads never followed by a `wait`
+                    // (threadgroup loads the compiler reads directly) were deferred again by every later ALU
+                    // instruction for the rest of the program: a loop of FMAs on values loaded before it paid ~21 units
+                    // per FMA (the GPU: ~4 cycles; playground 2026-11-01-fma-accumulator-chains). AGX_TG_SETTLE_ON_READ=1
+                    // only, for now: it fixes those (Geekbench's gemm_block_size_bias +43% -> -2%) but llama.cpp's
+                    // shared-memory reductions then come out 13-27% fast, an undercount the deferral had offset
+                    // (the 40 captures' mean error 10.5% -> 12.1%)
+                    if settle_on_read && !r.src.is_empty() && !(pending[gi].is_empty() && settled[gi].is_empty()) {
+                        // (threadgroup loads only: device loads are followed by a `wait`, which settles them)
+                        let reads = |ins: usize| sim[ins].tgop && sim[ins].dst.iter().any(|h| r.src.contains(h));
+                        pending[gi].retain(|p| !reads(p.ins));
+                        settled[gi].retain(|a| !reads(a.ins));
+                    }
                     let (rg, sl) = (&mut ready[gi], &mut slots[gi]);
                     last_push[gi] = t;
                     for a in settled[gi].iter() {

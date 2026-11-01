@@ -43,6 +43,15 @@ median of 3 runs of 1000 back to back) against `agx_dispatch --launch-profile zl
   1.63 cycles per instruction) used 72-instruction loop bodies, so a short loop's control and taken jump cost more
   here; next: the same loop with 10 / 20 / 40 FMAs per iteration (and 1 / 2 / 4 groups) on both, to separate the
   loop's cost from the FMAs'.
+  Done (`fma*.ptx`, the multiplicands from an ALU add before the loop): 21.1 / 15.4 / 12.8 us on the GPU, 22.4 / 14.7 /
+  12.1 in the model: FMA chains and loop control are modelled well. The difference in tg10 is that its multiplicands
+  come from threadgroup loads never followed by a `wait`: the model's load deferral (ALU work in flight defers a
+  load's completion) kept re-deferring them at every ALU instruction for the rest of the program, as only a `wait`
+  settles them. `AGX_TG_SETTLE_ON_READ=1` settles a threadgroup load once an instruction reads its result: tg10 84.4
+  -> 23.0 us (GPU 26.5), tg2 17.0 (17.8), gemm_block_size_bias +43% -> -2%, depthwise_convolution_2d +24% -> +1%,
+  calibration checks unchanged. Not the default: llama.cpp's shared-memory reductions (soft_max, mul_mat_vec_q/_f)
+  then come out 13-27% fast and gemm_non_block_size_bias -26%, an undercount the stale deferral had offset (all 40
+  captures: mean |error| 10.5% -> 12.1%, median 8% both). Next: what those reductions cost that the model lacks.
 - Open: gemm_block_size_bias +43% (several workgroups on one core modelled as overlapping less than they do, the
   known gap); blur_gray, image_rotate, hough_scores +27-38% (hundreds of waves, each simulated with its own latency,
   which the hardware overlaps); particle -22%; depthwise_convolution_2d +24%.
