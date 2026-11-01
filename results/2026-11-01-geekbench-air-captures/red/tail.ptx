@@ -1,0 +1,60 @@
+.version 7.0
+.target sm_75
+.address_size 64
+// mul_mat_vec_q's shape: 64 threads (2 SIMD-groups); each thread sums N device loads (a stride of 64 floats per
+// step), group 1's partial sums go through threadgroup memory, one barrier, group 0 adds them, a 32-lane shuffle tree,
+// lane 0 stores the workgroup's sum
+.visible .entry t(.param .u64 out, .param .u64 src, .param .u32 n)
+{
+	.shared .align 4 .b8 sm[128];
+	.reg .f32 %s, %w, %x;
+	.reg .u32 %r<12>;
+	.reg .u64 %rd<8>;
+	.reg .pred %p, %q;
+	ld.param.u64 %rd1, [src];
+	ld.param.u32 %r1, [n];
+	mov.u32 %r2, %tid.x;
+	mov.u32 %r3, %ctaid.x;
+	mad.lo.u32 %r4, %r3, 1024, %r2;
+	mul.wide.u32 %rd2, %r4, 4;
+	add.u64 %rd3, %rd1, %rd2;
+	mov.f32 %s, 0f00000000;
+	mov.u32 %r5, 0;
+LOOP:
+	ld.global.f32 %x, [%rd3];
+	add.f32 %s, %s, %x;
+	add.u64 %rd3, %rd3, 256;
+	add.u32 %r5, %r5, 1;
+	setp.lt.u32 %p, %r5, %r1;
+	@%p bra LOOP;
+	and.b32 %r6, %r2, 31;
+	shr.u32 %r7, %r2, 5;
+	mov.u32 %r8, sm;
+	shl.b32 %r9, %r6, 2;
+	add.u32 %r9, %r8, %r9;
+	setp.eq.u32 %q, %r7, 1;
+	@%q st.shared.f32 [%r9], %s;
+	bar.sync 0;
+	setp.ne.u32 %q, %r7, 0;
+	@%q bra END;
+	ld.shared.f32 %w, [%r9];
+	add.f32 %s, %s, %w;
+	shfl.sync.bfly.b32 %w, %s, 16, 31, -1;
+	add.f32 %s, %s, %w;
+	shfl.sync.bfly.b32 %w, %s, 8, 31, -1;
+	add.f32 %s, %s, %w;
+	shfl.sync.bfly.b32 %w, %s, 4, 31, -1;
+	add.f32 %s, %s, %w;
+	shfl.sync.bfly.b32 %w, %s, 2, 31, -1;
+	add.f32 %s, %s, %w;
+	shfl.sync.bfly.b32 %w, %s, 1, 31, -1;
+	add.f32 %s, %s, %w;
+	setp.ne.u32 %q, %r6, 0;
+	@%q bra END;
+	ld.param.u64 %rd4, [out];
+	mul.wide.u32 %rd5, %r3, 4;
+	add.u64 %rd6, %rd4, %rd5;
+	st.global.f32 [%rd6], %s;
+END:
+	ret;
+}

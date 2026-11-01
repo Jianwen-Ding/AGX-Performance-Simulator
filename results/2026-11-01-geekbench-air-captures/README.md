@@ -190,3 +190,12 @@ kernel's reduction. Next: a microbenchmark copying mul_mat_vec_q's post-loop cod
 two SIMD-groups through threadgroup memory, one barrier, the 32-lane shuffle tree, the conditional store by lane 0)
 after a main loop of device loads, at 6 and 12 workgroups per core.
 
+Built it (`red/tail.ptx`: 64 threads, N device loads summed per thread, group 1's sums through threadgroup memory,
+one barrier, the shuffle tree, lane 0's store; GPU / default / settled us): 6 per core N 4: 5.17 / 3.91 / 3.79, N 16:
+8.79 / 6.13 / 6.01; 12 per core N 4: 5.50 / 4.50 / 4.37, N 16: 11.12 / 8.79 / 8.71. Both rules 20-30% fast and nearly
+equal: the settle rule's effect on mul_mat_vec_q (-6.5 us per wave pair) comes from that kernel's own instruction
+stream (a long run of ALU work after its threadgroup loads, which the default rule keeps deferring), which a
+PTX approximation does not reproduce. The way on is the captured kernel itself: bisect its instruction stream (the
+simulator's trace-pcs and issue profile per pc, default against settled) to the instructions the 6.5 us sits on,
+then measure those on the GPU in isolation.
+
