@@ -151,3 +151,13 @@ heldout32c median 0.039 -> 0.047. Off by default. What red.ptx adds over red_shf
 / load round trip each iteration with 4 SIMD-groups per workgroup: the next thing to isolate (red_tg alone was
 modelled within -3..+8%, so it is their combination with the shuffles).
 
+Barriers isolated (`red/red_bar1.ptx`, `red_bar2.ptx`: red_shfl plus one / two bar.sync per round, no threadgroup
+memory; 12 workgroups per core; GPU / model with AGX_SHFL_PIPE=0.6 and the settle rule, us): 64 threads: shuffles
+only 32.1 / 34.0, one barrier 45.6 / 38.9, two 64.9 / 60.3; 128 threads: 57.4 / 61.5, 65.0 / 61.7, 85.2 / 65.8.
+The model is close everywhere except two barriers per round with 4 SIMD-groups per workgroup (-23%). Tried and not
+kept: serialising a core's barrier releases (AGX_BAR_SER, 4-12 cycles apart: no effect, the model's arrivals are
+already staggered further apart) and a release delay per resident workgroup (AGX_BAR_PER_WG: 4 cycles overshoots the
+64-thread kernels by ~15 us while the 128-thread two-barrier one still needs more). Next: the same two-barrier round
+with 1, 2, 4 and 8 SIMD-groups per workgroup and 1, 4 and 12 workgroups per core, to find what the second barrier
+costs with 4 groups.
+
