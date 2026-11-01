@@ -35,3 +35,17 @@ Means: 40 captures 10.3 -> 10.8, all 56 9.0 -> 9.5. The four that become fast en
 barrier (the post-barrier tail the earlier bisection found in mul_mat_vec_q): the deferral was standing in for a
 cost there that the model lacks. Still opt-in; next: a hardware probe of a write - barrier - read-by-other-groups
 reduction tail, to model that cost directly and then enable settle-on-read.
+
+## Follow-up: the generic reduction tail is modelled; the gap is in shuffle/add chains
+
+- Hardware probe of a block-reduction tail (playground results/2026-11-01-tg-reduction-tail/tail.ptx: 4 groups store,
+  barrier, every lane reads all 4 groups' words, adds, barrier; 38 and 304 workgroups): 375 / 400 ns an iteration;
+  model 395 / 416, settle 369 / 409. Variants without barriers or reading only the own word: within -19..+27%, same
+  either way. The post-barrier cross-group read is not what the four kernels lack.
+- Their issue profiles (mul_mat_vec_q 8 columns, default vs settle): the whole difference is in the final
+  simd_shuffle_xor / fadd32 / device_store chain, ~82 cycles an instruction by default (the deferral), ~0 with
+  settle. Hardware needs that time, so the deferral masks a real cost of shuffle-reduction chains after threadgroup
+  reads.
+- The existing shuffle experiments do not supply it: settle + AGX_SHFL_PIPE 0.6 / 1: all 56 9.5 / 9.4; + AGX_SHFL_QUEUE
+  8 / 16: 11.4 / 15.9 (default 9.0). Next: a hardware probe of mul_mat_vec_q's own tail (threadgroup partials ->
+  shuffle-xor tree -> stores) to measure that chain directly.
