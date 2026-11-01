@@ -1926,7 +1926,7 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: Option<&
             }
             // with first_touch_dram: the previous command's data at L2 latency (as if prefetched: llama.cpp's
             // matrix-vector kernels read their new rows fast), at the DRAM rate
-            let to_l2 = mm.first_touch_dram;
+            let to_l2 = mm.first_touch_dram && std::env::var("AGX_FIRST_TOUCH_L2").map_or(true, |v| v != "0");
             for &sg in &distinct {
                 m.slc.touch(sg);
                 if to_l2 {
