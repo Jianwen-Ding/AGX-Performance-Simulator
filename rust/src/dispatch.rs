@@ -56,6 +56,9 @@ pub struct Launch {
     /// (1520 x 256 threads writing 1.5 / 6 / 24 MB: 9.9 / 22.0 / 72.1 us, after the workgroups' launch; zluda profile
     /// 365, playground novel-results/2026-11-01-store-bandwidth)
     pub store_gbps: f64,
+    /// fixed cost of a command whose kernel stores to device memory (the writes reaching memory before the command
+    /// ends): 0 in drm; 700 ns in zluda (one workgroup storing 1 KB: 3.0 us against the empty kernel's 2.3)
+    pub store_launch_ns: f64,
     /// cores per cluster (workgroups are split evenly over clusters first); empty = round-robin over `cores`
     pub clusters: Vec<u32>,
     pub uniforms: Vec<(usize, u32)>,
@@ -87,6 +90,7 @@ impl Default for Launch {
             stack_bytes: 0,
             stack_launch_ns: 0.0,
             store_gbps: 0.0,
+            store_launch_ns: 0.0,
             clusters: vec![10, 9, 9, 10],
             uniforms: vec![],
             mem: true,
@@ -384,11 +388,12 @@ pub fn simulate_with(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer
     let fetch_ns = rep.code_lines as f64 * l.fetch_line_ns;
     let stack_ns = if l.stack_bytes > 0 { l.stack_launch_ns } else { 0.0 };
     let written = written.into_inner().unwrap();
+    let writes_ns = if !store_pcs.is_empty() { l.store_launch_ns } else { 0.0 };
     let store_ns = if l.store_gbps > 0.0 { written / l.store_gbps } else { 0.0 };
     // (the stores after the workgroups' launch: 1520 x 256 threads writing 1.5 / 6 / 24 MB, 4 us of launch + the bytes
     // at 365 GB/s + 2.3 us: 10.4 / 22.7 / 72.0 us, measured 9.9 / 22.0 / 72.1)
     let store_floor = if store_ns > 0.0 { rep.launch_core_ns + store_ns } else { 0.0 };
-    rep.time_ns = (total / l.clock_mhz * 1000.0).max(fetch_ns).max(rep.launch_core_ns).max(store_floor) + l.launch_ns + stack_ns;
+    rep.time_ns = (total / l.clock_mhz * 1000.0).max(fetch_ns).max(rep.launch_core_ns).max(store_floor) + l.launch_ns + stack_ns + writes_ns;
     if !rep.time_ns.is_finite() { return Err("predicted time is non-finite for this launch".into()); }
     Ok(rep)
 }

@@ -14,7 +14,8 @@ command in `capcheck.py`'s docstring.
 | the same with the cold instruction fetch (`capcheck-warm-zluda-fetch.txt`) | 21% | 2 / 8 | 5 / 8 |
 | hardware the median of 5 runs, stack kernels replayed with their stack and the stack setup modelled (`capcheck-repeat5.txt` + `--stack`) | 21% | 3 / 10 | 7 / 10 |
 | **ZLUDA's current code** (private arrays in registers; captures with the next allocation), the same 12 kernels recaptured (`capcheck-current-build.txt`, type 13: -18%) | 18% | 3 / 12 | 11 / 12 |
-| the same with the store bandwidth floor (zluda profile) | **16%** (11 + type 13 -18%) | 3 / 12 | 11 / 12 |
+| the same with the store bandwidth floor (zluda profile) | 16% (11 + type 13 -18%) | 3 / 12 | 11 / 12 |
+| and the 0.7 us of a kernel that writes (`capcheck-current-build-sim-final.txt`; type 13 -17%) | **8%** | 7 / 12 | 11 / 12 |
 
 - **Measure at a warm clock.** 30 launches back to back do not ramp the GPU's clock: the Q8_0 matrix-vector kernel
   (the largest, 2 waves of 12 workgroups per core) measured 67 us after 30 and 26.2 us after 1000; the simulator
@@ -49,6 +50,9 @@ command in `capcheck.py`'s docstring.
 - **Stores cost bandwidth even when they fit the system-level cache** (`st.ptx`, `stn*.ptx`: 1520 x 256 threads
   writing 1.5 / 6 / 24 MB, hw 9.9 / 22.0 / 72.1 us; the model had 6.3 / 6.9 / 73.8, the cache absorbing the smaller
   ones): ~365 GB/s, after the workgroups' launch. zluda profile `store_gbps`: 10.6 / 23.4 / 74.5 us.
+- **A kernel that writes costs ~0.7 us more per command** than the empty one (one workgroup storing 1 KB: 3.0 against
+  2.3 us), now in the zluda profile (`store_launch_ns`). The fetch benchmarks, which write their result, were fitted
+  without it: line1024 is +8% with it.
 - 4 captures (`mul_mat_vec_f` x2, `mul_mat_vec_q` type 13, type 7 with 1 column) do not replay: the GPU faults
   ("Bad address") or the parameter block's fixed address is taken. Their captures miss memory the kernels reach
   (pointers inside by-value structs such as ggml_cuda_mm_fusion_args_device): a capture bug in zluda_agx, not
