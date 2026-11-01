@@ -1,0 +1,20 @@
+wgs 1 x 32: hw b2b 2333 ns, isolated 11583 ns, sim 5700 ns
+wgs 1 x 1024: hw b2b 2292 ns, isolated 3833 ns, sim 6035 ns
+wgs 38 x 32: hw b2b 2458 ns, isolated 3792 ns, sim 5800 ns
+wgs 38 x 1024: hw b2b 2500 ns, isolated 4084 ns, sim 6470 ns
+wgs 152 x 32: hw b2b 2459 ns, isolated 3750 ns, sim 6100 ns
+wgs 152 x 1024: hw b2b 2625 ns, isolated 4125 ns, sim 7341 ns
+wgs 1520 x 32: hw b2b 5417 ns, isolated 7250 ns, sim 9900 ns
+wgs 1520 x 1024: hw b2b 6292 ns, isolated 7583 ns, sim 23008 ns
+wgs 15200 x 32: hw b2b 41625 ns, isolated 43000 ns, sim 45600 ns
+wgs 15200 x 1024: hw b2b 40709 ns, isolated 42917 ns, sim 179680 ns
+regs 8 wgs 15200 x 32: hw 41666 ns, sim 45600 ns (group cap 55)
+regs 8 wgs 15200 x 1024: hw 40708 ns, sim 179680 ns (group cap 96)
+regs 32 wgs 15200 x 32: hw 41625 ns, sim 45600 ns (group cap 55)
+regs 32 wgs 15200 x 1024: hw 40625 ns, sim 179680 ns (group cap 96)
+regs 64 wgs 15200 x 32: hw 41625 ns, sim 45600 ns (group cap 52)
+regs 64 wgs 15200 x 1024: hw 40750 ns, sim 179680 ns (group cap 52)
+regs 128 wgs 15200 x 32: hw 41625 ns, sim 45600 ns (group cap 26)
+regs 128 wgs 15200 x 1024: hw 41083 ns, sim  ns (group cap )
+regs 256 wgs 15200 x 32: hw 41625 ns, sim 45600 ns (group cap 12)
+regs 256 wgs 15200 x 1024: hw 40833 ns, sim  ns (group cap )

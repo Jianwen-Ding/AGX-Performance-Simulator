@@ -5,6 +5,13 @@
 //!              [--m2-core-map FILE] (supplied M2 core IDs; exhaustive isolated waves)
 //!              [--busiest-core-wgs N] (measured peak count; representative-core sensitivity only)
 //!              [--preamble PRE.bin] [--map VA=FILE ...] [--alloc VA=BYTES ...] [--agx-strict GPU]
+//!              [--launch-profile drm|zluda] [--group-launch-ns NS]
+//!
+//! --launch-profile: the launch costs of a command as the direct-DRM harness submits it (`drm`, the default: 5.6 us
+//! fixed, max(100 ns per workgroup, 13.6 ns per SIMD group) per core) or as zluda_agx / agx_runtime submit it back to
+//! back, as an application keeps the GPU busy (`zluda`: 2.3 us fixed, max(100 ns per workgroup, 3.2 ns per SIMD
+//! group); empty kernels over 1 to 15,200 workgroups of 32 and 1024 threads, playground
+//! novel-results/2026-11-01-zluda-launch-cost). Options after it override its values.
 //!
 //! code.bin is the main shader as submitted (e.g. the direct-DRM harness's control main with a body).
 //! Uniforms are 32-bit uniform registers (u4 = 4); the harness uses u4 = 0, u5 = count, u6_u7 = output,
@@ -101,7 +108,7 @@ fn run_job(a: &[String], p: &Params) -> Result<serde_json::Value, String> {
     while i < a.len() {
         let option = a[i].as_str();
         if option == "--no-mem" { l.mem = false; i += 1; continue; }
-        if !["--grid", "--wg", "--regs", "--tg-bytes", "--clock", "--cores", "--busiest-core-wgs", "--m2-core-map", "--launch-us", "--max-waves", "--uniform", "--preamble", "--map", "--alloc", "--agx-strict"].contains(&option) {
+        if !["--grid", "--wg", "--regs", "--tg-bytes", "--clock", "--cores", "--busiest-core-wgs", "--m2-core-map", "--launch-us", "--max-waves", "--uniform", "--preamble", "--map", "--alloc", "--agx-strict", "--launch-profile", "--group-launch-ns"].contains(&option) {
             return Err(format!("unknown argument {}", option));
         }
         let v = a.get(i + 1).ok_or_else(|| format!("{} requires a value", option))?;
@@ -114,6 +121,15 @@ fn run_job(a: &[String], p: &Params) -> Result<serde_json::Value, String> {
             "--cores" => l.cores = number(v, option)?,
             "--busiest-core-wgs" => l.busiest_core_wgs_override = Some(number(v, option)?),
             "--launch-us" => l.launch_ns = number::<f64>(v, option)? * 1000.0,
+            "--group-launch-ns" => l.group_launch_ns = number(v, option)?,
+            "--launch-profile" => match v.as_str() {
+                "drm" => {
+                    let d = Launch::default();
+                    (l.launch_ns, l.wg_launch_ns, l.group_launch_ns) = (d.launch_ns, d.wg_launch_ns, d.group_launch_ns);
+                }
+                "zluda" => (l.launch_ns, l.wg_launch_ns, l.group_launch_ns) = (2300.0, 100.0, 3.2),
+                other => return Err(format!("--launch-profile: {other:?} is not drm or zluda")),
+            },
             "--max-waves" => { l.max_waves = number(v, option)?; max_waves_explicit = true; },
             "--m2-core-map" => core_map_path = Some(v.clone()),
             "--agx-strict" => agx_sim::isa::mesa::set_mode(Some(agx_sim::isa::mesa::MesaGen::parse(v)?)),

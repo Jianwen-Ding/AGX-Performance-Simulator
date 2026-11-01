@@ -1,0 +1,17 @@
+_Z13mul_mat_vec_qIL9ggml_type7ELi1ELb1ELb1ELb0EEvPKvS2_PKi31ggml_cuda_mm_fusion_args_devicePfj5uint3jjjS7_jjjS7_jjjj HW FAILED {"error":"fixed address 0x7f00000000 not usable"}
+
+_Z9rope_neoxILb1ELb0EffEvPKT1_PT2_iiiiiiiiiiiPKifff14rope_corr_dimsfPKfPKlib hw      11.0 us (n    15, captured       7.3)  sim       6.7 us  err   -39%   wgs/core 4 waves 1
+_Z9rope_neoxILb1ELb0Ef6__halfEvPKT1_PT2_iiiiiiiiiiiPKifff14rope_corr_dimsfPKfPKlib hw      10.8 us (n    15, captured       4.8)  sim       6.9 us  err   -36%   wgs/core 1 waves 1
+_Z10k_set_rowsIfl6__halfEvPKT_PKT0_PT1_llllllllllllll5uint3S9_S9_S9_S9_ hw       5.5 us (n    15, captured       5.5)  sim       6.4 us  err   +17%   wgs/core 1 waves 1
+_Z13mul_mat_vec_fI6__halffLi8ELi32ELb0ELb0EEvPKT_PKfPKi31ggml_cuda_mm_fusion_args_devicePfi5uint3iiiSA_iiiSA_iiii HW FAILED {"error":"GPU job failed: Bad address (os error 14)"}
+
+_Z12soft_max_f32ILb1ELi256ELi256EfEvPKfPKT2_S1_Pf15soft_max_params hw       8.0 us (n    15, captured       8.2)  sim      10.4 us  err   +31%   wgs/core 4 waves 1
+_Z13mul_mat_vec_fI6__halffLi8ELi128ELb0ELb0EEvPKT_PKfPKi31ggml_cuda_mm_fusion_args_devicePfi5uint3iiiSA_iiiSA_iiii HW FAILED {"error":"GPU job failed: Bad address (os error 14)"}
+
+_Z13quantize_q8_1PKfPvlllllj5uint3 hw       4.3 us (n    15, captured       7.0)  sim       6.5 us  err   +50%   wgs/core 1 waves 1
+_Z13mul_mat_vec_qIL9ggml_type7ELi8ELb0ELb0ELb0EEvPKvS2_PKi31ggml_cuda_mm_fusion_args_devicePfj5uint3jjjS7_jjjS7_jjjj hw      67.4 us (n    15, captured      70.4)  sim      28.4 us  err   -58%   wgs/core 12 waves 2
+_Z11k_bin_bcastIXadL_ZN42_INTERNAL_9bf7ce1d_11_binbcast_cu_6840010b6op_addEffEEfffJPKfEEvPKT0_PKT1_PT2_jjj5uint3SB_SB_SB_SB_jjjjjjjjjjjDpT3_ hw      10.4 us (n    15, captured      12.2)  sim       6.8 us  err   -35%   wgs/core 1 waves 1
+_Z13mul_mat_vec_qIL9ggml_type13ELi8ELb0ELb0ELb0EEvPKvS2_PKi31ggml_cuda_mm_fusion_args_devicePfj5uint3jjjS7_jjjS7_jjjj HW FAILED {"error":"GPU job failed: Bad address (os error 14)"}
+
+_Z12rms_norm_f32ILi256ELi1ELb1ELb1ELb0ELb0EEvPKfPfiiilllfS1_lll5uint3S3_S3_S3_S1_lllS3_S3_S3_S3_f hw      11.1 us (n    15, captured      14.2)  sim       7.6 us  err   -32%   wgs/core 1 waves 1
+launches 8  median |err| 35%  within 10%: 0  within 25%: 1
