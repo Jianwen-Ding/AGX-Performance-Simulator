@@ -30,8 +30,13 @@ median of 3 runs of 1000 back to back) against `agx_dispatch --launch-profile zl
   -> 8 leaves 77.5 us, AGX_TG_GATE 73.3 us. The model's timeline (`AGX_ISSUE_PROFILE=1 AGX_ISSUE_PROFILE_MIN=4000`):
   each of the inner loop's 16 fmadd32 waits ~409 ticks (~41 reference units: tg_load_issue 21 + tg_load_fast 19.4)
   for the threadgroup load it uses, the 10 loads of an iteration serialized per group; the loop takes over half of
-  the group's time. The hardware overlaps those loads more: next, a microbenchmark of a group's back-to-back
-  threadgroup loads feeding FMAs (with 4 groups per core), to recalibrate tg_load_issue for this pattern.
+  the group's time. Microbenchmark (`tg2.ptx`, `tg10.ptx`: per iteration 2 or 10 threadgroup loads, each feeding an
+  FMA, 500 iterations, one workgroup per core): tg10 with 1 / 2 / 4 SIMD groups 21.7 / 25.4 / 26.5 us on the GPU,
+  84.4 us in the model whatever the groups; tg2 17.8 against 24.1. A group issues such alternating load + FMA pairs
+  every ~5 cycles (~4 per load), the model every 21 units. Setting tg_load_issue_ref to 4 globally breaks three
+  calibrated checks (memory-space transitions max 3% -> 23%, threadgroup-load deferral 4% -> 40%, held-out memory
+  kernels mem24b median 4.5% -> 8.3%): there the 21-unit spacing holds. Reverted: the issue interval depends on what
+  lies between the loads (a wait, other memory spaces), which a rule distinguishing these cases has to capture.
 - Open: gemm_block_size_bias +43% (several workgroups on one core modelled as overlapping less than they do, the
   known gap); blur_gray, image_rotate, hough_scores +27-38% (hundreds of waves, each simulated with its own latency,
   which the hardware overlaps); particle -22%; depthwise_convolution_2d +24%.
