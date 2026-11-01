@@ -19,7 +19,11 @@ median of 3 runs of 1000 back to back) against `agx_dispatch --launch-profile zl
   image_rotate +35% -> -5%, convolve_2d +18% -> +1%) but made the direct-DRM calibration's DRAM-bound kernels too
   fast (verify-dispatch p90 9% -> 16%, max 74%): with the condition, the calibration is unchanged. The image kernels
   that would gain are classed as not resident by the footprint estimate (single-wave segments scaled to all cores,
-  which counts the rows neighbours share several times): a better footprint estimate is the next step.
+  which counts the rows neighbours share several times). Capping the estimate at the captured data does not change
+  that: their mapped allocations are 48-189 MB, above the 19 MiB the model takes for the system-level cache. Their
+  data does not stay resident; what warms their later waves is reuse across waves (a stencil's next rows were read by
+  the wave before). Next: warm only the lines a wave shares with the previous one (simulate wave 0 first, then the
+  others against its lines).
 - Open: gemm_block_size_bias +43% (several workgroups on one core modelled as overlapping less than they do, the
   known gap); blur_gray, image_rotate, hough_scores +27-38% (hundreds of waves, each simulated with its own latency,
   which the hardware overlaps); particle -22%; depthwise_convolution_2d +24%.
