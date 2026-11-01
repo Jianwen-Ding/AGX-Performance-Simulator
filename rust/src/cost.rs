@@ -1433,6 +1433,9 @@ pub struct MemModel {
     /// dispatch just before, and small enough): first touches hit the SLC instead of DRAM. agx_dispatch sets it
     /// when the estimated GPU-wide footprint fits `slc_bytes`.
     pub resident_slc: bool,
+    /// with `warm`: replay only these segments (a later wave finds in the caches what the first wave also touched,
+    /// not its own new data; `Launch::partial_warm`); None: all of the wave's
+    pub warm_only: Option<std::sync::Arc<std::collections::HashSet<u64>>>,
     /// device atomics (no return, distinct words): per-core occupancy max(atomic_min, atomic_per_seg x 32-byte
     /// sectors) reference cycles; lanes on one word serialise GPU-wide at atomic_same_word_rate per cycle (every lane separately: the 32 lanes of an
     /// instruction are not combined; playground 2026-10-16-atomic-contention)
@@ -1477,6 +1480,7 @@ impl Default for MemModel {
             warm: true,
             sharing: 0.0,
             resident_slc: false,
+            warm_only: None,
             atomic_min: 6.9,
             atomic_per_seg: 1.7,
             atomic_same_word_rate: 0.89,   // playground novel-results/2026-10-16-atomic-contention: 0.86 ns per lane-op on one word at 1,398 MHz
@@ -1916,6 +1920,9 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: Option<&
                 for v in &memv {
                     if let Some((_, segs)) = v.get(i) {
                         for &sg in segs {
+                            if mm.warm_only.as_ref().is_some_and(|w| !w.contains(&sg)) {
+                                continue;
+                            }
                             m.l1.touch(sg);
                             m.l2.touch(sg);
                             m.slc.touch(sg);

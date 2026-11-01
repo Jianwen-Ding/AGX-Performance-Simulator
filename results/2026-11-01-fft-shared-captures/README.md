@@ -58,3 +58,25 @@ Scored on the 40 llama.cpp / Geekbench captures (mean |error| 10.5%, 36 within 2
   not reproduce the non-resident time (read 8 MiB: 9.6 us against 26.7 us without residency): the non-resident path
   differs by more than the bucket. Next: find that difference (per-level latency, the LRU sizes, or the store and
   first-wave handling), then model "first touch per dispatch" with it and re-score both sets.
+
+## Partial warm (opt-in, `AGX_PARTIAL_WARM=1`)
+
+A first attempt at "first touch per dispatch" failed because an access is re-evaluated while it waits for its
+buckets: only its first evaluation saw new lines. Measured per wave instead (read 8 MiB, busiest core): 2135 cycles
+resident, 7361 not (768 lines / 0.106 per cycle at the DRAM rate: the DRAM bucket binds). `later_waves_warm`
+replayed each later wave's own data into the caches, so a stream's later waves cost nothing. `partial_warm` replays
+only the segments the first wave also touched (the first wave runs first and records them); a later wave's new
+data then comes from DRAM.
+
+| model | 40 captures (mean, within 25%) | the 8 above (mean; read 8 MiB, copy 8 MiB, FFT) |
+|---|---|---|
+| default | 10.5%, 36 | 21.4%; -66%, -32%, -12..-19% |
+| partial warm | 12.1%, 34 | 6.1%; -6%, -12%, -1..+11% |
+
+It fixes the streams and pressure_solver (-14% -> +1%), but llama.cpp's mul_mat_vec_f (+8% -> +43%) and
+mul_mat_vec_q<Q5_1> (+0% -> +23%) and depthwise_convolution_2d (+1% -> +30%) then come out slow: their later waves
+read new data, yet fast on the GPU (about 110 GB/s, so not bandwidth: latency the full warm hid). So data a previous
+command left behind is sometimes served from a cache at full speed (those kernels, 2-6 MB per wave) and sometimes
+not (8 MiB streams). Left opt-in until that difference is measured: next, the same read kernel at 1 / 2 / 4 / 6 MiB
+back to back, to find the size at which the previous command's data stops being fast.
+`scripts/evalset_captures.sh` scores both sets (paths are this machine's captures).

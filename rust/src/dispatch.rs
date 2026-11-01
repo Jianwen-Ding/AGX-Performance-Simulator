@@ -63,6 +63,10 @@ pub struct Launch {
     /// (false in drm, whose calibration it would change; true in zluda: Geekbench's captures median 9% -> 8%, llama.cpp's
     /// within 10% 7 -> 9 of 11)
     pub later_waves_warm: bool,
+    /// with `later_waves_warm`: only the first wave's data is warm for later waves (their new data is not).
+    /// Off by default (AGX_PARTIAL_WARM=1): it fixes resident streams (results/2026-11-01-fft-shared-captures) but
+    /// llama.cpp's matrix-vector kernels, whose later waves read new data fast on the GPU, then come out 23-43% slow
+    pub partial_warm: bool,
     /// cores per cluster (workgroups are split evenly over clusters first); empty = round-robin over `cores`
     pub clusters: Vec<u32>,
     pub uniforms: Vec<(usize, u32)>,
@@ -96,6 +100,7 @@ impl Default for Launch {
             store_gbps: 0.0,
             store_launch_ns: 0.0,
             later_waves_warm: false,
+            partial_warm: false,
             clusters: vec![10, 9, 9, 10],
             uniforms: vec![],
             mem: true,
@@ -235,6 +240,9 @@ pub fn simulate_with(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer
     let written = std::sync::Mutex::new(0.0f64);
     let wg_coords = |k| wg_coords(dims, k);
     let first_wave_lines = std::sync::Mutex::new(std::collections::HashSet::<usize>::new());
+    // the first wave's device segments, which later waves find in the caches (`partial_warm`)
+    let first_wave_segs = std::sync::Mutex::new(None::<std::sync::Arc<std::collections::HashSet<u64>>>);
+    let partial_warm = std::env::var("AGX_PARTIAL_WARM").map_or(l.partial_warm, |v| v == "1");
     let sim_wave = |w: u64| -> Result<(u64, f64, Vec<String>), String> {
         let first = w * r as u64;
         let count = (m - first).min(r as u64);
@@ -344,7 +352,15 @@ pub fn simulate_with(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer
         // `later_waves_warm`: the waves after the first find their data in the caches when it fits the system-level
         // cache (what the first waves and their neighbours loaded); AGX_LATER_WAVES_WARM=1 / 0 forces it
         let warm_later = std::env::var("AGX_LATER_WAVES_WARM").map_or(l.later_waves_warm, |v| v == "1");
-        let mm = if w > 0 && mm.resident_slc && warm_later { MemModel { warm: true, ..mm } } else { mm };
+        if w == 0 && partial_warm {
+            *first_wave_segs.lock().unwrap() = Some(std::sync::Arc::new(distinct.clone()));
+        }
+        let mm = if w > 0 && mm.resident_slc && warm_later {
+            let warm_only = if partial_warm { first_wave_segs.lock().unwrap().clone() } else { None };
+            MemModel { warm: true, warm_only, ..mm }
+        } else {
+            mm
+        };
         let mem = if l.mem { Some((mems.as_slice(), &mm)) } else { None };
         let c = cost::simulate_groups(&ins, &seqs, Some(&masked), mem, p, false, Some(&wg_of))?.0;
         Ok((count, c, warn))
@@ -361,7 +377,13 @@ pub fn simulate_with(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer
     todo.truncate(l.max_waves.max(1));
     let mut total = 0.0;
     // the simulated waves are independent: run them concurrently (results combined in wave order)
-    let results = crate::par::map(&todo, |&w| sim_wave(w));
+    // the first wave first when later waves need its segments, then the rest concurrently
+    let results: Vec<_> = if partial_warm {
+        let r0 = sim_wave(todo[0]);
+        std::iter::once(r0).chain(crate::par::map(&todo[1..], |&w| sim_wave(w))).collect()
+    } else {
+        crate::par::map(&todo, |&w| sim_wave(w))
+    };
     for (&w, res) in todo.iter().zip(results) {
         let (count, c, warn) = res?;
         for x in warn {
