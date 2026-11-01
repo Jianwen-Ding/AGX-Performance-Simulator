@@ -106,3 +106,10 @@ while on the GPU workgroups are dispatched as others finish, so one wave's loads
 reduction. The old full warm hid that by making later waves' loads free. The fix to try: overlap consecutive waves
 in `dispatch` (a wave's memory-bound part against the previous wave's compute-bound tail), checked on these 48
 captures and verify-dispatch.
+
+Tried (not kept): crediting each later wave the overlap min(memory phase, compute tail), the memory phase its
+distinct lines at the core's DRAM share and the tail the rest of its time, averaged over simulated later waves.
+40 captures 11.0 -> 11.6% mean (35 within 25%), the 8 above 5.9 -> 18.5% (the FFT captures -24..-40%): kernels with
+several resident workgroups per core already overlap memory and compute inside a wave, so a blanket cross-wave
+credit counts it twice. A cross-wave overlap would need the wave's own idle time (cycles in which no group issues)
+from `simulate_groups`, not an estimate from its line count.
