@@ -30,6 +30,11 @@ command in `capcheck.py`'s docstring.
   at the start of every command (294 -> 4134 bytes: 2.79 -> 9.04 us), which the model lacked (2.4 -> 2.7 us). The
   zluda profile counts the distinct lines the first wave executes and takes the slower of fetch and execution
   (they overlap: added in full, the Q8_0 kernel's 138 lines made it +50%): the straight-line kernels within 1-3%.
+- **Open: the fetch term overestimates mad chains** (`mad-chains.txt`: one thread, dependent `mad.lo` chains;
+  mad32 512: 7.0 us hw, 9.1 sim; mad64 512: 25.8 / 35.7): ~60-73 ns per line there against 104 for the fma kernels, at
+  the same ~8 instructions per line, so the cost is not per line alone. A two-term fit (16 ns a line + 5.5 ns an
+  instruction) matched the mad chains but missed line1024 (6.2 against 9.0 us) and made the captures' median 25%:
+  reverted. Short single-thread runs also vary run to run (mad32_64: 3.8 and 4.8 us).
 - 4 captures (`mul_mat_vec_f` x2, `mul_mat_vec_q` type 13, type 7 with 1 column) do not replay: the GPU faults
   ("Bad address") or the parameter block's fixed address is taken. Their captures miss memory the kernels reach
   (pointers inside by-value structs such as ggml_cuda_mm_fusion_args_device): a capture bug in zluda_agx, not
