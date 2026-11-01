@@ -61,6 +61,12 @@ median of 3 runs of 1000 back to back) against `agx_dispatch --launch-profile zl
   with AGX_TG_SETTLE_ON_READ (+8%). So the reduction sequence itself is better with the settle rule; what makes the
   llama.cpp kernels fast under it is elsewhere (their device loads and waits, or the stores at their end), which the
   stale deferral's overcharge offset. The rule stays opt-in until that is found.
+  Located further: llama.cpp's mul_mat_vec_q<Q5_1> replayed with 1 / 4 / 12 workgroups of 2 groups per core (grid x 1216
+  / 4864 / 14336): GPU 18.1 / 16.6 / 25.75 us; the model 17.35 / 17.35 / 25.72 by default and 17.35 / 17.35 / 19.31
+  with the settle rule. The two agree up to 5 workgroups per core and part at 12 (two waves of 12 SIMD groups): the
+  GPU's time grows 1.55x from 5 to 12 workgroups per core, the settled model's only 1.11x. What the stale deferral
+  supplied is contention between many resident groups; next, a model of that (shared issue or register-file
+  bandwidth at high occupancy) measured on its own.
   (`AGX_ISSUE_PROFILE_SKIP` skips the cost model's own calibration calls, `AGX_ISSUE_PROFILE_ROWS` lists more rows.)
 - Open: gemm_block_size_bias +43% (several workgroups on one core modelled as overlapping less than they do, the
   known gap); blur_gray, image_rotate, hough_scores +27-38% (hundreds of waves, each simulated with its own latency,
