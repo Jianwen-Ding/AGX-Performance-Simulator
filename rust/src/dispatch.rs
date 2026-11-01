@@ -63,9 +63,10 @@ pub struct Launch {
     /// (false in drm, whose calibration it would change; true in zluda: Geekbench's captures median 9% -> 8%, llama.cpp's
     /// within 10% 7 -> 9 of 11)
     pub later_waves_warm: bool,
-    /// with `later_waves_warm`: only the first wave's data is warm for later waves (their new data is not).
-    /// Off by default (AGX_PARTIAL_WARM=1): it fixes resident streams (results/2026-11-01-fft-shared-captures) but
-    /// llama.cpp's matrix-vector kernels, whose later waves read new data fast on the GPU, then come out 23-43% slow
+    /// with `later_waves_warm`: only the first wave's data is warm for later waves; the rest of the data a previous
+    /// command left behind is at L2 latency but its first touch in the dispatch goes at the DRAM rate (reads back to
+    /// back never exceed ~380 GB/s; results/2026-11-01-fft-shared-captures). The zluda profile sets it
+    /// (AGX_PARTIAL_WARM=0 / 1 overrides)
     pub partial_warm: bool,
     /// cores per cluster (workgroups are split evenly over clusters first); empty = round-robin over `cores`
     pub clusters: Vec<u32>,
@@ -355,9 +356,10 @@ pub fn simulate_with(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer
         if w == 0 && partial_warm {
             *first_wave_segs.lock().unwrap() = Some(std::sync::Arc::new(distinct.clone()));
         }
+        let mm = MemModel { first_touch_dram: partial_warm, ..mm };
         let mm = if w > 0 && mm.resident_slc && warm_later {
             let warm_only = if partial_warm { first_wave_segs.lock().unwrap().clone() } else { None };
-            MemModel { warm: true, warm_only, ..mm }
+            MemModel { warm: true, warm_only, first_touch_dram: partial_warm, ..mm }
         } else {
             mm
         };

@@ -1436,6 +1436,8 @@ pub struct MemModel {
     /// with `warm`: replay only these segments (a later wave finds in the caches what the first wave also touched,
     /// not its own new data; `Launch::partial_warm`); None: all of the wave's
     pub warm_only: Option<std::sync::Arc<std::collections::HashSet<u64>>>,
+    /// with `resident_slc`: a segment's first touch in the dispatch is charged at the DRAM rate (L2 latency)
+    pub first_touch_dram: bool,
     /// device atomics (no return, distinct words): per-core occupancy max(atomic_min, atomic_per_seg x 32-byte
     /// sectors) reference cycles; lanes on one word serialise GPU-wide at atomic_same_word_rate per cycle (every lane separately: the 32 lanes of an
     /// instruction are not combined; playground 2026-10-16-atomic-contention)
@@ -1481,6 +1483,7 @@ impl Default for MemModel {
             sharing: 0.0,
             resident_slc: false,
             warm_only: None,
+            first_touch_dram: false,
             atomic_min: 6.9,
             atomic_per_seg: 1.7,
             atomic_same_word_rate: 0.89,   // playground novel-results/2026-10-16-atomic-contention: 0.86 ns per lane-op on one word at 1,398 MHz
@@ -1838,6 +1841,10 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: Option<&
         epoch: u64,
         /// per group: (memory step, epoch, segments missing L1 per level, deepest level) for the step being retried
         lv_cache: Vec<Option<(usize, u64, [f64; 3], usize)>>,
+        /// `first_touch_dram`: segments this dispatch has touched, and per access (group, index) how many of its
+        /// lines were first touches (an access is re-evaluated while it waits for its buckets)
+        seen: std::collections::HashSet<u64>,
+        first: HashMap<(usize, usize), f64>,
     }
     // AGX_CHARGE_WRITEBACK=1: a store also takes DRAM bandwidth for its lines when the working set does not fit the
     // SLC, even if they were just loaded (the dirty lines must be written back). Off by default: no hardware data
@@ -1863,6 +1870,7 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: Option<&
             && !PROFILED.swap(true, std::sync::atomic::Ordering::SeqCst))
             .then(Default::default);
     let mut profile_prev: i64 = 0;
+    let first_touch_dram = mem.is_some_and(|(_, m)| m.resident_slc && m.first_touch_dram);
     let charge_writeback = std::env::var("AGX_CHARGE_WRITEBACK").map_or(false, |v| v == "1")
         && mem.is_some_and(|(_, m)| !m.resident_slc);
     let mut ms: Option<MemState> = mem.map(|(_, m)| {
@@ -1890,6 +1898,8 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: Option<&
             last_load: None,
             epoch: 0,
             lv_cache: vec![None; groups],
+            seen: Default::default(),
+            first: Default::default(),
         }
     });
     let memv: Vec<&[(u32, Vec<u64>)]> = mem.map(|(v, _)| v.to_vec()).unwrap_or_default();
@@ -1899,7 +1909,7 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: Option<&
         sg.iter().fold(sg.len() as u64, |h, &x| (h ^ x).wrapping_mul(0x100_0000_01b3).rotate_left(29))
     }).collect()).collect();
     if let (Some(m), Some((_, mm))) = (ms.as_mut(), mem) {
-        if mm.resident_slc && !mm.warm {
+        if mm.resident_slc && (!mm.warm || mm.warm_only.is_some()) {
             let mut distinct: std::collections::HashSet<u64> = Default::default();
             for (gi, v) in memv.iter().enumerate() {
                 for (step, segs) in v.iter() {
@@ -1910,8 +1920,14 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: Option<&
                     }
                 }
             }
+            // with first_touch_dram: the previous command's data at L2 latency (as if prefetched: llama.cpp's
+            // matrix-vector kernels read their new rows fast), at the DRAM rate
+            let to_l2 = mm.first_touch_dram;
             for &sg in &distinct {
                 m.slc.touch(sg);
+                if to_l2 {
+                    m.l2.touch(sg);
+                }
             }
         }
         if mm.warm {
@@ -2486,6 +2502,25 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: Option<&
                                 level
                             }
                         };
+                        // data a previous command left in the system-level cache: L2 latency, but its first touch
+                        // in this dispatch goes at the GPU-wide DRAM rate (reads back to back never exceed ~380 GB/s,
+                        // 1-12 MiB; playground novel-results/2026-11-01-read-bandwidth)
+                        if first_touch_dram && need[2] + need[3] > 0.0 {
+                            let key = (gi, m.cur[gi]);
+                            let first = match m.first.get(&key) {
+                                Some(&f) => f,
+                                None => {
+                                    let f = segs.iter().filter(|&&sg| m.seen.insert(sg)).count() as f64;
+                                    m.first.insert(key, f);
+                                    f
+                                }
+                            };
+                            let from_slc = first.min(need[3]);
+                            let from_l2 = (first - from_slc).min(need[2]);
+                            need[3] -= from_slc;
+                            need[2] -= from_l2;
+                            need[4] += from_slc + from_l2;
+                        }
                         if store && charge_writeback {
                             need[4] = need[4].max(n.max(1.0)); // every written line goes back to DRAM
                         }
