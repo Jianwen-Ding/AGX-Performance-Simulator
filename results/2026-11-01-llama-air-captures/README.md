@@ -13,6 +13,7 @@ command in `capcheck.py`'s docstring.
 | 1000 back to back, `--launch-profile zluda` (`capcheck-warm-zluda-profile.txt`) | 27% | 1 / 8 | 3 / 8 |
 | the same with the cold instruction fetch (`capcheck-warm-zluda-fetch.txt`) | 21% | 2 / 8 | 5 / 8 |
 | hardware the median of 5 runs, stack kernels replayed with their stack and the stack setup modelled (`capcheck-repeat5.txt` + `--stack`) | 21% | 3 / 10 | 7 / 10 |
+| **ZLUDA's current code** (private arrays in registers; captures with the next allocation), the same 12 kernels recaptured (`capcheck-current-build.txt`, type 13: -18%) | **18%** | 3 / 12 | 11 / 12 |
 
 - **Measure at a warm clock.** 30 launches back to back do not ramp the GPU's clock: the Q8_0 matrix-vector kernel
   (the largest, 2 waves of 12 workgroups per core) measured 67 us after 30 and 26.2 us after 1000; the simulator
