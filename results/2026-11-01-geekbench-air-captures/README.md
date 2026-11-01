@@ -141,3 +141,13 @@ core, shuffle + fadd chains one pair per ~69 cycles, as if every add of the mixe
 1.4-per-cycle shuffle pipe. The mechanism to model: while a core has shuffles in flight, its FP32 ALU instructions
 issue at the shuffle pipe's rate (a shared pipe or issue port); calibrate on shfl / fadd / sf at 4, 16, 48 groups.
 
+Implemented (opt-in, `AGX_SHFL_PIPE=0.6`): shuffles and, within 64 cycles of a shuffle, FP32 adds / multiplies share
+a pipe taking one instruction every 0.6 cycles. It fits the chains (sf.ptx 1 / 4 / 16 / 48 groups 16.1 / 16.1 /
+28.9 / 74.6 us, GPU 17.79 / 21.17 / 30.62 / 81.54; red_shfl 34.0 / 61.5, GPU 32.0 / 57.4; shuffle-only and
+fadd-only chains unchanged), but the 48 captures do not move (10.2%; 11.7% with the settle rule) and red.ptx with
+128 threads stays short (67.0 us, GPU 83.8): the llama.cpp reductions' missing cost is not this either.
+verify-cost-model with it: all ok, random-kernels better (median 0.064 -> 0.057), heldout24 p90 0.118 -> 0.150 and
+heldout32c median 0.039 -> 0.047. Off by default. What red.ptx adds over red_shfl is the threadgroup store / barrier
+/ load round trip each iteration with 4 SIMD-groups per workgroup: the next thing to isolate (red_tg alone was
+modelled within -3..+8%, so it is their combination with the shuffles).
+

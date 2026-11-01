@@ -1356,6 +1356,7 @@ struct SimInstr {
     src32: Vec<u32>,
     reduce: bool,
     shuffle: bool,
+    fp32: bool,
     lat: i64,
     ii: i64,
     /// issue interval when every `.cache` source is in the result cache (`_cache` classes only)
@@ -1757,6 +1758,7 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: Option<&
             src32: r.src32.clone(),
             reduce: is_reduce(&r.name),
             shuffle: r.name.contains("shuffle"),
+            fp32: matches!(r.name.as_str(), "fadd32" | "fmul32" | "fmadd32"),
             lat,
             ii,
             ii_cache_hit,
@@ -1992,6 +1994,15 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: Option<&
     // until the extra latency follows the unit's load instead of a count
     let shfl_queue = tk(std::env::var("AGX_SHFL_QUEUE").ok().and_then(|v| v.parse().ok()).unwrap_or(0.0));
     let mut shfl_inflight: Vec<(usize, i64)> = Vec::new();
+    // AGX_SHFL_PIPE=c (experiment): shuffles and, while a shuffle issued in the last 64 cycles, FP32 adds / multiplies
+    // share one pipe that takes an instruction every c cycles (mixed shuffle / fadd chains, results/2026-11-01-
+    // geekbench-air-captures). 0.6 fits those chains (sf.ptx 16 / 48 groups 28.9 / 74.6 us, GPU 30.6 / 81.5; red_shfl
+    // 34.0 / 61.5, GPU 32.0 / 57.4) but leaves the 48 captures unchanged and two held-out sets of verify-cost-model a
+    // little worse (heldout24 p90 0.118 -> 0.150, heldout32c median 0.039 -> 0.047): off by default
+    let shfl_pipe = tk(std::env::var("AGX_SHFL_PIPE").ok().and_then(|v| v.parse().ok()).unwrap_or(0.0));
+    let shfl_recent = tk(64.0);
+    let mut pipe_free = NEG_INF;
+    let mut last_shfl = NEG_INF;
     let mut last_wait = vec![NEG_INF; g];
     // per group: the last device store (1) / load (2) issued before the next fence; 0 after a fence or at the start
     let mut last_mem = vec![0u8; g];
@@ -2371,6 +2382,11 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: Option<&
                     continue;
                 }
             }
+            if shfl_pipe > 0 && !msk && r.fp32 && t - last_shfl < shfl_recent && pipe_free > t {
+                wake!(pipe_free);
+                wmin_time = wmin_time.min(pipe_free);
+                continue;
+            }
             // barrier: wait until every group of the scope has arrived (after draining its ALU work)
             if r.barrier != 0 {
                 if bar_arrive[gi].is_none() {
@@ -2691,6 +2707,12 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: Option<&
             match r.kind {
                 Kind::Alu => {
                     let mut lat = r.lat;
+                    if shfl_pipe > 0 && !msk && (r.shuffle || (r.fp32 && t - last_shfl < shfl_recent)) {
+                        pipe_free = pipe_free.max(t) + shfl_pipe;
+                        if r.shuffle {
+                            last_shfl = t;
+                        }
+                    }
                     if r.shuffle && shfl_queue > 0 && !msk {
                         shfl_inflight.retain(|&(_, d)| d > t);
                         // other SIMD-groups' shuffles (a group's own independent ones pipeline: instruction bench)
