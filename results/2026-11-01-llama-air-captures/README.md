@@ -41,7 +41,9 @@ command in `capcheck.py`'s docstring.
   median; with it set_rows is -16%, rope -24/-26%.
 - **A kernel with a stack costs ~7.5 us more per command** (`stack-launch.txt`: an empty kernel, 38 to 15,200
   workgroups, +7.1-8.1 us with `--stack 64`): the scratch set up at the launch. Modelled (zluda profile,
-  `agx_dispatch --stack`); llama.cpp's mul_mat_vec_f kernels -72% -> -56%, -39% -> -25%. Their remaining gap is open.
+  `agx_dispatch --stack`); llama.cpp's mul_mat_vec_f kernels -72% -> -56%, -39% -> -25%. ZLUDA then kept their
+  small array in registers (no stack: 46.1 -> 14.6 us and 53.8 -> 25.3 us on the GPU); on that code the simulator is
+  -19% (11.8 us) and +13% (28.6 us): most of the old gap was the scattered stack traffic.
 - 4 captures (`mul_mat_vec_f` x2, `mul_mat_vec_q` type 13, type 7 with 1 column) do not replay: the GPU faults
   ("Bad address") or the parameter block's fixed address is taken. Their captures miss memory the kernels reach
   (pointers inside by-value structs such as ggml_cuda_mm_fusion_args_device): a capture bug in zluda_agx, not
