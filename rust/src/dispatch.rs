@@ -392,7 +392,9 @@ pub fn simulate_with(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer
     let store_ns = if l.store_gbps > 0.0 { written / l.store_gbps } else { 0.0 };
     // (the stores after the workgroups' launch: 1520 x 256 threads writing 1.5 / 6 / 24 MB, 4 us of launch + the bytes
     // at 365 GB/s + 2.3 us: 10.4 / 22.7 / 72.0 us, measured 9.9 / 22.0 / 72.1)
-    let store_floor = if store_ns > 0.0 { rep.launch_core_ns + store_ns } else { 0.0 };
+    // (launch and stores overlap beyond that: Geekbench's gradient, 9,672 workgroups per core, 967 us of launch and
+    // ~500 us of stores, measured 1036 us)
+    let store_floor = if store_ns > 0.0 { store_ns + rep.launch_core_ns.min(store_ns) } else { 0.0 };
     rep.time_ns = (total / l.clock_mhz * 1000.0).max(fetch_ns).max(rep.launch_core_ns).max(store_floor) + l.launch_ns + stack_ns + writes_ns;
     if !rep.time_ns.is_finite() { return Err("predicted time is non-finite for this launch".into()); }
     Ok(rep)

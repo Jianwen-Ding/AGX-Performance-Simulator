@@ -5,7 +5,7 @@
 //!              [--m2-core-map FILE] (supplied M2 core IDs; exhaustive isolated waves)
 //!              [--busiest-core-wgs N] (measured peak count; representative-core sensitivity only)
 //!              [--preamble PRE.bin] [--map VA=FILE ...] [--alloc VA=BYTES ...] [--agx-strict GPU]
-//!              [--launch-profile drm|zluda] [--group-launch-ns NS] [--stack BYTES]
+//!              [--launch-profile drm|zluda] [--group-launch-ns NS] [--stack BYTES] [--store-gbps GBPS]
 //!
 //! --launch-profile: the launch costs of a command as the direct-DRM harness submits it (`drm`, the default: 5.6 us
 //! fixed, max(100 ns per workgroup, 13.6 ns per SIMD group) per core) or as zluda_agx / agx_runtime submit it back to
@@ -109,7 +109,7 @@ fn run_job(a: &[String], p: &Params) -> Result<serde_json::Value, String> {
     while i < a.len() {
         let option = a[i].as_str();
         if option == "--no-mem" { l.mem = false; i += 1; continue; }
-        if !["--grid", "--wg", "--regs", "--tg-bytes", "--clock", "--cores", "--busiest-core-wgs", "--m2-core-map", "--launch-us", "--max-waves", "--uniform", "--preamble", "--map", "--alloc", "--agx-strict", "--launch-profile", "--group-launch-ns", "--stack"].contains(&option) {
+        if !["--grid", "--wg", "--regs", "--tg-bytes", "--clock", "--cores", "--busiest-core-wgs", "--m2-core-map", "--launch-us", "--max-waves", "--uniform", "--preamble", "--map", "--alloc", "--agx-strict", "--launch-profile", "--group-launch-ns", "--stack", "--store-gbps"].contains(&option) {
             return Err(format!("unknown argument {}", option));
         }
         let v = a.get(i + 1).ok_or_else(|| format!("{} requires a value", option))?;
@@ -124,6 +124,7 @@ fn run_job(a: &[String], p: &Params) -> Result<serde_json::Value, String> {
             "--launch-us" => l.launch_ns = number::<f64>(v, option)? * 1000.0,
             "--group-launch-ns" => l.group_launch_ns = number(v, option)?,
             "--stack" => l.stack_bytes = number(v, option)?,
+            "--store-gbps" => l.store_gbps = number(v, option)?,
             "--launch-profile" => match v.as_str() {
                 "drm" => {
                     let d = Launch::default();
