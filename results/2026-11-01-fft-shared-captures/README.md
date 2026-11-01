@@ -39,3 +39,22 @@ accurate for streams larger than the cache (DRAM, `dram_gbps` 360) and 2-3x fast
 (`resident_slc`). Ruled out as the cause: `slc_rate` (0.5 -> 0.106 segments per cycle per core, DRAM's
 equivalent, moves read 8 MiB only 8.4 -> 11.7 us), `later_waves_warm` (off: 10.0 us), `max_waves` (2 / 8 / 64: no
 change). Next: trace where a resident stream's time goes in `simulate_groups` (which bucket or latency binds).
+
+## Experiments on the resident-stream gap (not adopted)
+
+Scored on the 40 llama.cpp / Geekbench captures (mean |error| 10.5%, 36 within 25%) and the 8 above (mean 21.4%):
+
+- A GPU-wide cap on system-level-cache hits (each active core's `slc_rate` at most 408 GB/s / active cores) plus
+  `later_waves_warm` only for footprints up to 6.5 MB: 40 captures mean 10.3% (36 within 25%), the 8 above 8.0%
+  (read 8 MiB +2%, copy -2%, FFT -17..+13%). Not adopted: the calibration rows of stream.json (all 38 cores
+  re-reading a 1-16 MiB window inside one dispatch) measure 1.1-1.9 TB/s, so the cache itself is not capped
+  GPU-wide; with the cap their p90 error goes 0.395 -> 1.096 (max 2.30 -> 3.29) and dispatch_check's max 0.215 ->
+  0.630.
+- The physical reading that fits both: data a *previous command* left behind is not served at cache speed on its
+  first touch (the 8 MiB read back to back runs at ~340 GB/s), re-reads inside a dispatch are. Turning residency off
+  entirely (`resident_slc` false) gives the 8 above mean 9.9% but the 40 captures 12.4% (34 within 25%), because
+  `later_waves_warm` then never applies.
+- Charging only a resident line's first touch in the dispatch to the DRAM bucket (the rest at the cache's rate) did
+  not reproduce the non-resident time (read 8 MiB: 9.6 us against 26.7 us without residency): the non-resident path
+  differs by more than the bucket. Next: find that difference (per-level latency, the LRU sizes, or the store and
+  first-wave handling), then model "first touch per dispatch" with it and re-score both sets.
