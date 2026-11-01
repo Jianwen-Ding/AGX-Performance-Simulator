@@ -15,3 +15,18 @@ is above it).
   streaming load, separate from these kernels (they move ~44 GB/s).
 - Remaining suspect: contention inside a wave. One workgroup alone takes ~3,400 cycles, a full wave of 27 (54 groups)
   ~5,580; hardware fits ~4,200 a wave. Next: a probe of a short latency-bound kernel at 1-54 groups a core.
+
+## Occupancy and wave probes: both modelled; the gap is cross-core reuse (hypothesis)
+
+Column-sum kernel with 3 waits a group, workgroups of 64 (playground colsum.ptx, `--rows 96`):
+
+- One wave, k workgroups a core (k = 2..29): hw 4.2 / 4.4 / 4.9 / 6.2 / 8.5 us at 3 / 5 / 9 / 17 / 29, model -1..-7%.
+  Contention inside a wave is right.
+- 27 a core x 3 / 11 / 42 waves: hw 22.5 / 78.9 / 307 us, model +5 / +8 / +8%. Steady-state waves are right.
+- `AGX_PARTIAL_WARM=0` does not move the four image kernels (their data exceed the SLC; the warm rules do not apply).
+
+What the image kernels have and the probes do not: stencil reads of lines that a neighbouring workgroup, usually on
+another core, read shortly before (3x3 neighbourhoods; rotated reads). On hardware those are GPU-wide L2 hits; the
+model simulates one core's workgroups and charges that core's first touch of a line as a fetch whatever the other
+cores did (`inflight` covers only this core's groups; `sharing` only scales capacity). Next: a hardware probe of
+reads of lines another core loaded a little earlier, then a cross-core reuse rule.
