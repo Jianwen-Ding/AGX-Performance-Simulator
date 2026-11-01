@@ -216,4 +216,10 @@ mul_mat_vec_q replay does not move (12 per core settled 18.9 -> 19.0 us, GPU 26.
 barrier in the model: its post-barrier tail is issued through the scheduler's fast path (runs of instructions a group
 issues without contention), which the per-instruction gate does not see. Next: apply the budget in that fast path too
 (or disable it for groups inside the window), then rescore the 48 captures with the settle rule.
+Correction after counting (debug counters on the replay): the gate does act on mul_mat_vec_q (1722 ALU issues
+inside the window, 6815 gated visits, none masked), but 1722 x 0.75 cycles is ~1300 cycles a wave, where the GPU's
+extra ~6.5 us per wave pair needs ~3 cycles per tail ALU instruction (the ~1.3 per cycle above counted every tail
+instruction, control and memory too). So one core issue rate does not fit both red_bar2 (0.75) and mul_mat_vec_q
+(~3): the tail's cost depends on more than its ALU count (its device store, branches and waits with 24 groups), to
+measure instruction class by class on the captured tail.
 
