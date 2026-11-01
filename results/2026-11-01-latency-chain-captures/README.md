@@ -47,5 +47,22 @@ The Jacobi round's issue profile (AGX_ISSUE_PROFILE) with the SLC rule: 75% of t
 row-loop waits (8 each, ~464 cycles a wait); hardware's 5.2 us of work allows ~140 ns a wait, or less of the rest.
 Next: a modified-kernel probe (the round without its V rotation; with the sums only) to split the two.
 
+## Resolution: the Jacobi capture was mismeasured; first touch in the SLC is now the default
+
+- Column-sum probe (the Jacobi round's read pattern, playground results/2026-11-01-gpu-written-lines/colsum.ptx): 96
+  more waits cost hardware 300 ns each with one SIMD-group (6.8 / 18.3 / 47.1 us at 256 / 1024 / 4096 rows); the SLC
+  rule gives 391 ns (+30%), the L2 rule 142 ns.
+- `agx_jacobi_round_sg` rotates in place and only pairs that are not yet orthogonal: back-to-back replays after the
+  first rotate nothing, so the 7.50 us b2b median times a round without rotations while the capture has all of them.
+  Simulated on the state after one functional replay (cap5/*-replayed, now in lat8): 6.62 us with the SLC rule
+  (-12%), 5.08 us with the L2 rule (-32%). In-place kernels with data-dependent work need the replayed state.
+- Rescored (lat8 with the replayed Jacobi): default L2 rule 40: 10.2, new8: 5.9, lat8: 32.1, all 56: 12.7; SLC rule
+  10.8 / 4.9 / 13.5 / **10.3**. The SLC rule is now the default (`AGX_FIRST_TOUCH_L2=1`: the L2 rule). Of the 40,
+  changed: mul_mat_vec_q type7 1-col -7 -> +15, mul_mat_vec_f +17 -> +28, depthwise_convolution_2d -3 -> +15,
+  activation_relu +3 -> +10, gemm_block_size_bias +36 -> +43 (worse); gemm_non_block_size_bias -10 -> +1, soft_max
+  -5 -> 0, build_patches_padding -15 -> -12, pressure_solver -12 -> -10, particle, rms_norm, mul_mat_vec_q 8-col
+  (better by 1-3). The ones that lose are streaming kernels with many loads in flight per wait: how far those
+  overlap first-touch latency is the next refinement (the L2 rule was an over-fit to them).
+
 Captures: /scratch/perf-goal/sim/chase/s{0,64,16384}, /scratch/perf-goal/sim/cap4 (regenerable: the playground's
 chase.ptx with agx_bench_kernel; ZLUDA's qrbench / eigbench / l2bench with ZLUDA_AGX_CAPTURE, SKIP 5, MAX 1).

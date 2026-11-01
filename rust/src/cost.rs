@@ -1924,9 +1924,12 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: Option<&
                     }
                 }
             }
-            // with first_touch_dram: the previous command's data at L2 latency (as if prefetched: llama.cpp's
-            // matrix-vector kernels read their new rows fast), at the DRAM rate
-            let to_l2 = mm.first_touch_dram && std::env::var("AGX_FIRST_TOUCH_L2").map_or(true, |v| v != "0");
+            // the previous command's data is in the SLC, not L2: command boundaries invalidate L2 (playground
+            // novel-results/2026-10-16-l2-command-boundary) and a dependent wait on a new line costs ~300 ns
+            // (2026-11-01-first-touch-chains; results/2026-11-01-latency-chain-captures: all 56 captures 12.7 -> 10.3%).
+            // AGX_FIRST_TOUCH_L2=1: first touches at L2 latency (the earlier fit to llama.cpp's matrix-vector kernels,
+            // -50% on dependent chains)
+            let to_l2 = mm.first_touch_dram && std::env::var("AGX_FIRST_TOUCH_L2").is_ok_and(|v| v == "1");
             for &sg in &distinct {
                 m.slc.touch(sg);
                 if to_l2 {

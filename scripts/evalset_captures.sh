@@ -13,7 +13,7 @@ done
 # trsm block and split-gemv kernels (b2b medians, hwone.sh CAP --back-to-back 200, 2026-11-01)
 lat=""; i=0; lhw=(8.792 23.666 24.208 514.7 7.50 188.0 23.2 62.5)
 for d in /scratch/perf-goal/sim/chase/s0/* /scratch/perf-goal/sim/chase/s64/* /scratch/perf-goal/sim/chase/s16384/* \
-         /scratch/perf-goal/sim/cap4/*qr_panel /scratch/perf-goal/sim/cap4/*jacobi_round_sg \
+         /scratch/perf-goal/sim/cap4/*qr_panel /scratch/perf-goal/sim/cap5/*jacobi_round_sg-replayed \
          /scratch/perf-goal/sim/cap4/*sgemv_split /scratch/perf-goal/sim/cap4/*sgemv_sum /scratch/perf-goal/sim/cap4/*strsm_sg; do
   s=$(/scratch/perf-goal/sim/simone.sh $d --launch-profile zluda | python3 -c "import sys,json; print(json.loads(sys.stdin.read())['time_us'])")
   lat="$lat $(python3 -c "print(round(100*($s-${lhw[$i]})/${lhw[$i]}))")"; i=$((i+1))
