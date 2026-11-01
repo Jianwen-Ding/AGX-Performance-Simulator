@@ -13,7 +13,8 @@ command in `capcheck.py`'s docstring.
 | 1000 back to back, `--launch-profile zluda` (`capcheck-warm-zluda-profile.txt`) | 27% | 1 / 8 | 3 / 8 |
 | the same with the cold instruction fetch (`capcheck-warm-zluda-fetch.txt`) | 21% | 2 / 8 | 5 / 8 |
 | hardware the median of 5 runs, stack kernels replayed with their stack and the stack setup modelled (`capcheck-repeat5.txt` + `--stack`) | 21% | 3 / 10 | 7 / 10 |
-| **ZLUDA's current code** (private arrays in registers; captures with the next allocation), the same 12 kernels recaptured (`capcheck-current-build.txt`, type 13: -18%) | **18%** | 3 / 12 | 11 / 12 |
+| **ZLUDA's current code** (private arrays in registers; captures with the next allocation), the same 12 kernels recaptured (`capcheck-current-build.txt`, type 13: -18%) | 18% | 3 / 12 | 11 / 12 |
+| the same with the store bandwidth floor (zluda profile) | **16%** (11 + type 13 -18%) | 3 / 12 | 11 / 12 |
 
 - **Measure at a warm clock.** 30 launches back to back do not ramp the GPU's clock: the Q8_0 matrix-vector kernel
   (the largest, 2 waves of 12 workgroups per core) measured 67 us after 30 and 26.2 us after 1000; the simulator
@@ -45,6 +46,9 @@ command in `capcheck.py`'s docstring.
   `agx_dispatch --stack`); llama.cpp's mul_mat_vec_f kernels -72% -> -56%, -39% -> -25%. ZLUDA then kept their
   small array in registers (no stack: 46.1 -> 14.6 us and 53.8 -> 25.3 us on the GPU); on that code the simulator is
   -19% (11.8 us) and +13% (28.6 us): most of the old gap was the scattered stack traffic.
+- **Stores cost bandwidth even when they fit the system-level cache** (`st.ptx`, `stn*.ptx`: 1520 x 256 threads
+  writing 1.5 / 6 / 24 MB, hw 9.9 / 22.0 / 72.1 us; the model had 6.3 / 6.9 / 73.8, the cache absorbing the smaller
+  ones): ~365 GB/s, after the workgroups' launch. zluda profile `store_gbps`: 10.6 / 23.4 / 74.5 us.
 - 4 captures (`mul_mat_vec_f` x2, `mul_mat_vec_q` type 13, type 7 with 1 column) do not replay: the GPU faults
   ("Bad address") or the parameter block's fixed address is taken. Their captures miss memory the kernels reach
   (pointers inside by-value structs such as ggml_cuda_mm_fusion_args_device): a capture bug in zluda_agx, not

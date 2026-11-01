@@ -51,6 +51,11 @@ pub struct Launch {
     /// 15,200 workgroups +7.1-8.1 us with --stack 64, playground novel-results/2026-11-01-stack-launch)
     pub stack_bytes: u32,
     pub stack_launch_ns: f64,
+    /// GPU-wide store bandwidth (GB/s), a floor on the time of a dispatch's writes (0: none, the drm profile): stores
+    /// that fit the system-level cache went at no cost in the model, measured at ~280-340 GB/s whatever their size
+    /// (1520 x 256 threads writing 1.5 / 6 / 24 MB: 9.9 / 22.0 / 72.1 us, after the workgroups' launch; zluda profile
+    /// 365, playground novel-results/2026-11-01-store-bandwidth)
+    pub store_gbps: f64,
     /// cores per cluster (workgroups are split evenly over clusters first); empty = round-robin over `cores`
     pub clusters: Vec<u32>,
     pub uniforms: Vec<(usize, u32)>,
@@ -81,6 +86,7 @@ impl Default for Launch {
             fetch_line_ns: 0.0,
             stack_bytes: 0,
             stack_launch_ns: 0.0,
+            store_gbps: 0.0,
             clusters: vec![10, 9, 9, 10],
             uniforms: vec![],
             mem: true,
@@ -215,6 +221,9 @@ pub fn simulate_with(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer
     let mm = MemModel { clock_mhz: l.clock_mhz, active_cores: (cores.min(n)) as f64, warm: false, dram_gbps: l.dram_gbps, ..Default::default() };
     let device_pcs: std::collections::HashSet<usize> =
         ins.iter().filter(|i| i.name == "device_load" || i.name == "device_store").map(|i| i.pc).collect();
+    let store_pcs: std::collections::HashSet<usize> = ins.iter().filter(|i| i.name == "device_store").map(|i| i.pc).collect();
+    // the GPU-wide bytes the dispatch writes, from the first wave (for the store bandwidth floor)
+    let written = std::sync::Mutex::new(0.0f64);
     let wg_coords = |k| wg_coords(dims, k);
     let first_wave_lines = std::sync::Mutex::new(std::collections::HashSet::<usize>::new());
     let sim_wave = |w: u64| -> Result<(u64, f64, Vec<String>), String> {
@@ -283,6 +292,17 @@ pub fn simulate_with(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer
             }
         }
         let footprint = distinct.len() as f64 * 64.0 * (m as f64 / count.max(1) as f64) * cores.min(n) as f64;
+        if w == 0 && l.store_gbps > 0.0 {
+            let mut stored: std::collections::HashSet<u64> = Default::default();
+            for t in &traces {
+                for (step, segs) in &t.mem {
+                    if store_pcs.contains(&t.pcs[*step as usize]) {
+                        stored.extend(segs.iter().copied());
+                    }
+                }
+            }
+            *written.lock().unwrap() = stored.len() as f64 * 64.0 * (m as f64 / count.max(1) as f64) * cores.min(n) as f64;
+        }
         // data shared between cores: mean overlap of this core's lines with workgroups on other cores
         let mut sharing = 0.0;
         if l.mem && n > 1 {
@@ -363,7 +383,12 @@ pub fn simulate_with(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer
     // 26.2 us measured with the 2.3 us launch)
     let fetch_ns = rep.code_lines as f64 * l.fetch_line_ns;
     let stack_ns = if l.stack_bytes > 0 { l.stack_launch_ns } else { 0.0 };
-    rep.time_ns = (total / l.clock_mhz * 1000.0).max(fetch_ns).max(rep.launch_core_ns) + l.launch_ns + stack_ns;
+    let written = written.into_inner().unwrap();
+    let store_ns = if l.store_gbps > 0.0 { written / l.store_gbps } else { 0.0 };
+    // (the stores after the workgroups' launch: 1520 x 256 threads writing 1.5 / 6 / 24 MB, 4 us of launch + the bytes
+    // at 365 GB/s + 2.3 us: 10.4 / 22.7 / 72.0 us, measured 9.9 / 22.0 / 72.1)
+    let store_floor = if store_ns > 0.0 { rep.launch_core_ns + store_ns } else { 0.0 };
+    rep.time_ns = (total / l.clock_mhz * 1000.0).max(fetch_ns).max(rep.launch_core_ns).max(store_floor) + l.launch_ns + stack_ns;
     if !rep.time_ns.is_finite() { return Err("predicted time is non-finite for this launch".into()); }
     Ok(rep)
 }
