@@ -109,3 +109,11 @@ both ends (0.6x: 16 groups 36.9 us but 48 groups 95.6; 0.25x: 4 groups 27.0 but 
 needs a load-dependent shuffle latency (a queue at a core-wide shuffle unit) rather than a lower cap; with it the
 reductions' cost, and then the settle rule, can follow.
 
+Tried: `AGX_SHFL_QUEUE` (cost.rs), each shuffle's latency + q cycles per other SIMD-group's shuffle in flight on the
+core. q = 0.6 fits the dependent chains within 6% (20.1 / 23.2 / 38.0 / 83.8 us against 18.96 / 24.25 / 38.29 /
+83.17), but the mixed reduction kernels hardly move (their adds keep fewer shuffles in flight; red_shfl 25.3 -> 24.4
+us, GPU 32.0), the 48 captures are unchanged (mean 10.2%; with the settle rule 11.6%), and verify-cost-model's
+instruction-bench fit worsens (p90 0.169 -> 0.278) as does the core-scaling grid (0.277 -> 0.332): their many
+independent chains per group are already limited by the unit cap. Kept off (opt-in). The extra latency should follow
+the unit's recent load, not a count of shuffles in flight; and the reductions' missing cost is not only the shuffles'.
+

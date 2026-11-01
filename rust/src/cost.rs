@@ -1355,6 +1355,7 @@ struct SimInstr {
     need_port: f64,
     src32: Vec<u32>,
     reduce: bool,
+    shuffle: bool,
     lat: i64,
     ii: i64,
     /// issue interval when every `.cache` source is in the result cache (`_cache` classes only)
@@ -1755,6 +1756,7 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: Option<&
             need_port,
             src32: r.src32.clone(),
             reduce: is_reduce(&r.name),
+            shuffle: r.name.contains("shuffle"),
             lat,
             ii,
             ii_cache_hit,
@@ -1981,6 +1983,15 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: Option<&
     let mut lcg: u64 = 0x2545F4914F6CDD1D;
     let mut last_alu = vec![NEG_INF; g];
     let mut alu_done = vec![NEG_INF; g];
+    // SIMD-group reductions / shuffles in flight on the core (their completion times) and the latency each adds to
+    // a new one: the core's shuffle unit saturates gradually (1 / 4 / 16 / 48 groups of dependent chains: 3.0x /
+    // 7.4x / 9.8x one group's rate, results/2026-11-01-geekbench-air-captures). AGX_SHFL_QUEUE: cycles per one in
+    // flight (0: off). 0.6 fits those chains within 6% (GPU 18.96 / 24.25 / 38.29 / 83.17 us, model 20.1 / 23.2 / 38.0 /
+    // 83.8) but worsens the instruction-bench fit (p90 0.169 -> 0.278) and the core-scaling grid (p90 0.277 -> 0.332),
+    // whose many independent chains per group the unit cap already limits, and leaves the 48 captures unchanged: off
+    // until the extra latency follows the unit's load instead of a count
+    let shfl_queue = tk(std::env::var("AGX_SHFL_QUEUE").ok().and_then(|v| v.parse().ok()).unwrap_or(0.0));
+    let mut shfl_inflight: Vec<(usize, i64)> = Vec::new();
     let mut last_wait = vec![NEG_INF; g];
     // per group: the last device store (1) / load (2) issued before the next fence; 0 after a fence or at the start
     let mut last_mem = vec![0u8; g];
@@ -2679,7 +2690,13 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: Option<&
             } else {
             match r.kind {
                 Kind::Alu => {
-                    let lat = r.lat;
+                    let mut lat = r.lat;
+                    if r.shuffle && shfl_queue > 0 && !msk {
+                        shfl_inflight.retain(|&(_, d)| d > t);
+                        // other SIMD-groups' shuffles (a group's own independent ones pipeline: instruction bench)
+                        lat += shfl_queue * shfl_inflight.iter().filter(|&&(g2, _)| g2 != gi).count() as i64;
+                        shfl_inflight.push((gi, t + lat));
+                    }
                     let mut iiv = r.ii;
                     if let Some(h) = r.ii_cache_hit {
                         if r.cache_regs.iter().all(|x| rcache[gi].contains(x)) {
