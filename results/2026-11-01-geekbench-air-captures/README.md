@@ -117,3 +117,10 @@ instruction-bench fit worsens (p90 0.169 -> 0.278) as does the core-scaling grid
 independent chains per group are already limited by the unit cap. Kept off (opt-in). The extra latency should follow
 the unit's recent load, not a count of shuffles in flight; and the reductions' missing cost is not only the shuffles'.
 
+Also tried: a utilization-based shuffle latency (extra q u / (1 - u), u the core's shuffle issues in the last 32
+cycles over 1.4 per cycle): q = 1 / 2 / 4 gives 19.8 / 21.1 / 37.0 / 70.7, 20.4 / 22.4 / 43.0 / 89.2, 21.2 / 24.4 /
+43.3 / 119.0 us for 1 / 4 / 16 / 48 groups (GPU 18.96 / 24.25 / 38.29 / 83.17): no better than the count. And
+red_shfl.ptx (each shuffle feeding an add) does not respond to either (24.3-25.0 us at 24 groups, GPU 32.0): the
+reductions' missing cost is not in the shuffle unit. Next to measure: a shuffle -> fadd32 -> shuffle chain against
+fadd-only and shuffle-only chains at 4 and 16 groups (the cost of an ALU instruction reading a shuffle's result).
+
