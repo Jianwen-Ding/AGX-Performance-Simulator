@@ -24,6 +24,10 @@ median of 3 runs of 1000 back to back) against `agx_dispatch --launch-profile zl
   data does not stay resident; what warms their later waves is reuse across waves (a stencil's next rows were read by
   the wave before). Next: warm only the lines a wave shares with the previous one (simulate wave 0 first, then the
   others against its lines).
+- gemm_block_size_bias (+43%) examined: 18 workgroups (one per core, 4 SIMD groups, 8 KB threadgroup memory, 188
+  register halves), a long K loop; per group 4363 instructions (1536 fmadd32, 1203 iadd, 960 threadgroup_load, 97
+  device_load). Hardware ~71k cycles of execution, the model ~104k. Not the threadgroup load cost: AGX_TG_GROUP_LOAD 31
+  -> 8 leaves 77.5 us, AGX_TG_GATE 73.3 us. Next: a per-instruction breakdown of the model's timeline for one group.
 - Open: gemm_block_size_bias +43% (several workgroups on one core modelled as overlapping less than they do, the
   known gap); blur_gray, image_rotate, hough_scores +27-38% (hundreds of waves, each simulated with its own latency,
   which the hardware overlaps); particle -22%; depthwise_convolution_2d +24%.
