@@ -37,5 +37,15 @@ Jacobi round becomes +53% (128 groups reading two 1 KiB columns with independent
 previous command; whatever makes it and llama's matrix-vector reads fast on new lines, an L2 hit is not the
 mechanism). Left opt-in until that is understood; the `lat8` group keeps the evaluation honest about chains.
 
+## Follow-up probes (playground novel-results/2026-11-01-first-touch-chains)
+
+Two explanations for the fast Jacobi round were tested on hardware and refuted: lines written by the GPU in the
+previous command are not faster on first touch (chase storing into its lines 24.9 us vs 25.0 control), and wide or
+sequential hops are not prefetched (SIMD-group chases of 64-256 B hops, sequential or 4 KiB apart: 21.8-26.0 us).
+The default rule is 50% fast on all nine such probes and AGX_FIRST_TOUCH_L2=0 within +12-29% (sim 28.1-28.4 us).
+The Jacobi round's issue profile (AGX_ISSUE_PROFILE) with the SLC rule: 75% of the group's 11.8k cycles in the two
+row-loop waits (8 each, ~464 cycles a wait); hardware's 5.2 us of work allows ~140 ns a wait, or less of the rest.
+Next: a modified-kernel probe (the round without its V rotation; with the sums only) to split the two.
+
 Captures: /scratch/perf-goal/sim/chase/s{0,64,16384}, /scratch/perf-goal/sim/cap4 (regenerable: the playground's
 chase.ptx with agx_bench_kernel; ZLUDA's qrbench / eigbench / l2bench with ZLUDA_AGX_CAPTURE, SKIP 5, MAX 1).
