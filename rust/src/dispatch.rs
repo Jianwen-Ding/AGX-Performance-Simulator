@@ -59,6 +59,10 @@ pub struct Launch {
     /// fixed cost of a command whose kernel stores to device memory (the writes reaching memory before the command
     /// ends): 0 in drm; 700 ns in zluda (one workgroup storing 1 KB: 3.0 us against the empty kernel's 2.3)
     pub store_launch_ns: f64,
+    /// the waves after the first start with their accesses cached when the dispatch's data fits the system-level cache
+    /// (false in drm, whose calibration it would change; true in zluda: Geekbench's captures median 9% -> 8%, llama.cpp's
+    /// within 10% 7 -> 9 of 11)
+    pub later_waves_warm: bool,
     /// cores per cluster (workgroups are split evenly over clusters first); empty = round-robin over `cores`
     pub clusters: Vec<u32>,
     pub uniforms: Vec<(usize, u32)>,
@@ -91,6 +95,7 @@ impl Default for Launch {
             stack_launch_ns: 0.0,
             store_gbps: 0.0,
             store_launch_ns: 0.0,
+            later_waves_warm: false,
             clusters: vec![10, 9, 9, 10],
             uniforms: vec![],
             mem: true,
@@ -336,6 +341,10 @@ pub fn simulate_with(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer
         // with sharing, the GPU-wide footprint is smaller than this core's x active cores
         let footprint = footprint / (1.0 + (cores.min(n) as f64 - 1.0) * sharing);
         let mm = MemModel { resident_slc: footprint <= mm.slc_bytes as f64, sharing, ..mm.clone() };
+        // `later_waves_warm`: the waves after the first find their data in the caches when it fits the system-level
+        // cache (what the first waves and their neighbours loaded); AGX_LATER_WAVES_WARM=1 / 0 forces it
+        let warm_later = std::env::var("AGX_LATER_WAVES_WARM").map_or(l.later_waves_warm, |v| v == "1");
+        let mm = if w > 0 && mm.resident_slc && warm_later { MemModel { warm: true, ..mm } } else { mm };
         let mem = if l.mem { Some((mems.as_slice(), &mm)) } else { None };
         let c = cost::simulate_groups(&ins, &seqs, Some(&masked), mem, p, false, Some(&wg_of))?.0;
         Ok((count, c, warn))

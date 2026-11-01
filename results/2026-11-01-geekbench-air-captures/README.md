@@ -9,11 +9,17 @@ median of 3 runs of 1000 back to back) against `agx_dispatch --launch-profile zl
 | Model | Median abs. error | Within 10% | Within 25% |
 | --- | --- | --- | --- |
 | zluda profile, store floor launch + stores (`capcheck-hw3.txt`) | 18% | 9 / 29 | 23 / 29 |
-| store floor overlapping the launch beyond the stores' time (`capcheck-final.txt`) | **9%** | 17 / 29 | 25 / 29 |
+| store floor overlapping the launch beyond the stores' time | 9% | 17 / 29 | 25 / 29 |
+| and later waves warm when the data fits the system-level cache (`capcheck-final.txt`) | **8%** | 17 / 29 | 25 / 29 |
 
 - The large image kernels write a lot over thousands of workgroups per core: their launch and their stores overlap
   (gradient: 967 us of workgroup launch, ~500 us of stores, 1036 us measured), so the store floor adds the launch only
   up to the stores' time; the store microbenchmarks (1.5-24 MB) stay within +4% to +14%.
+- Later waves warm without the system-level-cache condition gave 6% (21 / 29 within 10%, 27 / 29 within 25%:
+  image_rotate +35% -> -5%, convolve_2d +18% -> +1%) but made the direct-DRM calibration's DRAM-bound kernels too
+  fast (verify-dispatch p90 9% -> 16%, max 74%): with the condition, the calibration is unchanged. The image kernels
+  that would gain are classed as not resident by the footprint estimate (single-wave segments scaled to all cores,
+  which counts the rows neighbours share several times): a better footprint estimate is the next step.
 - Open: gemm_block_size_bias +43% (several workgroups on one core modelled as overlapping less than they do, the
   known gap); blur_gray, image_rotate, hough_scores +27-38% (hundreds of waves, each simulated with its own latency,
   which the hardware overlaps); particle -22%; depthwise_convolution_2d +24%.
