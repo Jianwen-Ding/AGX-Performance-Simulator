@@ -98,3 +98,14 @@ not move it (25.3 -> 26.4 us), so it is not that unit's cap but the core's issue
 shuffle / add chains. Next: dependent and independent chains of fadd32 alone and of shuffles alone at 1, 4, 16 and
 48 SIMD-groups per core, to calibrate issue under occupancy; then the settle rule can be the default.
 
+Calibration data (`red/fadd.ptx`, `red/shfl.ptx`: one dependent chain per 32-thread group, 16 per round, 200
+rounds; 1 / 4 / 16 / 48 groups per core; GPU / model zluda us):
+- fadd32 chain: 12.33 / 12.69, 12.5 / 12.71, 17.12 / 18.21, 39.21 / 42.14 (+2..+7%): modelled.
+- simd_shuffle_xor chain: 18.96 / 19.26, 24.25 / 19.26, 38.29 / 28.45, 83.17 / 72.73 (+2, -21, -26, -13%).
+Shuffles per core per us after the 2.3 us launch, GPU: 193, 584 (3.0x), 1422 (7.4x), 1899 (9.8x) with 1 / 4 / 16 / 48
+groups: a gradual saturation (each shuffle waits longer as the unit fills, from 4 groups on), where the model is
+linear up to its cap (4 groups no slower than 1, ~1960 per us already at 16). Scaling the shuffle rate cannot fit
+both ends (0.6x: 16 groups 36.9 us but 48 groups 95.6; 0.25x: 4 groups 27.0 but 16 groups 79.5). So the model
+needs a load-dependent shuffle latency (a queue at a core-wide shuffle unit) rather than a lower cap; with it the
+reductions' cost, and then the settle rule, can follow.
+
