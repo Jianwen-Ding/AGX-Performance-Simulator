@@ -80,3 +80,13 @@ command left behind is sometimes served from a cache at full speed (those kernel
 not (8 MiB streams). Left opt-in until that difference is measured: next, the same read kernel at 1 / 2 / 4 / 6 MiB
 back to back, to find the size at which the previous command's data stops being fast.
 `scripts/evalset_captures.sh` scores both sets (paths are this machine's captures).
+
+## mul_mat_vec_f under the new zluda profile (+8% -> +21%)
+
+Per simulated wave (busiest core, cycles): with partial warm 8326 (wave 0, 480 distinct lines), 10275 / 10359 / 9719
+(waves 1-3, 608 lines each, sharing none with wave 0); before, waves 1-3 were warm (all hits) at ~8320. The GPU's
+25.3 us leaves ~8k cycles per wave after the launch, about what wave 0 costs: the later waves are slower in the model
+only because they touch 27% more lines, at L2 latency and the DRAM rate (608 lines / 0.106 per cycle = 5736 cycles
+of DRAM time, so the rest is latency the model does not hide). Skipping the warm replay for waves that share
+little with the first changes nothing here (they already share 0%). Next: the memory-level parallelism of
+first-touch loads (how many a core keeps in flight), measured with a read kernel of 1 / 2 / 4 / 8 loads per thread.
