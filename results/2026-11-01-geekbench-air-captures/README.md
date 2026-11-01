@@ -124,3 +124,12 @@ red_shfl.ptx (each shuffle feeding an add) does not respond to either (24.3-25.0
 reductions' missing cost is not in the shuffle unit. Next to measure: a shuffle -> fadd32 -> shuffle chain against
 fadd-only and shuffle-only chains at 4 and 16 groups (the cost of an ALU instruction reading a shuffle's result).
 
+Measured (`red/sf.ptx`: 8 x (shuffle, fadd32) per round, each reading the other's result; GPU / model us, 1 / 4 / 16 /
+48 groups per core): 17.79 / 16.11, 21.17 / 16.12, 30.62 / 22.82, 81.54 / 57.70 (-9, -24, -25, -29%). Against the
+pure chains (16 fadds 12.33 us, 16 shuffles 18.96 us with one group), a shuffle -> add step costs ~2 cycles more
+than the two alone: a shuffle-to-ALU forwarding latency the model lacks (-9% with one group). With 48 groups the
+1600 shuffle + add pairs per group take as long as 3200 shuffles alone (81.5 vs 83.2 us), more than adding the
+measured shuffle and fadd costs (~60 us): shuffles and adds share an issue resource on the GPU, separate units in
+the model. Both belong in the cost model (a shuffle -> ALU latency and a shared shuffle / FP issue budget per core),
+calibrated on these four chains and re-checked on verify-cost-model, before the reductions and the settle rule.
+
