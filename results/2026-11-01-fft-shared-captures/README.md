@@ -21,3 +21,21 @@ opt-in AGX_TG_SETTLE_ON_READ gives the same times here). Each launch transforms 
 - It is 12-20% fast throughout, an amount that follows the bytes moved (11-19 us at 16 MiB) more than the
   workgroup count or shape: the next place to look is the memory model's read and write throughput for in-place
   streams of this size (8 MiB, inside the system-level cache), not the barrier or threadgroup-memory costs.
+
+## The same gap on plain streams
+
+`stream/readx.ptx` (16 bytes read per thread, no writes) and `stream/copyx.ptx` (16 read, 16 written), 256-thread
+workgroups, captured and replayed the same way:
+
+| kernel, bytes per direction | GPU us | model us | error |
+|---|---|---|---|
+| read 8 MiB | 24.5 | 8.4 | -66% |
+| read 32 MiB | 88.7 | 97.8 | +10% |
+| copy 8 MiB | 46.0 | 31.4 | -32% |
+| copy 32 MiB | 185.3 | 183.5 | -1% |
+
+The GPU moves ~340-380 GB/s (reads plus writes) whether the data fits the system-level cache or not; the model is
+accurate for streams larger than the cache (DRAM, `dram_gbps` 360) and 2-3x fast for streams it takes as resident
+(`resident_slc`). Ruled out as the cause: `slc_rate` (0.5 -> 0.106 segments per cycle per core, DRAM's
+equivalent, moves read 8 MiB only 8.4 -> 11.7 us), `later_waves_warm` (off: 10.0 us), `max_waves` (2 / 8 / 64: no
+change). Next: trace where a resident stream's time goes in `simulate_groups` (which bucket or latency binds).

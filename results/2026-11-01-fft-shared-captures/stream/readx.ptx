@@ -1,0 +1,28 @@
+.version 7.0
+.target sm_75
+.address_size 64
+// Reads 16 bytes per thread; writes only if their sum is exactly 12345 (never for the zero buffers used)
+.visible .entry c(.param .u64 dst, .param .u64 src)
+{
+	.reg .u32 %r<4>;
+	.reg .u64 %rd<6>;
+	.reg .f32 %f<6>;
+	.reg .pred %p;
+	ld.param.u64 %rd1, [dst];
+	ld.param.u64 %rd2, [src];
+	mov.u32 %r1, %ctaid.x;
+	mov.u32 %r2, %tid.x;
+	mad.lo.u32 %r3, %r1, 256, %r2;
+	mul.wide.u32 %rd3, %r3, 16;
+	add.u64 %rd4, %rd2, %rd3;
+	ld.global.v4.f32 {%f0, %f1, %f2, %f3}, [%rd4];
+	add.f32 %f4, %f0, %f1;
+	add.f32 %f5, %f2, %f3;
+	add.f32 %f4, %f4, %f5;
+	setp.neu.f32 %p, %f4, 0f4640E400;
+	@%p bra END;
+	add.u64 %rd5, %rd1, %rd3;
+	st.global.f32 [%rd5], %f4;
+END:
+	ret;
+}

@@ -1,0 +1,20 @@
+.version 7.0
+.target sm_75
+.address_size 64
+.visible .entry c(.param .u64 dst, .param .u64 src)
+{
+	.reg .u32 %r<4>;
+	.reg .u64 %rd<6>;
+	.reg .f32 %f<4>;
+	ld.param.u64 %rd1, [dst];
+	ld.param.u64 %rd2, [src];
+	mov.u32 %r1, %ctaid.x;
+	mov.u32 %r2, %tid.x;
+	mad.lo.u32 %r3, %r1, 256, %r2;
+	mul.wide.u32 %rd3, %r3, 16;
+	add.u64 %rd4, %rd2, %rd3;
+	add.u64 %rd5, %rd1, %rd3;
+	ld.global.v4.f32 {%f0, %f1, %f2, %f3}, [%rd4];
+	st.global.v4.f32 [%rd5], {%f0, %f1, %f2, %f3};
+	ret;
+}
