@@ -246,6 +246,7 @@ pub fn simulate_with(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer
     let first_wave_lines = std::sync::Mutex::new(std::collections::HashSet::<usize>::new());
     // the first wave's device segments, which later waves find in the caches (`partial_warm`)
     let first_wave_segs = std::sync::Mutex::new(None::<std::sync::Arc<std::collections::HashSet<u64>>>);
+    let dram_share_cache = std::sync::Mutex::new(None::<f64>);
     let partial_warm = std::env::var("AGX_PARTIAL_WARM").map_or(l.partial_warm, |v| v == "1");
     let sim_wave = |w: u64| -> Result<(u64, f64, Vec<String>), String> {
         let count = (m - w * r as u64).min(r as u64);
@@ -376,9 +377,62 @@ pub fn simulate_with(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer
                 sharing = ovs.iter().sum::<f64>() / ovs.len() as f64;
             }
         }
+        // DRAM traffic shared with neighbouring workgroups (usually on other cores): for a mid-grid workgroup, each
+        // of its lines costs 1 / (1 + the neighbours (x +-1, y +-1) that also read it). Colsum probe with overlapping
+        // columns: hardware 0.52x the private time, bandwidth-bound on distinct data (playground results/
+        // 2026-11-01-gpu-written-lines). AGX_DRAM_SHARE=0: every core pays all its lines
+        let dram_share = {
+            let mut cached = dram_share_cache.lock().unwrap();
+            if cached.is_none() {
+                let mut share = 1.0;
+                if l.mem && n > 1 && std::env::var("AGX_DRAM_SHARE").map_or(true, |v| v != "0") {
+                    let k0 = n / 2;
+                    let mut ks = vec![k0];
+                    for d in [1u64, dims[0]] {
+                        if k0 >= d { ks.push(k0 - d); }
+                        if k0 + d < n { ks.push(k0 + d); }
+                    }
+                    ks.dedup();
+                    let trace_wg = |k: u64| -> Result<Vec<Trace>, String> {
+                        match tracer {
+                            Some(t) => t(wg_coords(k)),
+                            None => {
+                                let gs: Vec<u32> = (0..gpw).collect();
+                                crate::par::map(&gs, |&g| {
+                                    let ctx = GroupCtx { wg_size: l.wg, wg_id: wg_coords(k), group: g, core: 1, slot: g, uniforms: l.uniforms.clone(), launch: cost::SrLaunch { tg_bytes: l.tg_bytes, regs: l.regs, ..Default::default() } };
+                                    prepared.as_ref().unwrap().trace_group(&ctx, l.max_steps)
+                                }).into_iter().collect()
+                            }
+                        }
+                    };
+                    let sets: Vec<std::collections::HashSet<u64>> = crate::par::map(&ks, |&k| trace_wg(k))
+                        .into_iter()
+                        .collect::<Result<Vec<_>, _>>()?
+                        .iter()
+                        .map(|ts| {
+                            let mut set = std::collections::HashSet::new();
+                            for t in ts {
+                                for (step, segs) in &t.mem {
+                                    if device_pcs.contains(&t.pcs[*step as usize]) {
+                                        set.extend(segs.iter().copied());
+                                    }
+                                }
+                            }
+                            set
+                        })
+                        .collect();
+                    if !sets[0].is_empty() && sets.len() > 1 {
+                        share = sets[0].iter().map(|sg| 1.0 / (1.0 + sets[1..].iter().filter(|o| o.contains(sg)).count() as f64)).sum::<f64>()
+                            / sets[0].len() as f64;
+                    }
+                }
+                *cached = Some(share);
+            }
+            cached.unwrap()
+        };
         // with sharing, the GPU-wide footprint is smaller than this core's x active cores
         let footprint = footprint / (1.0 + (cores.min(n) as f64 - 1.0) * sharing);
-        let mm = MemModel { resident_slc: footprint <= mm.slc_bytes as f64, sharing, ..mm.clone() };
+        let mm = MemModel { resident_slc: footprint <= mm.slc_bytes as f64, sharing, dram_share, ..mm.clone() };
         // `later_waves_warm`: the waves after the first find their data in the caches when it fits the system-level
         // cache (what the first waves and their neighbours loaded); AGX_LATER_WAVES_WARM=1 / 0 forces it
         let warm_later = std::env::var("AGX_LATER_WAVES_WARM").map_or(l.later_waves_warm, |v| v == "1");

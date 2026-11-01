@@ -30,3 +30,22 @@ another core, read shortly before (3x3 neighbourhoods; rotated reads). On hardwa
 model simulates one core's workgroups and charges that core's first touch of a line as a fetch whatever the other
 cores did (`inflight` covers only this core's groups; `sharing` only scales capacity). Next: a hardware probe of
 reads of lines another core loaded a little earlier, then a cross-core reuse rule.
+
+## Cross-core reuse confirmed; DRAM traffic now shared between neighbouring workgroups (`dram_share`)
+
+Probe (playground colsum.ptx `colsum_overlap`: group t sums columns t and t + 1, each column read by two neighbouring
+groups, usually on different cores; 1024 rows, 27 workgroups of 64 a core x 4 / 16 waves, 64 / 256 MiB buffers):
+
+| | hw | model before | model now |
+|---|---|---|---|
+| private columns, 4 / 16 waves | 197 / 739 us | -1 / +4% | unchanged |
+| overlapping columns, 4 / 16 waves | 109 / 383 us | +35 / +50% | -8 / +3% |
+
+Hardware reads ~350-363 GB/s of distinct data either way: a line two cores read costs DRAM bandwidth once. The
+model now estimates, for a mid-grid workgroup and its x +-1 / y +-1 neighbours, the mean of 1 / (1 + neighbours that
+also read each line) and divides the core's DRAM traffic by it (`AGX_DRAM_SHARE=0`: off). image_rotate +22 -> -5,
+canny_nonmax_suppression +21 -> -3; 40 captures 9.2 -> 8.6, all 56 8.2 -> 7.7, all 64 8.8 -> 8.3.
+
+Rejected: also starting a (1 - share) part of the lines in L2 (a neighbour fetched them first): all 56 7.5, blur_gray
++34 -> +29, but the overlapping-column probe goes to -30% at 4 waves, so the probe does not support it. blur_gray
+(+34%, latency-bound at ~44 GB/s) stays open.

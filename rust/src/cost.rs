@@ -1432,6 +1432,9 @@ pub struct MemModel {
     pub l2_rate: f64,
     pub slc_rate: f64,
     pub dram_gbps: f64,
+    /// fraction of its lines' DRAM traffic a core pays: a line that neighbouring workgroups (other cores) also read
+    /// is fetched once for all of them (agx_dispatch estimates it; 1 = no sharing)
+    pub dram_share: f64,
     /// replay every group's accesses once before timing (steady state of a long-running loop)
     pub warm: bool,
     /// mean fraction (0..1) of this core's device lines that another core also touches (shared data)
@@ -1487,6 +1490,7 @@ impl Default for MemModel {
             l2_rate: 0.73 / k,
             slc_rate: 0.5 / k,
             dram_gbps: 410.0,
+            dram_share: 1.0,
             warm: true,
             sharing: 0.0,
             resident_slc: false,
@@ -1895,7 +1899,7 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: Option<&
         && mem.is_some_and(|(_, m)| !m.resident_slc);
     let mut ms: Option<MemState> = mem.map(|(_, m)| {
         let per_tick = |segs_per_cycle: f64| segs_per_cycle / TICKS as f64;
-        let dram = m.dram_gbps * 1e9 / m.active_cores / (m.clock_mhz * 1e6) / 64.0;
+        let dram = m.dram_gbps * 1e9 / m.active_cores / (m.clock_mhz * 1e6) / 64.0 / m.dram_share.clamp(0.05, 1.0);
         let rate = [per_tick(m.l1_load_rate), per_tick(m.l1_store_rate), per_tick(m.l2_rate), per_tick(m.slc_rate), per_tick(dram)];
         let cap = [64.0, 64.0, 64.0, 64.0, 64.0];
         let ns = |x: f64| tk((x * m.clock_mhz / 1000.0 - 50.0).max(0.0));
