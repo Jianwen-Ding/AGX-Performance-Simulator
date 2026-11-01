@@ -78,3 +78,10 @@ median of 3 runs of 1000 back to back) against `agx_dispatch --launch-profile zl
 - Open: gemm_block_size_bias +43% (several workgroups on one core modelled as overlapping less than they do, the
   known gap); blur_gray, image_rotate, hough_scores +27-38% (hundreds of waves, each simulated with its own latency,
   which the hardware overlaps); particle -22%; depthwise_convolution_2d +24%.
+
+Rechecked under the zluda profile with partial warm and chained waves (results/2026-11-01-fft-shared-captures):
+AGX_TG_SETTLE_ON_READ=1 still trades gemm_block_size_bias (+36 -> -10%) against llama.cpp's reductions
+(mul_mat_vec_q<Q5_1> -7 -> -33%, mul_mat_vec_f +17 -> -15%, soft_max -5 -> -19%) and gemm_non_block_size_bias
+(-10 -> -33%): 40 captures mean 10.2 -> 11.7%. Still opt-in; the reductions' missing cost (high-occupancy
+contention, see above) is what to model before it can be the default.
+
