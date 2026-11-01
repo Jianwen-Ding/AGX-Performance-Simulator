@@ -5,7 +5,7 @@
 //!              [--m2-core-map FILE] (supplied M2 core IDs; exhaustive isolated waves)
 //!              [--busiest-core-wgs N] (measured peak count; representative-core sensitivity only)
 //!              [--preamble PRE.bin] [--map VA=FILE ...] [--alloc VA=BYTES ...] [--agx-strict GPU]
-//!              [--launch-profile drm|zluda] [--group-launch-ns NS]
+//!              [--launch-profile drm|zluda] [--group-launch-ns NS] [--stack BYTES]
 //!
 //! --launch-profile: the launch costs of a command as the direct-DRM harness submits it (`drm`, the default: 5.6 us
 //! fixed, max(100 ns per workgroup, 13.6 ns per SIMD group) per core) or as zluda_agx / agx_runtime submit it back to
@@ -109,7 +109,7 @@ fn run_job(a: &[String], p: &Params) -> Result<serde_json::Value, String> {
     while i < a.len() {
         let option = a[i].as_str();
         if option == "--no-mem" { l.mem = false; i += 1; continue; }
-        if !["--grid", "--wg", "--regs", "--tg-bytes", "--clock", "--cores", "--busiest-core-wgs", "--m2-core-map", "--launch-us", "--max-waves", "--uniform", "--preamble", "--map", "--alloc", "--agx-strict", "--launch-profile", "--group-launch-ns"].contains(&option) {
+        if !["--grid", "--wg", "--regs", "--tg-bytes", "--clock", "--cores", "--busiest-core-wgs", "--m2-core-map", "--launch-us", "--max-waves", "--uniform", "--preamble", "--map", "--alloc", "--agx-strict", "--launch-profile", "--group-launch-ns", "--stack"].contains(&option) {
             return Err(format!("unknown argument {}", option));
         }
         let v = a.get(i + 1).ok_or_else(|| format!("{} requires a value", option))?;
@@ -123,12 +123,13 @@ fn run_job(a: &[String], p: &Params) -> Result<serde_json::Value, String> {
             "--busiest-core-wgs" => l.busiest_core_wgs_override = Some(number(v, option)?),
             "--launch-us" => l.launch_ns = number::<f64>(v, option)? * 1000.0,
             "--group-launch-ns" => l.group_launch_ns = number(v, option)?,
+            "--stack" => l.stack_bytes = number(v, option)?,
             "--launch-profile" => match v.as_str() {
                 "drm" => {
                     let d = Launch::default();
-                    (l.launch_ns, l.wg_launch_ns, l.group_launch_ns, l.fetch_line_ns) = (d.launch_ns, d.wg_launch_ns, d.group_launch_ns, d.fetch_line_ns);
+                    (l.launch_ns, l.wg_launch_ns, l.group_launch_ns, l.fetch_line_ns, l.stack_launch_ns) = (d.launch_ns, d.wg_launch_ns, d.group_launch_ns, d.fetch_line_ns, d.stack_launch_ns);
                 }
-                "zluda" => (l.launch_ns, l.wg_launch_ns, l.group_launch_ns, l.fetch_line_ns) = (2300.0, 100.0, 3.2, 104.0),
+                "zluda" => (l.launch_ns, l.wg_launch_ns, l.group_launch_ns, l.fetch_line_ns, l.stack_launch_ns) = (2300.0, 100.0, 3.2, 104.0, 7500.0),
                 other => return Err(format!("--launch-profile: {other:?} is not drm or zluda")),
             },
             "--max-waves" => { l.max_waves = number(v, option)?; max_waves_explicit = true; },

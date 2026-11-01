@@ -24,6 +24,7 @@ ap.add_argument('--hw', action='store_true', help='time each capture on the GPU 
 ap.add_argument('--run-hw', default='/scratch/geekbench-extract/cargo-target/release/agx_run_hw')
 ap.add_argument('--b2b', type=int, default=1000)
 ap.add_argument('--sim-arg', action='append', default=[])
+ap.add_argument('--hw-repeat', type=int, default=1, help='with --hw: the median of this many back-to-back runs (a tiny kernel varies from one run to the next: set_rows 3.9-6.5 us, rope 5.6-8.7)')
 ap.add_argument('--hw-from', help='hardware times from an earlier --hw output of capcheck (no GPU runs)')
 a = ap.parse_args()
 
@@ -68,6 +69,9 @@ for d in sorted(os.listdir(a.captures)):
             out += ['--tg-bytes', args[i + 1]]; i += 2; continue
         out.append(args[i]); i += 1
     cmd = [a.dispatch] + out + ['--regs', regs] + a.sim_arg
+    st_sim = re.search(r'the kernel uses (\d+) bytes of stack per thread', sh)
+    if st_sim:
+        cmd += ['--stack', st_sim.group(1)]
     if a.hw_from:
         prev = {}
         for l in open(a.hw_from):
@@ -78,10 +82,18 @@ for d in sorted(os.listdir(a.captures)):
         hw, n_warm = prev[kernel], 0
     if a.hw:
         hcmd = [a.run_hw] + [x if x != '--tg-bytes' else '--shared' for x in out] + ['--regs', regs, '--back-to-back', str(a.b2b), '--timeout-ms', '10000']
+        # a kernel with a stack needs it on the GPU (zluda_agx notes it in replay.sh; agx_run has no --stack): without
+        # it the GPU faults ("Bad address") at the first stack access
+        st = re.search(r'the kernel uses (\d+) bytes of stack per thread', sh)
+        if st:
+            hcmd += ['--stack', st.group(1)]
         try:
-            hr = subprocess.run(hcmd, capture_output=True, text=True, cwd=p, timeout=600)
-            hj = json.loads(hr.stdout.strip().splitlines()[-1])
-            hw, n_warm = hj['b2b_median_fw_ns'] / 1e3, a.b2b // 2
+            runs = []
+            for _ in range(max(1, a.hw_repeat)):
+                hr = subprocess.run(hcmd, capture_output=True, text=True, cwd=p, timeout=600)
+                hj = json.loads(hr.stdout.strip().splitlines()[-1])
+                runs.append(hj['b2b_median_fw_ns'] / 1e3)
+            hw, n_warm = statistics.median(runs), a.b2b // 2
         except Exception as e:
             sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
             import gpu_safety
@@ -99,6 +111,6 @@ for d in sorted(os.listdir(a.captures)):
         print(f'{kernel:30s} sim {sim:9.1f} us  (no other launch of it in the profile)'); continue
     e = (sim - hw) / hw
     errs.append(abs(e))
-    print(f'{kernel:30s} hw {hw:9.1f} us (n {n_warm:5d}, captured {cold:9.1f})  sim {sim:9.1f} us  err {e:+6.0%}   wgs/core {j.get("busiest_core_wgs")} waves {j.get("waves")}', flush=True)
+    print(f'{kernel:30s} hw {hw:9.1f} us (n {n_warm:5d}, captured {cold if cold is not None else 0:9.1f})  sim {sim:9.1f} us  err {e:+6.0%}   wgs/core {j.get("busiest_core_wgs")} waves {j.get("waves")}', flush=True)
 if errs:
     print(f'launches {len(errs)}  median |err| {statistics.median(errs):.0%}  within 10%: {sum(e <= 0.1 for e in errs)}  within 25%: {sum(e <= 0.25 for e in errs)}')

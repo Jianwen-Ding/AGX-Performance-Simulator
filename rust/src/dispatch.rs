@@ -46,6 +46,11 @@ pub struct Launch {
     /// whose caches start cold, overlapping execution (0 in the direct-DRM profile, whose calibration includes it; 104 ns for zluda_agx's
     /// commands: straight-line code 294 -> 4134 bytes, +6.25 us, playground novel-results/2026-11-01-code-fetch)
     pub fetch_line_ns: f64,
+    /// stack (scratch) per thread the kernel uses, and the fixed cost of a command whose kernel has one (the scratch
+    /// set up by the launch's helper program: 0 in the drm profile; 7.5 us for zluda_agx's, an empty kernel over 38 to
+    /// 15,200 workgroups +7.1-8.1 us with --stack 64, playground novel-results/2026-11-01-stack-launch)
+    pub stack_bytes: u32,
+    pub stack_launch_ns: f64,
     /// cores per cluster (workgroups are split evenly over clusters first); empty = round-robin over `cores`
     pub clusters: Vec<u32>,
     pub uniforms: Vec<(usize, u32)>,
@@ -74,6 +79,8 @@ impl Default for Launch {
             wg_launch_ns: 100.0,
             group_launch_ns: 13.6,
             fetch_line_ns: 0.0,
+            stack_bytes: 0,
+            stack_launch_ns: 0.0,
             clusters: vec![10, 9, 9, 10],
             uniforms: vec![],
             mem: true,
@@ -355,7 +362,8 @@ pub fn simulate_with(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer
     // fetch-bound, a long kernel's loops hide it (llama.cpp's Q8_0 matrix-vector kernel: 138 lines, 22.8 us of work,
     // 26.2 us measured with the 2.3 us launch)
     let fetch_ns = rep.code_lines as f64 * l.fetch_line_ns;
-    rep.time_ns = (total / l.clock_mhz * 1000.0).max(fetch_ns).max(rep.launch_core_ns) + l.launch_ns;
+    let stack_ns = if l.stack_bytes > 0 { l.stack_launch_ns } else { 0.0 };
+    rep.time_ns = (total / l.clock_mhz * 1000.0).max(fetch_ns).max(rep.launch_core_ns) + l.launch_ns + stack_ns;
     if !rep.time_ns.is_finite() { return Err("predicted time is non-finite for this launch".into()); }
     Ok(rep)
 }

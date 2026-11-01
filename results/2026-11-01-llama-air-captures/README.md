@@ -12,6 +12,7 @@ command in `capcheck.py`'s docstring.
 | hardware 1000 back to back, drm (`capcheck-warm.txt`) | 27% | 2 / 8 | 4 / 8 |
 | 1000 back to back, `--launch-profile zluda` (`capcheck-warm-zluda-profile.txt`) | 27% | 1 / 8 | 3 / 8 |
 | the same with the cold instruction fetch (`capcheck-warm-zluda-fetch.txt`) | 21% | 2 / 8 | 5 / 8 |
+| hardware the median of 5 runs, stack kernels replayed with their stack and the stack setup modelled (`capcheck-repeat5.txt` + `--stack`) | 21% | 3 / 10 | 7 / 10 |
 
 - **Measure at a warm clock.** 30 launches back to back do not ramp the GPU's clock: the Q8_0 matrix-vector kernel
   (the largest, 2 waves of 12 workgroups per core) measured 67 us after 30 and 26.2 us after 1000; the simulator
@@ -35,6 +36,12 @@ command in `capcheck.py`'s docstring.
   the same ~8 instructions per line, so the cost is not per line alone. A two-term fit (16 ns a line + 5.5 ns an
   instruction) matched the mad chains but missed line1024 (6.2 against 9.0 us) and made the captures' median 25%:
   reverted. Short single-thread runs also vary run to run (mad32_64: 3.8 and 4.8 us).
+- **A single hardware measurement of a tiny kernel is not a reference**: the same replay of set_rows gave 6.5 us once
+  and 3.9-4.3 in five later runs, rope 5.6-8.7 us (bimodal), rms_norm 5.1-5.25. `capcheck.py --hw-repeat 5` takes the
+  median; with it set_rows is -16%, rope -24/-26%.
+- **A kernel with a stack costs ~7.5 us more per command** (`stack-launch.txt`: an empty kernel, 38 to 15,200
+  workgroups, +7.1-8.1 us with `--stack 64`): the scratch set up at the launch. Modelled (zluda profile,
+  `agx_dispatch --stack`); llama.cpp's mul_mat_vec_f kernels -72% -> -56%, -39% -> -25%. Their remaining gap is open.
 - 4 captures (`mul_mat_vec_f` x2, `mul_mat_vec_q` type 13, type 7 with 1 column) do not replay: the GPU faults
   ("Bad address") or the parameter block's fixed address is taken. Their captures miss memory the kernels reach
   (pointers inside by-value structs such as ggml_cuda_mm_fusion_args_device): a capture bug in zluda_agx, not

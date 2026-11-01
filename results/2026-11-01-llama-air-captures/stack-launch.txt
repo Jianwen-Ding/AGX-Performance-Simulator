@@ -1,0 +1,6 @@
+wgs 38 x 32, stack 0: 2916 ns
+wgs 38 x 32, stack 64: 10042 ns
+wgs 3610 x 32, stack 0: 11333 ns
+wgs 3610 x 32, stack 64: 19458 ns
+wgs 15200 x 32, stack 0: 41625 ns
+wgs 15200 x 32, stack 64: 44583 ns
