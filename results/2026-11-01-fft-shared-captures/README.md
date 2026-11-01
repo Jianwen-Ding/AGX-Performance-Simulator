@@ -90,3 +90,10 @@ only because they touch 27% more lines, at L2 latency and the DRAM rate (608 lin
 of DRAM time, so the rest is latency the model does not hide). Skipping the warm replay for waves that share
 little with the first changes nothing here (they already share 0%). Next: the memory-level parallelism of
 first-touch loads (how many a core keeps in flight), measured with a read kernel of 1 / 2 / 4 / 8 loads per thread.
+
+Measured (`mlp/readL.ptx`: L independent 16-byte loads per thread, 256-thread workgroups, the same bytes in all,
+zluda profile with partial warm): GPU / model us for 8 MiB: L1 24.4 / 25.2, L2 24.8 / 25.8, L4 25.2 / 26.8, L8
+26.0 / 26.7; 32 MiB: 87.9 / 97.8, 89.5 / 97.5, 91.9 / 97.1, 93.5 / 96.6 (+3..+11%). Streaming reads are
+bandwidth-bound on the GPU at every L and the model follows them: memory-level parallelism is not what
+mul_mat_vec_f's later waves get wrong. What differs there: f16 loads of partial lines, the shared-memory reduction
+after them, 6 workgroups of 128 threads per wave; next, its instruction profile against wave 0's.

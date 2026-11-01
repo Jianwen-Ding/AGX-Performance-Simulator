@@ -1,0 +1,73 @@
+.version 7.0
+.target sm_75
+.address_size 64
+// 8 independent 16-byte loads per thread, the threads' k-th loads one grid-sized block apart; writes only if the sum is 12345
+.visible .entry c(.param .u64 dst, .param .u64 src)
+{
+	.reg .u32 %r<6>;
+	.reg .u64 %rd<8>;
+	.reg .f32 %f<36>;
+	.reg .pred %p;
+	ld.param.u64 %rd1, [dst];
+	ld.param.u64 %rd2, [src];
+	mov.u32 %r1, %ctaid.x;
+	mov.u32 %r2, %tid.x;
+	mov.u32 %r4, %nctaid.x;
+	mad.lo.u32 %r3, %r1, 256, %r2;
+	mul.wide.u32 %rd3, %r3, 16;
+	add.u64 %rd4, %rd2, %rd3;
+	mul.wide.u32 %rd5, %r4, 4096;
+	ld.global.v4.f32 {%f0, %f1, %f2, %f3}, [%rd4];
+	add.u64 %rd4, %rd4, %rd5;
+	ld.global.v4.f32 {%f4, %f5, %f6, %f7}, [%rd4];
+	add.u64 %rd4, %rd4, %rd5;
+	ld.global.v4.f32 {%f8, %f9, %f10, %f11}, [%rd4];
+	add.u64 %rd4, %rd4, %rd5;
+	ld.global.v4.f32 {%f12, %f13, %f14, %f15}, [%rd4];
+	add.u64 %rd4, %rd4, %rd5;
+	ld.global.v4.f32 {%f16, %f17, %f18, %f19}, [%rd4];
+	add.u64 %rd4, %rd4, %rd5;
+	ld.global.v4.f32 {%f20, %f21, %f22, %f23}, [%rd4];
+	add.u64 %rd4, %rd4, %rd5;
+	ld.global.v4.f32 {%f24, %f25, %f26, %f27}, [%rd4];
+	add.u64 %rd4, %rd4, %rd5;
+	ld.global.v4.f32 {%f28, %f29, %f30, %f31}, [%rd4];
+	add.u64 %rd4, %rd4, %rd5;
+	add.f32 %f32, %f0, %f1;
+	add.f32 %f32, %f32, %f2;
+	add.f32 %f32, %f32, %f3;
+	add.f32 %f32, %f32, %f4;
+	add.f32 %f32, %f32, %f5;
+	add.f32 %f32, %f32, %f6;
+	add.f32 %f32, %f32, %f7;
+	add.f32 %f32, %f32, %f8;
+	add.f32 %f32, %f32, %f9;
+	add.f32 %f32, %f32, %f10;
+	add.f32 %f32, %f32, %f11;
+	add.f32 %f32, %f32, %f12;
+	add.f32 %f32, %f32, %f13;
+	add.f32 %f32, %f32, %f14;
+	add.f32 %f32, %f32, %f15;
+	add.f32 %f32, %f32, %f16;
+	add.f32 %f32, %f32, %f17;
+	add.f32 %f32, %f32, %f18;
+	add.f32 %f32, %f32, %f19;
+	add.f32 %f32, %f32, %f20;
+	add.f32 %f32, %f32, %f21;
+	add.f32 %f32, %f32, %f22;
+	add.f32 %f32, %f32, %f23;
+	add.f32 %f32, %f32, %f24;
+	add.f32 %f32, %f32, %f25;
+	add.f32 %f32, %f32, %f26;
+	add.f32 %f32, %f32, %f27;
+	add.f32 %f32, %f32, %f28;
+	add.f32 %f32, %f32, %f29;
+	add.f32 %f32, %f32, %f30;
+	add.f32 %f32, %f32, %f31;
+	setp.neu.f32 %p, %f32, 0f4640E400;
+	@%p bra END;
+	add.u64 %rd6, %rd1, %rd3;
+	st.global.f32 [%rd6], %f32;
+END:
+	ret;
+}
