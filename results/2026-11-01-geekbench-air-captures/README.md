@@ -210,3 +210,10 @@ shuffle-heavy code together and the core sustains ~1.3 instructions per cycle, w
 that (a core issue rate for ALU work while most resident groups are in the same post-barrier region) is what would
 let the settle rule be the default.
 
+Tried (not kept): a core-wide ALU issue budget for groups within w cycles after passing a barrier (AGX_LOCK_ISSUE=c,
+AGX_LOCK_WIN=w). c = 0.75, w = 1000 fits red_bar2 (4 x 12 groups 87.0 us, GPU 85.2; 8 x 12 157.6, GPU 166.4), but the
+mul_mat_vec_q replay does not move (12 per core settled 18.9 -> 19.0 us, GPU 26.04) although its 24 groups do pass the
+barrier in the model: its post-barrier tail is issued through the scheduler's fast path (runs of instructions a group
+issues without contention), which the per-instruction gate does not see. Next: apply the budget in that fast path too
+(or disable it for groups inside the window), then rescore the 48 captures with the settle rule.
+
