@@ -49,3 +49,8 @@ canny_nonmax_suppression +21 -> -3; 40 captures 9.2 -> 8.6, all 56 8.2 -> 7.7, a
 Rejected: also starting a (1 - share) part of the lines in L2 (a neighbour fetched them first): all 56 7.5, blur_gray
 +34 -> +29, but the overlapping-column probe goes to -30% at 4 waves, so the probe does not support it. blur_gray
 (+34%, latency-bound at ~44 GB/s) stays open.
+
+Latency-bound check (one wave, 1 / 4 workgroups of 64 a core, 2048 rows): private columns hw 29.6 / 26.0 us,
+overlapping 24.5 / 24.2 us (k=1 private likely short-run noise); model 25.0 for all four. A neighbour's earlier fetch
+saves at most ~7% of the wait time: consistent with rejecting the L2-latency variant, and too small to explain
+blur_gray's +34%, which stays open.
