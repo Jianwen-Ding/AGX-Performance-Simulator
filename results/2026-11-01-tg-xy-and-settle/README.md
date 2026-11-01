@@ -80,3 +80,11 @@ deferral 5.8 / 6.2 / 7.1 / 15.4). The tail costs ~0.6 us on hardware, 0.8 modell
 stood in for in mul_mat_vec_q / soft_max / gemm_non_block is specific to them (their loads, their ALU between
 shuffles), not the store-barrier-shuffle-store tail. Note: short probes need --back-to-back >= 3000 (playground
 2026-11-01-short-kernel-b2b-noise).
+
+## Are the 40 reference times noisy? No (re-measured 2026-11-01)
+
+capcheck's references are `--back-to-back 1000`, median of the second half. Five of the shortest re-measured (two
+runs at 1000, one at 5000), us: k_set_rows 3.96 / 3.96 / 3.92 (ref 4.1), activation_relu 3.08 / 3.04 / 3.08 (3.1),
+add 5.04 / 5.04 / 5.04 (5.0), mul_mat_vec_f 32-col 15.0 / 14.6 / 15.0 (14.6), rope_neox 7.4 / 5.7 / 5.25 (5.2). The
+references agree with 5000-command medians within ~3%; only rope_neox swings between 1000-command runs. The
+remaining 40-capture errors are model errors, not reference noise.
