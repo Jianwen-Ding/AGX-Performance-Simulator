@@ -85,3 +85,16 @@ AGX_TG_SETTLE_ON_READ=1 still trades gemm_block_size_bias (+36 -> -10%) against 
 (-10 -> -33%): 40 captures mean 10.2 -> 11.7%. Still opt-in; the reductions' missing cost (high-occupancy
 contention, see above) is what to model before it can be the default.
 
+What the reductions' missing cost is (`red/`, 456 workgroups = 12 per core, GPU / model default / model settled, us):
+- red.ptx (store, barrier, load, 5 shuffles): 64 threads 59.8 / 72.8 / 61.5; 128 threads 83.8 / 75.9 / 65.1. The
+  GPU takes 1.40x for twice the SIMD-groups, the settled model 1.06x.
+- red_tg.ptx (no shuffles): 64 threads 53.0 / 57.4 / 57.4, 128 threads 61.0 / 59.1 / 59.1: modelled.
+- red_shfl.ptx (no threadgroup memory or barriers): 64 threads 32.0 / 25.3, 128 threads 57.4 / 44.8 (model -21%);
+  one 32-thread group per core 15.04 / 13.92 (-7%).
+- Integer chains (mad.ptx, shrbfi.ptx, 8 per thread): 2 and 13 workgroups per core within -4..+11%.
+So the gap is shuffle-and-add chains with many SIMD-groups resident: in the model the kernel is issue-bound with all
+52 groups resident (fadd32 and simd_shuffle_xor waits); scaling simd_shuffle_xor's per-core rate down to 0.4x does
+not move it (25.3 -> 26.4 us), so it is not that unit's cap but the core's issue across many groups of dependent
+shuffle / add chains. Next: dependent and independent chains of fadd32 alone and of shuffles alone at 1, 4, 16 and
+48 SIMD-groups per core, to calibrate issue under occupancy; then the settle rule can be the default.
+

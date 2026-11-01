@@ -1,0 +1,51 @@
+.version 7.0
+.target sm_75
+.address_size 64
+// ITERS rounds of the reduction tail of llama.cpp's matrix-vector kernels: an FMA, the partial sum stored to
+// threadgroup memory, a barrier, another SIMD group's partial loaded back, a 5-step butterfly shuffle reduction,
+// a barrier. Each round depends on the previous one through v.
+.visible .entry red_shfl(.param .u64 out, .param .u32 iters, .param .f32 a)
+{
+	.shared .align 16 .b8 sm[512];
+	.reg .f32 %v, %a, %w, %s;
+	.reg .u32 %r<10>;
+	.reg .u64 %rd<4>;
+	.reg .pred %p;
+	mov.u32 %r1, %tid.x;
+	mov.u32 %r2, %ntid.x;
+	ld.param.u32 %r3, [iters];
+	ld.param.f32 %a, [a];
+	cvt.rn.f32.u32 %v, %r1;
+	mov.u32 %r4, sm;
+	shl.b32 %r5, %r1, 2;
+	add.u32 %r6, %r4, %r5;
+	add.u32 %r7, %r1, 32;
+	rem.u32 %r7, %r7, %r2;
+	shl.b32 %r7, %r7, 2;
+	add.u32 %r7, %r4, %r7;
+	mov.u32 %r8, 0;
+LOOP:
+	fma.rn.f32 %v, %v, %a, 0f3F800000;
+	add.f32 %s, %v, %v;
+	shfl.sync.bfly.b32 %w, %s, 16, 31, -1;
+	add.f32 %s, %s, %w;
+	shfl.sync.bfly.b32 %w, %s, 8, 31, -1;
+	add.f32 %s, %s, %w;
+	shfl.sync.bfly.b32 %w, %s, 4, 31, -1;
+	add.f32 %s, %s, %w;
+	shfl.sync.bfly.b32 %w, %s, 2, 31, -1;
+	add.f32 %s, %s, %w;
+	shfl.sync.bfly.b32 %w, %s, 1, 31, -1;
+	add.f32 %s, %s, %w;
+	mul.f32 %v, %s, 0f3C800000;
+	add.u32 %r8, %r8, 1;
+	setp.lt.u32 %p, %r8, %r3;
+	@%p bra LOOP;
+	ld.param.u64 %rd1, [out];
+	mov.u32 %r9, %ctaid.x;
+	mad.lo.u32 %r9, %r9, %r2, %r1;
+	mul.wide.u32 %rd2, %r9, 4;
+	add.u64 %rd3, %rd1, %rd2;
+	st.global.f32 [%rd3], %v;
+	ret;
+}
