@@ -180,3 +180,13 @@ loop (dp4a emulation: imadd / asr / bfi with Q5_1 unpacking, device loads and wa
 whose integer chains alone are modelled within 11% (mad.ptx, shrbfi.ptx). Next: that main loop's mix (integer +
 device loads + waits) at 12 / 24 / 48 groups per core, not the reductions.
 
+mul_mat_vec_q<Q5_1> under the current zluda model (replayed at 3 / 6 / 8 / 10 / 12 workgroups of 64 threads per
+core; GPU / default / settled us): 16.17 / 17.35 / 17.35, 18.25 / 17.35 / 17.35, 19.62 / 21.68 / 17.35, 23.38 / 23.66
+/ 17.35, 26.04 / 25.43 / 18.93. Execution alone at 12 per core (core cycles / clock): default 22.43 us, settled 15.93
+(the GPU's ~23 after the launch). The settle rule removes ~6.5 us from each wave pair, and the earlier issue
+profile puts it in the post-loop reduction (fadd32, simd_shuffle_xor, the final stores), not in the main loop. But
+red.ptx at the same shape (64 threads, 12 per core) is modelled within +3% settled: it does not reproduce this
+kernel's reduction. Next: a microbenchmark copying mul_mat_vec_q's post-loop code exactly (the partial sums of its
+two SIMD-groups through threadgroup memory, one barrier, the 32-lane shuffle tree, the conditional store by lane 0)
+after a main loop of device loads, at 6 and 12 workgroups per core.
+
