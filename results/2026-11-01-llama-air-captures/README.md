@@ -11,6 +11,7 @@ command in `capcheck.py`'s docstring.
 | hardware 30 back to back, launch profile drm (`capcheck-base.txt`) | 35% | 0 / 8 | 1 / 8 |
 | hardware 1000 back to back, drm (`capcheck-warm.txt`) | 27% | 2 / 8 | 4 / 8 |
 | 1000 back to back, `--launch-profile zluda` (`capcheck-warm-zluda-profile.txt`) | 27% | 1 / 8 | 3 / 8 |
+| the same with the cold instruction fetch (`capcheck-warm-zluda-fetch.txt`) | 21% | 2 / 8 | 5 / 8 |
 
 - **Measure at a warm clock.** 30 launches back to back do not ramp the GPU's clock: the Q8_0 matrix-vector kernel
   (the largest, 2 waves of 12 workgroups per core) measured 67 us after 30 and 26.2 us after 1000; the simulator
@@ -25,6 +26,10 @@ command in `capcheck.py`'s docstring.
   2.3 us), the cold start the model already applies (first touches from DRAM), or page walks (a new page per
   dependent load costs +8 ns over a new line: playground 2026-11-01-first-touch-pages). Next: trace one (set_rows)
   and time its instructions in isolation.
+- **Cold instruction fetch**: straight-line code (`line*.ptx`, one thread, 16-1024 fma) costs ~104 ns per 64-byte line
+  at the start of every command (294 -> 4134 bytes: 2.79 -> 9.04 us), which the model lacked (2.4 -> 2.7 us). The
+  zluda profile counts the distinct lines the first wave executes and takes the slower of fetch and execution
+  (they overlap: added in full, the Q8_0 kernel's 138 lines made it +50%): the straight-line kernels within 1-3%.
 - 4 captures (`mul_mat_vec_f` x2, `mul_mat_vec_q` type 13, type 7 with 1 column) do not replay: the GPU faults
   ("Bad address") or the parameter block's fixed address is taken. Their captures miss memory the kernels reach
   (pointers inside by-value structs such as ggml_cuda_mm_fusion_args_device): a capture bug in zluda_agx, not

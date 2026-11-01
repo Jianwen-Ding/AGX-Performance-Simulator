@@ -42,6 +42,10 @@ pub struct Launch {
     pub launch_ns: f64,
     pub wg_launch_ns: f64,
     pub group_launch_ns: f64,
+    /// per distinct 64-byte line of code the busiest core's first wave executes: the instruction fetch of a command
+    /// whose caches start cold, overlapping execution (0 in the direct-DRM profile, whose calibration includes it; 104 ns for zluda_agx's
+    /// commands: straight-line code 294 -> 4134 bytes, +6.25 us, playground novel-results/2026-11-01-code-fetch)
+    pub fetch_line_ns: f64,
     /// cores per cluster (workgroups are split evenly over clusters first); empty = round-robin over `cores`
     pub clusters: Vec<u32>,
     pub uniforms: Vec<(usize, u32)>,
@@ -69,6 +73,7 @@ impl Default for Launch {
             launch_ns: 5600.0,
             wg_launch_ns: 100.0,
             group_launch_ns: 13.6,
+            fetch_line_ns: 0.0,
             clusters: vec![10, 9, 9, 10],
             uniforms: vec![],
             mem: true,
@@ -134,6 +139,8 @@ pub struct Report {
     pub simulated_waves: Vec<(u64, u64, f64)>,
     pub core_cycles: f64,
     pub launch_core_ns: f64,
+    /// distinct 64-byte code lines the first wave executed (the fetch cost, `fetch_line_ns` each)
+    pub code_lines: u64,
     pub time_ns: f64,
     pub warnings: Vec<String>,
 }
@@ -202,6 +209,7 @@ pub fn simulate_with(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer
     let device_pcs: std::collections::HashSet<usize> =
         ins.iter().filter(|i| i.name == "device_load" || i.name == "device_store").map(|i| i.pc).collect();
     let wg_coords = |k| wg_coords(dims, k);
+    let first_wave_lines = std::sync::Mutex::new(std::collections::HashSet::<usize>::new());
     let sim_wave = |w: u64| -> Result<(u64, f64, Vec<String>), String> {
         let first = w * r as u64;
         let count = (m - first).min(r as u64);
@@ -249,6 +257,10 @@ pub fn simulate_with(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer
             }
             traces.push(t);
             wg_of.push(i as u32);
+        }
+        if w == 0 {
+            let mut lines = first_wave_lines.lock().unwrap();
+            lines.extend(traces.iter().flat_map(|t| t.pcs.iter().map(|&pc| pc / 64)));
         }
         let seqs: Vec<&[usize]> = traces.iter().map(|t| t.pcs.as_slice()).collect();
         let mems: Vec<&[(u32, Vec<u64>)]> = traces.iter().map(|t| t.mem.as_slice()).collect();
@@ -338,7 +350,12 @@ pub fn simulate_with(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer
     }
     rep.core_cycles = total;
     rep.launch_core_ns = (m as f64 * l.wg_launch_ns).max((m as u128 * gpw as u128) as f64 * l.group_launch_ns);
-    rep.time_ns = (total / l.clock_mhz * 1000.0).max(rep.launch_core_ns) + l.launch_ns;
+    rep.code_lines = first_wave_lines.into_inner().unwrap().len() as u64;
+    // the fetch overlaps execution (the slower of the two sets the core's time): straight-line code of one group is
+    // fetch-bound, a long kernel's loops hide it (llama.cpp's Q8_0 matrix-vector kernel: 138 lines, 22.8 us of work,
+    // 26.2 us measured with the 2.3 us launch)
+    let fetch_ns = rep.code_lines as f64 * l.fetch_line_ns;
+    rep.time_ns = (total / l.clock_mhz * 1000.0).max(fetch_ns).max(rep.launch_core_ns) + l.launch_ns;
     if !rep.time_ns.is_finite() { return Err("predicted time is non-finite for this launch".into()); }
     Ok(rep)
 }

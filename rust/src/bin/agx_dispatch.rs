@@ -10,8 +10,9 @@
 //! --launch-profile: the launch costs of a command as the direct-DRM harness submits it (`drm`, the default: 5.6 us
 //! fixed, max(100 ns per workgroup, 13.6 ns per SIMD group) per core) or as zluda_agx / agx_runtime submit it back to
 //! back, as an application keeps the GPU busy (`zluda`: 2.3 us fixed, max(100 ns per workgroup, 3.2 ns per SIMD
-//! group); empty kernels over 1 to 15,200 workgroups of 32 and 1024 threads, playground
-//! novel-results/2026-11-01-zluda-launch-cost). Options after it override its values.
+//! group; empty kernels over 1 to 15,200 workgroups of 32 and 1024 threads, playground
+//! novel-results/2026-11-01-zluda-launch-cost; and 104 ns per 64-byte line of code executed, the cold instruction
+//! fetch, 2026-11-01-code-fetch). Options after it override its values.
 //!
 //! code.bin is the main shader as submitted (e.g. the direct-DRM harness's control main with a body).
 //! Uniforms are 32-bit uniform registers (u4 = 4); the harness uses u4 = 0, u5 = count, u6_u7 = output,
@@ -125,9 +126,9 @@ fn run_job(a: &[String], p: &Params) -> Result<serde_json::Value, String> {
             "--launch-profile" => match v.as_str() {
                 "drm" => {
                     let d = Launch::default();
-                    (l.launch_ns, l.wg_launch_ns, l.group_launch_ns) = (d.launch_ns, d.wg_launch_ns, d.group_launch_ns);
+                    (l.launch_ns, l.wg_launch_ns, l.group_launch_ns, l.fetch_line_ns) = (d.launch_ns, d.wg_launch_ns, d.group_launch_ns, d.fetch_line_ns);
                 }
-                "zluda" => (l.launch_ns, l.wg_launch_ns, l.group_launch_ns) = (2300.0, 100.0, 3.2),
+                "zluda" => (l.launch_ns, l.wg_launch_ns, l.group_launch_ns, l.fetch_line_ns) = (2300.0, 100.0, 3.2, 104.0),
                 other => return Err(format!("--launch-profile: {other:?} is not drm or zluda")),
             },
             "--max-waves" => { l.max_waves = number(v, option)?; max_waves_explicit = true; },
@@ -215,7 +216,7 @@ fn run_job(a: &[String], p: &Params) -> Result<serde_json::Value, String> {
         "time_us": r.time_ns / 1000.0, "core_cycles": r.core_cycles, "clock_mhz": l.clock_mhz,
         "workgroups": r.workgroups, "groups_per_wg": r.groups_per_wg, "group_cap_per_core": r.group_cap_per_core,
         "wgs_per_core": r.wgs_per_core, "launch_core_us": r.launch_core_ns / 1000.0, "busiest_core_wgs": r.busiest_core_wgs, "waves": r.waves,
-        "simulated_waves": r.simulated_waves, "launch_us": l.launch_ns / 1000.0, "warnings": r.warnings,
+        "simulated_waves": r.simulated_waves, "launch_us": l.launch_ns / 1000.0, "code_lines": r.code_lines, "warnings": r.warnings,
         "paths": if functional { "functional" } else { "cost-emulation" },
     });
     if let Some(peak) = l.busiest_core_wgs_override {
