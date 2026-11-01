@@ -199,3 +199,14 @@ PTX approximation does not reproduce. The way on is the captured kernel itself: 
 simulator's trace-pcs and issue profile per pc, default against settled) to the instructions the 6.5 us sits on,
 then measure those on the GPU in isolation.
 
+Bisected on the captured kernel (mul_mat_vec_q<Q5_1>, 12 workgroups per core, issue profile per pc, default against
+settled, ticks = 0.1 cycle): 92,376 ticks of difference for SIMD-group 0, spread evenly over its post-loop tail (253 of
+1189 traced instructions, pc 7200-8800): ~800 ticks (~80 cycles) per instruction by default, 20-45 settled, on
+shuffles, fadd32, iadd, if_icmp and the device store alike. The GPU's time puts the tail between: ~6.5 us per wave
+pair over the settled model, ~18 cycles per tail instruction with 24 SIMD-groups, i.e. ~1.3 instructions per cycle
+per core: the same saturation red_bar2 showed for groups running a shuffle / FP32 mix in lockstep after a barrier
+(1.3 per cycle at 48 groups). So the two findings are one mechanism: after a barrier the groups issue the same
+shuffle-heavy code together and the core sustains ~1.3 instructions per cycle, where the model allows ~4. Modelling
+that (a core issue rate for ALU work while most resident groups are in the same post-barrier region) is what would
+let the settle rule be the default.
+
