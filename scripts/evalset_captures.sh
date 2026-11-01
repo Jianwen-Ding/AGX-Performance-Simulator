@@ -18,7 +18,15 @@ for d in /scratch/perf-goal/sim/chase/s0/* /scratch/perf-goal/sim/chase/s64/* /s
   s=$(/scratch/perf-goal/sim/simone.sh $d --launch-profile zluda | python3 -c "import sys,json; print(json.loads(sys.stdin.read())['time_us'])")
   lat="$lat $(python3 -c "print(round(100*($s-${lhw[$i]})/${lhw[$i]}))")"; i=$((i+1))
 done
-python3 - "$new" "$lat" <<'PY'
+# shuffle-tree probes (playground results/2026-11-01-tg-reduction-tail/shfltree.ptx): per-iteration slope 100 -> 400
+# iterations, 1 / 8 chains, without / with a shared-memory round trip, 38 / 608 workgroups of 64 (hw ns, 2026-11-01)
+tree=""; thw=(66 135 161 1243 260 328 658 1317); i=0
+for k in tree1 tree8 tree1_tg tree8_tg; do for w in 38 608; do
+  a=$(/scratch/perf-goal/sim/simone.sh $(ls -d /scratch/perf-goal/sim/tree/$k-w$w-i100/*) --launch-profile zluda | python3 -c "import sys,json; print(json.loads(sys.stdin.read())['time_us'])")
+  b=$(/scratch/perf-goal/sim/simone.sh $(ls -d /scratch/perf-goal/sim/tree/$k-w$w-i400/*) --launch-profile zluda | python3 -c "import sys,json; print(json.loads(sys.stdin.read())['time_us'])")
+  tree="$tree $(python3 -c "s=($b-$a)*1000/300; print(round(100*(s-${thw[$i]})/${thw[$i]}))")"; i=$((i+1))
+done; done
+python3 - "$new" "$lat" "$tree" <<'PY'
 import re,sys,statistics as st
 errs=[]
 for f in ('/tmp/claude-1000/ev_gb.txt','/tmp/claude-1000/ev_ll.txt'):
@@ -27,5 +35,6 @@ for f in ('/tmp/claude-1000/ev_gb.txt','/tmp/claude-1000/ev_ll.txt'):
         if m: errs.append(abs(int(m.group(1))))
 new=[abs(int(x)) for x in sys.argv[1].split()]
 lat=[abs(int(x)) for x in sys.argv[2].split()]
-print(f"40 captures: n={len(errs)} median {st.median(errs)} mean {st.mean(errs):.1f} within25 {sum(e<=25 for e in errs)} | new8 {sys.argv[1].strip()} mean {st.mean(new):.1f} | lat8 {sys.argv[2].strip()} mean {st.mean(lat):.1f} | all56 mean {st.mean(errs+new+lat):.1f}")
+tree=[abs(int(x)) for x in sys.argv[3].split()]
+print(f"40 captures: n={len(errs)} median {st.median(errs)} mean {st.mean(errs):.1f} within25 {sum(e<=25 for e in errs)} | new8 {sys.argv[1].strip()} mean {st.mean(new):.1f} | lat8 {sys.argv[2].strip()} mean {st.mean(lat):.1f} | all56 mean {st.mean(errs+new+lat):.1f} | tree8 {sys.argv[3].strip()} mean {st.mean(tree):.1f} | all64 mean {st.mean(errs+new+lat+tree):.1f}")
 PY

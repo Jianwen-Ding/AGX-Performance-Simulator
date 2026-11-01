@@ -1866,7 +1866,10 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: Option<&
     // SLC, even if they were just loaded (the dirty lines must be written back). Off by default: no hardware data
     // yet (applications notes 66-67: adamw, stream).
     let tg_gate = std::env::var("AGX_TG_GATE").map_or(false, |v| v == "1");
-    let settle_on_read = std::env::var("AGX_TG_SETTLE_ON_READ").is_ok_and(|v| v == "1");
+    // on by default since the shuffle-tree probes (results/2026-11-01-tg-xy-and-settle): without it, 8 shuffle-reduction
+    // chains on values read from threadgroup memory were +161% (38 workgroups); with it +1%. AGX_TG_SETTLE_ON_READ=0:
+    // the old deferral (which also stood in for an unmodelled one-shot reduction-tail cost: mul_mat_vec_q, soft_max)
+    let settle_on_read = std::env::var("AGX_TG_SETTLE_ON_READ").map_or(true, |v| v != "0");
     // AGX_ISSUE_PROFILE=1: for SIMD group 0 of the first call whose group 0 runs AGX_ISSUE_PROFILE_MIN (1000) instructions or more (the
     // dispatch's own calls, not the cost model's smaller ones before them), the time before each instruction's issue (since the
     // group's previous issue), summed by PC, printed to stderr: where the model's time goes

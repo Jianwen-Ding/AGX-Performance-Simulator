@@ -49,3 +49,24 @@ reduction tail, to model that cost directly and then enable settle-on-read.
 - The existing shuffle experiments do not supply it: settle + AGX_SHFL_PIPE 0.6 / 1: all 56 9.5 / 9.4; + AGX_SHFL_QUEUE
   8 / 16: 11.4 / 15.9 (default 9.0). Next: a hardware probe of mul_mat_vec_q's own tail (threadgroup partials ->
   shuffle-xor tree -> stores) to measure that chain directly.
+
+## Shuffle-tree probes: settle-on-read on by default
+
+Playground results/2026-11-01-tg-reduction-tail/shfltree.ptx (ITERS x C values reduced by a 5-step shfl.sync.bfly +
+add tree; `_tg`: the values come through shared memory and bar.sync first; workgroups of 64), per-iteration slope ns:
+
+| probe | WGs | hw | default | settle | settle + SHFL_PIPE 0.6 |
+|---|---|---|---|---|---|
+| tree1 | 38 / 608 | 66 / 135 | 51 / 133 | 51 / 133 | 51 / 168 |
+| tree8 | 38 / 608 | 161 / 1243 | 145 / 984 | 145 / 984 | 172 / 1300 |
+| tree1_tg | 38 / 608 | 260 / 328 | 397 / 397 | 272 / 275 | 272 / 275 |
+| tree8_tg | 38 / 608 | 658 / 1317 | 1719 / 1722 | 662 / 986 | 693 / 1467 |
+
+The default deferral is +161% on chains read from threadgroup memory; settle-on-read is +1%. At 32 groups a core,
+8 parallel chains are 21-25% fast without a shared shuffle/add pipe (`AGX_SHFL_PIPE` 0.6 fixes these: +5 / +11%), but
+the pipe does not move the four one-shot tails (mul_mat_vec_q, soft_max, gemm_non_block), so it stays opt-in.
+
+Evaluation (tree8 = these slopes, now in evalset_captures.sh): default 56: 9.0, tree8: 40.1, all 64: 12.9; settle
+9.5 / 12.8 / **9.9**; settle + pipe 9.5 / 12.0 / 9.8. Settle-on-read is now the default (`AGX_TG_SETTLE_ON_READ=0`:
+the old deferral). Open: the one-shot reduction tails at the end of mul_mat_vec_q / soft_max / gemm_non_block
+(-15..-27%), which the deferral had been standing in for; the looping probes do not reproduce their cost.
