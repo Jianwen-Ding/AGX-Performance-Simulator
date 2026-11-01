@@ -459,7 +459,12 @@ pub fn simulate_with(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer
     // (launch and stores overlap beyond that: Geekbench's gradient, 9,672 workgroups per core, 967 us of launch and
     // ~500 us of stores, measured 1036 us)
     let store_floor = if store_ns > 0.0 { store_ns + rep.launch_core_ns.min(store_ns) } else { 0.0 };
-    rep.time_ns = (total / l.clock_mhz * 1000.0).max(fetch_ns).max(rep.launch_core_ns).max(store_floor) + l.launch_ns + stack_ns + writes_ns;
+    // ... but only partly: time = max + 0.3 min of the two (one thread, 32 dependent loads to new lines with 0-120 FMAs
+    // of straight-line code after each: 0.27-0.34; playground novel-results/2026-11-01-fetch-overlap). The full overlap
+    // fitted the Q8_0 kernel only while threadgroup loads were wrongly deferred. AGX_FETCH_OVERLAP overrides 0.3
+    let core_ns = total / l.clock_mhz * 1000.0;
+    let fetch_part = std::env::var("AGX_FETCH_OVERLAP").ok().and_then(|v| v.parse::<f64>().ok()).unwrap_or(0.3) * core_ns.min(fetch_ns);
+    rep.time_ns = (core_ns.max(fetch_ns) + fetch_part).max(rep.launch_core_ns).max(store_floor) + l.launch_ns + stack_ns + writes_ns;
     if !rep.time_ns.is_finite() { return Err("predicted time is non-finite for this launch".into()); }
     Ok(rep)
 }
