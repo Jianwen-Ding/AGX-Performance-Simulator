@@ -133,3 +133,11 @@ measured shuffle and fadd costs (~60 us): shuffles and adds share an issue resou
 the model. Both belong in the cost model (a shuffle -> ALU latency and a shared shuffle / FP issue budget per core),
 calibrated on these four chains and re-checked on verify-cost-model, before the reductions and the settle rule.
 
+Forwarding latency tried (a non-shuffle reader of a shuffle's result sees it 1-3 cycles later): ~1.5 cycles fits
+sf.ptx with one group (17.3-18.4 us at 1-2 cycles, GPU 17.79) and changes nothing at 16 / 48 groups, red_shfl or the
+48 captures (10.2%; 11.6% with the settle rule); not kept. The throughput side, per group at 48 groups per core:
+shuffle chains one shuffle per ~35 cycles (the unit's ~1.4 per cycle per core), fadd chains ~4 adds per cycle per
+core, shuffle + fadd chains one pair per ~69 cycles, as if every add of the mixed chain also went through the
+1.4-per-cycle shuffle pipe. The mechanism to model: while a core has shuffles in flight, its FP32 ALU instructions
+issue at the shuffle pipe's rate (a shared pipe or issue port); calibrate on shfl / fadd / sf at 4, 16, 48 groups.
+
