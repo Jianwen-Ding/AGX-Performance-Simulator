@@ -22,8 +22,9 @@ command in `capcheck.py`'s docstring.
 - **Open: tiny single-wave kernels are predicted too fast once launch costs are right** (-18% to -60%: rope 8.5 us
   hw / 3.4 sim, set_rows 6.5 / 3.1, quantize_q8_1 4.3 / 3.2). The hardware time beyond the launch cost (2-6 us) is
   not explained by code size (660-1280 bytes), mapped memory size (an empty kernel with 0-512 MiB mapped: the same
-  2.3 us) or the cold start the model already applies (first touches from DRAM). Next: trace one (set_rows) and
-  time its instructions in isolation.
+  2.3 us), the cold start the model already applies (first touches from DRAM), or page walks (a new page per
+  dependent load costs +8 ns over a new line: playground 2026-11-01-first-touch-pages). Next: trace one (set_rows)
+  and time its instructions in isolation.
 - 4 captures (`mul_mat_vec_f` x2, `mul_mat_vec_q` type 13, type 7 with 1 column) do not replay: the GPU faults
   ("Bad address") or the parameter block's fixed address is taken. Their captures miss memory the kernels reach
   (pointers inside by-value structs such as ggml_cuda_mm_fusion_args_device): a capture bug in zluda_agx, not
