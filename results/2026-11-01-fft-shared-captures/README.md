@@ -97,3 +97,12 @@ zluda profile with partial warm): GPU / model us for 8 MiB: L1 24.4 / 25.2, L2 2
 bandwidth-bound on the GPU at every L and the model follows them: memory-level parallelism is not what
 mul_mat_vec_f's later waves get wrong. What differs there: f16 loads of partial lines, the shared-memory reduction
 after them, 6 workgroups of 128 threads per wave; next, its instruction profile against wave 0's.
+
+Issue profile of mul_mat_vec_f (SIMD group 0, ticks before issue, `AGX_ISSUE_PROFILE_SKIP` 2 = wave 0, 3 = wave 3):
+wave 0 79501 (threadgroup_barrier 20914, fadd32 17292, simd_shuffle_xor 16366, no device_load stall in the top);
+wave 3 97181 (threadgroup_barrier 27506, fadd32 17519, simd_shuffle_xor 16588, device_load 14554). A later wave
+pays a memory phase (its rows at the DRAM rate) and then the reduction; the model sums waves one after another,
+while on the GPU workgroups are dispatched as others finish, so one wave's loads overlap the previous wave's
+reduction. The old full warm hid that by making later waves' loads free. The fix to try: overlap consecutive waves
+in `dispatch` (a wave's memory-bound part against the previous wave's compute-bound tail), checked on these 48
+captures and verify-dispatch.
