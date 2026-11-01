@@ -68,6 +68,8 @@ pub struct Launch {
     /// back never exceed ~380 GB/s; results/2026-11-01-fft-shared-captures). The zluda profile sets it
     /// (AGX_PARTIAL_WARM=0 / 1 overrides)
     pub partial_warm: bool,
+    /// simulate each wave chained with the next in every slot (`sim_wave`); the zluda profile sets it
+    pub chain_waves: bool,
     /// cores per cluster (workgroups are split evenly over clusters first); empty = round-robin over `cores`
     pub clusters: Vec<u32>,
     pub uniforms: Vec<(usize, u32)>,
@@ -102,6 +104,7 @@ impl Default for Launch {
             store_launch_ns: 0.0,
             later_waves_warm: false,
             partial_warm: false,
+            chain_waves: false,
             clusters: vec![10, 9, 9, 10],
             uniforms: vec![],
             mem: true,
@@ -245,8 +248,8 @@ pub fn simulate_with(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer
     let first_wave_segs = std::sync::Mutex::new(None::<std::sync::Arc<std::collections::HashSet<u64>>>);
     let partial_warm = std::env::var("AGX_PARTIAL_WARM").map_or(l.partial_warm, |v| v == "1");
     let sim_wave = |w: u64| -> Result<(u64, f64, Vec<String>), String> {
-        let first = w * r as u64;
-        let count = (m - first).min(r as u64);
+        let count = (m - w * r as u64).min(r as u64);
+        let build = |first: u64| -> Result<(Vec<Trace>, Vec<u32>, Vec<String>), String> {
         let mut traces = vec![];
         let mut wg_of = vec![];
         let mut warn = vec![];
@@ -292,6 +295,28 @@ pub fn simulate_with(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer
             traces.push(t);
             wg_of.push(i as u32);
         }
+        Ok((traces, wg_of, warn))
+        };
+        let (mut traces, wg_of, mut warn) = build(w * r as u64)?;
+        let next_wave = |traces: &mut Vec<Trace>, warn: &mut Vec<String>| -> Result<bool, String> {
+        // `chain_waves`: each slot runs this wave's workgroup and then the next wave's (the GPU starts a workgroup in
+        // a slot as soon as the previous one ends, so one wave's loads run under the other's tail), simulated
+        // together, half the cycles each (AGX_CHAIN_WAVES=0 / 1 overrides)
+        let chained = std::env::var("AGX_CHAIN_WAVES").map_or(l.chain_waves, |v| v == "1") && w + 1 < waves
+            && m - (w + 1) * r as u64 >= count;
+        if chained {
+            let (next, _, warn2) = build((w + 1) * r as u64)?;
+            warn.extend(warn2);
+            for (t, t2) in traces.iter_mut().zip(next) {
+                let off = t.pcs.len() as u32;
+                t.pcs.extend(t2.pcs);
+                t.mem.extend(t2.mem.into_iter().map(|(s, v)| (s + off, v)));
+                t.device_segments.extend(t2.device_segments.into_iter().map(|(s, v)| (s + off, v)));
+                t.masked.extend(t2.masked.into_iter().map(|s| s + off));
+            }
+        }
+            Ok(chained)
+        };
         if w == 0 {
             let mut lines = first_wave_lines.lock().unwrap();
             lines.extend(traces.iter().flat_map(|t| t.pcs.iter().map(|&pc| pc / 64)));
@@ -363,9 +388,15 @@ pub fn simulate_with(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer
         } else {
             mm
         };
+        // (chained after the footprint, the written bytes and the sharing, which are this wave's)
+        drop((seqs, mems, masked));
+        let chained = next_wave(&mut traces, &mut warn)?;
+        let seqs: Vec<&[usize]> = traces.iter().map(|t| t.pcs.as_slice()).collect();
+        let mems: Vec<&[(u32, Vec<u64>)]> = traces.iter().map(|t| t.mem.as_slice()).collect();
+        let masked: Vec<&[u32]> = traces.iter().map(|t| t.masked.as_slice()).collect();
         let mem = if l.mem { Some((mems.as_slice(), &mm)) } else { None };
         let c = cost::simulate_groups(&ins, &seqs, Some(&masked), mem, p, false, Some(&wg_of))?.0;
-        Ok((count, c, warn))
+        Ok((count, if chained { c / 2.0 } else { c }, warn))
     };
     // the first and last waves, the middle, then densely after the first (2^k - 1): data-dependent counts put the
     // work at the start of the grid

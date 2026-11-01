@@ -131,8 +131,9 @@ fn run_job(a: &[String], p: &Params) -> Result<serde_json::Value, String> {
                     (l.launch_ns, l.wg_launch_ns, l.group_launch_ns, l.fetch_line_ns, l.stack_launch_ns, l.store_gbps, l.store_launch_ns) = (d.launch_ns, d.wg_launch_ns, d.group_launch_ns, d.fetch_line_ns, d.stack_launch_ns, d.store_gbps, d.store_launch_ns);
                     l.later_waves_warm = d.later_waves_warm;
                     l.partial_warm = d.partial_warm;
+                    l.chain_waves = d.chain_waves;
                 }
-                "zluda" => (l.launch_ns, l.wg_launch_ns, l.group_launch_ns, l.fetch_line_ns, l.stack_launch_ns, l.store_gbps, l.store_launch_ns, l.later_waves_warm, l.partial_warm) = (2300.0, 100.0, 3.2, 104.0, 7500.0, 365.0, 700.0, true, true),
+                "zluda" => (l.launch_ns, l.wg_launch_ns, l.group_launch_ns, l.fetch_line_ns, l.stack_launch_ns, l.store_gbps, l.store_launch_ns, l.later_waves_warm, l.partial_warm, l.chain_waves) = (2300.0, 100.0, 3.2, 104.0, 7500.0, 365.0, 700.0, true, true, true),
                 other => return Err(format!("--launch-profile: {other:?} is not drm or zluda")),
             },
             "--max-waves" => { l.max_waves = number(v, option)?; max_waves_explicit = true; },

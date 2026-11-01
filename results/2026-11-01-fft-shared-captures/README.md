@@ -113,3 +113,21 @@ distinct lines at the core's DRAM share and the tail the rest of its time, avera
 several resident workgroups per core already overlap memory and compute inside a wave, so a blanket cross-wave
 credit counts it twice. A cross-wave overlap would need the wave's own idle time (cycles in which no group issues)
 from `simulate_groups`, not an estimate from its line count.
+
+## Adopted: chained waves (zluda profile, `chain_waves`)
+
+Each simulated wave runs chained with the next one in every slot (the second wave's trace of a slot appended to the
+first's, step indices offset): on the GPU a slot starts its next workgroup as soon as the previous one ends, so one
+wave's loads run under the other's reduction or tail; the pair is simulated together and each wave gets half its
+cycles. The footprint, the written bytes and the sharing stay the first wave's own (computed before chaining: with
+them doubled, store-bound kernels such as gradient went +1 -> +92%).
+
+| zluda profile | 40 captures (median, mean, within 25%) | the 8 above | all 48 (mean) |
+|---|---|---|---|
+| partial warm | 8%, 11.0%, 36 | 5.9% | 10.2% |
+| + chained waves | 7.5%, 10.2%, 37 | 5.9% | 9.5% |
+
+Moves of 4 points or more: hough_scores +27 -> -12%, blur_gray +38 -> +32%, image_rotate +35 -> +28%,
+convolve_vertical +13 -> +7%, raw_process +11 -> +2%, gradient +1 -> +5%, color_look_up_tetrahedral -3 -> -7%,
+mul_mat_vec_q<Q5_1> -3 -> -7%, mul_mat_vec_f +21 -> +17%. verify-dispatch with chaining forced on: unchanged (max
+0.215, p90 0.091).
