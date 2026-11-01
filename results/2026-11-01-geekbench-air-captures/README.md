@@ -161,3 +161,13 @@ already staggered further apart) and a release delay per resident workgroup (AGX
 with 1, 2, 4 and 8 SIMD-groups per workgroup and 1, 4 and 12 workgroups per core, to find what the second barrier
 costs with 4 groups.
 
+The sweep (red_bar2.ptx, GPU / model with AGX_SHFL_PIPE=0.6 and the settle rule, us): SIMD-groups per workgroup x
+workgroups per core = 1 x 1/4/12: 56.3 / 59.0, 56.3 / 59.0, 57.2 / 59.3; 2 x: 56.3 / 59.1, 57.7 / 60.0, 65.7 / 60.3;
+4 x: 57.6 / 61.2, 59.2 / 60.5, 85.2 / 65.8; 8 x: 59.1 / 68.3, 74.8 / 66.6, 166.4 / 113.7. The GPU's time follows the
+SIMD-groups resident per core: flat to ~16, then 24 -> 65.7, 32 -> 74.8, 48 -> 85.2, 96 -> 166.4 us, where the model
+stays near 60-66 us to 48. So it is not the barrier: with many groups in lockstep between barriers the core's issue
+of this shuffle / FP32 mix saturates at ~1.3 instructions per cycle on the GPU (48 groups x 200 rounds x ~16
+instructions in ~85 us), above what the model's four schedulers allow. Next: the same mix without barriers at 16,
+32, 48 groups per core (red_shfl gave 57.4 GPU / 61.5 model at 48 with the pipe: so the barriers' lockstep, which
+removes the staggering that lets groups' shuffle and FP phases interleave, is what to model).
+
