@@ -37,6 +37,12 @@ median of 3 runs of 1000 back to back) against `agx_dispatch --launch-profile zl
   three calibrated checks and was reverted; so was a streaming-load variant, which fitted the GEMM (54.2 us) for the
   wrong reason. The likely cause for both is the result-cache rule (only the last 8 written registers fast, older
   ones waiting a ~17-cycle writeback): to check against the 2026-10-11 result-cache measurements next.
+  The compiled tg10 loop is 10 fmadd32 (each into its own accumulator, operands a register loaded before the loop and
+  a uniform) + iadd + while_icmp + jmp_exec_any: ~52 cycles per iteration on the GPU for one group (~4 per
+  instruction), the model ~220 units, all charged to the FMAs. The result-cache measurements (10 rotating fadd32:
+  1.63 cycles per instruction) used 72-instruction loop bodies, so a short loop's control and taken jump cost more
+  here; next: the same loop with 10 / 20 / 40 FMAs per iteration (and 1 / 2 / 4 groups) on both, to separate the
+  loop's cost from the FMAs'.
 - Open: gemm_block_size_bias +43% (several workgroups on one core modelled as overlapping less than they do, the
   known gap); blur_gray, image_rotate, hough_scores +27-38% (hundreds of waves, each simulated with its own latency,
   which the hardware overlaps); particle -22%; depthwise_convolution_2d +24%.
