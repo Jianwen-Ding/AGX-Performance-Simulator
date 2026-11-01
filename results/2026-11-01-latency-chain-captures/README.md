@@ -64,5 +64,15 @@ Next: a modified-kernel probe (the round without its V rotation; with the sums o
   (better by 1-3). The ones that lose are streaming kernels with many loads in flight per wait: how far those
   overlap first-touch latency is the next refinement (the L2 rule was an over-fit to them).
 
+## First-touch latency calibrated: 300 ns (`first_touch_ns`)
+
+The SLC rule charged first touches `slc_ns` (349 ns, measured on random lines over 1-32 MiB within one command,
+playground 2026-10-10-agx-load-latency): 391 ns a wait on the column-sum probe, which hardware runs at 300. A
+separate `first_touch_ns` (default 300, `AGX_FIRST_TOUCH_NS`) now applies to a load whose slowest line is a first
+touch found in the SLC; in-command SLC hits keep 349. Column sum 4096 rows 53.1 -> 46.8 us (hw 47.1), chase 28.1
+-> 25.0 (hw 23.7). Evaluation: 40 captures 10.8 -> 10.5, new8 4.9 -> 4.6, lat8 13.5 -> 9.9, **all 56 10.3 -> 9.6**
+(260 ns: 9.9; 349: 10.3). dispatch_check, verify_cost_model, mem_check and the unit tests are unchanged (none
+reaches the SLC latency).
+
 Captures: /scratch/perf-goal/sim/chase/s{0,64,16384}, /scratch/perf-goal/sim/cap4 (regenerable: the playground's
 chase.ptx with agx_bench_kernel; ZLUDA's qrbench / eigbench / l2bench with ZLUDA_AGX_CAPTURE, SKIP 5, MAX 1).

@@ -1419,6 +1419,11 @@ pub struct MemModel {
     /// extra load latency over an L1 hit: L2 in real cycles; SLC and DRAM total latency in ns
     pub l2_extra: f64,
     pub slc_ns: f64,
+    /// a dependent load's first touch in a dispatch of a line the previous command left in the SLC: ~300 ns a wait
+    /// with sequential lines (playground novel-results/2026-11-01-first-touch-chains: chases and column sums, one or
+    /// 128 groups), below `slc_ns` (349, random lines over 1-32 MiB within a command, 2026-10-10-agx-load-latency).
+    /// AGX_FIRST_TOUCH_NS overrides it
+    pub first_touch_ns: f64,
     pub dram_ns: f64,
     pub l1_load_rate: f64,
     pub l1_load_min: f64,
@@ -1473,6 +1478,7 @@ impl Default for MemModel {
             slc_bytes: 19 << 20,
             l2_extra: 90.0,
             slc_ns: 349.0,
+            first_touch_ns: std::env::var("AGX_FIRST_TOUCH_NS").ok().and_then(|v| v.parse().ok()).unwrap_or(300.0),
             dram_ns: 388.0,
             l1_load_rate: 2.0 / k,
             l1_load_min: 2.0,
@@ -1832,6 +1838,9 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: Option<&
         rate: [f64; 5],
         cap: [f64; 5],
         extra: [i64; 4],
+        /// latency beyond L1 of a load whose slowest line is a first touch in the dispatch found in the SLC
+        /// (`first_touch_dram`)
+        first_extra: i64,
         cur: Vec<usize>,
         /// L1 load / store pipelines: busy until (ticks); a load's or store's segments pass in order
         l1_free: [i64; 2],
@@ -1894,6 +1903,7 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: Option<&
             rate,
             cap,
             extra: [0, tk(m.l2_extra), ns(m.slc_ns), ns(m.dram_ns)],
+            first_extra: ns(m.first_touch_ns),
             cur: vec![0; groups],
             l1_free: [0, 0],
             tg_free: 0,
@@ -2535,6 +2545,7 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: Option<&
                         // data a previous command left in the system-level cache: L2 latency, but its first touch
                         // in this dispatch goes at the GPU-wide DRAM rate (reads back to back never exceed ~380 GB/s,
                         // 1-12 MiB; playground novel-results/2026-11-01-read-bandwidth)
+                        let mut lat_extra = if store { 0 } else { m.extra[level] };
                         if first_touch_dram && need[2] + need[3] > 0.0 {
                             let key = (gi, m.cur[gi]);
                             let first = match m.first.get(&key) {
@@ -2545,6 +2556,9 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: Option<&
                                     f
                                 }
                             };
+                            if first > 0.0 && level == 2 && !store {
+                                lat_extra = m.first_extra;
+                            }
                             let from_slc = first.min(need[3]);
                             let from_l2 = (first - from_slc).min(need[2]);
                             need[3] -= from_slc;
@@ -2565,7 +2579,7 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: Option<&
                             wake!(t + until.max(1));
                             continue;
                         }
-                        mem_charge = Some((need, if store { 0 } else { m.extra[level] }, segs.clone()));
+                        mem_charge = Some((need, lat_extra, segs.clone()));
                     }
                 }
             }
