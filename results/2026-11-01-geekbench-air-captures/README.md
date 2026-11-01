@@ -171,3 +171,12 @@ instructions in ~85 us), above what the model's four schedulers allow. Next: the
 32, 48 groups per core (red_shfl gave 57.4 GPU / 61.5 model at 48 with the pipe: so the barriers' lockstep, which
 removes the staggering that lets groups' shuffle and FP phases interleave, is what to model).
 
+Tried: the shared pipe for every ALU instruction near shuffles (not only FP32), 0.4-0.6 cycles: red_bar2 4 x 12 /
+8 x 12 groups 64.4-71.2 / 94.7-120.5 us (GPU 85.2 / 166.4), red.ptx 128 threads 64.8-69.1 (83.8); captures 10.1%
+(11.5% with the settle rule). Not kept. And the correction this gives: under every shuffle / pipe / barrier model
+tried, llama.cpp's mul_mat_vec_q<Q5_1> stays at -33% and -28% with the settle rule. Its gap is not the shuffle and
+barrier reduction these microbenchmarks isolate (its reduction runs once, after the main loop); it is in the main
+loop (dp4a emulation: imadd / asr / bfi with Q5_1 unpacking, device loads and waits) at 24 SIMD-groups per core,
+whose integer chains alone are modelled within 11% (mad.ptx, shrbfi.ptx). Next: that main loop's mix (integer +
+device loads + waits) at 12 / 24 / 48 groups per core, not the reductions.
+
