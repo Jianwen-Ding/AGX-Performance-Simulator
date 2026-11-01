@@ -27,7 +27,11 @@ median of 3 runs of 1000 back to back) against `agx_dispatch --launch-profile zl
 - gemm_block_size_bias (+43%) examined: 18 workgroups (one per core, 4 SIMD groups, 8 KB threadgroup memory, 188
   register halves), a long K loop; per group 4363 instructions (1536 fmadd32, 1203 iadd, 960 threadgroup_load, 97
   device_load). Hardware ~71k cycles of execution, the model ~104k. Not the threadgroup load cost: AGX_TG_GROUP_LOAD 31
-  -> 8 leaves 77.5 us, AGX_TG_GATE 73.3 us. Next: a per-instruction breakdown of the model's timeline for one group.
+  -> 8 leaves 77.5 us, AGX_TG_GATE 73.3 us. The model's timeline (`AGX_ISSUE_PROFILE=1 AGX_ISSUE_PROFILE_MIN=4000`):
+  each of the inner loop's 16 fmadd32 waits ~409 ticks (~41 reference units: tg_load_issue 21 + tg_load_fast 19.4)
+  for the threadgroup load it uses, the 10 loads of an iteration serialized per group; the loop takes over half of
+  the group's time. The hardware overlaps those loads more: next, a microbenchmark of a group's back-to-back
+  threadgroup loads feeding FMAs (with 4 groups per core), to recalibrate tg_load_issue for this pattern.
 - Open: gemm_block_size_bias +43% (several workgroups on one core modelled as overlapping less than they do, the
   known gap); blur_gray, image_rotate, hough_scores +27-38% (hundreds of waves, each simulated with its own latency,
   which the hardware overlaps); particle -22%; depthwise_convolution_2d +24%.

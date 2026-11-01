@@ -1839,6 +1839,18 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: Option<&
     // SLC, even if they were just loaded (the dirty lines must be written back). Off by default: no hardware data
     // yet (applications notes 66-67: adamw, stream).
     let tg_gate = std::env::var("AGX_TG_GATE").map_or(false, |v| v == "1");
+    // AGX_ISSUE_PROFILE=1: for SIMD group 0 of the first call whose group 0 runs AGX_ISSUE_PROFILE_MIN (1000) instructions or more (the
+    // dispatch's own calls, not the cost model's smaller ones before them), the time before each instruction's issue (since the
+    // group's previous issue), summed by PC, printed to stderr: where the model's time goes
+    static PROFILED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+    let mut issue_profile: Option<std::collections::BTreeMap<usize, (i64, u64)>> =
+        (std::env::var("AGX_ISSUE_PROFILE").is_ok_and(|v| v == "1")
+            && seqs_pcs.first().is_some_and(|q| {
+                q.len() >= std::env::var("AGX_ISSUE_PROFILE_MIN").ok().and_then(|v| v.parse().ok()).unwrap_or(1000)
+            })
+            && !PROFILED.swap(true, std::sync::atomic::Ordering::SeqCst))
+            .then(Default::default);
+    let mut profile_prev: i64 = 0;
     let charge_writeback = std::env::var("AGX_CHARGE_WRITEBACK").map_or(false, |v| v == "1")
         && mem.is_some_and(|(_, m)| !m.resident_slc);
     let mut ms: Option<MemState> = mem.map(|(_, m)| {
@@ -2849,6 +2861,15 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: Option<&
             }
             e.2 += occ;
             e.3 += branch;
+            if let Some(p) = issue_profile.as_mut() {
+                if gi == 0 {
+                    let pc = sim[seqs[gi][nxt[gi]]].pc;
+                    let x = p.entry(pc).or_insert((0, 0));
+                    x.0 += t - profile_prev;
+                    x.1 += 1;
+                    profile_prev = t;
+                }
+            }
             free[gi] = t + occ;
             last_t = last_t.max(free[gi]);
             nxt[gi] += 1;
@@ -2968,6 +2989,16 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: Option<&
     } else {
         None
     };
+    if let Some(p) = issue_profile {
+        let names: HashMap<usize, &str> = instrs.iter().map(|x| (x.pc, x.name.as_str())).collect();
+        let sum: i64 = p.values().map(|v| v.0).sum();
+        let mut rows: Vec<_> = p.into_iter().collect();
+        rows.sort_by_key(|r| std::cmp::Reverse(r.1 .0));
+        eprintln!("issue profile, SIMD group 0: {sum} ticks before issues");
+        for (pc, (time, n)) in rows.iter().take(25) {
+            eprintln!("  pc {pc:6} {:<20} {n:6}x {time:10} ({:.1}%)", names.get(pc).unwrap_or(&"?"), *time as f64 / sum.max(1) as f64 * 100.0);
+        }
+    }
     Ok((total, st))
 }
 
