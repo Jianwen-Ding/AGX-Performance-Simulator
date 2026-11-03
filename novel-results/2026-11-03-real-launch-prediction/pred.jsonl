@@ -3,3 +3,4 @@
 {"kernel": "integrator_sorted_paths_array", "threads": 125184, "matched": true, "measured_us": 39.209, "predicted_us": 15.656294706723891, "ratio": 0.399, "wgs_per_core": 16, "waves": 2, "simulated_waves": [[0, 16, 11924.2], [1, 1, 2134.5]], "sim_s": 43.0, "error": null}
 {"kernel": "integrator_intersect_shadow", "threads": 1920, "matched": true, "measured_us": 2826.583, "predicted_us": 795.6409155937052, "ratio": 0.281, "wgs_per_core": 1, "waves": 1, "simulated_waves": [[0, 1, 1104477.2]], "sim_s": 9.7, "error": null}
 {"kernel": "integrator_shade_light_nee", "threads": 1920, "matched": true, "measured_us": 740.292, "predicted_us": 182.70407725321888, "ratio": 0.247, "wgs_per_core": 1, "waves": 1, "simulated_waves": [[0, 1, 247591.5]], "sim_s": 9.1, "error": null}
+{"kernel": "integrator_shade_surface", "threads": 54144, "matched": true, "measured_us": 6816.833, "predicted_us": 1447.4642346208866, "wgs_per_core": 1, "waves": 4, "sim_s": 96.1}
