@@ -181,6 +181,11 @@ pub fn fetch_line_ns() -> f64 {
     std::env::var("AGX_FETCH_LINE_NS").ok().and_then(|v| v.parse().ok()).unwrap_or(62.0)
 }
 
+/// The instruction cache's capacity for MemModel::icache_bytes. AGX_ICACHE_BYTES overrides it.
+pub fn icache_bytes() -> usize {
+    std::env::var("AGX_ICACHE_BYTES").ok().and_then(|v| v.parse().ok()).unwrap_or(0)
+}
+
 pub fn simulate(code: &[u8], l: &Launch, p: &Params) -> Result<Report, String> {
     simulate_with(code, l, p, None)
 }
@@ -205,7 +210,7 @@ pub fn simulate_with(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer
     rep.busiest_core_wgs = m;
     let waves = m.div_ceil(r as u64).max(1);
     rep.waves = waves;
-    let mm = MemModel { fetch_line_ns: fetch_line_ns(), clock_mhz: l.clock_mhz, active_cores: (cores.min(n)) as f64, warm: false, dram_gbps: l.dram_gbps, ..Default::default() };
+    let mm = MemModel { fetch_line_ns: fetch_line_ns(), icache_bytes: icache_bytes(), clock_mhz: l.clock_mhz, active_cores: (cores.min(n)) as f64, warm: false, dram_gbps: l.dram_gbps, ..Default::default() };
     let device_pcs: std::collections::HashSet<usize> =
         ins.iter().filter(|i| i.name == "device_load" || i.name == "device_store").map(|i| i.pc).collect();
     let wg_coords = |k| wg_coords(dims, k);

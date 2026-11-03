@@ -1420,6 +1420,8 @@ pub struct MemModel {
     pub clock_mhz: f64,
     /// Instruction fetch: ns per line for the first group of a core to reach it (0: not modelled, steady-state loops).
     pub fetch_line_ns: f64,
+    /// Touched code of at most this many bytes per launch is taken as already in the instruction cache (0: none).
+    pub icache_bytes: usize,
     /// cores sharing the SLC and DRAM (all cores run the same kernel on disjoint data)
     pub active_cores: f64,
     pub l1_bytes: usize,
@@ -1469,6 +1471,7 @@ impl Default for MemModel {
         let k = REAL_CYCLES_PER_UNIT;
         MemModel {
             fetch_line_ns: 0.0,
+            icache_bytes: 0,
             clock_mhz: 1398.0,
             active_cores: 38.0,
             l1_bytes: 8 << 10,
@@ -2016,7 +2019,16 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: Option<&
     }
 
     // cold instruction fetch, per core, for a whole dispatch (MemModel::fetch_line_ns)
-    let fetch_line = mem.map_or(0, |(_, m)| tk(m.fetch_line_ns * CYCLES_PER_NS));
+    let mut fetch_line = mem.map_or(0, |(_, m)| tk(m.fetch_line_ns * CYCLES_PER_NS));
+    // Code that fits the instruction cache stays there from one launch to the next: nothing to fetch (warm launches).
+    if let Some((_, m)) = mem {
+        if fetch_line > 0 && m.icache_bytes > 0 {
+            let lines: std::collections::HashSet<usize> = seqs_pcs.iter().flat_map(|p| p.iter().map(|pc| pc >> FETCH_LINE_SHIFT)).collect();
+            if lines.len() << FETCH_LINE_SHIFT <= m.icache_bytes {
+                fetch_line = 0;
+            }
+        }
+    }
     let mut fetched: HashMap<usize, i64> = HashMap::new();
     let mut fetch_free = 0i64;
     let mut t: i64 = 0;

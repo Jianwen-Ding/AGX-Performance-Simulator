@@ -106,7 +106,7 @@ fn run_job(a: &[String], p: &Params) -> Result<serde_json::Value, String> {
         let option = a[i].as_str();
         if option == "--no-mem" { l.mem = false; i += 1; continue; }
         if option == "--all-workgroups" { all_workgroups = true; i += 1; continue; }
-        if !["--grid", "--wg", "--regs", "--tg-bytes", "--clock", "--cores", "--busiest-core-wgs", "--m2-core-map", "--sampler-heap", "--launch-us", "--max-waves", "--uniform", "--preamble", "--map", "--alloc", "--agx-strict"].contains(&option) {
+        if !["--grid", "--wg", "--regs", "--launch-profile", "--tg-bytes", "--clock", "--cores", "--busiest-core-wgs", "--m2-core-map", "--sampler-heap", "--launch-us", "--max-waves", "--uniform", "--preamble", "--map", "--alloc", "--agx-strict"].contains(&option) {
             return Err(format!("unknown argument {}", option));
         }
         let v = a.get(i + 1).ok_or_else(|| format!("{} requires a value", option))?;
@@ -119,6 +119,11 @@ fn run_job(a: &[String], p: &Params) -> Result<serde_json::Value, String> {
             "--cores" => l.cores = number(v, option)?,
             "--busiest-core-wgs" => l.busiest_core_wgs_override = Some(number(v, option)?),
             "--launch-us" => l.launch_ns = number::<f64>(v, option)? * 1000.0,
+            // ZLUDA's command stream, fitted on 37 captured Geekbench and llama launches (5.6 us is the Mesa-style default)
+            "--launch-profile" => match v.as_str() {
+                "zluda" => l.launch_ns = 3000.0,
+                other => return Err(format!("unknown launch profile {}", other)),
+            },
             "--max-waves" => { l.max_waves = number(v, option)?; max_waves_explicit = true; },
             "--m2-core-map" => core_map_path = Some(v.clone()),
             "--agx-strict" => agx_sim::isa::mesa::set_mode(Some(agx_sim::isa::mesa::MesaGen::parse(v)?)),
