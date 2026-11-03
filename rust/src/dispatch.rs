@@ -174,6 +174,13 @@ pub fn co_resident_workgroups(l: &Launch) -> u32 {
     guaranteed
 }
 
+/// Cold instruction fetch, ns per 64 bytes, on top of issue: 8.85 ns per 8-byte instruction of straight-line code on the M2 Max, warm, back to
+/// back, from 64 KB to 4 MB of code and 1 or 12 SIMD groups alike (scripts/probe_fetch_scaling.py). A launch's kernel is
+/// fetched again each launch. AGX_FETCH_LINE_NS overrides it (0: off).
+pub fn fetch_line_ns() -> f64 {
+    std::env::var("AGX_FETCH_LINE_NS").ok().and_then(|v| v.parse().ok()).unwrap_or(62.0)
+}
+
 pub fn simulate(code: &[u8], l: &Launch, p: &Params) -> Result<Report, String> {
     simulate_with(code, l, p, None)
 }
@@ -198,7 +205,7 @@ pub fn simulate_with(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer
     rep.busiest_core_wgs = m;
     let waves = m.div_ceil(r as u64).max(1);
     rep.waves = waves;
-    let mm = MemModel { clock_mhz: l.clock_mhz, active_cores: (cores.min(n)) as f64, warm: false, dram_gbps: l.dram_gbps, ..Default::default() };
+    let mm = MemModel { fetch_line_ns: fetch_line_ns(), clock_mhz: l.clock_mhz, active_cores: (cores.min(n)) as f64, warm: false, dram_gbps: l.dram_gbps, ..Default::default() };
     let device_pcs: std::collections::HashSet<usize> =
         ins.iter().filter(|i| i.name == "device_load" || i.name == "device_store").map(|i| i.pc).collect();
     let wg_coords = |k| wg_coords(dims, k);

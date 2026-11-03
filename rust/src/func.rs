@@ -738,6 +738,9 @@ fn decode_at(code: &[u8], pc: usize, nregs: usize) -> Result<Info, String> {
     Ok(Info { desc: Some(desc), size, fields, op: Some(op), vals, kind, access })
 }
 
+/// Where the traces place stack memory: no device address, and not part of a launch's device footprint.
+const STACK_TRACE_BASE: u64 = 0x7c00_0000_0000;
+
 fn step_group(g: &mut Group, code: &[u8], cache: &CodeCache, mem: &mut Memory, tg: &mut [u8], max_steps: u64,
               stats: &mut RunStats) -> Result<Stop, String> {
     // Select once per group/resume, not on every instruction. Small programs
@@ -786,6 +789,28 @@ fn step_group_impl<C: InstructionCells>(g: &mut Group, code: &[u8], cache: &C, m
             tr.pcs.push(g.pc);
             let at = (tr.pcs.len() - 1) as u32;
             let touched = info.access.as_ref().and_then(|a| a.capture(&g.st));
+            if matches!(info.kind, OpKind::Stack { .. }) {
+                // stack memory, for the memory model: each SIMD group's block holds a slot per 32-bit word with one 4-byte
+                // cell per lane (zluda_agx's scratch layout, agx_runtime scratch.rs), so a word spans 128 bytes
+                let x = |k: &str| fget(&info.fields, k).unwrap_or(0);
+                let mask = x("mask");
+                let item = match x("F") { 0 => 1usize, 1 => 2, _ => 4 };
+                let block = STACK_TRACE_BASE + ((g.ctx.slot as u64) << 28);
+                let mut segs = vec![];
+                for t in 0..32 {
+                    if !g.st.exec[t] { continue; }
+                    let base = if x("Ot") != 0 { x("O") as usize } else { g.st.get_reg32((x("O") >> 1) as usize, t)? as u32 as usize };
+                    for c in 0..4 {
+                        if mask & (1 << c) != 0 {
+                            let a = base + c * item;
+                            segs.push((block + (a as u64 / 4) * 128 + t as u64 * 4 + a as u64 % 4) >> 6);
+                        }
+                    }
+                }
+                segs.sort_unstable();
+                segs.dedup();
+                tr.mem.push((at, segs));
+            }
             if let Some(w) = touched {
                 if let Some(segments) = info.access.as_ref().and_then(|a| a.device_segments(&g.st, &w)) {
                     tr.device_segments.push((at, segments));

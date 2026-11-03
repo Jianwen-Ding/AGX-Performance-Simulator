@@ -106,6 +106,13 @@ fn main() {
         }
         i += 2;
     }
+    // AGX_RUN_TIMES=1: where a replay's time goes, on stderr
+    let times = std::env::var_os("AGX_RUN_TIMES").is_some();
+    let phase = |name: &str, t: &mut std::time::Instant| {
+        if times { eprintln!("[agx_run] {name}: {:.2} s", t.elapsed().as_secs_f64()); }
+        *t = std::time::Instant::now();
+    };
+    let mut clock = std::time::Instant::now();
     let mut code = code;
     while code.len() > 2 && code[code.len() - 2..] == [0, 0] {
         code.truncate(code.len() - 2); // trailing padding
@@ -128,6 +135,7 @@ fn main() {
         }
         std::fs::write(f, out).unwrap_or_else(|e| die(&format!("{}: {}", f, e)));
     }
+    phase("preamble and trace", &mut clock);
     let st = match &core_map {
         Some(cores) => func::run_with_m2_core_map(&d, &mut mem, cores),
         None => func::run(&d, &mut mem),
@@ -141,10 +149,12 @@ fn main() {
             None => die(&e),
         }
     });
+    phase("run", &mut clock);
     for (va, n, f) in &dumps {
         let b = mem.read_bytes(*va, *n).unwrap_or_else(|e| die(&e));
         std::fs::write(f, b).unwrap_or_else(|e| die(&format!("{}: {}", f, e)));
     }
+    phase("dumps", &mut clock);
     let u: Vec<String> = after.unwrap_or_default().iter().filter(|(_, v)| *v != 0).map(|(k, v)| format!("\"u{}\":{}", k, v)).collect();
     let provenance = core_map.as_ref().map(|c| format!(",\"core_map\":\"m2\",\"mapped_workgroups\":{}", c.len())).unwrap_or_default();
     println!("{{\"instructions\":{},\"groups\":{},\"preamble_uniforms\":{{{}}}{}}}", st.instructions, st.groups, u.join(","), provenance);

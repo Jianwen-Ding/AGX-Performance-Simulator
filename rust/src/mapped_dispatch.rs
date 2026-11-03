@@ -94,7 +94,7 @@ pub fn simulate(d: &Dispatch, mem: &Memory, l: &Launch, p: &Params, cores: &[u32
             segments.extend(captured.iter().copied()); global.extend(captured);
         }
     }
-    let mm = MemModel { clock_mhz: l.clock_mhz, active_cores: partitions.len() as f64,
+    let mm = MemModel { fetch_line_ns: dispatch::fetch_line_ns(), clock_mhz: l.clock_mhz, active_cores: partitions.len() as f64,
         dram_gbps: l.dram_gbps, warm: false, ..Default::default() };
     let resident_slc = footprint_complete && global.len() as u128 * 64 <= mm.slc_bytes as u128;
     let mut out = vec![];
