@@ -32,7 +32,44 @@ zeros; `warnings` names such conditions. Launch inputs make the path real:
 
 Uniforms are 32-bit registers (`u4 = 4`), as for `agx_dispatch`; `--map`, `--alloc` and `--preamble` are
 `agx_run`'s. With launch inputs the JSON line gains `"paths": "geometry"` or `"functional"`; without them, the
-output is unchanged.
+path is unchanged.
+
+### Occupancy and whole-core throughput
+
+`cycles` is one path of `--groups` groups, whatever the kernel's register count. So the JSON line also has `occupancy`,
+from `dispatch::occupancy` (the same numbers as `agx_dispatch`):
+
+| Field | Meaning |
+| --- | --- |
+| `register_halves`, `registers`, `register_source` | the count used: `--regs` (`declared`, 16-bit halves) or else `inferred` |
+| `inferred_register_halves` | one past the highest register half the code names. A launch's allocation is taken as this rounded up to 8 (SR19) |
+| `simd_group_cap_per_core` | SIMD groups that registers and workgroup size allow: min(96, 2 floor(3328 / (2 halves))), and 55 / 84 for 32- / 64-lane workgroups |
+| `resident_workgroups_per_core`, `resident_simd_groups_per_core`, `resident_threads_per_core` | what fits as whole workgroups, with `--wg` (default 32 threads) and `--tg-bytes` |
+| `limited_by` | `registers`, `workgroup_size`, `hardware_group_cap` or `threadgroup_memory`: whether fewer registers would add residents |
+| `warnings` | `--regs` below what the code names or not a multiple of 8; more than 248 halves (never measured: the launch field wraps at 256) |
+
+Give the declared count when you know it (`--regs 2N` for llc's `general purpose registers: N`): it is what the launch
+allocates. llc declares 128 registers for a kernel with calls whatever the code names, so inference alone can overstate
+such a kernel's occupancy. (`--regs` is also a launch input: it selects `paths: geometry`.)
+
+`--core-throughput` adds `core_throughput`, to compare compilations of a kernel at different register counts, fewer
+spills against more resident threads. It simulates one wave of a core, all resident workgroups starting together, with
+`cost::simulate_groups` (the same pass as `agx_dispatch`). The simulations make it about 50 times slower, hence the option.
+
+| Field | Meaning |
+| --- | --- |
+| `threads_per_us` | resident threads / max(wave time, launch time), with the memory hierarchy, every core busy |
+| `threads_per_us_l1_only` | the same with device accesses as L1 hits: `--groups` (agx-bench's `tput`) for each workgroup's SIMD groups. Bounds the above from above when data is shared |
+| `wave_real_cycles`, `alone_real_cycles`, `contention` | one wave, one workgroup alone on the core, and their ratio; each also `_l1_only`. Real cycles whatever `--units` says |
+| `launch_us`, `launch_bound` | launch time of the wave (max(100 ns per workgroup, 13.6 ns per group)), and whether it sets the time rather than the kernel: then the kernel is too short for the core to fill and the figure says little about registers |
+| `validated_on_hardware` | always `false`: **this estimate has not been compared with a measured core** |
+
+Every resident workgroup runs the costed workgroup's path (give launch inputs: with zero arguments a kernel often exits
+at once and is launch-bound), each on device data and stack of its own. **To compare spilling code, use `--map` /
+`--alloc`** (a zero-filled `--alloc 0=BYTES` will do): the default emulation skips `stack_load`, so spilled counters read
+as zero and the path shrinks or never ends, which looks like a gain (`warnings` says so). Stack traffic is priced like
+any memory access; its cost per spill is not measured under load (`tasks/zluda-agx-followups.md` item 2). Waves are the
+dispatch model's assumption; the core's cold first touches of code and data are included.
 
 ## Equivalence with the Python model
 
