@@ -139,7 +139,7 @@ pub fn simulate(d: &Dispatch, mem: &Memory, l: &Launch, p: &Params, cores: &[u32
     let summary = Report { workgroups: cores.len() as u64, groups_per_wg: gpw, group_cap_per_core: cap, wgs_per_core: resident,
         busiest_core_wgs: partitions.values().map(|w| w.len() as u64).max().unwrap(), waves: core.waves.len() as u64,
         simulated_waves: core.waves.iter().map(|w| (w.index as u64, w.workgroups.len() as u64, w.cycles)).collect(),
-        core_cycles: core.cycles, launch_core_ns: core.launch_ns, time_ns, warnings };
+        core_cycles: core.cycles, launch_core_ns: core.launch_ns, code_lines: 0, time_ns, warnings };
     Ok(MappedReport { summary, critical_core: core.id, cores: out, global_device_segments: global.len(), resident_slc_assumed: resident_slc, device_footprint_complete: footprint_complete })
 }
 

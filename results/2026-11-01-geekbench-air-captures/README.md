@@ -1,0 +1,225 @@
+# Geekbench 7 GPU kernels on the AIR route: simulator vs hardware (2026-11-01)
+
+The 29 kernels with the most GPU time in a Geekbench 7 GPU (CUDA) run on zluda_agx's AIR route (ZLUDA
+claude/perf-air-agx), except the ray tracer's (trace_bvh*, miss, hit_surface, generate_rays, resolve_radiance,
+accumulate_*: replays of BVH kernels with wrong data have hung the GPU), each captured after its 20th launch. Every
+capture ran on the simulator first (none hit the step limit), then `scripts/capcheck.py --hw --hw-repeat 3` (the
+median of 3 runs of 1000 back to back) against `agx_dispatch --launch-profile zluda`. No GPU faults.
+
+| Model | Median abs. error | Within 10% | Within 25% |
+| --- | --- | --- | --- |
+| zluda profile, store floor launch + stores (`capcheck-hw3.txt`) | 18% | 9 / 29 | 23 / 29 |
+| store floor overlapping the launch beyond the stores' time | 9% | 17 / 29 | 25 / 29 |
+| and later waves warm when the data fits the system-level cache (`capcheck-final.txt`) | **8%** | 17 / 29 | 25 / 29 |
+
+- The large image kernels write a lot over thousands of workgroups per core: their launch and their stores overlap
+  (gradient: 967 us of workgroup launch, ~500 us of stores, 1036 us measured), so the store floor adds the launch only
+  up to the stores' time; the store microbenchmarks (1.5-24 MB) stay within +4% to +14%.
+- Later waves warm without the system-level-cache condition gave 6% (21 / 29 within 10%, 27 / 29 within 25%:
+  image_rotate +35% -> -5%, convolve_2d +18% -> +1%) but made the direct-DRM calibration's DRAM-bound kernels too
+  fast (verify-dispatch p90 9% -> 16%, max 74%): with the condition, the calibration is unchanged. The image kernels
+  that would gain are classed as not resident by the footprint estimate (single-wave segments scaled to all cores,
+  which counts the rows neighbours share several times). Capping the estimate at the captured data does not change
+  that: their mapped allocations are 48-189 MB, above the 19 MiB the model takes for the system-level cache. Their
+  data does not stay resident; what warms their later waves is reuse across waves (a stencil's next rows were read by
+  the wave before). Next: warm only the lines a wave shares with the previous one (simulate wave 0 first, then the
+  others against its lines).
+- gemm_block_size_bias (+43%) examined: 18 workgroups (one per core, 4 SIMD groups, 8 KB threadgroup memory, 188
+  register halves), a long K loop; per group 4363 instructions (1536 fmadd32, 1203 iadd, 960 threadgroup_load, 97
+  device_load). Hardware ~71k cycles of execution, the model ~104k. Not the threadgroup load cost: AGX_TG_GROUP_LOAD 31
+  -> 8 leaves 77.5 us, AGX_TG_GATE 73.3 us. The model's timeline (`AGX_ISSUE_PROFILE=1 AGX_ISSUE_PROFILE_MIN=4000`):
+  each of the inner loop's 16 fmadd32 waits ~409 ticks (~41 reference units: tg_load_issue 21 + tg_load_fast 19.4)
+  for the threadgroup load it uses, the 10 loads of an iteration serialized per group; the loop takes over half of
+  the group's time. **Correction**: a first reading took this for threadgroup-load cost and measured `tg2.ptx` /
+  `tg10.ptx`, but the compiler hoists their loads out of the loop (they ran once): what they time is 10 (or 2)
+  independent FMA accumulator chains, 21.7 / 25.4 / 26.5 us with 1 / 2 / 4 groups on the GPU (~5.2 cycles per FMA
+  for one group) against 84.4 us in the model, which charges each FMA ~21 units. A global tg_load_issue of 4 broke
+  three calibrated checks and was reverted; so was a streaming-load variant, which fitted the GEMM (54.2 us) for the
+  wrong reason. The likely cause for both is the result-cache rule (only the last 8 written registers fast, older
+  ones waiting a ~17-cycle writeback): to check against the 2026-10-11 result-cache measurements next.
+  The compiled tg10 loop is 10 fmadd32 (each into its own accumulator, operands a register loaded before the loop and
+  a uniform) + iadd + while_icmp + jmp_exec_any: ~52 cycles per iteration on the GPU for one group (~4 per
+  instruction), the model ~220 units, all charged to the FMAs. The result-cache measurements (10 rotating fadd32:
+  1.63 cycles per instruction) used 72-instruction loop bodies, so a short loop's control and taken jump cost more
+  here; next: the same loop with 10 / 20 / 40 FMAs per iteration (and 1 / 2 / 4 groups) on both, to separate the
+  loop's cost from the FMAs'.
+  Done (`fma*.ptx`, the multiplicands from an ALU add before the loop): 21.1 / 15.4 / 12.8 us on the GPU, 22.4 / 14.7 /
+  12.1 in the model: FMA chains and loop control are modelled well. The difference in tg10 is that its multiplicands
+  come from threadgroup loads never followed by a `wait`: the model's load deferral (ALU work in flight defers a
+  load's completion) kept re-deferring them at every ALU instruction for the rest of the program, as only a `wait`
+  settles them. `AGX_TG_SETTLE_ON_READ=1` settles a threadgroup load once an instruction reads its result: tg10 84.4
+  -> 23.0 us (GPU 26.5), tg2 17.0 (17.8), gemm_block_size_bias +43% -> -2%, depthwise_convolution_2d +24% -> +1%,
+  calibration checks unchanged. Not the default: llama.cpp's shared-memory reductions (soft_max, mul_mat_vec_q/_f)
+  then come out 13-27% fast and gemm_non_block_size_bias -26%, an undercount the stale deferral had offset (all 40
+  captures: mean |error| 10.5% -> 12.1%, median 8% both). In llama.cpp's mul_mat_vec_q<Q5_1> (hw 26.3 us, model 25.7
+  default / 19.3 settled) the settled time is all in the reduction after the barrier (by instruction kind, ticks
+  before issue, default -> settled: fadd32 35177 -> 10601, simd_shuffle_xor 14581 -> 1739, device_store 6141 -> 336,
+  if_icmp 5856 -> 416; the main loop's imadd / asr / bfi unchanged): the partial sums exchanged through threadgroup
+  memory and reduced with shuffles cost the GPU something the stale deferral stood in for. Measured (`red.ptx`: 200
+  rounds of FMA, threadgroup store, barrier, another group's partial loaded, 5 butterfly shuffles + adds, barrier;
+  38 workgroups): 2 groups 56.1 us, 4 groups 57.7 us on the GPU; the model 72.2 / 72.7 by default (+29%), 60.9 / 61.7
+  with AGX_TG_SETTLE_ON_READ (+8%). So the reduction sequence itself is better with the settle rule; what makes the
+  llama.cpp kernels fast under it is elsewhere (their device loads and waits, or the stores at their end), which the
+  stale deferral's overcharge offset. The rule stays opt-in until that is found.
+  Located further: llama.cpp's mul_mat_vec_q<Q5_1> replayed with 1 / 4 / 12 workgroups of 2 groups per core (grid x 1216
+  / 4864 / 14336): GPU 18.1 / 16.6 / 25.75 us; the model 17.35 / 17.35 / 25.72 by default and 17.35 / 17.35 / 19.31
+  with the settle rule. The two agree up to 5 workgroups per core and part at 12 (two waves of 12 SIMD groups): the
+  GPU's time grows 1.55x from 5 to 12 workgroups per core, the settled model's only 1.11x. What the stale deferral
+  supplied is contention between many resident groups; next, a model of that (shared issue or register-file
+  bandwidth at high occupancy) measured on its own.
+  Correction from a finer sweep (6 / 7 / 8 / 10 / 12 workgroups per core): GPU 16.9-18.4 / 19.1 / 19.6 / 23.5 / 26.3
+  us; default 17.35 / 21.2 / 21.9 / 23.8 / 25.7; settled 17.35 / 17.35 / 17.35 / 17.35 / 19.3 (the same with later
+  waves cold). The settled model is flat because its execution time falls under the instruction-fetch floor (138
+  code lines x 104 ns + launch + writes = 17.35 us) until 12 workgroups per core: it is not occupancy contention but
+  the settled model's execution of this kernel being too short in every wave, hidden by the floor at low
+  occupancy. That disagrees with red.ptx, where the settle rule is the more accurate one; the difference between
+  the two (mul_mat_vec_q's device loads and waits around the threadgroup exchange) is the open question.
+  (`AGX_ISSUE_PROFILE_SKIP` skips the cost model's own calibration calls, `AGX_ISSUE_PROFILE_ROWS` lists more rows.)
+- Open: gemm_block_size_bias +43% (several workgroups on one core modelled as overlapping less than they do, the
+  known gap); blur_gray, image_rotate, hough_scores +27-38% (hundreds of waves, each simulated with its own latency,
+  which the hardware overlaps); particle -22%; depthwise_convolution_2d +24%.
+
+Rechecked under the zluda profile with partial warm and chained waves (results/2026-11-01-fft-shared-captures):
+AGX_TG_SETTLE_ON_READ=1 still trades gemm_block_size_bias (+36 -> -10%) against llama.cpp's reductions
+(mul_mat_vec_q<Q5_1> -7 -> -33%, mul_mat_vec_f +17 -> -15%, soft_max -5 -> -19%) and gemm_non_block_size_bias
+(-10 -> -33%): 40 captures mean 10.2 -> 11.7%. Still opt-in; the reductions' missing cost (high-occupancy
+contention, see above) is what to model before it can be the default.
+
+What the reductions' missing cost is (`red/`, 456 workgroups = 12 per core, GPU / model default / model settled, us):
+- red.ptx (store, barrier, load, 5 shuffles): 64 threads 59.8 / 72.8 / 61.5; 128 threads 83.8 / 75.9 / 65.1. The
+  GPU takes 1.40x for twice the SIMD-groups, the settled model 1.06x.
+- red_tg.ptx (no shuffles): 64 threads 53.0 / 57.4 / 57.4, 128 threads 61.0 / 59.1 / 59.1: modelled.
+- red_shfl.ptx (no threadgroup memory or barriers): 64 threads 32.0 / 25.3, 128 threads 57.4 / 44.8 (model -21%);
+  one 32-thread group per core 15.04 / 13.92 (-7%).
+- Integer chains (mad.ptx, shrbfi.ptx, 8 per thread): 2 and 13 workgroups per core within -4..+11%.
+So the gap is shuffle-and-add chains with many SIMD-groups resident: in the model the kernel is issue-bound with all
+52 groups resident (fadd32 and simd_shuffle_xor waits); scaling simd_shuffle_xor's per-core rate down to 0.4x does
+not move it (25.3 -> 26.4 us), so it is not that unit's cap but the core's issue across many groups of dependent
+shuffle / add chains. Next: dependent and independent chains of fadd32 alone and of shuffles alone at 1, 4, 16 and
+48 SIMD-groups per core, to calibrate issue under occupancy; then the settle rule can be the default.
+
+Calibration data (`red/fadd.ptx`, `red/shfl.ptx`: one dependent chain per 32-thread group, 16 per round, 200
+rounds; 1 / 4 / 16 / 48 groups per core; GPU / model zluda us):
+- fadd32 chain: 12.33 / 12.69, 12.5 / 12.71, 17.12 / 18.21, 39.21 / 42.14 (+2..+7%): modelled.
+- simd_shuffle_xor chain: 18.96 / 19.26, 24.25 / 19.26, 38.29 / 28.45, 83.17 / 72.73 (+2, -21, -26, -13%).
+Shuffles per core per us after the 2.3 us launch, GPU: 193, 584 (3.0x), 1422 (7.4x), 1899 (9.8x) with 1 / 4 / 16 / 48
+groups: a gradual saturation (each shuffle waits longer as the unit fills, from 4 groups on), where the model is
+linear up to its cap (4 groups no slower than 1, ~1960 per us already at 16). Scaling the shuffle rate cannot fit
+both ends (0.6x: 16 groups 36.9 us but 48 groups 95.6; 0.25x: 4 groups 27.0 but 16 groups 79.5). So the model
+needs a load-dependent shuffle latency (a queue at a core-wide shuffle unit) rather than a lower cap; with it the
+reductions' cost, and then the settle rule, can follow.
+
+Tried: `AGX_SHFL_QUEUE` (cost.rs), each shuffle's latency + q cycles per other SIMD-group's shuffle in flight on the
+core. q = 0.6 fits the dependent chains within 6% (20.1 / 23.2 / 38.0 / 83.8 us against 18.96 / 24.25 / 38.29 /
+83.17), but the mixed reduction kernels hardly move (their adds keep fewer shuffles in flight; red_shfl 25.3 -> 24.4
+us, GPU 32.0), the 48 captures are unchanged (mean 10.2%; with the settle rule 11.6%), and verify-cost-model's
+instruction-bench fit worsens (p90 0.169 -> 0.278) as does the core-scaling grid (0.277 -> 0.332): their many
+independent chains per group are already limited by the unit cap. Kept off (opt-in). The extra latency should follow
+the unit's recent load, not a count of shuffles in flight; and the reductions' missing cost is not only the shuffles'.
+
+Also tried: a utilization-based shuffle latency (extra q u / (1 - u), u the core's shuffle issues in the last 32
+cycles over 1.4 per cycle): q = 1 / 2 / 4 gives 19.8 / 21.1 / 37.0 / 70.7, 20.4 / 22.4 / 43.0 / 89.2, 21.2 / 24.4 /
+43.3 / 119.0 us for 1 / 4 / 16 / 48 groups (GPU 18.96 / 24.25 / 38.29 / 83.17): no better than the count. And
+red_shfl.ptx (each shuffle feeding an add) does not respond to either (24.3-25.0 us at 24 groups, GPU 32.0): the
+reductions' missing cost is not in the shuffle unit. Next to measure: a shuffle -> fadd32 -> shuffle chain against
+fadd-only and shuffle-only chains at 4 and 16 groups (the cost of an ALU instruction reading a shuffle's result).
+
+Measured (`red/sf.ptx`: 8 x (shuffle, fadd32) per round, each reading the other's result; GPU / model us, 1 / 4 / 16 /
+48 groups per core): 17.79 / 16.11, 21.17 / 16.12, 30.62 / 22.82, 81.54 / 57.70 (-9, -24, -25, -29%). Against the
+pure chains (16 fadds 12.33 us, 16 shuffles 18.96 us with one group), a shuffle -> add step costs ~2 cycles more
+than the two alone: a shuffle-to-ALU forwarding latency the model lacks (-9% with one group). With 48 groups the
+1600 shuffle + add pairs per group take as long as 3200 shuffles alone (81.5 vs 83.2 us), more than adding the
+measured shuffle and fadd costs (~60 us): shuffles and adds share an issue resource on the GPU, separate units in
+the model. Both belong in the cost model (a shuffle -> ALU latency and a shared shuffle / FP issue budget per core),
+calibrated on these four chains and re-checked on verify-cost-model, before the reductions and the settle rule.
+
+Forwarding latency tried (a non-shuffle reader of a shuffle's result sees it 1-3 cycles later): ~1.5 cycles fits
+sf.ptx with one group (17.3-18.4 us at 1-2 cycles, GPU 17.79) and changes nothing at 16 / 48 groups, red_shfl or the
+48 captures (10.2%; 11.6% with the settle rule); not kept. The throughput side, per group at 48 groups per core:
+shuffle chains one shuffle per ~35 cycles (the unit's ~1.4 per cycle per core), fadd chains ~4 adds per cycle per
+core, shuffle + fadd chains one pair per ~69 cycles, as if every add of the mixed chain also went through the
+1.4-per-cycle shuffle pipe. The mechanism to model: while a core has shuffles in flight, its FP32 ALU instructions
+issue at the shuffle pipe's rate (a shared pipe or issue port); calibrate on shfl / fadd / sf at 4, 16, 48 groups.
+
+Implemented (opt-in, `AGX_SHFL_PIPE=0.6`): shuffles and, within 64 cycles of a shuffle, FP32 adds / multiplies share
+a pipe taking one instruction every 0.6 cycles. It fits the chains (sf.ptx 1 / 4 / 16 / 48 groups 16.1 / 16.1 /
+28.9 / 74.6 us, GPU 17.79 / 21.17 / 30.62 / 81.54; red_shfl 34.0 / 61.5, GPU 32.0 / 57.4; shuffle-only and
+fadd-only chains unchanged), but the 48 captures do not move (10.2%; 11.7% with the settle rule) and red.ptx with
+128 threads stays short (67.0 us, GPU 83.8): the llama.cpp reductions' missing cost is not this either.
+verify-cost-model with it: all ok, random-kernels better (median 0.064 -> 0.057), heldout24 p90 0.118 -> 0.150 and
+heldout32c median 0.039 -> 0.047. Off by default. What red.ptx adds over red_shfl is the threadgroup store / barrier
+/ load round trip each iteration with 4 SIMD-groups per workgroup: the next thing to isolate (red_tg alone was
+modelled within -3..+8%, so it is their combination with the shuffles).
+
+Barriers isolated (`red/red_bar1.ptx`, `red_bar2.ptx`: red_shfl plus one / two bar.sync per round, no threadgroup
+memory; 12 workgroups per core; GPU / model with AGX_SHFL_PIPE=0.6 and the settle rule, us): 64 threads: shuffles
+only 32.1 / 34.0, one barrier 45.6 / 38.9, two 64.9 / 60.3; 128 threads: 57.4 / 61.5, 65.0 / 61.7, 85.2 / 65.8.
+The model is close everywhere except two barriers per round with 4 SIMD-groups per workgroup (-23%). Tried and not
+kept: serialising a core's barrier releases (AGX_BAR_SER, 4-12 cycles apart: no effect, the model's arrivals are
+already staggered further apart) and a release delay per resident workgroup (AGX_BAR_PER_WG: 4 cycles overshoots the
+64-thread kernels by ~15 us while the 128-thread two-barrier one still needs more). Next: the same two-barrier round
+with 1, 2, 4 and 8 SIMD-groups per workgroup and 1, 4 and 12 workgroups per core, to find what the second barrier
+costs with 4 groups.
+
+The sweep (red_bar2.ptx, GPU / model with AGX_SHFL_PIPE=0.6 and the settle rule, us): SIMD-groups per workgroup x
+workgroups per core = 1 x 1/4/12: 56.3 / 59.0, 56.3 / 59.0, 57.2 / 59.3; 2 x: 56.3 / 59.1, 57.7 / 60.0, 65.7 / 60.3;
+4 x: 57.6 / 61.2, 59.2 / 60.5, 85.2 / 65.8; 8 x: 59.1 / 68.3, 74.8 / 66.6, 166.4 / 113.7. The GPU's time follows the
+SIMD-groups resident per core: flat to ~16, then 24 -> 65.7, 32 -> 74.8, 48 -> 85.2, 96 -> 166.4 us, where the model
+stays near 60-66 us to 48. So it is not the barrier: with many groups in lockstep between barriers the core's issue
+of this shuffle / FP32 mix saturates at ~1.3 instructions per cycle on the GPU (48 groups x 200 rounds x ~16
+instructions in ~85 us), above what the model's four schedulers allow. Next: the same mix without barriers at 16,
+32, 48 groups per core (red_shfl gave 57.4 GPU / 61.5 model at 48 with the pipe: so the barriers' lockstep, which
+removes the staggering that lets groups' shuffle and FP phases interleave, is what to model).
+
+Tried: the shared pipe for every ALU instruction near shuffles (not only FP32), 0.4-0.6 cycles: red_bar2 4 x 12 /
+8 x 12 groups 64.4-71.2 / 94.7-120.5 us (GPU 85.2 / 166.4), red.ptx 128 threads 64.8-69.1 (83.8); captures 10.1%
+(11.5% with the settle rule). Not kept. And the correction this gives: under every shuffle / pipe / barrier model
+tried, llama.cpp's mul_mat_vec_q<Q5_1> stays at -33% and -28% with the settle rule. Its gap is not the shuffle and
+barrier reduction these microbenchmarks isolate (its reduction runs once, after the main loop); it is in the main
+loop (dp4a emulation: imadd / asr / bfi with Q5_1 unpacking, device loads and waits) at 24 SIMD-groups per core,
+whose integer chains alone are modelled within 11% (mad.ptx, shrbfi.ptx). Next: that main loop's mix (integer +
+device loads + waits) at 12 / 24 / 48 groups per core, not the reductions.
+
+mul_mat_vec_q<Q5_1> under the current zluda model (replayed at 3 / 6 / 8 / 10 / 12 workgroups of 64 threads per
+core; GPU / default / settled us): 16.17 / 17.35 / 17.35, 18.25 / 17.35 / 17.35, 19.62 / 21.68 / 17.35, 23.38 / 23.66
+/ 17.35, 26.04 / 25.43 / 18.93. Execution alone at 12 per core (core cycles / clock): default 22.43 us, settled 15.93
+(the GPU's ~23 after the launch). The settle rule removes ~6.5 us from each wave pair, and the earlier issue
+profile puts it in the post-loop reduction (fadd32, simd_shuffle_xor, the final stores), not in the main loop. But
+red.ptx at the same shape (64 threads, 12 per core) is modelled within +3% settled: it does not reproduce this
+kernel's reduction. Next: a microbenchmark copying mul_mat_vec_q's post-loop code exactly (the partial sums of its
+two SIMD-groups through threadgroup memory, one barrier, the 32-lane shuffle tree, the conditional store by lane 0)
+after a main loop of device loads, at 6 and 12 workgroups per core.
+
+Built it (`red/tail.ptx`: 64 threads, N device loads summed per thread, group 1's sums through threadgroup memory,
+one barrier, the shuffle tree, lane 0's store; GPU / default / settled us): 6 per core N 4: 5.17 / 3.91 / 3.79, N 16:
+8.79 / 6.13 / 6.01; 12 per core N 4: 5.50 / 4.50 / 4.37, N 16: 11.12 / 8.79 / 8.71. Both rules 20-30% fast and nearly
+equal: the settle rule's effect on mul_mat_vec_q (-6.5 us per wave pair) comes from that kernel's own instruction
+stream (a long run of ALU work after its threadgroup loads, which the default rule keeps deferring), which a
+PTX approximation does not reproduce. The way on is the captured kernel itself: bisect its instruction stream (the
+simulator's trace-pcs and issue profile per pc, default against settled) to the instructions the 6.5 us sits on,
+then measure those on the GPU in isolation.
+
+Bisected on the captured kernel (mul_mat_vec_q<Q5_1>, 12 workgroups per core, issue profile per pc, default against
+settled, ticks = 0.1 cycle): 92,376 ticks of difference for SIMD-group 0, spread evenly over its post-loop tail (253 of
+1189 traced instructions, pc 7200-8800): ~800 ticks (~80 cycles) per instruction by default, 20-45 settled, on
+shuffles, fadd32, iadd, if_icmp and the device store alike. The GPU's time puts the tail between: ~6.5 us per wave
+pair over the settled model, ~18 cycles per tail instruction with 24 SIMD-groups, i.e. ~1.3 instructions per cycle
+per core: the same saturation red_bar2 showed for groups running a shuffle / FP32 mix in lockstep after a barrier
+(1.3 per cycle at 48 groups). So the two findings are one mechanism: after a barrier the groups issue the same
+shuffle-heavy code together and the core sustains ~1.3 instructions per cycle, where the model allows ~4. Modelling
+that (a core issue rate for ALU work while most resident groups are in the same post-barrier region) is what would
+let the settle rule be the default.
+
+Tried (not kept): a core-wide ALU issue budget for groups within w cycles after passing a barrier (AGX_LOCK_ISSUE=c,
+AGX_LOCK_WIN=w). c = 0.75, w = 1000 fits red_bar2 (4 x 12 groups 87.0 us, GPU 85.2; 8 x 12 157.6, GPU 166.4), but the
+mul_mat_vec_q replay does not move (12 per core settled 18.9 -> 19.0 us, GPU 26.04) although its 24 groups do pass the
+barrier in the model: its post-barrier tail is issued through the scheduler's fast path (runs of instructions a group
+issues without contention), which the per-instruction gate does not see. Next: apply the budget in that fast path too
+(or disable it for groups inside the window), then rescore the 48 captures with the settle rule.
+Correction after counting (debug counters on the replay): the gate does act on mul_mat_vec_q (1722 ALU issues
+inside the window, 6815 gated visits, none masked), but 1722 x 0.75 cycles is ~1300 cycles a wave, where the GPU's
+extra ~6.5 us per wave pair needs ~3 cycles per tail ALU instruction (the ~1.3 per cycle above counted every tail
+instruction, control and memory too). So one core issue rate does not fit both red_bar2 (0.75) and mul_mat_vec_q
+(~3): the tail's cost depends on more than its ALU count (its device store, branches and waits with 24 groups), to
+measure instruction class by class on the captured tail.
+

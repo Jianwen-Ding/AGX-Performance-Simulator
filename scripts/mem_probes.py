@@ -82,6 +82,9 @@ def mem_loop(steps, kind, s, j, w, data, advance=0, mask=0, glob=False, private=
         elif kind in ('tgatomic', 'tgatomic_ret'):   # threadgroup atomic add at the byte address in r<idx>l
             import run_drm_tg_atomic as TA
             body += TA.local_atomic(0, DST[k % 8], r, 21, kind == 'tgatomic_ret')
+        elif kind == 'tgload_xy':        # threadgroup load of two consecutive words per lane into a register pair
+            from run_drm_tg_layout import tg
+            body += tg(True, 'i32', DST[0] if k % 2 == 0 else DST[4], base=r, index=0, mask=0b11)
         else:                           # threadgroup load/store: byte address in the 16-bit base register
             from run_drm_tg_layout import tg
             body += tg(kind == 'tgload', 'i32', DST[k % 8], base=r, index=0)
@@ -162,7 +165,7 @@ def gate_private():
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument('what', choices=['run', 'gate'])
-    ap.add_argument('--kind', default='load', choices=['load', 'store', 'atomic', 'atomic_ret', 'tgatomic', 'tgatomic_ret', 'tgload', 'tgstore', 'load_v4', 'load_v2', 'load_i16', 'load_i8'])
+    ap.add_argument('--kind', default='load', choices=['load', 'store', 'atomic', 'atomic_ret', 'tgatomic', 'tgatomic_ret', 'tgload', 'tgload_xy', 'tgstore', 'load_v4', 'load_v2', 'load_i16', 'load_i8'])
     ap.add_argument('--shared-bytes', type=int, default=32768, help='threadgroup memory declared for tg kinds')
     ap.add_argument('--groups', default='1,4,8,16,32')
     ap.add_argument('--stride', default='0,1,2,4,8,16,32', help='S: words between lanes')

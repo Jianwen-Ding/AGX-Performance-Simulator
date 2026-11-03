@@ -1,0 +1,44 @@
+.version 7.0
+.target sm_75
+.address_size 64
+// one dependent chain per thread: 16 x shfl per round, ITERS rounds
+.visible .entry c(.param .u64 out, .param .u32 iters, .param .f32 a)
+{
+	.reg .f32 %v, %a;
+	.reg .u32 %r<8>;
+	.reg .u64 %rd<4>;
+	.reg .pred %p;
+	ld.param.u32 %r1, [iters];
+	ld.param.f32 %a, [a];
+	mov.u32 %r3, %tid.x;
+	cvt.rn.f32.u32 %v, %r3;
+	mov.u32 %r4, 0;
+LOOP:
+	shfl.sync.bfly.b32 %v, %v, 1, 31, -1;
+	shfl.sync.bfly.b32 %v, %v, 1, 31, -1;
+	shfl.sync.bfly.b32 %v, %v, 1, 31, -1;
+	shfl.sync.bfly.b32 %v, %v, 1, 31, -1;
+	shfl.sync.bfly.b32 %v, %v, 1, 31, -1;
+	shfl.sync.bfly.b32 %v, %v, 1, 31, -1;
+	shfl.sync.bfly.b32 %v, %v, 1, 31, -1;
+	shfl.sync.bfly.b32 %v, %v, 1, 31, -1;
+	shfl.sync.bfly.b32 %v, %v, 1, 31, -1;
+	shfl.sync.bfly.b32 %v, %v, 1, 31, -1;
+	shfl.sync.bfly.b32 %v, %v, 1, 31, -1;
+	shfl.sync.bfly.b32 %v, %v, 1, 31, -1;
+	shfl.sync.bfly.b32 %v, %v, 1, 31, -1;
+	shfl.sync.bfly.b32 %v, %v, 1, 31, -1;
+	shfl.sync.bfly.b32 %v, %v, 1, 31, -1;
+	shfl.sync.bfly.b32 %v, %v, 1, 31, -1;
+	add.u32 %r4, %r4, 1;
+	setp.lt.u32 %p, %r4, %r1;
+	@%p bra LOOP;
+	ld.param.u64 %rd1, [out];
+	mov.u32 %r5, %ctaid.x;
+	mov.u32 %r6, %ntid.x;
+	mad.lo.u32 %r7, %r5, %r6, %r3;
+	mul.wide.u32 %rd2, %r7, 4;
+	add.u64 %rd3, %rd1, %rd2;
+	st.global.f32 [%rd3], %v;
+	ret;
+}

@@ -1,0 +1,51 @@
+.version 7.0
+.target sm_75
+.address_size 64
+// 128 threads per workgroup (4 SIMD groups); per iteration 2 threadgroup loads (consecutive lanes, no bank
+// conflicts, 512 bytes apart), each feeding an FMA into its own accumulator; ITERS iterations.
+.visible .entry tg2(.param .u64 out, .param .u32 iters, .param .f32 a)
+{
+	.shared .align 16 .b8 sm[8192];
+	.reg .f32 %f<32>;
+	.reg .u32 %r<8>;
+	.reg .u64 %rd<4>;
+	.reg .pred %p;
+	mov.u32 %r1, %tid.x;
+	shl.b32 %r2, %r1, 2;
+	mov.u32 %r3, sm;
+	add.u32 %rs, %r3, %r2;
+	cvt.rn.f32.u32 %f31, %r1;
+	st.shared.f32 [%rs], %f31;
+	st.shared.f32 [%rs+512], %f31;
+	st.shared.f32 [%rs+1024], %f31;
+	st.shared.f32 [%rs+1536], %f31;
+	st.shared.f32 [%rs+2048], %f31;
+	st.shared.f32 [%rs+2560], %f31;
+	st.shared.f32 [%rs+3072], %f31;
+	st.shared.f32 [%rs+3584], %f31;
+	st.shared.f32 [%rs+4096], %f31;
+	st.shared.f32 [%rs+4608], %f31;
+	bar.sync 0;
+	ld.param.u32 %r4, [iters];
+	ld.param.f32 %f30, [a];
+	mov.f32 %f0, 0f00000000;
+	mov.f32 %f1, 0f00000000;
+	mov.u32 %r5, 0;
+LOOP:
+	ld.shared.f32 %f10, [%rs+0];
+	fma.rn.f32 %f0, %f10, %f30, %f0;
+	ld.shared.f32 %f11, [%rs+512];
+	fma.rn.f32 %f1, %f11, %f30, %f1;
+	add.u32 %r5, %r5, 1;
+	setp.lt.u32 %p, %r5, %r4;
+	@%p bra LOOP;
+	add.f32 %f0, %f0, %f1;
+	ld.param.u64 %rd1, [out];
+	mov.u32 %r6, %ctaid.x;
+	mov.u32 %r7, %ntid.x;
+	mad.lo.u32 %r6, %r6, %r7, %r1;
+	mul.wide.u32 %rd2, %r6, 4;
+	add.u64 %rd3, %rd1, %rd2;
+	st.global.f32 [%rd3], %f0;
+	ret;
+}

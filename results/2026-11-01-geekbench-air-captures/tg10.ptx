@@ -1,0 +1,83 @@
+.version 7.0
+.target sm_75
+.address_size 64
+// 128 threads per workgroup (4 SIMD groups); per iteration 10 threadgroup loads (consecutive lanes, no bank
+// conflicts, 512 bytes apart), each feeding an FMA into its own accumulator; ITERS iterations.
+.visible .entry tg10(.param .u64 out, .param .u32 iters, .param .f32 a)
+{
+	.shared .align 16 .b8 sm[8192];
+	.reg .f32 %f<32>;
+	.reg .u32 %r<8>;
+	.reg .u64 %rd<4>;
+	.reg .pred %p;
+	mov.u32 %r1, %tid.x;
+	shl.b32 %r2, %r1, 2;
+	mov.u32 %r3, sm;
+	add.u32 %rs, %r3, %r2;
+	cvt.rn.f32.u32 %f31, %r1;
+	st.shared.f32 [%rs], %f31;
+	st.shared.f32 [%rs+512], %f31;
+	st.shared.f32 [%rs+1024], %f31;
+	st.shared.f32 [%rs+1536], %f31;
+	st.shared.f32 [%rs+2048], %f31;
+	st.shared.f32 [%rs+2560], %f31;
+	st.shared.f32 [%rs+3072], %f31;
+	st.shared.f32 [%rs+3584], %f31;
+	st.shared.f32 [%rs+4096], %f31;
+	st.shared.f32 [%rs+4608], %f31;
+	bar.sync 0;
+	ld.param.u32 %r4, [iters];
+	ld.param.f32 %f30, [a];
+	mov.f32 %f0, 0f00000000;
+	mov.f32 %f1, 0f00000000;
+	mov.f32 %f2, 0f00000000;
+	mov.f32 %f3, 0f00000000;
+	mov.f32 %f4, 0f00000000;
+	mov.f32 %f5, 0f00000000;
+	mov.f32 %f6, 0f00000000;
+	mov.f32 %f7, 0f00000000;
+	mov.f32 %f8, 0f00000000;
+	mov.f32 %f9, 0f00000000;
+	mov.u32 %r5, 0;
+LOOP:
+	ld.shared.f32 %f10, [%rs+0];
+	fma.rn.f32 %f0, %f10, %f30, %f0;
+	ld.shared.f32 %f11, [%rs+512];
+	fma.rn.f32 %f1, %f11, %f30, %f1;
+	ld.shared.f32 %f12, [%rs+1024];
+	fma.rn.f32 %f2, %f12, %f30, %f2;
+	ld.shared.f32 %f13, [%rs+1536];
+	fma.rn.f32 %f3, %f13, %f30, %f3;
+	ld.shared.f32 %f14, [%rs+2048];
+	fma.rn.f32 %f4, %f14, %f30, %f4;
+	ld.shared.f32 %f15, [%rs+2560];
+	fma.rn.f32 %f5, %f15, %f30, %f5;
+	ld.shared.f32 %f16, [%rs+3072];
+	fma.rn.f32 %f6, %f16, %f30, %f6;
+	ld.shared.f32 %f17, [%rs+3584];
+	fma.rn.f32 %f7, %f17, %f30, %f7;
+	ld.shared.f32 %f18, [%rs+4096];
+	fma.rn.f32 %f8, %f18, %f30, %f8;
+	ld.shared.f32 %f19, [%rs+4608];
+	fma.rn.f32 %f9, %f19, %f30, %f9;
+	add.u32 %r5, %r5, 1;
+	setp.lt.u32 %p, %r5, %r4;
+	@%p bra LOOP;
+	add.f32 %f0, %f0, %f1;
+	add.f32 %f0, %f0, %f2;
+	add.f32 %f0, %f0, %f3;
+	add.f32 %f0, %f0, %f4;
+	add.f32 %f0, %f0, %f5;
+	add.f32 %f0, %f0, %f6;
+	add.f32 %f0, %f0, %f7;
+	add.f32 %f0, %f0, %f8;
+	add.f32 %f0, %f0, %f9;
+	ld.param.u64 %rd1, [out];
+	mov.u32 %r6, %ctaid.x;
+	mov.u32 %r7, %ntid.x;
+	mad.lo.u32 %r6, %r6, %r7, %r1;
+	mul.wide.u32 %rd2, %r6, 4;
+	add.u64 %rd3, %rd1, %rd2;
+	st.global.f32 [%rd3], %f0;
+	ret;
+}

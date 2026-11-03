@@ -738,9 +738,6 @@ fn decode_at(code: &[u8], pc: usize, nregs: usize) -> Result<Info, String> {
     Ok(Info { desc: Some(desc), size, fields, op: Some(op), vals, kind, access })
 }
 
-/// Where the traces place stack memory: no device address, and not part of a launch's device footprint.
-const STACK_TRACE_BASE: u64 = 0x7c00_0000_0000;
-
 fn step_group(g: &mut Group, code: &[u8], cache: &CodeCache, mem: &mut Memory, tg: &mut [u8], max_steps: u64,
               stats: &mut RunStats) -> Result<Stop, String> {
     // Select once per group/resume, not on every instruction. Small programs
@@ -789,28 +786,11 @@ fn step_group_impl<C: InstructionCells>(g: &mut Group, code: &[u8], cache: &C, m
             tr.pcs.push(g.pc);
             let at = (tr.pcs.len() - 1) as u32;
             let touched = info.access.as_ref().and_then(|a| a.capture(&g.st));
-            if matches!(info.kind, OpKind::Stack { .. }) {
-                // stack memory, for the memory model: each SIMD group's block holds a slot per 32-bit word with one 4-byte
-                // cell per lane (zluda_agx's scratch layout, agx_runtime scratch.rs), so a word spans 128 bytes
-                let x = |k: &str| fget(&info.fields, k).unwrap_or(0);
-                let mask = x("mask");
-                let item = match x("F") { 0 => 1usize, 1 => 2, _ => 4 };
-                let block = STACK_TRACE_BASE + ((g.ctx.slot as u64) << 28);
-                let mut segs = vec![];
-                for t in 0..32 {
-                    if !g.st.exec[t] { continue; }
-                    let base = if x("Ot") != 0 { x("O") as usize } else { g.st.get_reg32((x("O") >> 1) as usize, t)? as u32 as usize };
-                    for c in 0..4 {
-                        if mask & (1 << c) != 0 {
-                            let a = base + c * item;
-                            segs.push((block + (a as u64 / 4) * 128 + t as u64 * 4 + a as u64 % 4) >> 6);
-                        }
-                    }
-                }
-                segs.sort_unstable();
-                segs.dedup();
-                tr.mem.push((at, segs));
-            }
+            // stack accesses as device accesses at their scratch addresses (`stack_segments`)
+            let touched = touched.or_else(|| match info.kind {
+                OpKind::Stack { .. } => stack_segments(&g.st, &g.ctx, &info.fields),
+                _ => None,
+            });
             if let Some(w) = touched {
                 if let Some(segments) = info.access.as_ref().and_then(|a| a.device_segments(&g.st, &w)) {
                     tr.device_segments.push((at, segments));
@@ -1040,6 +1020,42 @@ fn step_group_impl<C: InstructionCells>(g: &mut Group, code: &[u8], cache: &C, m
         return Err("fell off end of program without an active stop (return needs reconvergence?)".into());
     }
     Ok(Stop::Done)
+}
+
+/// The 64-byte segments a stack_load / stack_store touches, for the memory model: the stack is device memory
+/// (scratch) interleaved across the lanes of a SIMD group a 32-bit word at a time, so lanes at the same offset share
+/// one 128-byte row and lanes at different offsets touch different rows (measured, playground
+/// novel-results/2026-11-01-stack-memory: a lane-uniform index 5.2x faster than a scattered one at 16 groups per
+/// core). Each SIMD group of the dispatch has its own region (its workgroup and group index); the real scratch
+/// addresses are the driver's, so only the reuse pattern is modelled. None for the stack setup (mask 0).
+fn stack_segments(st: &CoreState, ctx: &GroupCtx, f: &Fields) -> Option<Vec<u64>> {
+    const STACK_VA: u64 = 0x7000_0000_0000;
+    const GROUP_BYTES: u64 = 32 << 16;
+    let x = |k: &str| fget(f, k).unwrap_or(0);
+    let mask = x("mask");
+    if mask == 0 {
+        return None;
+    }
+    let item = match x("F") { 0 => 1u64, 1 => 2, _ => 4 };
+    let [wx, wy, wz] = ctx.wg_id;
+    let wg = wx as u64 ^ (wy as u64) << 20 ^ (wz as u64) << 40;
+    let base = STACK_VA + (wg.wrapping_mul(64) + ctx.group as u64) % (1 << 20) * GROUP_BYTES;
+    let mut segs = Vec::with_capacity(32);
+    for t in 0..32 {
+        if !st.exec[t] {
+            continue;
+        }
+        let o = if x("Ot") != 0 { x("O") } else { st.get_reg32((x("O") >> 1) as usize, t).ok()? as u32 as u64 };
+        for c in 0..4 {
+            if mask & (1 << c) != 0 {
+                let a = (o + c * item) % (GROUP_BYTES / 32);
+                segs.push((base + (a / 4) * 128 + t as u64 * 4) >> 6);
+            }
+        }
+    }
+    segs.sort_unstable();
+    segs.dedup();
+    Some(segs)
 }
 
 /// stack_store / stack_load: per-lane private memory (the driver's register spills and private arrays). Byte address

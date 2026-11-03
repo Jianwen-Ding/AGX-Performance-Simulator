@@ -7,6 +7,14 @@
 //!              [--all-workgroups] (with --map: trace every workgroup, on the cores in turn; slower, and needed for
 //!              data-dependent kernels, whose time is their slowest workgroup's)
 //!              [--preamble PRE.bin] [--map VA=FILE ...] [--alloc VA=BYTES ...] [--sampler-heap VA=COUNT] [--agx-strict GPU]
+//!              [--launch-profile drm|zluda] [--group-launch-ns NS] [--stack BYTES] [--store-gbps GBPS]
+//!
+//! --launch-profile: the launch costs of a command as the direct-DRM harness submits it (`drm`, the default: 5.6 us
+//! fixed, max(100 ns per workgroup, 13.6 ns per SIMD group) per core) or as zluda_agx / agx_runtime submit it back to
+//! back, as an application keeps the GPU busy (`zluda`: 2.3 us fixed, max(100 ns per workgroup, 3.2 ns per SIMD
+//! group; empty kernels over 1 to 15,200 workgroups of 32 and 1024 threads, playground
+//! novel-results/2026-11-01-zluda-launch-cost; and 104 ns per 64-byte line of code executed, the cold instruction
+//! fetch, 2026-11-01-code-fetch). Options after it override its values.
 //!
 //! code.bin is the main shader as submitted (e.g. the direct-DRM harness's control main with a body).
 //! Uniforms are 32-bit uniform registers (u4 = 4); the harness uses u4 = 0, u5 = count, u6_u7 = output,
@@ -106,7 +114,7 @@ fn run_job(a: &[String], p: &Params) -> Result<serde_json::Value, String> {
         let option = a[i].as_str();
         if option == "--no-mem" { l.mem = false; i += 1; continue; }
         if option == "--all-workgroups" { all_workgroups = true; i += 1; continue; }
-        if !["--grid", "--wg", "--regs", "--launch-profile", "--tg-bytes", "--clock", "--cores", "--busiest-core-wgs", "--m2-core-map", "--sampler-heap", "--launch-us", "--max-waves", "--uniform", "--preamble", "--map", "--alloc", "--agx-strict"].contains(&option) {
+        if !["--grid", "--wg", "--regs", "--tg-bytes", "--clock", "--cores", "--busiest-core-wgs", "--m2-core-map", "--sampler-heap", "--launch-us", "--max-waves", "--uniform", "--preamble", "--map", "--alloc", "--agx-strict", "--launch-profile", "--group-launch-ns", "--stack", "--store-gbps"].contains(&option) {
             return Err(format!("unknown argument {}", option));
         }
         let v = a.get(i + 1).ok_or_else(|| format!("{} requires a value", option))?;
@@ -119,10 +127,19 @@ fn run_job(a: &[String], p: &Params) -> Result<serde_json::Value, String> {
             "--cores" => l.cores = number(v, option)?,
             "--busiest-core-wgs" => l.busiest_core_wgs_override = Some(number(v, option)?),
             "--launch-us" => l.launch_ns = number::<f64>(v, option)? * 1000.0,
-            // ZLUDA's command stream, fitted on 37 captured Geekbench and llama launches (5.6 us is the Mesa-style default)
+            "--group-launch-ns" => l.group_launch_ns = number(v, option)?,
+            "--stack" => l.stack_bytes = number(v, option)?,
+            "--store-gbps" => l.store_gbps = number(v, option)?,
             "--launch-profile" => match v.as_str() {
-                "zluda" => l.launch_ns = 3000.0,
-                other => return Err(format!("unknown launch profile {}", other)),
+                "drm" => {
+                    let d = Launch::default();
+                    (l.launch_ns, l.wg_launch_ns, l.group_launch_ns, l.fetch_line_ns, l.stack_launch_ns, l.store_gbps, l.store_launch_ns) = (d.launch_ns, d.wg_launch_ns, d.group_launch_ns, d.fetch_line_ns, d.stack_launch_ns, d.store_gbps, d.store_launch_ns);
+                    l.later_waves_warm = d.later_waves_warm;
+                    l.partial_warm = d.partial_warm;
+                    l.chain_waves = d.chain_waves;
+                }
+                "zluda" => (l.launch_ns, l.wg_launch_ns, l.group_launch_ns, l.fetch_line_ns, l.stack_launch_ns, l.store_gbps, l.store_launch_ns, l.later_waves_warm, l.partial_warm, l.chain_waves) = (2300.0, 100.0, 3.2, 104.0, 7500.0, 365.0, 700.0, true, true, true),
+                other => return Err(format!("--launch-profile: {other:?} is not drm or zluda")),
             },
             "--max-waves" => { l.max_waves = number(v, option)?; max_waves_explicit = true; },
             "--m2-core-map" => core_map_path = Some(v.clone()),
@@ -224,7 +241,7 @@ fn run_job(a: &[String], p: &Params) -> Result<serde_json::Value, String> {
         "time_us": r.time_ns / 1000.0, "core_cycles": r.core_cycles, "clock_mhz": l.clock_mhz,
         "workgroups": r.workgroups, "groups_per_wg": r.groups_per_wg, "group_cap_per_core": r.group_cap_per_core,
         "wgs_per_core": r.wgs_per_core, "launch_core_us": r.launch_core_ns / 1000.0, "busiest_core_wgs": r.busiest_core_wgs, "waves": r.waves,
-        "simulated_waves": r.simulated_waves, "launch_us": l.launch_ns / 1000.0, "warnings": r.warnings,
+        "simulated_waves": r.simulated_waves, "launch_us": l.launch_ns / 1000.0, "code_lines": r.code_lines, "warnings": r.warnings,
         "paths": if functional { "functional" } else { "cost-emulation" },
     });
     if let Some(peak) = l.busiest_core_wgs_override {

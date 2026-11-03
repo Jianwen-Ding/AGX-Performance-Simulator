@@ -1,0 +1,31 @@
+.version 7.0
+.target sm_75
+.address_size 64
+// 1 independent 16-byte loads per thread, the threads' k-th loads one grid-sized block apart; writes only if the sum is 12345
+.visible .entry c(.param .u64 dst, .param .u64 src)
+{
+	.reg .u32 %r<6>;
+	.reg .u64 %rd<8>;
+	.reg .f32 %f<8>;
+	.reg .pred %p;
+	ld.param.u64 %rd1, [dst];
+	ld.param.u64 %rd2, [src];
+	mov.u32 %r1, %ctaid.x;
+	mov.u32 %r2, %tid.x;
+	mov.u32 %r4, %nctaid.x;
+	mad.lo.u32 %r3, %r1, 256, %r2;
+	mul.wide.u32 %rd3, %r3, 16;
+	add.u64 %rd4, %rd2, %rd3;
+	mul.wide.u32 %rd5, %r4, 4096;
+	ld.global.v4.f32 {%f0, %f1, %f2, %f3}, [%rd4];
+	add.u64 %rd4, %rd4, %rd5;
+	add.f32 %f4, %f0, %f1;
+	add.f32 %f4, %f4, %f2;
+	add.f32 %f4, %f4, %f3;
+	setp.neu.f32 %p, %f4, 0f4640E400;
+	@%p bra END;
+	add.u64 %rd6, %rd1, %rd3;
+	st.global.f32 [%rd6], %f4;
+END:
+	ret;
+}

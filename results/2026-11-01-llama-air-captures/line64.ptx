@@ -1,0 +1,85 @@
+.version 7.0
+.target sm_75
+.address_size 64
+// 64 straight-line fma (four independent chains), one thread; the code is ~384 bytes.
+.visible .entry line64(.param .u64 out, .param .f32 a, .param .f32 b)
+{
+	.reg .f32 %f<8>;
+	.reg .u64 %rd<2>;
+	ld.param.f32 %f4, [a];
+	ld.param.f32 %f5, [b];
+	mov.f32 %f0, %f4;
+	mov.f32 %f1, %f5;
+	mov.f32 %f2, %f4;
+	mov.f32 %f3, %f5;
+	fma.rn.f32 %f0, %f0, %f4, %f5;
+	fma.rn.f32 %f1, %f1, %f4, %f5;
+	fma.rn.f32 %f2, %f2, %f4, %f5;
+	fma.rn.f32 %f3, %f3, %f4, %f5;
+	fma.rn.f32 %f0, %f0, %f4, %f5;
+	fma.rn.f32 %f1, %f1, %f4, %f5;
+	fma.rn.f32 %f2, %f2, %f4, %f5;
+	fma.rn.f32 %f3, %f3, %f4, %f5;
+	fma.rn.f32 %f0, %f0, %f4, %f5;
+	fma.rn.f32 %f1, %f1, %f4, %f5;
+	fma.rn.f32 %f2, %f2, %f4, %f5;
+	fma.rn.f32 %f3, %f3, %f4, %f5;
+	fma.rn.f32 %f0, %f0, %f4, %f5;
+	fma.rn.f32 %f1, %f1, %f4, %f5;
+	fma.rn.f32 %f2, %f2, %f4, %f5;
+	fma.rn.f32 %f3, %f3, %f4, %f5;
+	fma.rn.f32 %f0, %f0, %f4, %f5;
+	fma.rn.f32 %f1, %f1, %f4, %f5;
+	fma.rn.f32 %f2, %f2, %f4, %f5;
+	fma.rn.f32 %f3, %f3, %f4, %f5;
+	fma.rn.f32 %f0, %f0, %f4, %f5;
+	fma.rn.f32 %f1, %f1, %f4, %f5;
+	fma.rn.f32 %f2, %f2, %f4, %f5;
+	fma.rn.f32 %f3, %f3, %f4, %f5;
+	fma.rn.f32 %f0, %f0, %f4, %f5;
+	fma.rn.f32 %f1, %f1, %f4, %f5;
+	fma.rn.f32 %f2, %f2, %f4, %f5;
+	fma.rn.f32 %f3, %f3, %f4, %f5;
+	fma.rn.f32 %f0, %f0, %f4, %f5;
+	fma.rn.f32 %f1, %f1, %f4, %f5;
+	fma.rn.f32 %f2, %f2, %f4, %f5;
+	fma.rn.f32 %f3, %f3, %f4, %f5;
+	fma.rn.f32 %f0, %f0, %f4, %f5;
+	fma.rn.f32 %f1, %f1, %f4, %f5;
+	fma.rn.f32 %f2, %f2, %f4, %f5;
+	fma.rn.f32 %f3, %f3, %f4, %f5;
+	fma.rn.f32 %f0, %f0, %f4, %f5;
+	fma.rn.f32 %f1, %f1, %f4, %f5;
+	fma.rn.f32 %f2, %f2, %f4, %f5;
+	fma.rn.f32 %f3, %f3, %f4, %f5;
+	fma.rn.f32 %f0, %f0, %f4, %f5;
+	fma.rn.f32 %f1, %f1, %f4, %f5;
+	fma.rn.f32 %f2, %f2, %f4, %f5;
+	fma.rn.f32 %f3, %f3, %f4, %f5;
+	fma.rn.f32 %f0, %f0, %f4, %f5;
+	fma.rn.f32 %f1, %f1, %f4, %f5;
+	fma.rn.f32 %f2, %f2, %f4, %f5;
+	fma.rn.f32 %f3, %f3, %f4, %f5;
+	fma.rn.f32 %f0, %f0, %f4, %f5;
+	fma.rn.f32 %f1, %f1, %f4, %f5;
+	fma.rn.f32 %f2, %f2, %f4, %f5;
+	fma.rn.f32 %f3, %f3, %f4, %f5;
+	fma.rn.f32 %f0, %f0, %f4, %f5;
+	fma.rn.f32 %f1, %f1, %f4, %f5;
+	fma.rn.f32 %f2, %f2, %f4, %f5;
+	fma.rn.f32 %f3, %f3, %f4, %f5;
+	fma.rn.f32 %f0, %f0, %f4, %f5;
+	fma.rn.f32 %f1, %f1, %f4, %f5;
+	fma.rn.f32 %f2, %f2, %f4, %f5;
+	fma.rn.f32 %f3, %f3, %f4, %f5;
+	fma.rn.f32 %f0, %f0, %f4, %f5;
+	fma.rn.f32 %f1, %f1, %f4, %f5;
+	fma.rn.f32 %f2, %f2, %f4, %f5;
+	fma.rn.f32 %f3, %f3, %f4, %f5;
+	add.f32 %f0, %f0, %f1;
+	add.f32 %f2, %f2, %f3;
+	add.f32 %f0, %f0, %f2;
+	ld.param.u64 %rd1, [out];
+	st.global.f32 [%rd1], %f0;
+	ret;
+}

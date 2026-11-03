@@ -1361,6 +1361,8 @@ struct SimInstr {
     need_port: f64,
     src32: Vec<u32>,
     reduce: bool,
+    shuffle: bool,
+    fp32: bool,
     lat: i64,
     ii: i64,
     /// issue interval when every `.cache` source is in the result cache (`_cache` classes only)
@@ -1430,6 +1432,11 @@ pub struct MemModel {
     /// extra load latency over an L1 hit: L2 in real cycles; SLC and DRAM total latency in ns
     pub l2_extra: f64,
     pub slc_ns: f64,
+    /// a dependent load's first touch in a dispatch of a line the previous command left in the SLC: ~300 ns a wait
+    /// with sequential lines (playground novel-results/2026-11-01-first-touch-chains: chases and column sums, one or
+    /// 128 groups), below `slc_ns` (349, random lines over 1-32 MiB within a command, 2026-10-10-agx-load-latency).
+    /// AGX_FIRST_TOUCH_NS overrides it
+    pub first_touch_ns: f64,
     pub dram_ns: f64,
     pub l1_load_rate: f64,
     pub l1_load_min: f64,
@@ -1438,6 +1445,9 @@ pub struct MemModel {
     pub l2_rate: f64,
     pub slc_rate: f64,
     pub dram_gbps: f64,
+    /// fraction of its lines' DRAM traffic a core pays: a line that neighbouring workgroups (other cores) also read
+    /// is fetched once for all of them (agx_dispatch estimates it; 1 = no sharing)
+    pub dram_share: f64,
     /// replay every group's accesses once before timing (steady state of a long-running loop)
     pub warm: bool,
     /// mean fraction (0..1) of this core's device lines that another core also touches (shared data)
@@ -1446,6 +1456,11 @@ pub struct MemModel {
     /// dispatch just before, and small enough): first touches hit the SLC instead of DRAM. agx_dispatch sets it
     /// when the estimated GPU-wide footprint fits `slc_bytes`.
     pub resident_slc: bool,
+    /// with `warm`: replay only these segments (a later wave finds in the caches what the first wave also touched,
+    /// not its own new data; `Launch::partial_warm`); None: all of the wave's
+    pub warm_only: Option<std::sync::Arc<std::collections::HashSet<u64>>>,
+    /// with `resident_slc`: a segment's first touch in the dispatch is charged at the DRAM rate (L2 latency)
+    pub first_touch_dram: bool,
     /// device atomics (no return, distinct words): per-core occupancy max(atomic_min, atomic_per_seg x 32-byte
     /// sectors) reference cycles; lanes on one word serialise GPU-wide at atomic_same_word_rate per cycle (every lane separately: the 32 lanes of an
     /// instruction are not combined; playground 2026-10-16-atomic-contention)
@@ -1481,6 +1496,7 @@ impl Default for MemModel {
             slc_bytes: 19 << 20,
             l2_extra: 90.0,
             slc_ns: 349.0,
+            first_touch_ns: std::env::var("AGX_FIRST_TOUCH_NS").ok().and_then(|v| v.parse().ok()).unwrap_or(300.0),
             dram_ns: 388.0,
             l1_load_rate: 2.0 / k,
             l1_load_min: 2.0,
@@ -1489,9 +1505,12 @@ impl Default for MemModel {
             l2_rate: 0.73 / k,
             slc_rate: 0.5 / k,
             dram_gbps: 410.0,
+            dram_share: 1.0,
             warm: true,
             sharing: 0.0,
             resident_slc: false,
+            warm_only: None,
+            first_touch_dram: false,
             atomic_min: 6.9,
             atomic_per_seg: 1.7,
             atomic_same_word_rate: 0.89,   // playground novel-results/2026-10-16-atomic-contention: 0.86 ns per lane-op on one word at 1,398 MHz
@@ -1771,6 +1790,8 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
             need_port,
             src32: r.src32.clone(),
             reduce: is_reduce(&r.name),
+            shuffle: r.name.contains("shuffle"),
+            fp32: matches!(r.name.as_str(), "fadd32" | "fmul32" | "fmadd32"),
             lat,
             ii,
             ii_cache_hit,
@@ -1846,6 +1867,12 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
         rate: [f64; 5],
         cap: [f64; 5],
         extra: [i64; 4],
+        /// latency beyond L1 of a load whose slowest line is a first touch in the dispatch found in the SLC
+        /// (`first_touch_dram`)
+        first_extra: i64,
+        /// lines a load has missed for, with the tick its latency beyond L1 ends: a load by another group that finds
+        /// them before then waits for that fetch, not an L1 hit (`AGX_INFLIGHT=0`: no such wait)
+        inflight: HashMap<u64, i64>,
         cur: Vec<usize>,
         /// L1 load / store pipelines: busy until (ticks); a load's or store's segments pass in order
         l1_free: [i64; 2],
@@ -1859,16 +1886,45 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
         epoch: u64,
         /// per group: (memory step, epoch, segments missing L1 per level, deepest level) for the step being retried
         lv_cache: Vec<Option<(usize, u64, [f64; 3], usize)>>,
+        /// `first_touch_dram`: segments this dispatch has touched, and per access (group, index) how many of its
+        /// lines were first touches (an access is re-evaluated while it waits for its buckets)
+        seen: std::collections::HashSet<u64>,
+        first: HashMap<(usize, usize), f64>,
     }
     // AGX_CHARGE_WRITEBACK=1: a store also takes DRAM bandwidth for its lines when the working set does not fit the
     // SLC, even if they were just loaded (the dirty lines must be written back). Off by default: no hardware data
     // yet (applications notes 66-67: adamw, stream).
     let tg_gate = std::env::var("AGX_TG_GATE").map_or(false, |v| v == "1");
+    // on by default since the shuffle-tree probes (results/2026-11-01-tg-xy-and-settle): without it, 8 shuffle-reduction
+    // chains on values read from threadgroup memory were +161% (38 workgroups); with it +1%. AGX_TG_SETTLE_ON_READ=0:
+    // the old deferral (which also stood in for an unmodelled one-shot reduction-tail cost: mul_mat_vec_q, soft_max)
+    let settle_on_read = std::env::var("AGX_TG_SETTLE_ON_READ").map_or(true, |v| v != "0");
+    // AGX_ISSUE_PROFILE=1: for SIMD group 0 of the first call whose group 0 runs AGX_ISSUE_PROFILE_MIN (1000) instructions or more (the
+    // dispatch's own calls, not the cost model's smaller ones before them), the time before each instruction's issue (since the
+    // group's previous issue), summed by PC, printed to stderr: where the model's time goes
+    static PROFILED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+    let mut issue_profile: Option<std::collections::BTreeMap<usize, (i64, u64)>> =
+        (std::env::var("AGX_ISSUE_PROFILE").is_ok_and(|v| v == "1")
+            && seqs_pcs.first().is_some_and(|q| {
+                q.len() >= std::env::var("AGX_ISSUE_PROFILE_MIN").ok().and_then(|v| v.parse().ok()).unwrap_or(1000)
+            })
+            && {
+                // AGX_ISSUE_PROFILE_SKIP=N: the first N qualifying calls are not profiled (the cost model's own
+                // calibration loops run before a dispatch's waves)
+                static SEEN: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+                let skip = std::env::var("AGX_ISSUE_PROFILE_SKIP").ok().and_then(|v| v.parse().ok()).unwrap_or(0);
+                SEEN.fetch_add(1, std::sync::atomic::Ordering::SeqCst) >= skip
+            }
+            && !PROFILED.swap(true, std::sync::atomic::Ordering::SeqCst))
+            .then(Default::default);
+    let mut profile_prev: i64 = 0;
+    let first_touch_dram = mem.is_some_and(|(_, m)| m.resident_slc && m.first_touch_dram);
+    let inflight_on = std::env::var("AGX_INFLIGHT").map_or(true, |v| v != "0");
     let charge_writeback = std::env::var("AGX_CHARGE_WRITEBACK").map_or(false, |v| v == "1")
         && mem.is_some_and(|(_, m)| !m.resident_slc);
     let mut ms: Option<MemState> = mem.map(|(_, m)| {
         let per_tick = |segs_per_cycle: f64| segs_per_cycle / TICKS as f64;
-        let dram = m.dram_gbps * 1e9 / m.active_cores / (m.clock_mhz * 1e6) / 64.0;
+        let dram = m.dram_gbps * 1e9 / m.active_cores / (m.clock_mhz * 1e6) / 64.0 / m.dram_share.clamp(0.05, 1.0);
         let rate = [per_tick(m.l1_load_rate), per_tick(m.l1_store_rate), per_tick(m.l2_rate), per_tick(m.slc_rate), per_tick(dram)];
         let cap = [64.0, 64.0, 64.0, 64.0, 64.0];
         let ns = |x: f64| tk((x * m.clock_mhz / 1000.0 - 50.0).max(0.0));
@@ -1883,6 +1939,8 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
             rate,
             cap,
             extra: [0, tk(m.l2_extra), ns(m.slc_ns), ns(m.dram_ns)],
+            first_extra: ns(m.first_touch_ns),
+            inflight: Default::default(),
             cur: vec![0; groups],
             l1_free: [0, 0],
             tg_free: 0,
@@ -1891,6 +1949,8 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
             last_load: None,
             epoch: 0,
             lv_cache: vec![None; groups],
+            seen: Default::default(),
+            first: Default::default(),
         }
     });
     let memv: Vec<&[(u32, Vec<u64>)]> = mem.map(|(v, _)| v.to_vec()).unwrap_or_default();
@@ -1900,7 +1960,7 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
         sg.iter().fold(sg.len() as u64, |h, &x| (h ^ x).wrapping_mul(0x100_0000_01b3).rotate_left(29))
     }).collect()).collect();
     if let (Some(m), Some((_, mm))) = (ms.as_mut(), mem) {
-        if mm.resident_slc && !mm.warm {
+        if mm.resident_slc && (!mm.warm || mm.warm_only.is_some()) {
             let mut distinct: std::collections::HashSet<u64> = Default::default();
             for (gi, v) in memv.iter().enumerate() {
                 for (step, segs) in v.iter() {
@@ -1911,8 +1971,17 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
                     }
                 }
             }
+            // the previous command's data is in the SLC, not L2: command boundaries invalidate L2 (playground
+            // novel-results/2026-10-16-l2-command-boundary) and a dependent wait on a new line costs ~300 ns
+            // (2026-11-01-first-touch-chains; results/2026-11-01-latency-chain-captures: all 56 captures 12.7 -> 10.3%).
+            // AGX_FIRST_TOUCH_L2=1: first touches at L2 latency (the earlier fit to llama.cpp's matrix-vector kernels,
+            // -50% on dependent chains)
+            let to_l2 = mm.first_touch_dram && std::env::var("AGX_FIRST_TOUCH_L2").is_ok_and(|v| v == "1");
             for &sg in &distinct {
                 m.slc.touch(sg);
+                if to_l2 {
+                    m.l2.touch(sg);
+                }
             }
         }
         if mm.warm {
@@ -1921,6 +1990,9 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
                 for v in &memv {
                     if let Some((_, segs)) = v.get(i) {
                         for &sg in segs {
+                            if mm.warm_only.as_ref().is_some_and(|w| !w.contains(&sg)) {
+                                continue;
+                            }
                             m.l1.touch(sg);
                             m.l2.touch(sg);
                             m.slc.touch(sg);
@@ -1963,6 +2035,24 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
     let mut lcg: u64 = 0x2545F4914F6CDD1D;
     let mut last_alu = vec![NEG_INF; g];
     let mut alu_done = vec![NEG_INF; g];
+    // SIMD-group reductions / shuffles in flight on the core (their completion times) and the latency each adds to
+    // a new one: the core's shuffle unit saturates gradually (1 / 4 / 16 / 48 groups of dependent chains: 3.0x /
+    // 7.4x / 9.8x one group's rate, results/2026-11-01-geekbench-air-captures). AGX_SHFL_QUEUE: cycles per one in
+    // flight (0: off). 0.6 fits those chains within 6% (GPU 18.96 / 24.25 / 38.29 / 83.17 us, model 20.1 / 23.2 / 38.0 /
+    // 83.8) but worsens the instruction-bench fit (p90 0.169 -> 0.278) and the core-scaling grid (p90 0.277 -> 0.332),
+    // whose many independent chains per group the unit cap already limits, and leaves the 48 captures unchanged: off
+    // until the extra latency follows the unit's load instead of a count
+    let shfl_queue = tk(std::env::var("AGX_SHFL_QUEUE").ok().and_then(|v| v.parse().ok()).unwrap_or(0.0));
+    let mut shfl_inflight: Vec<(usize, i64)> = Vec::new();
+    // AGX_SHFL_PIPE=c (experiment): shuffles and, while a shuffle issued in the last 64 cycles, FP32 adds / multiplies
+    // share one pipe that takes an instruction every c cycles (mixed shuffle / fadd chains, results/2026-11-01-
+    // geekbench-air-captures). 0.6 fits those chains (sf.ptx 16 / 48 groups 28.9 / 74.6 us, GPU 30.6 / 81.5; red_shfl
+    // 34.0 / 61.5, GPU 32.0 / 57.4) but leaves the 48 captures unchanged and two held-out sets of verify-cost-model a
+    // little worse (heldout24 p90 0.118 -> 0.150, heldout32c median 0.039 -> 0.047): off by default
+    let shfl_pipe = tk(std::env::var("AGX_SHFL_PIPE").ok().and_then(|v| v.parse().ok()).unwrap_or(0.0));
+    let shfl_recent = tk(64.0);
+    let mut pipe_free = NEG_INF;
+    let mut last_shfl = NEG_INF;
     let mut last_wait = vec![NEG_INF; g];
     // per group: the last device store (1) / load (2) issued before the next fence; 0 after a fence or at the start
     let mut last_mem = vec![0u8; g];
@@ -2355,6 +2445,11 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
                     continue;
                 }
             }
+            if shfl_pipe > 0 && !msk && r.fp32 && t - last_shfl < shfl_recent && pipe_free > t {
+                wake!(pipe_free);
+                wmin_time = wmin_time.min(pipe_free);
+                continue;
+            }
             // barrier: wait until every group of the scope has arrived (after draining its ALU work)
             if r.barrier != 0 {
                 if bar_arrive[gi].is_none() {
@@ -2500,6 +2595,29 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
                                 level
                             }
                         };
+                        // data a previous command left in the system-level cache: L2 latency, but its first touch
+                        // in this dispatch goes at the GPU-wide DRAM rate (reads back to back never exceed ~380 GB/s,
+                        // 1-12 MiB; playground novel-results/2026-11-01-read-bandwidth)
+                        let mut lat_extra = if store { 0 } else { m.extra[level] };
+                        if first_touch_dram && need[2] + need[3] > 0.0 {
+                            let key = (gi, m.cur[gi]);
+                            let first = match m.first.get(&key) {
+                                Some(&f) => f,
+                                None => {
+                                    let f = segs.iter().filter(|&&sg| m.seen.insert(sg)).count() as f64;
+                                    m.first.insert(key, f);
+                                    f
+                                }
+                            };
+                            if first > 0.0 && level == 2 && !store {
+                                lat_extra = m.first_extra;
+                            }
+                            let from_slc = first.min(need[3]);
+                            let from_l2 = (first - from_slc).min(need[2]);
+                            need[3] -= from_slc;
+                            need[2] -= from_l2;
+                            need[4] += from_slc + from_l2;
+                        }
                         if store && charge_writeback {
                             need[4] = need[4].max(n.max(1.0)); // every written line goes back to DRAM
                         }
@@ -2514,7 +2632,7 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
                             wake!(t + until.max(1));
                             continue;
                         }
-                        mem_charge = Some((need, if store { 0 } else { m.extra[level] }, segs.clone()));
+                        mem_charge = Some((need, lat_extra, segs.clone()));
                     }
                 }
             }
@@ -2613,7 +2731,15 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
                     }
                 }
             }
-            if let (Some(m), Some((need, _, segs))) = (ms.as_mut(), mem_charge.as_ref()) {
+            let mut inflight_extra = 0i64;
+            if let (Some(m), Some((need, lx, segs))) = (ms.as_mut(), mem_charge.as_ref()) {
+                // hardware: cores and groups asking for a line that is still on its way each wait for it (128 groups
+                // summing the same two columns as fast as their own: playground novel-results/2026-11-01-first-touch-chains)
+                if r.kind == Kind::Load && inflight_on {
+                    if let Some(&ready) = segs.iter().filter_map(|sg| m.inflight.get(sg)).max() {
+                        inflight_extra = (ready - t).max(0);
+                    }
+                }
                 for i in 2..5 {
                     m.tok[i] -= need[i].min(m.cap[i]);
                 }
@@ -2624,6 +2750,13 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
                 let start = t.max(m.l1_free[k]);
                 m.l1_free[k] = start + occ;
                 pipe_extra = (m.l1_free[k] - t - occ_min).max(0);
+                if r.kind == Kind::Load && inflight_on && *lx > 0 {
+                    let done = t + lx + pipe_extra;
+                    for &sg in segs {
+                        let e = m.inflight.entry(sg).or_insert(0);
+                        *e = (*e).max(done);
+                    }
+                }
                 for &sg in segs {
                     m.l1.touch(sg);
                     m.l2.touch(sg);
@@ -2631,7 +2764,7 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
                 }
                 m.epoch += 1;
             }
-            let mem_extra = mem_charge.as_ref().map(|c| c.1).unwrap_or(0) + pipe_extra;
+            let mem_extra = (mem_charge.as_ref().map(|c| c.1).unwrap_or(0) + pipe_extra).max(inflight_extra);
             if r.unit.is_some() && !msk {
                 let b = r.bucket;
                 tok[b] = Some(tok[b].unwrap() - r.cost);
@@ -2658,7 +2791,19 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
             } else {
             match r.kind {
                 Kind::Alu => {
-                    let lat = r.lat;
+                    let mut lat = r.lat;
+                    if shfl_pipe > 0 && !msk && (r.shuffle || (r.fp32 && t - last_shfl < shfl_recent)) {
+                        pipe_free = pipe_free.max(t) + shfl_pipe;
+                        if r.shuffle {
+                            last_shfl = t;
+                        }
+                    }
+                    if r.shuffle && shfl_queue > 0 && !msk {
+                        shfl_inflight.retain(|&(_, d)| d > t);
+                        // other SIMD-groups' shuffles (a group's own independent ones pipeline: instruction bench)
+                        lat += shfl_queue * shfl_inflight.iter().filter(|&&(g2, _)| g2 != gi).count() as i64;
+                        shfl_inflight.push((gi, t + lat));
+                    }
                     let mut iiv = r.ii;
                     if let Some(h) = r.ii_cache_hit {
                         if r.cache_regs.iter().all(|x| rcache[gi].contains(x)) {
@@ -2698,6 +2843,20 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
                     // directly here
                     // Settled entries (pushed at least once) always move to t + lat here; they are merged per
                     // (slot, instruction) with the largest lat, which gives the same maxima as one push each.
+                    // a threadgroup load whose result this instruction reads has completed (the instruction issues with its
+                    // sources ready): ALU work no longer defers it. Without this, loads never followed by a `wait`
+                    // (threadgroup loads the compiler reads directly) were deferred again by every later ALU
+                    // instruction for the rest of the program: a loop of FMAs on values loaded before it paid ~21 units
+                    // per FMA (the GPU: ~4 cycles; playground 2026-11-01-fma-accumulator-chains). AGX_TG_SETTLE_ON_READ=1
+                    // only, for now: it fixes those (Geekbench's gemm_block_size_bias +43% -> -2%) but llama.cpp's
+                    // shared-memory reductions then come out 13-27% fast, an undercount the deferral had offset
+                    // (the 40 captures' mean error 10.5% -> 12.1%)
+                    if settle_on_read && !r.src.is_empty() && !(pending[gi].is_empty() && settled[gi].is_empty()) {
+                        // (threadgroup loads only: device loads are followed by a `wait`, which settles them)
+                        let reads = |ins: usize| sim[ins].tgop && sim[ins].dst.iter().any(|h| r.src.contains(h));
+                        pending[gi].retain(|p| !reads(p.ins));
+                        settled[gi].retain(|a| !reads(a.ins));
+                    }
                     let (rg, sl) = (&mut ready[gi], &mut slots[gi]);
                     last_push[gi] = t;
                     for a in settled[gi].iter() {
@@ -2893,6 +3052,15 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
             }
             e.2 += occ;
             e.3 += branch;
+            if let Some(p) = issue_profile.as_mut() {
+                if gi == 0 {
+                    let pc = sim[seqs[gi][nxt[gi]]].pc;
+                    let x = p.entry(pc).or_insert((0, 0));
+                    x.0 += t - profile_prev;
+                    x.1 += 1;
+                    profile_prev = t;
+                }
+            }
             free[gi] = t + occ;
             // the next instruction's line: fetched by the first group to reach it, which waits, and the rest wait as long
             if fetch_line > 0 && nxt[gi] + 1 < npcs[gi] {
@@ -3022,6 +3190,17 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
     } else {
         None
     };
+    if let Some(p) = issue_profile {
+        let names: HashMap<usize, &str> = instrs.iter().map(|x| (x.pc, x.name.as_str())).collect();
+        let sum: i64 = p.values().map(|v| v.0).sum();
+        let mut rows: Vec<_> = p.into_iter().collect();
+        rows.sort_by_key(|r| std::cmp::Reverse(r.1 .0));
+        eprintln!("issue profile, SIMD group 0: {sum} ticks before issues");
+        let shown = std::env::var("AGX_ISSUE_PROFILE_ROWS").ok().and_then(|v| v.parse().ok()).unwrap_or(25);
+        for (pc, (time, n)) in rows.iter().take(shown) {
+            eprintln!("  pc {pc:6} {:<20} {n:6}x {time:10} ({:.1}%)", names.get(pc).unwrap_or(&"?"), *time as f64 / sum.max(1) as f64 * 100.0);
+        }
+    }
     Ok((total, st, finish))
 }
 
