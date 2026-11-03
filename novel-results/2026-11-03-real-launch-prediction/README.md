@@ -28,6 +28,7 @@ Not established: `call` / `ret` cost (taken as a taken forward jump), line size,
 software sampler), other scenes. These are six launches of one scene, with the fetch and stack constants from probes and not fitted to them, but the same
 launches guided which costs to look at, so they are not an independent test.
 
-**Measuring calls directly failed, and 5 runs faulted the GPU** (`Bad address`, in `gpu_safety`): kernels with real calls built by `llc` or by `zoc` for
+**Measuring calls directly failed, and 6 runs faulted the GPU** (`Bad address`, in `gpu_safety`): kernels with real calls built by `llc` or by `zoc` for
 `agx_run_hw` fault, inline ones and captured kernels with calls do not, and why is not known. Stopped there. Find the difference from a capture before
-trying again, offline first.
+trying again, offline first. Ruled out, a sixth fault: code length (the same kernel padded with `stop` to 1 MB). Same in both: `--regs 256`, `--stack 12336`, 384
+threads, a stack_adjust. Not yet compared: the captures' mapped memory and uniforms against this kernel's single `--alloc`.
