@@ -214,9 +214,11 @@ pub fn co_resident_workgroups(l: &Launch) -> u32 {
 
 /// Cold instruction fetch, ns per 64 bytes, on top of issue: 8.85 ns per 8-byte instruction of straight-line code on the M2 Max, warm, back to
 /// back, from 64 KB to 4 MB of code and 1 or 12 SIMD groups alike (scripts/probe_fetch_scaling.py). A launch's kernel is
-/// fetched again each launch. AGX_FETCH_LINE_NS overrides it (0: off).
+/// fetched again each launch. Off by default: the calibrated launch profiles cost the fetch per launch instead
+/// (`Launch::fetch_line_ns`, 104 ns per line in the zluda profile, fitted on 56 captures). AGX_FETCH_LINE_NS=62 turns
+/// this in-simulation fetch on (it stays off when the launch profile costs the fetch).
 pub fn fetch_line_ns() -> f64 {
-    std::env::var("AGX_FETCH_LINE_NS").ok().and_then(|v| v.parse().ok()).unwrap_or(62.0)
+    std::env::var("AGX_FETCH_LINE_NS").ok().and_then(|v| v.parse().ok()).unwrap_or(0.0)
 }
 
 /// AGX_REFILL=1: a workgroup starts as soon as a finished one has freed its registers, in place of waves that each wait for
