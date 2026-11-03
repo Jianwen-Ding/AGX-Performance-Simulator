@@ -94,7 +94,7 @@ pub fn simulate(d: &Dispatch, mem: &Memory, l: &Launch, p: &Params, cores: &[u32
             segments.extend(captured.iter().copied()); global.extend(captured);
         }
     }
-    let mm = MemModel { clock_mhz: l.clock_mhz, active_cores: partitions.len() as f64,
+    let mm = MemModel { fetch_line_ns: dispatch::fetch_line_ns(), icache_bytes: dispatch::icache_bytes(), clock_mhz: l.clock_mhz, active_cores: partitions.len() as f64,
         dram_gbps: l.dram_gbps, warm: false, ..Default::default() };
     let resident_slc = footprint_complete && global.len() as u128 * 64 <= mm.slc_bytes as u128;
     let mut out = vec![];
@@ -103,6 +103,7 @@ pub fn simulate(d: &Dispatch, mem: &Memory, l: &Launch, p: &Params, cores: &[u32
     for (&id, wgs) in &partitions {
         let mut waves = vec![];
         let mut total = 0.0;
+        let mut durations = vec![];
         for (index, chunk) in wgs.chunks(resident as usize).enumerate() {
             let ts: Vec<_> = chunk.iter().flat_map(|&i| traces[i].iter()).collect();
             let seqs: Vec<&[usize]> = ts.iter().map(|t| t.pcs.as_slice()).collect();
@@ -116,9 +117,13 @@ pub fn simulate(d: &Dispatch, mem: &Memory, l: &Launch, p: &Params, cores: &[u32
             };
             let wave_mem = MemModel { sharing, resident_slc, ..mm.clone() };
             let wg_of: Vec<u32> = (0..chunk.len()).flat_map(|i| std::iter::repeat_n(i as u32, gpw as usize)).collect();
-            let cycles = cost::simulate_groups(&ins, &seqs, Some(&masked), l.mem.then_some((mems.as_slice(), &wave_mem)), p, false, Some(&wg_of))?.0;
+            let (cycles, _, finish) = cost::simulate_groups_finish(&ins, &seqs, Some(&masked), l.mem.then_some((mems.as_slice(), &wave_mem)), p, false, Some(&wg_of))?;
             total += cycles;
+            durations.extend(dispatch::workgroup_finish(&finish, &wg_of, chunk.len()));
             waves.push(Wave { index, workgroups: chunk.iter().map(|&i| i as u64).collect(), cycles, sharing });
+        }
+        if dispatch::refill() && resident > 1 {
+            total = dispatch::refill_makespan(&durations, resident as usize);
         }
         let count = wgs.len() as f64;
         let launch_ns = (count * l.wg_launch_ns).max(count * gpw as f64 * l.group_launch_ns);

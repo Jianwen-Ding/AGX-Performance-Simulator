@@ -19,6 +19,9 @@
 //! --lines-offset N is where MAIN.bin starts in that object's .text (a kernel cut out of a module).
 //! --agx-strict GPU (g13, g13x, g14, g14d; or AGX_STRICT=GPU) fails on the first executed instruction that Mesa's
 //! compiler would not emit for that GPU (`agx_sim::isa::mesa`).
+//! --trace-pcs X,Y,Z:FILE writes the instruction trace of workgroup (X, Y, Z) to FILE before the run: one line per
+//! executed instruction, `GROUP PC` (SIMD group in the workgroup, byte offset in MAIN.bin), from `func::trace_workgroups`
+//! over the memory as the dispatch finds it (after the preamble).
 
 use agx_sim::func::{self, Dispatch, Memory};
 
@@ -47,6 +50,7 @@ fn main() {
     let mut core_map: Option<Vec<u32>> = None;
     let mut lines: Option<agx_sim::lines::LineTable> = None;
     let mut lines_offset = 0u64;
+    let mut trace_pcs: Option<([u32; 3], String)> = None;
     let mut mem = Memory::default();
     let mut launch = agx_sim::cost::SrLaunch::default();
     let mut i = 1;
@@ -76,6 +80,10 @@ fn main() {
                 lines = Some(agx_sim::lines::LineTable::from_elf(&elf).unwrap_or_else(|e| die(&format!("{}: {}", v, e))));
             }
             "--lines-offset" => lines_offset = num(&v),
+            "--trace-pcs" => {
+                let (wg, f) = v.split_once(':').unwrap_or_else(|| die("--trace-pcs expects X,Y,Z:FILE"));
+                trace_pcs = Some((dims(wg), f.to_string()));
+            }
             "--preamble" => preamble = Some(std::fs::read(&v).unwrap_or_else(|e| die(&format!("{}: {}", v, e)))),
             "--uniform" => {
                 let (k, x) = kv();
@@ -98,6 +106,13 @@ fn main() {
         }
         i += 2;
     }
+    // AGX_RUN_TIMES=1: where a replay's time goes, on stderr
+    let times = std::env::var_os("AGX_RUN_TIMES").is_some();
+    let phase = |name: &str, t: &mut std::time::Instant| {
+        if times { eprintln!("[agx_run] {name}: {:.2} s", t.elapsed().as_secs_f64()); }
+        *t = std::time::Instant::now();
+    };
+    let mut clock = std::time::Instant::now();
     let mut code = code;
     while code.len() > 2 && code[code.len() - 2..] == [0, 0] {
         code.truncate(code.len() - 2); // trailing padding
@@ -110,6 +125,17 @@ fn main() {
         None => None,
     };
     d.uniforms = after.clone().unwrap_or(uniforms);
+    if let Some((wg, f)) = &trace_pcs {
+        let traces = func::trace_workgroups(&d, &mem, &[*wg]).unwrap_or_else(|e| die(&format!("trace: {}", e))).remove(0);
+        let mut out = String::new();
+        for (group, t) in traces.iter().enumerate() {
+            for pc in &t.pcs {
+                out.push_str(&format!("{} {}\n", group, pc));
+            }
+        }
+        std::fs::write(f, out).unwrap_or_else(|e| die(&format!("{}: {}", f, e)));
+    }
+    phase("preamble and trace", &mut clock);
     let st = match &core_map {
         Some(cores) => func::run_with_m2_core_map(&d, &mut mem, cores),
         None => func::run(&d, &mut mem),
@@ -123,10 +149,12 @@ fn main() {
             None => die(&e),
         }
     });
+    phase("run", &mut clock);
     for (va, n, f) in &dumps {
         let b = mem.read_bytes(*va, *n).unwrap_or_else(|e| die(&e));
         std::fs::write(f, b).unwrap_or_else(|e| die(&format!("{}: {}", f, e)));
     }
+    phase("dumps", &mut clock);
     let u: Vec<String> = after.unwrap_or_default().iter().filter(|(_, v)| *v != 0).map(|(k, v)| format!("\"u{}\":{}", k, v)).collect();
     let provenance = core_map.as_ref().map(|c| format!(",\"core_map\":\"m2\",\"mapped_workgroups\":{}", c.len())).unwrap_or_default();
     println!("{{\"instructions\":{},\"groups\":{},\"preamble_uniforms\":{{{}}}{}}}", st.instructions, st.groups, u.join(","), provenance);

@@ -379,6 +379,8 @@ struct Group {
     /// device loads issued on scoreboard slot != 0 whose register writes land at the `wait` on that slot:
     /// (slot, [(32-bit register?, register, component, lane, value)])
     pending: Vec<(u64, Vec<(bool, usize, usize, usize, i128)>)>,
+    /// AGX_TRACE_LANE: the traced lane's registers at the previous instruction
+    lane_regs: Vec<u32>,
 }
 
 fn ext(v: i128, bits: u32, signed: bool) -> i128 {
@@ -647,7 +649,7 @@ fn run_workgroup(d: &Dispatch, geometry: &Geometry, cache: &CodeCache, mem: &mut
                 st.uniforms[2 * u] = (v & 0xffff) as u16;
                 st.uniforms[2 * u + 1] = (v >> 16) as u16;
             }
-            Group { st, ctx, pc: 0, done: false, steps: 0, trace: if record { Some(Trace::default()) } else { None }, stack: vec![], pending: vec![] }
+            Group { st, ctx, pc: 0, done: false, steps: 0, trace: if record { Some(Trace::default()) } else { None }, stack: vec![], pending: vec![], lane_regs: vec![] }
         })
         .collect();
     stats.groups += groups.len() as u64;
@@ -674,6 +676,27 @@ fn run_workgroup(d: &Dispatch, geometry: &Geometry, cache: &CodeCache, mem: &mut
         }
     }
     Ok(groups.into_iter().filter_map(|g| g.trace).collect())
+}
+
+/// `AGX_TRACE_LANE=GROUP:LANE` (with a trace: agx_run --trace-pcs): prints to stderr, before each instruction of
+/// that SIMD group of the traced workgroup, its pc, whether the lane is active, and the 32-bit registers of the lane
+/// that changed since the previous instruction (`rN=0x...`, as the instruction before wrote them).
+fn trace_lane(g: &mut Group) {
+    static LANE: std::sync::OnceLock<Option<(u32, usize)>> = std::sync::OnceLock::new();
+    let Some((group, lane)) = *LANE.get_or_init(|| {
+        let v = std::env::var("AGX_TRACE_LANE").ok()?;
+        let (g, l) = v.split_once(':')?;
+        Some((g.parse().ok()?, l.parse().ok()?))
+    }) else { return };
+    if g.ctx.group != group || lane >= 32 {
+        return;
+    }
+    let regs: Vec<u32> = (0..g.st.reg16s.len() / 2).map(|r| g.st.get_reg32(r, lane).unwrap_or(0) as u32).collect();
+    let changed: Vec<String> = regs.iter().enumerate()
+        .filter(|&(r, v)| g.lane_regs.get(r) != Some(v))
+        .map(|(r, v)| format!("r{}={:#x}", r, v)).collect();
+    eprintln!("lane pc {:#x} {} {}", g.pc, if g.st.exec[lane] { "on" } else { "off" }, changed.join(" "));
+    g.lane_regs = regs;
 }
 
 /// Link-register base for call / ret: the value `call` stores is `call_base() + offset of the next instruction`.
@@ -715,6 +738,9 @@ fn decode_at(code: &[u8], pc: usize, nregs: usize) -> Result<Info, String> {
     Ok(Info { desc: Some(desc), size, fields, op: Some(op), vals, kind, access })
 }
 
+/// Where the traces place stack memory: no device address, and not part of a launch's device footprint.
+const STACK_TRACE_BASE: u64 = 0x7c00_0000_0000;
+
 fn step_group(g: &mut Group, code: &[u8], cache: &CodeCache, mem: &mut Memory, tg: &mut [u8], max_steps: u64,
               stats: &mut RunStats) -> Result<Stop, String> {
     // Select once per group/resume, not on every instruction. Small programs
@@ -751,6 +777,9 @@ fn step_group_impl<C: InstructionCells>(g: &mut Group, code: &[u8], cache: &C, m
                 cell.get().unwrap()
             }
         };
+        if g.trace.is_some() {
+            trace_lane(g);
+        }
         if let Some(tr) = g.trace.as_mut() {
             // as cost::trace_group records it: every pc (barriers, jumps and the stop included) and, before the
             // access executes, the device segments / threadgroup words / atomic words of the active lanes
@@ -760,6 +789,28 @@ fn step_group_impl<C: InstructionCells>(g: &mut Group, code: &[u8], cache: &C, m
             tr.pcs.push(g.pc);
             let at = (tr.pcs.len() - 1) as u32;
             let touched = info.access.as_ref().and_then(|a| a.capture(&g.st));
+            if matches!(info.kind, OpKind::Stack { .. }) {
+                // stack memory, for the memory model: each SIMD group's block holds a slot per 32-bit word with one 4-byte
+                // cell per lane (zluda_agx's scratch layout, agx_runtime scratch.rs), so a word spans 128 bytes
+                let x = |k: &str| fget(&info.fields, k).unwrap_or(0);
+                let mask = x("mask");
+                let item = match x("F") { 0 => 1usize, 1 => 2, _ => 4 };
+                let block = STACK_TRACE_BASE + ((g.ctx.slot as u64) << 28);
+                let mut segs = vec![];
+                for t in 0..32 {
+                    if !g.st.exec[t] { continue; }
+                    let base = if x("Ot") != 0 { x("O") as usize } else { g.st.get_reg32((x("O") >> 1) as usize, t)? as u32 as usize };
+                    for c in 0..4 {
+                        if mask & (1 << c) != 0 {
+                            let a = base + c * item;
+                            segs.push((block + (a as u64 / 4) * 128 + t as u64 * 4 + a as u64 % 4) >> 6);
+                        }
+                    }
+                }
+                segs.sort_unstable();
+                segs.dedup();
+                tr.mem.push((at, segs));
+            }
             if let Some(w) = touched {
                 if let Some(segments) = info.access.as_ref().and_then(|a| a.device_segments(&g.st, &w)) {
                     tr.device_segments.push((at, segments));
@@ -1089,7 +1140,7 @@ pub fn run_preamble(code: &[u8], uniforms: &[(usize, u32)], mem: &mut Memory, nu
         st.uniforms[2 * u] = (v & 0xffff) as u16;
         st.uniforms[2 * u + 1] = (v >> 16) as u16;
     }
-    let mut g = Group { st, ctx, pc: 0, done: false, steps: 0, trace: None, stack: vec![], pending: vec![] };
+    let mut g = Group { st, ctx, pc: 0, done: false, steps: 0, trace: None, stack: vec![], pending: vec![], lane_regs: vec![] };
     let cache = code_cache(code.len());
     let mut tg = vec![0u8; 16];
     let mut stats = RunStats::default();
@@ -2165,7 +2216,7 @@ mod tests {
         }
         Group { st, ctx: GroupCtx { wg_size: [8, 4, 2], wg_id: [3, 2, 1], group: 1, core: 19, slot: 7, uniforms: vec![],
             launch: crate::cost::SrLaunch { tg_bytes: 513, regs: 65, context: Some(47), pipeline: Some(0x1080), preamble: false } },
-            pc: 0, done: false, steps: 0, trace: None, stack: vec![], pending: vec![] }
+            pc: 0, done: false, steps: 0, trace: None, stack: vec![], pending: vec![], lane_regs: vec![] }
     }
 
     #[test]

@@ -1,0 +1,6 @@
+{"kernel": "integrator_intersect_closest", "threads": 48768, "first_us": 3282.584, "min_us": 2424.167, "median_us": 2870.042, "err": null}
+{"kernel": "integrator_queued_paths_array", "threads": 125120, "first_us": 24.875, "min_us": 8.5, "median_us": 8.958, "err": null}
+{"kernel": "integrator_sorted_paths_array", "threads": 125184, "first_us": 17.958, "min_us": 13.25, "median_us": 17.417, "err": null}
+{"kernel": "integrator_intersect_shadow", "threads": 1920, "first_us": 1112.084, "min_us": 1069.541, "median_us": 1097.0, "err": null}
+{"kernel": "integrator_shade_light_nee", "threads": 1920, "first_us": 330.209, "min_us": 301.708, "median_us": 320.208, "err": null}
+{"kernel": "integrator_shade_surface", "threads": 54144, "first_us": 2451.125, "min_us": 2451.125, "median_us": 2535.667, "err": null}

@@ -4,7 +4,9 @@
 //!              [--cores N] [--launch-us US] [--uniform IDX=VALUE ...] [--no-mem] [--max-waves N]
 //!              [--m2-core-map FILE] (supplied M2 core IDs; exhaustive isolated waves)
 //!              [--busiest-core-wgs N] (measured peak count; representative-core sensitivity only)
-//!              [--preamble PRE.bin] [--map VA=FILE ...] [--alloc VA=BYTES ...] [--agx-strict GPU]
+//!              [--all-workgroups] (with --map: trace every workgroup, on the cores in turn; slower, and needed for
+//!              data-dependent kernels, whose time is their slowest workgroup's)
+//!              [--preamble PRE.bin] [--map VA=FILE ...] [--alloc VA=BYTES ...] [--sampler-heap VA=COUNT] [--agx-strict GPU]
 //!
 //! code.bin is the main shader as submitted (e.g. the direct-DRM harness's control main with a body).
 //! Uniforms are 32-bit uniform registers (u4 = 4); the harness uses u4 = 0, u5 = count, u6_u7 = output,
@@ -96,12 +98,15 @@ fn run_job(a: &[String], p: &Params) -> Result<serde_json::Value, String> {
     let mut core_map_path = None;
     let mut max_waves_explicit = false;
     let mut buffers = vec![];
+    let mut sampler_heap = None;
+    let mut all_workgroups = false;
     enum Buffer { File(String), Allocate(usize) }
     let mut i = 1;
     while i < a.len() {
         let option = a[i].as_str();
         if option == "--no-mem" { l.mem = false; i += 1; continue; }
-        if !["--grid", "--wg", "--regs", "--tg-bytes", "--clock", "--cores", "--busiest-core-wgs", "--m2-core-map", "--launch-us", "--max-waves", "--uniform", "--preamble", "--map", "--alloc", "--agx-strict"].contains(&option) {
+        if option == "--all-workgroups" { all_workgroups = true; i += 1; continue; }
+        if !["--grid", "--wg", "--regs", "--launch-profile", "--tg-bytes", "--clock", "--cores", "--busiest-core-wgs", "--m2-core-map", "--sampler-heap", "--launch-us", "--max-waves", "--uniform", "--preamble", "--map", "--alloc", "--agx-strict"].contains(&option) {
             return Err(format!("unknown argument {}", option));
         }
         let v = a.get(i + 1).ok_or_else(|| format!("{} requires a value", option))?;
@@ -114,6 +119,11 @@ fn run_job(a: &[String], p: &Params) -> Result<serde_json::Value, String> {
             "--cores" => l.cores = number(v, option)?,
             "--busiest-core-wgs" => l.busiest_core_wgs_override = Some(number(v, option)?),
             "--launch-us" => l.launch_ns = number::<f64>(v, option)? * 1000.0,
+            // ZLUDA's command stream, fitted on 37 captured Geekbench and llama launches (5.6 us is the Mesa-style default)
+            "--launch-profile" => match v.as_str() {
+                "zluda" => l.launch_ns = 3000.0,
+                other => return Err(format!("unknown launch profile {}", other)),
+            },
             "--max-waves" => { l.max_waves = number(v, option)?; max_waves_explicit = true; },
             "--m2-core-map" => core_map_path = Some(v.clone()),
             "--agx-strict" => agx_sim::isa::mesa::set_mode(Some(agx_sim::isa::mesa::MesaGen::parse(v)?)),
@@ -123,6 +133,10 @@ fn run_job(a: &[String], p: &Params) -> Result<serde_json::Value, String> {
             }
             "--preamble" => {
                 preamble = Some(v.clone());
+            }
+            "--sampler-heap" => {
+                let (va, count) = v.split_once('=').ok_or("--sampler-heap expects VA=COUNT")?;
+                sampler_heap = Some((parse_u64(va)?, parse_u32(count)?));
             }
             "--map" | "--alloc" => {
                 let (va, x) = v.split_once('=').ok_or("--map/--alloc expects VA=FILE or VA=BYTES")?;
@@ -150,8 +164,19 @@ fn run_job(a: &[String], p: &Params) -> Result<serde_json::Value, String> {
     }
     let mut code = std::fs::read(path).map_err(|e| format!("{}: {}", path, e))?;
     trim_padding(&mut code);
+    // Every workgroup on the cores in turn, in the core IDs of the M2 Max: a launch ends with its slowest workgroup, and
+    // data-dependent ones differ (Blender Cycles' intersect_closest: 3x within a launch), which a sample of them misses.
+    let core_map = if all_workgroups && core_map.is_none() {
+        const MASKS: [u32; 4] = [0x3ff, 0x1ff, 0x1ff, 0x3ff];
+        let ids: Vec<u32> = (0..4u32).flat_map(|c| (0..16u32).filter(move |i| MASKS[c as usize] & (1 << i) != 0).map(move |i| c * 16 + i)).collect();
+        let n = (0..3).map(|i| l.grid[i].div_ceil(l.wg[i]) as usize).product::<usize>();
+        Some((0..n).map(|k| ids[k % ids.len()]).collect::<Vec<u32>>())
+    } else {
+        core_map
+    };
     let functional = core_map.is_some() || preamble.is_some() || !buffers.is_empty();
     let mut mem = func::Memory::default();
+    mem.sampler_heap = sampler_heap;
     for (va, b) in buffers {
         let bytes = match b {
             Buffer::File(x) => std::fs::read(&x).map_err(|e| format!("{}: {}", x, e))?,

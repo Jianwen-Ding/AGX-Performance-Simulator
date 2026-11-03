@@ -174,6 +174,46 @@ pub fn co_resident_workgroups(l: &Launch) -> u32 {
     guaranteed
 }
 
+/// Cold instruction fetch, ns per 64 bytes, on top of issue: 8.85 ns per 8-byte instruction of straight-line code on the M2 Max, warm, back to
+/// back, from 64 KB to 4 MB of code and 1 or 12 SIMD groups alike (scripts/probe_fetch_scaling.py). A launch's kernel is
+/// fetched again each launch. AGX_FETCH_LINE_NS overrides it (0: off).
+pub fn fetch_line_ns() -> f64 {
+    std::env::var("AGX_FETCH_LINE_NS").ok().and_then(|v| v.parse().ok()).unwrap_or(62.0)
+}
+
+/// AGX_REFILL=1: a workgroup starts as soon as a finished one has freed its registers, in place of waves that each wait for
+/// their slowest workgroup. Not established on hardware: off by default until it is compared with measured launches.
+pub fn refill() -> bool {
+    std::env::var("AGX_REFILL").is_ok_and(|v| v == "1")
+}
+
+/// When `durations` (in start order) are done with `slots` of them running at once, each starting when the first slot
+/// frees: list scheduling, whose result is at most the sum of the waves' slowest and at least the longest.
+pub fn refill_makespan(durations: &[f64], slots: usize) -> f64 {
+    let mut free = vec![0.0f64; slots.max(1)];
+    let mut end = 0.0f64;
+    for &d in durations {
+        let (i, &t) = free.iter().enumerate().min_by(|a, b| a.1.total_cmp(b.1)).unwrap();
+        free[i] = t + d;
+        end = end.max(free[i]);
+    }
+    end
+}
+
+/// The latest finish among each workgroup's SIMD groups, by workgroup (`wg_of` as `cost::simulate_groups`).
+pub fn workgroup_finish(finish: &[f64], wg_of: &[u32], count: usize) -> Vec<f64> {
+    let mut out = vec![0.0f64; count];
+    for (&f, &w) in finish.iter().zip(wg_of) {
+        out[w as usize] = out[w as usize].max(f);
+    }
+    out
+}
+
+/// The instruction cache's capacity for MemModel::icache_bytes. AGX_ICACHE_BYTES overrides it.
+pub fn icache_bytes() -> usize {
+    std::env::var("AGX_ICACHE_BYTES").ok().and_then(|v| v.parse().ok()).unwrap_or(0)
+}
+
 pub fn simulate(code: &[u8], l: &Launch, p: &Params) -> Result<Report, String> {
     simulate_with(code, l, p, None)
 }
@@ -198,11 +238,11 @@ pub fn simulate_with(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer
     rep.busiest_core_wgs = m;
     let waves = m.div_ceil(r as u64).max(1);
     rep.waves = waves;
-    let mm = MemModel { clock_mhz: l.clock_mhz, active_cores: (cores.min(n)) as f64, warm: false, dram_gbps: l.dram_gbps, ..Default::default() };
+    let mm = MemModel { fetch_line_ns: fetch_line_ns(), icache_bytes: icache_bytes(), clock_mhz: l.clock_mhz, active_cores: (cores.min(n)) as f64, warm: false, dram_gbps: l.dram_gbps, ..Default::default() };
     let device_pcs: std::collections::HashSet<usize> =
         ins.iter().filter(|i| i.name == "device_load" || i.name == "device_store").map(|i| i.pc).collect();
     let wg_coords = |k| wg_coords(dims, k);
-    let sim_wave = |w: u64| -> Result<(u64, f64, Vec<String>), String> {
+    let sim_wave = |w: u64| -> Result<(u64, f64, Vec<String>, Vec<f64>), String> {
         let first = w * r as u64;
         let count = (m - first).min(r as u64);
         let mut traces = vec![];
@@ -294,8 +334,8 @@ pub fn simulate_with(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer
         let footprint = footprint / (1.0 + (cores.min(n) as f64 - 1.0) * sharing);
         let mm = MemModel { resident_slc: footprint <= mm.slc_bytes as f64, sharing, ..mm.clone() };
         let mem = if l.mem { Some((mems.as_slice(), &mm)) } else { None };
-        let c = cost::simulate_groups(&ins, &seqs, Some(&masked), mem, p, false, Some(&wg_of))?.0;
-        Ok((count, c, warn))
+        let (c, _, finish) = cost::simulate_groups_finish(&ins, &seqs, Some(&masked), mem, p, false, Some(&wg_of))?;
+        Ok((count, c, warn, workgroup_finish(&finish, &wg_of, count as usize)))
     };
     // the first and last waves, the middle, then densely after the first (2^k - 1): data-dependent counts put the
     // work at the start of the grid
@@ -310,8 +350,10 @@ pub fn simulate_with(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer
     let mut total = 0.0;
     // the simulated waves are independent: run them concurrently (results combined in wave order)
     let results = crate::par::map(&todo, |&w| sim_wave(w));
+    let mut wave_wgs: Vec<(u64, Vec<f64>)> = vec![];
     for (&w, res) in todo.iter().zip(results) {
-        let (count, c, warn) = res?;
+        let (count, c, warn, per_wg) = res?;
+        wave_wgs.push((w, per_wg));
         for x in warn {
             if !rep.warnings.contains(&x) {
                 rep.warnings.push(x);
@@ -336,6 +378,17 @@ pub fn simulate_with(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer
         let after = waves - s_last - 1 - todo.iter().filter(|&&w| w > s_last).count() as u64;
         total += c_last * after as f64;
     }
+    if refill() && r > 1 {
+        // Each wave not simulated: as the nearest simulated one, whose total the interpolation above already stands for.
+        wave_wgs.sort_by_key(|x| x.0);
+        let mut durations = Vec::with_capacity(m as usize);
+        for w in 0..waves {
+            let (_, near) = wave_wgs.iter().min_by_key(|(s, _)| s.abs_diff(w)).unwrap();
+            let count = (m - w * r as u64).min(r as u64) as usize;
+            durations.extend((0..count).map(|i| near[i % near.len()]));
+        }
+        total = total.min(refill_makespan(&durations, r as usize));
+    }
     rep.core_cycles = total;
     rep.launch_core_ns = (m as f64 * l.wg_launch_ns).max((m as u128 * gpw as u128) as f64 * l.group_launch_ns);
     rep.time_ns = (total / l.clock_mhz * 1000.0).max(rep.launch_core_ns) + l.launch_ns;
@@ -357,6 +410,17 @@ pub fn busiest_core_wgs(n: u64, l: &Launch) -> u64 {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn refill_fills_the_gap_a_slow_workgroup_leaves() {
+        // Two slots: waves take 10 + 10 = 20; with refill the short ones run beside the first long one and the
+        // second long one starts at 2.
+        assert_eq!(super::refill_makespan(&[10.0, 1.0, 1.0, 10.0], 2), 12.0);
+        // One slot: the sum, as waves.
+        assert_eq!(super::refill_makespan(&[3.0, 4.0], 1), 7.0);
+        // Never less than the longest.
+        assert_eq!(super::refill_makespan(&[5.0, 1.0], 8), 5.0);
+    }
+
     #[test]
     fn observed_peak_controls_partial_wave_and_launch_work() {
         let p = Params::new().unwrap();

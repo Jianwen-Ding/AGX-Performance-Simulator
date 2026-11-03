@@ -61,7 +61,7 @@ const STORES: &[&str] = &[
     "image_write_block", "async_store", "st_var", "st_var_final", "tex_state_store", "sampler_state_store",
 ];
 const MEASURED_MEMORY: &[&str] = &["device_load", "device_store", "threadgroup_load", "threadgroup_store"];
-pub const CONTROL: &[&str] = &[
+pub const CONTROL: &[&str] = &["call", "ret", "jmp_incomplete", 
     "if_icmp", "if_fcmp", "else_icmp", "else_fcmp", "while_icmp", "while_fcmp", "pop_exec", "push_exec", "jmp_exec_any",
     "jmp_exec_none", "stop", "trap", "TODO.unk51", "no_var", "end_group",
 ];
@@ -100,6 +100,8 @@ fn fence_ticks(code: u8, ctx: usize) -> (i64, bool) {
 /// Kernels with more code than this are taken to fetch instructions from beyond the instruction cache (see the taken
 /// forward jump's scheduler hold).
 const FETCH_BOUND_CODE_BYTES: usize = 16 << 10;
+/// Instruction fetch lines: 64 bytes taken (the rate is what is measured, not the size).
+const FETCH_LINE_SHIFT: usize = 6;
 
 const BARRIERS: &[&str] = &["threadgroup_barrier", "memory_barrier", "wait_pix", "signal_pix", "TODO.unkE800"];
 const UNIT_GROUPS: &[&[&str]] = &[
@@ -469,7 +471,11 @@ pub fn decode(code: &[u8], p: &Params) -> Result<Vec<Instr>, String> {
             continue;
         }
         let n0 = isa::opcode_to_number(&code[pc..code.len().min(pc + 16)]);
-        let d = isa::get_instruction_descriptor(n0).ok_or_else(|| format!("undecodable instruction at {}", pc))?;
+        // Padding between functions, in a kernel with real calls: executing it is still an error, in the trace.
+        let Some(d) = isa::get_instruction_descriptor(n0) else {
+            pc += 2;
+            continue;
+        };
         let size = d.decode_size(n0);
         if pc + size <= code.len() {
             crate::func::mesa_check(code, pc, size, d.name)?;
@@ -1381,6 +1387,9 @@ struct SimInstr {
     mem_done: (i64, i64),
     is_jmp_any: bool,
     is_jmp: bool,
+    /// call / ret: a taken jump, to another function
+    is_call: bool,
+    stack_store: bool,
     size: usize,
     ctl_bump: bool,
     /// exec-mask instructions other than the loop's while/jmp_exec_any
@@ -1409,6 +1418,10 @@ fn pymin(a: f64, b: f64) -> f64 {
 #[derive(Clone, Debug)]
 pub struct MemModel {
     pub clock_mhz: f64,
+    /// Instruction fetch: ns per line for the first group of a core to reach it (0: not modelled, steady-state loops).
+    pub fetch_line_ns: f64,
+    /// Touched code of at most this many bytes per launch is taken as already in the instruction cache (0: none).
+    pub icache_bytes: usize,
     /// cores sharing the SLC and DRAM (all cores run the same kernel on disjoint data)
     pub active_cores: f64,
     pub l1_bytes: usize,
@@ -1457,6 +1470,8 @@ impl Default for MemModel {
     fn default() -> Self {
         let k = REAL_CYCLES_PER_UNIT;
         MemModel {
+            fetch_line_ns: 0.0,
+            icache_bytes: 0,
             clock_mhz: 1398.0,
             active_cores: 38.0,
             l1_bytes: 8 << 10,
@@ -1599,6 +1614,14 @@ pub fn simulate_trace(instrs: &[Instr], tr: &Trace, p: &Params, groups: usize, d
 pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: Option<&[&[u32]]>,
     mem: Option<(&[&[(u32, Vec<u64>)]], &MemModel)>, p: &Params, detail: bool, wg_of: Option<&[u32]>)
     -> Result<(f64, Option<HashMap<usize, PcStats>>), String> {
+    simulate_groups_finish(instrs, seqs_pcs, masked, mem, p, detail, wg_of).map(|(c, st, _)| (c, st))
+}
+
+/// `simulate_groups`, also giving the cycle each SIMD group finished: what continuous refill needs to know when a
+/// workgroup's registers come free (`dispatch::refill_makespan`).
+pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: Option<&[&[u32]]>,
+    mem: Option<(&[&[(u32, Vec<u64>)]], &MemModel)>, p: &Params, detail: bool, wg_of: Option<&[u32]>)
+    -> Result<(f64, Option<HashMap<usize, PcStats>>, Vec<f64>), String> {
     let groups = seqs_pcs.len();
     let wg: Vec<u32> = wg_of.map(|w| w.to_vec()).unwrap_or_else(|| vec![0; groups]);
     let local: Vec<usize> = (0..groups).map(|i| (0..i).filter(|&j| wg[j] == wg[i]).count()).collect();
@@ -1770,8 +1793,10 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: Option<&
             dev_ctx: if r.name.starts_with("device_load") { 2 } else if r.name.starts_with("device_store") { 1 } else { 0 },
             mem_issue0,
             mem_done,
-            is_jmp_any: r.name == "jmp_exec_any",
-            is_jmp: r.name == "jmp_exec_any" || r.name == "jmp_exec_none",
+            is_jmp_any: matches!(r.name.as_str(), "jmp_exec_any" | "jmp_incomplete"),
+            is_jmp: matches!(r.name.as_str(), "jmp_exec_any" | "jmp_exec_none" | "jmp_incomplete"),
+            is_call: matches!(r.name.as_str(), "call" | "ret"),
+            stack_store: r.name == "stack_store",
             size: r.size,
             exec_stack: matches!(r.name.as_str(), "if_icmp" | "if_fcmp" | "else_icmp" | "else_fcmp" | "pop_exec" | "push_exec" | "jmp_exec_none"),
             ctl_bump: r.src.iter().any(|&h| h != 0),
@@ -2001,6 +2026,19 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: Option<&
         i
     }
 
+    // cold instruction fetch, per core, for a whole dispatch (MemModel::fetch_line_ns)
+    let mut fetch_line = mem.map_or(0, |(_, m)| tk(m.fetch_line_ns * CYCLES_PER_NS));
+    // Code that fits the instruction cache stays there from one launch to the next: nothing to fetch (warm launches).
+    if let Some((_, m)) = mem {
+        if fetch_line > 0 && m.icache_bytes > 0 {
+            let lines: std::collections::HashSet<usize> = seqs_pcs.iter().flat_map(|p| p.iter().map(|pc| pc >> FETCH_LINE_SHIFT)).collect();
+            if lines.len() << FETCH_LINE_SHIFT <= m.icache_bytes {
+                fetch_line = 0;
+            }
+        }
+    }
+    let mut fetched: HashMap<usize, i64> = HashMap::new();
+    let mut fetch_free = 0i64;
     let mut t: i64 = 0;
     macro_rules! wake {
         ($x:expr) => {{
@@ -2429,7 +2467,8 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: Option<&
                         let mut need = [0.0; 5];
                         let n = segs.len() as f64;
                         if store {
-                            need[1] = n.max(1.0).max(m_l1_store_min(mem));
+                            // (a stack store's lanes share a word's slot, whatever lines that crosses)
+                            need[1] = if r.stack_store { 1.0 } else { n.max(1.0) }.max(m_l1_store_min(mem));
                         } else {
                             // the same lines as the core's previous load (every group on one line): 1.22 cycles per
                             // load instead of 1.0 (coalesce-shared vs coalesce-private)
@@ -2449,7 +2488,9 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: Option<&
                             _ => {
                                 let mut level = 0usize;
                                 for &sg in segs {
-                                    let lv = if m.l1.contains(sg) { 0 } else if m.l2.contains(sg) { 1 } else if m.slc.contains(sg) { 2 } else { 3 };
+                                    // a stack store does not read the line first (probe_stack_cost.py: 56-62 ns per store at
+                                    // 256 bytes and 4 KB of frame alike, where loads go from 68 to 172)
+                                    let lv = if r.stack_store { 0 } else if m.l1.contains(sg) { 0 } else if m.l2.contains(sg) { 1 } else if m.slc.contains(sg) { 2 } else { 3 };
                                     if lv >= 1 {
                                         need[1 + lv] += 1.0;
                                     }
@@ -2791,6 +2832,9 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: Option<&
                     } else if r.is_jmp && nxt[gi] + 1 < npcs[gi] && seqs_pcs[gi][nxt[gi] + 1] > r.pc + r.size {
                         branch = br_fwd; // taken forward jump (if-skip / out-of-line entry): measured 2026-10-20
                         fwd_taken = true;
+                    } else if r.is_call && nxt[gi] + 1 < npcs[gi] && seqs_pcs[gi][nxt[gi] + 1] != r.pc + r.size {
+                        branch = br_fwd; // as a taken forward jump until measured otherwise
+                        fwd_taken = true;
                     }
                 }
                 Kind::Barrier => {
@@ -2850,6 +2894,15 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: Option<&
             e.2 += occ;
             e.3 += branch;
             free[gi] = t + occ;
+            // the next instruction's line: fetched by the first group to reach it, which waits, and the rest wait as long
+            if fetch_line > 0 && nxt[gi] + 1 < npcs[gi] {
+                let line = seqs_pcs[gi][nxt[gi] + 1] >> FETCH_LINE_SHIFT;
+                let ready = *fetched.entry(line).or_insert_with(|| {
+                    fetch_free = fetch_free.max(free[gi]) + fetch_line;
+                    fetch_free
+                });
+                free[gi] = free[gi].max(ready);
+            }
             last_t = last_t.max(free[gi]);
             nxt[gi] += 1;
             sr_cache[gi] = None;
@@ -2953,6 +3006,7 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: Option<&
         last_t = last_t.max(m.at_free);
     }
     let total = last_t as f64 / t_ as f64;
+    let finish: Vec<f64> = free.iter().map(|&f| f as f64 / t_ as f64).collect();
     let st = if detail {
         Some(
             stats
@@ -2968,7 +3022,7 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: Option<&
     } else {
         None
     };
-    Ok((total, st))
+    Ok((total, st, finish))
 }
 
 fn m_l1_store_min(mem: Option<(&[&[(u32, Vec<u64>)]], &MemModel)>) -> f64 {
