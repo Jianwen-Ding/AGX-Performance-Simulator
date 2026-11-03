@@ -1614,6 +1614,14 @@ pub fn simulate_trace(instrs: &[Instr], tr: &Trace, p: &Params, groups: usize, d
 pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: Option<&[&[u32]]>,
     mem: Option<(&[&[(u32, Vec<u64>)]], &MemModel)>, p: &Params, detail: bool, wg_of: Option<&[u32]>)
     -> Result<(f64, Option<HashMap<usize, PcStats>>), String> {
+    simulate_groups_finish(instrs, seqs_pcs, masked, mem, p, detail, wg_of).map(|(c, st, _)| (c, st))
+}
+
+/// `simulate_groups`, also giving the cycle each SIMD group finished: what continuous refill needs to know when a
+/// workgroup's registers come free (`dispatch::refill_makespan`).
+pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: Option<&[&[u32]]>,
+    mem: Option<(&[&[(u32, Vec<u64>)]], &MemModel)>, p: &Params, detail: bool, wg_of: Option<&[u32]>)
+    -> Result<(f64, Option<HashMap<usize, PcStats>>, Vec<f64>), String> {
     let groups = seqs_pcs.len();
     let wg: Vec<u32> = wg_of.map(|w| w.to_vec()).unwrap_or_else(|| vec![0; groups]);
     let local: Vec<usize> = (0..groups).map(|i| (0..i).filter(|&j| wg[j] == wg[i]).count()).collect();
@@ -2998,6 +3006,7 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: Option<&
         last_t = last_t.max(m.at_free);
     }
     let total = last_t as f64 / t_ as f64;
+    let finish: Vec<f64> = free.iter().map(|&f| f as f64 / t_ as f64).collect();
     let st = if detail {
         Some(
             stats
@@ -3013,7 +3022,7 @@ pub fn simulate_groups(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: Option<&
     } else {
         None
     };
-    Ok((total, st))
+    Ok((total, st, finish))
 }
 
 fn m_l1_store_min(mem: Option<(&[&[(u32, Vec<u64>)]], &MemModel)>) -> f64 {
