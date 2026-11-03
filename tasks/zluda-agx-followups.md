@@ -15,7 +15,9 @@ are linked where they already cover part of it.
 2. **Occupancy and spills.** `--groups G` simulates G groups regardless of the kernel's register count, and spilled
    stack traffic is priced like any memory access. Blocked: a 4x8-matrix tile GEMM (64x128 workgroup tile) is 13%
    cheaper per element in the model but needs 128 GPRs, spills 160 bytes and drops occupancy from 448 to 384
-   threads. Needed: groups per core derived from GPRs / threadgroup memory, and a measured stack load/store cost
+   threads. `agx_cost` now derives groups per core from registers and threadgroup memory (`occupancy`) and estimates a
+   full core (`--core-throughput`, [rust/README.md](../rust/README.md)); that estimate is not validated on hardware.
+   Still needed: a measured stack load/store cost
    ([safe-11-occupancy-and-clock.md](safe-11-occupancy-and-clock.md)).
 3. **Instruction rows the LLVM scheduling model now uses.** The AGX `SchedMachineModel` was checked against
    `bench.json.gz`: `simd_matrix_fmadd32/16` (latency 17, issue 16), `fmadd32` and 32-bit `icmpsel` / `fcmpsel`

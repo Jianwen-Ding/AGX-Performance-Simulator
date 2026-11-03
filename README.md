@@ -23,7 +23,8 @@ make verify-memory-model    # offline: memory hierarchy against the stored memor
 make verify-dispatch        # offline: whole-dispatch model against 25 stored dispatches
 ```
 
-`agx_dispatch` computes occupancy (register file, workgroup size), places workgroups on the busiest core
+`agx_cost` reports occupancy too (`occupancy` on its JSON line, `--core-throughput` for threads per microsecond of a
+full core; [rust/README.md](rust/README.md)); its `cycles` stay one path of `--groups` groups. `agx_dispatch` computes occupancy (register file, workgroup size), places workgroups on the busiest core
 (cluster split), traces every SIMD group of that core with its own thread ids, simulates the core with the
 memory hierarchy, and adds launch cost; it prints a JSON report with the predicted time.
 `dispatch::co_resident_workgroups` separately provides the lower B5 progress bound used by ZLUDA's occupancy
