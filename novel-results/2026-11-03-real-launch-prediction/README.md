@@ -20,8 +20,14 @@ Status: measured on one device (driver-reported M2 Max G14C B1). Scene: Blender 
 
 ## Result
 
-Predicted / warm: intersect_closest 0.81, queued_paths_array 1.10, sorted_paths_array 0.90, intersect_shadow 0.73, shade_light_nee 0.57. Before: an error
-on every one. The curated verifiers are unchanged.
+Predicted / warm: intersect_closest 0.81, queued_paths_array 1.10, sorted_paths_array 0.90, intersect_shadow 0.73, shade_light_nee 0.57, shade_surface 0.57
+(1447 / 2536 us). Before: an error on every one. Still optimistic where calls and shading are, and all but two are low, so a real cost is missing. The
+curated verifiers are unchanged.
 
 Not established: `call` / `ret` cost (taken as a taken forward jump), line size, fetch contention between cores, texture sampling (these captures use the
-software sampler), other scenes.
+software sampler), other scenes. These are six launches of one scene, with the fetch and stack constants from probes and not fitted to them, but the same
+launches guided which costs to look at, so they are not an independent test.
+
+**Measuring calls directly failed, and 5 runs faulted the GPU** (`Bad address`, in `gpu_safety`): kernels with real calls built by `llc` or by `zoc` for
+`agx_run_hw` fault, inline ones and captured kernels with calls do not, and why is not known. Stopped there. Find the difference from a capture before
+trying again, offline first.
