@@ -90,7 +90,10 @@ fn main() {
         std::process::exit(if bad { 1 } else { 0 });
     }
     match run_job(&a, &p) {
-        Ok(v) => println!("{}", v),
+        Ok(v) => {
+            println!("{}", v);
+            if let Some(r) = agx_sim::cost::mem_levels_report() { eprintln!("{}", r); }
+        }
         Err(e) => {
             eprintln!("agx_dispatch: {}", e);
             std::process::exit(1);
@@ -137,8 +140,13 @@ fn run_job(a: &[String], p: &Params) -> Result<serde_json::Value, String> {
                     l.later_waves_warm = d.later_waves_warm;
                     l.partial_warm = d.partial_warm;
                     l.chain_waves = d.chain_waves;
+                    l.icache_lines = d.icache_lines;
                 }
-                "zluda" => (l.launch_ns, l.wg_launch_ns, l.group_launch_ns, l.fetch_line_ns, l.stack_launch_ns, l.store_gbps, l.store_launch_ns, l.later_waves_warm, l.partial_warm, l.chain_waves) = (2300.0, 100.0, 3.2, 104.0, 7500.0, 365.0, 700.0, true, true, true),
+                "zluda" => {
+                    (l.launch_ns, l.wg_launch_ns, l.group_launch_ns, l.fetch_line_ns, l.stack_launch_ns, l.store_gbps, l.store_launch_ns, l.later_waves_warm, l.partial_warm, l.chain_waves) = (2300.0, 100.0, 3.2, 104.0, 7500.0, 365.0, 700.0, true, true, true);
+                    // code beyond the instruction cache is fetched through it in the simulation (Launch::icache_lines)
+                    l.icache_lines = 168;
+                }
                 other => return Err(format!("--launch-profile: {other:?} is not drm or zluda")),
             },
             "--max-waves" => { l.max_waves = number(v, option)?; max_waves_explicit = true; },

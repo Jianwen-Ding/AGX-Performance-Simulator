@@ -1,0 +1,8 @@
+{"u": "1", "sim_us": 296.9, "core_cycles": 317128.2, "code_lines": 1910, "hw_med": 876.458, "hw_min": 868.375}
+{"u": "2", "sim_us": 342.3, "core_cycles": 369799.5, "code_lines": 2156, "hw_med": 1013.667, "hw_min": 978.125}
+{"u": "4", "sim_us": 363.5, "core_cycles": 392481.2, "code_lines": 2315, "hw_med": 1076.25, "hw_min": 1052.584}
+{"u": "8", "sim_us": 369.8, "core_cycles": 398494.4, "code_lines": 2379, "hw_med": 1346.041, "hw_min": 1038.709}
+{"u": "12", "sim_us": 473.6, "core_cycles": 530701.7, "code_lines": 2675, "hw_med": 2020.75, "hw_min": 1854.25}
+{"u": "16", "sim_us": 507.4, "core_cycles": 572653.7, "code_lines": 2798, "hw_med": 1522.084, "hw_min": 1476.375}
+{"u": "20", "sim_us": 592.6, "core_cycles": 685853.2, "code_lines": 2932, "hw_med": 1830.25, "hw_min": 1805.75}
+{"u": "24", "sim_us": 683.7, "core_cycles": 802161.0, "code_lines": 3187, "hw_med": 2059.875, "hw_min": 2013.375}

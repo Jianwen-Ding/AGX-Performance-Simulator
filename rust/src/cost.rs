@@ -97,6 +97,17 @@ fn fence_ticks(code: u8, ctx: usize) -> (i64, bool) {
     (tk(ns * CYCLES_PER_NS), consumed)
 }
 
+/// AGX_MEM_LEVELS=1: device / stack accesses by deepest cache level (L1, L2, SLC, DRAM) since the start, by
+/// (stack, store, level); `mem_levels_report` prints them
+pub static MEM_LEVELS: [std::sync::atomic::AtomicU64; 16] = [const { std::sync::atomic::AtomicU64::new(0) }; 16];
+pub fn mem_levels_report() -> Option<String> {
+    if !std::env::var("AGX_MEM_LEVELS").is_ok_and(|v| v == "1") {
+        return None;
+    }
+    let v: Vec<u64> = MEM_LEVELS.iter().map(|x| x.load(std::sync::atomic::Ordering::Relaxed)).collect();
+    Some(format!("device loads {:?} stores {:?}; stack loads {:?} stores {:?} (L1, L2, SLC, DRAM)", &v[0..4], &v[4..8], &v[8..12], &v[12..16]))
+}
+
 /// Kernels with more code than this are taken to fetch instructions from beyond the instruction cache (see the taken
 /// forward jump's scheduler hold).
 const FETCH_BOUND_CODE_BYTES: usize = 16 << 10;
@@ -1392,6 +1403,8 @@ struct SimInstr {
     /// call / ret: a taken jump, to another function
     is_call: bool,
     stack_store: bool,
+    /// stack_load / stack_store (AGX_MEM_LEVELS)
+    stack: bool,
     size: usize,
     ctl_bump: bool,
     /// exec-mask instructions other than the loop's while/jmp_exec_any
@@ -1424,6 +1437,13 @@ pub struct MemModel {
     pub fetch_line_ns: f64,
     /// Touched code of at most this many bytes per launch is taken as already in the instruction cache (0: none).
     pub icache_bytes: usize,
+    /// Instruction cache with refetch (0: off, each line fetched once per dispatch at `fetch_line_ns`): the core's
+    /// lines (12 KiB of 64-byte lines, fewer when instructions cross 8-byte boundaries; playground
+    /// novel-results/2026-10-20-icache), least recently used evicted. A miss reached by falling through from the previous
+    /// line costs `fetch_line_ns`, one reached by a taken jump, call or return `fetch_jump_ns` (playground
+    /// novel-results/2026-11-07-uncached-jump-fetch); the group waits for it, other groups do not
+    pub icache_lines: usize,
+    pub fetch_jump_ns: f64,
     /// cores sharing the SLC and DRAM (all cores run the same kernel on disjoint data)
     pub active_cores: f64,
     pub l1_bytes: usize,
@@ -1487,6 +1507,8 @@ impl Default for MemModel {
         MemModel {
             fetch_line_ns: 0.0,
             icache_bytes: 0,
+            icache_lines: 0,
+            fetch_jump_ns: 0.0,
             clock_mhz: 1398.0,
             active_cores: 38.0,
             l1_bytes: 8 << 10,
@@ -1818,6 +1840,7 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
             is_jmp: matches!(r.name.as_str(), "jmp_exec_any" | "jmp_exec_none" | "jmp_incomplete"),
             is_call: matches!(r.name.as_str(), "call" | "ret"),
             stack_store: r.name == "stack_store",
+            stack: r.name.starts_with("stack_"),
             size: r.size,
             exec_stack: matches!(r.name.as_str(), "if_icmp" | "if_fcmp" | "else_icmp" | "else_fcmp" | "pop_exec" | "push_exec" | "jmp_exec_none"),
             ctl_bump: r.src.iter().any(|&h| h != 0),
@@ -1919,6 +1942,7 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
             .then(Default::default);
     let mut profile_prev: i64 = 0;
     let first_touch_dram = mem.is_some_and(|(_, m)| m.resident_slc && m.first_touch_dram);
+    let mem_levels = std::env::var("AGX_MEM_LEVELS").is_ok_and(|v| v == "1");
     let inflight_on = std::env::var("AGX_INFLIGHT").map_or(true, |v| v != "0");
     let charge_writeback = std::env::var("AGX_CHARGE_WRITEBACK").map_or(false, |v| v == "1")
         && mem.is_some_and(|(_, m)| !m.resident_slc);
@@ -2129,6 +2153,17 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
     }
     let mut fetched: HashMap<usize, i64> = HashMap::new();
     let mut fetch_free = 0i64;
+    // instruction cache with refetch (MemModel::icache_lines): its lines, and the jump-target miss cost
+    let (mut icache, fetch_jump) = match mem {
+        Some((_, m)) if m.icache_lines > 0 && fetch_line > 0 => (Some(Lru::new(m.icache_lines * 64)), tk(m.fetch_jump_ns * CYCLES_PER_NS)),
+        _ => (None, 0),
+    };
+    // with it, the core's taken-jump structure: 32 entries (by target), a taken jump to a cached line that has none
+    // costs ~127 cycles more (playground novel-results/2026-10-20-icache: 34-96 blocks joined by taken jumps per loop
+    // trip, +127 cycles per jump beyond 32). AGX_JUMP_ENTRIES=0 turns it off
+    let jump_entries = std::env::var("AGX_JUMP_ENTRIES").ok().and_then(|v| v.parse().ok()).unwrap_or(32usize);
+    let mut jumps = (icache.is_some() && jump_entries > 0).then(|| Lru::new(jump_entries * 64));
+    let jump_extra = tk(127.0);
     let mut t: i64 = 0;
     macro_rules! wake {
         ($x:expr) => {{
@@ -2592,6 +2627,10 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
                                     level = level.max(lv);
                                 }
                                 m.lv_cache[gi] = Some((m.cur[gi], m.epoch, [need[2], need[3], need[4]], level));
+                                if mem_levels {
+                                    let k = (r.stack as usize) * 8 + (store as usize) * 4 + level;
+                                    MEM_LEVELS[k].fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                                }
                                 level
                             }
                         };
@@ -3064,12 +3103,39 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
             free[gi] = t + occ;
             // the next instruction's line: fetched by the first group to reach it, which waits, and the rest wait as long
             if fetch_line > 0 && nxt[gi] + 1 < npcs[gi] {
-                let line = seqs_pcs[gi][nxt[gi] + 1] >> FETCH_LINE_SHIFT;
-                let ready = *fetched.entry(line).or_insert_with(|| {
-                    fetch_free = fetch_free.max(free[gi]) + fetch_line;
-                    fetch_free
-                });
-                free[gi] = free[gi].max(ready);
+                let (pc0, pc1) = (seqs_pcs[gi][nxt[gi]], seqs_pcs[gi][nxt[gi] + 1]);
+                let line = pc1 >> FETCH_LINE_SHIFT;
+                if let Some(ic) = icache.as_mut() {
+                    if line != pc0 >> FETCH_LINE_SHIFT {
+                        // a line still in the cache is ready (or arrives when another group's fetch of it ends)
+                        let fall_through = pc1 == pc0 + sim[seqs[gi][nxt[gi]]].size;
+                        let ready = if ic.contains(line as u64) {
+                            let mut x = fetched.get(&line).copied().unwrap_or(0);
+                            if let (Some(j), false) = (jumps.as_mut(), fall_through) {
+                                if !j.contains(pc1 as u64) {
+                                    x = x.max(free[gi] + jump_extra);
+                                }
+                            }
+                            x
+                        } else {
+                            // (a jump taken to the next instruction is a jump: hw 324 ns per block when it starts the next line)
+                            let x = free[gi] + if fall_through { fetch_line } else { fetch_jump };
+                            fetched.insert(line, x);
+                            x
+                        };
+                        ic.touch(line as u64);
+                        if let (Some(j), false) = (jumps.as_mut(), fall_through) {
+                            j.touch(pc1 as u64);
+                        }
+                        free[gi] = free[gi].max(ready);
+                    }
+                } else {
+                    let ready = *fetched.entry(line).or_insert_with(|| {
+                        fetch_free = fetch_free.max(free[gi]) + fetch_line;
+                        fetch_free
+                    });
+                    free[gi] = free[gi].max(ready);
+                }
             }
             last_t = last_t.max(free[gi]);
             nxt[gi] += 1;

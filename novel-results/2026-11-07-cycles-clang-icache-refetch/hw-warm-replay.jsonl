@@ -1,0 +1,2 @@
+{"kernel": "integrator_intersect_closest", "threads": 44480, "first_us": 3533.125, "min_us": 3272.625, "median_us": 3549.208, "err": null}
+{"kernel": "integrator_shade_surface", "threads": 64, "first_us": 2077.208, "min_us": 2008.084, "median_us": 2072.416, "err": null}

@@ -51,6 +51,14 @@ pub struct Launch {
     /// 15,200 workgroups +7.1-8.1 us with --stack 64, playground novel-results/2026-11-01-stack-launch)
     pub stack_bytes: u32,
     pub stack_launch_ns: f64,
+    /// instruction-cache refetch for kernels whose executed code exceeds the cache: when a wave's distinct 64-byte
+    /// lines exceed `icache_lines`, the simulation fetches through a per-core LRU of that many lines (a fall-through
+    /// miss `refetch_line_ns`, a taken jump's `fetch_jump_ns`, the group waiting) in place of `fetch_line_ns` per
+    /// distinct line. 0: off (drm profile). zluda: 168 lines (12 KiB with the 8-byte-crossing loss of 6-byte streams,
+    /// playground novel-results/2026-10-20-icache), 64 / 200 ns (2026-11-07-uncached-jump-fetch). AGX_ICACHE_LINES overrides
+    pub icache_lines: usize,
+    pub refetch_line_ns: f64,
+    pub fetch_jump_ns: f64,
     /// GPU-wide store bandwidth (GB/s), a floor on the time of a dispatch's writes (0: none, the drm profile): stores
     /// that fit the system-level cache went at no cost in the model, measured at ~280-340 GB/s whatever their size
     /// (1520 x 256 threads writing 1.5 / 6 / 24 MB: 9.9 / 22.0 / 72.1 us, after the workgroups' launch; zluda profile
@@ -100,6 +108,9 @@ impl Default for Launch {
             fetch_line_ns: 0.0,
             stack_bytes: 0,
             stack_launch_ns: 0.0,
+            icache_lines: 0,
+            refetch_line_ns: 64.0,
+            fetch_jump_ns: 200.0,
             store_gbps: 0.0,
             store_launch_ns: 0.0,
             later_waves_warm: false,
@@ -292,6 +303,7 @@ pub fn simulate_with(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer
     let first_wave_segs = std::sync::Mutex::new(None::<std::sync::Arc<std::collections::HashSet<u64>>>);
     let dram_share_cache = std::sync::Mutex::new(None::<f64>);
     let partial_warm = std::env::var("AGX_PARTIAL_WARM").map_or(l.partial_warm, |v| v == "1");
+    let refetched = std::sync::atomic::AtomicBool::new(false);
     let sim_wave = |w: u64| -> Result<(u64, f64, Vec<String>, Vec<f64>), String> {
         let count = (m - w * r as u64).min(r as u64);
         let build = |first: u64| -> Result<(Vec<Trace>, Vec<u32>, Vec<String>), String> {
@@ -490,6 +502,18 @@ pub fn simulate_with(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer
         } else {
             mm
         };
+        // code beyond the instruction cache: fetched through it in the simulation (the launch's per-line fetch is then
+        // not charged, `refetched`)
+        let icache_lines = std::env::var("AGX_ICACHE_LINES").ok().and_then(|v| v.parse().ok()).unwrap_or(l.icache_lines);
+        let mm = if icache_lines > 0 && l.fetch_line_ns > 0.0 && {
+            let lines: std::collections::HashSet<usize> = traces.iter().flat_map(|t| t.pcs.iter().map(|&pc| pc / 64)).collect();
+            lines.len() > icache_lines
+        } {
+            refetched.store(true, std::sync::atomic::Ordering::Relaxed);
+            MemModel { icache_lines, fetch_line_ns: l.refetch_line_ns, fetch_jump_ns: l.fetch_jump_ns, icache_bytes: 0, ..mm }
+        } else {
+            mm
+        };
         // (chained after the footprint, the written bytes and the sharing, which are this wave's)
         drop((seqs, mems, masked));
         let chained = next_wave(&mut traces, &mut warn)?;
@@ -566,7 +590,7 @@ pub fn simulate_with(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer
     // the fetch overlaps execution (the slower of the two sets the core's time): straight-line code of one group is
     // fetch-bound, a long kernel's loops hide it (llama.cpp's Q8_0 matrix-vector kernel: 138 lines, 22.8 us of work,
     // 26.2 us measured with the 2.3 us launch)
-    let fetch_ns = rep.code_lines as f64 * l.fetch_line_ns;
+    let fetch_ns = if refetched.load(std::sync::atomic::Ordering::Relaxed) { 0.0 } else { rep.code_lines as f64 * l.fetch_line_ns };
     let stack_ns = if l.stack_bytes > 0 { l.stack_launch_ns } else { 0.0 };
     let written = written.into_inner().unwrap();
     let writes_ns = if !store_pcs.is_empty() { l.store_launch_ns } else { 0.0 };
