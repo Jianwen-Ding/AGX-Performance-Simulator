@@ -241,6 +241,7 @@ fn main() {
     let mut serr = vec![];
     for (name, body) in &sp {
         let m = meas_sp[name].as_f64().unwrap();
+        if std::env::var("VERIFY_DEBUG").is_ok() { eprintln!("{}: measured {:.1} predicted {:.1}", name, m, r8(&v, body)); }
         serr.push((r8(&v, body) - m) / m);
     }
     let (md, _, mx, _) = stats(&serr);
@@ -272,6 +273,7 @@ fn main() {
         ("C tg load, wait", cat(&[&tlr, &w_])), ("C tg load, iadd, wait", cat(&[&tlr, &a_, &w_])),
         ("C tg load, 8 iadd, wait", cat(&[&tlr, &i8r, &w_])),
     ];
+    if std::env::var("VERIFY_DEBUG").is_ok() { for (n, b) in &cases_c { eprintln!("{}: measured {:.1} predicted {:.1}", n, r2v(n), r8(&v, b)); } }
     let cerr: Vec<f64> = cases_c.iter().map(|(n, b)| (r8(&v, b) - r2v(n)) / r2v(n)).collect();
     let (md, _, mx, _) = stats(&cerr);
     v.check(mx <= 0.10, format!("threadgroup load deferral (FIT, review2 C, 3 cases): median |err| {}, max {}", f3(md), f3(mx)));

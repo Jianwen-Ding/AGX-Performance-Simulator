@@ -1706,6 +1706,19 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
     let quiet_dstore = tk(p.quiet_device_store);
     let tg_lat0 = tk(p.tg_load_lat.0);
     let tg_issue0 = tk(p.tg_load_issue);
+    // threadgroup loads hold their SIMD group's issue (scripts/probe_tg_alu.py, M2 Max 2026-11-07; playground
+    // novel-results/2026-11-07-tg-load-issue-hold): 24 real cycles per load with an immediate base, 28 with a register
+    // base, whatever follows; a load after ALU work issues only after the quiet time (the group waits, it is not only
+    // latency), so ALU instructions between threadgroup loads cost ~21 cycles per run. AGX_TG_ISSUE_REAL=0 restores the
+    // earlier model (21-unit issue interval, quiet time charged to the result only); AGX_TG_ISSUE_REG_REAL sets the
+    // register-base extra.
+    let tg_block: Option<i64> = match std::env::var("AGX_TG_ISSUE_REAL").ok().and_then(|v| v.parse::<f64>().ok()) {
+        Some(c) if c <= 0.0 => None,
+        Some(c) => Some(tk(c)),
+        None => Some(tk(p.cal_f("tg_load_hold_real", 24.0))),
+    };
+    let tg_block_reg: i64 = tk(std::env::var("AGX_TG_ISSUE_REG_REAL").ok().and_then(|v| v.parse::<f64>().ok())
+        .unwrap_or_else(|| p.cal_f("tg_load_hold_reg_extra_real", 4.0)));
     let load_fast = tk(p.load_fast);
     let load_ii = tk(p.load_ii);
     let space_switch = tk(p.space_switch);
@@ -2571,9 +2584,11 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
             // better (tgcheck.py: median error 41% -> 31% with AGX_TG_CORE_LOAD=1.5) but not the stored in-shader
             // per-step measurements (tg.json: 29.5%), which keep ~31 cycles per step per group at 32 groups while the
             // dispatch takes twice as long: not all 32 groups seem to progress at once.
-            if let (Some(m), false, true) = (ms.as_mut(), msk, tg_gate) {
+            // With the issue hold (tg_block) a load waits only for the core's pipeline: its own group is already held.
+            let blocked_load = tg_block.is_some() && r.kind == Kind::Load;
+            if let (Some(m), false, true) = (ms.as_mut(), msk, tg_gate || blocked_load) {
                 if r.tg_name && r.barrier == 0 && !r.atomic && matches!(r.kind, Kind::Load | Kind::Store) && !memv.is_empty() {
-                    let until = m.tg_group_free[gi].max(m.tg_free);
+                    let until = if blocked_load { m.tg_free } else { m.tg_group_free[gi].max(m.tg_free) };
                     if until > t {
                         ff_ok = false;
                         wake!(until);
@@ -2933,12 +2948,13 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
                 }
                 Kind::Load => {
                     let tgop = r.tgop;
-                    let mut delay = (last_alu[gi] + if tgop { quiet_tg } else { quiet_load } - t).max(0);
+                    let q = if tgop { quiet_tg } else { quiet_load };
+                    let mut delay = (last_alu[gi] + q - t).max(0);
                     let lat;
                     let mut iiv;
                     if tgop {
                         lat = delay + tg_lat0 + mem_extra;
-                        iiv = tg_issue0;
+                        iiv = match tg_block { Some(b) => delay + b + if r.src.is_empty() { 0 } else { tg_block_reg }, None => tg_issue0 };
                     } else {
                         if alu_since_mem[gi] && !(pending[gi].is_empty() && settled[gi].is_empty()) {
                             // waits until the pending loads have passed the L1, not until they complete
