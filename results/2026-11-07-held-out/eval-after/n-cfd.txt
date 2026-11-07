@@ -1,0 +1,5 @@
+_Z24cuda_compute_step_factoriPfS_S_ hw      10.8 us (n     0, captured      19.7)  sim      11.9 us  err   +10%   wgs/core 15 waves 1
+_Z25cuda_initialize_variablesiPf hw      11.0 us (n     0, captured      11.7)  sim      10.5 us  err    -5%   wgs/core 15 waves 1
+_Z17cuda_compute_fluxiPiPfS0_S0_ hw      51.1 us (n     0, captured     124.7)  sim      45.7 us  err   -11%   wgs/core 14 waves 5
+_Z14cuda_time_stepiiPfS_S_S_   hw      19.3 us (n     0, captured      39.4)  sim      22.7 us  err   +18%   wgs/core 15 waves 1
+launches 4  median |err| 10%  within 10%: 1  within 25%: 4

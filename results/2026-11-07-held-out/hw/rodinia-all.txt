@@ -1,0 +1,45 @@
+== heartwall
+_Z6kernelv                     hw   10370.5 us (n   500, captured   15156.7)  sim   10910.4 us  err    +5%   wgs/core 2 waves 1
+launches 1  median |err| 5%  within 10%: 1  within 25%: 1
+== hotspot3D
+_Z11hotspotOpt1PfS_S_fiiifffffff hw     237.5 us (n   500, captured     632.1)  sim     181.4 us  err   -24%   wgs/core 27 waves 7
+launches 1  median |err| 24%  within 10%: 0  within 25%: 1
+== nw
+_Z20needle_cuda_shared_2PiS_iiii hw      36.5 us (n   500, captured      60.5)  sim      38.6 us  err    +6%   wgs/core 4 waves 1
+_Z20needle_cuda_shared_1PiS_iiii hw      34.4 us (n   500, captured      95.9)  sim      34.7 us  err    +1%   wgs/core 1 waves 1
+launches 2  median |err| 3%  within 10%: 2  within 25%: 2
+== srad_srad_v2
+_Z11srad_cuda_1PfS_S_S_S_S_iif SIM FAILED list index out of range 
+_Z11srad_cuda_2PfS_S_S_S_S_iiff hw    1008.6 us (n   500, captured    1349.2)  sim     964.1 us  err    -4%   wgs/core 432 waves 108
+launches 1  median |err| 4%  within 10%: 1  within 25%: 1
+== streamcluster
+_Z19kernel_compute_costiilP5PointiiPfS1_PiPb hw     206.1 us (n   500, captured     294.1)  sim     283.8 us  err   +38%   wgs/core 4 waves 2
+launches 1  median |err| 38%  within 10%: 0  within 25%: 0
+_Z6kernelPdS_S_S_S_S_i         hw      88.3 us (n   500, captured      94.6)  sim      13.2 us  err   -85%   wgs/core 1 waves 1
+launches 1  median |err| 85%  within 10%: 0  within 25%: 0
+_Z11srad_cuda_1PfS_S_S_S_S_iif hw    2076.5 us (n   500, captured    4233.2)  sim    2972.1 us  err   +43%   wgs/core 432 waves 108
+launches 1  median |err| 43%  within 10%: 0  within 25%: 0
+== bfs
+_Z6KernelP4NodePiPbS2_S2_S1_i  hw     119.8 us (n   150, captured     331.2)  sim      33.3 us  err   -72%   wgs/core 52 waves 13
+_Z7Kernel2PbS_S_S_i            hw     147.7 us (n   150, captured     426.8)  sim      31.6 us  err   -79%   wgs/core 52 waves 9
+launches 2  median |err| 75%  within 10%: 0  within 25%: 0
+== gaussian
+_Z4Fan1PfS_ii                  hw      26.3 us (n   150, captured      72.2)  sim      11.3 us  err   -68%   wgs/core 1 waves 1
+_Z4Fan2PfS_S_iii               hw       8.4 us (n   150, captured      16.4)  sim      11.8 us  err   -39%   wgs/core 1 waves 1
+_Z4Fan1PfS_ii                  hw      26.3 us (n   150, captured      72.2)  sim      11.3 us  err   -68%   wgs/core 1 waves 1
+_Z4Fan2PfS_S_iii               hw       8.4 us (n   150, captured      16.4)  sim      11.8 us  err   -38%   wgs/core 1 waves 1
+launches 4  median |err| 54%  within 10%: 0  within 25%: 0
+== pathfinder
+_Z14dynproc_kerneliPiS_S_iiii  hw     214.5 us (n   150, captured     589.8)  sim     152.6 us  err   -29%   wgs/core 13 waves 3
+launches 1  median |err| 29%  within 10%: 0  within 25%: 0
+== particlefilter
+_Z17likelihood_kernelPdS_S_S_S_PiS0_S_PhS_S_iiiiiiS0_S_ hw     601.0 us (n   150, captured    1541.9)  sim     785.2 us  err   +31%   wgs/core 1 waves 1
+_Z10sum_kernelPdi              hw       6.8 us (n   150, captured      12.6)  sim       6.5 us  err   -52%   wgs/core 1 waves 1
+_Z24normalize_weights_kernelPdiS_S_S_Pi hw     274.8 us (n   150, captured     845.8)  sim     259.6 us  err    -6%   wgs/core 1 waves 1
+_Z17find_index_kernelPdS_S_S_S_S_S_i hw     110.1 us (n   150, captured     341.8)  sim      78.4 us  err   -29%   wgs/core 1 waves 1
+launches 5  median |err| 31%  within 10%: 1  within 25%: 1
+== lud
+_Z12lud_diagonalPfii           hw      44.3 us (n   150, captured     128.5)  sim      41.1 us  err    -7%   wgs/core 1 waves 1
+_Z13lud_perimeterPfii          hw      34.9 us (n   150, captured      96.2)  sim      31.7 us  err    -9%   wgs/core 1 waves 1
+_Z12lud_internalPfii           hw       5.5 us (n   150, captured      10.8)  sim       5.4 us  err   -19%   wgs/core 6 waves 1
+launches 3  median |err| 9%  within 10%: 2  within 25%: 3

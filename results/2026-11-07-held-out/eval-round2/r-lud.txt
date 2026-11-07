@@ -1,0 +1,4 @@
+_Z12lud_diagonalPfii           hw      44.3 us (n     0, captured     128.5)  sim      41.1 us  err    -7%   wgs/core 1 waves 1
+_Z13lud_perimeterPfii          hw      34.9 us (n     0, captured      96.2)  sim      31.7 us  err    -9%   wgs/core 1 waves 1
+_Z12lud_internalPfii           hw       5.5 us (n     0, captured      10.8)  sim       5.4 us  err    -3%   wgs/core 6 waves 1
+launches 3  median |err| 7%  within 10%: 3  within 25%: 3

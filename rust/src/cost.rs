@@ -1443,6 +1443,11 @@ pub struct MemModel {
     /// line costs `fetch_line_ns`, one reached by a taken jump, call or return `fetch_jump_ns` (playground
     /// novel-results/2026-11-07-uncached-jump-fetch); the group waits for it, other groups do not
     pub icache_lines: usize,
+    /// replacement among the `icache_victims` least recently used lines (pseudo-random; 1: strict LRU)
+    pub icache_victims: usize,
+    /// the instruction cache starts with the lines the simulated groups' own code paths leave in it (a later wave:
+    /// the core ran the same code just before); false: empty
+    pub icache_warm: bool,
     pub fetch_jump_ns: f64,
     /// cores sharing the SLC and DRAM (all cores run the same kernel on disjoint data)
     pub active_cores: f64,
@@ -1476,6 +1481,11 @@ pub struct MemModel {
     /// dispatch just before, and small enough): first touches hit the SLC instead of DRAM. agx_dispatch sets it
     /// when the estimated GPU-wide footprint fits `slc_bytes`.
     pub resident_slc: bool,
+    /// with `resident_slc`: the fraction of the dispatch's lines found in the SLC (1: all)
+    pub slc_resident_frac: f64,
+    /// with `first_touch_dram`: the fraction of a wave's first touches that are new to the whole dispatch (the rest
+    /// were read by earlier waves or other cores and are in the SLC); 1: all
+    pub first_touch_frac: f64,
     /// with `warm`: replay only these segments (a later wave finds in the caches what the first wave also touched,
     /// not its own new data; `Launch::partial_warm`); None: all of the wave's
     pub warm_only: Option<std::sync::Arc<std::collections::HashSet<u64>>>,
@@ -1508,6 +1518,8 @@ impl Default for MemModel {
             fetch_line_ns: 0.0,
             icache_bytes: 0,
             icache_lines: 0,
+            icache_victims: 1,
+            icache_warm: false,
             fetch_jump_ns: 0.0,
             clock_mhz: 1398.0,
             active_cores: 38.0,
@@ -1531,6 +1543,8 @@ impl Default for MemModel {
             warm: true,
             sharing: 0.0,
             resident_slc: false,
+            slc_resident_frac: 1.0,
+            first_touch_frac: 1.0,
             warm_only: None,
             first_touch_dram: false,
             atomic_min: 6.9,
@@ -1574,6 +1588,9 @@ type SegBuild = std::hash::BuildHasherDefault<SegHash>;
 /// (head = least recent), so a touch is O(1). Evicts exactly as an order-by-last-touch map would.
 struct Lru {
     cap: usize,
+    /// evict one of the `victims` least recently used lines, chosen pseudo-randomly (1: strict LRU)
+    victims: usize,
+    rng: u64,
     at: HashMap<u64, u32, SegBuild>,
     /// slot: (segment, previous (less recent), next (more recent)); NIL ends the list
     slot: Vec<(u64, u32, u32)>,
@@ -1586,7 +1603,7 @@ const NIL: u32 = u32::MAX;
 
 impl Lru {
     fn new(bytes: usize) -> Self {
-        Lru { cap: (bytes / 64).max(1), at: HashMap::default(), slot: Vec::new(), free: Vec::new(), head: NIL, tail: NIL }
+        Lru { cap: (bytes / 64).max(1), victims: 1, rng: 0x9E37_79B9_7F4A_7C15, at: HashMap::default(), slot: Vec::new(), free: Vec::new(), head: NIL, tail: NIL }
     }
     fn contains(&self, s: u64) -> bool {
         self.at.contains_key(&s)
@@ -1623,7 +1640,16 @@ impl Lru {
         self.at.insert(s, i);
         self.push_tail(i);
         if self.at.len() > self.cap {
-            let h = self.head;
+            let mut h = self.head;
+            if self.victims > 1 {
+                // xorshift64: a fixed sequence, so a launch's prediction is reproducible
+                self.rng ^= self.rng << 13;
+                self.rng ^= self.rng >> 7;
+                self.rng ^= self.rng << 17;
+                for _ in 0..self.rng % self.victims.min(self.cap) as u64 {
+                    h = self.slot[h as usize].2;
+                }
+            }
             self.unlink(h);
             self.at.remove(&self.slot[h as usize].0);
             self.free.push(h);
@@ -1690,7 +1716,17 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
     // untaken one does at 40 groups per core (2026-10-23 k_ifk probes: 580-595 cycles per 8 if-skips per group
     // either way, novel-results/2026-10-23-geekbench-captures)
     let code_bytes = instrs.iter().map(|i| i.pc + i.size).max().unwrap_or(0);
-    let br_fwd_sched = if code_bytes > FETCH_BOUND_CODE_BYTES {
+    // The fetch-bound case is about the code the groups run, not the program's size: hybridsort's mergeSortFirst
+    // (28 KB of code, tex1Dfetch emulation, 4.6 KB executed) was +39% with the hold on every if-skip; 72 lines
+    // stay cached. AGX_BR_FWD_EXEC=0: the program's size decides (round 3)
+    let run_bytes = if std::env::var("AGX_BR_FWD_EXEC").map_or(true, |v| v != "0") && code_bytes > FETCH_BOUND_CODE_BYTES {
+        let lines: std::collections::HashSet<usize> = seqs_pcs.iter().flat_map(|q| q.iter().map(|&pc| pc >> 6)).collect();
+        lines.len() * 64
+    } else {
+        code_bytes
+    };
+    let fetch_bound = std::env::var("AGX_FETCH_BOUND_BYTES").ok().and_then(|v| v.parse().ok()).unwrap_or(FETCH_BOUND_CODE_BYTES);
+    let br_fwd_sched = if run_bytes > fetch_bound {
         tk(p.cal_f("branch_forward_sched_real", 33.0))
     } else {
         tk(std::env::var("AGX_BR_FWD_CACHED").ok().and_then(|v| v.parse::<f64>().ok())
@@ -1706,6 +1742,19 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
     let quiet_dstore = tk(p.quiet_device_store);
     let tg_lat0 = tk(p.tg_load_lat.0);
     let tg_issue0 = tk(p.tg_load_issue);
+    // threadgroup loads hold their SIMD group's issue (scripts/probe_tg_alu.py, M2 Max 2026-11-07; playground
+    // novel-results/2026-11-07-tg-load-issue-hold): 24 real cycles per load with an immediate base, 28 with a register
+    // base, whatever follows; a load after ALU work issues only after the quiet time (the group waits, it is not only
+    // latency), so ALU instructions between threadgroup loads cost ~21 cycles per run. AGX_TG_ISSUE_REAL=0 restores the
+    // earlier model (21-unit issue interval, quiet time charged to the result only); AGX_TG_ISSUE_REG_REAL sets the
+    // register-base extra.
+    let tg_block: Option<i64> = match std::env::var("AGX_TG_ISSUE_REAL").ok().and_then(|v| v.parse::<f64>().ok()) {
+        Some(c) if c <= 0.0 => None,
+        Some(c) => Some(tk(c)),
+        None => Some(tk(p.cal_f("tg_load_hold_real", 24.0))),
+    };
+    let tg_block_reg: i64 = tk(std::env::var("AGX_TG_ISSUE_REG_REAL").ok().and_then(|v| v.parse::<f64>().ok())
+        .unwrap_or_else(|| p.cal_f("tg_load_hold_reg_extra_real", 4.0)));
     let load_fast = tk(p.load_fast);
     let load_ii = tk(p.load_ii);
     let space_switch = tk(p.space_switch);
@@ -1912,7 +1961,8 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
         /// `first_touch_dram`: segments this dispatch has touched, and per access (group, index) how many of its
         /// lines were first touches (an access is re-evaluated while it waits for its buckets)
         seen: std::collections::HashSet<u64>,
-        first: HashMap<(usize, usize), f64>,
+        first_frac: f64,
+        first: HashMap<(usize, usize), (f64, f64)>,
     }
     // AGX_CHARGE_WRITEBACK=1: a store also takes DRAM bandwidth for its lines when the working set does not fit the
     // SLC, even if they were just loaded (the dirty lines must be written back). Off by default: no hardware data
@@ -1964,6 +2014,7 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
             cap,
             extra: [0, tk(m.l2_extra), ns(m.slc_ns), ns(m.dram_ns)],
             first_extra: ns(m.first_touch_ns),
+            first_frac: m.first_touch_frac,
             inflight: Default::default(),
             cur: vec![0; groups],
             l1_free: [0, 0],
@@ -2002,6 +2053,11 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
             // -50% on dependent chains)
             let to_l2 = mm.first_touch_dram && std::env::var("AGX_FIRST_TOUCH_L2").is_ok_and(|v| v == "1");
             for &sg in &distinct {
+                // (a footprint in the SLC's smooth transition: this fraction of the lines is still there)
+                if mm.slc_resident_frac < 1.0
+                    && (sg.wrapping_mul(0x9E37_79B9_7F4A_7C15) >> 11) as f64 / (1u64 << 53) as f64 >= mm.slc_resident_frac {
+                    continue;
+                }
                 m.slc.touch(sg);
                 if to_l2 {
                     m.l2.touch(sg);
@@ -2155,7 +2211,19 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
     let mut fetch_free = 0i64;
     // instruction cache with refetch (MemModel::icache_lines): its lines, and the jump-target miss cost
     let (mut icache, fetch_jump) = match mem {
-        Some((_, m)) if m.icache_lines > 0 && fetch_line > 0 => (Some(Lru::new(m.icache_lines * 64)), tk(m.fetch_jump_ns * CYCLES_PER_NS)),
+        Some((_, m)) if m.icache_lines > 0 && fetch_line > 0 => {
+            let mut c = Lru::new(m.icache_lines * 64);
+            c.victims = std::env::var("AGX_ICACHE_VICTIMS").ok().and_then(|v| v.parse().ok()).unwrap_or(m.icache_victims).max(1);
+            if m.icache_warm {
+                // the previous workgroups on this core ran the same code: the cache holds what their pass left
+                for p in seqs_pcs.iter() {
+                    for &pc in p.iter() {
+                        c.touch((pc >> FETCH_LINE_SHIFT) as u64);
+                    }
+                }
+            }
+            (Some(c), tk(m.fetch_jump_ns * CYCLES_PER_NS))
+        }
         _ => (None, 0),
     };
     // with it, the core's taken-jump structure: 32 entries (by target), a taken jump to a cached line that has none
@@ -2571,9 +2639,11 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
             // better (tgcheck.py: median error 41% -> 31% with AGX_TG_CORE_LOAD=1.5) but not the stored in-shader
             // per-step measurements (tg.json: 29.5%), which keep ~31 cycles per step per group at 32 groups while the
             // dispatch takes twice as long: not all 32 groups seem to progress at once.
-            if let (Some(m), false, true) = (ms.as_mut(), msk, tg_gate) {
+            // With the issue hold (tg_block) a load waits only for the core's pipeline: its own group is already held.
+            let blocked_load = tg_block.is_some() && r.kind == Kind::Load;
+            if let (Some(m), false, true) = (ms.as_mut(), msk, tg_gate || blocked_load) {
                 if r.tg_name && r.barrier == 0 && !r.atomic && matches!(r.kind, Kind::Load | Kind::Store) && !memv.is_empty() {
-                    let until = m.tg_group_free[gi].max(m.tg_free);
+                    let until = if blocked_load { m.tg_free } else { m.tg_group_free[gi].max(m.tg_free) };
                     if until > t {
                         ff_ok = false;
                         wake!(until);
@@ -2640,16 +2710,35 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
                         let mut lat_extra = if store { 0 } else { m.extra[level] };
                         if first_touch_dram && need[2] + need[3] > 0.0 {
                             let key = (gi, m.cur[gi]);
-                            let first = match m.first.get(&key) {
+                            let (first_any, first) = match m.first.get(&key) {
                                 Some(&f) => f,
                                 None => {
-                                    let f = segs.iter().filter(|&&sg| m.seen.insert(sg)).count() as f64;
-                                    m.first.insert(key, f);
-                                    f
+                                    // (`first_frac` < 1: only the hashed fraction of the first touches is new to the
+                                    // dispatch and goes at the DRAM rate; all of them still wait the first-touch latency)
+                                    let ff = m.first_frac;
+                                    let mut any = 0.0;
+                                    let mut new = 0.0;
+                                    for &sg in segs.iter() {
+                                        if m.seen.insert(sg) {
+                                            any += 1.0;
+                                            if ff >= 1.0 || ((sg ^ 0x5bd1_e995).wrapping_mul(0xC2B2_AE3D_27D4_EB4F) >> 11) as f64 / ((1u64 << 53) as f64) < ff {
+                                                new += 1.0;
+                                            }
+                                        }
+                                    }
+                                    m.first.insert(key, (any, new));
+                                    (any, new)
                                 }
                             };
-                            if first > 0.0 && level == 2 && !store {
+                            static FTF_LAT_ALL: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+                            let lat_all = *FTF_LAT_ALL.get_or_init(|| std::env::var("AGX_FIRST_TOUCH_FRAC").is_ok_and(|v| v == "2"));
+                            static FTF_SHARED_L2: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+                            let shared_l2 = *FTF_SHARED_L2.get_or_init(|| std::env::var("AGX_FIRST_TOUCH_FRAC").map_or(true, |v| v == "3"));
+                            if (if lat_all { first_any } else { first }) > 0.0 && level == 2 && !store {
                                 lat_extra = m.first_extra;
+                            } else if shared_l2 && first_any > 0.0 && level == 2 && !store {
+                                // (experiment: lines other cores or earlier waves read in this dispatch: GPU-wide L2)
+                                lat_extra = m.extra[1];
                             }
                             let from_slc = first.min(need[3]);
                             let from_l2 = (first - from_slc).min(need[2]);
@@ -2933,12 +3022,13 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
                 }
                 Kind::Load => {
                     let tgop = r.tgop;
-                    let mut delay = (last_alu[gi] + if tgop { quiet_tg } else { quiet_load } - t).max(0);
+                    let q = if tgop { quiet_tg } else { quiet_load };
+                    let mut delay = (last_alu[gi] + q - t).max(0);
                     let lat;
                     let mut iiv;
                     if tgop {
                         lat = delay + tg_lat0 + mem_extra;
-                        iiv = tg_issue0;
+                        iiv = match tg_block { Some(b) => delay + b + if r.src.is_empty() { 0 } else { tg_block_reg }, None => tg_issue0 };
                     } else {
                         if alu_since_mem[gi] && !(pending[gi].is_empty() && settled[gi].is_empty()) {
                             // waits until the pending loads have passed the L1, not until they complete

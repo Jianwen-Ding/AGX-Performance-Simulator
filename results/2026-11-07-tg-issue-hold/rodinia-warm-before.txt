@@ -1,0 +1,34 @@
+== b+tree
+== backprop
+== bfs
+_Z6KernelP4NodePiPbS2_S2_S1_i  hw     119.8 us (n     0, captured     331.2)  sim      33.3 us  err   -72%   wgs/core 52 waves 13
+_Z7Kernel2PbS_S_S_i            hw     147.7 us (n     0, captured     426.8)  sim      31.6 us  err   -79%   wgs/core 52 waves 9
+launches 2  median |err| 75%  within 10%: 0  within 25%: 0
+== gaussian
+_Z4Fan1PfS_ii                  hw      35.2 us (n     0, captured      72.2)  sim      11.3 us  err   -68%   wgs/core 1 waves 1
+_Z4Fan2PfS_S_iii               hw      19.4 us (n     0, captured      16.4)  sim      11.8 us  err   -39%   wgs/core 1 waves 1
+_Z4Fan1PfS_ii                  hw      35.2 us (n     0, captured      72.2)  sim      11.3 us  err   -68%   wgs/core 1 waves 1
+_Z4Fan2PfS_S_iii               hw      19.4 us (n     0, captured      16.4)  sim      11.8 us  err   -39%   wgs/core 1 waves 1
+launches 4  median |err| 54%  within 10%: 0  within 25%: 0
+== heartwall
+== hotspot
+== hotspot3D
+== lud
+_Z12lud_diagonalPfii           hw      44.4 us (n     0, captured     128.5)  sim      36.2 us  err   -18%   wgs/core 1 waves 1
+_Z13lud_perimeterPfii          hw      34.9 us (n     0, captured      96.2)  sim      28.4 us  err   -19%   wgs/core 1 waves 1
+_Z12lud_internalPfii           hw       6.6 us (n     0, captured      10.8)  sim       5.2 us  err   -22%   wgs/core 6 waves 1
+launches 3  median |err| 19%  within 10%: 0  within 25%: 3
+== nn
+== nw
+== particlefilter
+_Z17likelihood_kernelPdS_S_S_S_PiS0_S_PhS_S_iiiiiiS0_S_ hw     601.0 us (n     0, captured    1541.9)  sim     785.0 us  err   +31%   wgs/core 1 waves 1
+_Z10sum_kernelPdi              hw      13.6 us (n     0, captured      12.6)  sim       6.5 us  err   -52%   wgs/core 1 waves 1
+_Z24normalize_weights_kernelPdiS_S_S_Pi hw     274.8 us (n     0, captured     845.8)  sim     259.5 us  err    -6%   wgs/core 1 waves 1
+_Z17find_index_kernelPdS_S_S_S_S_S_i hw     110.1 us (n     0, captured     341.8)  sim      78.4 us  err   -29%   wgs/core 1 waves 1
+launches 4  median |err| 30%  within 10%: 1  within 25%: 1
+== pathfinder
+_Z14dynproc_kerneliPiS_S_iiii  hw     214.5 us (n     0, captured     589.8)  sim     150.2 us  err   -30%   wgs/core 13 waves 3
+launches 1  median |err| 30%  within 10%: 0  within 25%: 0
+== srad_srad_v2
+== streamcluster
+finished

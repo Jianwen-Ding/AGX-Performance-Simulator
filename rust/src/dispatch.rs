@@ -47,16 +47,24 @@ pub struct Launch {
     /// commands: straight-line code 294 -> 4134 bytes, +6.25 us, playground novel-results/2026-11-01-code-fetch)
     pub fetch_line_ns: f64,
     /// stack (scratch) per thread the kernel uses, and the fixed cost of a command whose kernel has one (the scratch
-    /// set up by the launch's helper program: 0 in the drm profile; 7.5 us for zluda_agx's, an empty kernel over 38 to
+    /// set up by the launch's helper program: 0 in the drm profile; 5.0 us for zluda_agx's: real one-group stack kernels
+    /// take 7.7-8.9 us in all at a warm clock (results/2026-11-07-stack-slots), while an empty kernel over 38 to
     /// 15,200 workgroups +7.1-8.1 us with --stack 64, playground novel-results/2026-11-01-stack-launch)
     pub stack_bytes: u32,
     pub stack_launch_ns: f64,
+    /// per SIMD-group slot of the busiest core that a stack-using kernel occupies in a command (resident workgroups x
+    /// groups): the first stack use of each slot costs this, one slot at a time per core, before its group runs (bfs
+    /// Kernel2 at 1-1954 workgroups of 512 threads: +1.0-1.3 us per slot up to the 96 resident; 0 in the drm profile;
+    /// zluda 1150 ns; results/2026-11-07-stack-slots). AGX_STACK_SLOT_NS overrides
+    pub stack_slot_ns: f64,
     /// instruction-cache refetch for kernels whose executed code exceeds the cache: when a wave's distinct 64-byte
     /// lines exceed `icache_lines`, the simulation fetches through a per-core LRU of that many lines (a fall-through
     /// miss `refetch_line_ns`, a taken jump's `fetch_jump_ns`, the group waiting) in place of `fetch_line_ns` per
     /// distinct line. 0: off (drm profile). zluda: 168 lines (12 KiB with the 8-byte-crossing loss of 6-byte streams,
     /// playground novel-results/2026-10-20-icache), 64 / 200 ns (2026-11-07-uncached-jump-fetch). AGX_ICACHE_LINES overrides
     pub icache_lines: usize,
+    /// the instruction cache's replacement: one of this many least recently used lines (`cost::MemModel::icache_victims`)
+    pub icache_victims: usize,
     pub refetch_line_ns: f64,
     pub fetch_jump_ns: f64,
     /// GPU-wide store bandwidth (GB/s), a floor on the time of a dispatch's writes (0: none, the drm profile): stores
@@ -82,6 +90,9 @@ pub struct Launch {
     pub clusters: Vec<u32>,
     pub uniforms: Vec<(usize, u32)>,
     pub mem: bool,
+    /// the buffers the launch's memory maps (start, bytes), when known (agx_dispatch --map): the GPU-wide footprint
+    /// estimate of each is capped at its size
+    pub regions: Vec<(u64, u64)>,
     /// effective DRAM bandwidth of a whole dispatch (GB/s): 360 fits the streaming and reduction dispatches;
     /// steady per-core streaming (mem_probes) reaches ~410
     pub dram_gbps: f64,
@@ -108,7 +119,9 @@ impl Default for Launch {
             fetch_line_ns: 0.0,
             stack_bytes: 0,
             stack_launch_ns: 0.0,
+            stack_slot_ns: 0.0,
             icache_lines: 0,
+            icache_victims: 1,
             refetch_line_ns: 64.0,
             fetch_jump_ns: 200.0,
             store_gbps: 0.0,
@@ -119,6 +132,7 @@ impl Default for Launch {
             clusters: vec![10, 9, 9, 10],
             uniforms: vec![],
             mem: true,
+            regions: Vec::new(),
             dram_gbps: std::env::var("AGX_DRAM_GBPS").ok().and_then(|v| v.parse().ok()).unwrap_or(360.0),
             max_waves: 8,
             max_steps: 20_000_000,
@@ -270,7 +284,47 @@ pub fn simulate(code: &[u8], l: &Launch, p: &Params) -> Result<Report, String> {
 }
 
 /// `simulate` with the SIMD groups' paths from `tracer` (None: `cost::trace_group`).
+///
+/// A grid of at most one workgroup per core ends with its slowest workgroup, which need not be the first: every
+/// workgroup is simulated (each alone on its core) and the slowest sets the time. Rodinia particlefilter's `kernel`
+/// (8 x 128 threads, each searching the CDF for its particle: thread i loops ~i times) ran 88 us on the GPU while its
+/// first workgroup alone takes 13 us. AGX_ALL_WGS=0 simulates the first workgroup only.
 pub fn simulate_with(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer>) -> Result<Report, String> {
+    let Geometry { workgroups: n, .. } = l.geometry()?;
+    let (_, r) = occupancy(l);
+    let cores = l.cores as u64;
+    let one_per_core = l.busiest_core_wgs_override.is_none() && r > 0 && cores > 0 && n > 1 && n <= cores
+        && busiest_core_wgs(n, l) <= 1 && std::env::var("AGX_ALL_WGS").map_or(true, |v| v != "0");
+    // Likewise a grid that is resident all at once (one wave) ends with its slowest core: each core's workgroups
+    // (off, off + cores, ...) are simulated and the slowest core sets the time. Cycles' intersect_closest (330 x 64
+    // threads, BVH traversal): 325-386 us over the cores, 335 for core 0. AGX_ALL_CORES=0: core 0 only.
+    let one_wave = l.busiest_core_wgs_override.is_none() && r > 0 && cores > 1 && n > cores
+        && n.div_ceil(cores) <= r as u64 && std::env::var("AGX_ALL_CORES").map_or(true, |v| v != "0");
+    if !one_per_core && !one_wave {
+        let off = std::env::var("AGX_CORE_OFF").ok().and_then(|v| v.parse().ok()).unwrap_or(0);
+        return simulate_core(code, l, p, tracer, off);
+    }
+    // one core at a time (each simulation is parallel inside; 38 at once ran the host out of memory on heartwall).
+    // The cores are sampled evenly by cost: about 2e7 simulated core cycles in all (heartwall, 15M cycles per core,
+    // 60 s of simulation each: 2 cores; intersect_closest, 0.47M: all 38). AGX_CORE_CYCLE_BUDGET overrides.
+    let first = simulate_core(code, l, p, tracer, 0)?;
+    let budget = std::env::var("AGX_CORE_CYCLE_BUDGET").ok().and_then(|v| v.parse::<f64>().ok()).unwrap_or(2e7);
+    let k = n.min(cores);
+    let samples = ((budget / first.core_cycles.max(1.0)) as u64).clamp(2, k);
+    let offs: Vec<u64> = (1..samples).map(|j| j * k / samples).filter(|&o| o > 0).collect();
+    let reps = std::iter::once(Ok(first)).chain(offs.iter().map(|&off| simulate_core(code, l, p, tracer, off)));
+    let mut best: Option<Report> = None;
+    for rep in reps {
+        let rep = rep?;
+        if best.as_ref().map_or(true, |b| rep.time_ns > b.time_ns) {
+            best = Some(rep);
+        }
+    }
+    Ok(best.unwrap())
+}
+
+/// `simulate_with` for the busiest core holding workgroups off, off + cores, ... (off < cores)
+fn simulate_core(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer>, core_off: u64) -> Result<Report, String> {
     let Geometry { dims, workgroups: n, threads } = l.geometry()?;
     let ins = cost::decode(code, p)?;
     let prepared = tracer.is_none().then(|| cost::PreparedTrace::new(code));
@@ -320,7 +374,7 @@ pub fn simulate_with(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer
             let k = if l.busiest_core_wgs_override.is_some() {
                 (((first + i) as u128 * n as u128) / m as u128) as u64
             } else {
-                (first + i).saturating_mul(cores).min(n - 1)
+                (first + i).saturating_mul(cores).saturating_add(core_off).min(n - 1)
             };
             wg_coords(k)
         };
@@ -395,7 +449,21 @@ pub fn simulate_with(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer
                 }
             }
         }
-        let footprint = distinct.len() as f64 * 64.0 * (m as f64 / count.max(1) as f64) * cores.min(n) as f64;
+        let scale = (m as f64 / count.max(1) as f64) * cores.min(n) as f64;
+        let footprint = distinct.len() as f64 * 64.0 * scale;
+        let mut region_lines: Vec<u64> = vec![];
+        if !l.regions.is_empty() {
+            // a buffer's lines cannot exceed the buffer: workgroups whose tiles overlap (halos, a downsampling
+            // kernel's 2x2 reads, Halide's local_laplacian gPyramid2: 70 MiB estimated for 15.6 MiB of buffers) count
+            // shared lines once per workgroup otherwise. Lines outside every region are scaled as before.
+            let mut per = vec![0u64; l.regions.len() + 1];
+            for &sg in &distinct {
+                let a = sg << 6;
+                let k = l.regions.iter().position(|&(b, len)| a >= b && a < b + len).unwrap_or(l.regions.len());
+                per[k] += 1;
+            }
+            region_lines = per;
+        }
         if w == 0 && l.store_gbps > 0.0 {
             let mut stored: std::collections::HashSet<u64> = Default::default();
             for t in &traces {
@@ -410,7 +478,11 @@ pub fn simulate_with(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer
         // data shared between cores: mean overlap of this core's lines with workgroups on other cores
         let mut sharing = 0.0;
         if l.mem && n > 1 {
-            let others: Vec<u64> = [1u64, 2, cores / 2, cores - 1].iter().copied().filter(|&k| k < n && k > 0).collect();
+            // (workgroups of this wave on other cores: the wave's first one on this core is (w r) cores + core_off.
+            // Comparing a later wave with the grid's first workgroups found no sharing and doubled the footprint
+            // estimate of Halide's stencil_chain stages from wave 1 on: 29.5 MiB against 18 MiB of buffers)
+            let k0 = (w * r as u64).saturating_mul(cores).saturating_add(core_off);
+            let others: Vec<u64> = [1u64, 2, cores / 2, cores - 1].iter().map(|&d| k0 + d).filter(|&k| k < n && k > 0).collect();
             // the other workgroups are traced and compared independently: concurrently, summed in the same order
             let ovs: Vec<f64> = match tracer {
                 Some(t) => crate::par::map(&others, |&k| t(wg_coords(k)).map(|tr| cost::segment_overlap(&traces, &tr, &device_pcs)))
@@ -443,12 +515,24 @@ pub fn simulate_with(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer
                 let mut share = 1.0;
                 if l.mem && n > 1 && std::env::var("AGX_DRAM_SHARE").map_or(true, |v| v != "0") {
                     let k0 = n / 2;
+                    // A contiguous run of `block` workgroups from mid-grid (they run at about the same time GPU-wide): a
+                    // line that several of them read is fetched once, so the share is their distinct lines over the sum
+                    // of each one's. The neighbours-only estimate (x +-1, y +-1; AGX_DRAM_SHARE_BLOCK=0) missed lines
+                    // shared further away (Halide's 2x2 downsampling with halos, pyramid levels in y or z): local_laplacian
+                    // gPyramid2 +33% -> +6%, f5 +54 -> +15%, 41 of 162 held-out launches better, 11 worse
+                    // (results/2026-11-07-held-out)
+                    let block: u64 = std::env::var("AGX_DRAM_SHARE_BLOCK").ok().and_then(|v| v.parse().ok()).unwrap_or(256);
                     let mut ks = vec![k0];
+                    if block > 1 {
+                        let start = (n / 2).saturating_sub(block / 2);
+                        ks = (start..(start + block).min(n)).collect();
+                    } else {
                     for d in [1u64, dims[0]] {
                         if k0 >= d { ks.push(k0 - d); }
                         if k0 + d < n { ks.push(k0 + d); }
                     }
                     ks.dedup();
+                    }
                     let trace_wg = |k: u64| -> Result<Vec<Trace>, String> {
                         match tracer {
                             Some(t) => t(wg_coords(k)),
@@ -477,7 +561,11 @@ pub fn simulate_with(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer
                             set
                         })
                         .collect();
-                    if !sets[0].is_empty() && sets.len() > 1 {
+                    if block > 1 {
+                        let sum: usize = sets.iter().map(|x| x.len()).sum();
+                        let union: std::collections::HashSet<u64> = sets.iter().flatten().copied().collect();
+                        if sum > 0 { share = union.len() as f64 / sum as f64; }
+                    } else if !sets[0].is_empty() && sets.len() > 1 {
                         share = sets[0].iter().map(|sg| 1.0 / (1.0 + sets[1..].iter().filter(|o| o.contains(sg)).count() as f64)).sum::<f64>()
                             / sets[0].len() as f64;
                     }
@@ -487,8 +575,46 @@ pub fn simulate_with(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer
             cached.unwrap()
         };
         // with sharing, the GPU-wide footprint is smaller than this core's x active cores
-        let footprint = footprint / (1.0 + (cores.min(n) as f64 - 1.0) * sharing);
-        let mm = MemModel { resident_slc: footprint <= mm.slc_bytes as f64, sharing, dram_share, ..mm.clone() };
+        let shared_by = 1.0 + (cores.min(n) as f64 - 1.0) * sharing;
+        let footprint = if region_lines.is_empty() {
+            footprint / shared_by
+        } else {
+            region_lines.iter().enumerate().map(|(k, &c)| {
+                let est = c as f64 * 64.0 * scale / shared_by;
+                if k < l.regions.len() { est.min(l.regions[k].1 as f64) } else { est }
+            }).sum()
+        };
+        if std::env::var("AGX_DEBUG_FOOTPRINT").is_ok_and(|v| v == "1") {
+            eprintln!("wave {w}: footprint {:.1} MiB (uncapped {:.1}, slc {:.1} MiB) sharing {sharing:.2} dram_share {dram_share:.2}", footprint / 1048576.0, distinct.len() as f64 * 64.0 * scale / shared_by / 1048576.0, mm.slc_bytes as f64 / 1048576.0);
+        }
+        // The SLC holds a footprint up to ~14 MiB whole and none of one beyond ~30 MiB, smoothly in between (half-way
+        // ~21 MiB, playground novel-results/2026-10-18-slc): the fraction of lines still there falls linearly over
+        // 14-30 MiB. The step at slc_bytes (AGX_SLC_SMOOTH=0) sent waves of Halide's conv_layer whose footprint
+        // estimate straddled 19 MiB (9.8 / 19.6) to DRAM every other wave: 232k / 491k cycles.
+        let (resident, frac) = if std::env::var("AGX_SLC_SMOOTH").map_or(true, |v| v != "0") {
+            let mib = footprint / 1048576.0;
+            let h = ((30.0 - mib) / 16.0).clamp(0.0, 1.0);
+            (h > 0.0, h)
+        } else {
+            (footprint <= mm.slc_bytes as f64, 1.0)
+        };
+        // Of a wave's first touches (`first_touch_dram`) only the lines new to the whole dispatch go at the DRAM rate
+        // and wait the first-touch latency: the fraction is the estimated footprint (capped by the buffers) over the
+        // sum of every core's waves' lines, over the DRAM share (which already divides the rate). The others were read
+        // by other cores or earlier waves and wait L2 latency (the GPU-wide L2). Held-out set (159 launches without
+        // Cycles): median 9 -> 7%, within 10% 91 -> 111; Halide bilateral_grid +53 -> +27%, local_laplacian's
+        // pyramid levels +20-30% -> +-10%. AGX_FIRST_TOUCH_FRAC=0: every first touch is new (round 3); 1: the fraction
+        // without the L2 latency; 2: 1 with every first touch at the first-touch latency
+        let raw = distinct.len() as f64 * 64.0 * scale;
+        let first_touch_frac = if std::env::var("AGX_FIRST_TOUCH_FRAC").map_or(true, |v| v != "0") && raw > 0.0 {
+            (footprint / (raw * dram_share.clamp(0.05, 1.0))).clamp(0.0, 1.0)
+        } else {
+            1.0
+        };
+        if std::env::var("AGX_DEBUG_FOOTPRINT").is_ok_and(|v| v == "1") {
+            eprintln!("wave {w}: first_touch_frac {first_touch_frac:.3}");
+        }
+        let mm = MemModel { resident_slc: resident, slc_resident_frac: frac, sharing, dram_share, first_touch_frac, ..mm.clone() };
         // `later_waves_warm`: the waves after the first find their data in the caches when it fits the system-level
         // cache (what the first waves and their neighbours loaded); AGX_LATER_WAVES_WARM=1 / 0 forces it
         let warm_later = std::env::var("AGX_LATER_WAVES_WARM").map_or(l.later_waves_warm, |v| v == "1");
@@ -510,7 +636,9 @@ pub fn simulate_with(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer
             lines.len() > icache_lines
         } {
             refetched.store(true, std::sync::atomic::Ordering::Relaxed);
-            MemModel { icache_lines, fetch_line_ns: l.refetch_line_ns, fetch_jump_ns: l.fetch_jump_ns, icache_bytes: 0, ..mm }
+            // (a later wave's core has just run the same code: AGX_ICACHE_WARM=0 starts every wave with an empty cache)
+            let icache_warm = w > 0 && std::env::var("AGX_ICACHE_WARM").map_or(true, |v| v != "0");
+            MemModel { icache_lines, icache_victims: l.icache_victims, icache_warm, fetch_line_ns: l.refetch_line_ns, fetch_jump_ns: l.fetch_jump_ns, icache_bytes: 0, ..mm }
         } else {
             mm
         };
@@ -603,7 +731,18 @@ pub fn simulate_with(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer
     // ... but only partly: time = max + 0.3 min of the two (one thread, 32 dependent loads to new lines with 0-120 FMAs
     // of straight-line code after each: 0.27-0.34; playground novel-results/2026-11-01-fetch-overlap). The full overlap
     // fitted the Q8_0 kernel only while threadgroup loads were wrongly deferred. AGX_FETCH_OVERLAP overrides 0.3
-    let core_ns = total / l.clock_mhz * 1000.0;
+    let mut core_ns = total / l.clock_mhz * 1000.0;
+    if l.stack_bytes > 0 {
+        let slot_ns = std::env::var("AGX_STACK_SLOT_NS").ok().and_then(|v| v.parse::<f64>().ok()).unwrap_or(l.stack_slot_ns);
+        if slot_ns > 0.0 {
+            // the slots are set up one after the other before their groups run (the first one with the command's
+            // stack set-up), and the waves run after them
+            let slots = m.min(r as u64) as f64 * gpw as f64;
+            // (GPU work: measured at the top clock, 1398 MHz, and slower at a lower one; in-run gaussian Fan1, mostly
+            // slot set-up, takes 2.8x its warm time like the compute-bound launches)
+            core_ns += (slots - 1.0).max(0.0) * slot_ns * 1398.0 / l.clock_mhz;
+        }
+    }
     let fetch_part = std::env::var("AGX_FETCH_OVERLAP").ok().and_then(|v| v.parse::<f64>().ok()).unwrap_or(0.3) * core_ns.min(fetch_ns);
     rep.time_ns = (core_ns.max(fetch_ns) + fetch_part).max(rep.launch_core_ns).max(store_floor) + l.launch_ns + stack_ns + writes_ns;
     if !rep.time_ns.is_finite() { return Err("predicted time is non-finite for this launch".into()); }

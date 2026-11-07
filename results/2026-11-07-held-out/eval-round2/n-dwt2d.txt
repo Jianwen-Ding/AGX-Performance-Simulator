@@ -1,0 +1,2 @@
+_ZN8dwt_cuda12fdwt53KernelILi64ELi8EEEvPKiPiiii hw      17.3 us (n     0, captured      41.2)  sim      10.6 us  err   -39%   wgs/core 1 waves 1
+launches 1  median |err| 39%  within 10%: 0  within 25%: 0

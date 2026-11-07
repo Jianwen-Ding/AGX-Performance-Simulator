@@ -1,0 +1,6 @@
+_Z6kernelPdS_S_S_S_S_i         hw      88.3 us (n     0, captured      94.6)  sim      82.9 us  err    -6%   wgs/core 1 waves 1
+_Z17likelihood_kernelPdS_S_S_S_PiS0_S_PhS_S_iiiiiiS0_S_ hw     601.0 us (n     0, captured    1541.9)  sim     670.6 us  err   +12%   wgs/core 1 waves 1
+_Z10sum_kernelPdi              hw       6.8 us (n     0, captured      12.6)  sim       6.5 us  err    -4%   wgs/core 1 waves 1
+_Z24normalize_weights_kernelPdiS_S_S_Pi hw     274.8 us (n     0, captured     845.8)  sim     259.6 us  err    -6%   wgs/core 1 waves 1
+_Z17find_index_kernelPdS_S_S_S_S_S_i hw     110.1 us (n     0, captured     341.8)  sim      99.4 us  err   -10%   wgs/core 1 waves 1
+launches 5  median |err| 6%  within 10%: 4  within 25%: 5

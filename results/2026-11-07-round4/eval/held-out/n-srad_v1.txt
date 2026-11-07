@@ -1,0 +1,5 @@
+_Z4sradfiilPiS_S_S_PfS0_S0_S0_fS0_S0_ hw      83.2 us (n     0, captured     222.1)  sim      67.6 us  err   -19%   wgs/core 12 waves 6
+_Z5srad2fiilPiS_S_S_PfS0_S0_S0_S0_S0_ hw      40.7 us (n     0, captured     109.2)  sim      34.3 us  err   -16%   wgs/core 12 waves 6
+_Z6reduceliiPfS_               hw      28.5 us (n     0, captured      76.7)  sim      27.3 us  err    -4%   wgs/core 1 waves 1
+_Z7preparelPfS_S_              hw      10.1 us (n     0, captured      11.8)  sim      10.3 us  err    +2%   wgs/core 12 waves 2
+launches 4  median |err| 10%  within 10%: 2  within 25%: 4
