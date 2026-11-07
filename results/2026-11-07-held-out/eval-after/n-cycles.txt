@@ -1,3 +1,3 @@
-kernel_gpu_integrator_shade_surface hw     307.9 us (n     0, captured     823.7)  sim     232.9 us  err   -24%   wgs/core 10 waves 1
-kernel_gpu_integrator_intersect_closest hw     554.5 us (n     0, captured    1237.8)  sim     341.1 us  err   -38%   wgs/core 10 waves 1
+kernel_gpu_integrator_shade_surface hw     307.9 us (n     0, captured     823.7)  sim     237.5 us  err   -23%   wgs/core 10 waves 1
+kernel_gpu_integrator_intersect_closest hw     554.5 us (n     0, captured    1237.8)  sim     334.9 us  err   -40%   wgs/core 10 waves 1
 launches 2  median |err| 31%  within 10%: 0  within 25%: 1

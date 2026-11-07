@@ -1,3 +1,3 @@
 _Z6KernelP4NodePiPbS2_S2_S1_i  hw     119.8 us (n     0, captured     331.2)  sim     103.3 us  err   -14%   wgs/core 52 waves 13
-_Z7Kernel2PbS_S_S_i            hw     147.7 us (n     0, captured     426.8)  sim     138.4 us  err    -6%   wgs/core 52 waves 9
+_Z7Kernel2PbS_S_S_i            hw     147.7 us (n     0, captured     426.8)  sim     138.1 us  err    -7%   wgs/core 52 waves 9
 launches 2  median |err| 10%  within 10%: 1  within 25%: 2

@@ -1,3 +1,3 @@
-_kernel_relu_s0_y_y_o_block_id_z hw    4625.4 us (n     0, captured    4693.6)  sim    8226.9 us  err   +78%   wgs/core 34 waves 34
-_kernel_relu_s0_c_v10_v11_block_id_z hw    4054.4 us (n     0, captured    6124.2)  sim    4933.1 us  err   +22%   wgs/core 169 waves 15
-launches 2  median |err| 50%  within 10%: 0  within 25%: 1
+_kernel_relu_s0_y_y_o_block_id_z hw    4625.4 us (n     0, captured    4693.6)  sim    7023.1 us  err   +52%   wgs/core 34 waves 34
+_kernel_relu_s0_c_v10_v11_block_id_z hw    4054.4 us (n     0, captured    6124.2)  sim    4765.0 us  err   +18%   wgs/core 169 waves 15
+launches 2  median |err| 35%  within 10%: 0  within 25%: 1

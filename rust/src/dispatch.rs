@@ -90,6 +90,9 @@ pub struct Launch {
     pub clusters: Vec<u32>,
     pub uniforms: Vec<(usize, u32)>,
     pub mem: bool,
+    /// the buffers the launch's memory maps (start, bytes), when known (agx_dispatch --map): the GPU-wide footprint
+    /// estimate of each is capped at its size
+    pub regions: Vec<(u64, u64)>,
     /// effective DRAM bandwidth of a whole dispatch (GB/s): 360 fits the streaming and reduction dispatches;
     /// steady per-core streaming (mem_probes) reaches ~410
     pub dram_gbps: f64,
@@ -129,6 +132,7 @@ impl Default for Launch {
             clusters: vec![10, 9, 9, 10],
             uniforms: vec![],
             mem: true,
+            regions: Vec::new(),
             dram_gbps: std::env::var("AGX_DRAM_GBPS").ok().and_then(|v| v.parse().ok()).unwrap_or(360.0),
             max_waves: 8,
             max_steps: 20_000_000,
@@ -432,7 +436,21 @@ fn simulate_core(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer>, c
                 }
             }
         }
-        let footprint = distinct.len() as f64 * 64.0 * (m as f64 / count.max(1) as f64) * cores.min(n) as f64;
+        let scale = (m as f64 / count.max(1) as f64) * cores.min(n) as f64;
+        let footprint = distinct.len() as f64 * 64.0 * scale;
+        let mut region_lines: Vec<u64> = vec![];
+        if !l.regions.is_empty() {
+            // a buffer's lines cannot exceed the buffer: workgroups whose tiles overlap (halos, a downsampling
+            // kernel's 2x2 reads, Halide's local_laplacian gPyramid2: 70 MiB estimated for 15.6 MiB of buffers) count
+            // shared lines once per workgroup otherwise. Lines outside every region are scaled as before.
+            let mut per = vec![0u64; l.regions.len() + 1];
+            for &sg in &distinct {
+                let a = sg << 6;
+                let k = l.regions.iter().position(|&(b, len)| a >= b && a < b + len).unwrap_or(l.regions.len());
+                per[k] += 1;
+            }
+            region_lines = per;
+        }
         if w == 0 && l.store_gbps > 0.0 {
             let mut stored: std::collections::HashSet<u64> = Default::default();
             for t in &traces {
@@ -484,12 +502,24 @@ fn simulate_core(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer>, c
                 let mut share = 1.0;
                 if l.mem && n > 1 && std::env::var("AGX_DRAM_SHARE").map_or(true, |v| v != "0") {
                     let k0 = n / 2;
+                    // A contiguous run of `block` workgroups from mid-grid (they run at about the same time GPU-wide): a
+                    // line that several of them read is fetched once, so the share is their distinct lines over the sum
+                    // of each one's. The neighbours-only estimate (x +-1, y +-1; AGX_DRAM_SHARE_BLOCK=0) missed lines
+                    // shared further away (Halide's 2x2 downsampling with halos, pyramid levels in y or z): local_laplacian
+                    // gPyramid2 +33% -> +6%, f5 +54 -> +15%, 41 of 162 held-out launches better, 11 worse
+                    // (results/2026-11-07-held-out)
+                    let block: u64 = std::env::var("AGX_DRAM_SHARE_BLOCK").ok().and_then(|v| v.parse().ok()).unwrap_or(256);
                     let mut ks = vec![k0];
+                    if block > 1 {
+                        let start = (n / 2).saturating_sub(block / 2);
+                        ks = (start..(start + block).min(n)).collect();
+                    } else {
                     for d in [1u64, dims[0]] {
                         if k0 >= d { ks.push(k0 - d); }
                         if k0 + d < n { ks.push(k0 + d); }
                     }
                     ks.dedup();
+                    }
                     let trace_wg = |k: u64| -> Result<Vec<Trace>, String> {
                         match tracer {
                             Some(t) => t(wg_coords(k)),
@@ -518,7 +548,11 @@ fn simulate_core(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer>, c
                             set
                         })
                         .collect();
-                    if !sets[0].is_empty() && sets.len() > 1 {
+                    if block > 1 {
+                        let sum: usize = sets.iter().map(|x| x.len()).sum();
+                        let union: std::collections::HashSet<u64> = sets.iter().flatten().copied().collect();
+                        if sum > 0 { share = union.len() as f64 / sum as f64; }
+                    } else if !sets[0].is_empty() && sets.len() > 1 {
                         share = sets[0].iter().map(|sg| 1.0 / (1.0 + sets[1..].iter().filter(|o| o.contains(sg)).count() as f64)).sum::<f64>()
                             / sets[0].len() as f64;
                     }
@@ -528,7 +562,15 @@ fn simulate_core(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer>, c
             cached.unwrap()
         };
         // with sharing, the GPU-wide footprint is smaller than this core's x active cores
-        let footprint = footprint / (1.0 + (cores.min(n) as f64 - 1.0) * sharing);
+        let shared_by = 1.0 + (cores.min(n) as f64 - 1.0) * sharing;
+        let footprint = if region_lines.is_empty() {
+            footprint / shared_by
+        } else {
+            region_lines.iter().enumerate().map(|(k, &c)| {
+                let est = c as f64 * 64.0 * scale / shared_by;
+                if k < l.regions.len() { est.min(l.regions[k].1 as f64) } else { est }
+            }).sum()
+        };
         if std::env::var("AGX_DEBUG_FOOTPRINT").is_ok_and(|v| v == "1") {
             eprintln!("wave {w}: footprint {:.1} MiB (slc {:.1} MiB) sharing {sharing:.2} dram_share {dram_share:.2}", footprint / 1048576.0, mm.slc_bytes as f64 / 1048576.0);
         }

@@ -215,6 +215,7 @@ fn run_job(a: &[String], p: &Params) -> Result<serde_json::Value, String> {
             Buffer::File(x) => std::fs::read(&x).map_err(|e| format!("{}: {}", x, e))?,
             Buffer::Allocate(n) => vec![0; n],
         };
+        l.regions.push((va, bytes.len() as u64));
         mem.map(va, bytes);
     }
     let d = if functional {
