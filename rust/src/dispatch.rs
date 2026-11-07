@@ -295,11 +295,24 @@ pub fn simulate_with(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer
     let cores = l.cores as u64;
     let one_per_core = l.busiest_core_wgs_override.is_none() && r > 0 && cores > 0 && n > 1 && n <= cores
         && busiest_core_wgs(n, l) <= 1 && std::env::var("AGX_ALL_WGS").map_or(true, |v| v != "0");
-    if !one_per_core {
-        return simulate_core(code, l, p, tracer, 0);
+    // Likewise a grid that is resident all at once (one wave) ends with its slowest core: each core's workgroups
+    // (off, off + cores, ...) are simulated and the slowest core sets the time. Cycles' intersect_closest (330 x 64
+    // threads, BVH traversal): 325-386 us over the cores, 335 for core 0. AGX_ALL_CORES=0: core 0 only.
+    let one_wave = l.busiest_core_wgs_override.is_none() && r > 0 && cores > 1 && n > cores
+        && n.div_ceil(cores) <= r as u64 && std::env::var("AGX_ALL_CORES").map_or(true, |v| v != "0");
+    if !one_per_core && !one_wave {
+        let off = std::env::var("AGX_CORE_OFF").ok().and_then(|v| v.parse().ok()).unwrap_or(0);
+        return simulate_core(code, l, p, tracer, off);
     }
-    let offs: Vec<u64> = (0..n).collect();
-    let reps = crate::par::map(&offs, |&off| simulate_core(code, l, p, tracer, off));
+    // one core at a time (each simulation is parallel inside; 38 at once ran the host out of memory on heartwall).
+    // The cores are sampled evenly by cost: about 2e7 simulated core cycles in all (heartwall, 15M cycles per core,
+    // 60 s of simulation each: 2 cores; intersect_closest, 0.47M: all 38). AGX_CORE_CYCLE_BUDGET overrides.
+    let first = simulate_core(code, l, p, tracer, 0)?;
+    let budget = std::env::var("AGX_CORE_CYCLE_BUDGET").ok().and_then(|v| v.parse::<f64>().ok()).unwrap_or(2e7);
+    let k = n.min(cores);
+    let samples = ((budget / first.core_cycles.max(1.0)) as u64).clamp(2, k);
+    let offs: Vec<u64> = (1..samples).map(|j| j * k / samples).filter(|&o| o > 0).collect();
+    let reps = std::iter::once(Ok(first)).chain(offs.iter().map(|&off| simulate_core(code, l, p, tracer, off)));
     let mut best: Option<Report> = None;
     for rep in reps {
         let rep = rep?;
@@ -574,7 +587,18 @@ fn simulate_core(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer>, c
         if std::env::var("AGX_DEBUG_FOOTPRINT").is_ok_and(|v| v == "1") {
             eprintln!("wave {w}: footprint {:.1} MiB (slc {:.1} MiB) sharing {sharing:.2} dram_share {dram_share:.2}", footprint / 1048576.0, mm.slc_bytes as f64 / 1048576.0);
         }
-        let mm = MemModel { resident_slc: footprint <= mm.slc_bytes as f64, sharing, dram_share, ..mm.clone() };
+        // The SLC holds a footprint up to ~14 MiB whole and none of one beyond ~30 MiB, smoothly in between (half-way
+        // ~21 MiB, playground novel-results/2026-10-18-slc): the fraction of lines still there falls linearly over
+        // 14-30 MiB. The step at slc_bytes (AGX_SLC_SMOOTH=0) sent waves of Halide's conv_layer whose footprint
+        // estimate straddled 19 MiB (9.8 / 19.6) to DRAM every other wave: 232k / 491k cycles.
+        let (resident, frac) = if std::env::var("AGX_SLC_SMOOTH").map_or(true, |v| v != "0") {
+            let mib = footprint / 1048576.0;
+            let h = ((30.0 - mib) / 16.0).clamp(0.0, 1.0);
+            (h > 0.0, h)
+        } else {
+            (footprint <= mm.slc_bytes as f64, 1.0)
+        };
+        let mm = MemModel { resident_slc: resident, slc_resident_frac: frac, sharing, dram_share, ..mm.clone() };
         // `later_waves_warm`: the waves after the first find their data in the caches when it fits the system-level
         // cache (what the first waves and their neighbours loaded); AGX_LATER_WAVES_WARM=1 / 0 forces it
         let warm_later = std::env::var("AGX_LATER_WAVES_WARM").map_or(l.later_waves_warm, |v| v == "1");

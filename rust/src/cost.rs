@@ -1481,6 +1481,8 @@ pub struct MemModel {
     /// dispatch just before, and small enough): first touches hit the SLC instead of DRAM. agx_dispatch sets it
     /// when the estimated GPU-wide footprint fits `slc_bytes`.
     pub resident_slc: bool,
+    /// with `resident_slc`: the fraction of the dispatch's lines found in the SLC (1: all)
+    pub slc_resident_frac: f64,
     /// with `warm`: replay only these segments (a later wave finds in the caches what the first wave also touched,
     /// not its own new data; `Launch::partial_warm`); None: all of the wave's
     pub warm_only: Option<std::sync::Arc<std::collections::HashSet<u64>>>,
@@ -1538,6 +1540,7 @@ impl Default for MemModel {
             warm: true,
             sharing: 0.0,
             resident_slc: false,
+            slc_resident_frac: 1.0,
             warm_only: None,
             first_touch_dram: false,
             atomic_min: 6.9,
@@ -2034,6 +2037,11 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
             // -50% on dependent chains)
             let to_l2 = mm.first_touch_dram && std::env::var("AGX_FIRST_TOUCH_L2").is_ok_and(|v| v == "1");
             for &sg in &distinct {
+                // (a footprint in the SLC's smooth transition: this fraction of the lines is still there)
+                if mm.slc_resident_frac < 1.0
+                    && (sg.wrapping_mul(0x9E37_79B9_7F4A_7C15) >> 11) as f64 / (1u64 << 53) as f64 >= mm.slc_resident_frac {
+                    continue;
+                }
                 m.slc.touch(sg);
                 if to_l2 {
                     m.l2.touch(sg);
