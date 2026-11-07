@@ -143,7 +143,7 @@ fn run_job(a: &[String], p: &Params) -> Result<serde_json::Value, String> {
                     l.icache_lines = d.icache_lines;
                 }
                 "zluda" => {
-                    (l.launch_ns, l.wg_launch_ns, l.group_launch_ns, l.fetch_line_ns, l.stack_launch_ns, l.store_gbps, l.store_launch_ns, l.later_waves_warm, l.partial_warm, l.chain_waves) = (2300.0, 100.0, 3.2, 104.0, 7500.0, 365.0, 700.0, true, true, true);
+                    (l.launch_ns, l.wg_launch_ns, l.group_launch_ns, l.fetch_line_ns, l.stack_launch_ns, l.store_gbps, l.store_launch_ns, l.later_waves_warm, l.partial_warm, l.chain_waves) = (2300.0, 100.0, 3.2, 104.0, 5000.0, 365.0, 700.0, true, true, true);
                     l.stack_slot_ns = 1150.0;
                     // code beyond the instruction cache is fetched through it in the simulation (Launch::icache_lines)
                     l.icache_lines = 168;

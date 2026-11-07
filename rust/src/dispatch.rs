@@ -47,7 +47,8 @@ pub struct Launch {
     /// commands: straight-line code 294 -> 4134 bytes, +6.25 us, playground novel-results/2026-11-01-code-fetch)
     pub fetch_line_ns: f64,
     /// stack (scratch) per thread the kernel uses, and the fixed cost of a command whose kernel has one (the scratch
-    /// set up by the launch's helper program: 0 in the drm profile; 7.5 us for zluda_agx's, an empty kernel over 38 to
+    /// set up by the launch's helper program: 0 in the drm profile; 5.0 us for zluda_agx's: real one-group stack kernels
+    /// take 7.7-8.9 us in all at a warm clock (results/2026-11-07-stack-slots), while an empty kernel over 38 to
     /// 15,200 workgroups +7.1-8.1 us with --stack 64, playground novel-results/2026-11-01-stack-launch)
     pub stack_bytes: u32,
     pub stack_launch_ns: f64,
@@ -616,7 +617,9 @@ pub fn simulate_with(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer
             // the slots are set up one after the other before their groups run (the first one with the command's
             // stack set-up), and the waves run after them
             let slots = m.min(r as u64) as f64 * gpw as f64;
-            core_ns += (slots - 1.0).max(0.0) * slot_ns;
+            // (GPU work: measured at the top clock, 1398 MHz, and slower at a lower one; in-run gaussian Fan1, mostly
+            // slot set-up, takes 2.8x its warm time like the compute-bound launches)
+            core_ns += (slots - 1.0).max(0.0) * slot_ns * 1398.0 / l.clock_mhz;
         }
     }
     let fetch_part = std::env::var("AGX_FETCH_OVERLAP").ok().and_then(|v| v.parse::<f64>().ok()).unwrap_or(0.3) * core_ns.min(fetch_ns);
