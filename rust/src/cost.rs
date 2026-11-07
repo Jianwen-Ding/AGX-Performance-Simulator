@@ -1443,6 +1443,11 @@ pub struct MemModel {
     /// line costs `fetch_line_ns`, one reached by a taken jump, call or return `fetch_jump_ns` (playground
     /// novel-results/2026-11-07-uncached-jump-fetch); the group waits for it, other groups do not
     pub icache_lines: usize,
+    /// replacement among the `icache_victims` least recently used lines (pseudo-random; 1: strict LRU)
+    pub icache_victims: usize,
+    /// the instruction cache starts with the lines the simulated groups' own code paths leave in it (a later wave:
+    /// the core ran the same code just before); false: empty
+    pub icache_warm: bool,
     pub fetch_jump_ns: f64,
     /// cores sharing the SLC and DRAM (all cores run the same kernel on disjoint data)
     pub active_cores: f64,
@@ -1508,6 +1513,8 @@ impl Default for MemModel {
             fetch_line_ns: 0.0,
             icache_bytes: 0,
             icache_lines: 0,
+            icache_victims: 1,
+            icache_warm: false,
             fetch_jump_ns: 0.0,
             clock_mhz: 1398.0,
             active_cores: 38.0,
@@ -1574,6 +1581,9 @@ type SegBuild = std::hash::BuildHasherDefault<SegHash>;
 /// (head = least recent), so a touch is O(1). Evicts exactly as an order-by-last-touch map would.
 struct Lru {
     cap: usize,
+    /// evict one of the `victims` least recently used lines, chosen pseudo-randomly (1: strict LRU)
+    victims: usize,
+    rng: u64,
     at: HashMap<u64, u32, SegBuild>,
     /// slot: (segment, previous (less recent), next (more recent)); NIL ends the list
     slot: Vec<(u64, u32, u32)>,
@@ -1586,7 +1596,7 @@ const NIL: u32 = u32::MAX;
 
 impl Lru {
     fn new(bytes: usize) -> Self {
-        Lru { cap: (bytes / 64).max(1), at: HashMap::default(), slot: Vec::new(), free: Vec::new(), head: NIL, tail: NIL }
+        Lru { cap: (bytes / 64).max(1), victims: 1, rng: 0x9E37_79B9_7F4A_7C15, at: HashMap::default(), slot: Vec::new(), free: Vec::new(), head: NIL, tail: NIL }
     }
     fn contains(&self, s: u64) -> bool {
         self.at.contains_key(&s)
@@ -1623,7 +1633,16 @@ impl Lru {
         self.at.insert(s, i);
         self.push_tail(i);
         if self.at.len() > self.cap {
-            let h = self.head;
+            let mut h = self.head;
+            if self.victims > 1 {
+                // xorshift64: a fixed sequence, so a launch's prediction is reproducible
+                self.rng ^= self.rng << 13;
+                self.rng ^= self.rng >> 7;
+                self.rng ^= self.rng << 17;
+                for _ in 0..self.rng % self.victims.min(self.cap) as u64 {
+                    h = self.slot[h as usize].2;
+                }
+            }
             self.unlink(h);
             self.at.remove(&self.slot[h as usize].0);
             self.free.push(h);
@@ -2168,7 +2187,19 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
     let mut fetch_free = 0i64;
     // instruction cache with refetch (MemModel::icache_lines): its lines, and the jump-target miss cost
     let (mut icache, fetch_jump) = match mem {
-        Some((_, m)) if m.icache_lines > 0 && fetch_line > 0 => (Some(Lru::new(m.icache_lines * 64)), tk(m.fetch_jump_ns * CYCLES_PER_NS)),
+        Some((_, m)) if m.icache_lines > 0 && fetch_line > 0 => {
+            let mut c = Lru::new(m.icache_lines * 64);
+            c.victims = std::env::var("AGX_ICACHE_VICTIMS").ok().and_then(|v| v.parse().ok()).unwrap_or(m.icache_victims).max(1);
+            if m.icache_warm {
+                // the previous workgroups on this core ran the same code: the cache holds what their pass left
+                for p in seqs_pcs.iter() {
+                    for &pc in p.iter() {
+                        c.touch((pc >> FETCH_LINE_SHIFT) as u64);
+                    }
+                }
+            }
+            (Some(c), tk(m.fetch_jump_ns * CYCLES_PER_NS))
+        }
         _ => (None, 0),
     };
     // with it, the core's taken-jump structure: 32 entries (by target), a taken jump to a cached line that has none

@@ -1,0 +1,2 @@
+_Z11kmeansPointPfiiiPiS_S_S0_  hw   19083.8 us (n     0, captured   24691.2)  sim   23759.4 us  err   +25%   wgs/core 86 waves 43
+launches 1  median |err| 25%  within 10%: 0  within 25%: 1

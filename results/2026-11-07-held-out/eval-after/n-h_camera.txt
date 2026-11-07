@@ -1,0 +1,5 @@
+_kernel_curve_s0_v0_v0_block_id_x hw       3.8 us (n     0, captured       5.3)  sim       4.0 us  err    +5%   wgs/core 1 waves 1
+_kernel_f26_s0___outermost___outermost_v10_block_id_x hw       5.1 us (n     0, captured      10.1)  sim       5.1 us  err    -1%   wgs/core 1 waves 1
+_kernel_sharpen_strength_x32_s0___outermost___outermost_v13_block_id_x hw       2.6 us (n     0, captured       5.7)  sim       3.1 us  err   +20%   wgs/core 1 waves 1
+_kernel_processed_s0_v1_v1_block_id_y hw     581.0 us (n     0, captured    1778.8)  sim     646.1 us  err   +11%   wgs/core 194 waves 65
+launches 4  median |err| 8%  within 10%: 2  within 25%: 4

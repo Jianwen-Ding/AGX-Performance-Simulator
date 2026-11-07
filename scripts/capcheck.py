@@ -100,7 +100,15 @@ for d in sorted(os.listdir(a.captures)):
             gpu_safety.record(f'capcheck --hw {kernel}: {(hr.stdout + hr.stderr)[-120:] if "hr" in dir() else e}')
             print(f'{kernel:30s} HW FAILED {(hr.stdout + hr.stderr)[-200:] if "hr" in dir() else e}', flush=True); continue
     try:
-        r = subprocess.run(cmd, capture_output=True, text=True, cwd=p, timeout=a.timeout)
+        # A real program may read just outside its buffers (srad_cuda_1 reads 0x1c4 bytes below one): the GPU reads
+        # whatever page is there, the capture has no data for it. Map the missing 16 KB page as zeros and retry.
+        for _ in range(16):
+            # calls (Cycles): the measured return model, as predict_captures.py
+            r = subprocess.run(cmd, capture_output=True, text=True, cwd=p, timeout=a.timeout,
+                               env={'AGX_EXPERIMENTAL_RET': 'buffer-pop2', **os.environ})
+            um = re.search(r'unmapped address (0x[0-9a-f]+)', r.stdout + r.stderr)
+            if not um: break
+            cmd += ['--alloc', f'{int(um.group(1), 16) & ~0x3fff:#x}=16384']
         j = json.loads(r.stdout.strip().splitlines()[-1])
         sim = j.get('time_us')
     except Exception as e:

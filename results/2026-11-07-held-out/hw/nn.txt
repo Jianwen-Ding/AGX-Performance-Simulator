@@ -1,0 +1,2 @@
+_Z6euclidP7latLongPfiff        hw       5.3 us (n   500, captured      18.0)  sim       4.5 us  err   -14%   wgs/core 5 waves 1
+launches 1  median |err| 14%  within 10%: 0  within 25%: 1

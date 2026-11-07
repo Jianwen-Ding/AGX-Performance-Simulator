@@ -63,6 +63,8 @@ pub struct Launch {
     /// distinct line. 0: off (drm profile). zluda: 168 lines (12 KiB with the 8-byte-crossing loss of 6-byte streams,
     /// playground novel-results/2026-10-20-icache), 64 / 200 ns (2026-11-07-uncached-jump-fetch). AGX_ICACHE_LINES overrides
     pub icache_lines: usize,
+    /// the instruction cache's replacement: one of this many least recently used lines (`cost::MemModel::icache_victims`)
+    pub icache_victims: usize,
     pub refetch_line_ns: f64,
     pub fetch_jump_ns: f64,
     /// GPU-wide store bandwidth (GB/s), a floor on the time of a dispatch's writes (0: none, the drm profile): stores
@@ -116,6 +118,7 @@ impl Default for Launch {
             stack_launch_ns: 0.0,
             stack_slot_ns: 0.0,
             icache_lines: 0,
+            icache_victims: 1,
             refetch_line_ns: 64.0,
             fetch_jump_ns: 200.0,
             store_gbps: 0.0,
@@ -277,7 +280,34 @@ pub fn simulate(code: &[u8], l: &Launch, p: &Params) -> Result<Report, String> {
 }
 
 /// `simulate` with the SIMD groups' paths from `tracer` (None: `cost::trace_group`).
+///
+/// A grid of at most one workgroup per core ends with its slowest workgroup, which need not be the first: every
+/// workgroup is simulated (each alone on its core) and the slowest sets the time. Rodinia particlefilter's `kernel`
+/// (8 x 128 threads, each searching the CDF for its particle: thread i loops ~i times) ran 88 us on the GPU while its
+/// first workgroup alone takes 13 us. AGX_ALL_WGS=0 simulates the first workgroup only.
 pub fn simulate_with(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer>) -> Result<Report, String> {
+    let Geometry { workgroups: n, .. } = l.geometry()?;
+    let (_, r) = occupancy(l);
+    let cores = l.cores as u64;
+    let one_per_core = l.busiest_core_wgs_override.is_none() && r > 0 && cores > 0 && n > 1 && n <= cores
+        && busiest_core_wgs(n, l) <= 1 && std::env::var("AGX_ALL_WGS").map_or(true, |v| v != "0");
+    if !one_per_core {
+        return simulate_core(code, l, p, tracer, 0);
+    }
+    let offs: Vec<u64> = (0..n).collect();
+    let reps = crate::par::map(&offs, |&off| simulate_core(code, l, p, tracer, off));
+    let mut best: Option<Report> = None;
+    for rep in reps {
+        let rep = rep?;
+        if best.as_ref().map_or(true, |b| rep.time_ns > b.time_ns) {
+            best = Some(rep);
+        }
+    }
+    Ok(best.unwrap())
+}
+
+/// `simulate_with` for the busiest core holding workgroups off, off + cores, ... (off < cores)
+fn simulate_core(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer>, core_off: u64) -> Result<Report, String> {
     let Geometry { dims, workgroups: n, threads } = l.geometry()?;
     let ins = cost::decode(code, p)?;
     let prepared = tracer.is_none().then(|| cost::PreparedTrace::new(code));
@@ -327,7 +357,7 @@ pub fn simulate_with(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer
             let k = if l.busiest_core_wgs_override.is_some() {
                 (((first + i) as u128 * n as u128) / m as u128) as u64
             } else {
-                (first + i).saturating_mul(cores).min(n - 1)
+                (first + i).saturating_mul(cores).saturating_add(core_off).min(n - 1)
             };
             wg_coords(k)
         };
@@ -417,7 +447,11 @@ pub fn simulate_with(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer
         // data shared between cores: mean overlap of this core's lines with workgroups on other cores
         let mut sharing = 0.0;
         if l.mem && n > 1 {
-            let others: Vec<u64> = [1u64, 2, cores / 2, cores - 1].iter().copied().filter(|&k| k < n && k > 0).collect();
+            // (workgroups of this wave on other cores: the wave's first one on this core is (w r) cores + core_off.
+            // Comparing a later wave with the grid's first workgroups found no sharing and doubled the footprint
+            // estimate of Halide's stencil_chain stages from wave 1 on: 29.5 MiB against 18 MiB of buffers)
+            let k0 = (w * r as u64).saturating_mul(cores).saturating_add(core_off);
+            let others: Vec<u64> = [1u64, 2, cores / 2, cores - 1].iter().map(|&d| k0 + d).filter(|&k| k < n && k > 0).collect();
             // the other workgroups are traced and compared independently: concurrently, summed in the same order
             let ovs: Vec<f64> = match tracer {
                 Some(t) => crate::par::map(&others, |&k| t(wg_coords(k)).map(|tr| cost::segment_overlap(&traces, &tr, &device_pcs)))
@@ -495,6 +529,9 @@ pub fn simulate_with(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer
         };
         // with sharing, the GPU-wide footprint is smaller than this core's x active cores
         let footprint = footprint / (1.0 + (cores.min(n) as f64 - 1.0) * sharing);
+        if std::env::var("AGX_DEBUG_FOOTPRINT").is_ok_and(|v| v == "1") {
+            eprintln!("wave {w}: footprint {:.1} MiB (slc {:.1} MiB) sharing {sharing:.2} dram_share {dram_share:.2}", footprint / 1048576.0, mm.slc_bytes as f64 / 1048576.0);
+        }
         let mm = MemModel { resident_slc: footprint <= mm.slc_bytes as f64, sharing, dram_share, ..mm.clone() };
         // `later_waves_warm`: the waves after the first find their data in the caches when it fits the system-level
         // cache (what the first waves and their neighbours loaded); AGX_LATER_WAVES_WARM=1 / 0 forces it
@@ -517,7 +554,9 @@ pub fn simulate_with(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer
             lines.len() > icache_lines
         } {
             refetched.store(true, std::sync::atomic::Ordering::Relaxed);
-            MemModel { icache_lines, fetch_line_ns: l.refetch_line_ns, fetch_jump_ns: l.fetch_jump_ns, icache_bytes: 0, ..mm }
+            // (a later wave's core has just run the same code: AGX_ICACHE_WARM=0 starts every wave with an empty cache)
+            let icache_warm = w > 0 && std::env::var("AGX_ICACHE_WARM").map_or(true, |v| v != "0");
+            MemModel { icache_lines, icache_victims: l.icache_victims, icache_warm, fetch_line_ns: l.refetch_line_ns, fetch_jump_ns: l.fetch_jump_ns, icache_bytes: 0, ..mm }
         } else {
             mm
         };
