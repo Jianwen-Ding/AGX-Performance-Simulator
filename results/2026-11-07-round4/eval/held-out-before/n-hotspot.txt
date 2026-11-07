@@ -1,0 +1,2 @@
+_Z14calculate_tempiPfS_S_iiiiffffff hw     401.7 us (n     0, captured     585.2)  sim     404.3 us  err    +1%   wgs/core 49 waves 17
+launches 1  median |err| 1%  within 10%: 1  within 25%: 1

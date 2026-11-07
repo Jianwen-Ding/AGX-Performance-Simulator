@@ -585,7 +585,7 @@ fn simulate_core(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer>, c
             }).sum()
         };
         if std::env::var("AGX_DEBUG_FOOTPRINT").is_ok_and(|v| v == "1") {
-            eprintln!("wave {w}: footprint {:.1} MiB (slc {:.1} MiB) sharing {sharing:.2} dram_share {dram_share:.2}", footprint / 1048576.0, mm.slc_bytes as f64 / 1048576.0);
+            eprintln!("wave {w}: footprint {:.1} MiB (uncapped {:.1}, slc {:.1} MiB) sharing {sharing:.2} dram_share {dram_share:.2}", footprint / 1048576.0, distinct.len() as f64 * 64.0 * scale / shared_by / 1048576.0, mm.slc_bytes as f64 / 1048576.0);
         }
         // The SLC holds a footprint up to ~14 MiB whole and none of one beyond ~30 MiB, smoothly in between (half-way
         // ~21 MiB, playground novel-results/2026-10-18-slc): the fraction of lines still there falls linearly over
@@ -598,7 +598,23 @@ fn simulate_core(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer>, c
         } else {
             (footprint <= mm.slc_bytes as f64, 1.0)
         };
-        let mm = MemModel { resident_slc: resident, slc_resident_frac: frac, sharing, dram_share, ..mm.clone() };
+        // Of a wave's first touches (`first_touch_dram`) only the lines new to the whole dispatch go at the DRAM rate
+        // and wait the first-touch latency: the fraction is the estimated footprint (capped by the buffers) over the
+        // sum of every core's waves' lines, over the DRAM share (which already divides the rate). The others were read
+        // by other cores or earlier waves and wait L2 latency (the GPU-wide L2). Held-out set (159 launches without
+        // Cycles): median 9 -> 7%, within 10% 91 -> 111; Halide bilateral_grid +53 -> +27%, local_laplacian's
+        // pyramid levels +20-30% -> +-10%. AGX_FIRST_TOUCH_FRAC=0: every first touch is new (round 3); 1: the fraction
+        // without the L2 latency; 2: 1 with every first touch at the first-touch latency
+        let raw = distinct.len() as f64 * 64.0 * scale;
+        let first_touch_frac = if std::env::var("AGX_FIRST_TOUCH_FRAC").map_or(true, |v| v != "0") && raw > 0.0 {
+            (footprint / (raw * dram_share.clamp(0.05, 1.0))).clamp(0.0, 1.0)
+        } else {
+            1.0
+        };
+        if std::env::var("AGX_DEBUG_FOOTPRINT").is_ok_and(|v| v == "1") {
+            eprintln!("wave {w}: first_touch_frac {first_touch_frac:.3}");
+        }
+        let mm = MemModel { resident_slc: resident, slc_resident_frac: frac, sharing, dram_share, first_touch_frac, ..mm.clone() };
         // `later_waves_warm`: the waves after the first find their data in the caches when it fits the system-level
         // cache (what the first waves and their neighbours loaded); AGX_LATER_WAVES_WARM=1 / 0 forces it
         let warm_later = std::env::var("AGX_LATER_WAVES_WARM").map_or(l.later_waves_warm, |v| v == "1");

@@ -1,0 +1,10 @@
+_ZL13quantize_q8_1PKfPvlllllj5uint3 hw       4.0 us (n   500, captured       0.0)  sim       4.9 us  err   +23%   wgs/core 1 waves 1
+_ZL13mul_mat_vec_qIL9ggml_type8ELi1ELb1ELb1ELb0EEvPKvS2_PKi31ggml_cuda_mm_fusion_args_devicePfj5uint3jjjS7_jjjS7_jjjj hw      17.2 us (n   500, captured       0.0)  sim      12.7 us  err   -26%   wgs/core 1 waves 1
+_ZL13mul_mat_vec_qIL9ggml_type14ELi1ELb1ELb0ELb0EEvPKvS2_PKi31ggml_cuda_mm_fusion_args_devicePfj5uint3jjjS7_jjjS7_jjjj hw      30.2 us (n   500, captured       0.0)  sim      29.7 us  err    -2%   wgs/core 24 waves 5
+_ZL13mul_mat_vec_qIL9ggml_type13ELi1ELb1ELb0ELb0EEvPKvS2_PKi31ggml_cuda_mm_fusion_args_devicePfj5uint3jjjS7_jjjS7_jjjj hw      29.6 us (n   500, captured       0.0)  sim      27.4 us  err    -7%   wgs/core 24 waves 4
+_ZL13mul_mat_vec_qIL9ggml_type7ELi1ELb1ELb1ELb0EEvPKvS2_PKi31ggml_cuda_mm_fusion_args_devicePfj5uint3jjjS7_jjjS7_jjjj hw      19.0 us (n   500, captured       0.0)  sim      18.0 us  err    -5%   wgs/core 6 waves 2
+_ZL12rms_norm_f32ILi256ELi1ELb1ELb1ELb0ELb0EEvPKfPfiiilllfS1_lll5uint3S3_S3_S3_S1_lllS3_S3_S3_S3_f hw       5.5 us (n   500, captured       0.0)  sim       5.4 us  err    -1%   wgs/core 1 waves 1
+_ZL9rope_neoxILb1ELb0EffEvPKT1_PT2_iiiiiiiiiiiPKifff14rope_corr_dimsfPKfPKlib hw       6.9 us (n   500, captured       0.0)  sim       6.0 us  err   -13%   wgs/core 1 waves 1
+_ZL9rope_neoxILb1ELb0Ef6__halfEvPKT1_PT2_iiiiiiiiiiiPKifff14rope_corr_dimsfPKfPKlib hw       6.7 us (n   500, captured       0.0)  sim       6.0 us  err    -9%   wgs/core 1 waves 1
+_ZL10k_set_rowsIfl6__halfEvPKT_PKT0_PT1_llllllllllllll5uint3S9_S9_S9_S9_ hw       3.7 us (n   500, captured       0.0)  sim       4.3 us  err   +18%   wgs/core 1 waves 1
+_ZL33flash_attn_stream_k_fixup_uniformILi64ELi1ELi8EEvPfPK6float2iiiiii5uint3S4_S4_ hw       5.0 us (n   500, captured       0.0)  sim       5.2 us  err    +5%   wgs/core 1 waves 1

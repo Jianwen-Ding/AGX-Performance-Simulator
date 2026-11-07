@@ -1483,6 +1483,9 @@ pub struct MemModel {
     pub resident_slc: bool,
     /// with `resident_slc`: the fraction of the dispatch's lines found in the SLC (1: all)
     pub slc_resident_frac: f64,
+    /// with `first_touch_dram`: the fraction of a wave's first touches that are new to the whole dispatch (the rest
+    /// were read by earlier waves or other cores and are in the SLC); 1: all
+    pub first_touch_frac: f64,
     /// with `warm`: replay only these segments (a later wave finds in the caches what the first wave also touched,
     /// not its own new data; `Launch::partial_warm`); None: all of the wave's
     pub warm_only: Option<std::sync::Arc<std::collections::HashSet<u64>>>,
@@ -1541,6 +1544,7 @@ impl Default for MemModel {
             sharing: 0.0,
             resident_slc: false,
             slc_resident_frac: 1.0,
+            first_touch_frac: 1.0,
             warm_only: None,
             first_touch_dram: false,
             atomic_min: 6.9,
@@ -1712,7 +1716,17 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
     // untaken one does at 40 groups per core (2026-10-23 k_ifk probes: 580-595 cycles per 8 if-skips per group
     // either way, novel-results/2026-10-23-geekbench-captures)
     let code_bytes = instrs.iter().map(|i| i.pc + i.size).max().unwrap_or(0);
-    let br_fwd_sched = if code_bytes > FETCH_BOUND_CODE_BYTES {
+    // The fetch-bound case is about the code the groups run, not the program's size: hybridsort's mergeSortFirst
+    // (28 KB of code, tex1Dfetch emulation, 4.6 KB executed) was +39% with the hold on every if-skip; 72 lines
+    // stay cached. AGX_BR_FWD_EXEC=0: the program's size decides (round 3)
+    let run_bytes = if std::env::var("AGX_BR_FWD_EXEC").map_or(true, |v| v != "0") && code_bytes > FETCH_BOUND_CODE_BYTES {
+        let lines: std::collections::HashSet<usize> = seqs_pcs.iter().flat_map(|q| q.iter().map(|&pc| pc >> 6)).collect();
+        lines.len() * 64
+    } else {
+        code_bytes
+    };
+    let fetch_bound = std::env::var("AGX_FETCH_BOUND_BYTES").ok().and_then(|v| v.parse().ok()).unwrap_or(FETCH_BOUND_CODE_BYTES);
+    let br_fwd_sched = if run_bytes > fetch_bound {
         tk(p.cal_f("branch_forward_sched_real", 33.0))
     } else {
         tk(std::env::var("AGX_BR_FWD_CACHED").ok().and_then(|v| v.parse::<f64>().ok())
@@ -1947,7 +1961,8 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
         /// `first_touch_dram`: segments this dispatch has touched, and per access (group, index) how many of its
         /// lines were first touches (an access is re-evaluated while it waits for its buckets)
         seen: std::collections::HashSet<u64>,
-        first: HashMap<(usize, usize), f64>,
+        first_frac: f64,
+        first: HashMap<(usize, usize), (f64, f64)>,
     }
     // AGX_CHARGE_WRITEBACK=1: a store also takes DRAM bandwidth for its lines when the working set does not fit the
     // SLC, even if they were just loaded (the dirty lines must be written back). Off by default: no hardware data
@@ -1999,6 +2014,7 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
             cap,
             extra: [0, tk(m.l2_extra), ns(m.slc_ns), ns(m.dram_ns)],
             first_extra: ns(m.first_touch_ns),
+            first_frac: m.first_touch_frac,
             inflight: Default::default(),
             cur: vec![0; groups],
             l1_free: [0, 0],
@@ -2694,16 +2710,35 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
                         let mut lat_extra = if store { 0 } else { m.extra[level] };
                         if first_touch_dram && need[2] + need[3] > 0.0 {
                             let key = (gi, m.cur[gi]);
-                            let first = match m.first.get(&key) {
+                            let (first_any, first) = match m.first.get(&key) {
                                 Some(&f) => f,
                                 None => {
-                                    let f = segs.iter().filter(|&&sg| m.seen.insert(sg)).count() as f64;
-                                    m.first.insert(key, f);
-                                    f
+                                    // (`first_frac` < 1: only the hashed fraction of the first touches is new to the
+                                    // dispatch and goes at the DRAM rate; all of them still wait the first-touch latency)
+                                    let ff = m.first_frac;
+                                    let mut any = 0.0;
+                                    let mut new = 0.0;
+                                    for &sg in segs.iter() {
+                                        if m.seen.insert(sg) {
+                                            any += 1.0;
+                                            if ff >= 1.0 || ((sg ^ 0x5bd1_e995).wrapping_mul(0xC2B2_AE3D_27D4_EB4F) >> 11) as f64 / ((1u64 << 53) as f64) < ff {
+                                                new += 1.0;
+                                            }
+                                        }
+                                    }
+                                    m.first.insert(key, (any, new));
+                                    (any, new)
                                 }
                             };
-                            if first > 0.0 && level == 2 && !store {
+                            static FTF_LAT_ALL: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+                            let lat_all = *FTF_LAT_ALL.get_or_init(|| std::env::var("AGX_FIRST_TOUCH_FRAC").is_ok_and(|v| v == "2"));
+                            static FTF_SHARED_L2: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+                            let shared_l2 = *FTF_SHARED_L2.get_or_init(|| std::env::var("AGX_FIRST_TOUCH_FRAC").map_or(true, |v| v == "3"));
+                            if (if lat_all { first_any } else { first }) > 0.0 && level == 2 && !store {
                                 lat_extra = m.first_extra;
+                            } else if shared_l2 && first_any > 0.0 && level == 2 && !store {
+                                // (experiment: lines other cores or earlier waves read in this dispatch: GPU-wide L2)
+                                lat_extra = m.extra[1];
                             }
                             let from_slc = first.min(need[3]);
                             let from_l2 = (first - from_slc).min(need[2]);
