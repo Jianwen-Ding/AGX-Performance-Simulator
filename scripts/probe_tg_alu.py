@@ -9,6 +9,7 @@ and ALU instructions. Pattern letters (one instruction each):
   i  iadd rT, rT, 1 on r21..r28 round robin   (independent of the loads)
   f  fmadd32 rT, rT, r29, r30 on r21..r28     (independent fp32)
   c  iadd rT, rT, rD of the latest load       (consumes a load result)
+  p, q, r  iadd on 1, 2 or 3 dependency chains (r21, r21..r22, r21..r23)
   w  wait 0
 The loop counter uses r3/r4 (iadd + while_icmp + jmp_exec_any: 3 instructions per trip).
 Addresses: per-lane words (lane * 4 + 128 * j) or broadcast (one word, ADDR=bcast).
@@ -66,6 +67,7 @@ def program(pattern, bcast=False):
     head += e('if_fcmp r0l, eq, 0.0, 0.0, 1', 'push_exec r0l, 1')
     body = b''
     nl = na = 0
+    nc = {1: 0, 2: 0, 3: 0}
     last = 13
     for ch in pattern:
         if ch in 'LXB':
@@ -79,6 +81,9 @@ def program(pattern, bcast=False):
             r = 21 + na % 8; body += e(f'fmadd32 r{r}, r{r}, r29, r30'); na += 1
         elif ch == 'c':
             r = 21 + na % 8; body += e(f'iadd r{r}, r{r}, r{last}'); na += 1
+        elif ch in 'pqr':
+            n = 'pqr'.index(ch) + 1; r = 21 + nc[n] % n; nc[n] += 1
+            body += e(f'iadd r{r}, r{r}, 1')
         elif ch == 'w':
             body += e('wait 0')
         else:
