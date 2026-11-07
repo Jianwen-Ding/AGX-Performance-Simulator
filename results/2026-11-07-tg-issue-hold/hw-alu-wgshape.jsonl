@@ -1,0 +1,7 @@
+{"pattern": "iiiiiiiiiiiiiiii", "groups": 12, "addr": "lane", "wg": 384, "hw_us": [688.459, 2059.667], "hw_cyc": 117.0}
+{"pattern": "iiiiiiiiiiiiiiii", "groups": 12, "addr": "lane", "wg": 128, "hw_us": [688.459, 2059.666], "hw_cyc": 117.0}
+{"pattern": "iiiiiiiiiiiiiiii", "groups": 12, "addr": "lane", "wg": 64, "hw_us": [688.5, 2059.667], "hw_cyc": 117.0}
+{"pattern": "iiiiiiiiiiiiiiii", "groups": 12, "addr": "lane", "wg": 32, "hw_us": [688.417, 2059.584], "hw_cyc": 117.0}
+{"pattern": "iiiiiiiiiiiiiiii", "groups": 16, "addr": "lane", "wg": 512, "hw_us": [626.625, 1882.042], "hw_cyc": 107.12}
+{"pattern": "iiiiiiiiiiiiiiii", "groups": 16, "addr": "lane", "wg": 256, "hw_us": [626.625, 1882.0], "hw_cyc": 107.12}
+{"pattern": "iiiiiiiiiiiiiiii", "groups": 16, "addr": "lane", "wg": 128, "hw_us": [688.5, 2059.708], "hw_cyc": 117.0}

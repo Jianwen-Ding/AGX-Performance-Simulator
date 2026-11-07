@@ -62,3 +62,20 @@ threadgroup loads move: `lud_diagonal` -18% -> -7%, `lud_perimeter` -19% -> -9%,
 `dynproc_kernel` -30% -> -29%; against in-run times `heartwall` -6% -> +5%. Median over the 12 distinct warm launches
 30.5% -> 30%: the large errors there (bfs -72/-79%, gaussian Fan1 -68%, particlefilter sum_kernel -52%) are irregular
 device loads and single-workgroup serial loops, not threadgroup memory.
+
+## Open: independent-`iadd` loops at 12-32 groups per core (not modelled)
+
+`hw-alu-groups.jsonl` (two repeats, 16384/49152 trips, 16 `iadd` + 3 loop instructions per trip; `i` 8 chains,
+`p` 1 chain, `r` 3 chains) and `hw-alu-wgshape.jsonl`. Instructions per core cycle:
+
+| groups per core | 1 | 8 | 12 | 16 | 24 | 32 |
+| --- | --- | --- | --- | --- | --- | --- |
+| 8 chains (`i`) | 0.36 | 2.81 | 1.95 | 2.84 | 1.9-3.0 (noisy) | 2.66 |
+| 1 chain (`p`) | 0.28 | 2.11 | 2.06 | 2.96 | 4.04 | 3.01 |
+| 3 chains (`r`) | 0.35 | 2.72 | 2.12 | 2.71 | 4.15 | 3.34 |
+
+The model gives 3.67 from 12 groups on (1-8 groups within 2%). 12 groups are slower than 16 and 24 on the hardware,
+whatever the workgroup shape (1 x 384, 3 x 128, 6 x 64, 11 x 32 threads: all exactly 688.46 / 2059.67 us); 16 groups as
+4 x 128 take the 12-group time, as 1 x 512 or 2 x 256 7% less. Not explained (scheduler assignment of hardware slots is
+the leading guess; SR17 per group would test it). The GPU was shared with another agent's Cycles runs during part of
+these measurements.
