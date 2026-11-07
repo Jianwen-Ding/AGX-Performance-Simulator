@@ -51,6 +51,11 @@ pub struct Launch {
     /// 15,200 workgroups +7.1-8.1 us with --stack 64, playground novel-results/2026-11-01-stack-launch)
     pub stack_bytes: u32,
     pub stack_launch_ns: f64,
+    /// per SIMD-group slot of the busiest core that a stack-using kernel occupies in a command (resident workgroups x
+    /// groups): the first stack use of each slot costs this, one slot at a time per core, before its group runs (bfs
+    /// Kernel2 at 1-1954 workgroups of 512 threads: +1.0-1.3 us per slot up to the 96 resident; 0 in the drm profile;
+    /// zluda 1150 ns; results/2026-11-07-stack-slots). AGX_STACK_SLOT_NS overrides
+    pub stack_slot_ns: f64,
     /// instruction-cache refetch for kernels whose executed code exceeds the cache: when a wave's distinct 64-byte
     /// lines exceed `icache_lines`, the simulation fetches through a per-core LRU of that many lines (a fall-through
     /// miss `refetch_line_ns`, a taken jump's `fetch_jump_ns`, the group waiting) in place of `fetch_line_ns` per
@@ -108,6 +113,7 @@ impl Default for Launch {
             fetch_line_ns: 0.0,
             stack_bytes: 0,
             stack_launch_ns: 0.0,
+            stack_slot_ns: 0.0,
             icache_lines: 0,
             refetch_line_ns: 64.0,
             fetch_jump_ns: 200.0,
@@ -603,7 +609,16 @@ pub fn simulate_with(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer
     // ... but only partly: time = max + 0.3 min of the two (one thread, 32 dependent loads to new lines with 0-120 FMAs
     // of straight-line code after each: 0.27-0.34; playground novel-results/2026-11-01-fetch-overlap). The full overlap
     // fitted the Q8_0 kernel only while threadgroup loads were wrongly deferred. AGX_FETCH_OVERLAP overrides 0.3
-    let core_ns = total / l.clock_mhz * 1000.0;
+    let mut core_ns = total / l.clock_mhz * 1000.0;
+    if l.stack_bytes > 0 {
+        let slot_ns = std::env::var("AGX_STACK_SLOT_NS").ok().and_then(|v| v.parse::<f64>().ok()).unwrap_or(l.stack_slot_ns);
+        if slot_ns > 0.0 {
+            // the slots are set up one after the other before their groups run (the first one with the command's
+            // stack set-up), and the waves run after them
+            let slots = m.min(r as u64) as f64 * gpw as f64;
+            core_ns += (slots - 1.0).max(0.0) * slot_ns;
+        }
+    }
     let fetch_part = std::env::var("AGX_FETCH_OVERLAP").ok().and_then(|v| v.parse::<f64>().ok()).unwrap_or(0.3) * core_ns.min(fetch_ns);
     rep.time_ns = (core_ns.max(fetch_ns) + fetch_part).max(rep.launch_core_ns).max(store_floor) + l.launch_ns + stack_ns + writes_ns;
     if !rep.time_ns.is_finite() { return Err("predicted time is non-finite for this launch".into()); }
