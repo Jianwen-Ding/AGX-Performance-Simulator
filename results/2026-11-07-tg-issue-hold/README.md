@@ -53,3 +53,12 @@ restores the earlier model.
 verify-dispatch unchanged (4.8%), other memory sets unchanged. Remaining: `Liiiiiii` at 32 groups -40% and
 `iiiiiiii` at 32 groups (hw 171 vs model 95 cycles per trip: independent `iadd`s issue at ~2 per cycle per core,
 not ~4), `xy` loads at 24 groups +22%, `Lw` +9.5%.
+
+## Held out: Rodinia captures (clang-built, warm back-to-back hardware times)
+
+`scripts/capcheck.py D D/profile.jsonl --hw-from /scratch/sim-captures/rodinia/capcheck_hw.txt --sim-arg=--launch-profile
+--sim-arg=zluda` (`rodinia-warm-before.txt` with `AGX_TG_ISSUE_REAL=0`, `rodinia-warm-after.txt`). Only kernels with
+threadgroup loads move: `lud_diagonal` -18% -> -7%, `lud_perimeter` -19% -> -9%, `lud_internal` -22% -> -19%,
+`dynproc_kernel` -30% -> -29%; against in-run times `heartwall` -6% -> +5%. Median over the 12 distinct warm launches
+30.5% -> 30%: the large errors there (bfs -72/-79%, gaussian Fan1 -68%, particlefilter sum_kernel -52%) are irregular
+device loads and single-workgroup serial loops, not threadgroup memory.

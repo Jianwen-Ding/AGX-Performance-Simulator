@@ -21,7 +21,7 @@ ap.add_argument('--only')
 ap.add_argument('--timeout', type=int, default=900)
 ap.add_argument('--hw', action='store_true', help='time each capture on the GPU (agx_run_hw --back-to-back) instead of '
                 'using the profile: the same launch with the same data, at a warm clock')
-ap.add_argument('--run-hw', default='/scratch/geekbench-extract/cargo-target/release/agx_run_hw')
+ap.add_argument('--run-hw', default=os.environ.get('AGX_RUN_HW', '/scratch/zluda-build/release/agx_run_hw'))
 ap.add_argument('--b2b', type=int, default=1000)
 ap.add_argument('--sim-arg', action='append', default=[])
 ap.add_argument('--hw-repeat', type=int, default=1, help='with --hw: the median of this many back-to-back runs (a tiny kernel varies from one run to the next: set_rows 3.9-6.5 us, rope 5.6-8.7)')
