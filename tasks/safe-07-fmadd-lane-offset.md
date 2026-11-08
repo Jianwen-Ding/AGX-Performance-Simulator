@@ -4,7 +4,7 @@ Read [safe-probes.md](safe-probes.md) first (safety rules).
 
 **Goal:** turn the playground's `fmadd-lane-offset` finding into recorded coverage cases. Then answer its open
 questions, and model the form in the simulator. A lane-shifted fma is a cheap stand-in for PTX `shfl.up` combined
-with a multiply-add (prefix sums, stencils, convolutions), so ZLUDA may want it.
+with a multiply-add (prefix sums, stencils, convolutions), so the PTX front end may want it.
 
 **Background** (playground `novel-results/2026-10-11-fmadd-lane-offset`, run cleanly on direct DRM):
 - Bit 53 of fmadd32 (0x3a) and fmadd16 (0x36) selects a 10-byte form.

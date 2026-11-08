@@ -48,7 +48,7 @@ SHA-256 `18ce910b75f8c7d6a151d3aee1dd32099df11f77e45219633241a2db3b56a9b8`.
 The two large regenerable dumps were removed after hashing; timing logs and
 the JSON summary remain in `/scratch/agx-shared-optimization`.
 
-ZLUDA's separate host-cache concurrency change (`ed757a8`) does not change
+The PTX front end's separate host-cache concurrency change (`ed757a8`) does not change
 simulated GPU behavior: eight simultaneous misses now call the compiler
 once, cache failures still compile, and failed compilation releases the
 lock. Its runtime tests pass 47 cases and driver tests pass 33 cases.

@@ -2,8 +2,8 @@
 
 `stack.ptx` (`stackrw`): a 64-word `.local` array per thread indexed by a per-lane LCG (scattered offsets), 2000
 load + add + store iterations; `stackuni.ptx`: the same with one index for all lanes per iteration ((7i + 3) & 63).
-zoc (AIR route) puts the array on the stack (304 bytes per thread). Run through zluda_agx (`agx_bench_kernel`,
-captured), then `agx_run_hw --back-to-back 200 --stack 304` and `agx_dispatch --launch-profile zluda`.
+zoc (AIR route) puts the array on the stack (304 bytes per thread). Run through the CUDA driver (`agx_bench_kernel`,
+captured), then `agx_run_hw --back-to-back 200 --stack 304` and `agx_dispatch --launch-profile runtime`.
 
 | Launch | hw | sim before (stack = L1 hit) | sim with stack_segments |
 | --- | --- | --- | --- |

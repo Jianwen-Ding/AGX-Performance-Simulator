@@ -3,7 +3,7 @@
 
 Each thread stores K words to its stack (offsets 0, 4, ..., lane-interleaved stack layout), waits, loads them back
 (LOADS=1) and stops: the whole cost is the stack traffic of many short workgroups. Hardware (agx_run_hw back to back,
---stack 4K) against agx_dispatch (zluda profile). env: KS="0 2 8 16", THREADS (default 1000448), WG (512), LOADS.
+--stack 4K) against agx_dispatch (runtime profile). env: KS="0 2 8 16", THREADS (default 1000448), WG (512), LOADS.
 
 usage: probe_stack_fresh.py [hw|sim|both]
 """
@@ -47,7 +47,7 @@ def main():
                 m = re.search(r'"b2b_median_fw_ns":(\d+)', h.stdout)
                 rec['hw_us'] = int(m.group(1)) / 1000 if m else (h.stdout + h.stderr)[-200:]
             if mode in ('sim', 'both'):
-                r = subprocess.run([DISP] + common + ['--stack', str(stack), '--launch-profile', 'zluda', '--alloc', '0x100000=16'], capture_output=True, text=True,
+                r = subprocess.run([DISP] + common + ['--stack', str(stack), '--launch-profile', 'runtime', '--alloc', '0x100000=16'], capture_output=True, text=True,
                                    env=dict(os.environ, AGX_MEM_LEVELS='1'))
                 lines = r.stdout.strip().splitlines()
                 rec['sim_us'] = json.loads(lines[0])['time_us'] if lines else r.stderr[-200:]

@@ -1,6 +1,6 @@
 # Stack-using kernels: each SIMD-group slot's first stack use in a command costs ~1.15 us, one slot at a time per core
 
-Measured 2026-11-07 on the M2 Max (G14C) with the Rodinia bfs `Kernel2` capture (clang-built CUDA through ZLUDA,
+Measured 2026-11-07 on the M2 Max (G14C) with the Rodinia bfs `Kernel2` capture (clang-built CUDA through the CUDA translation layer,
 80 bytes of stack per thread, /scratch/sim-captures/rodinia/bfs), replayed with `agx_run_hw --stack 80
 --back-to-back 300` at other grid sizes and workgroup sizes (the kernel's bounds check keeps every access inside its
 buffers). Times in us (firmware, warm):
@@ -20,9 +20,9 @@ buffers). Times in us (firmware, warm):
 * Synthetic stack probes (`scripts/probe_stack_fresh.py`) faulted (Bad address) even with the backend's first stack
   instruction copied in; 13 faults recorded, probing stopped. Only the captured kernel was used.
 
-Model (dispatch.rs, zluda profile): a kernel with a stack adds (resident workgroups x groups per workgroup on the
+Model (dispatch.rs, runtime profile): a kernel with a stack adds (resident workgroups x groups per workgroup on the
 busiest core - 1) x `stack_slot_ns` (1150 at 1398 MHz, scaled with `--clock`; `AGX_STACK_SLOT_NS`, 0 in the drm
-profile) to the core's time. The fixed stack set-up of the zluda profile drops from 7.5 to 5.0 us: real one-group
+profile) to the core's time. The fixed stack set-up of the runtime profile drops from 7.5 to 5.0 us: real one-group
 stack kernels take 7.7 (bfs Kernel2 1 x 32) and 8.0-8.9 us (gaussian Fan2) in all at a warm clock, of which 2.3 is
 the launch (an empty kernel launched with `--stack 80` measures +8-11 us, which these real kernels contradict).
 

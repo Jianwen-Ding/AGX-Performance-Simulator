@@ -1,4 +1,4 @@
-"""Simulator vs hardware on captured launches (ZLUDA_AGX_CAPTURE + ZLUDA_AGX_PROFILE of the same run).
+"""Simulator vs hardware on captured launches (AGX_RUNTIME_CAPTURE + AGX_RUNTIME_PROFILE of the same run).
 
 capcheck.py CAPTURE_DIR PROFILE.jsonl [--dispatch PATH] [--only KERNEL] [--hw [--b2b N] | --hw-from FILE]
             [--sim-arg ARG ...]
@@ -6,7 +6,7 @@ capcheck.py CAPTURE_DIR PROFILE.jsonl [--dispatch PATH] [--only KERNEL] [--hw [-
 --hw times each capture on the GPU back to back (agx_run_hw --back-to-back N, the median of the second half): with
 N = 1000 (the default) the GPU's clock has ramped up by then, which a few launches do not do (30 back to back measured
 the Q8_0 matrix-vector kernel of llama.cpp at 67 us, 1000 at 26 us). --sim-arg passes options to agx_dispatch, e.g.
-`--sim-arg=--launch-profile --sim-arg=zluda` for the launch costs of zluda_agx's commands.
+`--sim-arg=--launch-profile --sim-arg=runtime` for the launch costs of the CUDA driver's commands.
 
 For each capture (code, real memory as the launch found it, uniforms, grid): agx_dispatch with that memory mapped,
 against the launch's firmware time from the profile (the line with the capture's command number). Prints one line per
@@ -21,7 +21,7 @@ ap.add_argument('--only')
 ap.add_argument('--timeout', type=int, default=900)
 ap.add_argument('--hw', action='store_true', help='time each capture on the GPU (agx_run_hw --back-to-back) instead of '
                 'using the profile: the same launch with the same data, at a warm clock')
-ap.add_argument('--run-hw', default=os.environ.get('AGX_RUN_HW', '/scratch/zluda-build/release/agx_run_hw'))
+ap.add_argument('--run-hw', default=os.environ.get('AGX_RUN_HW', '/scratch/ptx-frontend-build/release/agx_run_hw'))
 ap.add_argument('--b2b', type=int, default=1000)
 ap.add_argument('--sim-arg', action='append', default=[])
 ap.add_argument('--hw-repeat', type=int, default=1, help='with --hw: the median of this many back-to-back runs (a tiny kernel varies from one run to the next: set_rows 3.9-6.5 us, rope 5.6-8.7)')
@@ -82,7 +82,7 @@ for d in sorted(os.listdir(a.captures)):
         hw, n_warm = prev[kernel], 0
     if a.hw:
         hcmd = [a.run_hw] + [x if x != '--tg-bytes' else '--shared' for x in out] + ['--regs', regs, '--back-to-back', str(a.b2b), '--timeout-ms', '10000']
-        # a kernel with a stack needs it on the GPU (zluda_agx notes it in replay.sh; agx_run has no --stack): without
+        # a kernel with a stack needs it on the GPU (the CUDA driver notes it in replay.sh; agx_run has no --stack): without
         # it the GPU faults ("Bad address") at the first stack access
         st = re.search(r'the kernel uses (\d+) bytes of stack per thread', sh)
         if st:

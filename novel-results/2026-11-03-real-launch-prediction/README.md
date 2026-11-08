@@ -1,6 +1,6 @@
 # Predicting real launches: Blender Cycles against warm hardware time
 
-Status: measured on one device (driver-reported M2 Max G14C B1). Scene: Blender Open Data junkshop, six captured launches, compiled by ZLUDA
+Status: measured on one device (driver-reported M2 Max G14C B1). Scene: Blender Open Data junkshop, six captured launches, compiled by the PTX front end
 (`claude/cycles-from-source`). Data: `warm.jsonl` (GPU), `pred.jsonl` (model).
 
 ## Findings
@@ -13,7 +13,7 @@ Status: measured on one device (driver-reported M2 Max G14C B1). Scene: Blender 
    code, warm and back to back, with 1 or 12 SIMD groups alike: the model had 0.8 ns (`scripts/probe_fetch_scaling.py`). Taken as about 62 ns per 64-byte
    line on top of issue, per core, the first group to reach a line paying. The line size is an assumption; the rate is what is measured.
 4. **Stack memory goes through the caches.** A stack load: 68 ns with a 256-byte frame, 172 ns with 4 KB; stores 55-62 ns at both
-   (`scripts/probe_stack_cost.py`). Traces now place each word in a 128-byte slot (32 lanes of 4 bytes, ZLUDA's scratch layout), per SIMD group.
+   (`scripts/probe_stack_cost.py`). Traces now place each word in a 128-byte slot (32 lanes of 4 bytes, the PTX front end's scratch layout), per SIMD group.
 5. **A lone launch runs at a low clock.** The same launch is 2.4-3.2x slower alone than with the GPU kept busy, and varies 2x. Reference times must hold the
    clock up: `scripts/warm_captures.py` keeps a small kernel running in another process (the same launch then repeats within about 1%). The model
    predicts the warm time, and the low clock is not modelled.

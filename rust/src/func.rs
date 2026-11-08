@@ -1717,7 +1717,7 @@ fn resolve_sampler(mem: &mut Memory, g: &Group, args: &TexOp, lane: usize) -> Re
     }
     // below 28: a sampler state slot; from 28 on: entry v - 28 of the command's sampler heap (Mesa's Honeykrisp
     // stores heap index + 28, hk_descriptor_set.c; on the M2 Max a texture_sample with heap index 0 as its sampler
-    // reads zeros, with 28 the texels: ZLUDA agx_texture_check, 2026-10-23)
+    // reads zeros, with 28 the texels: the PTX front end's agx_texture_check, 2026-10-23)
     if v < SAMPLER_HEAP_BASE {
         let b = mem
             .samp_state

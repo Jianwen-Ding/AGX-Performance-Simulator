@@ -11,7 +11,7 @@ for d in $(ls $N); do [ -f /scratch/agx-r3/hw/$d.txt ] || continue; jobs+=("$N/$
 # EXCL=regex: skip datasets (EXCL=cycles: shade_surface alone simulates for ~10 min)
 [ -n "$EXCL" ] && mapfile -t jobs < <(printf '%s\n' "${jobs[@]}" | grep -Ev "/($EXCL) ")
 export ENVS="$*"
-printf '%s\n' "${jobs[@]}" | xargs -P $J -L 1 bash -c 'env $ENVS nice -n 10 python3 scripts/capcheck.py $0 $0/profile.jsonl --hw-from $1 --sim-arg=--launch-profile --sim-arg=zluda > $2 2>&1'
+printf '%s\n' "${jobs[@]}" | xargs -P $J -L 1 bash -c 'env $ENVS nice -n 10 python3 scripts/capcheck.py $0 $0/profile.jsonl --hw-from $1 --sim-arg=--launch-profile --sim-arg=runtime > $2 2>&1'
 cat $out/*.txt | grep " hw " | python3 -c "
 import sys,re,statistics
 e=[]

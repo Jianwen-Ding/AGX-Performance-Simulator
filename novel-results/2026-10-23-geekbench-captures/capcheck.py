@@ -1,4 +1,4 @@
-"""Simulator vs hardware on captured launches (ZLUDA_AGX_CAPTURE + ZLUDA_AGX_PROFILE of the same run).
+"""Simulator vs hardware on captured launches (AGX_RUNTIME_CAPTURE + AGX_RUNTIME_PROFILE of the same run).
 
 capcheck.py CAPTURE_DIR PROFILE.jsonl [--dispatch PATH] [--only KERNEL]
 

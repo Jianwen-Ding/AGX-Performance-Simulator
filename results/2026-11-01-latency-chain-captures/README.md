@@ -1,4 +1,4 @@
-# Latency-bound chains: the zluda profile's first touch at L2 latency is 50% fast on them
+# Latency-bound chains: the runtime profile's first touch at L2 latency is 50% fast on them
 
 Eight captures where a few SIMD groups make dependent loads to lines new in the command, scored by
 `scripts/evalset_captures.sh` as `lat8` (hardware: `agx_run_hw --back-to-back`, b2b median, M2 Max G14C):
@@ -8,11 +8,11 @@ Eight captures where a few SIMD groups make dependent loads to lines new in the 
 | chase, one line (playground first-touch-pages) | 8.79 | -7% | -5% |
 | chase, new line per hop | 23.67 | -48% | +19% |
 | chase, new page per hop | 24.21 | -50% | +16% |
-| ZLUDA agx_qr_panel (1024 rows) | 514.7 | -3% | -1% |
-| ZLUDA agx_jacobi_round_sg (n 256) | 7.50 | 0% | +53% |
-| ZLUDA agx_sgemv_split (1024 x 16384) | 188.0 | +10% | +10% |
-| ZLUDA agx_sgemv_sum | 23.2 | -52% | +16% |
-| ZLUDA agx_strsm_sg (64-block, 64 vectors) | 62.5 | -55% | -29% |
+| The PTX front end's agx_qr_panel (1024 rows) | 514.7 | -3% | -1% |
+| The PTX front end's agx_jacobi_round_sg (n 256) | 7.50 | 0% | +53% |
+| The PTX front end's agx_sgemv_split (1024 x 16384) | 188.0 | +10% | +10% |
+| The PTX front end's agx_sgemv_sum | 23.2 | -52% | +16% |
+| The PTX front end's agx_strsm_sg (64-block, 64 vectors) | 62.5 | -55% | -29% |
 | lat8 mean abs | | 28.1 | 18.6 |
 | 40 llama / Geekbench captures, mean | | 10.2 | 10.8 |
 | 8 stream / FFT captures, mean | | 5.9 | 4.9 |
@@ -20,7 +20,7 @@ Eight captures where a few SIMD groups make dependent loads to lines new in the 
 
 ## What happened
 
-`--launch-profile zluda` turned on `partial_warm`, which does two things: later waves find only the first wave's
+`--launch-profile runtime` turned on `partial_warm`, which does two things: later waves find only the first wave's
 segments warm (this is what the stream / FFT captures need: without `partial_warm` they are up to 66% fast), and
 `first_touch_dram`, which puts every segment of the dispatch into L2 before timing ("as if prefetched", fitted to
 llama.cpp's matrix-vector kernels). The second makes a dependent load to a new line cost an L2 hit. The chase
@@ -85,4 +85,4 @@ The model put a missed line in the caches at issue, so every other group asking 
 9.0**. Unit tests, dispatch_check, verify_cost_model, mem_check, scale_check unchanged.
 
 Captures: /scratch/perf-goal/sim/chase/s{0,64,16384}, /scratch/perf-goal/sim/cap4 (regenerable: the playground's
-chase.ptx with agx_bench_kernel; ZLUDA's qrbench / eigbench / l2bench with ZLUDA_AGX_CAPTURE, SKIP 5, MAX 1).
+chase.ptx with agx_bench_kernel; the PTX front end's qrbench / eigbench / l2bench with AGX_RUNTIME_CAPTURE, SKIP 5, MAX 1).

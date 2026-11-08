@@ -27,7 +27,7 @@ make verify-dispatch        # offline: whole-dispatch model against 25 stored di
 full core; [rust/README.md](rust/README.md)); its `cycles` stay one path of `--groups` groups. `agx_dispatch` computes occupancy (register file, workgroup size), places workgroups on the busiest core
 (cluster split), traces every SIMD group of that core with its own thread ids, simulates the core with the
 memory hierarchy, and adds launch cost; it prints a JSON report with the predicted time.
-`dispatch::co_resident_workgroups` separately provides the lower B5 progress bound used by ZLUDA's occupancy
+`dispatch::co_resident_workgroups` separately provides the lower B5 progress bound used by the PTX front end's occupancy
 launch recommendation; the wave model retains physical occupancy.
 
 Launch inputs are validated before decoding or materializing functional buffers:
@@ -55,10 +55,10 @@ Findings: [core scaling](novel-results/2026-10-11-core-scaling/README.md),
 [cost model](novel-results/2026-10-11-cost-model/README.md),
 [Geekbench 7 kernels and threadgroup loads](novel-results/2026-10-23-geekbench-captures/README.md).
 
-Stack-using kernels (zluda profile): each SIMD-group slot's first stack use in a command costs ~1.15 us, one slot at a time per core, plus a 5.0 us set-up; Rodinia warm captures 29.5% -> 6.5% median with the threadgroup-load change ([results](results/2026-11-07-stack-slots/README.md)). Time short kernels with >= 1000 back-to-back commands.
-Real-program held-out set (161 warm launches of Rodinia, Halide apps and Cycles through ZLUDA, `results/2026-11-07-round4`): median error 9% -> 7% (p90 21%, 113 within 10%) since a wave's first touches go at the DRAM rate only for the dispatch's new lines (re-read lines wait L2 latency) and the taken-forward-jump hold follows the executed code, not the program size. llama.cpp token generation (10 launches, Qwen2.5-0.5B Q5_K_M, timed at 1000 back-to-back commands on an idle GPU): median 10%.
+Stack-using kernels (runtime profile): each SIMD-group slot's first stack use in a command costs ~1.15 us, one slot at a time per core, plus a 5.0 us set-up; Rodinia warm captures 29.5% -> 6.5% median with the threadgroup-load change ([results](results/2026-11-07-stack-slots/README.md)). Time short kernels with >= 1000 back-to-back commands.
+Real-program held-out set (161 warm launches of Rodinia, Halide apps and Cycles through the CUDA translation layer, `results/2026-11-07-round4`): median error 9% -> 7% (p90 21%, 113 within 10%) since a wave's first touches go at the DRAM rate only for the dispatch's new lines (re-read lines wait L2 latency) and the taken-forward-jump hold follows the executed code, not the program size. llama.cpp token generation (10 launches, Qwen2.5-0.5B Q5_K_M, timed at 1000 back-to-back commands on an idle GPU): median 10%.
 
-Known gaps: on 85 real launches of Geekbench 7's CUDA kernels (captured with their memory through ZLUDA) the median error is 16%, with large image kernels up to +80% and short ones down to -58%, texture sampling -90% ([details](novel-results/2026-10-23-geekbench-captures/README.md)); ALU instructions between threadgroup loads (50-70% on the hardware) are modelled since 2026-11-07: a threadgroup load holds its group ~28 cycles and issues only after the quiet time after ALU work (46 loops at 1-32 groups: median error 31% -> 1.8% held out, [results](results/2026-11-07-tg-issue-hold/README.md)); simple-ALU chains with 1-3 dependency chains at 9-24 groups per core (hardware up to 4.95 instructions
+Known gaps: on 85 real launches of Geekbench 7's CUDA kernels (captured with their memory through the CUDA translation layer) the median error is 16%, with large image kernels up to +80% and short ones down to -58%, texture sampling -90% ([details](novel-results/2026-10-23-geekbench-captures/README.md)); ALU instructions between threadgroup loads (50-70% on the hardware) are modelled since 2026-11-07: a threadgroup load holds its group ~28 cycles and issues only after the quiet time after ALU work (46 loops at 1-32 groups: median error 31% -> 1.8% held out, [results](results/2026-11-07-tg-issue-hold/README.md)); simple-ALU chains with 1-3 dependency chains at 9-24 groups per core (hardware up to 4.95 instructions
 per cycle at 10-12 groups and 20-60% slower at 15-20; not lockstep, not writeback; cause unknown); threadgroup-memory
 textures and divergence are not measured; barriers after ALU work at 8-32 groups are 13-31% low;
 predictions assume the top clock (1398 MHz) unless `--clock` is given.
@@ -156,10 +156,10 @@ alone from the dispatch model, with the commands that run at once sharing the GP
 they need no more workgroup slots than the GPU has, otherwise all slowed alike, two full-GPU kernels taking 1.77 times
 as long; no time slicing or switch cost) and B45's ~130 us hand-over after a wait on another queue.
 
-Checked mode and fault replay: kernels built with the LLVM backend's `agx-checked` feature (ZLUDA's `zoc
+Checked mode and fault replay: kernels built with the LLVM backend's `agx-checked` feature (the PTX front end's `zoc
 --agx-checked`) run on `agx_run` like any other once their hidden arguments are passed as uniforms;
-`llvm/utils/agx-checked/run_checked.py` in the LLVM fork does that and decodes the error record. ZLUDA's `zluda_agx`
-saves a launch that faulted on the GPU (`ZLUDA_AGX_DUMP=DIR`) as the kernel's code, its uniforms and the memory it can
+`llvm/utils/agx-checked/run_checked.py` in the LLVM fork does that and decodes the error record. The PTX front end's CUDA driver
+saves a launch that faulted on the GPU (`AGX_RUNTIME_DUMP=DIR`) as the kernel's code, its uniforms and the memory it can
 reach, with a `replay.sh` that runs it here: `AGX_RUN=rust/target/release/agx_run DIR/<pid>-<command>/replay.sh`.
 
 `agx_run --m2-core-map FILE` optionally replays supplied SR20 identities. Append

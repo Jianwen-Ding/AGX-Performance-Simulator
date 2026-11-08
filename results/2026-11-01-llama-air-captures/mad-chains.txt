@@ -1,4 +1,4 @@
-# one thread, N dependent ops (chain/*.ptx), agx_run_hw --back-to-back 1000 (us), sim --launch-profile zluda (104 ns/line)
+# one thread, N dependent ops (chain/*.ptx), agx_run_hw --back-to-back 1000 (us), sim --launch-profile runtime (104 ns/line)
 mad32_512 code 4130 B hw 7.0 sim 9.06
 mad32_64 code 546 B hw 4.75 sim 3.24
 mad64_512 code 20530 B hw 25.833 sim 35.68

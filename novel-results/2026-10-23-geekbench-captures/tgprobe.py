@@ -96,7 +96,7 @@ def run(name, pattern, width, loads, fmas, groups, wgs_per_core, iters=4096):
     block, grid = 32 * groups, 38 * wgs_per_core
     prof = os.path.join(d, 'profile.jsonl')
     if os.path.exists(prof): os.remove(prof)
-    env = dict(os.environ, ZLUDA_AGX_PROFILE=prof, ZLUDA_AGX_ZOC=ZOC)
+    env = dict(os.environ, AGX_RUNTIME_PROFILE=prof, AGX_RUNTIME_ZOC=ZOC)
     r = subprocess.run([BENCH, obj, 'probe', '--grid', str(grid), '--block', str(block), '--iters', '200', '--warmup', '50',
                         f'buf:{grid * block * 4}', f'u32:{iters}'], capture_output=True, text=True, env=env, timeout=300)
     if 'ms_per_launch' not in r.stdout:

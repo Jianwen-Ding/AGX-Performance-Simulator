@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""predict_captures.py CAPTURE_DIR PROFILE.jsonl SKIP [agx_dispatch options]: for each launch ZLUDA_AGX_CAPTURE saved in
-CAPTURE_DIR, the model's prediction (agx_dispatch over the captured memory) against the GPU time ZLUDA_AGX_PROFILE measured
+"""predict_captures.py CAPTURE_DIR PROFILE.jsonl SKIP [agx_dispatch options]: for each launch AGX_RUNTIME_CAPTURE saved in
+CAPTURE_DIR, the model's prediction (agx_dispatch over the captured memory) against the GPU time AGX_RUNTIME_PROFILE measured
 for that same launch: the SKIP-th launch of its kernel, whose grid must match. Prints one JSON line per launch."""
 import json, os, re, shlex, subprocess, sys, time, collections
 DISPATCH = os.environ.get('AGX_DISPATCH', 'agx_dispatch')

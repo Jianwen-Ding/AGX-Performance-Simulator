@@ -7,7 +7,7 @@ model 103.6 / 103.6 / 168.0 / 168.6 / 417 (L1 and L2 right, beyond L2 low)."""
 import json, os, re, subprocess, sys, tempfile
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 B = os.environ.get('LLVM_BIN', '/scratch/llvm-agx-main-build/bin')
-HW = os.environ.get('AGX_RUN_HW', '/scratch/zluda-air-target/release/agx_run_hw')
+HW = os.environ.get('AGX_RUN_HW', '/scratch/ptx-frontend-air-target/release/agx_run_hw')
 DISP = os.environ.get('AGX_DISPATCH', '/scratch/agxsim-target/release/agx_dispatch')
 W = int(os.environ.get('FRAME_WORDS', '4096'))
 def ir(p, n, wg_stride):
@@ -67,7 +67,7 @@ with tempfile.TemporaryDirectory() as d:
                     t.append(int(m.group(1)) / 1000 if m else None)
                     if not m: rec['hw_err'] = (h.stdout + h.stderr)[-200:]
                 else:
-                    r = subprocess.run([DISP] + common + ['--launch-profile', 'zluda', '--stack', str(stack), '--alloc', '0x100000=16'], capture_output=True, text=True)
+                    r = subprocess.run([DISP] + common + ['--launch-profile', 'runtime', '--stack', str(stack), '--alloc', '0x100000=16'], capture_output=True, text=True)
                     t.append(json.loads(r.stdout)['time_us'])
             if None not in t:
                 rec[key + '_us'] = t; rec[key + '_ns_per_iter'] = round((t[1] - t[0]) * 1000 / (N2 - N1), 2)

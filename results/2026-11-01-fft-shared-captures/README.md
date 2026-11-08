@@ -1,7 +1,7 @@
-# zluda_fft_agx's threadgroup-memory FFT (agx_fft_shared) against the GPU
+# The cuFFT library's (fft_agx) threadgroup-memory FFT (agx_fft_shared) against the GPU
 
-M2 Max (G14C), zluda_agx (AIR route), captures of `zluda_fft_agx/tools/fftbench.c` launches (`ZLUDA_AGX_CAPTURE`),
-hardware `agx_run_hw --back-to-back 1000` (warm), model `agx_dispatch --launch-profile zluda` (default rules; the
+M2 Max (G14C), the CUDA driver (AIR route), captures of `fft_agx/tools/fftbench.c` launches (`AGX_RUNTIME_CAPTURE`),
+hardware `agx_run_hw --back-to-back 1000` (warm), model `agx_dispatch --launch-profile runtime` (default rules; the
 opt-in AGX_TG_SETTLE_ON_READ gives the same times here). Each launch transforms 8 MiB in place (16 MiB moved);
 124 registers.
 
@@ -17,7 +17,7 @@ opt-in AGX_TG_SETTLE_ON_READ gives the same times here). Each launch transforms 
 | 2048 x 512, 512 x 1, 16 KiB | 162.6 | 132.5 | 1 | -18% |
 
 - The model predicted the gain of declaring 8 KiB instead of 32 KiB (more resident workgroups) in direction and
-  size: -12% (64.6 -> 56.8) against the GPU's -14% (81.2 -> 69.8); ZLUDA 94735f1 made the change.
+  size: -12% (64.6 -> 56.8) against the GPU's -14% (81.2 -> 69.8); the PTX front end's commit 94735f1 made the change.
 - It is 12-20% fast throughout, an amount that follows the bytes moved (11-19 us at 16 MiB) more than the
   workgroup count or shape: the next place to look is the memory model's read and write throughput for in-place
   streams of this size (8 MiB, inside the system-level cache), not the barrier or threadgroup-memory costs.
@@ -81,7 +81,7 @@ not (8 MiB streams). Left opt-in until that difference is measured: next, the sa
 back to back, to find the size at which the previous command's data stops being fast.
 `scripts/evalset_captures.sh` scores both sets (paths are this machine's captures).
 
-## mul_mat_vec_f under the new zluda profile (+8% -> +21%)
+## mul_mat_vec_f under the new runtime profile (+8% -> +21%)
 
 Per simulated wave (busiest core, cycles): with partial warm 8326 (wave 0, 480 distinct lines), 10275 / 10359 / 9719
 (waves 1-3, 608 lines each, sharing none with wave 0); before, waves 1-3 were warm (all hits) at ~8320. The GPU's
@@ -92,7 +92,7 @@ little with the first changes nothing here (they already share 0%). Next: the me
 first-touch loads (how many a core keeps in flight), measured with a read kernel of 1 / 2 / 4 / 8 loads per thread.
 
 Measured (`mlp/readL.ptx`: L independent 16-byte loads per thread, 256-thread workgroups, the same bytes in all,
-zluda profile with partial warm): GPU / model us for 8 MiB: L1 24.4 / 25.2, L2 24.8 / 25.8, L4 25.2 / 26.8, L8
+runtime profile with partial warm): GPU / model us for 8 MiB: L1 24.4 / 25.2, L2 24.8 / 25.8, L4 25.2 / 26.8, L8
 26.0 / 26.7; 32 MiB: 87.9 / 97.8, 89.5 / 97.5, 91.9 / 97.1, 93.5 / 96.6 (+3..+11%). Streaming reads are
 bandwidth-bound on the GPU at every L and the model follows them: memory-level parallelism is not what
 mul_mat_vec_f's later waves get wrong. What differs there: f16 loads of partial lines, the shared-memory reduction
@@ -114,7 +114,7 @@ several resident workgroups per core already overlap memory and compute inside a
 credit counts it twice. A cross-wave overlap would need the wave's own idle time (cycles in which no group issues)
 from `simulate_groups`, not an estimate from its line count.
 
-## Adopted: chained waves (zluda profile, `chain_waves`)
+## Adopted: chained waves (runtime profile, `chain_waves`)
 
 Each simulated wave runs chained with the next one in every slot (the second wave's trace of a slot appended to the
 first's, step indices offset): on the GPU a slot starts its next workgroup as soon as the previous one ends, so one
@@ -122,7 +122,7 @@ wave's loads run under the other's reduction or tail; the pair is simulated toge
 cycles. The footprint, the written bytes and the sharing stay the first wave's own (computed before chaining: with
 them doubled, store-bound kernels such as gradient went +1 -> +92%).
 
-| zluda profile | 40 captures (median, mean, within 25%) | the 8 above | all 48 (mean) |
+| runtime profile | 40 captures (median, mean, within 25%) | the 8 above | all 48 (mean) |
 |---|---|---|---|
 | partial warm | 8%, 11.0%, 36 | 5.9% | 10.2% |
 | + chained waves | 7.5%, 10.2%, 37 | 5.9% | 9.5% |

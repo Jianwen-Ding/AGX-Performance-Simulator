@@ -68,7 +68,7 @@ Every resident workgroup runs the costed workgroup's path (give launch inputs: w
 at once and is launch-bound), each on device data and stack of its own. **To compare spilling code, use `--map` /
 `--alloc`** (a zero-filled `--alloc 0=BYTES` will do): the default emulation skips `stack_load`, so spilled counters read
 as zero and the path shrinks or never ends, which looks like a gain (`warnings` says so). Stack traffic is priced like
-any memory access; its cost per spill is not measured under load (`tasks/zluda-agx-followups.md` item 2). Waves are the
+any memory access; its cost per spill is not measured under load (`tasks/ptx-frontend-agx-followups.md` item 2). Waves are the
 dispatch model's assumption; the core's cold first touches of code and data are included.
 
 ## Equivalence with the Python model
