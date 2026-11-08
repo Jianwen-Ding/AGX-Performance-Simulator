@@ -1,14 +1,14 @@
 # Geekbench 7 GPU kernels on the AIR route: simulator vs hardware (2026-11-01)
 
-The 29 kernels with the most GPU time in a Geekbench 7 GPU (CUDA) run on zluda_agx's AIR route (ZLUDA
+The 29 kernels with the most GPU time in a Geekbench 7 GPU (CUDA) run on the CUDA driver's AIR route (the PTX front end's branch
 claude/perf-air-agx), except the ray tracer's (trace_bvh*, miss, hit_surface, generate_rays, resolve_radiance,
 accumulate_*: replays of BVH kernels with wrong data have hung the GPU), each captured after its 20th launch. Every
 capture ran on the simulator first (none hit the step limit), then `scripts/capcheck.py --hw --hw-repeat 3` (the
-median of 3 runs of 1000 back to back) against `agx_dispatch --launch-profile zluda`. No GPU faults.
+median of 3 runs of 1000 back to back) against `agx_dispatch --launch-profile runtime`. No GPU faults.
 
 | Model | Median abs. error | Within 10% | Within 25% |
 | --- | --- | --- | --- |
-| zluda profile, store floor launch + stores (`capcheck-hw3.txt`) | 18% | 9 / 29 | 23 / 29 |
+| runtime profile, store floor launch + stores (`capcheck-hw3.txt`) | 18% | 9 / 29 | 23 / 29 |
 | store floor overlapping the launch beyond the stores' time | 9% | 17 / 29 | 25 / 29 |
 | and later waves warm when the data fits the system-level cache (`capcheck-final.txt`) | **8%** | 17 / 29 | 25 / 29 |
 
@@ -79,7 +79,7 @@ median of 3 runs of 1000 back to back) against `agx_dispatch --launch-profile zl
   known gap); blur_gray, image_rotate, hough_scores +27-38% (hundreds of waves, each simulated with its own latency,
   which the hardware overlaps); particle -22%; depthwise_convolution_2d +24%.
 
-Rechecked under the zluda profile with partial warm and chained waves (results/2026-11-01-fft-shared-captures):
+Rechecked under the runtime profile with partial warm and chained waves (results/2026-11-01-fft-shared-captures):
 AGX_TG_SETTLE_ON_READ=1 still trades gemm_block_size_bias (+36 -> -10%) against llama.cpp's reductions
 (mul_mat_vec_q<Q5_1> -7 -> -33%, mul_mat_vec_f +17 -> -15%, soft_max -5 -> -19%) and gemm_non_block_size_bias
 (-10 -> -33%): 40 captures mean 10.2 -> 11.7%. Still opt-in; the reductions' missing cost (high-occupancy
@@ -99,7 +99,7 @@ shuffle / add chains. Next: dependent and independent chains of fadd32 alone and
 48 SIMD-groups per core, to calibrate issue under occupancy; then the settle rule can be the default.
 
 Calibration data (`red/fadd.ptx`, `red/shfl.ptx`: one dependent chain per 32-thread group, 16 per round, 200
-rounds; 1 / 4 / 16 / 48 groups per core; GPU / model zluda us):
+rounds; 1 / 4 / 16 / 48 groups per core; GPU / model runtime-profile us):
 - fadd32 chain: 12.33 / 12.69, 12.5 / 12.71, 17.12 / 18.21, 39.21 / 42.14 (+2..+7%): modelled.
 - simd_shuffle_xor chain: 18.96 / 19.26, 24.25 / 19.26, 38.29 / 28.45, 83.17 / 72.73 (+2, -21, -26, -13%).
 Shuffles per core per us after the 2.3 us launch, GPU: 193, 584 (3.0x), 1422 (7.4x), 1899 (9.8x) with 1 / 4 / 16 / 48
@@ -180,7 +180,7 @@ loop (dp4a emulation: imadd / asr / bfi with Q5_1 unpacking, device loads and wa
 whose integer chains alone are modelled within 11% (mad.ptx, shrbfi.ptx). Next: that main loop's mix (integer +
 device loads + waits) at 12 / 24 / 48 groups per core, not the reductions.
 
-mul_mat_vec_q<Q5_1> under the current zluda model (replayed at 3 / 6 / 8 / 10 / 12 workgroups of 64 threads per
+mul_mat_vec_q<Q5_1> under the current runtime-profile model (replayed at 3 / 6 / 8 / 10 / 12 workgroups of 64 threads per
 core; GPU / default / settled us): 16.17 / 17.35 / 17.35, 18.25 / 17.35 / 17.35, 19.62 / 21.68 / 17.35, 23.38 / 23.66
 / 17.35, 26.04 / 25.43 / 18.93. Execution alone at 12 per core (core cycles / clock): default 22.43 us, settled 15.93
 (the GPU's ~23 after the launch). The settle rule removes ~6.5 us from each wave pair, and the earlier issue

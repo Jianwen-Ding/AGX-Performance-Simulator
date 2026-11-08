@@ -1,7 +1,7 @@
-# Follow-ups from ZLUDA / AGX backend optimization work
+# Follow-ups from the PTX front end / AGX backend optimization work
 
-Areas where the simulator (functional model or `agx_cost`) could not settle a ZLUDA or AGX LLVM backend decision,
-collected while optimizing without hardware (October 2026, ZLUDA and llvm-project branch
+Areas where the simulator (functional model or `agx_cost`) could not settle a PTX front end or AGX LLVM backend decision,
+collected while optimizing without hardware (October 2026, the PTX front end and llvm-project branch
 `claude/serene-tesla-fwv2f2`). Each item names the decision it blocks and what would settle it. Existing task files
 are linked where they already cover part of it.
 
@@ -24,7 +24,7 @@ are linked where they already cover part of it.
    (issue ~2 with three or more 32-bit sources), `rcp` (issue 3), `imadd_wide` (latency 4), `simd_prefix_iadd`
    (latency 18) differ from the generic classes. Worth confirming on G13 and Apple9 (the LLVM models reuse G14C
    numbers) and adding issue rows for cmpsel with two register sources.
-4. **Launch submission and GPU idle time.** ZLUDA gained `ZLUDA_AGX_LAUNCH_BATCH=1` (ordinary launches gathered into
+4. **Launch submission and GPU idle time.** The PTX front end gained `AGX_RUNTIME_LAUNCH_BATCH=1` (ordinary launches gathered into
    one command while the queue is busy). The host submit cost (~20-30 us) and the gap between commands (~15-20 us)
    are hardware numbers; a model of submission, queue idle and per-dispatch cost inside a batched command would let
    the policy (gather only while busy, MAX_BATCH 64) be tuned offline
@@ -32,7 +32,7 @@ are linked where they already cover part of it.
    generation throughput for prompt throughput in Qwen: the cause is not modelled.
 5. **Memory access after ALU work (`mem_quiet_device_store_ref` 33.6, `mem_quiet_load_ref` 20).** The AGX backend
    now clusters device and threadgroup stores in the machine scheduler (`AGXMemCluster.cpp`) on the strength of
-   this stall alone: ZLUDA PTX tests -0.8%, agx_libs -9.5% in `agx_cost`, much of it in the tile GEMM epilogue.
+   this stall alone: the PTX front end's PTX tests -0.8%, agx_libs -9.5% in `agx_cost`, much of it in the tile GEMM epilogue.
    Worth confirming on hardware: whether a store right after an ALU instruction really waits ~34 cycles while
    back-to-back stores issue every ~3, whether a `wait` or a load between them resets it, and whether the same holds
    for threadgroup stores (no kernel changed when only those were clustered). Device loads are clustered too since
@@ -46,7 +46,7 @@ are linked where they already cover part of it.
    reduction) costs more in the model (agx-bench `cuda_compact` +41% cycles). Needed: a measurement of 1, 2, 8, 32
    lanes adding to one word vs. distinct words, device and threadgroup memory.
 
-12. **Uniform register sources and preload size.** ZLUDA now compiles kernels with the AGX backend's
+12. **Uniform register sources and preload size.** The PTX front end now compiles kernels with the AGX backend's
     `-agx-uniform-constants`, which reads wide 32-bit constants from preloaded uniforms (`.agx.kernels` extension 6)
     instead of `mov_imm` into GPRs. In the model this cuts 2-16 GPRs and gives -1..-2.4% tput geomean, because
     `agx_cost` charges nothing for a uniform source operand and nothing for more preloaded uniforms. Need to know:
@@ -82,12 +82,12 @@ are linked where they already cover part of it.
 ## Functional model / encodings
 
 7. **fmadd lane-offset form** ([safe-07-fmadd-lane-offset.md](safe-07-fmadd-lane-offset.md)). Not modelled, so the
-   AGX backend cannot pattern-match `shuffle_up` + `fma` into it (ZLUDA task 3.2) and test the result. Needed: the
+   AGX backend cannot pattern-match `shuffle_up` + `fma` into it (the PTX front end's task 3.2) and test the result. Needed: the
    coverage cases and functional support for bits 53 / 68 / 72 / 73 / 75-79.
-8. **Atomic bit 45 on multi-die chips (ZLUDA T5).** The backend sets it for `multi-die-coherency` (G13S/C/D, G14D);
+8. **Atomic bit 45 on multi-die chips (the PTX front end's T5).** The backend sets it for `multi-die-coherency` (G13S/C/D, G14D);
    the simulator (G14C model) decodes it on `cmpxchg` as the u64 min/max variant, so the sparse atomic SpMV kernels
    fail in the simulator on those chips. Needed: a run on an M1 Pro/Max/Ultra or M2 Ultra.
-9. **Device-coherent, not host-coherent, accesses (ZLUDA T3).** AIR's device-coherent loads and stores are emitted
+9. **Device-coherent, not host-coherent, accesses (the PTX front end's T3).** AIR's device-coherent loads and stores are emitted
    as the volatile (host-coherent) form; a device-scope cache control, if one exists, would be cheaper
    ([safe-10-memory-ordering.md](safe-10-memory-ordering.md)).
 10. **Software f64 cost.** The AGX backend's emulated double add / mul / fma / div / sqrt are 183 / 189 / 412 / 284 /

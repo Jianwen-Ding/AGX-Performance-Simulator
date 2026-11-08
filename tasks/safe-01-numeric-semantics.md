@@ -2,7 +2,7 @@
 
 Read [safe-probes.md](safe-probes.md) first (safety rules).
 
-**Goal:** bit-exact models of the remaining numeric instructions ZLUDA must reproduce, recorded exhaustively the way
+**Goal:** bit-exact models of the remaining numeric instructions the PTX front end must reproduce, recorded exhaustively the way
 fp32 `exp2` / `sin_pt_2` were (`results/2026-10-16-transcendentals`). Each model goes into the functional simulator
 and is checked offline.
 

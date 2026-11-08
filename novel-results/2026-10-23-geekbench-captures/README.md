@@ -1,13 +1,13 @@
 # The model on Geekbench 7's GPU (CUDA) kernels, and threadgroup-load costs in compiled code
 
 Status: measured on one device (driver-reported M2 Max G14C B1, AC power), Geekbench 7.1.0 Linux ARM Preview running
-its CUDA GPU benchmark through ZLUDA's AGX driver (`zluda_agx`, ZLUDA branch `claude/geekbench-agx`), 2026-10-23.
+its CUDA GPU benchmark through the AGX CUDA driver (the PTX front end's branch `claude/geekbench-agx`), 2026-10-23.
 
 ## Method: real launches with their real memory
 
-`ZLUDA_AGX_CAPTURE=DIR` (zluda_agx) saves a launch as it is about to run: the code, every region its arguments and
+`AGX_RUNTIME_CAPTURE=DIR` (the CUDA driver) saves a launch as it is about to run: the code, every region its arguments and
 parameter block reach with the contents the launch finds, the uniforms, grid, threadgroup memory and register
-allocation. One warm launch of each of 88 kernels was captured (`ZLUDA_AGX_CAPTURE_SKIP=20`).
+allocation. One warm launch of each of 88 kernels was captured (`AGX_RUNTIME_CAPTURE_SKIP=20`).
 
 Hardware time: the captured launch itself ran after the GPU idled for the capture, at a low clock (a captured
 `convolve_vertical`: 3185 us alone), so each capture is run again with `agx_run_hw --back-to-back 30` (the launch
@@ -115,9 +115,9 @@ fails at 29.5%: a model must have groups that each keep ~31 cycles per access wh
 progress at once. To do: a threadgroup-load issue model with that occupancy limit and the run-length effect, then
 the open gaps above.
 
-## Launch-time specialization (ZLUDA 6197520)
+## Launch-time specialization (the PTX front end's commit 6197520)
 
-zluda_agx compiles kernels again with their scalar arguments and block size as constants once a launch repeats
+The CUDA driver compiles kernels again with their scalar arguments and block size as constants once a launch repeats
 (`docs/src/agx.md`). Geekbench GPU time (`fastsum.py`, 10th percentile per launch configuration): 35.75 -> 29.92 s.
 `speccheck.py` runs the generic and the specialized code of each captured launch on the capture's memory
 (`capvariant.py`): 59 captures give bit-identical outputs (`speccheck.txt`); per launch, gemm -43..-56%, im2col
@@ -130,7 +130,7 @@ arithmetic: two `imadd` become `bfi`/`or` sequences). Findings on the way:
 - A capture's uniforms are laid out for the code that ran: a module without textures has no texture heap uniform, so
   its arguments start at `u0` rather than `u2` (speccheck skips those).
 - `div.approx` with constant operands folded to the exact quotient and gave other bits than the hardware reciprocal
-  (`dye_advection`); it now always uses the hardware's (ZLUDA `llvm.agx.rcp.f32`).
+  (`dye_advection`); it now always uses the hardware's (the PTX front end's `llvm.agx.rcp.f32`).
 - Immediate offsets on `xyzw` device loads (4, 16, 20, 32 elements) read the same words as register offsets.
 - Geekbench chooses block sizes by timing launches: if those run generic code and later ones specialized, it may pick a
   slower configuration (run 19: `build_patches_padding` 1268 instead of 596 ms); specializations in the compilation
@@ -211,7 +211,7 @@ Open: at 1-2 workgroups per core the simulator is ~44% fast on particle (latency
 
 ## Geekbench GEMM B-tile transpose (2026-10-23)
 
-ZLUDA's guarded specialization of the exact `gemm_block_size_bias` PTX template rearranges B in its 8 KiB
+The PTX front end's guarded specialization of the exact `gemm_block_size_bias` PTX template rearranges B in its 8 KiB
 threadgroup allocation so a pair of `xy` loads replaces four scalar loads per inner iteration. The transform is
 limited to a 32×4 block and a full-template fingerprint after masking two dimension constants. The capture
 `/scratch/geekbench-extract/captures/run13/84200-cap999-gemm_block_size_bias` (grid 1×18, scalar parameters
@@ -224,7 +224,7 @@ For Geekbench's dominant M=2304, N=64, K=576 shape, `agx_bench_kernel` timed the
 objects at 103.6 and 100.1 µs firmware median (-3.4%), with the same output hash. The functional simulator also
 matched all 589,824 output bytes on deterministic nonzero inputs. The performance simulator predicted
 149.8 → 131.2 µs (-12.4%) for this shape, substantially overestimating both the absolute cost and the gain.
-Alternating warm ZLUDA driver runs with `ZLUDA_AGX_GEMM_TILE=0`/`1`, after both variants were cached, measured
+Alternating warm CUDA driver runs with `AGX_RUNTIME_GEMM_TILE=0`/`1`, after both variants were cached, measured
 99.08/95.54/99.13/95.46 µs, again with identical output hashes. The first two cold-cache runs timed the generic
 code (~220 µs) before background specialization completed and are excluded from this comparison.
 The model was not retuned to these two points: its known threadgroup-load occupancy and run-length gaps above

@@ -1,6 +1,6 @@
 # Runtime CDM ordering and simulator scope
 
-ZLUDA `4db02c1` makes every dispatch in a combined command emit its CDM
+The PTX front end's commit `4db02c1` makes every dispatch in a combined command emit its CDM
 barrier, including when the shader code is already cached. The previous
 cache-generation condition could omit ordering between dependent dispatches
 and corrupt Qwen inference. The repaired opt-in path matches the CPU on
@@ -20,10 +20,10 @@ pass three repetitions. The runner's barrier-count assertion catches the
 omission even when a simple kernel happens to execute in order.
 
 Run this integration gate from the simulator checkout with the sibling
-playground and ZLUDA checkouts available:
+playground and the PTX front end checkouts available:
 
 ```bash
-ZLUDA_AGX_ZOC=/scratch/geekbench-extract/cargo-target/release/zoc \
+AGX_RUNTIME_ZOC=/scratch/geekbench-extract/cargo-target/release/zoc \
 AGX_CDM_BATCH=/scratch/geekbench-extract/cargo-target/release/agx_cdm_batch \
 make verify-cdm-ordering
 ```

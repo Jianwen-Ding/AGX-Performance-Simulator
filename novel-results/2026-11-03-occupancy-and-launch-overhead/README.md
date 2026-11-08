@@ -8,12 +8,12 @@ Status: model comparison against stored warm hardware times (`/scratch/perf-goal
 | --- | --- | --- | --- | --- |
 | fetch cost on every launch, 5.6 us launch | 18% | 28% | 22 | +18% |
 | no fetch cost, 5.6 us launch | 17% | 21% | 25 | +11% |
-| no fetch cost, `--launch-profile zluda` (3.0 us) | 10% | 15% | 30 | -3% |
+| no fetch cost, `--launch-profile runtime` (3.0 us) | 10% | 15% | 30 | -3% |
 | same, `AGX_REFILL=1` | 10% | 14% | 33 | -7% |
 
 ## Findings
 
-1. **Launch overhead through ZLUDA is about 3.0 us, not 5.6.** Fitted over these launches (0.5 to 5.6 us tried). An older `--launch-profile zluda` was in
+1. **Launch overhead through the CUDA driver is about 3.0 us, not 5.6.** Fitted over these launches (0.5 to 5.6 us tried). An older `--launch-profile runtime` was in
    the old evaluation scripts but not in this code; it is back. It is fitted to these launches, so they do not test it independently.
 2. **The fetch cost of `2026-11-03-real-launch-prediction` is wrong for small code.** It made this set worse: `mul_mat_vec_q` +8% to +54%, `raw_process` +11% to +59%.
    This code is at most 12.8 KB and repeats, so it stays cached. `AGX_ICACHE_BYTES` drops the charge when the touched code fits. It is off by default,

@@ -4,7 +4,7 @@ A TABLE is CAPTURE_ROOT:CHECK_FILE, where CHECK_FILE has capcheck.py's lines "KE
 under the root (PID-capN-KERNEL) with a matching line is simulated. Prints one line per launch and the error summary."""
 import json, os, re, shlex, statistics as st, subprocess, sys
 D = os.environ.get('AGX_DISPATCH', '/scratch/agxsim-target/release/agx_dispatch')
-args = sys.argv[1:]; extra = ['--launch-profile', 'zluda']; tables = []
+args = sys.argv[1:]; extra = ['--launch-profile', 'runtime']; tables = []
 while args:
     a = args.pop(0)
     if a == '--agx-dispatch-arg': extra.append(args.pop(0))

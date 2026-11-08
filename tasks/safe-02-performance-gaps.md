@@ -47,7 +47,7 @@ the cost model (`rust/src/cost.rs`) with an offline check.
 
 - The fma-split sequence (`scripts/record_sincos_chain.py` `sin2` / `cos2`) adds one fmul and turns an fmul into an
   fmadd.
-- Measure its throughput and latency against Mesa's sequence in a bounded loop, so ZLUDA knows what PTX compliance
+- Measure its throughput and latency against Mesa's sequence in a bounded loop, so the PTX front end knows what PTX compliance
   costs.
 
 ## Acceptance

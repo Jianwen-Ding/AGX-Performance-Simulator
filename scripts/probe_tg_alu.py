@@ -23,7 +23,7 @@ usage: probe_tg_alu.py [hw|sim|both] PATTERN... ; env NG="4 16 32", T1, T2, ADDR
 import json, os, re, subprocess, sys, tempfile
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 REL = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'rust', 'target', 'release')
-HW = os.environ.get('AGX_RUN_HW', '/scratch/zluda-build/release/agx_run_hw')
+HW = os.environ.get('AGX_RUN_HW', '/scratch/ptx-frontend-build/release/agx_run_hw')
 DISP = os.environ.get('AGX_DISPATCH', os.path.join(REL, 'agx_dispatch'))
 RUN = os.environ.get('AGX_RUN', os.path.join(REL, 'agx_run'))
 ASM = os.environ.get('AGX_ASM', os.path.join(REL, 'agx_asm'))
@@ -108,7 +108,7 @@ def measure(key, code, groups, trips, d):
         if not m:
             raise RuntimeError('hw: ' + (h.stdout + h.stderr)[-300:])
         return int(m.group(1)) / 1000
-    r = subprocess.run([DISP] + common + ['--tg-bytes', '4096', '--launch-profile', 'zluda'], capture_output=True, text=True)
+    r = subprocess.run([DISP] + common + ['--tg-bytes', '4096', '--launch-profile', 'runtime'], capture_output=True, text=True)
     return json.loads(r.stdout.strip().splitlines()[-1])['time_us']
 
 

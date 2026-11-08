@@ -3,7 +3,7 @@
 out=$1; shift; mkdir -p $out
 cd /save/workspace/AGX-Performance-Simulator
 R=/scratch/sim-captures/rodinia; N=/scratch/sim-captures/r3
-run() { env "$@" nice -n 10 python3 scripts/capcheck.py $P $P/profile.jsonl --hw-from $HWF --sim-arg=--launch-profile --sim-arg=zluda; }
+run() { env "$@" nice -n 10 python3 scripts/capcheck.py $P $P/profile.jsonl --hw-from $HWF --sim-arg=--launch-profile --sim-arg=runtime; }
 for d in $(ls $R); do [ -d $R/$d ] || continue; ls $R/$d | grep -q cap || continue; P=$R/$d; HWF=/scratch/agx-r3/rodinia-hw-all.txt; run "$@" > $out/r-$d.txt 2>&1 & done
 for d in $(ls $N); do [ -f /scratch/agx-r3/hw/$d.txt ] || continue; P=$N/$d; HWF=/scratch/agx-r3/hw/$d.txt; run "$@" > $out/n-$d.txt 2>&1 & done
 wait

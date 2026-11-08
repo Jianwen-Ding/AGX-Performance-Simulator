@@ -7,7 +7,7 @@ row (and the item's "Done" note in ptx-re-blockers.md) when an item moves.
 Status: **done**, **open** (safe, can run now), **needs tools** (safe, but a missing build or program stops it),
 **unsafe** (needs the owner's approval and the hang budget), **blocked** (needs hardware or a decision we do not have).
 
-ZLUDA issues found by these probes: [zluda-issues.md](zluda-issues.md).
+Issues in the PTX front end found by these probes: [ptx-frontend-issues.md](ptx-frontend-issues.md).
 
 Rules: [safe-probes.md](safe-probes.md). Before any GPU work: `scripts/gpu_safety.py status`, the power source,
 `free -g` >= 8 GB available, and an `agx_run` emulator gate. Evidence goes in the playground's `results/`.
@@ -15,8 +15,8 @@ Rules: [safe-probes.md](safe-probes.md). Before any GPU work: `scripts/gpu_safet
 ## Environment on 2026-10-21
 
 - Toolchain: `source /scratch/agxsim-deps/env.sh` (Rust in `/scratch/rust`, Mesa headers, venv). No root.
-- ZLUDA: `/scratch/ZLUDA` (master 8357395 plus a local aarch64 `c_char` patch). The owner said **do not push ZLUDA**;
-  ZLUDA issues go to the playground's `notes/zluda-issues.md`.
+- The PTX front end: `/scratch/ptx-frontend` (master 8357395 plus a local aarch64 `c_char` patch). The owner said **do not push the PTX front end**;
+  front-end issues go to the playground's `notes/ptx-frontend-issues.md`.
 - Not on this machine: the LLVM AGX build (`llc`, `zoc`), nvcc (the owner does not want it installed), an M2 Ultra,
   a G13X device.
 - Hang budget: 0/30 on boot 1178a36a.
@@ -25,10 +25,10 @@ Rules: [safe-probes.md](safe-probes.md). Before any GPU work: `scripts/gpu_safet
 
 | Item | Status | Left to do |
 | --- | --- | --- |
-| B1 scratch / stack | done | drm_compute and ZLUDA's own scratch path both pass on the GPU (262,144 threads). |
+| B1 scratch / stack | done | drm_compute and the PTX front end's own scratch path both pass on the GPU (262,144 threads). |
 | B2 hardware runner | done | Sub-items below. |
 | B2a partial workgroups | done | Partial workgroups run in every dimension (exact thread counts); `results/2026-10-21-b2a-partial-workgroups`. |
-| B2b Uniform word size | done (B9) | 64 halves per word work; `agx_runtime` still splits at 32 (ZLUDA note, not pushed). |
+| B2b Uniform word size | done (B9) | 64 halves per word work; `agx_runtime` still splits at 32 (the PTX front end's note, not pushed). |
 | B2c Shared "none" encoding | done | Existing occupancy data used that word: 96 groups / ~55 workgroups per core, no limit. |
 
 ## Priority 2: correctness of common CUDA idioms
@@ -134,7 +134,7 @@ Rules: [safe-probes.md](safe-probes.md). Before any GPU work: `scripts/gpu_safet
 | B14 calls / returns (all masks, divergence, nesting) | yes (`results/2026-10-20-ret-stop-model`: 570 programs exact) |
 | B35 SR113 power-state bit | not modelled by design (time-varying) |
 | B38 / B43 / B45 several VMs: concurrent, no implicit order, shared objects | **added 2026-10-21** to `agx_device`: cross-queue / cross-VM `wait_for`, `share` (one object in two VMs); whole commands in policy order = a legal outcome for synchronized programs |
-| B8 correction: the USC invalidate is needed for deep queues | todo: a runtime-level rule (ZLUDA), nothing for agx_run to execute |
+| B8 correction: the USC invalidate is needed for deep queues | todo: a runtime-level rule (the PTX front end), nothing for agx_run to execute |
 
 ## Hand-off (2026-10-21, end of session)
 

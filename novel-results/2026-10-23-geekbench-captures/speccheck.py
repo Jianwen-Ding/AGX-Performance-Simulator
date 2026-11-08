@@ -1,5 +1,5 @@
 """Launch-time specialization against the generic code on captured launches: per capture, the kernel compiled from its
-module (generic) and as zluda_agx specializes it for the captured arguments and block (agx_specialize), both run on
+module (generic) and as the CUDA driver specializes it for the captured arguments and block (agx_specialize), both run on
 the capture's memory (capvariant.py): the output hashes must match; prints both back-to-back times.
 
 speccheck.py CAPDIR... [--b2b N]
@@ -14,7 +14,7 @@ ap.add_argument('--dispatch', default='/scratch/agxsim-target/release/agx_dispat
 ap.add_argument('--vs-captured', action='store_true', help='compare the generic code with the captured code (the '
                 'compiler of the run) instead of the specialized code: a regression check of the compiler')
 a = ap.parse_args()
-spec = importlib.util.spec_from_file_location('fc', '/save/workspace/ZLUDA/ptx/tools/agx_ptx_formalization_check.py')
+spec = importlib.util.spec_from_file_location('fc', '/save/workspace/ptx-frontend/ptx/tools/agx_ptx_formalization_check.py')
 fc = importlib.util.module_from_spec(spec); spec.loader.exec_module(fc)
 ZOC = f'{G}/cargo-target/release/zoc'
 SPEC = f'{G}/cargo-target/release/agx_specialize'
@@ -38,7 +38,7 @@ def code_of(ptx_path, kernel, t):
         if not l.strip().startswith('//'): break
         header.append(l)
     layout = re.findall(r'// (uniform registers: .*|texture heap at .*|sampler heap at .*)', '\n'.join(header))
-    # the global data's symbols (zluda_agx specializes only when they are laid out alike)
+    # the global data's symbols (the CUDA driver specializes only when they are laid out alike)
     syms = subprocess.run(['/scratch/llvm-agx-build/bin/llvm-readelf', '-sW', obj], capture_output=True, text=True).stdout
     layout += sorted(l.split()[1] + ':' + l.split()[2] + ':' + l.split()[7] for l in syms.splitlines() if ' OBJECT ' in l)
     return f'{out}:{2 * gprs}', layout

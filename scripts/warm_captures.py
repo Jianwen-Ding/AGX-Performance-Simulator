@@ -2,7 +2,7 @@
 """warm_captures.py CAPTURE_DIR KERNEL_REGS.json [SECONDS]: each captured launch on the GPU with its clock held up: a small kernel keeps
 the GPU busy in another process while the launch runs from its captured memory, restored each run. Without it, the same launch measures
 up to 2.8x slower and varies by 2x: a launch of its own does not keep the clock up. Prints JSON lines of warm times; compare with
-predict_captures.py. Kernels using hardware textures do not replay: capture with ZLUDA_AGX_SOFTWARE_TEXTURES=1."""
+predict_captures.py. Kernels using hardware textures do not replay: capture with AGX_RUNTIME_SOFTWARE_TEXTURES=1."""
 import json, os, re, shlex, subprocess, sys, tempfile
 HW = os.environ.get('AGX_RUN_HW', 'agx_run_hw'); ASM = os.environ.get('AGX_ASM', 'agx_asm')
 cap = sys.argv[1]; regs = json.load(open(sys.argv[2])); repeat = sys.argv[3] if len(sys.argv) > 3 else '8'

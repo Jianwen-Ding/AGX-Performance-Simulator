@@ -7,13 +7,13 @@
 //!              [--all-workgroups] (with --map: trace every workgroup, on the cores in turn; slower, and needed for
 //!              data-dependent kernels, whose time is their slowest workgroup's)
 //!              [--preamble PRE.bin] [--map VA=FILE ...] [--alloc VA=BYTES ...] [--sampler-heap VA=COUNT] [--agx-strict GPU]
-//!              [--launch-profile drm|zluda] [--group-launch-ns NS] [--stack BYTES] [--store-gbps GBPS]
+//!              [--launch-profile drm|runtime] [--group-launch-ns NS] [--stack BYTES] [--store-gbps GBPS]
 //!
 //! --launch-profile: the launch costs of a command as the direct-DRM harness submits it (`drm`, the default: 5.6 us
-//! fixed, max(100 ns per workgroup, 13.6 ns per SIMD group) per core) or as zluda_agx / agx_runtime submit it back to
-//! back, as an application keeps the GPU busy (`zluda`: 2.3 us fixed, max(100 ns per workgroup, 3.2 ns per SIMD
+//! fixed, max(100 ns per workgroup, 13.6 ns per SIMD group) per core) or as the CUDA driver / agx_runtime submit it back to
+//! back, as an application keeps the GPU busy (`runtime`: 2.3 us fixed, max(100 ns per workgroup, 3.2 ns per SIMD
 //! group; empty kernels over 1 to 15,200 workgroups of 32 and 1024 threads, playground
-//! novel-results/2026-11-01-zluda-launch-cost; and 104 ns per 64-byte line of code executed, the cold instruction
+//! novel-results/2026-11-01-runtime-launch-cost; and 104 ns per 64-byte line of code executed, the cold instruction
 //! fetch, 2026-11-01-code-fetch). Options after it override its values.
 //!
 //! code.bin is the main shader as submitted (e.g. the direct-DRM harness's control main with a body).
@@ -143,7 +143,7 @@ fn run_job(a: &[String], p: &Params) -> Result<serde_json::Value, String> {
                     l.icache_lines = d.icache_lines;
                     l.icache_victims = d.icache_victims;
                 }
-                "zluda" => {
+                "runtime" => {
                     (l.launch_ns, l.wg_launch_ns, l.group_launch_ns, l.fetch_line_ns, l.stack_launch_ns, l.store_gbps, l.store_launch_ns, l.later_waves_warm, l.partial_warm, l.chain_waves) = (2300.0, 100.0, 3.2, 104.0, 5000.0, 365.0, 700.0, true, true, true);
                     l.stack_slot_ns = 1150.0;
                     // code beyond the instruction cache is fetched through it in the simulation (Launch::icache_lines)
@@ -155,7 +155,7 @@ fn run_job(a: &[String], p: &Params) -> Result<serde_json::Value, String> {
                     l.icache_lines = 192;
                     l.icache_victims = 192;
                 }
-                other => return Err(format!("--launch-profile: {other:?} is not drm or zluda")),
+                other => return Err(format!("--launch-profile: {other:?} is not drm or runtime")),
             },
             "--max-waves" => { l.max_waves = number(v, option)?; max_waves_explicit = true; },
             "--m2-core-map" => core_map_path = Some(v.clone()),

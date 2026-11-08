@@ -7,7 +7,7 @@ Read [safe-probes.md](safe-probes.md) first (safety rules).
 - Narrow down what 0x18 synchronises.
 - Look for any difference among the 18 ending opcodes.
 
-These matter for ZLUDA because the backend must never emit them by accident, and because a cheap "end this SIMD
+These matter for the PTX front end because the backend must never emit them by accident, and because a cheap "end this SIMD
 group" or a sync primitive may be useful.
 
 **Background** (playground `novel-results/2026-10-11-opcode-descriptions` and `2026-10-11-sync-and-end-opcodes`,

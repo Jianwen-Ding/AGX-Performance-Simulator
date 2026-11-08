@@ -43,11 +43,11 @@ pub struct Launch {
     pub wg_launch_ns: f64,
     pub group_launch_ns: f64,
     /// per distinct 64-byte line of code the busiest core's first wave executes: the instruction fetch of a command
-    /// whose caches start cold, overlapping execution (0 in the direct-DRM profile, whose calibration includes it; 104 ns for zluda_agx's
+    /// whose caches start cold, overlapping execution (0 in the direct-DRM profile, whose calibration includes it; 104 ns for the CUDA driver's
     /// commands: straight-line code 294 -> 4134 bytes, +6.25 us, playground novel-results/2026-11-01-code-fetch)
     pub fetch_line_ns: f64,
     /// stack (scratch) per thread the kernel uses, and the fixed cost of a command whose kernel has one (the scratch
-    /// set up by the launch's helper program: 0 in the drm profile; 5.0 us for zluda_agx's: real one-group stack kernels
+    /// set up by the launch's helper program: 0 in the drm profile; 5.0 us for the CUDA driver's: real one-group stack kernels
     /// take 7.7-8.9 us in all at a warm clock (results/2026-11-07-stack-slots), while an empty kernel over 38 to
     /// 15,200 workgroups +7.1-8.1 us with --stack 64, playground novel-results/2026-11-01-stack-launch)
     pub stack_bytes: u32,
@@ -55,12 +55,12 @@ pub struct Launch {
     /// per SIMD-group slot of the busiest core that a stack-using kernel occupies in a command (resident workgroups x
     /// groups): the first stack use of each slot costs this, one slot at a time per core, before its group runs (bfs
     /// Kernel2 at 1-1954 workgroups of 512 threads: +1.0-1.3 us per slot up to the 96 resident; 0 in the drm profile;
-    /// zluda 1150 ns; results/2026-11-07-stack-slots). AGX_STACK_SLOT_NS overrides
+    /// runtime 1150 ns; results/2026-11-07-stack-slots). AGX_STACK_SLOT_NS overrides
     pub stack_slot_ns: f64,
     /// instruction-cache refetch for kernels whose executed code exceeds the cache: when a wave's distinct 64-byte
     /// lines exceed `icache_lines`, the simulation fetches through a per-core LRU of that many lines (a fall-through
     /// miss `refetch_line_ns`, a taken jump's `fetch_jump_ns`, the group waiting) in place of `fetch_line_ns` per
-    /// distinct line. 0: off (drm profile). zluda: 168 lines (12 KiB with the 8-byte-crossing loss of 6-byte streams,
+    /// distinct line. 0: off (drm profile). runtime: 168 lines (12 KiB with the 8-byte-crossing loss of 6-byte streams,
     /// playground novel-results/2026-10-20-icache), 64 / 200 ns (2026-11-07-uncached-jump-fetch). AGX_ICACHE_LINES overrides
     pub icache_lines: usize,
     /// the instruction cache's replacement: one of this many least recently used lines (`cost::MemModel::icache_victims`)
@@ -69,22 +69,22 @@ pub struct Launch {
     pub fetch_jump_ns: f64,
     /// GPU-wide store bandwidth (GB/s), a floor on the time of a dispatch's writes (0: none, the drm profile): stores
     /// that fit the system-level cache went at no cost in the model, measured at ~280-340 GB/s whatever their size
-    /// (1520 x 256 threads writing 1.5 / 6 / 24 MB: 9.9 / 22.0 / 72.1 us, after the workgroups' launch; zluda profile
+    /// (1520 x 256 threads writing 1.5 / 6 / 24 MB: 9.9 / 22.0 / 72.1 us, after the workgroups' launch; runtime profile
     /// 365, playground novel-results/2026-11-01-store-bandwidth)
     pub store_gbps: f64,
     /// fixed cost of a command whose kernel stores to device memory (the writes reaching memory before the command
-    /// ends): 0 in drm; 700 ns in zluda (one workgroup storing 1 KB: 3.0 us against the empty kernel's 2.3)
+    /// ends): 0 in drm; 700 ns in runtime (one workgroup storing 1 KB: 3.0 us against the empty kernel's 2.3)
     pub store_launch_ns: f64,
     /// the waves after the first start with their accesses cached when the dispatch's data fits the system-level cache
-    /// (false in drm, whose calibration it would change; true in zluda: Geekbench's captures median 9% -> 8%, llama.cpp's
+    /// (false in drm, whose calibration it would change; true in runtime: Geekbench's captures median 9% -> 8%, llama.cpp's
     /// within 10% 7 -> 9 of 11)
     pub later_waves_warm: bool,
     /// with `later_waves_warm`: only the first wave's data is warm for later waves; the rest of the data a previous
     /// command left behind is at L2 latency but its first touch in the dispatch goes at the DRAM rate (reads back to
-    /// back never exceed ~380 GB/s; results/2026-11-01-fft-shared-captures). The zluda profile sets it
+    /// back never exceed ~380 GB/s; results/2026-11-01-fft-shared-captures). The runtime profile sets it
     /// (AGX_PARTIAL_WARM=0 / 1 overrides)
     pub partial_warm: bool,
-    /// simulate each wave chained with the next in every slot (`sim_wave`); the zluda profile sets it
+    /// simulate each wave chained with the next in every slot (`sim_wave`); the runtime profile sets it
     pub chain_waves: bool,
     /// cores per cluster (workgroups are split evenly over clusters first); empty = round-robin over `cores`
     pub clusters: Vec<u32>,
@@ -240,7 +240,7 @@ pub fn co_resident_workgroups(l: &Launch) -> u32 {
 /// Cold instruction fetch, ns per 64 bytes, on top of issue: 8.85 ns per 8-byte instruction of straight-line code on the M2 Max, warm, back to
 /// back, from 64 KB to 4 MB of code and 1 or 12 SIMD groups alike (scripts/probe_fetch_scaling.py). A launch's kernel is
 /// fetched again each launch. Off by default: the calibrated launch profiles cost the fetch per launch instead
-/// (`Launch::fetch_line_ns`, 104 ns per line in the zluda profile, fitted on 56 captures). AGX_FETCH_LINE_NS=62 turns
+/// (`Launch::fetch_line_ns`, 104 ns per line in the runtime profile, fitted on 56 captures). AGX_FETCH_LINE_NS=62 turns
 /// this in-simulation fetch on (it stays off when the launch profile costs the fetch).
 pub fn fetch_line_ns() -> f64 {
     std::env::var("AGX_FETCH_LINE_NS").ok().and_then(|v| v.parse().ok()).unwrap_or(0.0)
@@ -344,7 +344,7 @@ fn simulate_core(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer>, c
     let waves = m.div_ceil(r as u64).max(1);
     rep.waves = waves;
     // the in-simulation cold fetch (MemModel::fetch_line_ns) is off when the launch profile costs the code fetch
-    // itself (`Launch::fetch_line_ns`, the zluda profile), so that the fetch is not counted twice
+    // itself (`Launch::fetch_line_ns`, the runtime profile), so that the fetch is not counted twice
     let mm = MemModel { fetch_line_ns: if l.fetch_line_ns > 0.0 { 0.0 } else { fetch_line_ns() }, icache_bytes: icache_bytes(), clock_mhz: l.clock_mhz, active_cores: (cores.min(n)) as f64, warm: false, dram_gbps: l.dram_gbps, ..Default::default() };
     let device_pcs: std::collections::HashSet<usize> =
         ins.iter().filter(|i| i.name == "device_load" || i.name == "device_store").map(|i| i.pc).collect();

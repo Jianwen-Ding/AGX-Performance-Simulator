@@ -1,5 +1,5 @@
 # hybridsort mergeSortFirst (capture /scratch/sim-captures/r3/hybridsort/370259-cap22-*), --grid varied, regs 144
-# hw: agx_run_hw --back-to-back 1000 b2b_median_fw_ns; sim: agx_dispatch --launch-profile zluda
+# hw: agx_run_hw --back-to-back 1000 b2b_median_fw_ns; sim: agx_dispatch --launch-profile runtime
 # grid_threads hw_us sim_hold_by_program_size sim_hold_by_executed_lines
 9728    16.4  13.5  12.3
 19456   21.8  13.7  12.3

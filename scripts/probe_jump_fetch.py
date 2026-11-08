@@ -5,7 +5,7 @@ blocks (7 x iadd + jmp_exec_any + wait filler = 64 bytes), each visited once:
   seq       each block jumps to the next line (taken jump, sequential lines)
   rand      each block jumps to a random other line of the N (taken jump, non-sequential lines)
   rand4     as rand, but each block is 4 lines (3 lines of iadd, then the jump): a jump every 256 bytes
-Two sizes give ns per block (slope), hardware (agx_run_hw back to back) vs agx_dispatch (zluda profile).
+Two sizes give ns per block (slope), hardware (agx_run_hw back to back) vs agx_dispatch (runtime profile).
 
 Safety: every jump target is a block start inside the program (checked here, and agx_run must execute exactly the
 expected instruction count before the GPU sees it), and 16 KB of `stop` follow the last block, so neither a jump nor
@@ -15,7 +15,7 @@ the GPU: the cause is not established. Run it only on an idle GPU, after `gpu_sa
 2026-11-06 hardware (M2 Max, lower of two clock states): straight 70, seq 324, rand 235, rand4 451 ns per block."""
 import json, os, random, re, subprocess, sys, tempfile
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-HW = os.environ.get('AGX_RUN_HW', '/scratch/zluda-air-target/release/agx_run_hw')
+HW = os.environ.get('AGX_RUN_HW', '/scratch/ptx-frontend-air-target/release/agx_run_hw')
 DISP = os.environ.get('AGX_DISPATCH', '/scratch/agxsim-target/release/agx_dispatch')
 RUN = os.environ.get('AGX_RUN', '/scratch/agxsim-target/release/agx_run')
 ASM = os.environ.get('AGX_ASM', '/scratch/agxsim-target/release/agx_asm')
@@ -75,7 +75,7 @@ with tempfile.TemporaryDirectory() as d:
                     m = re.search(r'"b2b_median_fw_ns":(\d+)', h.stdout); t.append(int(m.group(1)) / 1000 if m else None)
                     if not m: rec['hw_err'] = (h.stdout + h.stderr)[-200:]; break
                 else:
-                    r = subprocess.run([DISP] + common + ['--launch-profile', 'zluda'], capture_output=True, text=True)
+                    r = subprocess.run([DISP] + common + ['--launch-profile', 'runtime'], capture_output=True, text=True)
                     t.append(json.loads(r.stdout)['time_us'])
             if len(t) == 2 and None not in t:
                 rec[key + '_us'] = t; rec[key + '_ns_per_block'] = round((t[1] - t[0]) * 1000 / (N2 - N1), 2)

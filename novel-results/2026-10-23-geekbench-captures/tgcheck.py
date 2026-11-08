@@ -27,7 +27,7 @@ for (name, groups), t in hw.items():
     code = f'{P}/{name}.bin'
     if not os.path.exists(code):
         import tempfile, importlib.util
-        spec = importlib.util.spec_from_file_location('fc', '/save/workspace/ZLUDA/ptx/tools/agx_ptx_formalization_check.py')
+        spec = importlib.util.spec_from_file_location('fc', '/save/workspace/ptx-frontend/ptx/tools/agx_ptx_formalization_check.py')
         fc = importlib.util.module_from_spec(spec); spec.loader.exec_module(fc)
         with tempfile.TemporaryDirectory() as tmp:
             k = fc.kernel_info(None, obj, '/scratch/llvm-agx-build/bin/llvm-readelf', '/scratch/llvm-agx-build/bin/llvm-objcopy', tmp)[0]['probe']

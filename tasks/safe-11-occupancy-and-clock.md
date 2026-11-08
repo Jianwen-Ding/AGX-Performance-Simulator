@@ -43,7 +43,7 @@ per core.
 - **Staleness across cores:** the clock-word spread between cores at the same instant. Run a straight-line program
   where every core reads twice, and record SR20.
 - **Lines:** with `AGX_CPU_CLOCK_LINES=N`, does reading a per-core copy reduce cost?
-- **Cost model:** add the clock read as an op so ZLUDA's `clock()` / `%globaltimer` lowering can be costed.
+- **Cost model:** add the clock read as an op so the PTX front end's `clock()` / `%globaltimer` lowering can be costed.
 
 **Coverage:** the read must be monotonic per lane, and two reads around a fixed loop must differ by at least the
 expected ticks. This is a property check, not exact words.
