@@ -298,8 +298,12 @@ pub fn simulate_with(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer
     // Likewise a grid that is resident all at once (one wave) ends with its slowest core: each core's workgroups
     // (off, off + cores, ...) are simulated and the slowest core sets the time. Cycles' intersect_closest (330 x 64
     // threads, BVH traversal): 325-386 us over the cores, 335 for core 0. AGX_ALL_CORES=0: core 0 only.
-    let one_wave = l.busiest_core_wgs_override.is_none() && r > 0 && cores > 1 && n > cores
-        && n.div_ceil(cores) <= r as u64 && std::env::var("AGX_ALL_CORES").map_or(true, |v| v != "0");
+    // (also when there are no more workgroups than cores but the cluster split gives one core two: llama.cpp's MMQ,
+    // 38 workgroups of one resident per core, ran only workgroups 0 and 37 while the stream-k split's slowest is
+    // another one; AGX_ALL_CORES=1 / 0 / "gt": "gt" keeps the old n > cores condition)
+    let all_cores = std::env::var("AGX_ALL_CORES").unwrap_or_default();
+    let one_wave = l.busiest_core_wgs_override.is_none() && r > 0 && cores > 1 && n > 1 && (n > cores || all_cores != "gt")
+        && n.div_ceil(cores) <= r as u64 && all_cores != "0";
     if !one_per_core && !one_wave {
         let off = std::env::var("AGX_CORE_OFF").ok().and_then(|v| v.parse().ok()).unwrap_or(0);
         return simulate_core(code, l, p, tracer, off);
