@@ -20,7 +20,7 @@ placement + early exit 6 / 18 / 7.6 / 117; final 6 / 18 / 7.7 / 118 (bucketcount
 particlefilter likelihood +12 -> +6). Per-launch: `eval-placement/heldout`, `eval-final/heldout`.
 
 Blender Cycles (hwref): shade_surface hw 307.9 us, before 235.3 (-24%), final 280.0 (-9%); intersect_closest hw
-554.5, before 355.8 (-36%), final 356.3 (-36%) (`eval-final/cycles.txt`).
+554.5, before 355.8 (-36%), final 356.3 (-36%) (`eval-final/cycles.txt`). Placement alone (AGX_FETCH_STREAM=0): shade_surface -16%.
 
 ### llama.cpp pp512 -fa 0 (hw b2b 5000)
 
