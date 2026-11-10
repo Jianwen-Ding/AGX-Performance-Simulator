@@ -385,16 +385,26 @@ fn simulate_placed(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer>,
     // each core's work: its workgroups' group-0 path lengths (traced; cheap next to the timing)
     let prepared = tracer.is_none().then(|| cost::PreparedTrace::new(code));
     let wgs: Vec<u64> = (0..n).collect();
+    // AGX_RANK_GROUPS=1 (experiment): a workgroup's work is its longest group's path, not group 0's
+    let all_groups = std::env::var("AGX_RANK_GROUPS").is_ok_and(|v| v == "1");
+    let gpw: u32 = if all_groups { (l.wg.iter().map(|&x| x.max(1) as u64).product::<u64>().div_ceil(32)) as u32 } else { 1 };
     let len: Vec<usize> = crate::par::map(&wgs, |&k| -> Result<usize, String> {
         let wg = wg_coords(dims, k);
         Ok(match tracer {
-            Some(t) => t(wg)?.first().map_or(0, |tr| tr.pcs.len()),
+            Some(t) => { let ts = t(wg)?; if all_groups { ts.iter().map(|tr| tr.pcs.len()).max().unwrap_or(0) } else { ts.first().map_or(0, |tr| tr.pcs.len()) } }
             None => {
-                let ctx = GroupCtx { wg_size: l.wg, wg_id: wg, group: 0, core: 0, slot: 0, uniforms: l.uniforms.clone(), launch: cost::SrLaunch { tg_bytes: l.tg_bytes, regs: l.regs, ..Default::default() } };
-                prepared.as_ref().unwrap().trace_group(&ctx, l.max_steps)?.pcs.len()
+                let mut best = 0usize;
+                for g in 0..gpw {
+                    let ctx = GroupCtx { wg_size: l.wg, wg_id: wg, group: g, core: 0, slot: g, uniforms: l.uniforms.clone(), launch: cost::SrLaunch { tg_bytes: l.tg_bytes, regs: l.regs, ..Default::default() } };
+                    best = best.max(prepared.as_ref().unwrap().trace_group(&ctx, l.max_steps)?.pcs.len());
+                }
+                best
             }
         })
     }).into_iter().collect::<Result<Vec<_>, _>>()?;
+    if std::env::var("AGX_DEBUG_TIME").is_ok_and(|v| v == "1") {
+        eprintln!("placed: workgroup path lengths {:?}", len);
+    }
     let mut ranked: Vec<(usize, usize)> = lists.iter().enumerate().map(|(i, v)| (v.iter().map(|&k| len[k as usize]).sum(), i)).collect();
     ranked.sort_by(|a, b| b.0.cmp(&a.0).then(lists[b.1].len().cmp(&lists[a.1].len())).then(a.1.cmp(&b.1)));
     let first = simulate_core_list(code, l, p, tracer, 0, Some(&lists[ranked[0].1]))?;
@@ -402,6 +412,9 @@ fn simulate_placed(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer>,
     let samples = ((budget / first.core_cycles.max(1.0)) as usize).clamp(2, ranked.len());
     let rest: Vec<usize> = ranked[1..samples.min(ranked.len())].iter().map(|x| x.1).collect();
     let mut best = first;
+    if std::env::var("AGX_DEBUG_TIME").is_ok_and(|v| v == "1") {
+        eprintln!("placed: simulating lists {:?}", std::iter::once(ranked[0].1).chain(rest.iter().copied()).map(|i| lists[i].clone()).collect::<Vec<_>>());
+    }
     for i in rest {
         let rep = simulate_core_list(code, l, p, tracer, 0, Some(&lists[i]))?;
         if rep.time_ns > best.time_ns { best = rep; }

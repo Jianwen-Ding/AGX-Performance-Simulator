@@ -135,6 +135,14 @@ const CORE_SFU_WB_GAP: f64 = 1.0;
 pub const SCHEDULERS: usize = 4;
 const STEAL: bool = true;
 const HALF_READ_PORTS: f64 = 2.0;
+fn half_read_ports() -> f64 {
+    static V: std::sync::OnceLock<f64> = std::sync::OnceLock::new();
+    *V.get_or_init(|| std::env::var("AGX_HALF_READ_PORTS").ok().and_then(|v| v.parse().ok()).unwrap_or(HALF_READ_PORTS))
+}
+fn issue_per_core() -> f64 {
+    static V: std::sync::OnceLock<f64> = std::sync::OnceLock::new();
+    *V.get_or_init(|| std::env::var("AGX_ISSUE_PER_CORE").ok().and_then(|v| v.parse().ok()).unwrap_or(ISSUE_PER_CORE as f64))
+}
 /// register writebacks (result-cache evictions) per real cycle per core: 2.0 per reference cycle
 const WRITEBACK_PER_CYCLE: f64 = 2.0 / REAL_CYCLES_PER_UNIT;
 const WRITEBACK_CAP: f64 = 4.0;
@@ -1824,7 +1832,7 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
         let (bucket, cost, unit, need_port) = match &r.unit {
             Some(u) => {
                 let (b, c, _) = bucket_of(u);
-                (b, c, Some(0usize), (r.reads32 as f64).min(HALF_READ_PORTS + 2.0) * t_ as f64)
+                (b, c, Some(0usize), (r.reads32 as f64).min(half_read_ports() + 2.0) * t_ as f64)
             }
             None => (0, 0.0, None, 0.0),
         };
@@ -2107,13 +2115,18 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
     let mut tok: Vec<Option<f64>> = vec![None; buckets.len()];
     let mut refilling: Vec<usize> = vec![];
     let mut in_refill: Vec<bool> = vec![false; buckets.len()];
-    let mut port = [HALF_READ_PORTS * t_ as f64; 2];
+    let hrp = half_read_ports();
+    let mut port = [hrp * t_ as f64; 2];
     let mut sched_free = [0i64; SCHEDULERS];
     let mut tick_issued = vec![false; groups];
     // an idle scheduler may issue a ready group of a ring neighbour (idle-slot probe: slots 1, 3 and 4 relieve
     // scheduler 0, slot 2 does not)
     let npass = if STEAL && groups > 4 { 2 } else { 1 };
-    let mut issue_tok: i64 = ISSUE_PER_CORE * t_;
+    // AGX_ISSUE_PER_CORE / AGX_HALF_READ_PORTS (experiment): the core's instructions issued per cycle (4) and each
+    // half's 32-bit register reads per cycle (2). Issue tokens are kept in tenths (ISS) of a tick
+    const ISS: i64 = 10;
+    let ipc10: i64 = (issue_per_core() * ISS as f64).round() as i64;
+    let mut issue_tok: i64 = ipc10 * t_;
     let wb_rate = WRITEBACK_PER_CYCLE / t_ as f64; // per tick
     let mut wb_tok = WRITEBACK_CAP;
     let mut wbc: Vec<Vec<u32>> = vec![Vec::with_capacity(nc + 1); groups];
@@ -2234,6 +2247,16 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
     // AGX_STREAM_WINDOW (default 4): the line before must have arrived at most this many line costs before the miss
     let stream_window: i64 = std::env::var("AGX_STREAM_WINDOW").ok().and_then(|v| v.parse().ok()).unwrap_or(4);
     let fetch_stream_line = tk(std::env::var("AGX_STREAM_LINE_NS").ok().and_then(|v| v.parse::<f64>().ok()).unwrap_or(31.0) * CYCLES_PER_NS);
+    // AGX_STREAM_OWNER=1 (experiment): a miss streams only after its own group's fetch of the line before (each
+    // group's stream is its own; out-of-step groups do not chain off each other's fetches)
+    // (=2: another group's stream gives the stream's cost but no early start; =3: the early start but the full cost)
+    let stream_owner_mode: u32 = std::env::var("AGX_STREAM_OWNER").ok().and_then(|v| v.parse().ok()).unwrap_or(0);
+    let stream_owner = stream_owner_mode > 0;
+    let mut fetched_by: HashMap<usize, usize> = HashMap::new();
+    // AGX_STREAMS=k (experiment): the core follows at most k fetch streams; a miss streams only when the line before
+    // is the head of one of them (the head moves on), else it starts a stream in place of the least recent
+    let max_streams: usize = std::env::var("AGX_STREAMS").ok().and_then(|v| v.parse().ok()).unwrap_or(0);
+    let mut stream_heads: Vec<(usize, i64)> = Vec::new();
     let fetch_port: f64 = std::env::var("AGX_FETCH_PORT").ok().and_then(|v| v.parse().ok()).unwrap_or(0.0);
     let fetch_private = std::env::var("AGX_FETCH_PRIVATE").is_ok_and(|v| v == "1");
     let mut fetch_free = 0i64;
@@ -2469,7 +2492,7 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
             let ri = seqs[gi][nxt[gi]];
             let r = &sim[ri];
             let msk = is_masked(gi, nxt[gi], r);
-            if issue_tok < t_ {
+            if issue_tok < ISS * t_ {
                 wake!(t + 1);
                 retest.push(Retest::Issue);
                 continue;
@@ -2825,7 +2848,7 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
                     wbc[gi].push(reg);
                 }
             }
-            issue_tok -= t_;
+            issue_tok -= ISS * t_;
             let mut pipe_extra = 0i64;
             if let (Some(m), Some((_, mm)), false) = (ms.as_mut(), mem, msk) {
                 if (r.tg_name && r.barrier == 0) || r.atomic {
@@ -3209,7 +3232,7 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
                     t_
                 };
             } else {
-                issue_tok += t_; // released groups pass the barrier together, without an issue slot
+                issue_tok += ISS * t_; // released groups pass the barrier together, without an issue slot
             }
             let e = &mut stats[ri];
             e.0 += 1;
@@ -3264,12 +3287,14 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
                                 // ... but not while the group waits for memory: the stream restarts when its last
                                 // `wait` released (fetch probe with a load + wait every 16 iadds: hw 703 us = the
                                 // 411 of the straight code + the waits, no overlap)
+                                let head = max_streams == 0 || stream_heads.iter().any(|&(l, _)| l == line - 1);
                                 if let Some(&a) = fetched.get(&(line - 1)) {
-                                    if a + stream_window * cost >= start {
-                                        start = start.min(a.max(last_wait[gi]));
+                                    let own = !stream_owner || fetched_by.get(&(line - 1)) == Some(&gi);
+                                    if head && a + stream_window * cost >= start && (own || stream_owner_mode >= 2) {
+                                        if own || stream_owner_mode == 3 { start = start.min(a.max(last_wait[gi])); }
                                         // a streamed line costs the stream's rate (30.6 ns per line in the probe); an
                                         // isolated miss (the line before was a hit) the full refetch
-                                        if !first && fetch_stream_line > 0 { cost = fetch_stream_line; }
+                                        if !first && fetch_stream_line > 0 && (own || stream_owner_mode == 2) { cost = fetch_stream_line; }
                                     }
                                 }
                             }
@@ -3277,7 +3302,21 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
                                 fetch_free = start + (cost as f64 * fetch_port) as i64;
                             }
                             let x = start + cost;
+                            if max_streams > 0 {
+                                // every miss moves a stream on (the line before is its head) or starts one
+                                match stream_heads.iter().position(|&(l, _)| line > 0 && l == line - 1) {
+                                    Some(i) => stream_heads[i] = (line, start),
+                                    None => {
+                                        if stream_heads.len() >= max_streams {
+                                            let i = (0..stream_heads.len()).min_by_key(|&i| stream_heads[i].1).unwrap();
+                                            stream_heads.remove(i);
+                                        }
+                                        stream_heads.push((line, start));
+                                    }
+                                }
+                            }
                             fetched.insert(line, x);
+                            if stream_owner { fetched_by.insert(line, gi); }
                             x
                         };
                         ic.touch(line as u64);
@@ -3350,9 +3389,9 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
                 }
             }
             for pt in port.iter_mut() {
-                *pt = pymin(*pt + HALF_READ_PORTS * dt, (HALF_READ_PORTS + 2.0) * t_ as f64);
+                *pt = pymin(*pt + hrp * dt, (hrp + 2.0) * t_ as f64);
             }
-            issue_tok = (issue_tok + ISSUE_PER_CORE * (nt - t)).min(ISSUE_PER_CORE * t_);
+            issue_tok = (issue_tok + ipc10 * (nt - t)).min((ipc10 * t_).max(ISS * t_));
             wb_tok = (wb_tok + wb_rate * dt).min(WRITEBACK_CAP);
             let mut i = 0;
             while i < refilling.len() {
@@ -3380,7 +3419,7 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
                 break;
             }
             let pass = retest.iter().any(|x| match *x {
-                Retest::Issue => issue_tok >= t_,
+                Retest::Issue => issue_tok >= ISS * t_,
                 Retest::Bucket(b, cost) => tok[b].unwrap() >= cost,
                 Retest::Port(h, need) => port[h] >= need,
             });
