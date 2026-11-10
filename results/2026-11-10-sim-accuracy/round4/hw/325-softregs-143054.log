@@ -1,0 +1,8 @@
+== regs 116
+grid    262144,14,1 hw     425.0 sim     497.3 ratio 1.17 waves 189 wgs/core 189 runs [424.792, 425.166]
+== regs 128
+grid    262144,14,1 hw     425.2 sim     497.3 ratio 1.17 waves 189 wgs/core 189 runs [424.958, 425.542]
+== regs 96
+grid    262144,14,1 hw     299.9 sim     332.8 ratio 1.11 waves 95 wgs/core 189 runs [299.833, 300.041]
+== regs 64
+grid    262144,14,1 hw     267.3 sim     293.2 ratio 1.10 waves 63 wgs/core 189 runs [267.458, 267.167]
