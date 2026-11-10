@@ -19,6 +19,9 @@ Held-out Rodinia + Halide (159 launches, no Cycles): before median 5, p90 18, me
 placement + early exit 6 / 18 / 7.6 / 117; final 6 / 18 / 7.7 / 118 (bucketcount +5 -> -21%, myocyte -8 -> 0,
 particlefilter likelihood +12 -> +6). Per-launch: `eval-placement/heldout`, `eval-final/heldout`.
 
+Blender Cycles (hwref): shade_surface hw 307.9 us, before 235.3 (-24%), final 280.0 (-9%); intersect_closest hw
+554.5, before 355.8 (-36%), final 356.3 (-36%) (`eval-final/cycles.txt`).
+
 ### llama.cpp pp512 -fa 0 (hw b2b 5000)
 
 | kernel | hw us | before (2413039) | placement + early exit | final |
