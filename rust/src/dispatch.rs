@@ -483,6 +483,7 @@ fn simulate_core(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer>, c
             // AGX_STORE_SECTORS=0: the distinct lines the wave stores to; AGX_STORE_WCB: lines per group (16)
             let wcb: usize = std::env::var("AGX_STORE_WCB").ok().and_then(|v| v.parse().ok()).unwrap_or(16);
             let mut traffic = 0.0f64;
+            let debug_stores = std::env::var("AGX_DEBUG_STORES").is_ok_and(|v| v == "1");
             for t in &traces {
                 let mut recent: std::collections::VecDeque<u64> = Default::default();
                 for (step, segs) in &t.mem {
@@ -506,7 +507,7 @@ fn simulate_core(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer>, c
                             lines * ((bytes / lines / 32.0).ceil() * 32.0).clamp(32.0, 64.0)
                         };
                         traffic += per_instr * fresh.len() as f64 / lines;
-                        if std::env::var("AGX_DEBUG_STORES").is_ok_and(|v| v == "1") {
+                        if debug_stores {
                             eprintln!("store pc {pc} lines {lines} fresh {} lane_bytes {} segs {:?}", fresh.len(), bytes / 32.0, &segs[..segs.len().min(6)]);
                         }
                     }
@@ -654,7 +655,17 @@ fn simulate_core(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer>, c
         if std::env::var("AGX_DEBUG_FOOTPRINT").is_ok_and(|v| v == "1") {
             eprintln!("wave {w}: first_touch_frac {first_touch_frac:.3}");
         }
-        let mm = MemModel { resident_slc: resident, slc_resident_frac: frac, sharing, dram_share, first_touch_frac, ..mm.clone() };
+        // A partial last wave runs on fewer cores GPU-wide (the workgroups left after every core's full waves), which
+        // share the DRAM bandwidth among them: Rodinia streamcluster's compute_cost (128 workgroups of 512 threads
+        // streaming 64 MiB, 3 per core at once: 14 cores run the fourth) +35% -> see results/2026-11-10-sim-accuracy.
+        // AGX_TAIL_CORES=0: every wave shares with all the cores
+        let active_cores = if count < r as u64 && w > 0 && std::env::var("AGX_TAIL_CORES").map_or(true, |v| v != "0") {
+            let left = n.saturating_sub(w * r as u64 * cores.min(n));
+            (left.div_ceil(count.max(1))).clamp(1, cores.min(n)) as f64
+        } else {
+            mm.active_cores
+        };
+        let mm = MemModel { resident_slc: resident, slc_resident_frac: frac, sharing, dram_share, first_touch_frac, active_cores, ..mm.clone() };
         // `later_waves_warm`: the waves after the first find their data in the caches when it fits the system-level
         // cache (what the first waves and their neighbours loaded); AGX_LATER_WAVES_WARM=1 / 0 forces it
         let warm_later = std::env::var("AGX_LATER_WAVES_WARM").map_or(l.later_waves_warm, |v| v == "1");

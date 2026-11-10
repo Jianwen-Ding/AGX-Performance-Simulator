@@ -2145,6 +2145,8 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
     // device loads of a group complete in order (a quiet-time delay holds back the whole batch);
     // only with the memory model, so the fitted L1 rules are unchanged without it
     let inorder_loads = true;
+    // AGX_PASS_L1=0: a device load after ALU work waits for done - extra of the pending loads (before 2026-11-10)
+    let pass_l1 = std::env::var("AGX_PASS_L1").map_or(true, |v| v != "0");
     let mut last_load_done = vec![NEG_INF; g];
     let mut last_space: Vec<u8> = vec![0; g]; // 0 None, 1 'tg', 2 'device_load', 3 'device_store'
     struct Pending {
@@ -2154,6 +2156,9 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
         ins: usize,
         /// latency beyond an L1 hit (memory hierarchy): a load issued after ALU work waits for done - extra
         extra: i64,
+        /// when the load has passed the L1 (its issue, the L1 queue and an L1 hit's latency): a device load issued
+        /// after ALU work waits for this (`pass_l1`)
+        passed: i64,
     }
     let mut pending: Vec<Vec<Pending>> = (0..g).map(|_| vec![]).collect();
     /// pending loads already moved by an ALU push: their done is last_push + lat, merged per (slot, instruction)
@@ -3033,7 +3038,7 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
                         if alu_since_mem[gi] && !(pending[gi].is_empty() && settled[gi].is_empty()) {
                             // waits until the pending loads have passed the L1, not until they complete
                             // (ALU-interleaved loads over L2/DRAM windows: ~50 cycles apart, not a full latency)
-                            let m = pending[gi].iter().map(|p| p.done - p.extra)
+                            let m = pending[gi].iter().map(|p| if pass_l1 { p.passed } else { p.done - p.extra })
                                 .chain(settled[gi].iter().map(|a| last_push[gi] + a.lat_less_extra)).max().unwrap();
                             delay = delay.max(m - t);
                         }
@@ -3053,7 +3058,12 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
                     }
                     slots[gi][r.slot] = Some(slots[gi][r.slot].map_or(t + lat, |m| m.max(t + lat)));
                     let dfr = if tgop { tg_defer } else { defer_fast + if delay != 0 { defer_extra } else { 0 } };
-                    pending[gi].push(Pending { slot: r.slot, done: t + lat, lat: delay + dfr, ins: ri, extra: if tgop { 0 } else { mem_extra } });
+                    // (a load completing in order after an earlier one, or waiting for a line another group has in
+                    // flight, has passed the L1 long before it completes: done - extra counted the earlier load's
+                    // latency again and serialised a group's loads after ALU work: Rodinia streamcluster's
+                    // compute_cost, one workgroup of 16 groups, 2.4x the measured time; results/2026-11-10-sim-accuracy)
+                    let passed = if tgop { t + lat } else { t + delay + load_fast + pipe_extra };
+                    pending[gi].push(Pending { slot: r.slot, done: t + lat, lat: delay + dfr, ins: ri, extra: if tgop { 0 } else { mem_extra }, passed });
                     ii = iiv;
                 }
                 Kind::Store => {
