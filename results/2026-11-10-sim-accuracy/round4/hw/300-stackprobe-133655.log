@@ -1,0 +1,28 @@
+{"kernel":"stackmix","iters":2,"graph_len":0,"ms_per_launch":12.063964,"timing_source":"gpu","host_ms_per_launch":12.063734499999999,"hashes":["fc69acee2349c5ed"]}
+{"kernel":"stackmix","iters":2,"graph_len":0,"ms_per_launch":8.273915,"timing_source":"gpu","host_ms_per_launch":8.273665,"hashes":["fc69acee2349c5ed"]}
+{"kernel":"stackmix","iters":2,"graph_len":0,"ms_per_launch":12.37657,"timing_source":"gpu","host_ms_per_launch":12.3756535,"hashes":["fc69acee2349c5ed"]}
+{"kernel":"stackmix","iters":2,"graph_len":0,"ms_per_launch":17.739048,"timing_source":"gpu","host_ms_per_launch":17.7387345,"hashes":["d4aabd97942ee4dd"]}
+== A
+grid       2048,1,1 hw     737.6 sim     709.1 ratio 0.96 waves 1 wgs/core 1 runs [737.583, 737.583]
+grid       4096,1,1 hw     743.0 sim     709.1 ratio 0.95 waves 1 wgs/core 1 runs [742.709, 743.25]
+grid       6144,1,1 hw    1045.1 sim     709.1 ratio 0.68 waves 1 wgs/core 1 runs [1045.208, 1044.959]
+grid       8192,1,1 hw    1183.6 sim     712.6 ratio 0.60 waves 1 wgs/core 1 runs [1183.459, 1183.708]
+grid       9728,1,1 hw    1345.1 sim    1459.9 ratio 1.09 waves 1 wgs/core 2 runs [1345.084, 1345.083]
+== B
+grid       2048,1,1 hw     648.5 sim     690.8 ratio 1.07 waves 1 wgs/core 1 runs [648.416, 648.5]
+grid       4096,1,1 hw     653.5 sim     690.8 ratio 1.06 waves 1 wgs/core 1 runs [653.625, 653.375]
+grid       6144,1,1 hw     659.3 sim     690.8 ratio 1.05 waves 1 wgs/core 1 runs [659.375, 659.291]
+grid       8192,1,1 hw     953.8 sim     694.1 ratio 0.73 waves 1 wgs/core 1 runs [954.458, 953.208]
+grid       9728,1,1 hw    1083.4 sim    1444.8 ratio 1.33 waves 1 wgs/core 2 runs [1083.167, 1083.625]
+== C
+grid       2048,1,1 hw     742.2 sim     709.1 ratio 0.96 waves 1 wgs/core 1 runs [742.292, 742.125]
+grid       4096,1,1 hw     745.8 sim     709.1 ratio 0.95 waves 1 wgs/core 1 runs [745.875, 745.791]
+grid       6144,1,1 hw     753.3 sim     709.1 ratio 0.94 waves 1 wgs/core 1 runs [753.334, 753.209]
+grid       8192,1,1 hw     760.1 sim     707.4 ratio 0.93 waves 1 wgs/core 1 runs [760.083, 760.083]
+grid       9728,1,1 hw     783.4 sim     720.7 ratio 0.92 waves 1 wgs/core 2 runs [783.541, 783.291]
+== D
+grid       8192,1,1 hw     472.9 sim     530.5 ratio 1.12 waves 1 wgs/core 1 runs [473.709, 472.125]
+grid      16384,1,1 hw     827.7 sim     538.2 ratio 0.65 waves 1 wgs/core 1 runs [830.875, 824.458]
+grid      24576,1,1 hw    1211.9 sim     879.8 ratio 0.73 waves 1 wgs/core 1 runs [1212.5, 1211.334]
+grid      32768,1,1 hw    1586.2 sim    1151.7 ratio 0.73 waves 1 wgs/core 1 runs [1585.625, 1586.834]
+grid      38912,1,1 hw    2027.1 sim    2700.6 ratio 1.33 waves 1 wgs/core 2 runs [2026.709, 2027.541]

@@ -1,0 +1,12 @@
+== rms_norm
+grid       9728,1,1 hw       5.9 sim       5.4 ratio 0.91 waves 1 wgs/core 2 runs [5.917, 5.917, 5.833]
+grid      19456,1,1 hw       6.5 sim       5.8 ratio 0.89 waves 1 wgs/core 3 runs [6.5, 6.541, 7.375]
+grid      38912,1,1 hw       9.2 sim       7.5 ratio 0.82 waves 2 wgs/core 5 runs [9.75, 9.041, 9.167]
+grid      77824,1,1 hw      12.5 sim       9.0 ratio 0.72 waves 2 wgs/core 8 runs [12.541, 12.417, 12.458]
+grid     131072,1,1 hw      18.1 sim      13.2 ratio 0.73 waves 4 wgs/core 14 runs [18.125, 18.125, 18.166]
+== soft_max
+grid      19456,1,1 hw      12.2 sim       8.9 ratio 0.73 waves 2 wgs/core 2 runs [12.167, 12.167, 12.167]
+grid      38912,1,1 hw      15.5 sim      11.3 ratio 0.73 waves 3 wgs/core 3 runs [15.625, 15.541, 15.375]
+grid     194560,1,1 hw      32.8 sim      28.2 ratio 0.86 waves 10 wgs/core 10 runs [32.75, 32.667, 42.583]
+grid     262144,1,1 hw      42.0 sim      37.9 ratio 0.90 waves 14 wgs/core 14 runs [42.125, 41.917, 41.958]
+grid    262144,14,1 hw     424.9 sim     497.3 ratio 1.17 waves 189 wgs/core 189 runs [424.875, 424.792, 425.0]

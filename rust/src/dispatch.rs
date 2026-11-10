@@ -38,6 +38,8 @@ pub struct Launch {
     /// representative core's waves; it does not prescribe workgroup identities,
     /// simultaneous residency, active cores or a full placement map.
     pub busiest_core_wgs_override: Option<u64>,
+    /// set by `simulate_placed`: busy cores by list position (entry k: cores that run a k-th workgroup)
+    pub placed_busy: Option<std::sync::Arc<Vec<u64>>>,
     pub clock_mhz: f64,
     pub launch_ns: f64,
     pub wg_launch_ns: f64,
@@ -117,6 +119,7 @@ impl Default for Launch {
             tg_capacity: 64 << 10,
             cores: 38,
             busiest_core_wgs_override: None,
+            placed_busy: None,
             clock_mhz: 1398.0,
             launch_ns: 5600.0,
             wg_launch_ns: 100.0,
@@ -407,6 +410,16 @@ fn simulate_placed(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer>,
     }
     let mut ranked: Vec<(usize, usize)> = lists.iter().enumerate().map(|(i, v)| (v.iter().map(|&k| len[k as usize]).sum(), i)).collect();
     ranked.sort_by(|a, b| b.0.cmp(&a.0).then(lists[b.1].len().cmp(&lists[a.1].len())).then(a.1.cmp(&b.1)));
+    // AGX_PLACED_BUSY (default on; 0: off): a placed core's wave shares the memory system with the cores busy at
+    // that list position, not with all of them (38 one-resident workgroups: 34 cores in the first round, 4 in the
+    // second; with AGX_L2_GPU the second workgroups would otherwise pay the full GPU's L2 pressure)
+    let busy_l;
+    let l = if std::env::var("AGX_PLACED_BUSY").is_ok_and(|v| v == "1") {
+        let longest = lists.iter().map(|v| v.len()).max().unwrap_or(0);
+        let busy: Vec<u64> = (0..longest).map(|k| lists.iter().filter(|v| v.len() > k).count() as u64).collect();
+        busy_l = Launch { placed_busy: Some(std::sync::Arc::new(busy)), ..l.clone() };
+        &busy_l
+    } else { l };
     let first = simulate_core_list(code, l, p, tracer, 0, Some(&lists[ranked[0].1]))?;
     // AGX_PLACED_BUDGET (simulated core cycles over all the placed cores; default 2e7 = AGX_CORE_CYCLE_BUDGET's):
     // the path-length ranking does not find the slowest cores of llama.cpp's MMQ stream-k grids (Q6_K at 34
@@ -939,6 +952,8 @@ fn simulate_core_list(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Trace
         let active_cores = if count < r as u64 && w > 0 && std::env::var("AGX_TAIL_CORES").map_or(true, |v| v != "0") {
             let left = n.saturating_sub(w * r as u64 * cores.min(n));
             (left.div_ceil(count.max(1))).clamp(1, cores.min(n)) as f64
+        } else if let (Some(b), Some(_)) = (l.placed_busy.as_ref(), list) {
+            b.get((w * r as u64) as usize).copied().unwrap_or(1).max(1) as f64
         } else {
             mm.active_cores
         };

@@ -1947,6 +1947,9 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
     struct MemState {
         l1: Lru,
         l2: Lru,
+        /// AGX_L2_GPU: this core's L2 working set (`WorkingSet`) and the cores sharing the capacity
+        l2g: Option<WorkingSet>,
+        sharers: f64,
         slc: Lru,
         /// tokens (segments) for l1 load, l1 store, l2, slc, dram, and their rates per tick / caps
         tok: [f64; 5],
@@ -2021,7 +2024,9 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
             // L2 (38 x l2_bytes in all) and SLC are shared GPU-wide: a core's share is total / (cores that use
             // distinct data); with `sharing` = fraction of this core's lines that other cores also use, cores
             // reading the same lines all see the whole cache
-            l2: Lru::new((m.l2_bytes as f64 * m.active_cores / eff_sharers(m)) as usize),
+            l2: Lru::new(l2_share(m)),
+            l2g: WorkingSet::new(m),
+            sharers: eff_sharers(m),
             slc: Lru::new((m.slc_bytes as f64 / eff_sharers(m)) as usize),
             tok: cap,
             rate,
@@ -2089,6 +2094,7 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
                             }
                             m.l1.touch(sg);
                             m.l2.touch(sg);
+                            if let Some(p) = m.l2g.as_mut() { p.touch(sg); }
                             m.slc.touch(sg);
                         }
                     }
@@ -2745,7 +2751,9 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
                                 for &sg in segs {
                                     // a stack store does not read the line first (probe_stack_cost.py: 56-62 ns per store at
                                     // 256 bytes and 4 KB of frame alike, where loads go from 68 to 172)
-                                    let lv = if r.stack_store { 0 } else if m.l1.contains(sg) { 0 } else if m.l2.contains(sg) { 1 } else if m.slc.contains(sg) { 2 } else { 3 };
+                                    let lv = if r.stack_store { 0 } else if m.l1.contains(sg) { 0 } else if m.l2.contains(sg) {
+                                        if m.l2g.as_ref().is_some_and(|w| w.evicted(sg, m.sharers)) { 2 } else { 1 }
+                                    } else if m.slc.contains(sg) { 2 } else { 3 };
                                     if lv >= 1 {
                                         need[1 + lv] += 1.0;
                                     }
@@ -2943,6 +2951,7 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
                 for &sg in segs {
                     m.l1.touch(sg);
                     m.l2.touch(sg);
+                    if let Some(p) = m.l2g.as_mut() { p.touch(sg); }
                     m.slc.touch(sg);
                 }
                 m.epoch += 1;
@@ -3472,6 +3481,84 @@ fn m_l1_store_min(mem: Option<(&[&[(u32, Vec<u64>)]], &MemModel)>) -> f64 {
 
 fn m_l1_load_min(mem: Option<(&[&[(u32, Vec<u64>)]], &MemModel)>) -> f64 {
     mem.map(|m| m.1.l1_load_min).unwrap_or(1.0)
+}
+
+/// A core's L2 capacity: 38 x l2_bytes in all, shared by the cores that use distinct data. AGX_L2_TOTAL=BYTES
+/// (experiment): a fixed GPU-wide total instead, so a core's share shrinks as more cores are busy (stack probe
+/// r8/stackprobe, q/300: 1072 B lane-uniform stack, 256 KB per core, 737 us at 8-16 busy cores, 1045 at 24, 1184 at
+/// 32; MMQ Q5_K 1645 -> 2109 us from 16 to 32)
+fn l2_share(m: &MemModel) -> usize {
+    static T: std::sync::OnceLock<Option<f64>> = std::sync::OnceLock::new();
+    let total = T.get_or_init(|| std::env::var("AGX_L2_TOTAL").ok().and_then(|v| v.parse().ok()));
+    match total {
+        // a core never holds more than l2_bytes (one core's chase spills at 256-512 KB: 2026-10-16-memory-parameters)
+        Some(t) => (t / eff_sharers(m)).min(m.l2_bytes as f64 * m.active_cores / eff_sharers(m)) as usize,
+        None => (m.l2_bytes as f64 * m.active_cores / eff_sharers(m)) as usize,
+    }
+}
+
+/// (AGX_L2_GPU, AGX_L2_GPU_STACK (default: AGX_L2_GPU)): the capacity for device lines and for stack lines. The
+/// stacks of the cores lie 6 MB apart (Mesa's scratch layout: 128 slots x 48 KB per core at 1072 B per thread), and
+/// regions at that stride alias: the device twin with 6 MB between workgroups slows at 24 busy cores (802 -> 999
+/// us), packed 384 KB apart it does not (807), both slow at 32 (1238 / 1262)
+fn l2_gpu_bytes() -> (f64, f64) {
+    static T: std::sync::OnceLock<(f64, f64)> = std::sync::OnceLock::new();
+    *T.get_or_init(|| {
+        let d = std::env::var("AGX_L2_GPU").ok().and_then(|v| v.parse().ok()).unwrap_or(0.0);
+        (d, std::env::var("AGX_L2_GPU_STACK").ok().and_then(|v| v.parse().ok()).unwrap_or(d))
+    })
+}
+
+/// AGX_L2_GPU=BYTES (experiment; AGX_L2_GPU_STACK for stack lines): the busy cores' L2 working sets share a
+/// GPU-wide capacity T. A core's working set W is the distinct lines of its last `4 x l2 lines` L2 touches; an L2
+/// hit misses (the SLC serves it) with probability 1 - T / (cores using distinct data x W), the same lines each time
+/// (a cache keeps about T of a cyclic working set larger than it). Measured (r8/stackprobe, q/300-320): 1072 B of
+/// lane-uniform stack per thread, 3 loads + 1 store a trip, 256 KB per core: 737 us at 8-16 busy cores (any
+/// clusters), 1045 at 24, 1184 at 32; 128 KB per core: flat to 24, +17% at 32; 512 KB (16 groups): 540 at 8, 825
+/// at 16; loads only: flat to 24 (256 KB) / 32 (128 KB). The 24-core step at 256 KB is address aliasing of the
+/// cores' stacks 6 MB apart (2 MB more between cores: 749 us; the device twin packed 384 KB apart: flat), the
+/// rest is capacity (MMQ Q5_K: no change with padding, 1644 -> 2105 us from 16 to 32 cores).
+struct WorkingSet {
+    ring: std::collections::VecDeque<u64>,
+    count: HashMap<u64, u32, SegBuild>,
+    window: usize,
+    /// (device, stack) distinct lines in the window
+    lines: [usize; 2],
+}
+
+impl WorkingSet {
+    fn new(m: &MemModel) -> Option<WorkingSet> {
+        if l2_gpu_bytes().0 <= 0.0 { return None; }
+        let window = 4 * (l2_share(m) / 64).max(64);
+        Some(WorkingSet { ring: Default::default(), count: HashMap::default(), window, lines: [0, 0] })
+    }
+    fn is_stack(sg: u64) -> bool { sg >= 0x7000_0000_0000 >> 6 }
+    fn touch(&mut self, sg: u64) {
+        let c = self.count.entry(sg).or_insert(0);
+        if *c == 0 { self.lines[Self::is_stack(sg) as usize] += 1; }
+        *c += 1;
+        self.ring.push_back(sg);
+        if self.ring.len() > self.window {
+            let old = self.ring.pop_front().unwrap();
+            if let Some(c) = self.count.get_mut(&old) {
+                *c -= 1;
+                if *c == 0 { self.count.remove(&old); self.lines[Self::is_stack(old) as usize] -= 1; }
+            }
+        }
+    }
+    /// an L2 hit of `sg` that the GPU-wide capacity has lost
+    fn evicted(&self, sg: u64, sharers: f64) -> bool {
+        let (td, ts) = l2_gpu_bytes();
+        let held = sharers * 64.0 * (self.lines[0] + self.lines[1]) as f64;
+        let t = if Self::is_stack(sg) { ts } else { td };
+        if held <= t { return false; }
+        let p = 1.0 - t / held;
+        let mut x = sg.wrapping_add(0x9E37_79B9_7F4A_7C15);
+        x = (x ^ (x >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
+        x = (x ^ (x >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
+        x ^= x >> 31;
+        ((x >> 11) as f64 / (1u64 << 53) as f64) < p
+    }
 }
 
 /// cores competing for distinct L2/SLC capacity: active cores when data is private, 1 when all share it
