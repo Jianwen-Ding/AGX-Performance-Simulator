@@ -924,7 +924,7 @@ fn simulate_core_list(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Trace
             refetched.store(true, std::sync::atomic::Ordering::Relaxed);
             // (a later wave's core has just run the same code: AGX_ICACHE_WARM=0 starts every wave with an empty cache)
             let icache_warm = w > 0 && std::env::var("AGX_ICACHE_WARM").map_or(true, |v| v != "0");
-            MemModel { icache_lines, icache_victims: l.icache_victims, icache_warm, fetch_line_ns: std::env::var("AGX_REFETCH_LINE_NS").ok().and_then(|v| v.parse().ok()).unwrap_or(l.refetch_line_ns), fetch_jump_ns: std::env::var("AGX_FETCH_JUMP_NS").ok().and_then(|v| v.parse().ok()).unwrap_or(l.fetch_jump_ns), icache_bytes: 0, ..mm }
+            MemModel { icache_lines, icache_victims: l.icache_victims, icache_warm, fetch_line_ns: std::env::var("AGX_REFETCH_LINE_NS").ok().and_then(|v| v.parse().ok()).unwrap_or(l.refetch_line_ns), fetch_jump_ns: std::env::var("AGX_FETCH_JUMP_NS").ok().and_then(|v| v.parse().ok()).unwrap_or(l.fetch_jump_ns), fetch_cold_ns: std::env::var("AGX_FETCH_COLD_NS").ok().and_then(|v| v.parse().ok()).unwrap_or(l.fetch_line_ns), fetch_cold_jump_ns: std::env::var("AGX_FETCH_COLD_JUMP_NS").ok().and_then(|v| v.parse().ok()).unwrap_or(l.fetch_jump_line_ns), icache_bytes: 0, ..mm }
         } else {
             mm
         };

@@ -1,0 +1,18 @@
+BODY_KB 64
+G 1 K 0 T 12 code 65762  hw     423.1
+G 8 K 0 T 12 code 65762  hw     426.5
+BODY_KB 96
+G 1 K 0 T 8 code 98530  hw     447.7
+G 8 K 0 T 8 code 98530  hw     450.7
+BODY_KB 128
+G 1 K 0 T 6 code 131298  hw     472.0
+G 8 K 0 T 6 code 131298  hw     475.4
+BODY_KB 192
+G 1 K 0 T 4 code 196834  hw     520.7
+G 8 K 0 T 4 code 196834  hw     524.0
+BODY_KB 256
+G 1 K 0 T 3 code 262370  hw     569.5
+G 8 K 0 T 3 code 262370  hw     573.3
+BODY_KB 384
+G 1 K 0 T 2 code 393442  hw     667.1
+G 8 K 0 T 2 code 393442  hw     670.8

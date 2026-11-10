@@ -1449,6 +1449,10 @@ pub struct MemModel {
     /// the core ran the same code just before); false: empty
     pub icache_warm: bool,
     pub fetch_jump_ns: f64,
+    /// with the i-cache (`icache_lines`) and AGX_FETCH_STREAM=1: a line's first fetch in a cold wave (not
+    /// `icache_warm`) costs this when run into, `fetch_cold_jump_ns` when jumped to (0: as a refetch)
+    pub fetch_cold_ns: f64,
+    pub fetch_cold_jump_ns: f64,
     /// cores sharing the SLC and DRAM (all cores run the same kernel on disjoint data)
     pub active_cores: f64,
     pub l1_bytes: usize,
@@ -1521,6 +1525,8 @@ impl Default for MemModel {
             icache_victims: 1,
             icache_warm: false,
             fetch_jump_ns: 0.0,
+            fetch_cold_ns: 0.0,
+            fetch_cold_jump_ns: 0.0,
             clock_mhz: 1398.0,
             active_cores: 38.0,
             l1_bytes: 8 << 10,
@@ -2213,11 +2219,21 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
         }
     }
     let mut fetched: HashMap<usize, i64> = HashMap::new();
-    // AGX_FETCH_STREAM (experiment, default off): a fall-through miss right after the group's previous miss of the
-    // line before starts when that one arrived (next-line prefetch), so streaming code costs max(fetch, execution)
-    // per line, not their sum (playground fetch probe: 27-44 ns per straight line beyond the i-cache, ~5 of it the
-    // line's iadds)
-    let fetch_stream = std::env::var("AGX_FETCH_STREAM").is_ok_and(|v| v == "1");
+    // AGX_FETCH_STREAM (default on; 0: off): code beyond the i-cache streams. A fall-through miss whose line before
+    // was fetched recently (by any group: groups at the same code share the stream) starts when that line arrived,
+    // or when the group's last `wait` released if later (the stream stops while the group waits for memory), and
+    // costs AGX_STREAM_LINE_NS (31) in place of the isolated refetch (`fetch_line_ns`, 64). Playground
+    // novel-results/2026-11-10-code-refetch-stream: 30.6 ns per line warm for 64-384 KB bodies, 1 and 8 groups
+    // alike, waits additive (48 KB body: hw 411 / 415 us for 1 / 8 groups, model 424 / 442; was 855 / 1016;
+    // a load + wait every 16 iadds hw 703, model 665); tinygrad r_64_16_32 hw 602 us, model 731 (was 1266)
+    let fetch_stream = std::env::var("AGX_FETCH_STREAM").map_or(true, |v| v != "0");
+    // a line's first fetch in the command does not stream (llama.cpp MMQ Q5_1, one workgroup cut at 12200 / 24320
+    // instructions: 189 / 294 us, hw 188 / 301; streaming the cold lines 138 / 241). AGX_FETCH_STREAM_COLD=1 streams them
+    let no_cold_stream = std::env::var("AGX_FETCH_STREAM_COLD").map_or(true, |v| v != "1");
+    // AGX_STREAM_LINE_NS (default 31): a streamed refetch's cost per line (0: as an isolated one, `fetch_line_ns`)
+    // AGX_STREAM_WINDOW (default 4): the line before must have arrived at most this many line costs before the miss
+    let stream_window: i64 = std::env::var("AGX_STREAM_WINDOW").ok().and_then(|v| v.parse().ok()).unwrap_or(4);
+    let fetch_stream_line = tk(std::env::var("AGX_STREAM_LINE_NS").ok().and_then(|v| v.parse::<f64>().ok()).unwrap_or(31.0) * CYCLES_PER_NS);
     let fetch_port: f64 = std::env::var("AGX_FETCH_PORT").ok().and_then(|v| v.parse().ok()).unwrap_or(0.0);
     let fetch_private = std::env::var("AGX_FETCH_PRIVATE").is_ok_and(|v| v == "1");
     let mut fetch_free = 0i64;
@@ -2237,6 +2253,10 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
             (Some(c), tk(m.fetch_jump_ns * CYCLES_PER_NS))
         }
         _ => (None, 0),
+    };
+    let (fetch_cold, fetch_cold_jump) = match mem {
+        Some((_, m)) if icache.is_some() && !m.icache_warm => (tk(m.fetch_cold_ns * CYCLES_PER_NS), tk(m.fetch_cold_jump_ns * CYCLES_PER_NS)),
+        _ => (0, 0),
     };
     // with it, the core's taken-jump structure: 32 entries (by target), a taken jump to a cached line that has none
     // costs ~127 cycles more (playground novel-results/2026-10-20-icache: 34-96 blocks joined by taken jumps per loop
@@ -3228,15 +3248,29 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
                             x
                         } else {
                             // (a jump taken to the next instruction is a jump: hw 324 ns per block when it starts the next line)
-                            let cost = if fall_through { fetch_line } else { fetch_jump };
+                            let first = fetch_stream && !fetched.contains_key(&line);
+                            let mut cost = match (fall_through, first) {
+                                (true, true) if fetch_cold > 0 => fetch_cold,
+                                (false, true) if fetch_cold_jump > 0 => fetch_cold_jump,
+                                (true, _) => fetch_line,
+                                (false, _) => fetch_jump,
+                            };
                             // AGX_FETCH_PORT=f (experiment): the core fetches one line at a time, each miss holding the
                             // port for f x its cost (groups at different lines queue)
                             let mut start = if fetch_port > 0.0 { free[gi].max(fetch_free) } else { free[gi] };
-                            if fetch_stream && fall_through && line > 0 {
+                            if fetch_stream && fall_through && line > 0 && !(first && no_cold_stream) {
                                 // the line before was fetched (a miss, by any group) recently: this one was
                                 // requested when that one arrived
+                                // ... but not while the group waits for memory: the stream restarts when its last
+                                // `wait` released (fetch probe with a load + wait every 16 iadds: hw 703 us = the
+                                // 411 of the straight code + the waits, no overlap)
                                 if let Some(&a) = fetched.get(&(line - 1)) {
-                                    if a + 4 * cost >= start { start = start.min(a); }
+                                    if a + stream_window * cost >= start {
+                                        start = start.min(a.max(last_wait[gi]));
+                                        // a streamed line costs the stream's rate (30.6 ns per line in the probe); an
+                                        // isolated miss (the line before was a hit) the full refetch
+                                        if !first && fetch_stream_line > 0 { cost = fetch_stream_line; }
+                                    }
                                 }
                             }
                             if fetch_port > 0.0 {

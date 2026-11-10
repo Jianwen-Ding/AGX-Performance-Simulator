@@ -9,7 +9,7 @@ more than the i-cache's worth of code: each group must fetch every line itself. 
 core (one workgroup of 32 G threads per core, 38 workgroups) separates a per-core serial fetch (time ~ G x) from fetches
 that proceed in parallel (time ~ 1 x plus the stagger).
 
-usage: probe_fetch_groups.py [hw|sim|both] ; env G="1 2 4 8" K="0 64" T=8 BODY_KB=48 B2B=1000 LOADS=0 BARRIER=0
+usage: probe_fetch_groups.py [hw|sim|both] ; env G="1 2 4 8" K="0 64" T=8 BODY_KB=48 B2B=1000 LOADS=0 BARRIER=0 WGSTAGGER=0
 Prints one line per (G, K): hw / sim us.
 """
 import json, os, re, subprocess, sys, tempfile
@@ -18,7 +18,12 @@ import probe_tg_alu as P
 
 
 def program(body_kb):
-    head = P.e('iadd r0l, 0, 0') + P.e('get_sr r6, sr48', 'get_sr r6, sr48 (thread_position_in_threadgroup.x)')
+    head = P.e('iadd r0l, 0, 0')
+    if os.environ.get('WGSTAGGER') == '1':
+        # stagger by workgroup (core) instead of by lane: every core at a different place in the code
+        head += P.e('get_sr r6, sr0', 'get_sr r6, sr0 (threadgroup_position_in_grid.x)')
+    else:
+        head += P.e('get_sr r6, sr48', 'get_sr r6, sr48 (thread_position_in_threadgroup.x)')
     head += P.e('imadd r6, r6, u6, 0') + P.mov(3, 0) + P.e('iadd r4, r6, 1')
     for r in range(21, 29):
         head += P.mov(r, r)
