@@ -1,0 +1,15 @@
+== LOADS=0 BARRIER=0
+G 1 K 0 T 16 code 49378  hw     411.0  sim     855.2
+G 8 K 0 T 16 code 49378  hw     414.7  sim    1015.9
+== LOADS=64 BARRIER=0
+G 1 K 0 T 16 code 49382  hw     483.0  sim     915.5
+G 8 K 0 T 16 code 49382  hw     487.2  sim    1064.7
+== LOADS=16 BARRIER=0
+G 1 K 0 T 16 code 49378  hw     703.4  sim    1082.4
+G 8 K 0 T 16 code 49378  hw     721.0  sim    1191.0
+== LOADS=0 BARRIER=256
+G 1 K 0 T 16 code 49384  hw     410.8  sim     865.6
+G 8 K 0 T 16 code 49384  hw     416.6  sim    1035.1
+== LOADS=64 BARRIER=1024
+G 1 K 0 T 16 code 49384  hw     486.3  sim     916.2
+G 8 K 0 T 16 code 49384  hw     490.1  sim    1068.9

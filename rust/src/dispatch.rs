@@ -305,7 +305,7 @@ pub fn simulate_with(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer
     let (_, r) = occupancy(l);
     let cores = l.cores as u64;
     let one_per_core = l.busiest_core_wgs_override.is_none() && r > 0 && cores > 0 && n > 1 && n <= cores
-        && busiest_core_wgs(n, l) <= 1 && std::env::var("AGX_ALL_WGS").map_or(true, |v| v != "0");
+        && busiest_core_wgs_resident(n, l, r) <= 1 && std::env::var("AGX_ALL_WGS").map_or(true, |v| v != "0");
     // Likewise a grid that is resident all at once (one wave) ends with its slowest core: each core's workgroups
     // (off, off + cores, ...) are simulated and the slowest core sets the time. Cycles' intersect_closest (330 x 64
     // threads, BVH traversal): 325-386 us over the cores, 335 for core 0. AGX_ALL_CORES=0: core 0 only.
@@ -324,7 +324,7 @@ pub fn simulate_with(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer
     // 60 s of simulation each: 2 cores; intersect_closest, 0.47M: all 38). AGX_CORE_CYCLE_BUDGET overrides.
     let first = simulate_core(code, l, p, tracer, 0)?;
     let budget = std::env::var("AGX_CORE_CYCLE_BUDGET").ok().and_then(|v| v.parse::<f64>().ok()).unwrap_or(2e7);
-    let k = n.min(cores);
+    let k = n.min(wg_stride(l, r));
     let samples = ((budget / first.core_cycles.max(1.0)) as u64).clamp(2, k);
     let mut offs: Vec<u64> = (1..samples).map(|j| j * k / samples).filter(|&o| o > 0).collect();
     // When not every core can be simulated, the ones with the most work: each core's workgroups' group-0 paths are
@@ -337,7 +337,7 @@ pub fn simulate_with(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer
         let work = |off: u64| -> Result<usize, String> {
             let mut total = 0usize;
             for i in 0..m_core {
-                let wg = wg_coords(dims, (i * cores + off).min(n - 1));
+                let wg = wg_coords(dims, (i * wg_stride(l, r) + off).min(n - 1));
                 total += match tracer {
                     Some(t) => t(wg)?.first().map_or(0, |tr| tr.pcs.len()),
                     None => {
@@ -379,8 +379,8 @@ fn simulate_core(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer>, c
     let cores = l.cores as u64;
     // all workgroups resident at once: static cluster split; otherwise cores take new workgroups as
     // they free slots, which balances the load (608 and 4096 workgroups: n / cores fits better)
-    let m_static = busiest_core_wgs(n, l);
-    let estimated = if m_static <= r as u64 { m_static } else { n.div_ceil(cores) };
+    let m_static = busiest_core_wgs_resident(n, l, r);
+    let estimated = if m_static <= r as u64 || (one_resident_by_memory(l, r) && std::env::var("AGX_ONE_RESIDENT_CORES").map_or(true, |v| v != "0")) { m_static } else { n.div_ceil(cores) };
     let m = l.busiest_core_wgs_override.unwrap_or(estimated);
     rep.busiest_core_wgs = m;
     let waves = m.div_ceil(r as u64).max(1);
@@ -428,7 +428,7 @@ fn simulate_core(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer>, c
             let k = if l.busiest_core_wgs_override.is_some() {
                 (((first + i) as u128 * n as u128) / m as u128) as u64
             } else {
-                (first + i).saturating_mul(cores).saturating_add(core_off).min(n - 1)
+                (first + i).saturating_mul(wg_stride(l, r)).saturating_add(core_off).min(n - 1)
             };
             wg_coords(k)
         };
@@ -633,7 +633,7 @@ fn simulate_core(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer>, c
             // (workgroups of this wave on other cores: the wave's first one on this core is (w r) cores + core_off.
             // Comparing a later wave with the grid's first workgroups found no sharing and doubled the footprint
             // estimate of Halide's stencil_chain stages from wave 1 on: 29.5 MiB against 18 MiB of buffers)
-            let k0 = (w * r as u64).saturating_mul(cores).saturating_add(core_off);
+            let k0 = (w * r as u64).saturating_mul(wg_stride(l, r)).saturating_add(core_off);
             let others: Vec<u64> = [1u64, 2, cores / 2, cores - 1].iter().map(|&d| k0 + d).filter(|&k| k < n && k > 0).collect();
             // the other workgroups are traced and compared independently: concurrently, summed in the same order
             let ovs: Vec<f64> = match tracer {
@@ -964,6 +964,32 @@ fn simulate_core(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer>, c
     }
     if !rep.time_ns.is_finite() { return Err("predicted time is non-finite for this launch".into()); }
     Ok(rep)
+}
+
+/// One workgroup per core (by threadgroup memory or by size: both measured) in a grid of at most 4 x 34 workgroups:
+/// the range measured (1-77 workgroups of 128 threads with 40000 B of threadgroup memory, 1-39 of 1024 threads with
+/// none). Larger one-resident grids keep the balanced estimate: Halide's conv_layer relu (1280 x 1024 threads) is
+/// predicted +5% with n / 38 rounds and +52% with n / 34
+fn one_resident_by_memory(l: &Launch, r: u32) -> bool {
+    let n: u64 = (0..3).map(|i| l.grid[i].div_ceil(l.wg[i].max(1)) as u64).product();
+    r == 1 && l.cores == 38 && n <= 4 * 34
+}
+
+/// The workgroup stride between one core's workgroups: the cores the GPU spreads them over (34 for one resident
+/// workgroup per core, see `busiest_core_wgs_resident`)
+pub fn wg_stride(l: &Launch, r: u32) -> u64 {
+    let k: u64 = std::env::var("AGX_ONE_RESIDENT_CORES").ok().and_then(|v| v.parse().ok()).unwrap_or(34);
+    if one_resident_by_memory(l, r) && k > 0 { k } else { l.cores as u64 }
+}
+
+/// `busiest_core_wgs` for workgroups of which `r` fit a core at once. With one per core (r = 1) the GPU places them on
+/// 34 of the 38 cores: 1-34 workgroups take one round, 35-40 two, 70-77 three (a fixed-work probe with 40000 bytes of
+/// threadgroup memory; playground novel-results/2026-11-10-one-resident-placement). AGX_ONE_RESIDENT_CORES overrides
+/// 34 (0: off)
+pub fn busiest_core_wgs_resident(n: u64, l: &Launch, r: u32) -> u64 {
+    let m = busiest_core_wgs(n, l);
+    let k: u64 = std::env::var("AGX_ONE_RESIDENT_CORES").ok().and_then(|v| v.parse().ok()).unwrap_or(34);
+    if one_resident_by_memory(l, r) && k > 0 { m.max(n.div_ceil(k)) } else { m }
 }
 
 /// Workgroups on the busiest core: even split over clusters, then over each cluster's cores.

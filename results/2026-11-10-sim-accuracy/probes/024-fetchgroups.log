@@ -1,0 +1,12 @@
+G 1 K 0 T 16 code 49378  hw     410.9  sim     855.2
+G 2 K 0 T 16 code 49378  hw     390.0  sim     855.2
+G 4 K 0 T 16 code 49378  hw     398.0  sim     903.5
+G 8 K 0 T 16 code 49378  hw     414.4  sim    1015.9
+G 1 K 16 T 16 code 49378  hw     424.6  sim     868.3
+G 2 K 16 T 16 code 49378  hw     696.7  sim     868.5
+G 4 K 16 T 16 code 49378  hw     615.0  sim     923.9
+G 8 K 16 T 16 code 49378  hw     579.7  sim    1059.8
+G 1 K 0 T 16 code 8418  hw      57.0  sim      19.9
+G 8 K 0 T 16 code 8418  hw      68.1  sim      58.7
+G 1 K 16 T 16 code 8418  hw      46.8  sim      32.8
+G 8 K 16 T 16 code 8418  hw     158.3  sim     127.7

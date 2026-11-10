@@ -1,0 +1,9 @@
+stack 80
+grid            512 hw      26.5 sim      26.3 ratio 0.99 waves 1 wgs/core 1 runs [26.916, 26.542, 26.5]
+grid          19456 hw      46.2 sim      44.6 ratio 0.97 waves 1 wgs/core 2 runs [46.166, 46.208, 46.125]
+stack 1024
+grid            512 hw      26.5 sim      26.3 ratio 0.99 waves 1 wgs/core 1 runs [26.542, 26.666, 26.416]
+grid          19456 hw      46.2 sim      44.6 ratio 0.97 waves 1 wgs/core 2 runs [46.042, 46.166, 46.25]
+stack 4096
+grid            512 hw      26.7 sim      26.3 ratio 0.99 waves 1 wgs/core 1 runs [26.958, 26.708, 26.666]
+grid          19456 hw      46.3 sim      44.6 ratio 0.96 waves 1 wgs/core 2 runs [46.291, 46.333, 46.292]
