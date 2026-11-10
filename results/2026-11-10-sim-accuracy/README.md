@@ -28,3 +28,15 @@ before and after every run with `gpuusers.sh`). Model: `agx_dispatch --launch-pr
 capture with a `stop` at the pc group 0 first reaches at trace index N: hw vs model time along the kernel;
 `sweeps/070,077,078`), `scripts/probe_fetch_groups.py` (instruction fetch shared by SIMD groups; `probes/024,027,028`),
 `AGX_TRACE_STATS=1`, `AGX_TRACE_DUMP=FILE`, `AGX_DEBUG_TIME=1`, `AGX_DEBUG_STORES=1`.
+
+## Error (|sim - hw| / hw), before (origin/main) -> after (this branch)
+| set | launches | median | p90 | mean | within 10% |
+|---|---|---|---|---|---|
+| held-out Rodinia + Halide (`eval/heldout-*`) | 159 | 7 -> 5% | 20 -> 18% | 9.0 -> 7.5% | 113 -> 119 |
+| llama.cpp tg (`eval/llama-*`) | 10 | 10 -> 9% | 26 -> 19% | 11.6 -> 9.1% | 5 -> 5 |
+| llama.cpp pp512 (`eval/pp-*`, new) | 20 | 16 -> 11% | 64 -> 53% | 27.5 -> 22.2% | 6 -> 7 |
+| llama.cpp flash attention (`eval/fa-*`, new) | 4 | 7 -> 8% | 44 -> 44% | 15.0 -> 15.4% | 3 -> 2 |
+| tinygrad (`eval/tg-*`, new) | 5 | 11 -> 13% | 110 -> 110% | 30.3 -> 29.9% | 1 -> 2 |
+
+Open problems: MMQ second-round pairing (+11..+43%), rope (+117%: groups that exit at once), flash-attention pp
+kernel (-44%), k_bin_bcast (-48%), tinygrad's r_64_16_32 (+110%).
