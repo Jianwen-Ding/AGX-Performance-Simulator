@@ -1,0 +1,14 @@
+== r7/ne512-nost
+grid      512,512,1 hw      14.5 sim      13.7 ratio 0.94 waves 4 wgs/core 54 runs [14.541, 14.5]
+grid      512,128,1 hw       6.1 sim       6.2 ratio 1.02 waves 2 wgs/core 15 runs [6.083, 6.083]
+== r7/full-nost
+grid      512,512,1 hw      17.4 sim      16.8 ratio 0.97 waves 4 wgs/core 54 runs [17.375, 17.375]
+grid      512,128,1 hw       6.9 sim       7.4 ratio 1.06 waves 2 wgs/core 15 runs [6.958, 6.917]
+NOSTORE 0
+BCAST 1 N 512 ITER 1  hw       5.7  sim       4.5
+BCAST 1 N 2048 ITER 1  hw      10.6  sim       8.8
+BCAST 1 N 2048 ITER 2  hw      14.6  sim      14.2
+NOSTORE 1
+BCAST 1 N 512 ITER 1  hw       4.0  sim       3.7
+BCAST 1 N 2048 ITER 1  hw       7.8  sim       7.7
+BCAST 1 N 2048 ITER 2  hw       9.4  sim       7.7

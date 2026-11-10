@@ -1,0 +1,22 @@
+_ZL12rms_norm_f32ILi256ELi1ELb1ELb1ELb0ELb0EEvPKfPfiiilllfS1_lll5uint3S3_S3_S3_S1_lllS3_S3_S3_S3_f hw      18.2 us (n     0, captured       0.0)  sim      13.4 us  err   -27%   wgs/core 14 waves 4
+_ZL23convert_unary_cont_vec4I6__halffEvPKvPT0_l hw       4.4 us (n     0, captured       0.0)  sim       4.1 us  err    -8%   wgs/core 2 waves 1
+agx_sgeam                      hw       4.8 us (n     0, captured       0.0)  sim       4.5 us  err    -6%   wgs/core 15 waves 1
+agx_sgemm_tile64               hw      18.8 us (n     0, captured       0.0)  sim      14.9 us  err   -21%   wgs/core 2 waves 1
+agx_hgemm_tile64_cf16_tb       hw      72.5 us (n     0, captured       0.0)  sim      64.6 us  err   -11%   wgs/core 1 waves 1
+agx_hgemm_tile64_cf16_u_tb     hw      75.8 us (n     0, captured       0.0)  sim      75.7 us  err    -0%   wgs/core 1 waves 1
+agx_sgemm_tile64_u             SIM FAILED list index out of range 
+_ZL9rope_neoxILb1ELb0EffEvPKT1_PT2_iiiiiiiiiiiPKifff14rope_corr_dimsfPKfPKlib hw      33.5 us (n     0, captured       0.0)  sim      33.8 us  err    +1%   wgs/core 189 waves 16
+_ZL17quantize_mmq_q8_1IL18mmq_q8_1_ds_layout0ELb0EEvPKfPKiPvllllliii hw      13.0 us (n     0, captured       0.0)  sim      12.0 us  err    -8%   wgs/core 27 waves 2
+_ZL9rope_neoxILb1ELb0Ef6__halfEvPKT1_PT2_iiiiiiiiiiiPKifff14rope_corr_dimsfPKfPKlib hw      10.4 us (n     0, captured       0.0)  sim       9.6 us  err    -8%   wgs/core 27 waves 3
+_ZL10k_set_rowsIfl6__halfEvPKT_PKT0_PT1_llllllllllllll5uint3S9_S9_S9_S9_ hw       7.9 us (n     0, captured       0.0)  sim       7.2 us  err    -9%   wgs/core 8 waves 1
+_ZL12soft_max_f32ILb1ELi512ELi512EfEvPKfPKT2_S1_Pf15soft_max_params hw     425.2 us (n     0, captured       0.0)  sim     499.1 us  err   +17%   wgs/core 189 waves 189
+_ZL10cpy_scalarIXadL_ZL12cpy_1_scalarIffEvPKcPcEEEvS2_S3_lllllllllllllll hw      78.8 us (n     0, captured       0.0)  sim      71.6 us  err    -9%   wgs/core 189 waves 15
+_ZL21unary_gated_op_kernelIXadL_ZL7op_silufEEfEvPKT0_S2_PS0_llll hw      92.5 us (n     0, captured       0.0)  sim      97.3 us  err    +5%   wgs/core 256 waves 43
+_ZL17quantize_mmq_q8_1IL18mmq_q8_1_ds_layout1ELb0EEvPKfPKiPvllllliii hw      13.6 us (n     0, captured       0.0)  sim      12.2 us  err   -10%   wgs/core 27 waves 2
+_ZL9mul_mat_qIL9ggml_type8ELi128ELb0EL9ggml_prec30ELb0EEvPKcS3_PKiS5_PK25ggml_cuda_mm_id_tile_specPfS9_PKf11ggml_glu_opfSB_SB_5uint3iiiiiSD_SD_iiiSD_SD_iiiSD_ hw     380.7 us (n     0, captured       0.0)  sim     395.5 us  err    +4%   wgs/core 1 waves 1
+_ZL24mul_mat_q_stream_k_fixupIL9ggml_type8ELi128ELb0EL9ggml_prec30EEvPKiPK25ggml_cuda_mm_id_tile_specPfS7_5uint3iiiS8_iS8_iS8_ hw      38.5 us (n     0, captured       0.0)  sim      36.1 us  err    -6%   wgs/core 2 waves 1
+_ZL9mul_mat_qIL9ggml_type14ELi128ELb0EL9ggml_prec30ELb0EEvPKcS3_PKiS5_PK25ggml_cuda_mm_id_tile_specPfS9_PKf11ggml_glu_opfSB_SB_5uint3iiiiiSD_SD_iiiSD_SD_iiiSD_ hw    5526.2 us (n     0, captured       0.0)  sim    4153.0 us  err   -25%   wgs/core 2 waves 2
+_ZL9mul_mat_qIL9ggml_type7ELi128ELb0EL9ggml_prec30ELb0EEvPKcS3_PKiS5_PK25ggml_cuda_mm_id_tile_specPfS9_PKf11ggml_glu_opfSB_SB_5uint3iiiiiSD_SD_iiiSD_SD_iiiSD_ hw     946.5 us (n     0, captured       0.0)  sim     876.0 us  err    -7%   wgs/core 2 waves 2
+_ZL11k_bin_bcastIXadL_ZL6op_addffEEfffJPKfEEvPKT0_PKT1_PT2_jjj5uint3SA_SA_SA_SA_jjjjjjjjjjjDpT3_ hw      33.9 us (n     0, captured       0.0)  sim      17.7 us  err   -48%   wgs/core 54 waves 4
+_ZL9mul_mat_qIL9ggml_type13ELi128ELb0EL9ggml_prec30ELb0EEvPKcS3_PKiS5_PK25ggml_cuda_mm_id_tile_specPfS9_PKf11ggml_glu_opfSB_SB_5uint3iiiiiSD_SD_iiiSD_SD_iiiSD_ hw    3702.6 us (n     0, captured       0.0)  sim    2875.6 us  err   -22%   wgs/core 2 waves 2
+launches 20  median |err| 9%  within 10%: 12  within 25%: 18

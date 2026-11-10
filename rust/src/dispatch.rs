@@ -408,8 +408,17 @@ fn simulate_placed(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer>,
     let mut ranked: Vec<(usize, usize)> = lists.iter().enumerate().map(|(i, v)| (v.iter().map(|&k| len[k as usize]).sum(), i)).collect();
     ranked.sort_by(|a, b| b.0.cmp(&a.0).then(lists[b.1].len().cmp(&lists[a.1].len())).then(a.1.cmp(&b.1)));
     let first = simulate_core_list(code, l, p, tracer, 0, Some(&lists[ranked[0].1]))?;
-    let budget = std::env::var("AGX_CORE_CYCLE_BUDGET").ok().and_then(|v| v.parse::<f64>().ok()).unwrap_or(2e7);
-    let samples = ((budget / first.core_cycles.max(1.0)) as usize).clamp(2, ranked.len());
+    // AGX_PLACED_BUDGET (simulated core cycles over all the placed cores; default 2e7 = AGX_CORE_CYCLE_BUDGET's):
+    // the path-length ranking does not find the slowest cores of llama.cpp's MMQ stream-k grids (Q6_K at 34
+    // workgroups: group-0 paths 204.9k-206.4k instructions for all; the three slowest, 2.68-2.82 ms against
+    // 2.04-2.25 for the rest, are ranked 23rd, 29th and 32nd of 34)
+    let budget = std::env::var("AGX_PLACED_BUDGET").ok().and_then(|v| v.parse::<f64>().ok())
+        .or_else(|| std::env::var("AGX_CORE_CYCLE_BUDGET").ok().and_then(|v| v.parse::<f64>().ok())).unwrap_or(2e7);
+    // AGX_PLACED_ALL_N (default 38; 0: off): grids of at most this many workgroups simulate every core's list
+    // whatever the budget (MMQ Q6_K at 38: 4156 -> 5225 us, hw 5526; Rodinia heartwall's 51 x 15M-cycle workgroups
+    // keep the budget)
+    let all_n: u64 = std::env::var("AGX_PLACED_ALL_N").ok().and_then(|v| v.parse().ok()).unwrap_or(38);
+    let samples = if n <= all_n { ranked.len() } else { ((budget / first.core_cycles.max(1.0)) as usize).clamp(2, ranked.len()) };
     let rest: Vec<usize> = ranked[1..samples.min(ranked.len())].iter().map(|x| x.1).collect();
     let mut best = first;
     if std::env::var("AGX_DEBUG_TIME").is_ok_and(|v| v == "1") {
@@ -507,6 +516,7 @@ fn simulate_core_list(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Trace
     let device_pcs: std::collections::HashSet<usize> =
         ins.iter().filter(|i| i.name == "device_load" || i.name == "device_store").map(|i| i.pc).collect();
     let store_pcs: std::collections::HashSet<usize> = ins.iter().filter(|i| i.name == "device_store").map(|i| i.pc).collect();
+    let stack_pcs: std::collections::HashSet<usize> = ins.iter().filter(|i| i.name == "stack_store").map(|i| i.pc).collect();
     // bytes per lane of each device store (`device_store 0, i32, xy, ...`: the item times the components)
     let store_lane_bytes: std::collections::HashMap<usize, f64> = ins.iter().filter(|i| i.name == "device_store").map(|i| {
         let item = if i.text.contains("i8") { 1.0 } else if i.text.contains("i16") { 2.0 } else { 4.0 };
@@ -739,6 +749,25 @@ fn simulate_core_list(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Trace
                         }
                     }
                 }
+            }
+            // AGX_STACK_STORE_FLOOR (experiment): stack (scratch) stores count against the GPU-wide store bandwidth
+            // too: 1 = every stack store's lines, 2 = each group's distinct stack lines. llama.cpp's MMQ (1.0-1.4 KB
+            // of stack per thread, ~270k stack store lines per core) slows ~30% per workgroup from 16 to 34 busy
+            // cores on hw (Q5_K 1645 -> 2146 us) while the model stays flat
+            let stack_floor: u32 = std::env::var("AGX_STACK_STORE_FLOOR").ok().and_then(|v| v.parse().ok()).unwrap_or(0);
+            if stack_floor > 0 || debug_stores {
+                let (mut all, mut distinct) = (0.0f64, 0.0f64);
+                for t in &traces {
+                    let mut seen: std::collections::HashSet<u64> = Default::default();
+                    for (step, segs) in &t.mem {
+                        if stack_pcs.contains(&t.pcs[*step as usize]) {
+                            all += segs.len() as f64 * 64.0;
+                            for &sg in segs { if seen.insert(sg) { distinct += 64.0; } }
+                        }
+                    }
+                }
+                if debug_stores { eprintln!("stack stores: {all:.0} B, distinct per group {distinct:.0} B (wave 0 traces)"); }
+                traffic += match stack_floor { 1 => all, 2 => distinct, _ => 0.0 };
             }
             let (bytes, again) = if sector_stores { (traffic.max(stored.len() as f64 * 64.0), again) } else { (stored.len() as f64 * 64.0, 0.0) };
             let k = (m as f64 / count.max(1) as f64) * cores.min(n) as f64;

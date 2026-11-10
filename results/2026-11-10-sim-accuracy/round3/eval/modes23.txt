@@ -1,0 +1,10 @@
+grep: warning: stray \ before -
+grep: warning: stray \ before -
+grep: warning: stray \ before -
+grep: warning: stray \ before -
+AGX_STREAM_OWNER=2: q6k 4679.0 (5526) q5k 3274.9 (3703) q51 958.5 (946.5) fa 1499.6 (1636)
+grep: warning: stray \ before -
+grep: warning: stray \ before -
+grep: warning: stray \ before -
+grep: warning: stray \ before -
+AGX_STREAM_OWNER=3: q6k 4500.8 (5526) q5k 3091.0 (3703) q51 918.2 (946.5) fa 1485.1 (1636)

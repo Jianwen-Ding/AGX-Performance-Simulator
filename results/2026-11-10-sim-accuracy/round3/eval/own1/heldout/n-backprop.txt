@@ -1,0 +1,3 @@
+_Z22bpnn_layerforward_CUDAPfS_S_S_ii hw      39.9 us (n     0, captured      95.3)  sim      32.9 us  err   -18%   wgs/core 108 waves 9
+_Z24bpnn_adjust_weights_cudaPfiS_iS_S_ hw     357.4 us (n     0, captured    1047.5)  sim     322.3 us  err   -10%   wgs/core 108 waves 27
+launches 2  median |err| 14%  within 10%: 1  within 25%: 2

@@ -1,0 +1,4 @@
+== r7/k6-r28
+grid      512,512,1 hw      23.4 sim      14.7 ratio 0.63 waves 5 wgs/core 54 runs [23.667, 23.167]
+== r7/k7-regs64
+grid      512,512,1 hw      23.7 sim      14.7 ratio 0.62 waves 5 wgs/core 54 runs [23.25, 24.167]
