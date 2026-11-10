@@ -2213,6 +2213,11 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
         }
     }
     let mut fetched: HashMap<usize, i64> = HashMap::new();
+    // AGX_FETCH_STREAM (experiment, default off): a fall-through miss right after the group's previous miss of the
+    // line before starts when that one arrived (next-line prefetch), so streaming code costs max(fetch, execution)
+    // per line, not their sum (playground fetch probe: 27-44 ns per straight line beyond the i-cache, ~5 of it the
+    // line's iadds)
+    let fetch_stream = std::env::var("AGX_FETCH_STREAM").is_ok_and(|v| v == "1");
     let fetch_port: f64 = std::env::var("AGX_FETCH_PORT").ok().and_then(|v| v.parse().ok()).unwrap_or(0.0);
     let fetch_private = std::env::var("AGX_FETCH_PRIVATE").is_ok_and(|v| v == "1");
     let mut fetch_free = 0i64;
@@ -3226,7 +3231,14 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
                             let cost = if fall_through { fetch_line } else { fetch_jump };
                             // AGX_FETCH_PORT=f (experiment): the core fetches one line at a time, each miss holding the
                             // port for f x its cost (groups at different lines queue)
-                            let start = if fetch_port > 0.0 { free[gi].max(fetch_free) } else { free[gi] };
+                            let mut start = if fetch_port > 0.0 { free[gi].max(fetch_free) } else { free[gi] };
+                            if fetch_stream && fall_through && line > 0 {
+                                // the line before was fetched (a miss, by any group) recently: this one was
+                                // requested when that one arrived
+                                if let Some(&a) = fetched.get(&(line - 1)) {
+                                    if a + 4 * cost >= start { start = start.min(a); }
+                                }
+                            }
                             if fetch_port > 0.0 {
                                 fetch_free = start + (cost as f64 * fetch_port) as i64;
                             }
