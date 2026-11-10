@@ -349,6 +349,14 @@ fn simulate_core(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer>, c
     let device_pcs: std::collections::HashSet<usize> =
         ins.iter().filter(|i| i.name == "device_load" || i.name == "device_store").map(|i| i.pc).collect();
     let store_pcs: std::collections::HashSet<usize> = ins.iter().filter(|i| i.name == "device_store").map(|i| i.pc).collect();
+    // bytes per lane of each device store (`device_store 0, i32, xy, ...`: the item times the components)
+    let store_lane_bytes: std::collections::HashMap<usize, f64> = ins.iter().filter(|i| i.name == "device_store").map(|i| {
+        let item = if i.text.contains("i8") { 1.0 } else if i.text.contains("i16") { 2.0 } else { 4.0 };
+        let comps = i.text.split(',').map(str::trim).find(|w| !w.is_empty() && w.chars().all(|c| "xyzw".contains(c)))
+            .map_or(1.0, |w| w.len() as f64);
+        (i.pc, item * comps)
+    }).collect();
+    let sector_stores = std::env::var("AGX_STORE_SECTORS").map_or(true, |v| v != "0");
     // the GPU-wide bytes the dispatch writes, from the first wave (for the store bandwidth floor)
     let written = std::sync::Mutex::new(0.0f64);
     let wg_coords = |k| wg_coords(dims, k);
@@ -466,14 +474,46 @@ fn simulate_core(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer>, c
         }
         if w == 0 && l.store_gbps > 0.0 {
             let mut stored: std::collections::HashSet<u64> = Default::default();
+            // Stores reach memory per instruction in 32-byte sectors: a store whose lanes scatter over many lines
+            // writes a sector of each, not the whole line, and lines written again later are written again (Rodinia
+            // hybridsort's bucketsort, 4M 4-byte stores to ~32 lines per instruction: 394 us, the sectors at 365 GB/s;
+            // the distinct lines gave 252 us). A group storing again to a line it stored to recently (one of its last
+            // `wcb` lines) adds nothing: Halide's non_local_means_sum s1 rewrites the same two lines in its reduction
+            // loop at no cost (864 us measured; 1235 when every store counted). results/2026-11-10-sim-accuracy.
+            // AGX_STORE_SECTORS=0: the distinct lines the wave stores to; AGX_STORE_WCB: lines per group (16)
+            let wcb: usize = std::env::var("AGX_STORE_WCB").ok().and_then(|v| v.parse().ok()).unwrap_or(16);
+            let mut traffic = 0.0f64;
             for t in &traces {
+                let mut recent: std::collections::VecDeque<u64> = Default::default();
                 for (step, segs) in &t.mem {
-                    if store_pcs.contains(&t.pcs[*step as usize]) {
+                    let pc = t.pcs[*step as usize];
+                    if store_pcs.contains(&pc) {
                         stored.extend(segs.iter().copied());
+                        let fresh: Vec<u64> = segs.iter().copied().filter(|sg| !recent.contains(sg)).collect();
+                        for &sg in segs {
+                            if let Some(i) = recent.iter().position(|&x| x == sg) { recent.remove(i); }
+                            recent.push_back(sg);
+                            if recent.len() > wcb { recent.pop_front(); }
+                        }
+                        if fresh.is_empty() { continue; }
+                        let lines = segs.len() as f64;
+                        let bytes = 32.0 * store_lane_bytes.get(&pc).copied().unwrap_or(4.0);
+                        // contiguous lanes (a coalesced store, aligned or not): its bytes and a sector; scattered: a
+                        // sector or two of each line
+                        let per_instr = if lines * 64.0 <= bytes + 128.0 {
+                            (lines * 64.0).min(bytes + 32.0)
+                        } else {
+                            lines * ((bytes / lines / 32.0).ceil() * 32.0).clamp(32.0, 64.0)
+                        };
+                        traffic += per_instr * fresh.len() as f64 / lines;
+                        if std::env::var("AGX_DEBUG_STORES").is_ok_and(|v| v == "1") {
+                            eprintln!("store pc {pc} lines {lines} fresh {} lane_bytes {} segs {:?}", fresh.len(), bytes / 32.0, &segs[..segs.len().min(6)]);
+                        }
                     }
                 }
             }
-            *written.lock().unwrap() = stored.len() as f64 * 64.0 * (m as f64 / count.max(1) as f64) * cores.min(n) as f64;
+            let bytes = if sector_stores { traffic.max(stored.len() as f64 * 64.0) } else { stored.len() as f64 * 64.0 };
+            *written.lock().unwrap() = bytes * (m as f64 / count.max(1) as f64) * cores.min(n) as f64;
         }
         // data shared between cores: mean overlap of this core's lines with workgroups on other cores
         let mut sharing = 0.0;
