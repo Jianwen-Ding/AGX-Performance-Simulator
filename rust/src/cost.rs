@@ -2213,6 +2213,7 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
         }
     }
     let mut fetched: HashMap<usize, i64> = HashMap::new();
+    let fetch_port: f64 = std::env::var("AGX_FETCH_PORT").ok().and_then(|v| v.parse().ok()).unwrap_or(0.0);
     let mut fetch_free = 0i64;
     // instruction cache with refetch (MemModel::icache_lines): its lines, and the jump-target miss cost
     let (mut icache, fetch_jump) = match mem {
@@ -3219,7 +3220,14 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
                             x
                         } else {
                             // (a jump taken to the next instruction is a jump: hw 324 ns per block when it starts the next line)
-                            let x = free[gi] + if fall_through { fetch_line } else { fetch_jump };
+                            let cost = if fall_through { fetch_line } else { fetch_jump };
+                            // AGX_FETCH_PORT=f (experiment): the core fetches one line at a time, each miss holding the
+                            // port for f x its cost (groups at different lines queue)
+                            let start = if fetch_port > 0.0 { free[gi].max(fetch_free) } else { free[gi] };
+                            if fetch_port > 0.0 {
+                                fetch_free = start + (cost as f64 * fetch_port) as i64;
+                            }
+                            let x = start + cost;
                             fetched.insert(line, x);
                             x
                         };
