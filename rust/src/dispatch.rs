@@ -424,8 +424,11 @@ fn simulate_core(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer>, c
         // `chain_waves`: each slot runs this wave's workgroup and then the next wave's (the GPU starts a workgroup in
         // a slot as soon as the previous one ends, so one wave's loads run under the other's tail), simulated
         // together, half the cycles each (AGX_CHAIN_WAVES=0 / 1 overrides)
-        // AGX_CHAIN_DEPTH=k (experiment, default 2): k waves per slot, 1/k of the cycles each
-        let depth = std::env::var("AGX_CHAIN_DEPTH").ok().and_then(|v| v.parse::<u64>().ok()).unwrap_or(2).max(2);
+        // AGX_CHAIN_DEPTH=k (default 4): k waves per slot, 1/k of the cycles each. 2 -> 4 (2026-11-10): the many-wave
+        // kernels' per-wave cost came out 20-25% high in grid sweeps (Halide f31, b+tree findK, outGPyramid1: each
+        // chained wave pays its slot's fill and drain); held-out 159 launches median 7 -> 5%, mean 8.4 -> 7.5%, 36
+        // better / 11 worse by >= 4 points (results/2026-11-10-sim-accuracy)
+        let depth = std::env::var("AGX_CHAIN_DEPTH").ok().and_then(|v| v.parse::<u64>().ok()).unwrap_or(4).max(2);
         let mut chained = 1u64;
         if std::env::var("AGX_CHAIN_WAVES").map_or(l.chain_waves, |v| v == "1") {
             while chained < depth && w + chained < waves && m - (w + chained) * r as u64 >= count {
@@ -464,7 +467,18 @@ fn simulate_core(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer>, c
                 }
                 if pc / 64 != last { changes += 1; last = pc / 64; }
             }
+            if let Ok(path) = std::env::var("AGX_TRACE_DUMP") {
+                // group 0's executed pcs and instruction names, one per line
+                let txt: String = t.pcs.iter().map(|pc| format!("{pc} {}\n", by_pc.get(pc).map_or("?", |i| i.name.as_str()))).collect();
+                let _ = std::fs::write(path, txt);
+            }
+            let lines: std::collections::HashSet<usize> = t.pcs.iter().map(|&pc| pc / 64).collect();
             eprintln!("trace stats: {jumps} taken jumps, {jump_lines} of them to another line");
+            for (gi, tg) in traces.iter().enumerate().take(gpw as usize) {
+                let same = tg.pcs == t.pcs;
+                let l2: std::collections::HashSet<usize> = tg.pcs.iter().map(|&pc| pc / 64).collect();
+                eprintln!("  group {gi}: {} instructions, {} lines ({} shared with group 0), same path as group 0: {same}", tg.pcs.len(), l2.len(), l2.intersection(&lines).count());
+            }
             let lines: std::collections::HashSet<usize> = t.pcs.iter().map(|&pc| pc / 64).collect();
             let mut v: Vec<_> = hist.into_iter().collect();
             v.sort_by(|a, b| b.1.cmp(&a.1));

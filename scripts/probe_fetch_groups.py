@@ -9,7 +9,7 @@ more than the i-cache's worth of code: each group must fetch every line itself. 
 core (one workgroup of 32 G threads per core, 38 workgroups) separates a per-core serial fetch (time ~ G x) from fetches
 that proceed in parallel (time ~ 1 x plus the stagger).
 
-usage: probe_fetch_groups.py [hw|sim|both] ; env G="1 2 4 8" K="0 64" T=8 BODY_KB=48 B2B=1000
+usage: probe_fetch_groups.py [hw|sim|both] ; env G="1 2 4 8" K="0 64" T=8 BODY_KB=48 B2B=1000 LOADS=0 BARRIER=0
 Prints one line per (G, K): hw / sim us.
 """
 import json, os, re, subprocess, sys, tempfile
@@ -32,8 +32,14 @@ def program(body_kb):
     one = [P.e(f'iadd r{21 + i % 8}, r{21 + i % 8}, 1') for i in range(8)]
     body = b''
     i = 0
+    loads = int(os.environ.get('LOADS', '0'))      # a device load (uniform address) + wait 0 every LOADS instructions
+    bar = int(os.environ.get('BARRIER', '0'))      # a threadgroup barrier every BARRIER instructions
     while len(body) < body_kb * 1024:
         body += one[i % 8]; i += 1
+        if loads and i % loads == 0:
+            body += P.e('device_load 0, i32, x, r30, u8_u9, 0, signed') + P.e('wait 0')
+        if bar and i % bar == 0:
+            body += P.e('threadgroup_barrier')
     body += P.e('iadd r7, 1, r7.sx') + P.e('while_icmp r0l, ult, r7, r8, 1')
     code += body + P.e(f'jmp_exec_any pc-{len(body)}', f'jmp_exec_any pc-{len(body)}') + P.e('pop_exec r0l, 1')
     return code + P.e('stop') + bytes(64)
@@ -41,7 +47,8 @@ def program(body_kb):
 
 def run(mode, code, g, k, t, d):
     f = os.path.join(d, 'k.bin'); open(f, 'wb').write(code)
-    common = [f, '--grid', f'{38 * 32 * g},1,1', '--wg', f'{32 * g},1,1', '--regs', '64', '--uniform', f'5={t}', '--uniform', f'6={k}']
+    common = [f, '--grid', f'{38 * 32 * g},1,1', '--wg', f'{32 * g},1,1', '--regs', '64', '--uniform', f'5={t}', '--uniform', f'6={k}',
+              '--uniform', '8=0', '--uniform', '9=17', '--alloc', '0x1100000000=65536']
     if mode == 'hw':
         chk = subprocess.run([P.RUN] + common, capture_output=True, text=True)
         if '"instructions"' not in chk.stdout:

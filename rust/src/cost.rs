@@ -1524,7 +1524,7 @@ impl Default for MemModel {
             clock_mhz: 1398.0,
             active_cores: 38.0,
             l1_bytes: 8 << 10,
-            l2_bytes: 256 << 10,
+            l2_bytes: std::env::var("AGX_L2_BYTES").ok().and_then(|v| v.parse().ok()).unwrap_or(256 << 10),
             // shared-cache capacity for streaming reuse. The model's LRU steps at about 1.15 x slc_bytes (19 MiB: 22 MiB), the measured
             // half-way point of the smooth 14-30 MiB transition is about 21 MiB (playground novel-results/2026-10-18-slc)
             slc_bytes: 19 << 20,
@@ -2214,6 +2214,7 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
     }
     let mut fetched: HashMap<usize, i64> = HashMap::new();
     let fetch_port: f64 = std::env::var("AGX_FETCH_PORT").ok().and_then(|v| v.parse().ok()).unwrap_or(0.0);
+    let fetch_private = std::env::var("AGX_FETCH_PRIVATE").is_ok_and(|v| v == "1");
     let mut fetch_free = 0i64;
     // instruction cache with refetch (MemModel::icache_lines): its lines, and the jump-target miss cost
     let (mut icache, fetch_jump) = match mem {
@@ -3206,6 +3207,8 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
             if fetch_line > 0 && nxt[gi] + 1 < npcs[gi] {
                 let (pc0, pc1) = (seqs_pcs[gi][nxt[gi]], seqs_pcs[gi][nxt[gi] + 1]);
                 let line = pc1 >> FETCH_LINE_SHIFT;
+                // AGX_FETCH_PRIVATE=1 (experiment): each SIMD group's lines are its own (no group finds another's)
+                let line = if fetch_private { line | (gi << 40) } else { line };
                 if let Some(ic) = icache.as_mut() {
                     if line != pc0 >> FETCH_LINE_SHIFT {
                         // a line still in the cache is ready (or arrives when another group's fetch of it ends)
