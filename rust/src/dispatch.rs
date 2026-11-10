@@ -359,11 +359,14 @@ fn simulate_core(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer>, c
     let sector_stores = std::env::var("AGX_STORE_SECTORS").map_or(true, |v| v != "0");
     // the GPU-wide bytes the dispatch writes, from the first wave (for the store bandwidth floor)
     let written = std::sync::Mutex::new(0.0f64);
+    let written_again = std::sync::Mutex::new(0.0f64);
     let wg_coords = |k| wg_coords(dims, k);
     let first_wave_lines = std::sync::Mutex::new(std::collections::HashSet::<usize>::new());
     // the first wave's device segments, which later waves find in the caches (`partial_warm`)
     let first_wave_segs = std::sync::Mutex::new(None::<std::sync::Arc<std::collections::HashSet<u64>>>);
     let dram_share_cache = std::sync::Mutex::new(None::<f64>);
+    // the same block's stored lines: distinct over the sum of each workgroup's (`store_share`)
+    let store_share_cache = std::sync::Mutex::new(1.0f64);
     let partial_warm = std::env::var("AGX_PARTIAL_WARM").map_or(l.partial_warm, |v| v == "1");
     let refetched = std::sync::atomic::AtomicBool::new(false);
     let sim_wave = |w: u64| -> Result<(u64, f64, Vec<String>, Vec<f64>), String> {
@@ -448,13 +451,20 @@ fn simulate_core(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer>, c
             let mut bytes = 0usize;
             let mut changes = 0usize;
             let mut last = usize::MAX;
+            let (mut jumps, mut jump_lines, mut prev_end) = (0usize, 0usize, usize::MAX);
             for &pc in &t.pcs {
+                if prev_end != usize::MAX && pc != prev_end {
+                    jumps += 1;
+                    if pc / 64 != last { jump_lines += 1; }
+                }
                 if let Some(i) = by_pc.get(&pc) {
                     *hist.entry(i.name.clone()).or_default() += 1;
                     bytes += i.size;
+                    prev_end = pc + i.size;
                 }
                 if pc / 64 != last { changes += 1; last = pc / 64; }
             }
+            eprintln!("trace stats: {jumps} taken jumps, {jump_lines} of them to another line");
             let lines: std::collections::HashSet<usize> = t.pcs.iter().map(|&pc| pc / 64).collect();
             let mut v: Vec<_> = hist.into_iter().collect();
             v.sort_by(|a, b| b.1.cmp(&a.1));
@@ -503,10 +513,14 @@ fn simulate_core(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer>, c
             // loop at no cost (864 us measured; 1235 when every store counted). results/2026-11-10-sim-accuracy.
             // AGX_STORE_SECTORS=0: the distinct lines the wave stores to; AGX_STORE_WCB: lines per group (16)
             let wcb: usize = std::env::var("AGX_STORE_WCB").ok().and_then(|v| v.parse().ok()).unwrap_or(16);
-            let mut traffic = 0.0f64;
+            // a group's first store to a line (`traffic`: merged with other groups' and workgroups' stores to it,
+            // `store_share`) and its later ones that left the merge window (`again`: partial lines written again
+            // later, each reaching memory: bucketsort)
+            let (mut traffic, mut again) = (0.0f64, 0.0f64);
             let debug_stores = std::env::var("AGX_DEBUG_STORES").is_ok_and(|v| v == "1");
             for t in &traces {
                 let mut recent: std::collections::VecDeque<u64> = Default::default();
+                let mut seen: std::collections::HashSet<u64> = Default::default();
                 for (step, segs) in &t.mem {
                     let pc = t.pcs[*step as usize];
                     if store_pcs.contains(&pc) {
@@ -527,15 +541,19 @@ fn simulate_core(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer>, c
                         } else {
                             lines * ((bytes / lines / 32.0).ceil() * 32.0).clamp(32.0, 64.0)
                         };
-                        traffic += per_instr * fresh.len() as f64 / lines;
+                        let first = fresh.iter().filter(|&&sg| seen.insert(sg)).count() as f64;
+                        traffic += per_instr * first / lines;
+                        again += per_instr * (fresh.len() as f64 - first) / lines;
                         if debug_stores {
-                            eprintln!("store pc {pc} lines {lines} fresh {} lane_bytes {} segs {:?}", fresh.len(), bytes / 32.0, &segs[..segs.len().min(6)]);
+                            eprintln!("store pc {pc} lines {lines} fresh {} first {first} lane_bytes {} segs {:?}", fresh.len(), bytes / 32.0, &segs[..segs.len().min(6)]);
                         }
                     }
                 }
             }
-            let bytes = if sector_stores { traffic.max(stored.len() as f64 * 64.0) } else { stored.len() as f64 * 64.0 };
-            *written.lock().unwrap() = bytes * (m as f64 / count.max(1) as f64) * cores.min(n) as f64;
+            let (bytes, again) = if sector_stores { (traffic.max(stored.len() as f64 * 64.0), again) } else { (stored.len() as f64 * 64.0, 0.0) };
+            let k = (m as f64 / count.max(1) as f64) * cores.min(n) as f64;
+            *written.lock().unwrap() = bytes * k;
+            *written_again.lock().unwrap() = again * k;
         }
         // data shared between cores: mean overlap of this core's lines with workgroups on other cores
         let mut sharing = 0.0;
@@ -607,9 +625,28 @@ fn simulate_core(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer>, c
                             }
                         }
                     };
-                    let sets: Vec<std::collections::HashSet<u64>> = crate::par::map(&ks, |&k| trace_wg(k))
-                        .into_iter()
-                        .collect::<Result<Vec<_>, _>>()?
+                    let traced: Vec<Vec<Trace>> = crate::par::map(&ks, |&k| trace_wg(k)).into_iter().collect::<Result<Vec<_>, _>>()?;
+                    if block > 1 && std::env::var("AGX_STORE_SHARE").map_or(true, |v| v != "0") {
+                        // Lines several workgroups of the block store to (llama.cpp's k_set_rows: 2-byte stores, 32
+                        // groups and many cores writing one 64-byte line) reach memory once: the dispatch's written
+                        // bytes are scaled by distinct / sum over the block (7.6 us of store floor for 128 KB of data;
+                        // results/2026-11-10-sim-accuracy). AGX_STORE_SHARE=0: no scaling
+                        let st: Vec<std::collections::HashSet<u64>> = traced.iter().map(|ts| {
+                            let mut set = std::collections::HashSet::new();
+                            for t in ts {
+                                for (step, segs) in &t.mem {
+                                    if store_pcs.contains(&t.pcs[*step as usize]) {
+                                        set.extend(segs.iter().copied());
+                                    }
+                                }
+                            }
+                            set
+                        }).collect();
+                        let sum: usize = st.iter().map(|x| x.len()).sum();
+                        let union: std::collections::HashSet<u64> = st.iter().flatten().copied().collect();
+                        if sum > 0 { *store_share_cache.lock().unwrap() = union.len() as f64 / sum as f64; }
+                    }
+                    let sets: Vec<std::collections::HashSet<u64>> = traced
                         .iter()
                         .map(|ts| {
                             let mut set = std::collections::HashSet::new();
@@ -792,7 +829,7 @@ fn simulate_core(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer>, c
     // 26.2 us measured with the 2.3 us launch)
     let fetch_ns = if refetched.load(std::sync::atomic::Ordering::Relaxed) { 0.0 } else { rep.code_lines as f64 * l.fetch_line_ns };
     let stack_ns = if l.stack_bytes > 0 { l.stack_launch_ns } else { 0.0 };
-    let written = written.into_inner().unwrap();
+    let written = written.into_inner().unwrap() * store_share_cache.into_inner().unwrap() + written_again.into_inner().unwrap();
     let writes_ns = if !store_pcs.is_empty() { l.store_launch_ns } else { 0.0 };
     let store_ns = if l.store_gbps > 0.0 { written / l.store_gbps } else { 0.0 };
     // (the stores after the workgroups' launch: 1520 x 256 threads writing 1.5 / 6 / 24 MB, 4 us of launch + the bytes
@@ -817,6 +854,9 @@ fn simulate_core(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer>, c
     }
     let fetch_part = std::env::var("AGX_FETCH_OVERLAP").ok().and_then(|v| v.parse::<f64>().ok()).unwrap_or(0.3) * core_ns.min(fetch_ns);
     rep.time_ns = (core_ns.max(fetch_ns) + fetch_part).max(rep.launch_core_ns).max(store_floor) + l.launch_ns + stack_ns + writes_ns;
+    if std::env::var("AGX_DEBUG_TIME").is_ok_and(|v| v == "1") {
+        eprintln!("time: core {core_ns:.0} fetch {fetch_ns:.0} (+{fetch_part:.0}) launch_core {:.0} store_floor {store_floor:.0} (written {written:.0} B) + launch {} stack {stack_ns} writes {writes_ns}", rep.launch_core_ns, l.launch_ns);
+    }
     if !rep.time_ns.is_finite() { return Err("predicted time is non-finite for this launch".into()); }
     Ok(rep)
 }

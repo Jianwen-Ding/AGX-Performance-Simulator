@@ -62,7 +62,7 @@ def main():
     gs = [int(x) for x in os.environ.get('G', '1 2 4 8').split()]
     ks = [int(x) for x in os.environ.get('K', '0 64').split()]
     t = int(os.environ.get('T', '8'))
-    code = program(int(os.environ.get('BODY_KB', '48')))
+    code = program(float(os.environ.get('BODY_KB', '48')))
     with tempfile.TemporaryDirectory() as d:
         for k in ks:
             for g in gs:
