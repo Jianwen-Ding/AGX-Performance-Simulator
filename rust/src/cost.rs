@@ -100,12 +100,16 @@ fn fence_ticks(code: u8, ctx: usize) -> (i64, bool) {
 /// AGX_MEM_LEVELS=1: device / stack accesses by deepest cache level (L1, L2, SLC, DRAM) since the start, by
 /// (stack, store, level); `mem_levels_report` prints them
 pub static MEM_LEVELS: [std::sync::atomic::AtomicU64; 16] = [const { std::sync::atomic::AtomicU64::new(0) }; 16];
+/// with AGX_MEM_LEVELS=1: device atomics simulated (instructions, active lanes, the largest same-word lane count summed,
+/// contention cycles summed)
+pub static ATOMIC_STATS: [std::sync::atomic::AtomicU64; 4] = [const { std::sync::atomic::AtomicU64::new(0) }; 4];
 pub fn mem_levels_report() -> Option<String> {
     if !std::env::var("AGX_MEM_LEVELS").is_ok_and(|v| v == "1") {
         return None;
     }
     let v: Vec<u64> = MEM_LEVELS.iter().map(|x| x.load(std::sync::atomic::Ordering::Relaxed)).collect();
-    Some(format!("device loads {:?} stores {:?}; stack loads {:?} stores {:?} (L1, L2, SLC, DRAM)", &v[0..4], &v[4..8], &v[8..12], &v[12..16]))
+    let a: Vec<u64> = ATOMIC_STATS.iter().map(|x| x.load(std::sync::atomic::Ordering::Relaxed)).collect();
+    Some(format!("device loads {:?} stores {:?}; stack loads {:?} stores {:?} (L1, L2, SLC, DRAM); atomics {} lanes {} same-word lanes {} contention cycles {}", &v[0..4], &v[4..8], &v[8..12], &v[12..16], a[0], a[1], a[2], a[3]))
 }
 
 /// Kernels with more code than this are taken to fetch instructions from beyond the instruction cache (see the taken
@@ -910,6 +914,33 @@ pub fn tg_words(f: &isa::Fields, st: &exec::CoreState) -> Option<Vec<u64>> {
 }
 
 /// Word addresses of a device `atomic` (32-bit) for every active lane.
+/// AGX_ATOMIC_COLLIDE=3: the serial lane-operations an atomic instruction's sorted words `ws` cost at a hot spot:
+/// 128-byte banks work in parallel; in a bank the 32-byte sectors one after the other, each as long as its busiest
+/// word (its distinct words combine). probe_atomic_lines.py (38 cores on one array, ns per instruction / 0.86):
+/// one word 32, 4 words x 8 lanes in a sector 8, the same 4 words a sector apart 16, 4 lines 8 lanes each 16,
+/// 32 distinct words in 2 lines 4
+pub fn atomic_units(ws: &[u64]) -> usize {
+    let mut best = 0usize;
+    let mut i = 0;
+    while i < ws.len() {
+        let bank = ws[i] >> 5;
+        let mut units = 0usize;
+        while i < ws.len() && ws[i] >> 5 == bank {
+            let sector = ws[i] >> 3;
+            let mut top = 0usize;
+            while i < ws.len() && ws[i] >> 3 == sector {
+                let w = ws[i];
+                let mut n = 0;
+                while i < ws.len() && ws[i] == w { n += 1; i += 1; }
+                top = top.max(n);
+            }
+            units += top;
+        }
+        best = best.max(units);
+    }
+    best
+}
+
 pub fn atomic_words(f: &isa::Fields, st: &exec::CoreState) -> Option<Vec<u64>> {
     let g = |k: &str| fget(f, k);
     let mut w = Vec::with_capacity(exec::SIMD_WIDTH);
@@ -1509,6 +1540,10 @@ pub struct MemModel {
     pub atomic_min: f64,
     pub atomic_per_seg: f64,
     pub atomic_same_word_rate: f64,
+    /// AGX_ATOMIC_SHARE: the GPU-wide sharers of a hot word's rate per this core (0: `active_cores`)
+    pub atomic_contenders: f64,
+    /// AGX_ATOMIC_SHARERS: per atomic word, the cores hitting it at once (a word not listed: all)
+    pub atomic_sharers: Option<std::sync::Arc<std::collections::HashMap<u64, f64>>>,
     /// threadgroup memory, one SIMD group back to back: reference cycles per load / store plus one per extra
     /// bank-conflict way (core: max(1, conflict degree) per instruction)
     pub tg_group_load: f64,
@@ -1573,6 +1608,8 @@ impl Default for MemModel {
             first_touch_dram: false,
             atomic_min: 6.9,
             atomic_per_seg: 1.7,
+            atomic_contenders: 0.0,
+            atomic_sharers: None,
             atomic_same_word_rate: 0.89,   // playground novel-results/2026-10-16-atomic-contention: 0.86 ns per lane-op on one word at 1,398 MHz
             tg_group_load: std::env::var("AGX_TG_GROUP_LOAD").ok().and_then(|v| v.parse().ok()).unwrap_or(31.0),
             tg_core_load: std::env::var("AGX_TG_CORE_LOAD").ok().and_then(|v| v.parse().ok()).unwrap_or(1.0),
@@ -2035,6 +2072,7 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
     let mut profile_prev: i64 = 0;
     let first_touch_dram = mem.is_some_and(|(_, m)| m.resident_slc && m.first_touch_dram);
     let mem_levels = std::env::var("AGX_MEM_LEVELS").is_ok_and(|v| v == "1");
+    let atomic_collide: u32 = std::env::var("AGX_ATOMIC_COLLIDE").ok().and_then(|v| v.parse().ok()).unwrap_or(0);
     // AGX_STORE_DRAIN_BLOCK=1 (with AGX_STORE_DRAIN): a load waits while the core's store queue is over-full
     let drain_block = std::env::var("AGX_STORE_DRAIN_BLOCK").is_ok_and(|v| v == "1");
     let drain_pipe = std::env::var("AGX_STORE_DRAIN_PIPE").is_ok_and(|v| v == "1");
@@ -2092,6 +2130,25 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
     let memfp: Vec<Vec<u64>> = memv.iter().map(|v| v.iter().map(|(_, sg)| {
         sg.iter().fold(sg.len() as u64, |h, &x| (h ^ x).wrapping_mul(0x100_0000_01b3).rotate_left(29))
     }).collect()).collect();
+    // AGX_ATOMIC_PRIVATE=1 (experiment): an atomic word that only one of the simulated workgroups touches (with two
+    // or more simulated) is taken as private to it, not a GPU-wide hot spot: its lanes serialise on this core alone
+    // (probe_atomic_lines.py PERWG=1, one word per workgroup: hw 259 us, as a hot spot 3672; Cycles init_from_camera's
+    // per-pixel render-buffer adds)
+    let atomic_private: Option<std::collections::HashSet<u64>> = if mem.is_some() && std::env::var("AGX_ATOMIC_PRIVATE").is_ok_and(|v| v == "1") {
+        let mut by: HashMap<u64, (u32, bool)> = HashMap::new();
+        let mut wgs: std::collections::HashSet<u32> = Default::default();
+        for (gi, v) in memv.iter().enumerate() {
+            for (step, words) in v.iter() {
+                if !sim[seqs[gi][*step as usize]].atomic { continue; }
+                wgs.insert(wg[gi]);
+                for &w in words {
+                    let e = by.entry(w).or_insert((wg[gi], false));
+                    if e.0 != wg[gi] { e.1 = true; }
+                }
+            }
+        }
+        (wgs.len() >= 2).then(|| by.into_iter().filter(|(_, (_, multi))| !multi).map(|(w, _)| w).collect())
+    } else { None };
     if let (Some(m), Some((_, mm))) = (ms.as_mut(), mem) {
         if mm.resident_slc && (!mm.warm || mm.warm_only.is_some()) {
             let mut distinct: std::collections::HashSet<u64> = Default::default();
@@ -2946,7 +3003,47 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
                             // 32-byte sectors; lanes on one word (a shared counter) serialise GPU-wide
                             let mut secs: Vec<u64> = ws.iter().map(|w| w >> 3).collect();
                             secs.dedup();
-                            let contention = if same > 1 { same as f64 * mm.active_cores / mm.atomic_same_word_rate } else { 0.0 };
+                            // AGX_ATOMIC_COLLIDE (experiment): an instruction whose lanes collide on a word serialises more than
+                            // that word's lanes (playground 2026-10-16-atomic-contention: 32 hashed counters in 2 lines ran
+                            // almost as slow as one counter). 1: all its active lanes; 2: the lanes in its busiest 64-byte line
+                            let same = if same > 1 {
+                                match atomic_collide {
+                                    1 => ws.len(),
+                                    2 => {
+                                        let mut best = 0usize;
+                                        let mut run = 0usize;
+                                        for i in 0..ws.len() {
+                                            run = if i > 0 && ws[i] >> 4 == ws[i - 1] >> 4 { run + 1 } else { 1 };
+                                            best = best.max(run);
+                                        }
+                                        best
+                                    }
+                                    3 => atomic_units(&ws),
+                                    _ => same,
+                                }
+                            } else if atomic_collide == 3 { atomic_units(&ws) } else { same };
+                            let private = atomic_private.as_ref().is_some_and(|p| ws.iter().all(|w| p.contains(w)));
+                            let mut sharers = if private { 1.0 } else if mm.atomic_contenders > 0.0 { mm.atomic_contenders } else { mm.active_cores };
+                            if let Some(map) = mm.atomic_sharers.as_ref() {
+                                // the busiest word's fraction of the cores hitting it at once
+                                let fb = map.get(&u64::MAX).copied().unwrap_or(1.0);
+                                let c = ws.iter().map(|w| map.get(w).copied().unwrap_or(fb)).fold(0.0f64, f64::max);
+                                if c > 0.0 { sharers = (sharers * c).max(1.0); }
+                            }
+                            let contention = if same > 1 { same as f64 * sharers / mm.atomic_same_word_rate } else { 0.0 };
+                            if mem_levels && std::env::var("AGX_DEBUG_ATOMIC").is_ok_and(|v| v == "1") {
+                                static SHOWN: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+                                if SHOWN.fetch_add(1, std::sync::atomic::Ordering::Relaxed) < 40 {
+                                    eprintln!("atomic pc {} lanes {} units/same {} sharers {:.2} words {:?}", r.pc, ws.len(), same, sharers, &ws[..ws.len().min(6)]);
+                                }
+                            }
+                            if mem_levels {
+                                use std::sync::atomic::Ordering::Relaxed;
+                                ATOMIC_STATS[0].fetch_add(1, Relaxed);
+                                ATOMIC_STATS[1].fetch_add(ws.len() as u64, Relaxed);
+                                ATOMIC_STATS[2].fetch_add(same as u64, Relaxed);
+                                ATOMIC_STATS[3].fetch_add(contention as u64, Relaxed);
+                            }
                             let c = (mm.atomic_min).max(mm.atomic_per_seg * secs.len() as f64).max(contention);
                             (tk(c * k), tk(mm.atomic_min * k), &mut m.at_free)
                         } else {
