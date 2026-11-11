@@ -97,3 +97,10 @@ are linked where they already cover part of it.
     `total_active_threads_in_simdgroup` (sr59) disagree with `ballot`: with one active thread sr59 read 11, with 32
     it read 1 (PTX-formalization atomics.ptx / launch-maxntid-total.ptx under the atomic optimizer). The backend
     now derives both from the ballot; the emulation (or the register numbering) needs checking against hardware.
+17. **Empty-mask memory accesses (B31 against `agx_cost`).** With an if body of at most 4 instructions that holds
+    device / threadgroup loads or stores run under an empty execution mask instead of jumped over, `agx_cost` reports
+    every affected agx-bench kernel faster (conv3x3 tput -17%, bitonic_smem -7%, saxpy -20%; llvm-project
+    EXPERIMENTS.md L15-E135, rejected). B31 measured a masked `device_load` + `wait` at ~13-20 ns and a masked
+    `device_store` at ~9-12 ns (more than an active store), against ~1-4 ns for masked ALU instructions, so the
+    model's cost of a masked access, or of the jump it replaces, disagrees with the hardware. Charge masked memory
+    accesses as B31 measured.
