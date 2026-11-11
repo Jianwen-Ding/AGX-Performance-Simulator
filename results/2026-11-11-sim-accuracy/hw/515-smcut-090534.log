@@ -1,0 +1,27 @@
+== /scratch/agx-r5/r9/smtrunc/311445-cap2418-_ZL12soft_max_f32ILb1ELi5-cut104
+grid    262144,14,1 hw     125.2 sim       nan ratio nan waves None wgs/core None runs [125.292, 125.208]
+grid     262144,1,1 hw      13.8 sim       nan ratio nan waves None wgs/core None runs [13.791, 13.792]
+== /scratch/agx-r5/r9/smtrunc/311445-cap2418-_ZL12soft_max_f32ILb1ELi5-cut123
+grid    262144,14,1 hw     165.3 sim       nan ratio nan waves None wgs/core None runs [165.25, 165.333]
+grid     262144,1,1 hw      17.4 sim       nan ratio nan waves None wgs/core None runs [17.458, 17.375]
+== /scratch/agx-r5/r9/smtrunc/311445-cap2418-_ZL12soft_max_f32ILb1ELi5-cut169
+grid    262144,14,1 hw     276.8 sim       nan ratio nan waves None wgs/core None runs [276.875, 276.709]
+grid     262144,1,1 hw      27.9 sim       nan ratio nan waves None wgs/core None runs [27.958, 27.916]
+== /scratch/agx-r5/r9/smtrunc/311445-cap2418-_ZL12soft_max_f32ILb1ELi5-cut205
+grid    262144,14,1 hw     326.9 sim       nan ratio nan waves None wgs/core None runs [326.875, 326.834]
+grid     262144,1,1 hw      32.3 sim       nan ratio nan waves None wgs/core None runs [32.167, 32.375]
+== /scratch/agx-r5/r9/smtrunc/311445-cap2418-_ZL12soft_max_f32ILb1ELi5-cut224
+grid    262144,14,1 hw     376.8 sim       nan ratio nan waves None wgs/core None runs [376.75, 376.834]
+grid     262144,1,1 hw      36.4 sim       nan ratio nan waves None wgs/core None runs [36.333, 36.5]
+== /scratch/agx-r5/r9/smtrunc/311445-cap2418-_ZL12soft_max_f32ILb1ELi5-cut238
+grid    262144,14,1 hw     395.9 sim       nan ratio nan waves None wgs/core None runs [395.917, 395.958]
+grid     262144,1,1 hw      38.4 sim       nan ratio nan waves None wgs/core None runs [38.417, 38.375]
+== /scratch/agx-r5/r9/smtrunc/311445-cap2418-_ZL12soft_max_f32ILb1ELi5-cut40
+grid    262144,14,1 hw      54.1 sim       nan ratio nan waves None wgs/core None runs [54.042, 54.083]
+grid     262144,1,1 hw       6.6 sim       nan ratio nan waves None wgs/core None runs [6.625, 6.625]
+== /scratch/agx-r5/r9/smtrunc/311445-cap2418-_ZL12soft_max_f32ILb1ELi5-cut90
+grid    262144,14,1 hw     101.2 sim       nan ratio nan waves None wgs/core None runs [101.208, 101.209]
+grid     262144,1,1 hw      11.0 sim       nan ratio nan waves None wgs/core None runs [11.041, 11.041]
+== /scratch/agx-r5/r9/nostore/softmax
+grid    262144,14,1 hw     403.1 sim       nan ratio nan waves None wgs/core None runs [403.084, 403.208]
+grid     262144,1,1 hw      38.9 sim       nan ratio nan waves None wgs/core None runs [38.833, 38.958]
