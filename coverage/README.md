@@ -12,11 +12,11 @@ checked against the recordings offline.
 | `coverage/timing/<name>.json` | Recorded instruction-bench results (latency, SIMD issue, per-core throughput). Written by `record`. |
 | `coverage/log.jsonl`, `coverage/faults.json` | Log of every recording outcome, and the cases that faulted. |
 
-## Catalog (4,273 cases)
+## Catalog (4,293 cases)
 
 | Area | Safe | May fault | What it covers |
 |---|---|---|---|
-| `alu` | 863 | 292 | Integer, float and bit ALU forms. Varies operands (16/32/64-bit, `.sx`, `.abs`/`.neg`, `.cache`/`.discard`, uniforms, immediates), all 16 bitop truth tables, shifts, saturation, every funop function code (0–63), every convert mode×round field, every compare/ballot condition code including the unnamed ones, shuffles with every index kind, reductions and prefix ops (16/64-bit), and simd_op sub-ops. |
+| `alu` | 873 | 292 | Integer, float and bit ALU forms. Varies operands (16/32/64-bit, `.sx`, `.abs`/`.neg`, `.cache`/`.discard`, uniforms, immediates), all 16 bitop truth tables, shifts, saturation, every funop function code (0–63), every convert mode×round field, every compare/ballot condition code including the unnamed ones, shuffles with every index kind, reductions and prefix ops (16/64-bit), and simd_op sub-ops. |
 | `alu_masked` | 213 | – | Cross-lane forms running with a quarter of the lanes inactive. |
 | `mem_load` / `mem_store` | 202 / 194 | 116 / 112 | All 12 device formats × component masks × 16/32-bit registers, `lsl 0..3` shifts, signed/unsigned index, uniform/register base, and immediate index. |
 | `geometry` | 760 | – | Every special register 0–255. The identified ones run under 13 launch geometries (1-D, 2-D, 3-D, partial groups, workgroup sizes 1–1024), the rest under one. All 256 are safe to read (no fault in 126+ full scans); the former 214 `may_fault` cases were recorded on 2026-10-16 (tasks/safe-06). |
@@ -26,7 +26,7 @@ checked against the recordings offline.
 | `atomic` | 11 | 11 | All 11 device atomics, with uniform base (safe) and register base (may fault). |
 | `undecoded` | 403 | – | The 49 non-faulting undecoded opcodes (playground opcode-descriptions, sync-and-end-opcodes) in the 8 operand encodings that ran there: 31 six-byte no-ops, 0x18 (bit 7 clear), and the 16 ends opcodes plus 0x98 / 0xf8 (also inside a 3-of-4-lane branch). Recorded 2026-10-16 (tasks/safe-08): 403/403 deterministic, simulator exact. |
 | `fmadd_lane` / `fmadd_lane_masked` / `fmadd_b52` | 16 / 8 / 2 | – | The 10-byte fmadd lane-offset form (measured subset) and bit 52 of fmadd32 (the pow special-case fixup, 13,824 + 1,024 triples), recorded 2026-10-18; simulator exact. |
-| `bench` | 651 | – | Timing cases: every safe ALU form whose destination and first source have the same width. Each becomes a dependent-chain instruction-bench form. |
+| `bench` | 661 | – | Timing cases: every safe ALU form whose destination and first source have the same width. Each becomes a dependent-chain instruction-bench form. |
 
 **Risk levels:**
 

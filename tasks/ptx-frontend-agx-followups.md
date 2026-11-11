@@ -78,6 +78,11 @@ are linked where they already cover part of it.
     for bwd_filter, which is this, not the change. Needed: emulate `rcp` and the int/float converts (exactly as the
     hardware rounds) in the default trace, or warn louder when a costed loop's trip count is unknown. (Mapping any
     buffer, `--alloc`, switches to the functional trace, which runs them: agx-bench's lib_shapes.py does.)
+18. **Shifted immediate second source of iadd / isub.** Does `iadd r14, r6, 16, lsl 4` add 256 (the shift applied
+    to the 8-bit immediate as to a register)? The functional model assumes so; no recording has the form. If it does,
+    the AGX backend can add constants k << s (k <= 255, s <= 4) without a `mov_imm` and a register (llvm-project
+    EXPERIMENTS.md L15-E178: up to -0.7% tput, one GPR on sgemm_reg4x4 and nbody). The coverage catalog has the
+    cases (`alu/iadd_r14_r6_16_lsl_4` and nine more); record them.
 
 ## Functional model / encodings
 
