@@ -1,0 +1,15 @@
+== /scratch/agx-r5/r6/ktrunc/311445-cap479-_ZL11k_bin_bcastIXadL_ZL6o-cut104
+grid      512,128,1 hw       6.0 sim       6.9 ratio 1.15 waves 2 wgs/core 15 runs [5.958, 5.959]
+grid      512,512,1 hw      14.3 sim      14.2 ratio 1.00 waves 4 wgs/core 54 runs [14.25, 14.292]
+== /scratch/agx-r5/r6/ktrunc/311445-cap479-_ZL11k_bin_bcastIXadL_ZL6o-cut40
+grid      512,128,1 hw       3.5 sim       4.5 ratio 1.29 waves 2 wgs/core 15 runs [3.5, 3.5]
+grid      512,512,1 hw       7.4 sim       8.4 ratio 1.14 waves 4 wgs/core 54 runs [7.375, 7.375]
+== /scratch/agx-r5/r6/ktrunc/311445-cap479-_ZL11k_bin_bcastIXadL_ZL6o-cut88
+grid      512,128,1 hw       5.0 sim       nan ratio nan waves None wgs/core None runs [5.042, 5.042]
+grid      512,512,1 hw      11.8 sim       nan ratio nan waves None wgs/core None runs [11.75, 11.75]
+== /scratch/agx-r5/r6/ktrunc/311445-cap479-_ZL11k_bin_bcastIXadL_ZL6o-cut94
+grid      512,128,1 hw       5.6 sim       nan ratio nan waves None wgs/core None runs [5.625, 5.625]
+grid      512,512,1 hw      13.1 sim       nan ratio nan waves None wgs/core None runs [13.084, 13.084]
+== /scratch/agx-r5/r6/ktrunc/311445-cap479-_ZL11k_bin_bcastIXadL_ZL6o-cut99
+grid      512,128,1 hw       5.9 sim       6.8 ratio 1.16 waves 2 wgs/core 15 runs [5.833, 5.875]
+grid      512,512,1 hw      13.8 sim      14.0 ratio 1.02 waves 4 wgs/core 54 runs [13.791, 13.791]

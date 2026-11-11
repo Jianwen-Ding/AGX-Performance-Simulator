@@ -1,0 +1,24 @@
+== /scratch/agx-r5/trunc/311445-cap462-_ZL9mul_mat_qIL9ggml_type7-cut1190
+grid       1216,8,1 hw     680.4 sim      26.5 ratio 0.04 waves 1 wgs/core 1 runs [680.292, 680.5]
+grid         32,8,1 hw      32.1 sim      26.9 ratio 0.84 waves 1 wgs/core 1 runs [32.042, 32.083]
+== /scratch/agx-r5/trunc/311445-cap462-_ZL9mul_mat_qIL9ggml_type7-cut12200
+grid       1216,8,1 hw     803.8 sim     179.7 ratio 0.22 waves 1 wgs/core 1 runs [803.709, 803.833]
+grid         32,8,1 hw     188.3 sim     180.8 ratio 0.96 waves 1 wgs/core 1 runs [188.083, 188.458]
+== /scratch/agx-r5/trunc/311445-cap462-_ZL9mul_mat_qIL9ggml_type7-cut24320
+grid       1216,8,1 hw     948.5 sim     344.1 ratio 0.36 waves 1 wgs/core 1 runs [948.5, 948.583]
+grid         32,8,1 hw     300.7 sim     347.9 ratio 1.16 waves 1 wgs/core 1 runs [300.583, 300.75]
+== /scratch/agx-r5/trunc/311445-cap462-_ZL9mul_mat_qIL9ggml_type7-cut3000
+grid       1216,8,1 hw     701.0 sim      54.8 ratio 0.08 waves 1 wgs/core 1 runs [701.333, 700.584]
+grid         32,8,1 hw      55.3 sim      55.3 ratio 1.00 waves 1 wgs/core 1 runs [55.458, 55.208]
+== /scratch/agx-r5/trunc/311445-cap462-_ZL9mul_mat_qIL9ggml_type7-cut400
+grid       1216,8,1 hw     671.5 sim      19.0 ratio 0.03 waves 1 wgs/core 1 runs [672.0, 671.0]
+grid         32,8,1 hw      21.7 sim      19.0 ratio 0.88 waves 1 wgs/core 1 runs [21.75, 21.666]
+== /scratch/agx-r5/trunc/311445-cap462-_ZL9mul_mat_qIL9ggml_type7-cut60
+grid       1216,8,1 hw      17.1 sim      16.7 ratio 0.97 waves 1 wgs/core 1 runs [17.083, 17.125]
+grid         32,8,1 hw      16.8 sim      16.7 ratio 0.99 waves 1 wgs/core 1 runs [16.791, 16.834]
+== /scratch/agx-r5/trunc/311445-cap462-_ZL9mul_mat_qIL9ggml_type7-cut6630
+grid       1216,8,1 hw     737.1 sim     104.1 ratio 0.14 waves 1 wgs/core 1 runs [736.417, 737.791]
+grid         32,8,1 hw     108.5 sim     104.5 ratio 0.96 waves 1 wgs/core 1 runs [108.791, 108.25]
+== /scratch/agx-r5/trunc/311445-cap462-_ZL9mul_mat_qIL9ggml_type7-cut9000
+grid       1216,8,1 hw     760.0 sim     136.3 ratio 0.18 waves 1 wgs/core 1 runs [760.708, 759.375]
+grid         32,8,1 hw     142.1 sim     136.9 ratio 0.96 waves 1 wgs/core 1 runs [142.25, 142.041]

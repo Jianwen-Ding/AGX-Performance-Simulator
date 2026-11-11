@@ -8,7 +8,9 @@ and ALU instructions. Pattern letters (one instruction each):
   B  threadgroup_load i32, x, rD, 0, 0         (immediate base 0: every lane reads word 0)
   i  iadd rT, rT, 1 on r21..r28 round robin   (independent of the loads)
   f  fmadd32 rT, rT, r29, r30 on r21..r28     (independent fp32)
+  a  fadd32 rT, rT, r30;  j  iadd rT, rT, r30;  g  fmadd32 rT, rT, r29, r29;  k  fmadd32 rT, rT, rT, rT
   c  iadd rT, rT, rD of the latest load       (consumes a load result)
+  v  convert u32_to_f, rT, rT, rte;  u  convert f_to_u32, rT, rT, rtz  (independent conversions)
   p, q, r  iadd on 1, 2 or 3 dependency chains (r21, r21..r22, r21..r23)
   w  wait 0
 The loop counter uses r3/r4 (iadd + while_icmp + jmp_exec_any: 3 instructions per trip).
@@ -79,8 +81,20 @@ def program(pattern, bcast=False):
             r = 21 + na % 8; body += e(f'iadd r{r}, r{r}, 1'); na += 1
         elif ch == 'f':
             r = 21 + na % 8; body += e(f'fmadd32 r{r}, r{r}, r29, r30'); na += 1
+        elif ch == 'a':
+            r = 21 + na % 8; body += e(f'fadd32 r{r}, r{r}, r30'); na += 1
+        elif ch == 'j':
+            r = 21 + na % 8; body += e(f'iadd r{r}, r{r}, r30'); na += 1
+        elif ch == 'g':
+            r = 21 + na % 8; body += e(f'fmadd32 r{r}, r{r}, r29, r29'); na += 1
+        elif ch == 'k':
+            r = 21 + na % 8; body += e(f'fmadd32 r{r}, r{r}, r{r}, r{r}'); na += 1
         elif ch == 'c':
             r = 21 + na % 8; body += e(f'iadd r{r}, r{r}, r{last}'); na += 1
+        elif ch == 'v':
+            r = 21 + na % 8; body += e(f'convert u32_to_f, r{r}, r{r}, rte'); na += 1
+        elif ch == 'u':
+            r = 21 + na % 8; body += e(f'convert f_to_u32, r{r}, r{r}, rtz'); na += 1
         elif ch in 'pqr':
             n = 'pqr'.index(ch) + 1; r = 21 + nc[n] % n; nc[n] += 1
             body += e(f'iadd r{r}, r{r}, 1')

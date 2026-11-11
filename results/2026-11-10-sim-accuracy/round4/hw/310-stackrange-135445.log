@@ -1,0 +1,30 @@
+== stack range 0:8, grid 32
+grid       8192,1,1 hw     737.1 sim     710.4 ratio 0.96 waves 1 wgs/core 1 runs [737.25, 737.0]
+== stack range 8:16, grid 32
+grid       8192,1,1 hw     737.9 sim     710.4 ratio 0.96 waves 1 wgs/core 1 runs [737.791, 737.958]
+== stack range 16:24, grid 32
+grid       8192,1,1 hw     737.5 sim     710.4 ratio 0.96 waves 1 wgs/core 1 runs [737.5, 737.542]
+== stack range 24:32, grid 32
+grid       8192,1,1 hw     737.4 sim     710.4 ratio 0.96 waves 1 wgs/core 1 runs [737.458, 737.375]
+== stack range 0:16, grid 32
+grid       8192,1,1 hw     743.5 sim     710.4 ratio 0.96 waves 1 wgs/core 1 runs [743.583, 743.334]
+== stack range 16:32, grid 32
+grid       8192,1,1 hw     743.3 sim     710.4 ratio 0.96 waves 1 wgs/core 1 runs [743.416, 743.25]
+== stack range 0:32, grid 32
+grid       8192,1,1 hw    1184.0 sim     710.4 ratio 0.60 waves 1 wgs/core 1 runs [1183.916, 1184.083]
+== stack range 16:24 at grid 24
+grid       6144,1,1 hw     737.5 sim     707.4 ratio 0.96 waves 1 wgs/core 1 runs [737.375, 737.542]
+== dev twin 6MB/48KB
+grid       2048,1,1 hw     802.4 sim     730.0 ratio 0.91 waves 1 wgs/core 1 runs [802.333, 802.416]
+grid       4096,1,1 hw     804.8 sim     730.0 ratio 0.91 waves 1 wgs/core 1 runs [804.708, 804.833]
+grid       6144,1,1 hw     999.3 sim     730.0 ratio 0.73 waves 1 wgs/core 1 runs [999.208, 999.458]
+grid       8192,1,1 hw    1238.3 sim     730.0 ratio 0.59 waves 1 wgs/core 1 runs [1237.833, 1238.833]
+grid       9728,1,1 hw    1379.9 sim    1489.2 ratio 1.08 waves 1 wgs/core 2 runs [1381.0, 1378.833]
+== dev twin packed 384KB/48KB
+grid       2048,1,1 hw     802.7 sim     730.0 ratio 0.91 waves 1 wgs/core 1 runs [802.542, 802.792]
+grid       4096,1,1 hw     804.8 sim     730.0 ratio 0.91 waves 1 wgs/core 1 runs [804.917, 804.625]
+grid       6144,1,1 hw     807.0 sim     730.0 ratio 0.90 waves 1 wgs/core 1 runs [806.792, 807.125]
+grid       8192,1,1 hw    1261.6 sim     730.0 ratio 0.58 waves 1 wgs/core 1 runs [1261.583, 1261.667]
+grid       9728,1,1 hw    1385.2 sim    1487.8 ratio 1.07 waves 1 wgs/core 2 runs [1385.458, 1384.917]
+== dev twin 6MB range 16:24 at grid 32
+grid       8192,1,1 hw     802.4 sim     730.0 ratio 0.91 waves 1 wgs/core 1 runs [802.375, 802.5]

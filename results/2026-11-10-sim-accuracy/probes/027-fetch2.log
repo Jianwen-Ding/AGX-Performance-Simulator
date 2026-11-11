@@ -1,0 +1,36 @@
+BODY_KB 0.25
+G 1 K 0 T 3072 code 482  hw     154.5
+G 4 K 0 T 3072 code 482  hw     246.8
+G 16 K 0 T 3072 code 482  hw     724.9
+BODY_KB 0.5
+G 1 K 0 T 1536 code 738  hw     114.2
+G 4 K 0 T 1536 code 738  hw     174.8
+G 16 K 0 T 1536 code 738  hw     614.2
+BODY_KB 1
+G 1 K 0 T 768 code 1250  hw      98.0
+G 4 K 0 T 768 code 1250  hw     182.4
+G 16 K 0 T 768 code 1250  hw     615.9
+BODY_KB 2
+G 1 K 0 T 384 code 2274  hw      87.7
+G 4 K 0 T 384 code 2274  hw     175.6
+G 16 K 0 T 384 code 2274  hw     601.7
+BODY_KB 4
+G 1 K 0 T 192 code 4322  hw      84.3
+G 4 K 0 T 192 code 4322  hw     182.8
+G 16 K 0 T 192 code 4322  hw     594.8
+BODY_KB 8
+G 1 K 0 T 96 code 8418  hw      94.2
+G 4 K 0 T 96 code 8418  hw     190.5
+G 16 K 0 T 96 code 8418  hw     602.7
+BODY_KB 16
+G 1 K 0 T 48 code 16610  hw     331.5
+G 4 K 0 T 48 code 16610  hw     391.6
+G 16 K 0 T 48 code 16610  hw     669.0
+BODY_KB 32
+G 1 K 0 T 24 code 32994  hw     399.8
+G 4 K 0 T 24 code 32994  hw     386.1
+G 16 K 0 T 24 code 32994  hw     719.8
+BODY_KB 64
+G 1 K 0 T 16 code 65762  hw     547.6
+G 4 K 0 T 16 code 65762  hw     533.5
+G 16 K 0 T 16 code 65762  hw    1007.7

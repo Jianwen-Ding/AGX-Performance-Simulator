@@ -1,0 +1,2 @@
+_Z19kernel_compute_costiilP5PointiiPfS1_PiPb hw         205.0 us (n     0, captured     294.1)  sim     277.6 us  err     +35%   wgs/core 4 waves 2
+launches 1  median |err| 35%  within 10%: 0  within 25%: 0

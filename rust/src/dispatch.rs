@@ -38,6 +38,8 @@ pub struct Launch {
     /// representative core's waves; it does not prescribe workgroup identities,
     /// simultaneous residency, active cores or a full placement map.
     pub busiest_core_wgs_override: Option<u64>,
+    /// set by `simulate_placed`: busy cores by list position (entry k: cores that run a k-th workgroup)
+    pub placed_busy: Option<std::sync::Arc<Vec<u64>>>,
     pub clock_mhz: f64,
     pub launch_ns: f64,
     pub wg_launch_ns: f64,
@@ -46,6 +48,11 @@ pub struct Launch {
     /// whose caches start cold, overlapping execution (0 in the direct-DRM profile, whose calibration includes it; 104 ns for the CUDA driver's
     /// commands: straight-line code 294 -> 4134 bytes, +6.25 us, playground novel-results/2026-11-01-code-fetch)
     pub fetch_line_ns: f64,
+    /// the same for a line the first wave's group 0 enters by a taken jump (not prefetched; 0: `fetch_line_ns`).
+    /// Runtime profile 300 with 70 for the others (playground novel-results/2026-11-07-uncached-jump-fetch: straight
+    /// lines ~70 ns, jumped-to one-line blocks 235-325 ns): llama.cpp's token-generation kernels median 11 -> 9%
+    /// (Q8_0 matrix-vector -26 -> -19%, quantize_q8_1 +23 -> +9%), held-out 159 unchanged (results/2026-11-10-sim-accuracy)
+    pub fetch_jump_line_ns: f64,
     /// stack (scratch) per thread the kernel uses, and the fixed cost of a command whose kernel has one (the scratch
     /// set up by the launch's helper program: 0 in the drm profile; 5.0 us for the CUDA driver's: real one-group stack kernels
     /// take 7.7-8.9 us in all at a warm clock (results/2026-11-07-stack-slots), while an empty kernel over 38 to
@@ -112,11 +119,13 @@ impl Default for Launch {
             tg_capacity: 64 << 10,
             cores: 38,
             busiest_core_wgs_override: None,
+            placed_busy: None,
             clock_mhz: 1398.0,
             launch_ns: 5600.0,
             wg_launch_ns: 100.0,
             group_launch_ns: 13.6,
             fetch_line_ns: 0.0,
+            fetch_jump_line_ns: 0.0,
             stack_bytes: 0,
             stack_launch_ns: 0.0,
             stack_slot_ns: 0.0,
@@ -252,6 +261,11 @@ pub fn refill() -> bool {
     std::env::var("AGX_REFILL").is_ok_and(|v| v == "1")
 }
 
+/// AGX_REFILL=2: group-slot refill (see simulate_core)
+pub fn group_refill() -> bool {
+    std::env::var("AGX_REFILL").is_ok_and(|v| v == "2")
+}
+
 /// When `durations` (in start order) are done with `slots` of them running at once, each starting when the first slot
 /// frees: list scheduling, whose result is at most the sum of the waves' slowest and at least the longest.
 pub fn refill_makespan(durations: &[f64], slots: usize) -> f64 {
@@ -294,12 +308,27 @@ pub fn simulate_with(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer
     let (_, r) = occupancy(l);
     let cores = l.cores as u64;
     let one_per_core = l.busiest_core_wgs_override.is_none() && r > 0 && cores > 0 && n > 1 && n <= cores
-        && busiest_core_wgs(n, l) <= 1 && std::env::var("AGX_ALL_WGS").map_or(true, |v| v != "0");
+        && busiest_core_wgs_resident(n, l, r) <= 1 && std::env::var("AGX_ALL_WGS").map_or(true, |v| v != "0");
     // Likewise a grid that is resident all at once (one wave) ends with its slowest core: each core's workgroups
     // (off, off + cores, ...) are simulated and the slowest core sets the time. Cycles' intersect_closest (330 x 64
     // threads, BVH traversal): 325-386 us over the cores, 335 for core 0. AGX_ALL_CORES=0: core 0 only.
-    let one_wave = l.busiest_core_wgs_override.is_none() && r > 0 && cores > 1 && n > cores
-        && n.div_ceil(cores) <= r as u64 && std::env::var("AGX_ALL_CORES").map_or(true, |v| v != "0");
+    // (also when there are no more workgroups than cores but the cluster split gives one core two: llama.cpp's MMQ,
+    // 38 workgroups of one resident per core, ran only workgroups 0 and 37 while the stream-k split's slowest is
+    // another one; AGX_ALL_CORES=1 / 0 / "gt": "gt" keeps the old n > cores condition)
+    // Grids of one round (or the one-resident grids measured, up to 136 workgroups): the workgroups each core runs
+    // as the hardware places them (`placement`), every core's list simulated when the budget allows, else the
+    // ones with the most traced work. AGX_PLACEMENT=0: the strided cores below
+    let placed = l.busiest_core_wgs_override.is_none() && r > 0 && n > 1 && cores > 1
+        && (n.div_ceil(cores) <= r as u64 || one_resident_by_memory(l, r))
+        && std::env::var("AGX_PLACEMENT").map_or(true, |v| v != "0") && std::env::var("AGX_ALL_CORES").map_or(true, |v| v != "0");
+    if placed {
+        if let Some(lists) = placement(n, l) {
+            return simulate_placed(code, l, p, tracer, lists);
+        }
+    }
+    let all_cores = std::env::var("AGX_ALL_CORES").unwrap_or_default();
+    let one_wave = l.busiest_core_wgs_override.is_none() && r > 0 && cores > 1 && n > 1 && (n > cores || all_cores != "gt")
+        && n.div_ceil(cores) <= r as u64 && all_cores != "0";
     if !one_per_core && !one_wave {
         let off = std::env::var("AGX_CORE_OFF").ok().and_then(|v| v.parse().ok()).unwrap_or(0);
         return simulate_core(code, l, p, tracer, off);
@@ -309,9 +338,36 @@ pub fn simulate_with(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer
     // 60 s of simulation each: 2 cores; intersect_closest, 0.47M: all 38). AGX_CORE_CYCLE_BUDGET overrides.
     let first = simulate_core(code, l, p, tracer, 0)?;
     let budget = std::env::var("AGX_CORE_CYCLE_BUDGET").ok().and_then(|v| v.parse::<f64>().ok()).unwrap_or(2e7);
-    let k = n.min(cores);
+    let k = n.min(wg_stride(l, r));
     let samples = ((budget / first.core_cycles.max(1.0)) as u64).clamp(2, k);
-    let offs: Vec<u64> = (1..samples).map(|j| j * k / samples).filter(|&o| o > 0).collect();
+    let mut offs: Vec<u64> = (1..samples).map(|j| j * k / samples).filter(|&o| o > 0).collect();
+    // When not every core can be simulated, the ones with the most work: each core's workgroups' group-0 paths are
+    // traced (cheap next to the timing) and the longest ones simulated. llama.cpp's MMQ Q6_K (38 stream-k workgroups,
+    // ~4M cycles each: 5 of 38 cores sampled evenly) missed its slowest workgroups. AGX_CORE_RANK=0: even sampling
+    let m_core = first.busiest_core_wgs.max(1);
+    if samples < k && k * m_core <= 1024 && std::env::var("AGX_CORE_RANK").map_or(true, |v| v != "0") {
+        let Geometry { dims, threads, .. } = l.geometry()?;
+        let prepared = tracer.is_none().then(|| cost::PreparedTrace::new(code));
+        let work = |off: u64| -> Result<usize, String> {
+            let mut total = 0usize;
+            for i in 0..m_core {
+                let wg = wg_coords(dims, (i * wg_stride(l, r) + off).min(n - 1));
+                total += match tracer {
+                    Some(t) => t(wg)?.first().map_or(0, |tr| tr.pcs.len()),
+                    None => {
+                        let ctx = GroupCtx { wg_size: l.wg, wg_id: wg, group: 0, core: 0, slot: 0, uniforms: l.uniforms.clone(), launch: cost::SrLaunch { tg_bytes: l.tg_bytes, regs: l.regs, ..Default::default() } };
+                        prepared.as_ref().unwrap().trace_group(&ctx, l.max_steps)?.pcs.len()
+                    }
+                };
+            }
+            let _ = threads;
+            Ok(total)
+        };
+        let cand: Vec<u64> = (1..k).collect();
+        let mut w: Vec<(usize, u64)> = crate::par::map(&cand, |&o| work(o).map(|x| (x, o))).into_iter().collect::<Result<Vec<_>, _>>()?;
+        w.sort_by(|a, b| b.0.cmp(&a.0).then(a.1.cmp(&b.1)));
+        offs = w.iter().take((samples - 1) as usize).map(|&(_, o)| o).collect();
+    }
     let reps = std::iter::once(Ok(first)).chain(offs.iter().map(|&off| simulate_core(code, l, p, tracer, off)));
     let mut best: Option<Report> = None;
     for rep in reps {
@@ -323,13 +379,137 @@ pub fn simulate_with(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer
     Ok(best.unwrap())
 }
 
+/// The slowest of the cores' simulations, each running its own `lists` entry (see `simulate_with`).
+fn simulate_placed(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer>, lists: Vec<Vec<u64>>) -> Result<Report, String> {
+    let Geometry { dims, workgroups: n, .. } = l.geometry()?;
+    let mut lists: Vec<Vec<u64>> = lists.into_iter().filter(|v| !v.is_empty()).collect();
+    lists.sort();
+    lists.dedup();
+    // each core's work: its workgroups' group-0 path lengths (traced; cheap next to the timing)
+    let prepared = tracer.is_none().then(|| cost::PreparedTrace::new(code));
+    let wgs: Vec<u64> = (0..n).collect();
+    // AGX_RANK_GROUPS=1 (experiment): a workgroup's work is its longest group's path, not group 0's
+    let all_groups = std::env::var("AGX_RANK_GROUPS").is_ok_and(|v| v == "1");
+    let gpw: u32 = if all_groups { (l.wg.iter().map(|&x| x.max(1) as u64).product::<u64>().div_ceil(32)) as u32 } else { 1 };
+    let len: Vec<usize> = crate::par::map(&wgs, |&k| -> Result<usize, String> {
+        let wg = wg_coords(dims, k);
+        Ok(match tracer {
+            Some(t) => { let ts = t(wg)?; if all_groups { ts.iter().map(|tr| tr.pcs.len()).max().unwrap_or(0) } else { ts.first().map_or(0, |tr| tr.pcs.len()) } }
+            None => {
+                let mut best = 0usize;
+                for g in 0..gpw {
+                    let ctx = GroupCtx { wg_size: l.wg, wg_id: wg, group: g, core: 0, slot: g, uniforms: l.uniforms.clone(), launch: cost::SrLaunch { tg_bytes: l.tg_bytes, regs: l.regs, ..Default::default() } };
+                    best = best.max(prepared.as_ref().unwrap().trace_group(&ctx, l.max_steps)?.pcs.len());
+                }
+                best
+            }
+        })
+    }).into_iter().collect::<Result<Vec<_>, _>>()?;
+    if std::env::var("AGX_DEBUG_TIME").is_ok_and(|v| v == "1") {
+        eprintln!("placed: workgroup path lengths {:?}", len);
+    }
+    let mut ranked: Vec<(usize, usize)> = lists.iter().enumerate().map(|(i, v)| (v.iter().map(|&k| len[k as usize]).sum(), i)).collect();
+    ranked.sort_by(|a, b| b.0.cmp(&a.0).then(lists[b.1].len().cmp(&lists[a.1].len())).then(a.1.cmp(&b.1)));
+    // AGX_PLACED_BUSY (default on; 0: off): a placed core's wave shares the memory system with the cores busy at
+    // that list position, not with all of them (38 one-resident workgroups: 34 cores in the first round, 4 in the
+    // second; with AGX_L2_GPU the second workgroups would otherwise pay the full GPU's L2 pressure)
+    let busy_l;
+    let l = if std::env::var("AGX_PLACED_BUSY").is_ok_and(|v| v == "1") {
+        let longest = lists.iter().map(|v| v.len()).max().unwrap_or(0);
+        let busy: Vec<u64> = (0..longest).map(|k| lists.iter().filter(|v| v.len() > k).count() as u64).collect();
+        busy_l = Launch { placed_busy: Some(std::sync::Arc::new(busy)), ..l.clone() };
+        &busy_l
+    } else { l };
+    let first = simulate_core_list(code, l, p, tracer, 0, Some(&lists[ranked[0].1]))?;
+    // AGX_PLACED_BUDGET (simulated core cycles over all the placed cores; default 2e7 = AGX_CORE_CYCLE_BUDGET's):
+    // the path-length ranking does not find the slowest cores of llama.cpp's MMQ stream-k grids (Q6_K at 34
+    // workgroups: group-0 paths 204.9k-206.4k instructions for all; the three slowest, 2.68-2.82 ms against
+    // 2.04-2.25 for the rest, are ranked 23rd, 29th and 32nd of 34)
+    let budget = std::env::var("AGX_PLACED_BUDGET").ok().and_then(|v| v.parse::<f64>().ok())
+        .or_else(|| std::env::var("AGX_CORE_CYCLE_BUDGET").ok().and_then(|v| v.parse::<f64>().ok())).unwrap_or(2e7);
+    // AGX_PLACED_ALL_N (default 38; 0: off): grids of at most this many workgroups simulate every core's list
+    // whatever the budget (MMQ Q6_K at 38: 4156 -> 5225 us, hw 5526; Rodinia heartwall's 51 x 15M-cycle workgroups
+    // keep the budget)
+    let all_n: u64 = std::env::var("AGX_PLACED_ALL_N").ok().and_then(|v| v.parse().ok()).unwrap_or(38);
+    let samples = if n <= all_n { ranked.len() } else { ((budget / first.core_cycles.max(1.0)) as usize).clamp(2, ranked.len()) };
+    let rest: Vec<usize> = ranked[1..samples.min(ranked.len())].iter().map(|x| x.1).collect();
+    let mut best = first;
+    if std::env::var("AGX_DEBUG_TIME").is_ok_and(|v| v == "1") {
+        eprintln!("placed: simulating lists {:?}", std::iter::once(ranked[0].1).chain(rest.iter().copied()).map(|i| lists[i].clone()).collect::<Vec<_>>());
+    }
+    for i in rest {
+        let rep = simulate_core_list(code, l, p, tracer, 0, Some(&lists[i]))?;
+        if rep.time_ns > best.time_ns { best = rep; }
+    }
+    Ok(best)
+}
+
+/// The workgroups each core runs, in start order, as the M2 Max (38 cores in clusters of 10, 9, 9, 10) places them:
+/// chunks of 8 consecutive workgroups are dealt to clusters (cluster 0, 1, 2, 3, 3, 0, 1, 2, then 1, 0, 2, 3, 0, 1,
+/// 2, 3 repeating) and a cluster's workgroups to its cores round robin. Measured with one resident workgroup per core
+/// (threadgroup memory or size) and with three, 1-200 workgroups: the first round uses only 34 cores (8 of the 9-10
+/// in clusters 0-2), and at 38 workgroups 34-37 share cores with 24-27 (playground
+/// novel-results/2026-11-10-workgroup-placement; scripts/probe_resident_order.py). Beyond ~64 workgroups the dealing
+/// is partly dynamic (the order varies run to run). None for other core layouts
+pub fn placement(n: u64, l: &Launch) -> Option<Vec<Vec<u64>>> {
+    if l.clusters.len() != 4 || l.clusters.iter().map(|&c| c as u64).sum::<u64>() != l.cores as u64 || n > 1 << 16 {
+        return None;
+    }
+    let base: Vec<u64> = l.clusters.iter().scan(0u64, |a, &c| { let b = *a; *a += c as u64; Some(b) }).collect();
+    let mut next = vec![0u64; 4];
+    let mut lists = vec![vec![]; l.cores as usize];
+    const FIRST: [usize; 8] = [0, 1, 2, 3, 3, 0, 1, 2];
+    const LATER: [usize; 8] = [1, 0, 2, 3, 0, 1, 2, 3];
+    for (j, chunk) in (0..n).step_by(8).enumerate() {
+        let c = if j < 8 { FIRST[j] } else { LATER[(j - 8) % 8] };
+        for k in chunk..(chunk + 8).min(n) {
+            let core = base[c] + next[c] % l.clusters[c] as u64;
+            next[c] += 1;
+            lists[core as usize].push(k);
+        }
+    }
+    Some(lists)
+}
+
 /// `simulate_with` for the busiest core holding workgroups off, off + cores, ... (off < cores)
 fn simulate_core(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer>, core_off: u64) -> Result<Report, String> {
+    simulate_core_list(code, l, p, tracer, core_off, None)
+}
+
+/// `simulate_core` for the core whose workgroups (in start order) are `list` (`placement`), else off, off + stride, ...
+fn simulate_core_list(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer>, core_off: u64, list: Option<&[u64]>) -> Result<Report, String> {
     let Geometry { dims, workgroups: n, threads } = l.geometry()?;
     let ins = cost::decode(code, p)?;
     let prepared = tracer.is_none().then(|| cost::PreparedTrace::new(code));
     let gpw = threads.div_ceil(32);
     let (cap, r) = occupancy(l);
+    // SIMD groups that end early free their registers but not their workgroup's group slots: the core holds
+    // workgroups up to the 96 group slots (55 workgroups) while their live groups fit the register cap (a new one
+    // needs registers for all its groups at launch). Workgroups of 8 groups of which 7 exit at once (llama.cpp's
+    // rope; scripts/probe_partial_wg.py: 108 halves, cap 30 groups) run ~11 at a time, not 3: 7168 workgroups of a
+    // 6400-step dependent chain in one group take 554 us, 514 with 32 halves (12 by the cap), 2342 with all 8
+    // groups working. AGX_EARLY_EXIT=0: occupancy by the register cap alone
+    let r = if r > 0 && cap > 0 && l.tg_bytes == 0 && std::env::var("AGX_EARLY_EXIT").map_or(true, |v| v != "0") {
+        let gpw = threads.div_ceil(32) as u32;
+        let wg0 = wg_coords(dims, list.map_or(core_off.min(n - 1), |v| v[0]));
+        let lens: Vec<usize> = match tracer {
+            Some(t) => t(wg0)?.iter().map(|tr| tr.pcs.len()).collect(),
+            None => {
+                let pt = prepared.as_ref().unwrap();
+                let gs: Vec<u32> = (0..gpw).collect();
+                crate::par::map(&gs, |&g| {
+                    let ctx = GroupCtx { wg_size: l.wg, wg_id: wg0, group: g, core: 0, slot: g, uniforms: l.uniforms.clone(), launch: cost::SrLaunch { tg_bytes: l.tg_bytes, regs: l.regs, ..Default::default() } };
+                    pt.trace_group(&ctx, l.max_steps).map(|t| t.pcs.len())
+                }).into_iter().collect::<Result<Vec<_>, _>>()?
+            }
+        };
+        let longest = lens.iter().copied().max().unwrap_or(0);
+        let live = lens.iter().filter(|&&x| x * 4 > longest).count().max(1) as u32;
+        if live < gpw && gpw > 1 {
+            let by_regs = if cap >= gpw { (cap - gpw) / live + 1 } else { 0 };
+            r.max(by_regs.min(96 / gpw).min(55))
+        } else { r }
+    } else { r };
     let mut rep = Report { workgroups: n, groups_per_wg: gpw, group_cap_per_core: cap, wgs_per_core: r, ..Default::default() };
     if gpw > cap {
         return Err(format!("workgroup of {} SIMD groups exceeds the {}-group occupancy limit", gpw, cap));
@@ -337,9 +517,9 @@ fn simulate_core(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer>, c
     let cores = l.cores as u64;
     // all workgroups resident at once: static cluster split; otherwise cores take new workgroups as
     // they free slots, which balances the load (608 and 4096 workgroups: n / cores fits better)
-    let m_static = busiest_core_wgs(n, l);
-    let estimated = if m_static <= r as u64 { m_static } else { n.div_ceil(cores) };
-    let m = l.busiest_core_wgs_override.unwrap_or(estimated);
+    let m_static = busiest_core_wgs_resident(n, l, r);
+    let estimated = if m_static <= r as u64 || (one_resident_by_memory(l, r) && std::env::var("AGX_ONE_RESIDENT_CORES").map_or(true, |v| v != "0")) { m_static } else { n.div_ceil(cores) };
+    let m = match list { Some(v) => v.len().max(1) as u64, None => l.busiest_core_wgs_override.unwrap_or(estimated) };
     rep.busiest_core_wgs = m;
     let waves = m.div_ceil(r as u64).max(1);
     rep.waves = waves;
@@ -349,16 +529,29 @@ fn simulate_core(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer>, c
     let device_pcs: std::collections::HashSet<usize> =
         ins.iter().filter(|i| i.name == "device_load" || i.name == "device_store").map(|i| i.pc).collect();
     let store_pcs: std::collections::HashSet<usize> = ins.iter().filter(|i| i.name == "device_store").map(|i| i.pc).collect();
+    let stack_pcs: std::collections::HashSet<usize> = ins.iter().filter(|i| i.name == "stack_store").map(|i| i.pc).collect();
+    // bytes per lane of each device store (`device_store 0, i32, xy, ...`: the item times the components)
+    let store_lane_bytes: std::collections::HashMap<usize, f64> = ins.iter().filter(|i| i.name == "device_store").map(|i| {
+        let item = if i.text.contains("i8") { 1.0 } else if i.text.contains("i16") { 2.0 } else { 4.0 };
+        let comps = i.text.split(',').map(str::trim).find(|w| !w.is_empty() && w.chars().all(|c| "xyzw".contains(c)))
+            .map_or(1.0, |w| w.len() as f64);
+        (i.pc, item * comps)
+    }).collect();
+    let sector_stores = std::env::var("AGX_STORE_SECTORS").map_or(true, |v| v != "0");
     // the GPU-wide bytes the dispatch writes, from the first wave (for the store bandwidth floor)
     let written = std::sync::Mutex::new(0.0f64);
+    let written_again = std::sync::Mutex::new(0.0f64);
     let wg_coords = |k| wg_coords(dims, k);
     let first_wave_lines = std::sync::Mutex::new(std::collections::HashSet::<usize>::new());
+    let jump_lines = std::sync::Mutex::new(0u64);
     // the first wave's device segments, which later waves find in the caches (`partial_warm`)
     let first_wave_segs = std::sync::Mutex::new(None::<std::sync::Arc<std::collections::HashSet<u64>>>);
     let dram_share_cache = std::sync::Mutex::new(None::<f64>);
+    // the same block's stored lines: distinct over the sum of each workgroup's (`store_share`)
+    let store_share_cache = std::sync::Mutex::new(1.0f64);
     let partial_warm = std::env::var("AGX_PARTIAL_WARM").map_or(l.partial_warm, |v| v == "1");
     let refetched = std::sync::atomic::AtomicBool::new(false);
-    let sim_wave = |w: u64| -> Result<(u64, f64, Vec<String>, Vec<f64>), String> {
+    let sim_wave = |w: u64| -> Result<(u64, f64, Vec<String>, Vec<f64>, Vec<Vec<f64>>, u64), String> {
         let count = (m - w * r as u64).min(r as u64);
         let build = |first: u64| -> Result<(Vec<Trace>, Vec<u32>, Vec<String>), String> {
         let mut traces = vec![];
@@ -371,10 +564,12 @@ fn simulate_core(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer>, c
             // representative workgroups distinctly instead of clamping every
             // extra group onto the final grid coordinate. This is a sample of
             // workgroup paths, not reconstruction of the observed placement.
-            let k = if l.busiest_core_wgs_override.is_some() {
+            let k = if let Some(v) = list {
+                v[((first + i) as usize).min(v.len() - 1)]
+            } else if l.busiest_core_wgs_override.is_some() {
                 (((first + i) as u128 * n as u128) / m as u128) as u64
             } else {
-                (first + i).saturating_mul(cores).saturating_add(core_off).min(n - 1)
+                (first + i).saturating_mul(wg_stride(l, r)).saturating_add(core_off).min(n - 1)
             };
             wg_coords(k)
         };
@@ -413,8 +608,11 @@ fn simulate_core(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer>, c
         // `chain_waves`: each slot runs this wave's workgroup and then the next wave's (the GPU starts a workgroup in
         // a slot as soon as the previous one ends, so one wave's loads run under the other's tail), simulated
         // together, half the cycles each (AGX_CHAIN_WAVES=0 / 1 overrides)
-        // AGX_CHAIN_DEPTH=k (experiment, default 2): k waves per slot, 1/k of the cycles each
-        let depth = std::env::var("AGX_CHAIN_DEPTH").ok().and_then(|v| v.parse::<u64>().ok()).unwrap_or(2).max(2);
+        // AGX_CHAIN_DEPTH=k (default 4): k waves per slot, 1/k of the cycles each. 2 -> 4 (2026-11-10): the many-wave
+        // kernels' per-wave cost came out 20-25% high in grid sweeps (Halide f31, b+tree findK, outGPyramid1: each
+        // chained wave pays its slot's fill and drain); held-out 159 launches median 7 -> 5%, mean 8.4 -> 7.5%, 36
+        // better / 11 worse by >= 4 points (results/2026-11-10-sim-accuracy)
+        let depth = std::env::var("AGX_CHAIN_DEPTH").ok().and_then(|v| v.parse::<u64>().ok()).unwrap_or(4).max(2);
         let mut chained = 1u64;
         if std::env::var("AGX_CHAIN_WAVES").map_or(l.chain_waves, |v| v == "1") {
             while chained < depth && w + chained < waves && m - (w + chained) * r as u64 >= count {
@@ -432,9 +630,63 @@ fn simulate_core(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer>, c
         }
             Ok(chained)
         };
+        if w == 0 && std::env::var("AGX_TRACE_STATS").is_ok_and(|v| v == "1") {
+            // the first wave's dynamic instruction mix (group 0) and code lines: where a kernel's work is
+            let by_pc: std::collections::HashMap<usize, &cost::Instr> = ins.iter().map(|i| (i.pc, i)).collect();
+            let t = &traces[0];
+            let mut hist: std::collections::BTreeMap<String, u64> = Default::default();
+            let mut bytes = 0usize;
+            let mut changes = 0usize;
+            let mut last = usize::MAX;
+            let (mut jumps, mut jump_lines, mut prev_end) = (0usize, 0usize, usize::MAX);
+            for &pc in &t.pcs {
+                if prev_end != usize::MAX && pc != prev_end {
+                    jumps += 1;
+                    if pc / 64 != last { jump_lines += 1; }
+                }
+                if let Some(i) = by_pc.get(&pc) {
+                    *hist.entry(i.name.clone()).or_default() += 1;
+                    bytes += i.size;
+                    prev_end = pc + i.size;
+                }
+                if pc / 64 != last { changes += 1; last = pc / 64; }
+            }
+            if let Ok(path) = std::env::var("AGX_TRACE_DUMP") {
+                // group 0's executed pcs and instruction names, one per line
+                let txt: String = t.pcs.iter().map(|pc| format!("{pc} {}\n", by_pc.get(pc).map_or("?", |i| i.name.as_str()))).collect();
+                let _ = std::fs::write(path, txt);
+            }
+            let lines: std::collections::HashSet<usize> = t.pcs.iter().map(|&pc| pc / 64).collect();
+            eprintln!("trace stats: {jumps} taken jumps, {jump_lines} of them to another line");
+            for (gi, tg) in traces.iter().enumerate().take(gpw as usize) {
+                let same = tg.pcs == t.pcs;
+                let l2: std::collections::HashSet<usize> = tg.pcs.iter().map(|&pc| pc / 64).collect();
+                eprintln!("  group {gi}: {} instructions, {} lines ({} shared with group 0), same path as group 0: {same}", tg.pcs.len(), l2.len(), l2.intersection(&lines).count());
+            }
+            let lines: std::collections::HashSet<usize> = t.pcs.iter().map(|&pc| pc / 64).collect();
+            let mut v: Vec<_> = hist.into_iter().collect();
+            v.sort_by(|a, b| b.1.cmp(&a.1));
+            eprintln!("trace stats (wave 0, group 0 of {}): {} instructions, {} bytes, {} distinct lines, {} line changes", traces.len(), t.pcs.len(), bytes, lines.len(), changes);
+            for (k, c) in v.iter().take(30) { eprintln!("  {k:28} {c}"); }
+        }
         if w == 0 {
             let mut lines = first_wave_lines.lock().unwrap();
             lines.extend(traces.iter().flat_map(|t| t.pcs.iter().map(|&pc| pc / 64)));
+            // the lines group 0 first enters by a taken jump (not by running on from the line before): their cold fetch
+            // is not prefetched (`fetch_jump_line_ns`)
+            if let Some(t) = traces.first() {
+                let sizes: std::collections::HashMap<usize, usize> = ins.iter().map(|i| (i.pc, i.size)).collect();
+                let mut seen = std::collections::HashSet::new();
+                let mut prev_end = usize::MAX;
+                let mut jl = 0u64;
+                for &pc in &t.pcs {
+                    if seen.insert(pc / 64) && prev_end != usize::MAX && pc != prev_end && pc / 64 != (prev_end.saturating_sub(1)) / 64 {
+                        jl += 1;
+                    }
+                    prev_end = pc + sizes.get(&pc).copied().unwrap_or(0);
+                }
+                *jump_lines.lock().unwrap() = jl;
+            }
         }
         let seqs: Vec<&[usize]> = traces.iter().map(|t| t.pcs.as_slice()).collect();
         let mems: Vec<&[(u32, Vec<u64>)]> = traces.iter().map(|t| t.mem.as_slice()).collect();
@@ -466,14 +718,74 @@ fn simulate_core(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer>, c
         }
         if w == 0 && l.store_gbps > 0.0 {
             let mut stored: std::collections::HashSet<u64> = Default::default();
+            // Stores reach memory per instruction in 32-byte sectors: a store whose lanes scatter over many lines
+            // writes a sector of each, not the whole line, and lines written again later are written again (Rodinia
+            // hybridsort's bucketsort, 4M 4-byte stores to ~32 lines per instruction: 394 us, the sectors at 365 GB/s;
+            // the distinct lines gave 252 us). A group storing again to a line it stored to recently (one of its last
+            // `wcb` lines) adds nothing: Halide's non_local_means_sum s1 rewrites the same two lines in its reduction
+            // loop at no cost (864 us measured; 1235 when every store counted). results/2026-11-10-sim-accuracy.
+            // AGX_STORE_SECTORS=0: the distinct lines the wave stores to; AGX_STORE_WCB: lines per group (16)
+            let wcb: usize = std::env::var("AGX_STORE_WCB").ok().and_then(|v| v.parse().ok()).unwrap_or(16);
+            // a group's first store to a line (`traffic`: merged with other groups' and workgroups' stores to it,
+            // `store_share`) and its later ones that left the merge window (`again`: partial lines written again
+            // later, each reaching memory: bucketsort)
+            let (mut traffic, mut again) = (0.0f64, 0.0f64);
+            let debug_stores = std::env::var("AGX_DEBUG_STORES").is_ok_and(|v| v == "1");
             for t in &traces {
+                let mut recent: std::collections::VecDeque<u64> = Default::default();
+                let mut seen: std::collections::HashSet<u64> = Default::default();
                 for (step, segs) in &t.mem {
-                    if store_pcs.contains(&t.pcs[*step as usize]) {
+                    let pc = t.pcs[*step as usize];
+                    if store_pcs.contains(&pc) {
                         stored.extend(segs.iter().copied());
+                        let fresh: Vec<u64> = segs.iter().copied().filter(|sg| !recent.contains(sg)).collect();
+                        for &sg in segs {
+                            if let Some(i) = recent.iter().position(|&x| x == sg) { recent.remove(i); }
+                            recent.push_back(sg);
+                            if recent.len() > wcb { recent.pop_front(); }
+                        }
+                        if fresh.is_empty() { continue; }
+                        let lines = segs.len() as f64;
+                        let bytes = 32.0 * store_lane_bytes.get(&pc).copied().unwrap_or(4.0);
+                        // contiguous lanes (a coalesced store, aligned or not): its bytes and a sector; scattered: a
+                        // sector or two of each line
+                        let per_instr = if lines * 64.0 <= bytes + 128.0 {
+                            (lines * 64.0).min(bytes + 32.0)
+                        } else {
+                            lines * ((bytes / lines / 32.0).ceil() * 32.0).clamp(32.0, 64.0)
+                        };
+                        let first = fresh.iter().filter(|&&sg| seen.insert(sg)).count() as f64;
+                        traffic += per_instr * first / lines;
+                        again += per_instr * (fresh.len() as f64 - first) / lines;
+                        if debug_stores {
+                            eprintln!("store pc {pc} lines {lines} fresh {} first {first} lane_bytes {} segs {:?}", fresh.len(), bytes / 32.0, &segs[..segs.len().min(6)]);
+                        }
                     }
                 }
             }
-            *written.lock().unwrap() = stored.len() as f64 * 64.0 * (m as f64 / count.max(1) as f64) * cores.min(n) as f64;
+            // AGX_STACK_STORE_FLOOR (experiment): stack (scratch) stores count against the GPU-wide store bandwidth
+            // too: 1 = every stack store's lines, 2 = each group's distinct stack lines. llama.cpp's MMQ (1.0-1.4 KB
+            // of stack per thread, ~270k stack store lines per core) slows ~30% per workgroup from 16 to 34 busy
+            // cores on hw (Q5_K 1645 -> 2146 us) while the model stays flat
+            let stack_floor: u32 = std::env::var("AGX_STACK_STORE_FLOOR").ok().and_then(|v| v.parse().ok()).unwrap_or(0);
+            if stack_floor > 0 || debug_stores {
+                let (mut all, mut distinct) = (0.0f64, 0.0f64);
+                for t in &traces {
+                    let mut seen: std::collections::HashSet<u64> = Default::default();
+                    for (step, segs) in &t.mem {
+                        if stack_pcs.contains(&t.pcs[*step as usize]) {
+                            all += segs.len() as f64 * 64.0;
+                            for &sg in segs { if seen.insert(sg) { distinct += 64.0; } }
+                        }
+                    }
+                }
+                if debug_stores { eprintln!("stack stores: {all:.0} B, distinct per group {distinct:.0} B (wave 0 traces)"); }
+                traffic += match stack_floor { 1 => all, 2 => distinct, _ => 0.0 };
+            }
+            let (bytes, again) = if sector_stores { (traffic.max(stored.len() as f64 * 64.0), again) } else { (stored.len() as f64 * 64.0, 0.0) };
+            let k = (m as f64 / count.max(1) as f64) * cores.min(n) as f64;
+            *written.lock().unwrap() = bytes * k;
+            *written_again.lock().unwrap() = again * k;
         }
         // data shared between cores: mean overlap of this core's lines with workgroups on other cores
         let mut sharing = 0.0;
@@ -481,7 +793,7 @@ fn simulate_core(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer>, c
             // (workgroups of this wave on other cores: the wave's first one on this core is (w r) cores + core_off.
             // Comparing a later wave with the grid's first workgroups found no sharing and doubled the footprint
             // estimate of Halide's stencil_chain stages from wave 1 on: 29.5 MiB against 18 MiB of buffers)
-            let k0 = (w * r as u64).saturating_mul(cores).saturating_add(core_off);
+            let k0 = match list { Some(v) => v[((w * r as u64) as usize).min(v.len() - 1)], None => (w * r as u64).saturating_mul(wg_stride(l, r)).saturating_add(core_off) };
             let others: Vec<u64> = [1u64, 2, cores / 2, cores - 1].iter().map(|&d| k0 + d).filter(|&k| k < n && k > 0).collect();
             // the other workgroups are traced and compared independently: concurrently, summed in the same order
             let ovs: Vec<f64> = match tracer {
@@ -545,9 +857,28 @@ fn simulate_core(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer>, c
                             }
                         }
                     };
-                    let sets: Vec<std::collections::HashSet<u64>> = crate::par::map(&ks, |&k| trace_wg(k))
-                        .into_iter()
-                        .collect::<Result<Vec<_>, _>>()?
+                    let traced: Vec<Vec<Trace>> = crate::par::map(&ks, |&k| trace_wg(k)).into_iter().collect::<Result<Vec<_>, _>>()?;
+                    if block > 1 && std::env::var("AGX_STORE_SHARE").map_or(true, |v| v != "0") {
+                        // Lines several workgroups of the block store to (llama.cpp's k_set_rows: 2-byte stores, 32
+                        // groups and many cores writing one 64-byte line) reach memory once: the dispatch's written
+                        // bytes are scaled by distinct / sum over the block (7.6 us of store floor for 128 KB of data;
+                        // results/2026-11-10-sim-accuracy). AGX_STORE_SHARE=0: no scaling
+                        let st: Vec<std::collections::HashSet<u64>> = traced.iter().map(|ts| {
+                            let mut set = std::collections::HashSet::new();
+                            for t in ts {
+                                for (step, segs) in &t.mem {
+                                    if store_pcs.contains(&t.pcs[*step as usize]) {
+                                        set.extend(segs.iter().copied());
+                                    }
+                                }
+                            }
+                            set
+                        }).collect();
+                        let sum: usize = st.iter().map(|x| x.len()).sum();
+                        let union: std::collections::HashSet<u64> = st.iter().flatten().copied().collect();
+                        if sum > 0 { *store_share_cache.lock().unwrap() = union.len() as f64 / sum as f64; }
+                    }
+                    let sets: Vec<std::collections::HashSet<u64>> = traced
                         .iter()
                         .map(|ts| {
                             let mut set = std::collections::HashSet::new();
@@ -614,7 +945,19 @@ fn simulate_core(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer>, c
         if std::env::var("AGX_DEBUG_FOOTPRINT").is_ok_and(|v| v == "1") {
             eprintln!("wave {w}: first_touch_frac {first_touch_frac:.3}");
         }
-        let mm = MemModel { resident_slc: resident, slc_resident_frac: frac, sharing, dram_share, first_touch_frac, ..mm.clone() };
+        // A partial last wave runs on fewer cores GPU-wide (the workgroups left after every core's full waves), which
+        // share the DRAM bandwidth among them: Rodinia streamcluster's compute_cost (128 workgroups of 512 threads
+        // streaming 64 MiB, 3 per core at once: 14 cores run the fourth) +35% -> see results/2026-11-10-sim-accuracy.
+        // AGX_TAIL_CORES=0: every wave shares with all the cores
+        let active_cores = if count < r as u64 && w > 0 && std::env::var("AGX_TAIL_CORES").map_or(true, |v| v != "0") {
+            let left = n.saturating_sub(w * r as u64 * cores.min(n));
+            (left.div_ceil(count.max(1))).clamp(1, cores.min(n)) as f64
+        } else if let (Some(b), Some(_)) = (l.placed_busy.as_ref(), list) {
+            b.get((w * r as u64) as usize).copied().unwrap_or(1).max(1) as f64
+        } else {
+            mm.active_cores
+        };
+        let mm = MemModel { resident_slc: resident, slc_resident_frac: frac, sharing, dram_share, first_touch_frac, active_cores, ..mm.clone() };
         // `later_waves_warm`: the waves after the first find their data in the caches when it fits the system-level
         // cache (what the first waves and their neighbours loaded); AGX_LATER_WAVES_WARM=1 / 0 forces it
         let warm_later = std::env::var("AGX_LATER_WAVES_WARM").map_or(l.later_waves_warm, |v| v == "1");
@@ -638,7 +981,7 @@ fn simulate_core(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer>, c
             refetched.store(true, std::sync::atomic::Ordering::Relaxed);
             // (a later wave's core has just run the same code: AGX_ICACHE_WARM=0 starts every wave with an empty cache)
             let icache_warm = w > 0 && std::env::var("AGX_ICACHE_WARM").map_or(true, |v| v != "0");
-            MemModel { icache_lines, icache_victims: l.icache_victims, icache_warm, fetch_line_ns: l.refetch_line_ns, fetch_jump_ns: l.fetch_jump_ns, icache_bytes: 0, ..mm }
+            MemModel { icache_lines, icache_victims: l.icache_victims, icache_warm, fetch_line_ns: std::env::var("AGX_REFETCH_LINE_NS").ok().and_then(|v| v.parse().ok()).unwrap_or(l.refetch_line_ns), fetch_jump_ns: std::env::var("AGX_FETCH_JUMP_NS").ok().and_then(|v| v.parse().ok()).unwrap_or(l.fetch_jump_ns), fetch_cold_ns: std::env::var("AGX_FETCH_COLD_NS").ok().and_then(|v| v.parse().ok()).unwrap_or(l.fetch_line_ns), fetch_cold_jump_ns: std::env::var("AGX_FETCH_COLD_JUMP_NS").ok().and_then(|v| v.parse().ok()).unwrap_or(l.fetch_jump_line_ns), icache_bytes: 0, ..mm }
         } else {
             mm
         };
@@ -652,7 +995,11 @@ fn simulate_core(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer>, c
         let (c, _, finish) = cost::simulate_groups_finish(&ins, &seqs, Some(&masked), mem, p, false, Some(&wg_of))?;
         // chained waves share a slot: each takes 1/chained of the time, as its workgroups do of their finish times
         let per_wg = workgroup_finish(&finish, &wg_of, count as usize).into_iter().map(|f| f / chained as f64).collect();
-        Ok((count, c / chained as f64, warn, per_wg))
+        let mut per_group = vec![vec![]; count as usize];
+        for (&f, &wg) in finish.iter().zip(&wg_of) {
+            per_group[wg as usize].push(f / chained as f64);
+        }
+        Ok((count, c / chained as f64, warn, per_wg, per_group, chained))
     };
     // the first and last waves, the middle, then densely after the first (2^k - 1): data-dependent counts put the
     // work at the start of the grid
@@ -673,10 +1020,14 @@ fn simulate_core(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer>, c
     } else {
         crate::par::map(&todo, |&w| sim_wave(w))
     };
+    let mut chain0 = 1u64;
     let mut wave_wgs: Vec<(u64, Vec<f64>)> = vec![];
+    let mut wave_groups: Vec<(u64, Vec<Vec<f64>>)> = vec![];
     for (&w, res) in todo.iter().zip(results) {
-        let (count, c, warn, per_wg) = res?;
+        let (count, c, warn, per_wg, per_group, chained) = res?;
+        if w == 0 { chain0 = chained; }
         wave_wgs.push((w, per_wg));
+        wave_groups.push((w, per_group));
         for x in warn {
             if !rep.warnings.contains(&x) {
                 rep.warnings.push(x);
@@ -701,6 +1052,28 @@ fn simulate_core(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer>, c
         let after = waves - s_last - 1 - todo.iter().filter(|&&w| w > s_last).count() as u64;
         total += c_last * after as f64;
     }
+    if group_refill() && waves > 2 {
+        // AGX_REFILL=2 (experiment): a SIMD group's slot is free when the group ends, not when its workgroup does; a
+        // workgroup starts when `gpw` of the core's `cap` group slots are free (llama.cpp rope: 7 of 8 groups exit at
+        // once, the hardware runs its 63 waves 2.6x faster than waves of whole workgroups)
+        wave_groups.sort_by_key(|x| x.0);
+        let mut slots = vec![0.0f64; cap.max(gpw) as usize];
+        let mut end = 0.0f64;
+        for w in 0..waves {
+            let (_, near) = wave_groups.iter().min_by_key(|(s, _)| s.abs_diff(w)).unwrap();
+            let count = (m - w * r as u64).min(r as u64) as usize;
+            for i in 0..count {
+                let groups = &near[i % near.len()];
+                slots.sort_by(|a, b| a.total_cmp(b));
+                let start = slots[gpw as usize - 1];
+                for (k, &d) in groups.iter().enumerate().take(gpw as usize) {
+                    slots[k] = start + d;
+                    end = end.max(start + d);
+                }
+            }
+        }
+        total = total.min(end);
+    }
     if refill() && r > 1 {
         // Each wave not simulated: as the nearest simulated one, whose total the interpolation above already stands for.
         wave_wgs.sort_by_key(|x| x.0);
@@ -712,15 +1085,28 @@ fn simulate_core(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer>, c
         }
         total = total.min(refill_makespan(&durations, r as usize));
     }
+    // wave 0's chain ran every wave: its whole cost is the core's (the later waves' own shorter chains, averaged in
+    // above, miss the earlier waves' work: 38 one-resident workgroups, a long one sharing a core with a short one,
+    // came out (L + S) / 2 + S in place of L + S). AGX_CHAIN_ALL=0: the averaged waves
+    if chain0 == waves && waves > 1 && std::env::var("AGX_CHAIN_ALL").map_or(true, |v| v != "0") {
+        if let Some(&(_, _, c0)) = rep.simulated_waves.iter().find(|x| x.0 == 0) {
+            total = c0 * waves as f64;
+        }
+    }
     rep.core_cycles = total;
     rep.launch_core_ns = (m as f64 * l.wg_launch_ns).max((m as u128 * gpw as u128) as f64 * l.group_launch_ns);
     rep.code_lines = first_wave_lines.into_inner().unwrap().len() as u64;
     // the fetch overlaps execution (the slower of the two sets the core's time): straight-line code of one group is
     // fetch-bound, a long kernel's loops hide it (llama.cpp's Q8_0 matrix-vector kernel: 138 lines, 22.8 us of work,
     // 26.2 us measured with the 2.3 us launch)
-    let fetch_ns = if refetched.load(std::sync::atomic::Ordering::Relaxed) { 0.0 } else { rep.code_lines as f64 * l.fetch_line_ns };
+    // AGX_FETCH_LINE_NS2 / AGX_FETCH_JUMP_LINE_NS (experiment): cold lines run into / jumped to
+    let jl = (jump_lines.into_inner().unwrap()).min(rep.code_lines) as f64;
+    let (fl, fj) = (std::env::var("AGX_FETCH_LINE_NS2").ok().and_then(|v| v.parse::<f64>().ok()).unwrap_or(l.fetch_line_ns),
+                    std::env::var("AGX_FETCH_JUMP_LINE_NS").ok().and_then(|v| v.parse::<f64>().ok())
+                        .unwrap_or(if l.fetch_jump_line_ns > 0.0 { l.fetch_jump_line_ns } else { l.fetch_line_ns }));
+    let fetch_ns = if refetched.load(std::sync::atomic::Ordering::Relaxed) || l.fetch_line_ns == 0.0 { 0.0 } else { (rep.code_lines as f64 - jl) * fl + jl * fj };
     let stack_ns = if l.stack_bytes > 0 { l.stack_launch_ns } else { 0.0 };
-    let written = written.into_inner().unwrap();
+    let written = written.into_inner().unwrap() * store_share_cache.into_inner().unwrap() + written_again.into_inner().unwrap();
     let writes_ns = if !store_pcs.is_empty() { l.store_launch_ns } else { 0.0 };
     let store_ns = if l.store_gbps > 0.0 { written / l.store_gbps } else { 0.0 };
     // (the stores after the workgroups' launch: 1520 x 256 threads writing 1.5 / 6 / 24 MB, 4 us of launch + the bytes
@@ -745,8 +1131,37 @@ fn simulate_core(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer>, c
     }
     let fetch_part = std::env::var("AGX_FETCH_OVERLAP").ok().and_then(|v| v.parse::<f64>().ok()).unwrap_or(0.3) * core_ns.min(fetch_ns);
     rep.time_ns = (core_ns.max(fetch_ns) + fetch_part).max(rep.launch_core_ns).max(store_floor) + l.launch_ns + stack_ns + writes_ns;
+    if std::env::var("AGX_DEBUG_TIME").is_ok_and(|v| v == "1") {
+        eprintln!("time: core {core_ns:.0} fetch {fetch_ns:.0} (+{fetch_part:.0}) launch_core {:.0} store_floor {store_floor:.0} (written {written:.0} B) + launch {} stack {stack_ns} writes {writes_ns}", rep.launch_core_ns, l.launch_ns);
+    }
     if !rep.time_ns.is_finite() { return Err("predicted time is non-finite for this launch".into()); }
     Ok(rep)
+}
+
+/// One workgroup per core (by threadgroup memory or by size: both measured) in a grid of at most 4 x 34 workgroups:
+/// the range measured (1-77 workgroups of 128 threads with 40000 B of threadgroup memory, 1-39 of 1024 threads with
+/// none). Larger one-resident grids keep the balanced estimate: Halide's conv_layer relu (1280 x 1024 threads) is
+/// predicted +5% with n / 38 rounds and +52% with n / 34
+fn one_resident_by_memory(l: &Launch, r: u32) -> bool {
+    let n: u64 = (0..3).map(|i| l.grid[i].div_ceil(l.wg[i].max(1)) as u64).product();
+    r == 1 && l.cores == 38 && n <= 4 * 34
+}
+
+/// The workgroup stride between one core's workgroups: the cores the GPU spreads them over (34 for one resident
+/// workgroup per core, see `busiest_core_wgs_resident`)
+pub fn wg_stride(l: &Launch, r: u32) -> u64 {
+    let k: u64 = std::env::var("AGX_ONE_RESIDENT_CORES").ok().and_then(|v| v.parse().ok()).unwrap_or(34);
+    if one_resident_by_memory(l, r) && k > 0 { k } else { l.cores as u64 }
+}
+
+/// `busiest_core_wgs` for workgroups of which `r` fit a core at once. With one per core (r = 1) the GPU places them on
+/// 34 of the 38 cores: 1-34 workgroups take one round, 35-40 two, 70-77 three (a fixed-work probe with 40000 bytes of
+/// threadgroup memory; playground novel-results/2026-11-10-one-resident-placement). AGX_ONE_RESIDENT_CORES overrides
+/// 34 (0: off)
+pub fn busiest_core_wgs_resident(n: u64, l: &Launch, r: u32) -> u64 {
+    let m = busiest_core_wgs(n, l);
+    let k: u64 = std::env::var("AGX_ONE_RESIDENT_CORES").ok().and_then(|v| v.parse().ok()).unwrap_or(34);
+    if one_resident_by_memory(l, r) && k > 0 { m.max(n.div_ceil(k)) } else { m }
 }
 
 /// Workgroups on the busiest core: even split over clusters, then over each cluster's cores.
@@ -815,8 +1230,9 @@ mod tests {
         let r = simulate_with(&[0x88, 0], &l, &Params::new().unwrap(), Some(&tracer)).unwrap();
         let seen = seen.lock().unwrap();
         assert_eq!(r.busiest_core_wgs, 33);
-        // The model samples the first, last and middle waves: 13 + 7 + 13 workgroups, all distinct.
-        assert_eq!(seen.len(), 33);
+        // The model samples the first, last and middle waves: 13 + 7 + 13 workgroups, all distinct (and traces
+        // workgroup 0 once more for the early-exit occupancy check).
+        assert_eq!(seen.len(), 34);
         assert_eq!(seen.iter().collect::<std::collections::HashSet<_>>().len(), 33);
         assert!(seen.iter().all(|w| w[0] < 1024 && w[1] == 0 && w[2] == 0));
     }

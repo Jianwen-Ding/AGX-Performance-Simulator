@@ -18,6 +18,7 @@ ap = argparse.ArgumentParser()
 ap.add_argument('captures'); ap.add_argument('profile')
 ap.add_argument('--dispatch', default=os.path.join(os.path.dirname(os.path.abspath(__file__)), '../rust/target/release/agx_dispatch'))
 ap.add_argument('--only')
+ap.add_argument('--skip', help='regex: kernels to leave out')
 ap.add_argument('--timeout', type=int, default=900)
 ap.add_argument('--hw', action='store_true', help='time each capture on the GPU (agx_run_hw --back-to-back) instead of '
                 'using the profile: the same launch with the same data, at a warm clock')
@@ -25,6 +26,10 @@ ap.add_argument('--run-hw', default=os.environ.get('AGX_RUN_HW', '/scratch/ptx-f
 ap.add_argument('--b2b', type=int, default=1000)
 ap.add_argument('--sim-arg', action='append', default=[])
 ap.add_argument('--hw-repeat', type=int, default=1, help='with --hw: the median of this many back-to-back runs (a tiny kernel varies from one run to the next: set_rows 3.9-6.5 us, rope 5.6-8.7)')
+ap.add_argument('--hw-idle-cmd', help='with --hw: a shell command that prints nothing while no other process uses the GPU '
+                '(e.g. a list of the processes holding /dev/dri/renderD128 open); each timing waits for it to be empty and '
+                'is taken again when it was not empty afterwards (timings beside other GPU work were up to 1.9x high)')
+ap.add_argument('--hw-only', action='store_true', help='with --hw: print the hardware times only (no simulation)')
 ap.add_argument('--hw-from', help='hardware times from an earlier --hw output of capcheck (no GPU runs)')
 a = ap.parse_args()
 
@@ -53,6 +58,7 @@ for d in sorted(os.listdir(a.captures)):
     if not m or not os.path.exists(os.path.join(p, 'command.txt')): continue
     kernel = m.group(1)
     if a.only and kernel != a.only: continue
+    if a.skip and re.search(a.skip, kernel): continue
     command = int(open(os.path.join(p, 'command.txt')).read())
     regs = open(os.path.join(p, 'regs.txt')).read().strip()
     rec = lines.get((kernel, command))
@@ -90,7 +96,14 @@ for d in sorted(os.listdir(a.captures)):
         try:
             runs = []
             for _ in range(max(1, a.hw_repeat)):
-                hr = subprocess.run(hcmd, capture_output=True, text=True, cwd=p, timeout=600)
+                for _attempt in range(50):
+                    if a.hw_idle_cmd:
+                        import time
+                        while subprocess.run(a.hw_idle_cmd, shell=True, capture_output=True, text=True).stdout.strip():
+                            time.sleep(5)
+                    hr = subprocess.run(hcmd, capture_output=True, text=True, cwd=p, timeout=600)
+                    if not a.hw_idle_cmd or not subprocess.run(a.hw_idle_cmd, shell=True, capture_output=True, text=True).stdout.strip():
+                        break
                 hj = json.loads(hr.stdout.strip().splitlines()[-1])
                 runs.append(hj['b2b_median_fw_ns'] / 1e3)
             hw, n_warm = statistics.median(runs), a.b2b // 2
@@ -99,6 +112,8 @@ for d in sorted(os.listdir(a.captures)):
             import gpu_safety
             gpu_safety.record(f'capcheck --hw {kernel}: {(hr.stdout + hr.stderr)[-120:] if "hr" in dir() else e}')
             print(f'{kernel:30s} HW FAILED {(hr.stdout + hr.stderr)[-200:] if "hr" in dir() else e}', flush=True); continue
+    if a.hw and a.hw_only:
+        print(f'{kernel:30s} hw {hw:9.1f} us (n {n_warm:5d}, runs {" ".join(f"{x:.1f}" for x in runs)})', flush=True); continue
     try:
         # A real program may read just outside its buffers (srad_cuda_1 reads 0x1c4 bytes below one): the GPU reads
         # whatever page is there, the capture has no data for it. Map the missing 16 KB page as zeros and retry.

@@ -1,0 +1,12 @@
+== cut 3000
+grid       1216,8,1 hw    2958.4 sim    3708.0 ratio 1.25 waves 1 wgs/core 1 runs [2960.208, 2956.625]
+grid         32,8,1 hw      66.8 sim      64.6 ratio 0.97 waves 1 wgs/core 1 runs [66.834, 66.667]
+== cut 7000
+grid       1216,8,1 hw    3032.4 sim    3707.4 ratio 1.22 waves 1 wgs/core 1 runs [3031.292, 3033.5]
+grid         32,8,1 hw     132.3 sim     130.1 ratio 0.98 waves 1 wgs/core 1 runs [132.458, 132.125]
+== cut 11000
+grid       1216,8,1 hw    3084.6 sim    3705.9 ratio 1.20 waves 1 wgs/core 1 runs [3084.416, 3084.75]
+grid         32,8,1 hw     199.2 sim     201.9 ratio 1.01 waves 1 wgs/core 1 runs [198.833, 199.5]
+== cut 14900
+grid       1216,8,1 hw    3166.1 sim    3707.1 ratio 1.17 waves 1 wgs/core 1 runs [3165.666, 3166.458]
+grid         32,8,1 hw     262.6 sim     269.6 ratio 1.03 waves 1 wgs/core 1 runs [262.416, 262.875]
