@@ -90,6 +90,11 @@ def alu_forms():
         add(f'{op}.sat r14, r6, r7'); add(f'{op}.sat r14, r6.sx, r7.sx'); add(f'{op}.sat r14l, r6l, r7l')
         add(f'{op}.sat r14l, r6l.sx, r7l.sx'); add(f'{op}.sat r14, r6, r7, lsl 1')
         add(f'{op} r14_r15, r6_r7, r8_r9, lsl 3'); add(f'{op} r14_r15, r6.sx, r8_r9')
+        # an immediate second source with a shift: whether the shift applies to it (x + 256 as x + (16 << 4)
+        # instead of a mov_imm and a register; LLVM L15-E178)
+        for imm, s in ((16, 4), (255, 4), (1, 1), (3, 2)):
+            add(f'{op} r14, r6, {imm}, lsl {s}')
+        add(f'{op} r14_r15, r6_r7, 16, lsl 4')
     # multiply-add
     for op in ('imadd', 'imsub'):
         for d in ('r14', 'r14l', 'r14_r15'):
