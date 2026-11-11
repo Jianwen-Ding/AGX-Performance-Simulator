@@ -83,6 +83,12 @@ are linked where they already cover part of it.
     the AGX backend can add constants k << s (k <= 255, s <= 4) without a `mov_imm` and a register (llvm-project
     EXPERIMENTS.md L15-E178: up to -0.7% tput, one GPR on sgemm_reg4x4 and nbody). The coverage catalog has the
     cases (`alu/iadd_r14_r6_16_lsl_4` and nine more); record them.
+19. **Float atomic add with an index register.** The integer device atomics take base + 4 * unsigned index (recorded,
+    `atomic add, 0, r14, u8_u9, r5, unsigned, r6`), and the AGX backend uses that form (llvm-project EXPERIMENTS.md
+    L15-E169). The f32 add (the sub opcode with bit 45 set, B24) is still given the full address in the base register
+    (a 64-bit add, the uniform base copied to registers) because no recording has it with an index. Needed: the
+    `atomic_fadd` cases (uniform and register base, index register, returning and not) in the coverage catalog's atomic
+    area, recorded.
 
 ## Functional model / encodings
 
