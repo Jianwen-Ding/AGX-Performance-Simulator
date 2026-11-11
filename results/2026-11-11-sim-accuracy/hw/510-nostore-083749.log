@@ -1,0 +1,24 @@
+== softmax nostore
+grid    262144,14,1 hw     403.2 sim       nan ratio nan waves None wgs/core None runs [403.167, 403.25]
+== softmax full
+grid    262144,14,1 hw     425.2 sim       nan ratio nan waves None wgs/core None runs [425.208, 425.125]
+== gated nostore
+grid    2490368,1,1 hw      84.9 sim       nan ratio nan waves None wgs/core None runs [85.125, 84.666]
+== gated full
+grid    2490368,1,1 hw      92.3 sim       nan ratio nan waves None wgs/core None runs [92.459, 92.167]
+== cpy nostore
+grid     458752,1,1 hw      74.0 sim       nan ratio nan waves None wgs/core None runs [74.083, 73.958]
+== cpy full
+grid     458752,1,1 hw      78.8 sim       nan ratio nan waves None wgs/core None runs [78.834, 78.708]
+== convert nostore
+grid      16384,1,1 hw       3.4 sim       nan ratio nan waves None wgs/core None runs [3.333, 3.375]
+== convert full
+grid      16384,1,1 hw       4.4 sim       nan ratio nan waves None wgs/core None runs [4.375, 4.333]
+== rope nostore
+grid     7168,256,1 hw      28.3 sim       nan ratio nan waves None wgs/core None runs [28.25, 28.333]
+== rope full
+grid     7168,256,1 hw      33.5 sim       nan ratio nan waves None wgs/core None runs [33.291, 33.667]
+== kbb nostore
+grid      512,512,1 hw      17.3 sim       nan ratio nan waves None wgs/core None runs [17.333, 17.334]
+== kbb full
+grid      512,512,1 hw      32.2 sim       nan ratio nan waves None wgs/core None runs [33.875, 30.5]

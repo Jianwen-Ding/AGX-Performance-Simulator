@@ -1,0 +1,6 @@
+E                              hw       2.9 us (n     0, captured       0.0)  sim       3.1 us  err    +9%   wgs/core 1 waves 1
+r_64_32_8_16_4_4_512_4         hw    6866.6 us (n     0, captured       0.0)  sim    5715.7 us  err   -17%   wgs/core 54 waves 9
+r_64_16_32                     hw     602.4 us (n     0, captured       0.0)  sim     731.5 us  err   +21%   wgs/core 2 waves 1
+E_8_8_8_16_4                   hw     188.8 us (n     0, captured       0.0)  sim     205.4 us  err    +9%   wgs/core 2 waves 1
+r_32_16_4_32_2_2_2_4_4_128     hw    2347.4 us (n     0, captured       0.0)  sim    2014.0 us  err   -14%   wgs/core 14 waves 5
+launches 5  median |err| 14%  within 10%: 2  within 25%: 5
