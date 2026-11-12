@@ -1,0 +1,8 @@
+== stencil5 nostore
+grid     896,1784,1 hw      70.1 sim       nan ratio nan waves None wgs/core None runs [70.083, 70.083]
+== stencil5 full
+grid     896,1784,1 hw      81.4 sim       nan ratio nan waves None wgs/core None runs [81.417, 81.458]
+== sgemm nostore
+grid       8192,1,1 hw      15.2 sim       nan ratio nan waves None wgs/core None runs [15.167, 15.25]
+== sgemm full
+grid       8192,1,1 hw      18.8 sim       nan ratio nan waves None wgs/core None runs [18.791, 18.875]

@@ -1,0 +1,2 @@
+_Z6kerneliPfS_S_S_             hw    3047.0 us (n     0, captured    3441.7)  sim    3046.3 us  err    -0%   wgs/core 1 waves 1
+launches 1  median |err| 0%  within 10%: 1  within 25%: 1

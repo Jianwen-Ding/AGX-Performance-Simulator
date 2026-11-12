@@ -1521,6 +1521,16 @@ pub struct MemModel {
     pub tg_group_atomic_ret: f64,
     /// device atomic with return: latency beyond a device load (executed past L1)
     pub atomic_ret_extra: f64,
+    /// AGX_CHAIN_SHARERS (chained waves of a placed core): per group, the memory-step indices where its chained
+    /// workgroups 1, 2, ... start, and the L2 sharers of each chained workgroup (0: this model's own); the GPU-wide
+    /// L2 pressure (`WorkingSet`) a group's access sees is its current workgroup's
+    pub chain_sharers: Option<std::sync::Arc<(Vec<Vec<usize>>, Vec<f64>)>>,
+    /// AGX_STORE_DRAIN (experiment): device-store lines per cycle this core's stores leave at (its share of the GPU's
+    /// store bandwidth; 0: not modelled) and the lines that may wait to leave (a store finding no room waits)
+    pub store_drain: f64,
+    pub store_drain_cap: f64,
+    /// per group, the trace steps where its chained workgroups 1, 2, ... start (AGX_STORE_DRAIN_SLOT)
+    pub chain_pc_starts: Option<std::sync::Arc<Vec<Vec<usize>>>>,
 }
 
 impl Default for MemModel {
@@ -1570,6 +1580,10 @@ impl Default for MemModel {
             tg_group_atomic: 4.8,
             tg_group_atomic_ret: 5.75,
             atomic_ret_extra: 85.0,
+            chain_sharers: None,
+            store_drain: 0.0,
+            store_drain_cap: 0.0,
+            chain_pc_starts: None,
         }
     }
 }
@@ -1943,6 +1957,17 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
         }
     }
     let is_masked = |gi: usize, step: usize, r: &SimInstr| r.masked_cls != 0 && mflag[gi].get(step).copied().unwrap_or(false);
+    // AGX_CHAIN_SHARERS: the L2 sharers of the chained workgroup a group's memory step `cur` belongs to
+    let chain_info = mem.and_then(|(_, m)| m.chain_sharers.clone());
+    let chain_sh = |base: f64, gi: usize, cur: usize| -> f64 {
+        match &chain_info {
+            Some(c) => {
+                let k = c.0.get(gi).map_or(0, |v| v.partition_point(|&x| x <= cur));
+                c.1.get(k).copied().filter(|&v| v > 0.0).unwrap_or(base)
+            }
+            None => base,
+        }
+    };
     // ---- memory hierarchy state (one core)
     struct MemState {
         l1: Lru,
@@ -1952,9 +1977,9 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
         sharers: f64,
         slc: Lru,
         /// tokens (segments) for l1 load, l1 store, l2, slc, dram, and their rates per tick / caps
-        tok: [f64; 5],
-        rate: [f64; 5],
-        cap: [f64; 5],
+        tok: [f64; 6],
+        rate: [f64; 6],
+        cap: [f64; 6],
         extra: [i64; 4],
         /// latency beyond L1 of a load whose slowest line is a first touch in the dispatch found in the SLC
         /// (`first_touch_dram`)
@@ -2010,14 +2035,28 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
     let mut profile_prev: i64 = 0;
     let first_touch_dram = mem.is_some_and(|(_, m)| m.resident_slc && m.first_touch_dram);
     let mem_levels = std::env::var("AGX_MEM_LEVELS").is_ok_and(|v| v == "1");
+    // AGX_STORE_DRAIN_BLOCK=1 (with AGX_STORE_DRAIN): a load waits while the core's store queue is over-full
+    let drain_block = std::env::var("AGX_STORE_DRAIN_BLOCK").is_ok_and(|v| v == "1");
+    let drain_pipe = std::env::var("AGX_STORE_DRAIN_PIPE").is_ok_and(|v| v == "1");
+    let seq_prefetch: u64 = std::env::var("AGX_SEQ_PREFETCH").ok().and_then(|v| v.parse().ok()).unwrap_or(0);
+    // AGX_STORE_DRAIN_SLOT=1 (with AGX_STORE_DRAIN): the core's stores leave one after the other at the drain rate; a
+    // group ends (and a chained workgroup in its slot starts) only when its stores have left
+    let drain_slot = std::env::var("AGX_STORE_DRAIN_SLOT").is_ok_and(|v| v == "1") && mem.is_some_and(|(_, m)| m.store_drain > 0.0);
+    let chain_pcs = mem.and_then(|(_, m)| m.chain_pc_starts.clone());
+    let mut store_done = vec![0i64; groups];
+    // AGX_STORE_DRAIN_ISSUE=1 (with AGX_STORE_DRAIN): a store's lines stall the whole core's issue at the drain rate
+    let drain_issue = std::env::var("AGX_STORE_DRAIN_ISSUE").is_ok_and(|v| v == "1" || v == "2");
+    let drain_issue_all = std::env::var("AGX_STORE_DRAIN_ISSUE").is_ok_and(|v| v == "2");
+    let mut drain_end = 0i64;
+    let mut next_bound = vec![0usize; groups];
     let inflight_on = std::env::var("AGX_INFLIGHT").map_or(true, |v| v != "0");
     let charge_writeback = std::env::var("AGX_CHARGE_WRITEBACK").map_or(false, |v| v == "1")
         && mem.is_some_and(|(_, m)| !m.resident_slc);
     let mut ms: Option<MemState> = mem.map(|(_, m)| {
         let per_tick = |segs_per_cycle: f64| segs_per_cycle / TICKS as f64;
         let dram = m.dram_gbps * 1e9 / m.active_cores / (m.clock_mhz * 1e6) / 64.0 / m.dram_share.clamp(0.05, 1.0);
-        let rate = [per_tick(m.l1_load_rate), per_tick(m.l1_store_rate), per_tick(m.l2_rate), per_tick(m.slc_rate), per_tick(dram)];
-        let cap = [64.0, 64.0, 64.0, 64.0, 64.0];
+        let rate = [per_tick(m.l1_load_rate), per_tick(m.l1_store_rate), per_tick(m.l2_rate), per_tick(m.slc_rate), per_tick(dram), per_tick(m.store_drain)];
+        let cap = [64.0, 64.0, 64.0, 64.0, 64.0, m.store_drain_cap.max(1.0)];
         let ns = |x: f64| tk((x * m.clock_mhz / 1000.0 - 50.0).max(0.0));
         MemState {
             l1: Lru::new(m.l1_bytes),
@@ -2498,6 +2537,16 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
             let ri = seqs[gi][nxt[gi]];
             let r = &sim[ri];
             let msk = is_masked(gi, nxt[gi], r);
+            if drain_slot {
+                // a chained workgroup starts in the slot once the previous one's stores have left
+                if let Some(b) = chain_pcs.as_ref().and_then(|c| c.get(gi)) {
+                    while next_bound[gi] < b.len() && b[next_bound[gi]] < nxt[gi] { next_bound[gi] += 1; }
+                    if next_bound[gi] < b.len() && b[next_bound[gi]] == nxt[gi] && store_done[gi] > t {
+                        wake!(store_done[gi]);
+                        continue;
+                    }
+                }
+            }
             if issue_tok < ISS * t_ {
                 wake!(t + 1);
                 retest.push(Retest::Issue);
@@ -2713,7 +2762,7 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
                 }
             }
             // device memory: segments of this dynamic instruction, level of each, bandwidth tokens
-            let mut mem_charge: Option<([f64; 5], i64, Vec<u64>)> = None;
+            let mut mem_charge: Option<([f64; 7], i64, Vec<u64>)> = None;
             if let (Some(m), false) = (ms.as_mut(), msk) {
                 let dev = !r.atomic && ((r.kind == Kind::Load && !r.tgop && !r.tg_name) || (r.kind == Kind::Store && !r.tg_name));
                 if dev && !memv.is_empty() {
@@ -2725,11 +2774,14 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
                     if m.cur[gi] < mv.len() && mv[m.cur[gi]].0 as usize == nxt[gi] {
                         let segs = &mv[m.cur[gi]].1;
                         let store = r.kind == Kind::Store;
-                        let mut need = [0.0; 5];
+                        let mut need = [0.0; 7];
                         let n = segs.len() as f64;
                         if store {
                             // (a stack store's lanes share a word's slot, whatever lines that crosses)
                             need[1] = if r.stack_store { 1.0 } else { n.max(1.0) }.max(m_l1_store_min(mem));
+                            // AGX_STORE_DRAIN: the core's lines leave at its share of the GPU's store bandwidth
+                            // (lines in 32-byte sectors when the lanes scatter: more than 8 lines for one instruction)
+                            if !r.stack_store && m.rate[5] > 0.0 { need[5] = if n > 8.0 { 0.5 * n } else { n.max(1.0) }; }
                         } else {
                             // the same lines as the core's previous load (every group on one line): 1.22 cycles per
                             // load instead of 1.0 (coalesce-shared vs coalesce-private)
@@ -2744,6 +2796,7 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
                                 need[2] = nd[0];
                                 need[3] = nd[1];
                                 need[4] = nd[2];
+                                need[6] = nd[2];
                                 lv
                             }
                             _ => {
@@ -2752,11 +2805,13 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
                                     // a stack store does not read the line first (probe_stack_cost.py: 56-62 ns per store at
                                     // 256 bytes and 4 KB of frame alike, where loads go from 68 to 172)
                                     let lv = if r.stack_store { 0 } else if m.l1.contains(sg) { 0 } else if m.l2.contains(sg) {
-                                        if m.l2g.as_ref().is_some_and(|w| w.evicted(sg, m.sharers)) { 2 } else { 1 }
+                                        if m.l2g.as_ref().is_some_and(|w| w.evicted(sg, chain_sh(m.sharers, gi, m.cur[gi]))) { 2 } else { 1 }
                                     } else if m.slc.contains(sg) { 2 } else { 3 };
                                     if lv >= 1 {
                                         need[1 + lv] += 1.0;
                                     }
+                                    // (lines found only in DRAM: the footprint is beyond the SLC; bookkeeping)
+                                    if lv == 3 { need[6] += 1.0; }
                                     level = level.max(lv);
                                 }
                                 m.lv_cache[gi] = Some((m.cur[gi], m.epoch, [need[2], need[3], need[4]], level));
@@ -2809,11 +2864,22 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
                             need[2] -= from_l2;
                             need[4] += from_slc + from_l2;
                         }
+                        // AGX_SEQ_PREFETCH=1 (experiment): a load whose lowest line follows one the core touched recently
+                        // (still in its L2 share) is a sequential stream the memory system prefetches: L2 latency, the
+                        // bandwidth as before (probe_l2_share: 2 MB per core streamed over 64 MB, 418 us vs 314 at 16 KB;
+                        // the model 794-897; llama.cpp soft_max's row loads ~150 ns on hw)
+                        // (AGX_SEQ_PREFETCH=K: any of the K lines before it)
+                        if seq_prefetch > 0 && !store && level >= 2 && segs.iter().min().is_some_and(|&s0| (1..=seq_prefetch.min(s0)).any(|d| m.l2.contains(s0 - d) || m.l1.contains(s0 - d))) {
+                            lat_extra = lat_extra.min(m.extra[1]);
+                        }
                         if store && charge_writeback {
                             need[4] = need[4].max(n.max(1.0)); // every written line goes back to DRAM
                         }
                         let mut until = 0i64;
-                        for i in 2..5 {
+                        if !store && m.rate[5] > 0.0 && drain_block && m.tok[5] < 0.0 {
+                            until = ((-m.tok[5]) / m.rate[5]).ceil() as i64;
+                        }
+                        for i in 2..(if drain_slot || drain_issue { 5 } else { 6 }) {
                             let want = need[i].min(m.cap[i]);
                             if need[i] > 0.0 && m.tok[i] < want {
                                 until = until.max(((want - m.tok[i]) / m.rate[i]).ceil() as i64);
@@ -2934,6 +3000,22 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
                 for i in 2..5 {
                     m.tok[i] -= need[i].min(m.cap[i]);
                 }
+                // (the drain queue takes the whole store: a store of more lines than it holds waits for an empty queue)
+                if drain_issue && need[5] > 0.0 {
+                    // AGX_STORE_DRAIN_ISSUE: the core issues nothing while the store's lines leave; lines that already
+                    // took DRAM bandwidth (`need[4]`, a footprint beyond the SLC: unary_gated 10 MB, hw +7 us for 27 us
+                    // at 365 GB/s) are not charged again (AGX_STORE_DRAIN_ISSUE=2: they are)
+                    let dram_part = if drain_issue_all { 0.0 } else { (need[6] / need[1].max(1.0)).clamp(0.0, 1.0) };
+                    issue_tok -= (ipc10 as f64 * need[5] * (1.0 - dram_part) / m.rate[5]) as i64;
+                }
+                if drain_slot {
+                    if need[5] > 0.0 {
+                        drain_end = drain_end.max(t) + (need[5] / m.rate[5]).round() as i64;
+                        store_done[gi] = drain_end;
+                    }
+                } else if !drain_issue {
+                    m.tok[5] -= need[5];
+                }
                 // L1 pipeline: this instruction's segments pass after those already queued
                 let k = if need[1] > 0.0 { 1 } else { 0 };
                 let occ = (need[k] / m.rate[k]).round() as i64;
@@ -2941,6 +3023,11 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
                 let start = t.max(m.l1_free[k]);
                 m.l1_free[k] = start + occ;
                 pipe_extra = (m.l1_free[k] - t - occ_min).max(0);
+                // AGX_STORE_DRAIN_PIPE=1 (with AGX_STORE_DRAIN): a store's lines hold the core's load pipeline at the
+                // drain rate (loads queue behind the stores)
+                if k == 1 && drain_pipe && need[5] > 0.0 {
+                    m.l1_free[0] = t.max(m.l1_free[0]) + (need[5] / m.rate[5]).round() as i64;
+                }
                 if r.kind == Kind::Load && inflight_on && *lx > 0 {
                     let done = t + lx + pipe_extra;
                     for &sg in segs {
@@ -3354,6 +3441,10 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
             issued_now.push(gi);
             elig[gi / 64] &= !(1 << (gi % 64));
             if nxt[gi] >= npcs[gi] {
+                if drain_slot && store_done[gi] > free[gi] {
+                    free[gi] = store_done[gi];
+                    last_t = last_t.max(free[gi]);
+                }
                 done += 1;
             } else {
                 busy.push(std::cmp::Reverse((free[gi], gi)));
@@ -3393,7 +3484,7 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
         loop {
             let dt = (nt - t) as f64;
             if let Some(m) = ms.as_mut() {
-                for i in 0..5 {
+                for i in 0..6 {
                     m.tok[i] = (m.tok[i] + m.rate[i] * dt).min(m.cap[i]);
                 }
             }
@@ -3504,7 +3595,9 @@ fn l2_share(m: &MemModel) -> usize {
 fn l2_gpu_bytes() -> (f64, f64) {
     static T: std::sync::OnceLock<(f64, f64)> = std::sync::OnceLock::new();
     *T.get_or_init(|| {
-        let d = std::env::var("AGX_L2_GPU").ok().and_then(|v| v.parse().ok()).unwrap_or(0.0);
+        // (default 6.5 MB since 2026-11-11: with AGX_PLACED_BUSY and AGX_PLACED_CHAIN=0 MMQ Q5_K -22 -> -12%, Q6_K
+        // -5 -> +2%, Q5_1 -7 -> +1%; held-out mean 7.6 -> 7.5%. AGX_L2_GPU=0: off)
+        let d = std::env::var("AGX_L2_GPU").ok().and_then(|v| v.parse().ok()).unwrap_or(6815744.0);
         (d, std::env::var("AGX_L2_GPU_STACK").ok().and_then(|v| v.parse().ok()).unwrap_or(d))
     })
 }
@@ -3559,6 +3652,11 @@ impl WorkingSet {
         x ^= x >> 31;
         ((x >> 11) as f64 / (1u64 << 53) as f64) < p
     }
+}
+
+/// `eff_sharers` for `active` busy cores
+pub fn eff_sharers_for(active: f64, sharing: f64) -> f64 {
+    (active / (1.0 + (active - 1.0) * sharing)).max(1.0)
 }
 
 /// cores competing for distinct L2/SLC capacity: active cores when data is private, 1 when all share it
