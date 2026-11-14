@@ -2031,16 +2031,18 @@ fn image_write(g: &mut Group, mem: &mut Memory, f: &Fields, args: &TexOp) -> Res
     Ok(())
 }
 
-/// `image_write_block`: the end-of-tile store. Each active lane copies the bytes of its pixel's tile memory (`crate::frag`,
-/// sample 0, starting at the byte offset in register R, one component per image channel, in the instruction's tile format) into
-/// the image of texture state slot T (PBE descriptor), at the explicit coordinates C or, without them, at the lane's own pixel
-/// (Mesa asahi/lib/agx_bg_eot.c: `image_store_block_agx` with the render target's offset in the tile layout). The tile format and
-/// the image's element size must agree: the instruction copies tile memory, it does not convert.
+/// `image_write_block`: the end-of-tile store of a block of pixels. With explicit coordinates C (the form Mesa's compute blit uses) the executing lane
+/// stores the whole tile block: every tile pixel (i, j) of `frag::tile_size()` (tile-local keys, as `st_tile` with explicit coordinates wrote them,
+/// sample 0, starting at the byte offset in register R, one component per image channel in the instruction's tile format) goes to the image of texture
+/// state slot T (PBE descriptor) at (C.x + i, C.y + j); pixels outside the image are not written. Mesa's blit shader makes lane (0, 0) of every 32 x 32
+/// workgroup the only executing lane (`if_icmp` on max(tid.x, tid.y) == 0). Without explicit coordinates (the render end-of-tile form) every active lane
+/// stores its own pixel, the key `fs.pixel(group, lane)`, at its pixel. No format conversion: the tile format size must equal the image element size.
 fn image_write_block(g: &mut Group, mem: &mut Memory, f: &Fields, args: &TexOp) -> Result<(), String> {
     let fs = crate::frag::get().ok_or("image_write_block: no fragment setup (agx_run --frag FILE)")?;
     let fmt = fget(f, "F").unwrap_or(0);
     let item = crate::frag::format_bytes(fmt).ok_or_else(|| format!("tile format {} not modelled", fmt))?;
     let Some(&(half, off_reg)) = args.dest.first() else { return Err("image_write_block needs an offset register".into()) };
+    let (tw, th) = crate::frag::tile_size();
     for t in 0..32 {
         if !g.st.exec[t] {
             continue;
@@ -2053,24 +2055,30 @@ fn image_write_block(g: &mut Group, mem: &mut Memory, f: &Fields, args: &TexOp) 
         if esize != item {
             return Err(format!("image_write_block: tile format of {} bytes into an image of {}-byte elements (no conversion)", item, esize));
         }
-        let (px, py) = fs.pixel(g.ctx.group, t);
-        let (x, y) = if args.coords.len() >= 2 {
-            (coord_lane(g, &args.coords[0], t)?, coord_lane(g, &args.coords[1], t)?)
-        } else {
-            (px as i64, py as i64)
-        };
-        if x < 0 || y < 0 || x >= img.width as i64 || y >= img.height as i64 {
-            return Err(format!("image_write_block out of range ({}, {}) lane {} coords {:?}", x, y, t, args.coords));
-        }
         let off = if half { g.st.get_reg16(off_reg as usize, t)? } else { g.st.get_reg32(off_reg as usize, t)? } as usize;
-        let tile = crate::frag::with_tile(|ts| ts.mem.get(&(px, py, 0)).cloned().unwrap_or_default());
-        let mut raw = vec![0u8; ncomps * esize];
-        for (i, b) in raw.iter_mut().enumerate() {
-            *b = tile.get(off + i).copied().unwrap_or(0);
-        }
         let (bpp, _) = crate::texture::tex_format(img.channels, img.type_)?;
-        let at = y as u64 * img.stride + x as u64 * bpp as u64;
-        write_bytes(mem, img.addr + at, &raw)?;
+        let mut store = |mem: &mut Memory, key: (u32, u32), x: i64, y: i64| -> Result<(), String> {
+            if x < 0 || y < 0 || x >= img.width as i64 || y >= img.height as i64 {
+                return Ok(()); // clipped to the image
+            }
+            let tile = crate::frag::with_tile(|ts| ts.mem.get(&(key.0, key.1, 0)).cloned().unwrap_or_default());
+            let mut raw = vec![0u8; ncomps * esize];
+            for (i, b) in raw.iter_mut().enumerate() {
+                *b = tile.get(off + i).copied().unwrap_or(0);
+            }
+            write_bytes(mem, img.addr + y as u64 * img.stride + x as u64 * bpp as u64, &raw)
+        };
+        if args.coords.len() >= 2 {
+            let (cx, cy) = (coord_lane(g, &args.coords[0], t)?, coord_lane(g, &args.coords[1], t)?);
+            for j in 0..th {
+                for i in 0..tw {
+                    store(mem, (i, j), cx + i as i64, cy + j as i64)?;
+                }
+            }
+        } else {
+            let (px, py) = fs.pixel(g.ctx.group, t);
+            store(mem, (px, py), px as i64, py as i64)?;
+        }
     }
     Ok(())
 }

@@ -1,0 +1,3 @@
+straight-line n=32 fmadd: 0.0747 ms
+straight-line n=64 fmadd: 0.0889 ms
+straight-line n=96 fmadd: 0.11 ms

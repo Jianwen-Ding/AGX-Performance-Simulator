@@ -8,6 +8,7 @@
 //!   group G X0 Y0                SIMD group G covers the block whose top-left pixel is (X0, Y0) (overrides the default)
 //!   samplepos S DX DY            offset inside the pixel of sample S (default 0.5 0.5)
 //!   coverage X Y MASK            samples of pixel (X, Y) the triangle covers (default: all); sr60 / sr124, initial live mask
+//!   tile W H                     tile size for image_write_block block stores (default 32 32)
 //!   depthfunc F                  zs_emit depth compare: never less equal lequal greater notequal gequal always (default less)
 //!   depthclear Z                 depth the buffer holds before any zs_emit (default 1.0)
 //!   samples N                    samples per pixel (default 1)
@@ -40,6 +41,8 @@ pub struct FragSetup {
     /// depth compare for zs_emit: pass when `new <func> stored` (default less) and the value the depth buffer holds before any write
     pub depth_func: String,
     pub depth_clear: Option<f32>,
+    /// tile (imageblock) size in pixels; `image_write_block` with explicit coordinates stores this block (default 32 x 32)
+    pub tile: Option<(u32, u32)>,
 }
 
 static SETUP: OnceLock<FragSetup> = OnceLock::new();
@@ -95,6 +98,7 @@ impl FragSetup {
                     let m = if let Some(h) = t.strip_prefix("0x") { u32::from_str_radix(h, 16) } else { t.parse() }.map_err(|e| format!("line {}: {}", n + 1, e))?;
                     s.coverage.push((u(1)?, u(2)?, m));
                 }
+                "tile" => s.tile = Some((u(1)?, u(2)?)),
                 "depthfunc" => s.depth_func = w.get(1).ok_or(format!("line {}: missing function", n + 1))?.to_string(),
                 "depthclear" => s.depth_clear = Some(fl(1)?),
                 "samples" => s.samples = u(1)?,
@@ -232,6 +236,9 @@ pub fn depth_passes(new: f32, stored: f32) -> bool {
         "always" => true,
         _ => new < stored,
     }
+}
+pub fn tile_size() -> (u32, u32) {
+    get().and_then(|s| s.tile).unwrap_or((32, 32))
 }
 pub fn depth_clear() -> f32 {
     get().and_then(|s| s.depth_clear).unwrap_or(1.0)

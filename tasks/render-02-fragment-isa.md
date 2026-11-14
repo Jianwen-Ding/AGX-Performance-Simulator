@@ -32,16 +32,13 @@ Method that worked: capture the shader Mesa compiles for a probe (`agx_capture.p
 derived from the probe, compare the readback.
 
 ## Status 2026-11-14 (final)
-**Hardware-checked** (`scripts/frag_tile_check.py`, `frag_iter_check.py`, `frag_cost_check.py`; data in results/2026-11-14-frag-iter and -frag-cost): iterproj, flat ldcf (provoking-vertex select),
-st_tile (u8norm, rgb10a2, srgba8), st_tile -> ld_tile, sample_mask / discard (1446 / 1446), zs_emit depth test (less, greater: 1446 / 1446 each), 4x MSAA covered-sample counts
-(1507 / 1507) and per-pixel gl_SampleMaskIn through `get_sr sr124` (0 differ; found and fixed a lane-uniform SR bug), all-sample st_tile writes exactly the covered samples.
-**Costed** (ALU pipe unless noted): iter / iterproj / ldcf, ld_tile / st_tile, sample_mask, zs_emit (a never-taken discard sequence incl. wait_pix measures +0.1%, depth write +4%);
-st_var / st_var_final: a per-core shared vertex-output path (48 cycles per st_var per group, -4 / -9 / -36 / +5% on the 1 / 4 / 12 / 24 varying sweep). Still generic: image_write_block.
-**Cannot be checked with GLES / Mesa on this machine** (reason, not just "not done"):
-- stencil test: fixed-function state, not an instruction; a shader can only write stencil with GL_ARB_shader_stencil_export, absent in ES. `zs_emit` stores the stencil value.
-- rg11b10f, rgb9e5 tile formats: Mesa's GLES stores R11F_G11F_B10F through a software-packed `i32` tile and rgb9e5 is not colour-renderable; they follow the formats' definitions (unit test).
-- explicit tile coordinates and image_write_block: only the driver's internal blit / resolve programs use them and run with USC / imageblock state a direct-DRM compute probe does not set up
-  (risk of GPU hangs; owner-authorised unsafe probing required). Semantics from Mesa (agx_pack.c, agx_bg_eot.c) plus unit and program tests.
-**Fragment launch**: the x1.25 factor is a stop-gap; the cause is a compute-model underestimate of tight loops (see results/2026-11-14-frag-cost/README.md): hardware time per
-iteration is ~4.1 us (1 fmadd) / 5.5 us (2 and 4 fmadds), the model 2.6 / 3.3 / 4.7 us. Next: calibrate the loop / exec-mask cost against compute loop microbenchmarks of 1..8 ALU
-instructions per iteration and drop the factor.
+**Hardware-checked** (`scripts/frag_tile_check.py`, `frag_iter_check.py`, `frag_blit_check.py`, `frag_cost_check.py`; data in results/2026-11-14-frag-iter and -frag-cost): iterproj, flat ldcf (provoking-vertex select),
+st_tile (u8norm, rgb10a2, srgba8), st_tile -> ld_tile, **explicit-coordinate st_tile and image_write_block (Mesa's compute blit replayed byte-exact against five glBlitFramebuffer results; this corrected image_write_block to a whole-tile block store)**,
+sample_mask / discard (1446 / 1446), zs_emit depth test (less, greater: 1446 / 1446 each), 4x MSAA covered-sample counts (1507 / 1507) and per-pixel gl_SampleMaskIn through `get_sr sr124` (found and fixed a lane-uniform SR bug).
+**Costed** (ALU pipe unless noted): iter / iterproj / ldcf, ld_tile / st_tile, sample_mask, zs_emit; st_var / st_var_final: a per-core shared vertex-output path (48 cycles per st_var per group); image_write_block keeps the
+generic store / texture classes, which reproduce the blit slope (11.2 vs 11.9 ps per pixel).
+**Cannot be checked with GLES / Mesa on this machine**: stencil test (fixed-function state, not an instruction; a shader can only write stencil with GL_ARB_shader_stencil_export, absent in ES; `zs_emit` stores the value);
+rg11b10f / rgb9e5 tile formats (Mesa's GLES stores R11F_G11F_B10F through a software-packed `i32` tile and rgb9e5 is not colour-renderable; they follow the formats' definitions, unit-tested).
+**Open: the compute loop model** (see results/2026-11-14-frag-cost/README.md, "Loop-model investigation"): hardware straight-line ALU is at peak (4.47 / core cycle) and the model matches loops up to 8 groups per core, but loops
+saturate at IPC ~1.75 on hardware beyond ~12 groups per core where the model keeps scaling (ratio 1.2 at 12, ~2 from 24 groups). `frag::FRAGMENT_ISSUE_FACTOR` (x1.25) is the stop-gap for fragment programs.
+Next: record loop kernels of 1..8 ALU instructions at 16, 24, 32 groups per core with agx_run_hw (instruction bench, clock keeper) to fit the per-iteration control cost, re-verify `make verify-cost-model`, drop the factor.

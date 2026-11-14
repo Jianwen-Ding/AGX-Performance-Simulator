@@ -1,0 +1,8 @@
+groups/core=4: ms 0.1431/0.2589  us/iter 0.028  core cycles/iter 40  per group-iter 9.88  IPC 0.71
+groups/core=8: ms 0.1427/0.2601  us/iter 0.029  core cycles/iter 40  per group-iter 5.01  IPC 1.40
+groups/core=12: ms 0.176/0.3219  us/iter 0.036  core cycles/iter 50  per group-iter 4.15  IPC 1.69
+groups/core=16: ms 0.2135/0.4  us/iter 0.046  core cycles/iter 64  per group-iter 3.98  IPC 1.76
+groups/core=24: ms 0.3149/0.5992  us/iter 0.069  core cycles/iter 97  per group-iter 4.04  IPC 1.73
+groups/core=32: ms 0.432/0.8109  us/iter 0.093  core cycles/iter 129  per group-iter 4.04  IPC 1.73
+groups/core=48: ms 0.6516/1.2549  us/iter 0.147  core cycles/iter 206  per group-iter 4.29  IPC 1.63
+groups/core=64: ms 0.8774/1.7627  us/iter 0.216  core cycles/iter 302  per group-iter 4.72  IPC 1.48
