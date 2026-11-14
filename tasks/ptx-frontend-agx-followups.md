@@ -71,6 +71,13 @@ are linked where they already cover part of it.
     byte), also across 64-byte lines and pages? With the AGX backend's `-agx-element-aligned-vectors` (off) the model
     gives q8_matvec -54% cycles, attn_decode -14% tput (12 -> 3 loads), f16 tile GEMMs up to -17% tput
     (llvm-project agx-bench EXPERIMENTS.md R23): the largest gain left that rests on one hardware fact.
+    *Partly answered by the coverage recordings (2026-11-14 reading):* `coverage/expected/mem_load` has i16 `xy` /
+    `xyzw` and i8 `xy` / `xyzw` device loads with indices `(gid*37 & 255) + 3`, element-scaled, so 768 of 1024 i16
+    `xyzw` lanes are at 2-byte (not 8-byte) alignment and 96 straddle a 64-byte line (i8 `xyzw`: 768 at byte
+    alignment, 48 across lines); all six cases are deterministic and `suite_check` matches them exactly. Still
+    unrecorded: a vector load straddling a 16 KiB page (the table starts page-aligned and spans 516 bytes), and
+    element-aligned vector *stores* (the store cases' indices keep the vector aligned). Those two remain the
+    hardware facts the backend option waits on.
 16. **Trip counts computed by a division.** `agx_cost` skips `rcp` and `convert` (emulator_skipped), so a loop whose
     bounds come from an integer division (the backend's 32-bit division uses the f32 reciprocal) has an unknown trip
     count, and the loop is costed as not running (warning "if_icmp condition depends on ... a skipped result"). agx_libs'
