@@ -47,10 +47,12 @@ const ALU: &[(&str, &str)] = &[
     ("fmadd32_lane", "fmadd32_lane1"), ("fmadd16_lane", "fmadd16_lane1"),
     ("simd_matrix_fmadd32", "simd_matrix_fmadd32"), ("simd_matrix_fmadd16", "simd_matrix_fmadd16"),
 ];
+// (the rotate and the quad shuffle variants are measured: coverage/timing's simd_shuffle_rotate_up and
+// quad_shuffle_{down,up,xor,rotate_up} _r14_r6_1 recordings, latency 4.85 / 3.90 cycles and SIMD issue 1.99 / 1.04
+// per step, the same as the simd_shuffle_down and quad_shuffle rows they are costed as)
 const UNMEASURED_ALU: &[&str] = &[
     "fixed18",
-    "iunop", "ceil", "trunc", "funop", "dfdx", "dfdy", "simd_shuffle_rotate_up", "simd_shuf_op",
-    "quad_shuffle_down", "quad_shuffle_up", "quad_shuffle_xor", "quad_shuffle_rotate_up", "TODO.sr_thing",
+    "iunop", "ceil", "trunc", "funop", "dfdx", "dfdy", "simd_shuf_op", "TODO.sr_thing",
 ];
 const LOADS: &[&str] = &[
     "device_load", "device_load.TODO", "threadgroup_load", "stack_load", "async_load", "texture_sample", "texture_load",
