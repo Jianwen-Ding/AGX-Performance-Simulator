@@ -851,8 +851,19 @@ impl GroupCtx {
             // constant in compute under all 10 recorded geometries (coverage/expected/geometry) and under divergence:
             // 12 / 13 imageblock width / height (no imageblock), 60 = 15 (Mesa: coverage_mask), 63 = 1 (Mesa:
             // is_active_thread)
+            124 if crate::frag::get().is_some() => {
+                let (x, y) = crate::frag::get().unwrap().pixel(self.group, t);
+                crate::frag::coverage(x, y)
+            }
             12 | 13 | 54 | 55 | 61 | 62 | 124 | 144 | 146 | 147 => 0,
-            60 => 15,
+            60 => match crate::frag::get() {
+                // a fragment setup: the covered samples of the lane's pixel
+                Some(fs) => {
+                    let (x, y) = fs.pixel(self.group, t);
+                    crate::frag::coverage(x, y)
+                }
+                None => 15,
+            },
             63 => 1,
             // physical position in the quad: unlike SR56 it ignores the execution mask (playground sr-divergence)
             16 => i % 4,

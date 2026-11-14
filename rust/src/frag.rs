@@ -7,6 +7,7 @@
 //!   cf I A B C                   coefficient register I: value(x, y) = A*x + B*y + C at pixel position (x, y)
 //!   group G X0 Y0                SIMD group G covers the block whose top-left pixel is (X0, Y0) (overrides the default)
 //!   samplepos S DX DY            offset inside the pixel of sample S (default 0.5 0.5)
+//!   coverage X Y MASK            samples of pixel (X, Y) the triangle covers (default: all); sr60 / sr124, initial live mask
 //!   samples N                    samples per pixel (default 1)
 //!   lane L X Y                   explicit pixel of lane L of every group (overrides the quad layout; integer pixel coords)
 //!
@@ -25,6 +26,8 @@ pub struct FragSetup {
     pub lanes: Vec<(u32, u32, u32)>,
     /// samples per pixel of the tile (default 1; sample_mask / st_tile address samples 0..samples)
     pub samples: u32,
+    /// covered samples per pixel (default: all); what sr60 / sr124 read and the initial live mask of a pixel
+    pub coverage: Vec<(u32, u32, u32)>,
 }
 
 static SETUP: OnceLock<FragSetup> = OnceLock::new();
@@ -75,6 +78,11 @@ impl FragSetup {
                     }
                     s.sample_pos[i] = [fl(2)?, fl(3)?];
                 }
+                "coverage" => {
+                    let t = w.get(3).ok_or(format!("line {}: missing mask", n + 1))?;
+                    let m = if let Some(h) = t.strip_prefix("0x") { u32::from_str_radix(h, 16) } else { t.parse() }.map_err(|e| format!("line {}: {}", n + 1, e))?;
+                    s.coverage.push((u(1)?, u(2)?, m));
+                }
                 "samples" => s.samples = u(1)?,
                 "lane" => s.lanes.push((u(1)?, u(2)?, u(3)?)),
                 other => return Err(format!("line {}: unknown item {}", n + 1, other)),
@@ -106,6 +114,34 @@ impl FragSetup {
     }
     pub fn sample(&self, s: usize) -> [f32; 2] {
         self.sample_pos.get(s).copied().unwrap_or([0.5; 2])
+    }
+}
+
+#[cfg(test)]
+mod format_tests {
+    use super::*;
+    #[test]
+    fn packed_formats() {
+        // rgb10a2: 1.0 -> 1023, 0.5 -> 512 (511.5 ties to even), alpha 2 bits
+        assert_eq!(pack_word(8, [1.0, 0.5, 0.0, 1.0]), 1023 | 512 << 10 | 3 << 30);
+        assert_eq!(unpack_word(8, 1023 | 3 << 30)[3], 1.0);
+        // srgba8: 0.5 linear -> 188 (0.7354 * 255), alpha linear
+        assert_eq!(pack_word(10, [0.5, 0.0, 1.0, 0.5]) & 0xff, 188);
+        assert_eq!(pack_word(10, [0.0, 0.0, 0.0, 0.5]) >> 24, 128);
+        // r11g11b10f: 1.0 = exponent 15, mantissa 0; 0.5 = exponent 14; 65504 the largest finite (exp 30, mant all ones); negatives -> 0
+        let w = pack_word(12, [1.0, 0.5, 2.0, 0.0]);
+        assert_eq!((w & 0x7ff, w >> 11 & 0x7ff, w >> 22), (15 << 6, 14 << 6, 16 << 5));
+        assert_eq!(unpack_word(12, w)[..3], [1.0, 0.5, 2.0]);
+        assert_eq!(pack_word(12, [-1.0, 1e9, 0.0, 0.0]) & 0x7ff, 0);
+        assert_eq!(pack_word(12, [-1.0, 1e9, 0.0, 0.0]) >> 11 & 0x7ff, 30 << 6 | 63);
+        // 1.0 + 2^-7 (halfway, 6 mantissa bits): ties to even rounds down, rtz truncates; just above rounds up
+        assert_eq!(pack_word(12, [1.0 + 2f64.powi(-7), 0.0, 0.0, 0.0]) & 0x7ff, 15 << 6);
+        assert_eq!(pack_word(12, [1.0 + 2f64.powi(-7) + 2f64.powi(-10), 0.0, 0.0, 0.0]) & 0x7ff, 15 << 6 | 1);
+        assert_eq!(pack_word(14, [1.0 + 2f64.powi(-7) + 2f64.powi(-10), 0.0, 0.0, 0.0]) & 0x7ff, 15 << 6);
+        // rgb9e5: 1.0 -> exponent 16 (2^1), mantissa 256 / 512
+        let w = pack_word(13, [1.0, 0.0, 0.0, 0.0]);
+        assert_eq!((w & 511, w >> 27), (256, 16));
+        assert_eq!(unpack_word(13, w)[0], 1.0);
     }
 }
 
@@ -166,13 +202,111 @@ pub fn with_tile<R>(f: impl FnOnce(&mut TileState) -> R) -> R {
 pub fn samples() -> u32 {
     get().map_or(1, |s| s.samples.max(1))
 }
+/// samples of pixel (x, y) covered at the start of the fragment program
+pub fn coverage(x: u32, y: u32) -> u32 {
+    get().and_then(|s| s.coverage.iter().find(|c| c.0 == x && c.1 == y).map(|c| c.2)).unwrap_or_else(all_samples) & all_samples()
+}
 pub fn all_samples() -> u32 {
     (1u32 << samples().min(8)) - 1
 }
 
 /// size in bytes of one component of a tile format, None when the format is not modelled
 pub fn format_bytes(fmt: u64) -> Option<usize> {
-    Some(match fmt { 0 | 4 | 5 => 1, 1 | 3 | 6 | 7 => 2, 2 => 4, _ => return None })
+    Some(match fmt { 0 | 4 | 5 => 1, 1 | 3 | 6 | 7 => 2, 2 => 4, 8 | 10 | 12..=15 => 4, _ => return None })
+}
+/// formats that pack all components into one 32-bit word (rgb10a2, srgba8, rg11b10f, rgb9e5 and their .rtz forms)
+pub fn is_packed(fmt: u64) -> bool {
+    matches!(fmt, 8 | 10 | 12..=15)
+}
+
+fn ufloat_from_f32(x: f32, mbits: u32, rtz: bool) -> u32 {
+    let emax = 31u32;
+    if x.is_nan() {
+        return (emax << mbits) | 1;
+    }
+    if x <= 0.0 {
+        return 0;
+    }
+    if x.is_infinite() {
+        return emax << mbits;
+    }
+    let b = x.to_bits();
+    let e = ((b >> 23) & 0xff) as i32 - 127 + 15;
+    let m = (b & 0x7f_ffff) as u64 | if (b >> 23) & 0xff != 0 { 0x80_0000 } else { 0 };
+    // value = m * 2^(e - 15 - 23); the target has mbits mantissa bits and a minimum exponent of 1 (denormals below)
+    let shift = if e >= 1 { 23 - mbits as i32 } else { 23 - mbits as i32 + (1 - e) };
+    let (q, r) = if shift >= 64 { (0, m) } else { (m >> shift, m & ((1u64 << shift) - 1)) };
+    let half = if shift > 0 { 1u64 << (shift - 1) } else { 0 };
+    let q = if rtz || shift == 0 { q } else if r > half || (r == half && q & 1 == 1) { q + 1 } else { q };
+    let (mut exp, mut mant) = if e >= 1 { (e as u64, q - (1u64 << mbits)) } else { (0, q) };
+    if e >= 1 && q >= (2u64 << mbits) {
+        exp += 1; // rounding carried into the exponent
+        mant = 0;
+    } else if e < 1 && q >= (1u64 << mbits) {
+        exp = 1; // a denormal rounded up to the smallest normal
+        mant = 0;
+    }
+    if exp >= emax as u64 {
+        return ((emax - 1) << mbits) | ((1 << mbits) - 1); // saturate to the largest finite value
+    }
+    ((exp as u32) << mbits) | mant as u32
+}
+fn ufloat_to_f32(bits: u32, mbits: u32) -> f32 {
+    let exp = (bits >> mbits) & 31;
+    let mant = (bits & ((1 << mbits) - 1)) as f32 / (1u32 << mbits) as f32;
+    match exp {
+        0 => mant * 2f32.powi(-14),
+        31 => if mant == 0.0 { f32::INFINITY } else { f32::NAN },
+        _ => (1.0 + mant) * 2f32.powi(exp as i32 - 15),
+    }
+}
+fn srgb_encode(x: f64) -> f64 {
+    let x = x.clamp(0.0, 1.0);
+    if x <= 0.0031308 { 12.92 * x } else { 1.055 * x.powf(1.0 / 2.4) - 0.055 }
+}
+fn srgb_decode(x: f64) -> f64 {
+    if x <= 0.04045 { x / 12.92 } else { ((x + 0.055) / 1.055).powf(2.4) }
+}
+
+/// the 32-bit word of a packed format from the components x, y, z, w (rg11b10f / rgb9e5 ignore w)
+pub fn pack_word(fmt: u64, c: [f64; 4]) -> u32 {
+    let un = |x: f64, n: f64| (x.clamp(0.0, 1.0) * n).round_ties_even() as u32;
+    match fmt {
+        8 => un(c[0], 1023.0) | un(c[1], 1023.0) << 10 | un(c[2], 1023.0) << 20 | un(c[3], 3.0) << 30,
+        10 => un(srgb_encode(c[0]), 255.0) | un(srgb_encode(c[1]), 255.0) << 8 | un(srgb_encode(c[2]), 255.0) << 16 | un(c[3], 255.0) << 24,
+        12 | 14 => {
+            let rtz = fmt == 14;
+            ufloat_from_f32(c[0] as f32, 6, rtz) | ufloat_from_f32(c[1] as f32, 6, rtz) << 11 | ufloat_from_f32(c[2] as f32, 5, rtz) << 22
+        }
+        _ => {
+            // rgb9e5 (EXT_texture_shared_exponent): 9-bit mantissas under one 5-bit exponent; .rtz truncates
+            let max = 65408.0f64;
+            let v: Vec<f64> = c[..3].iter().map(|x| if x.is_nan() { 0.0 } else { x.clamp(0.0, max) }).collect();
+            let m = v.iter().cloned().fold(0.0, f64::max);
+            let mut e = if m > 0.0 { (m.log2().floor() as i32).max(-16) + 1 + 15 } else { 0 };
+            let mut denom = 2f64.powi(e - 15 - 9);
+            let rnd = |x: f64, d: f64| if fmt == 15 { (x / d).floor() } else { (x / d + 0.5).floor() };
+            if rnd(m, denom) as u32 == 512 {
+                e += 1;
+                denom *= 2.0;
+            }
+            (rnd(v[0], denom) as u32) | (rnd(v[1], denom) as u32) << 9 | (rnd(v[2], denom) as u32) << 18 | (e as u32) << 27
+        }
+    }
+}
+pub fn unpack_word(fmt: u64, w: u32) -> [f32; 4] {
+    match fmt {
+        8 => [(w & 1023) as f32 / 1023.0, (w >> 10 & 1023) as f32 / 1023.0, (w >> 20 & 1023) as f32 / 1023.0, (w >> 30) as f32 / 3.0],
+        10 => {
+            let d = |b: u32| srgb_decode(b as f64 / 255.0) as f32;
+            [d(w & 255), d(w >> 8 & 255), d(w >> 16 & 255), (w >> 24) as f32 / 255.0]
+        }
+        12 | 14 => [ufloat_to_f32(w & 0x7ff, 6), ufloat_to_f32(w >> 11 & 0x7ff, 6), ufloat_to_f32(w >> 22 & 0x3ff, 5), 1.0],
+        _ => {
+            let s = 2f32.powi((w >> 27) as i32 - 15 - 9);
+            [(w & 511) as f32 * s, (w >> 9 & 511) as f32 * s, (w >> 18 & 511) as f32 * s, 1.0]
+        }
+    }
 }
 /// bytes of a component given as `x` (an fp value for the float / norm formats, raw bits for i8 / i16 / i32)
 pub fn pack(fmt: u64, x: f64, raw: u32, f16_bits: impl Fn(f64) -> u32) -> u32 {

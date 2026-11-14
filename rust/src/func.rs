@@ -208,6 +208,7 @@ enum OpKind {
     TexLoad { args: Box<TexOp> },
     TexSample { args: Box<TexOp> },
     ImageWrite { args: Box<TexOp> },
+    ImageWriteBlock { args: Box<TexOp> },
     FragIter,
     FragTile,
     FragSampleMask,
@@ -254,6 +255,26 @@ fn reg_tuple(o: &Operand) -> Option<Vec<(bool, u32)>> {
         }
         _ => None,
     }
+}
+
+/// image_write_block operands: [R offset register, C coordinate tuple (absent: Imm), D, T texture state or bindless base, ...]
+fn block_op(ops: &[Operand]) -> TexOp {
+    let mut a = TexOp::default();
+    for o in ops {
+        match o {
+            Operand::Tuple(..) => {
+                if let Some(rs) = reg_tuple(o) {
+                    a.coords = rs;
+                }
+            }
+            Operand::Reg16(..) | Operand::Reg32(..) if a.dest.is_empty() => a.dest.push(reg16_32(o).unwrap()),
+            Operand::Reg16(..) | Operand::Reg32(..) if a.bind_ureg.is_some() && a.bind_reg.is_none() => a.bind_reg = reg16_32(o),
+            Operand::UReg64(n, _) if a.bind_ureg.is_none() => a.bind_ureg = Some(*n),
+            Operand::TextureState(n) => a.tslot = Some(*n),
+            _ => {}
+        }
+    }
+    a
 }
 
 fn tex_op(ops: &[Operand], sampler_reg: bool) -> TexOp {
@@ -360,6 +381,7 @@ fn op_kind(name: &'static str, f: &Fields, ops: &[Operand]) -> OpKind {
         "texture_load" => TexLoad { args: Box::new(tex_op(ops, fget(f, "St") == Some(1))) },
         "texture_sample" => TexSample { args: Box::new(tex_op(ops, fget(f, "St") == Some(1))) },
         "image_write" => ImageWrite { args: Box::new(tex_op(ops, false)) },
+        "image_write_block" => ImageWriteBlock { args: Box::new(block_op(ops)) },
         "iter" | "iterproj" | "TODO.ldcf" => FragIter,
         "TODO.ld/st_tile" => FragTile,
         "sample_mask" => FragSampleMask,
@@ -1012,6 +1034,7 @@ fn step_group_impl<C: InstructionCells>(g: &mut Group, code: &[u8], cache: &C, m
             OpKind::TexLoad { ref args } => tex_load(g, mem, f, args.as_ref())?,
             OpKind::TexSample { ref args } => tex_sample(g, mem, f, args.as_ref())?,
             OpKind::ImageWrite { ref args } => image_write(g, mem, f, args.as_ref())?,
+            OpKind::ImageWriteBlock { ref args } => image_write_block(g, mem, f, args.as_ref())?,
             OpKind::Round => fsem::round_op(desc.name, v, &mut g.st)?,
             OpKind::Intl => fsem::intl(v, &mut g.st)?,
             OpKind::Transcendental => fsem::transcendental(desc.name, f, v, &mut g.st)?,
@@ -2006,6 +2029,49 @@ fn image_write(g: &mut Group, mem: &mut Memory, f: &Fields, args: &TexOp) -> Res
     Ok(())
 }
 
+/// `image_write_block`: the end-of-tile store. Each active lane copies the bytes of its pixel's tile memory (`crate::frag`,
+/// sample 0, starting at the byte offset in register R, one component per image channel, in the instruction's tile format) into
+/// the image of texture state slot T (PBE descriptor), at the explicit coordinates C or, without them, at the lane's own pixel
+/// (Mesa asahi/lib/agx_bg_eot.c: `image_store_block_agx` with the render target's offset in the tile layout). The tile format and
+/// the image's element size must agree: the instruction copies tile memory, it does not convert.
+fn image_write_block(g: &mut Group, mem: &mut Memory, f: &Fields, args: &TexOp) -> Result<(), String> {
+    let fs = crate::frag::get().ok_or("image_write_block: no fragment setup (agx_run --frag FILE)")?;
+    let fmt = fget(f, "F").unwrap_or(0);
+    let item = crate::frag::format_bytes(fmt).ok_or_else(|| format!("tile format {} not modelled", fmt))?;
+    let Some(&(half, off_reg)) = args.dest.first() else { return Err("image_write_block needs an offset register".into()) };
+    for t in 0..32 {
+        if !g.st.exec[t] {
+            continue;
+        }
+        let img = image_target(mem, g, args, t)?;
+        let (ncomps, esize) = match img.channels {
+            0x00 => (1, 1), 0x09 => (1, 2), 0x21 => (1, 4), 0x23 => (2, 2), 0x28 => (4, 1), 0x32 => (4, 2), 0x38 => (4, 4),
+            c => return Err(format!("image_write_block: image channels {:#x} not modelled", c)),
+        };
+        if esize != item {
+            return Err(format!("image_write_block: tile format of {} bytes into an image of {}-byte elements (no conversion)", item, esize));
+        }
+        let (px, py) = fs.pixel(g.ctx.group, t);
+        let (x, y) = if args.coords.len() >= 2 {
+            (coord_lane(g, &args.coords[0], t)?, coord_lane(g, &args.coords[1], t)?)
+        } else {
+            (px as i64, py as i64)
+        };
+        if x < 0 || y < 0 || x >= img.width as i64 || y >= img.height as i64 {
+            return Err(format!("image_write_block out of range ({}, {}) lane {} coords {:?}", x, y, t, args.coords));
+        }
+        let off = if half { g.st.get_reg16(off_reg as usize, t)? } else { g.st.get_reg32(off_reg as usize, t)? } as usize;
+        let tile = crate::frag::with_tile(|ts| ts.mem.get(&(px, py, 0)).cloned().unwrap_or_default());
+        let mut raw = vec![0u8; ncomps * esize];
+        for (i, b) in raw.iter_mut().enumerate() {
+            *b = tile.get(off + i).copied().unwrap_or(0);
+        }
+        let (bpp, _) = crate::texture::tex_format(img.channels, img.type_)?;
+        let at = y as u64 * img.stride + x as u64 * bpp as u64;
+        write_bytes(mem, img.addr + at, &raw)?;
+    }
+    Ok(())
+}
 
 /// value operands (registers, uniforms, immediates) in order, without condition codes and other fields
 fn vals(ops: &[Operand]) -> Vec<Operand> {
@@ -2303,6 +2369,36 @@ mod tests {
     fn dispatch(code: Vec<u8>, grid: [u32; 3], wg: [u32; 3]) -> Dispatch {
         Dispatch { code, grid, wg, shared_bytes: 0, uniforms: vec![], num_registers: 32,
             max_steps: 1000, placement: 0, launch: Default::default() }
+    }
+
+    #[test]
+    fn st_tile_then_image_write_block() {
+        use crate::kernels::{e, get_sr, mov};
+        let hex = |s: &str| -> Vec<u8> { (0..s.len()).step_by(2).map(|i| u8::from_str_radix(&s[i..i + 2], 16).unwrap()).collect() };
+        crate::frag::install(crate::frag::FragSetup::parse("size 32 4\nsamples 1\n").unwrap()).ok();
+        // r4..r7 = lane-dependent floats; st_tile u8norm xyzw offset 0 (Mesa's colour write); image_write_block R=r1l offset, coords r2_r3, ts2
+        let code = [get_sr(80, 2), mov(3, 0), mov(1, 0), get_sr(80, 4), mov(5, 0x3f000000), mov(6, 0x3f800000), mov(7, 0x3e800000),
+                    hex("09110004f0040000"), hex("b1848480024a00000a00"), e("stop")].concat();
+        // lane l: r4 = lane id (as a lane-dependent bit pattern, i.e. a tiny denormal -> unorm 0), so use r5..r7 constants and check them
+        let d = Dispatch { code, grid: [32, 1, 1], wg: [32, 1, 1], shared_bytes: 0, uniforms: vec![], num_registers: 16,
+                           max_steps: 1000, placement: 0, launch: Default::default() };
+        let mut mem = Memory::default();
+        // PBE descriptor: linear, channels 0x28 (R8G8B8A8), type 0 (unorm), 32 x 1, stride 128, base 0x50000
+        let mut pbe = vec![0u8; 24];
+        put(&mut pbe, 6, 7, 0x28);
+        put(&mut pbe, 13, 3, 0);
+        put(&mut pbe, 24, 14, 31);
+        put(&mut pbe, 38, 14, 0);
+        put(&mut pbe, 64, 36, 0x50000 >> 4);
+        put(&mut pbe, 104, 21, 128 - 16);
+        mem.tex_state.insert(2, pbe);
+        mem.map(0x50000, vec![0xee; 256]);
+        run(&d, &mut mem).unwrap();
+        let px = mem.read_bytes(0x50000, 4 * 32).unwrap();
+        // r5 = 0.5 -> 128 (round half to even of 127.5), r6 = 1.0 -> 255, r7 = 0.25 -> 64 (63.75); r4 = lane id bits (denormal) -> 0
+        for l in 0..32 {
+            assert_eq!(&px[4 * l..4 * l + 4], &[0, 128, 255, 64], "lane {}", l);
+        }
     }
 
     fn local_atomic_case(op: u64, ret: bool, source: u32, compare: u32) -> (Dispatch, Memory) {

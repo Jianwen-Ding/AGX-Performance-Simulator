@@ -1021,12 +1021,30 @@ pub fn frag_tile(f: &Fields, ops: &[Operand], st: &mut CoreState, group: u32) ->
         if !st.exec[t] {
             continue;
         }
-        let (x, y) = fs.pixel(group, t);
+        let explicit = if load { fget(f, "C").unwrap_or(0) != 0 } else { fget(f, "u0").unwrap_or(0) != 0 };
+        // explicit coordinates: tile-local (x, y) in the two halves of the 16-bit register pair C (Mesa agx_pack ST_TILE / LD_TILE)
+        let (x, y) = if explicit {
+            let c = fget(f, "C").unwrap_or(0) as usize;
+            (st.get_reg16(c, t)? as u32, st.get_reg16(c + 1, t)? as u32)
+        } else {
+            fs.pixel(group, t)
+        };
         let smask = (match &ops[6] { o @ (Operand::Reg16(..) | Operand::Imm(..)) => raw(st, o, t)?.0 as u32, _ => 0xff } & 0xff) & all;
         let comps: Vec<usize> = (0..4).filter(|c| mask >> c & 1 == 1).collect();
         if load {
             let s = if smask == 0 { continue } else { smask.trailing_zeros() };
             let bytes = crate::frag::with_tile(|ts| ts.mem.get(&(x, y, s)).cloned().unwrap_or_default());
+            if crate::frag::is_packed(fmt) {
+                let w = (0..4).fold(0u32, |v, i| v | (bytes.get(off + i).copied().unwrap_or(0) as u32) << (8 * i));
+                let c = crate::frag::unpack_word(fmt, w);
+                for (k, comp) in comps.iter().enumerate() {
+                    match &regs[k] {
+                        d @ Operand::Reg16(..) => put(st, d, t, to_f16(c[*comp] as f64) as u64)?,
+                        d => put(st, d, t, c[*comp].to_bits() as u64)?,
+                    }
+                }
+                continue;
+            }
             for (k, c) in comps.iter().enumerate() {
                 let b = off + c * item;
                 let bits = (0..item).fold(0u32, |v, i| v | (bytes.get(b + i).copied().unwrap_or(0) as u32) << (8 * i));
@@ -1037,7 +1055,27 @@ pub fn frag_tile(f: &Fields, ops: &[Operand], st: &mut CoreState, group: u32) ->
                 }
             }
         } else {
-            let live = crate::frag::with_tile(|ts| *ts.live.get(&(x, y)).unwrap_or(&all));
+            let live = crate::frag::with_tile(|ts| *ts.live.get(&(x, y)).unwrap_or(&crate::frag::coverage(x, y)));
+            if crate::frag::is_packed(fmt) {
+                let mut c = [0.0f64; 4];
+                for (k, comp) in comps.iter().enumerate() {
+                    let (b, sz) = raw(st, &regs[k], t)?;
+                    c[*comp] = if sz == 16 { f64::from_bits(f16_to_f64(b, false)) } else { f32::from_bits(b as u32) as f64 };
+                }
+                let w = crate::frag::pack_word(fmt, c);
+                crate::frag::with_tile(|ts| {
+                    for s in 0..8u32 {
+                        if smask >> s & 1 == 1 && live >> s & 1 == 1 {
+                            let m = ts.mem.entry((x, y, s)).or_default();
+                            if m.len() < off + 4 {
+                                m.resize(off + 4, 0);
+                            }
+                            m[off..off + 4].copy_from_slice(&w.to_le_bytes());
+                        }
+                    }
+                });
+                continue;
+            }
             let mut vals = vec![];
             for k in 0..comps.len() {
                 let (b, sz) = raw(st, &regs[k], t)?;
@@ -1083,7 +1121,7 @@ pub fn frag_sample_mask(ops: &[Operand], st: &mut CoreState, group: u32) -> R<()
         let live_in = raw(st, &ops[1], t)?.0 as u32 & 0xffff;
         let (x, y) = fs.pixel(group, t);
         crate::frag::with_tile(|ts| {
-            let live = ts.live.entry((x, y)).or_insert(all);
+            let live = ts.live.entry((x, y)).or_insert(crate::frag::coverage(x, y));
             let tested = ts.tested.entry((x, y)).or_insert(0);
             let was = *live;
             for s in 0..8u32 {
@@ -1121,7 +1159,7 @@ pub fn frag_zs_emit(f: &Fields, ops: &[Operand], st: &mut CoreState, group: u32)
         if ws { s = Some(raw(st, vals[i], t)?.0 as u16); }
         let (x, y) = fs.pixel(group, t);
         crate::frag::with_tile(|ts| {
-            let live = *ts.live.entry((x, y)).or_insert(all);
+            let live = *ts.live.entry((x, y)).or_insert(crate::frag::coverage(x, y));
             *ts.tested.entry((x, y)).or_insert(0) |= target & live;
             for sm in 0..8u32 {
                 if target >> sm & 1 == 1 && live >> sm & 1 == 1 {
