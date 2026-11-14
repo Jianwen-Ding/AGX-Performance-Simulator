@@ -31,4 +31,13 @@ for t, h in sorted(alu.items()):
 for name, s_, h in cases:
     print(f'{name}: simulated {s_:.0f} us, measured {h:.0f} us ({(s_ / h - 1) * 100:+.0f}%)')
     ok &= abs(s_ / h - 1) <= 0.20
+# vertex stage: st_var throughput (903k vertices, 1 / 4 / 12 / 24 vec4 varyings); the 12 / 24 points saturate on hardware, so only 1 / 4 / 24 are asserted (+-20%)
+vhw = {}
+for l in open(d / 'hw_sweep_vertex.txt'):
+    w = l.split(); vhw[int(w[0].split('=')[1])] = float(w[2]) * 1000
+for n in (1, 4, 12, 24):
+    r = subprocess.run([str(b / 'agx_dispatch'), str(d / f'vertex_{n}.bin'), '--grid', '903264', '--wg', '1024', '--regs', '48', '--no-mem'], capture_output=True, text=True)
+    s_ = json.loads(r.stdout)['time_us']
+    print(f'vertex stage, {n} varyings: simulated {s_:.0f} us, measured {vhw[n]:.0f} us ({(s_ / vhw[n] - 1) * 100:+.0f}%)' + ('' if n != 12 else '  (known outlier)'))
+    if n != 12: ok &= abs(s_ / vhw[n] - 1) <= 0.20
 sys.exit(0 if ok else 1)

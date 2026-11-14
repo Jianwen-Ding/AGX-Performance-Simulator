@@ -31,11 +31,17 @@ generic classes: `st_var*`, `sample_mask`, `zs_emit`, `image_write_block` (store
 Method that worked: capture the shader Mesa compiles for a probe (`agx_capture.py`), run the same bytes in the simulator with a setup
 derived from the probe, compare the readback.
 
-## Status 2026-11-14 (end of session)
-Hardware-checked (scripts/frag_tile_check.py, frag_iter_check.py): iterproj, st_tile (u8norm, rgb10a2, srgba8), st_tile -> ld_tile, sample_mask / discard (1446 / 1446 pixels),
-zs_emit depth test (less and greater, 1446 / 1446 pixels each), flat ldcf with the provoking-vertex select. Executed but not compared with hardware: rg11b10f, rgb9e5
-(+ .rtz), explicit tile coordinates, per-sample coverage, stencil (stored, not tested), st_var / st_var_final, image_write_block (unit test only), wait_pix / signal_pix (no-ops).
-Costs: iter / iterproj / ldcf / ld_tile / st_tile / sample_mask / zs_emit in the ALU pipe; st_var*, image_write_block, wait_pix / signal_pix still generic unmeasured classes.
-Fragment launch: empirical x1.25 (`frag::FRAGMENT_ISSUE_FACTOR`), not general (one shader family -6%, another -28%). Tools: `frag_encode` (re-encode an instruction with
-other fields), `agx_run --tile-dump`, `--frag` on agx_run / agx_dispatch / agx_cost. Next: find why the dependent-fmadd fragment loop is 32% slower than the same loop in the
-compute issue model (compare with an equivalent compute kernel timed on hardware without a bandwidth-bound store), then replace the factor.
+## Status 2026-11-14 (final)
+**Hardware-checked** (`scripts/frag_tile_check.py`, `frag_iter_check.py`, `frag_cost_check.py`; data in results/2026-11-14-frag-iter and -frag-cost): iterproj, flat ldcf (provoking-vertex select),
+st_tile (u8norm, rgb10a2, srgba8), st_tile -> ld_tile, sample_mask / discard (1446 / 1446), zs_emit depth test (less, greater: 1446 / 1446 each), 4x MSAA covered-sample counts
+(1507 / 1507) and per-pixel gl_SampleMaskIn through `get_sr sr124` (0 differ; found and fixed a lane-uniform SR bug), all-sample st_tile writes exactly the covered samples.
+**Costed** (ALU pipe unless noted): iter / iterproj / ldcf, ld_tile / st_tile, sample_mask, zs_emit (a never-taken discard sequence incl. wait_pix measures +0.1%, depth write +4%);
+st_var / st_var_final: a per-core shared vertex-output path (48 cycles per st_var per group, -4 / -9 / -36 / +5% on the 1 / 4 / 12 / 24 varying sweep). Still generic: image_write_block.
+**Cannot be checked with GLES / Mesa on this machine** (reason, not just "not done"):
+- stencil test: fixed-function state, not an instruction; a shader can only write stencil with GL_ARB_shader_stencil_export, absent in ES. `zs_emit` stores the stencil value.
+- rg11b10f, rgb9e5 tile formats: Mesa's GLES stores R11F_G11F_B10F through a software-packed `i32` tile and rgb9e5 is not colour-renderable; they follow the formats' definitions (unit test).
+- explicit tile coordinates and image_write_block: only the driver's internal blit / resolve programs use them and run with USC / imageblock state a direct-DRM compute probe does not set up
+  (risk of GPU hangs; owner-authorised unsafe probing required). Semantics from Mesa (agx_pack.c, agx_bg_eot.c) plus unit and program tests.
+**Fragment launch**: the x1.25 factor is a stop-gap; the cause is a compute-model underestimate of tight loops (see results/2026-11-14-frag-cost/README.md): hardware time per
+iteration is ~4.1 us (1 fmadd) / 5.5 us (2 and 4 fmadds), the model 2.6 / 3.3 / 4.7 us. Next: calibrate the loop / exec-mask cost against compute loop microbenchmarks of 1..8 ALU
+instructions per iteration and drop the factor.

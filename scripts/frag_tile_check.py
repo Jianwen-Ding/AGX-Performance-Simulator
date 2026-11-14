@@ -97,4 +97,43 @@ for func, clear, hwf in (('less', 1.0, 'hw_two_layer_depth_64x64_rgba32f.bin'), 
                 if std[(y * 64 + x) * 4] == -777.0: continue
                 n += 1; bad += w.get((x, y)) != hwz[(y * 64 + x) * 4:(y * 64 + x) * 4 + 4]
     print(f'zs_emit depth test ({func}): {n} triangle pixels, {bad} disagree with hardware'); ok &= bad == 0 and n > 1000
+# 9. 4x MSAA coverage. The setup's per-pixel coverage masks are derived analytically (Mesa's standard 4x sample positions); (a) the hardware's
+#    covered-sample counts (resolve of a constant colour over the clear colour) must equal the analytic counts; (b) the simulator's `get_sr sr124`
+#    (gl_SampleMaskIn) must equal the hardware's per-pixel mask, decoded from a render of float(gl_SampleMaskIn[0]); (c) a store to all samples
+#    writes exactly the covered samples.
+P = [-0.9, -0.8, 1, 0.8, -0.7, 1, -0.2, 0.9, 1]
+sx = [(P[i * 3] * 0.5 + 0.5) * 64 for i in range(3)]; sy = [(P[i * 3 + 1] * 0.5 + 0.5) * 64 for i in range(3)]
+pos4 = [(0.375, 0.125), (0.875, 0.375), (0.125, 0.625), (0.625, 0.875)]
+def inside(px, py):
+    e = lambda ax, ay, bx, by: (px - ax) * (by - ay) - (py - ay) * (bx - ax)
+    v = [e(sx[0], sy[0], sx[1], sy[1]), e(sx[1], sy[1], sx[2], sy[2]), e(sx[2], sy[2], sx[0], sy[0])]
+    return all(a >= 0 for a in v) or all(a <= 0 for a in v)
+mask = {(x, y): sum(1 << k for k, (dx, dy) in enumerate(pos4) if inside(x + dx, y + dy)) for y in range(64) for x in range(64)}
+hwc = struct.unpack('<16384f', (d / 'hw_msaa4_coverage_64x64_rgba32f.bin').read_bytes())
+hwm = struct.unpack('<16384f', (d / 'hw_msaa4_sample_mask_in_64x64_rgba32f.bin').read_bytes())
+cnt = lambda m: bin(m).count('1')
+bad_a = sum(((round((hwc[(y * 64 + x) * 4] + 777) / 778 * 4) if hwc[(y * 64 + x) * 4] != -777.0 else 0) != cnt(m)) for (x, y), m in mask.items() if m or hwc[(y * 64 + x) * 4] != -777.0)
+npx = sum(1 for m in mask.values() if m)
+print(f'MSAA 4x covered-sample counts: {npx} pixels, {bad_a} differ from the analytic model'); ok &= bad_a == 0 and npx > 1000
+bad_b = bad_c = 0
+for part in range(4):
+    (tmp / 'setup').write_text('size 64 64\nsamples 4\n' + ''.join(f'group {g} {8 * (g % 8)} {16 * part + 4 * (g // 8)}\n' for g in range(32)) +
+                               ''.join(f'coverage {x} {y} {m}\n' for (x, y), m in mask.items() if m and 16 * part <= y < 16 * part + 16))
+    agx(d / 'sample_mask_in_store.bin', '--grid', 1024, '--wg', 1024, '--frag', tmp / 'setup', '--alloc', '0x1000000=8192', '--uniform', '0=0x1000000',
+        '--uniform', '1=0', '--uniform', '9=255', '--dump', f'0x1000000=4096:{tmp / "m9"}')
+    out = struct.unpack('<1024f', (tmp / 'm9').read_bytes())
+    for l in range(1024):
+        g, ln = divmod(l, 32); q = ln // 4
+        x, y = 8 * (g % 8) + 2 * (q % 4) + (ln & 1), 16 * part + 4 * (g // 8) + 2 * (q // 4) + ((ln >> 1) & 1)
+        m = mask[(x, y)]
+        if not m: continue
+        r = hwm[(y * 64 + x) * 4]; hv = round((4 * r + (4 - cnt(m)) * 777.0) / cnt(m))   # resolved = (n * v + (4 - n) * clear) / 4
+        bad_b += int(out[l]) != hv
+    agx(d / 'st_tile_all_samples.bin', '--grid', 1024, '--wg', 1024, '--frag', tmp / 'setup', '--tile-dump', tmp / 't9')
+    wr = {}
+    for l in open(tmp / 't9'):
+        q = l.split()
+        if q[0] == 'tile': wr[(int(q[1]), int(q[2]))] = wr.get((int(q[1]), int(q[2])), 0) | 1 << int(q[3])
+    bad_c += sum(wr.get((x, y), 0) != m for (x, y), m in mask.items() if m and 16 * part <= y < 16 * part + 16)
+print(f'MSAA 4x simulated sr124 vs hardware gl_SampleMaskIn: {bad_b} pixels differ; all-sample store writes the covered samples: {bad_c} pixels differ'); ok &= bad_b == 0 and bad_c == 0
 sys.exit(0 if ok else 1)

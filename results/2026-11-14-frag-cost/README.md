@@ -39,3 +39,18 @@ depth arithmetic is simulated (+0.6% vs +4% measured).
 **Limitation.** This base shader (`a = a*b + 0.5; b = b*a - 0.25`, two dependent fmadds per iteration, `frag_dep2fma.bin`) is predicted at 1073 us (with the 1.25 factor) against 1491 us
 measured (-28%), while the 1-varying family above is -6%: both come out at the same simulated time (the compute issue model sees the same five instructions per
 iteration) but the hardware runs this one 32% slower. The single `FRAGMENT_ISSUE_FACTOR` therefore does not generalise: expect fragment ALU-loop predictions within -30% .. +5%.
+
+## Root cause of the fragment "factor": the compute loop model (2026-11-14, last)
+The same ALU loops as compute kernels (`apple-documentation-playground/tests/gles_compute_alu.c`, 2048x2048, the store guarded by a never-true compare so no
+bandwidth is measured; `hw_compute_loop_variants.txt`) take the same time as the fragment versions (family B: 1.45 ms compute vs 1.49 ms fragment at 256 iterations;
+family A 1.09 vs ~1.13). So the fragment stage is not special: the **compute issue model underpredicts these tight loops** (no `--frag`: A 862 us, B 864 us at 256
+iterations; measured 1091 / 1449 us, -21% / -40%). Hardware time per iteration (us, 2048x2048): 1 fmadd 4.09, 2 fmadds (dependent or independent) 5.51, 4 fmadds 5.50;
+the model gives 2.60 / 3.29 / 4.69. So per-iteration time on hardware is nearly independent of the fmadd count between 2 and 4 (loop control / issue structure dominates),
+which the model does not reproduce (it adds ~0.7 us per fmadd on top of a lower base). `frag::FRAGMENT_ISSUE_FACTOR` is a stop-gap for fragment programs; the real fix is in
+`cost.rs` (taken-backward-jump and exec-mask loop costs at high occupancy), to be calibrated with compute loop microbenchmarks of 1..8 ALU instructions per iteration.
+
+## Vertex outputs and coverage (2026-11-14, last)
+`hw_sweep_vertex.txt` (`RASTER_VARY=N`, 301,088 triangles = 903,264 vertices, 1024x1024): `st_var` is a throughput-limited path (vertex output store). With
+`ST_VAR_CORE_CYCLES` = 48 per st_var per group the simulated times are -4 / -9 / -36 / +5% for 1 / 4 / 12 / 24 varyings (the 12 and 24 points saturate on hardware).
+MSAA 4x: Mesa's standard sample positions (0.375,0.125) (0.875,0.375) (0.125,0.625) (0.625,0.875) reproduce the hardware's covered-sample count on all 1507 touched pixels and
+the exact per-pixel `gl_SampleMaskIn` (sr124); this check found that the simulator evaluated sr60 / sr124 once per instruction instead of per lane (fixed).

@@ -1240,6 +1240,8 @@ impl SpecialRegister {
             56 => SrKind::QuadRank, 57 => SrKind::QuadCount,
             58 => SrKind::SimdRank, 59 => SrKind::SimdCount,
             16 | 48..=52 | 80..=82 => SrKind::Lane,
+            // coverage differs per pixel (lane) when a fragment setup supplies it (frag::coverage); constant in compute
+            60 | 124 if crate::frag::get().is_some() => SrKind::Lane,
             _ => SrKind::Uniform,
         };
         Self { selector, destination, kind }

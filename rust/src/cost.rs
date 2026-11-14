@@ -32,6 +32,12 @@ const NEG_INF: i64 = -1_000_000_000;
 /// blending 8 layers of a trivial shader costs 5 ps per pixel and layer on hardware, so they issue like an fadd32. `sample_mask` (the discard
 /// sequence: two fcmpsel, or, wait_pix, sample_mask) and `zs_emit` (depth write) also measure as nearly free: a never-taken discard adds <1% and a
 /// gl_FragDepth write ~4% to a 256-iteration shader; they issue like an fadd32 (before: no cost class, `agx_cost` refused the program).
+/// Core occupancy of one `st_var` / `st_var_final` (vertex-stage output store into the unified vertex store): one shared output path per core,
+/// 48 core cycles per st_var per SIMD group whichever group issues it. Fitted on hardware (results/2026-11-14-frag-cost/hw_sweep_vertex.txt): 903k
+/// vertices (301k triangles), 1 / 4 / 12 / 24 vec4 varyings = 8 / 11 / 19 / 31 st_var per vertex measure 0.226 / 0.324 / 0.796 / 0.785 ms (the last two
+/// saturate: another limit takes over above ~19) and simulate 0.217 / 0.296 / 0.507 / 0.823 ms (-4 / -9 / -36 / +5%). The marginal slope between
+/// 8 and 19 st_var alone is 52 us per st_var (96 cycles); 48 is the compromise over the sweep. A GPU-wide vertex-output throughput, not latency.
+const ST_VAR_CORE_CYCLES: f64 = 48.0;
 const FRAG_ITER_CLASS: &str = "fmadd32";
 const FRAG_TILE_CLASS: &str = "fadd32";
 const FRAG_LDCF_CLASS: &str = "fmadd32";
@@ -1419,6 +1425,8 @@ struct SimInstr {
     wide_cost: Option<i64>,
     tgop: bool,
     tg_name: bool,
+    /// vertex output store (st_var / st_var_final)
+    st_var: bool,
     /// device atomic (load kind when it returns, store kind otherwise)
     atomic: bool,
     /// 0 = not a barrier, 1 = whole workgroup (0x68), 2 = aligned 4 SIMD groups (0x78)
@@ -1932,6 +1940,7 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
                 _ => 0,
             },
             tg_name: is_tg,
+            st_var: r.name.starts_with("st_var"),
             fence: r.fence,
             dev_ctx: if r.name.starts_with("device_load") { 2 } else if r.name.starts_with("device_store") { 1 } else { 0 },
             mem_issue0,
@@ -2200,6 +2209,7 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
     let mut wbc: Vec<Vec<u32>> = vec![Vec::with_capacity(nc + 1); groups];
     let mut wb_debt = vec![0.0f64; groups];
     let mut lcg: u64 = 0x2545F4914F6CDD1D;
+    let mut st_var_free: i64 = 0; // the core's vertex-output path (ST_VAR_CORE_CYCLES per st_var)
     let mut last_alu = vec![NEG_INF; g];
     let mut alu_done = vec![NEG_INF; g];
     // SIMD-group reductions / shuffles in flight on the core (their completion times) and the latency each adds to
@@ -3242,6 +3252,13 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
                         delay = delay.max(last_idle_wait[gi] + store_after_wait - t);
                     }
                     let mut iiv = delay + r.mem_issue0;
+                    // vertex output store: a throughput-limited path (see ST_VAR_HOLD_CYCLES), not a device store
+                    if r.st_var {
+                        // one shared path per core: each st_var occupies it for ST_VAR_CORE_CYCLES whichever group issues it
+                        let start = (t + delay).max(st_var_free);
+                        st_var_free = start + tk(ST_VAR_CORE_CYCLES);
+                        iiv = start - t + tk(ST_VAR_CORE_CYCLES);
+                    }
                     let st_done = (t + iiv + r.mem_done.1).max(t + r.mem_issue0 + r.mem_done.0) + pipe_extra;
                     let cls: u8 = if r.tg_name { 1 } else { 3 };
                     if (cls == 1 && last_space[gi] == 3) || (cls == 3 && last_space[gi] == 1) {
