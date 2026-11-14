@@ -50,6 +50,8 @@ pub enum Ex {
     SimdShuffleUp,
     SimdShuffleRotateUp,
     SimdShuffleXor,
+    /// quad_shuffle family: 0 index, 1 down, 2 up, 3 rotate_up, 4 xor
+    QuadShuffle { kind: u8 },
     Wait,
     DeviceLoad,
 }
@@ -398,7 +400,17 @@ pub fn build() -> Vec<Desc> {
     for (op1, op2, op3, name) in [(Some(0), 0b00, 0b00, "quad_shuffle"), (Some(0), 0b11, 0b00, "quad_shuffle_down"),
                                   (Some(0), 0b10, 0b00, "quad_shuffle_up"), (Some(1), 0b10, 0b00, "quad_shuffle_rotate_up"),
                                   (Some(0), 0b01, 0b00, "quad_shuffle_xor"), (None, 0, 0, "simd_shuf_op")] {
-        let mut d = Desc::new(name, s1(6), 15, E::None, Mn::Plain);
+        // the quad shuffles' execution as the functional model's
+        // (fsem::quad_shuffle): an index per lane within the quad
+        let ex = match name {
+            "quad_shuffle" => E::QuadShuffle { kind: 0 },
+            "quad_shuffle_down" => E::QuadShuffle { kind: 1 },
+            "quad_shuffle_up" => E::QuadShuffle { kind: 2 },
+            "quad_shuffle_rotate_up" => E::QuadShuffle { kind: 3 },
+            "quad_shuffle_xor" => E::QuadShuffle { kind: 4 },
+            _ => E::None,
+        };
+        let mut d = Desc::new(name, s1(6), 15, ex, Mn::Plain);
         d.c(0, 7, 0b01101111).c(15, 1, 0);
         match op1 {
             None => {
