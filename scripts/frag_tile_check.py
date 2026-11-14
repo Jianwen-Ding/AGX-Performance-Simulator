@@ -71,4 +71,30 @@ for l in open(tmp / 't6'):
     if w[0] == 'tile': got.setdefault((int(w[1]), int(w[2])), []).append(int(w[3]))
 print('st_tile all-samples, coverage 0b0101 / 0b1000 / 0 / all:', {k: v for k, v in got.items() if k in ((24, 28), (25, 28), (24, 29), (26, 28))})
 ok &= got.get((24, 28)) == [0, 2] and got.get((25, 28)) == [3] and (24, 29) not in got and got.get((26, 28)) == [0, 1, 2, 3]
+# 7. flat varyings: Mesa's `ldcf` x4 + `icmpsel` provoking-vertex select (u9l = 0 -> the last vertex) vs a flat-shaded render; each
+#    coefficient register holds the three vertex values of one output channel. All lanes must equal the hardware's constant colour.
+agx(d / 'flat_ldcf_select.bin', '--grid', 32, '--wg', 32, '--frag', d / 'frag_flat.txt', '--alloc', '0x1000000=1024', '--uniform', '0=0x1000000',
+    '--uniform', '1=0', '--uniform', '9=0', '--dump', f'0x1000000=512:{tmp / "fl"}')
+fl = struct.unpack('<128f', (tmp / 'fl').read_bytes())
+hwf = struct.unpack('<16384f', (d / 'hw_flat_64x64_rgba32f.bin').read_bytes())
+want = hwf[(30 * 64 + 30) * 4:(30 * 64 + 30) * 4 + 4]
+same = all(fl[4 * l:4 * l + 4] == want for l in range(32))
+print('flat ldcf: simulated', fl[:4], 'hardware', want, 'all 32 lanes equal:', same); ok &= same
+# 8. zs_emit depth test: two full layers of the same triangle, layer A writes depth 0.1 * va.x + 0.5 (red), layer B depth 0.5 (green), under
+#    depth functions less (buffer cleared to 1) and greater (cleared to 0): the winning colour of every triangle pixel must match the render.
+for func, clear, hwf in (('less', 1.0, 'hw_two_layer_depth_64x64_rgba32f.bin'), ('greater', 0.0, 'hw_two_layer_depth_greater_64x64_rgba32f.bin')):
+    hwz = struct.unpack('<16384f', (d / hwf).read_bytes())
+    n = bad = 0
+    for part in range(4):
+        (tmp / 'setup').write_text(base + f'samples 1\ndepthfunc {func}\ndepthclear {clear}\n' + ''.join(f'group {g} {8 * (g % 8)} {16 * part + 4 * (g // 8)}\n' for g in range(32)))
+        agx(d / 'two_layer_depth_test.bin', '--grid', 1024, '--wg', 1024, '--frag', tmp / 'setup', '--tile-dump', tmp / 't8')
+        w = {}
+        for l in open(tmp / 't8'):
+            q = l.split()
+            if q[0] == 'tile': w[(int(q[1]), int(q[2]))] = struct.unpack('<4f', bytes.fromhex(q[4]))
+        for y in range(16 * part, 16 * part + 16):
+            for x in range(64):
+                if std[(y * 64 + x) * 4] == -777.0: continue
+                n += 1; bad += w.get((x, y)) != hwz[(y * 64 + x) * 4:(y * 64 + x) * 4 + 4]
+    print(f'zs_emit depth test ({func}): {n} triangle pixels, {bad} disagree with hardware'); ok &= bad == 0 and n > 1000
 sys.exit(0 if ok else 1)

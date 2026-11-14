@@ -25,11 +25,13 @@ const SFU_GROUP_BLOCK: f64 = 2.0;
 const SFU_WB_GAP: f64 = 2.0;
 const NEG_INF: i64 = -1_000_000_000;
 
-/// Fragment-stage instruction classes (2026-11-14). `iter` / `iterproj` / `ldcf` run in the ALU pipe: a 4-channel `iterproj` costed as an
-/// fmadd32 reproduces the hardware slope of a 1..24 varying sweep (2048x2048, 256-iteration ALU loop, results/2026-11-14-frag-cost): smooth
-/// +59 us simulated vs +52 us measured; flat (`ldcf`) +90 vs +131 us (under by 31%, unexplained: every ALU class gives the same
-/// slope, so the missing time is not instruction issue). `ld_tile` / `st_tile` are not device-memory accesses: blending 8 layers of a
-/// trivial shader costs 5 ps per pixel and layer on hardware, so they issue like an fadd32.
+/// Fragment-stage instruction classes (2026-11-14). `iter` / `iterproj` / `ldcf` run in the ALU pipe (they were generic device loads with an
+/// unmeasured memory latency): a 4-channel `iterproj` costed as an fmadd32. On the 1..24 varying sweep (2048x2048, 256-iteration ALU
+/// loop, results/2026-11-14-frag-cost) the increment is +52 us smooth / +131 us flat measured; simulated (with `frag::FRAGMENT_ISSUE_FACTOR`) +74 / +112 us.
+/// Every ALU class gives the same slope, so the flat/smooth difference is not instruction issue. `ld_tile` / `st_tile` are not device-memory accesses:
+/// blending 8 layers of a trivial shader costs 5 ps per pixel and layer on hardware, so they issue like an fadd32. `sample_mask` (the discard
+/// sequence: two fcmpsel, or, wait_pix, sample_mask) and `zs_emit` (depth write) also measure as nearly free: a never-taken discard adds <1% and a
+/// gl_FragDepth write ~4% to a 256-iteration shader; they issue like an fadd32 (before: no cost class, `agx_cost` refused the program).
 const FRAG_ITER_CLASS: &str = "fmadd32";
 const FRAG_TILE_CLASS: &str = "fadd32";
 const FRAG_LDCF_CLASS: &str = "fmadd32";
@@ -42,7 +44,7 @@ const ALU: &[(&str, &str)] = &[
     // bench row (playground sync-and-end-opcodes), so it is costed as mov_imm and flagged unmeasured
     ("nop6", "mov_imm"), ("fixed18", "mov_imm"), ("fadd32", "fadd32"), ("fmul32", "fmul32"), ("fmadd32", "fmadd32"),
     // fragment varying interpolation: ALU-pipe instructions (calibrated on hardware sweeps, see FRAG_ALU)
-    ("iter", FRAG_ITER_CLASS), ("iterproj", FRAG_ITER_CLASS), ("TODO.ldcf", FRAG_LDCF_CLASS), ("TODO.ld/st_tile", FRAG_TILE_CLASS),
+    ("iter", FRAG_ITER_CLASS), ("iterproj", FRAG_ITER_CLASS), ("TODO.ldcf", FRAG_LDCF_CLASS), ("TODO.ld/st_tile", FRAG_TILE_CLASS), ("sample_mask", FRAG_TILE_CLASS), ("zs_emit", FRAG_TILE_CLASS),
     ("fadd16", "fadd16"), ("fmul16", "fmul16"), ("fmadd16", "fmadd16"), ("convert", "convert_f2i"), ("floor", "floor"),
     ("ceil", "floor"), ("trunc", "floor"), ("rint", "rint"), ("rcp", "rcp"), ("rsqrt", "rsqrt"),
     ("rsqrt_special", "rsqrt_special"), ("log2", "log2"), ("exp2", "exp2"), ("sin_pt_1", "sin_pt_1"),
@@ -58,7 +60,7 @@ const ALU: &[(&str, &str)] = &[
     ("simd_matrix_fmadd32", "simd_matrix_fmadd32"), ("simd_matrix_fmadd16", "simd_matrix_fmadd16"),
 ];
 const UNMEASURED_ALU: &[&str] = &[
-    "iter", "iterproj", "TODO.ldcf", "TODO.ld/st_tile",
+    "iter", "iterproj", "TODO.ldcf", "TODO.ld/st_tile", "sample_mask", "zs_emit",
     "fixed18",
     "iunop", "ceil", "trunc", "funop", "dfdx", "dfdy", "simd_shuffle_rotate_up", "simd_shuf_op",
     "quad_shuffle_down", "quad_shuffle_up", "quad_shuffle_xor", "quad_shuffle_rotate_up", "TODO.sr_thing",

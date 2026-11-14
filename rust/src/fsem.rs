@@ -1139,35 +1139,54 @@ pub fn frag_sample_mask(ops: &[Operand], st: &mut CoreState, group: u32) -> R<()
     Ok(())
 }
 
-/// `zs_emit`: operands [S sample mask, depth / stencil registers, ...]; records the emitted depth (f32) and / or stencil (u16) of the
-/// live samples in S and counts them as tested (the test result is not modelled).
+/// `zs_emit`: operands [S sample mask (immediate when St = 1, else a 16-bit register), ZS tuple of 16-bit registers (depth = two halves,
+/// then stencil = one half), u0]. For the live samples in S it runs the depth test against the depth buffer (`TileState::zs`, initial
+/// `depthclear`, compare `depthfunc`): a sample that passes takes the new depth (and stencil) and counts as tested, one that fails is
+/// killed (no later `st_tile` writes it). Stencil tests are not modelled (a stencil value is stored). Not yet compared to hardware beyond
+/// the two-layer depth-tested render in `scripts/frag_tile_check.py`.
 pub fn frag_zs_emit(f: &Fields, ops: &[Operand], st: &mut CoreState, group: u32) -> R<()> {
     let fs = crate::frag::get().ok_or("zs_emit: no fragment setup (agx_run --frag FILE)")?;
     let all = crate::frag::all_samples();
     let (wz, ws) = (fget(f, "z").unwrap_or(0) != 0, fget(f, "s").unwrap_or(0) != 0);
+    let Operand::Tuple(vals, _) = &ops[1] else { return Err("zs_emit: register tuple expected".into()) };
     for t in 0..SIMD_WIDTH {
         if !st.exec[t] {
             continue;
         }
-        let target = raw(st, &ops[0], t)?.0 as u32 & 0xffff;
+        let target = match &ops[0] { o @ (Operand::Reg16(..) | Operand::Imm(..)) => raw(st, o, t)?.0 as u32, _ => 0xff } & 0xffff;
         let target = if target & 0xff == 0xff { all } else { target & all };
+        let mut i = 0;
         let mut z = None;
         let mut s = None;
-        let vals: Vec<&Operand> = match &ops[1] { Operand::Tuple(v, _) => v.iter().collect(), o => vec![o] };
-        let mut i = 0;
-        if wz { z = Some(raw(st, vals[i], t)?.0 as u32); i += 1; }
-        if ws { s = Some(raw(st, vals[i], t)?.0 as u16); }
+        if wz {
+            z = Some(f32::from_bits((raw(st, &vals[i], t)?.0 as u32 & 0xffff) | (raw(st, &vals[i + 1], t)?.0 as u32 & 0xffff) << 16));
+            i += 2;
+        }
+        if ws {
+            s = Some(raw(st, &vals[i], t)?.0 as u16);
+        }
         let (x, y) = fs.pixel(group, t);
         crate::frag::with_tile(|ts| {
             let live = *ts.live.entry((x, y)).or_insert(crate::frag::coverage(x, y));
-            *ts.tested.entry((x, y)).or_insert(0) |= target & live;
+            let mut now = live;
             for sm in 0..8u32 {
-                if target >> sm & 1 == 1 && live >> sm & 1 == 1 {
-                    let e = ts.zs.entry((x, y, sm)).or_default();
-                    if z.is_some() { e.0 = z; }
+                if target >> sm & 1 == 0 || live >> sm & 1 == 0 {
+                    continue;
+                }
+                let e = ts.zs.entry((x, y, sm)).or_insert((Some(crate::frag::depth_clear().to_bits()), None));
+                let pass = match z {
+                    Some(nz) => crate::frag::depth_passes(nz, f32::from_bits(e.0.unwrap_or(crate::frag::depth_clear().to_bits()))),
+                    None => true,
+                };
+                if pass {
+                    *ts.tested.entry((x, y)).or_insert(0) |= 1 << sm;
+                    if let Some(nz) = z { e.0 = Some(nz.to_bits()); }
                     if s.is_some() { e.1 = s; }
+                } else {
+                    now &= !(1 << sm);
                 }
             }
+            ts.live.insert((x, y), now);
         });
     }
     Ok(())

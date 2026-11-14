@@ -8,6 +8,8 @@
 //!   group G X0 Y0                SIMD group G covers the block whose top-left pixel is (X0, Y0) (overrides the default)
 //!   samplepos S DX DY            offset inside the pixel of sample S (default 0.5 0.5)
 //!   coverage X Y MASK            samples of pixel (X, Y) the triangle covers (default: all); sr60 / sr124, initial live mask
+//!   depthfunc F                  zs_emit depth compare: never less equal lequal greater notequal gequal always (default less)
+//!   depthclear Z                 depth the buffer holds before any zs_emit (default 1.0)
 //!   samples N                    samples per pixel (default 1)
 //!   lane L X Y                   explicit pixel of lane L of every group (overrides the quad layout; integer pixel coords)
 //!
@@ -15,6 +17,13 @@
 //! of 2x2, four quads across), the f32 evaluation order (fma(A, x, fma(B, y, C))), centroid = center for covered pixels.
 use std::collections::{BTreeMap, HashMap};
 use std::sync::{Mutex, OnceLock};
+
+/// Empirical factor on the simulated core cycles of a dispatch that runs a fragment program (`agx_dispatch --frag`). Measured on hardware
+/// (results/2026-11-14-frag-cost): a 1-varying smooth fragment shader with a dependent ALU loop of 16..512 iterations over 2048x2048
+/// pixels costs 4.14 us per iteration, the compute issue model 3.30 us (x1.25); the 1 / 24 varying and smooth / flat shaders come out
+/// x1.25..x1.38. With the factor the four sweep shaders are within 3-10% (without: 24-28% low). Cause unknown (the same loop as a
+/// compute kernel was not measurable cleanly: the store dominates). Fitted on one shader family (a second one, two dependent fmadds per iteration, is still 28% low: results/2026-11-14-frag-cost): treat fragment ALU-loop predictions as -30% .. +5%.
+pub const FRAGMENT_ISSUE_FACTOR: f64 = 1.25;
 
 #[derive(Debug, Default, Clone)]
 pub struct FragSetup {
@@ -28,6 +37,9 @@ pub struct FragSetup {
     pub samples: u32,
     /// covered samples per pixel (default: all); what sr60 / sr124 read and the initial live mask of a pixel
     pub coverage: Vec<(u32, u32, u32)>,
+    /// depth compare for zs_emit: pass when `new <func> stored` (default less) and the value the depth buffer holds before any write
+    pub depth_func: String,
+    pub depth_clear: Option<f32>,
 }
 
 static SETUP: OnceLock<FragSetup> = OnceLock::new();
@@ -83,6 +95,8 @@ impl FragSetup {
                     let m = if let Some(h) = t.strip_prefix("0x") { u32::from_str_radix(h, 16) } else { t.parse() }.map_err(|e| format!("line {}: {}", n + 1, e))?;
                     s.coverage.push((u(1)?, u(2)?, m));
                 }
+                "depthfunc" => s.depth_func = w.get(1).ok_or(format!("line {}: missing function", n + 1))?.to_string(),
+                "depthclear" => s.depth_clear = Some(fl(1)?),
                 "samples" => s.samples = u(1)?,
                 "lane" => s.lanes.push((u(1)?, u(2)?, u(3)?)),
                 other => return Err(format!("line {}: unknown item {}", n + 1, other)),
@@ -205,6 +219,22 @@ pub fn samples() -> u32 {
 /// samples of pixel (x, y) covered at the start of the fragment program
 pub fn coverage(x: u32, y: u32) -> u32 {
     get().and_then(|s| s.coverage.iter().find(|c| c.0 == x && c.1 == y).map(|c| c.2)).unwrap_or_else(all_samples) & all_samples()
+}
+/// whether a depth value passes against the stored one
+pub fn depth_passes(new: f32, stored: f32) -> bool {
+    match get().map(|s| s.depth_func.as_str()).filter(|f| !f.is_empty()).unwrap_or("less") {
+        "never" => false,
+        "equal" => new == stored,
+        "lequal" => new <= stored,
+        "greater" => new > stored,
+        "notequal" => new != stored,
+        "gequal" => new >= stored,
+        "always" => true,
+        _ => new < stored,
+    }
+}
+pub fn depth_clear() -> f32 {
+    get().and_then(|s| s.depth_clear).unwrap_or(1.0)
 }
 pub fn all_samples() -> u32 {
     (1u32 << samples().min(8)) - 1

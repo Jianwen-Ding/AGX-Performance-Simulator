@@ -21,8 +21,8 @@ unit conventions of the rasterizer setup (the simulator takes them as input, as 
 
 Cost model (2026-11-14): `iter`, `iterproj`, `ldcf` now issue in the ALU pipe (class fmadd32) and `ld_tile` / `st_tile` like an fadd32 (were generic device
 loads / stores with an unmeasured memory latency). Calibrated on a varying-count sweep (results/2026-11-14-frag-cost, `scripts/frag_cost_check.py`): smooth
-slope +59 us simulated vs +52 us measured, flat (`ldcf`) +90 vs +131 us (31% under, unexplained, every ALU class gives the same slope), absolute level 24% low
-(fragment launch / tile setup unmodelled). `agx_dispatch` / `agx_cost` accept `--frag FILE` so fragment binaries can be costed. Still unmeasured and in
+varying-count increments smooth +74 us simulated vs +52 us measured, flat (`ldcf`) +112 vs +131 us; absolute level: fragment programs get an empirical x1.25 on core cycles
+(`frag::FRAGMENT_ISSUE_FACTOR`, hardware runs the dependent ALU loop at 4.14 us per iteration vs 3.30 us modelled), leaving the eight sweep cases 4-19% low. `agx_dispatch` / `agx_cost` accept `--frag FILE` so fragment binaries can be costed. Still unmeasured and in
 generic classes: `st_var*`, `sample_mask`, `zs_emit`, `image_write_block` (stores / barriers), `wait_pix` / `signal_pix` (barriers). Next: a fragment-launch model
 (per-tile setup, quad overshading) to close the 24% level gap, then per-op probes for the coverage / depth ops.
 
@@ -30,3 +30,12 @@ generic classes: `st_var*`, `sample_mask`, `zs_emit`, `image_write_block` (store
 
 Method that worked: capture the shader Mesa compiles for a probe (`agx_capture.py`), run the same bytes in the simulator with a setup
 derived from the probe, compare the readback.
+
+## Status 2026-11-14 (end of session)
+Hardware-checked (scripts/frag_tile_check.py, frag_iter_check.py): iterproj, st_tile (u8norm, rgb10a2, srgba8), st_tile -> ld_tile, sample_mask / discard (1446 / 1446 pixels),
+zs_emit depth test (less and greater, 1446 / 1446 pixels each), flat ldcf with the provoking-vertex select. Executed but not compared with hardware: rg11b10f, rgb9e5
+(+ .rtz), explicit tile coordinates, per-sample coverage, stencil (stored, not tested), st_var / st_var_final, image_write_block (unit test only), wait_pix / signal_pix (no-ops).
+Costs: iter / iterproj / ldcf / ld_tile / st_tile / sample_mask / zs_emit in the ALU pipe; st_var*, image_write_block, wait_pix / signal_pix still generic unmeasured classes.
+Fragment launch: empirical x1.25 (`frag::FRAGMENT_ISSUE_FACTOR`), not general (one shader family -6%, another -28%). Tools: `frag_encode` (re-encode an instruction with
+other fields), `agx_run --tile-dump`, `--frag` on agx_run / agx_dispatch / agx_cost. Next: find why the dependent-fmadd fragment loop is 32% slower than the same loop in the
+compute issue model (compare with an equivalent compute kernel timed on hardware without a bandwidth-bound store), then replace the factor.

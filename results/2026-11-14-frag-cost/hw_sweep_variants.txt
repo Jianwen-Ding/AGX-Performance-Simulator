@@ -1,0 +1,9 @@
+variant=base alu=16 0.0937
+variant=base alu=64 0.4262
+variant=base alu=256 1.491
+variant=DISCARD alu=16 0.0714
+variant=DISCARD alu=64 0.4232
+variant=DISCARD alu=256 1.4931
+variant=DEPTH alu=16 0.078
+variant=DEPTH alu=64 0.4422
+variant=DEPTH alu=256 1.5499

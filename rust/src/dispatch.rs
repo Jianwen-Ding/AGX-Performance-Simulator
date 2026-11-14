@@ -1177,6 +1177,15 @@ fn simulate_core_list(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Trace
             total = c0 * waves as f64;
         }
     }
+    // a fragment program (agx_dispatch --frag): hardware runs the dependent ALU loops of the probe family 1.25x slower than the compute
+    // issue model predicts (see `frag::FRAGMENT_ISSUE_FACTOR`)
+    if crate::frag::get().is_some() {
+        total *= crate::frag::FRAGMENT_ISSUE_FACTOR;
+        let note = format!("fragment issue factor {} applied (empirical, ALU-loop fragment shaders)", crate::frag::FRAGMENT_ISSUE_FACTOR);
+        if !rep.warnings.contains(&note) {
+            rep.warnings.push(note);
+        }
+    }
     rep.core_cycles = total;
     rep.launch_core_ns = (m as f64 * l.wg_launch_ns).max((m as u128 * gpw as u128) as f64 * l.group_launch_ns);
     rep.code_lines = first_wave_lines.into_inner().unwrap().len() as u64;
