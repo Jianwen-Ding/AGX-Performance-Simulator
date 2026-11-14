@@ -117,11 +117,15 @@ fn run_job(a: &[String], p: &Params) -> Result<serde_json::Value, String> {
         let option = a[i].as_str();
         if option == "--no-mem" { l.mem = false; i += 1; continue; }
         if option == "--all-workgroups" { all_workgroups = true; i += 1; continue; }
-        if !["--grid", "--wg", "--regs", "--tg-bytes", "--clock", "--cores", "--busiest-core-wgs", "--m2-core-map", "--sampler-heap", "--launch-us", "--max-waves", "--uniform", "--preamble", "--map", "--alloc", "--agx-strict", "--launch-profile", "--group-launch-ns", "--stack", "--store-gbps"].contains(&option) {
+        if !["--grid", "--wg", "--regs", "--tg-bytes", "--clock", "--cores", "--busiest-core-wgs", "--m2-core-map", "--sampler-heap", "--launch-us", "--max-waves", "--uniform", "--preamble", "--map", "--alloc", "--agx-strict", "--launch-profile", "--group-launch-ns", "--stack", "--store-gbps", "--frag"].contains(&option) {
             return Err(format!("unknown argument {}", option));
         }
         let v = a.get(i + 1).ok_or_else(|| format!("{} requires a value", option))?;
         match option {
+            "--frag" => {
+                let t = std::fs::read_to_string(v).map_err(|e| format!("{}: {}", v, e))?;
+                agx_sim::frag::install(agx_sim::frag::FragSetup::parse(&t).map_err(|e| format!("{}: {}", v, e))?).ok(); // first setup wins (batch)
+            }
             "--grid" => l.grid = dims(v).map_err(|e| format!("--grid: {}", e))?,
             "--wg" => l.wg = dims(v).map_err(|e| format!("--wg: {}", e))?,
             "--regs" => l.regs = number(v, option)?,

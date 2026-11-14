@@ -19,8 +19,12 @@ in the playground's isa-coverage that are fragment-only. The disassembler alread
 Unverified assumptions (see the header of rust/src/frag.rs): lane -> pixel layout, the f32 evaluation order, the coefficients' sign and
 unit conventions of the rasterizer setup (the simulator takes them as input, as it takes uniforms).
 
-Cost model: `iter`, `iterproj`, `ldcf`, `ld/st_tile`, `image_write_block`, `st_var*` sit in the generic load/store classes of cost.rs with
-no measurement. Next: time fragment shaders with N varyings / N tile accesses through gles_raster-style probes and add measured classes.
+Cost model (2026-11-14): `iter`, `iterproj`, `ldcf` now issue in the ALU pipe (class fmadd32) and `ld_tile` / `st_tile` like an fadd32 (were generic device
+loads / stores with an unmeasured memory latency). Calibrated on a varying-count sweep (results/2026-11-14-frag-cost, `scripts/frag_cost_check.py`): smooth
+slope +59 us simulated vs +52 us measured, flat (`ldcf`) +90 vs +131 us (31% under, unexplained, every ALU class gives the same slope), absolute level 24% low
+(fragment launch / tile setup unmodelled). `agx_dispatch` / `agx_cost` accept `--frag FILE` so fragment binaries can be costed. Still unmeasured and in
+generic classes: `st_var*`, `sample_mask`, `zs_emit`, `image_write_block` (stores / barriers), `wait_pix` / `signal_pix` (barriers). Next: a fragment-launch model
+(per-tile setup, quad overshading) to close the 24% level gap, then per-op probes for the coverage / depth ops.
 
 `agx_run --tile-dump FILE` writes the final tile memory, live / tested masks, depth / stencil and vertex outputs as text. Checks: `scripts/frag_iter_check.py`, `scripts/frag_tile_check.py` (data in results/2026-11-14-frag-iter).
 

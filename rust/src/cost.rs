@@ -25,6 +25,14 @@ const SFU_GROUP_BLOCK: f64 = 2.0;
 const SFU_WB_GAP: f64 = 2.0;
 const NEG_INF: i64 = -1_000_000_000;
 
+/// Fragment-stage instruction classes (2026-11-14). `iter` / `iterproj` / `ldcf` run in the ALU pipe: a 4-channel `iterproj` costed as an
+/// fmadd32 reproduces the hardware slope of a 1..24 varying sweep (2048x2048, 256-iteration ALU loop, results/2026-11-14-frag-cost): smooth
+/// +59 us simulated vs +52 us measured; flat (`ldcf`) +90 vs +131 us (under by 31%, unexplained: every ALU class gives the same
+/// slope, so the missing time is not instruction issue). `ld_tile` / `st_tile` are not device-memory accesses: blending 8 layers of a
+/// trivial shader costs 5 ps per pixel and layer on hardware, so they issue like an fadd32.
+const FRAG_ITER_CLASS: &str = "fmadd32";
+const FRAG_TILE_CLASS: &str = "fadd32";
+const FRAG_LDCF_CLASS: &str = "fmadd32";
 const ALU: &[(&str, &str)] = &[
     ("iadd", "iadd"), ("imadd", "imadd"), ("bitop", "and"), ("bfi", "bfi"), ("bfeil", "bfeil"), ("extr", "extr"),
     ("shlhi", "shlhi"), ("shrhi", "shrhi"), ("asr", "asr"), ("asrh", "asrh"), ("bitrev", "bitrev"),
@@ -33,6 +41,8 @@ const ALU: &[(&str, &str)] = &[
     // undecoded 6-byte no-ops issue exactly like a 6-byte mov_imm; 0x18 costs ~4.3 ns (~6 cycles) per use with no
     // bench row (playground sync-and-end-opcodes), so it is costed as mov_imm and flagged unmeasured
     ("nop6", "mov_imm"), ("fixed18", "mov_imm"), ("fadd32", "fadd32"), ("fmul32", "fmul32"), ("fmadd32", "fmadd32"),
+    // fragment varying interpolation: ALU-pipe instructions (calibrated on hardware sweeps, see FRAG_ALU)
+    ("iter", FRAG_ITER_CLASS), ("iterproj", FRAG_ITER_CLASS), ("TODO.ldcf", FRAG_LDCF_CLASS), ("TODO.ld/st_tile", FRAG_TILE_CLASS),
     ("fadd16", "fadd16"), ("fmul16", "fmul16"), ("fmadd16", "fmadd16"), ("convert", "convert_f2i"), ("floor", "floor"),
     ("ceil", "floor"), ("trunc", "floor"), ("rint", "rint"), ("rcp", "rcp"), ("rsqrt", "rsqrt"),
     ("rsqrt_special", "rsqrt_special"), ("log2", "log2"), ("exp2", "exp2"), ("sin_pt_1", "sin_pt_1"),
@@ -48,13 +58,13 @@ const ALU: &[(&str, &str)] = &[
     ("simd_matrix_fmadd32", "simd_matrix_fmadd32"), ("simd_matrix_fmadd16", "simd_matrix_fmadd16"),
 ];
 const UNMEASURED_ALU: &[&str] = &[
+    "iter", "iterproj", "TODO.ldcf", "TODO.ld/st_tile",
     "fixed18",
     "iunop", "ceil", "trunc", "funop", "dfdx", "dfdy", "simd_shuffle_rotate_up", "simd_shuf_op",
     "quad_shuffle_down", "quad_shuffle_up", "quad_shuffle_xor", "quad_shuffle_rotate_up", "TODO.sr_thing",
 ];
 const LOADS: &[&str] = &[
     "device_load", "device_load.TODO", "threadgroup_load", "stack_load", "async_load", "texture_sample", "texture_load",
-    "iter", "iterproj", "TODO.ldcf", "TODO.ld/st_tile",
 ];
 const STORES: &[&str] = &[
     "device_store", "device_store.TODO", "threadgroup_store", "stack_store", "uniform_store", "image_write",
