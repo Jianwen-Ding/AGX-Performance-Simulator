@@ -208,6 +208,7 @@ enum OpKind {
     TexLoad { args: Box<TexOp> },
     TexSample { args: Box<TexOp> },
     ImageWrite { args: Box<TexOp> },
+    FragIter,
     Generic,
 }
 
@@ -355,6 +356,7 @@ fn op_kind(name: &'static str, f: &Fields, ops: &[Operand]) -> OpKind {
         "texture_load" => TexLoad { args: Box::new(tex_op(ops, fget(f, "St") == Some(1))) },
         "texture_sample" => TexSample { args: Box::new(tex_op(ops, fget(f, "St") == Some(1))) },
         "image_write" => ImageWrite { args: Box::new(tex_op(ops, false)) },
+        "iter" | "iterproj" | "TODO.ldcf" => FragIter,
         n if n.starts_with("quad_shuffle") => QuadShuffle,
         n if (n.starts_with("simd_") || n.starts_with("quad_")) && !n.starts_with("simd_shuffle") && !n.starts_with("simd_matrix") => CrossLane,
         _ => Generic,
@@ -732,7 +734,8 @@ fn decode_at(code: &[u8], pc: usize, nregs: usize) -> Result<Info, String> {
     let fields = desc.decode_fields(n);
     let ops = if desc.name == "stop" || desc.name == "trap" { vec![] } else { desc.fields_to_operands(&fields)? };
     let op = Compiled::new(desc, &fields, &ops, nregs);
-    let vals = vals(&ops);
+    // the fragment ops need their register tuples and coefficient operands, which `vals` filters out
+    let vals = if matches!(desc.name, "iter" | "iterproj" | "TODO.ldcf") { ops.clone() } else { vals(&ops) };
     let kind = op_kind(desc.name, &fields, &ops);
     let access = crate::memtrace::Access::decode(desc.name, &fields, true);
     Ok(Info { desc: Some(desc), size, fields, op: Some(op), vals, kind, access })
@@ -1004,6 +1007,7 @@ fn step_group_impl<C: InstructionCells>(g: &mut Group, code: &[u8], cache: &C, m
             OpKind::Intl => fsem::intl(v, &mut g.st)?,
             OpKind::Transcendental => fsem::transcendental(desc.name, f, v, &mut g.st)?,
             OpKind::Convert => fsem::convert(f, v, &mut g.st)?,
+            OpKind::FragIter => fsem::frag_iter(desc.name, f, v, &mut g.st, g.ctx.group)?,
             OpKind::QuadShuffle => fsem::quad_shuffle(desc.name, v, &mut g.st)?,
             OpKind::CrossLane => fsem::cross_lane(desc.name, v, &mut g.st)?,
             OpKind::Generic => {

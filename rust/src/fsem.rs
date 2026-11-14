@@ -939,3 +939,67 @@ pub fn transcendental(name: &str, f: &Fields, ops: &[Operand], st: &mut CoreStat
     }
     Ok(())
 }
+
+/// `iter` / `iterproj` / `ldcf`: fragment varying interpolation and coefficient loads, evaluated from the setup of
+/// `crate::frag` (coefficient planes and lane pixel positions). A 32-bit destination register tuple receives fp32 channels,
+/// a 16-bit one fp16 (rounded to nearest even). `iter`: channel k = plane(I + k) at the lane's position. `iterproj`: the same
+/// numerator divided by plane(J) (the 1/w plane). Centroid reads at the pixel center (all covered pixels); sample positions
+/// come from the setup. `ldcf`: the (A, B, C) triple of each channel's coefficient register.
+pub fn frag_iter(name: &str, f: &Fields, ops: &[Operand], st: &mut CoreState, group: u32) -> R<()> {
+    let fs = crate::frag::get().ok_or_else(|| format!("{}: no fragment setup (agx_run --frag FILE)", name))?;
+    let Operand::Tuple(dest, _) = &ops[0] else { return Err(format!("{}: destination is not a register tuple", name)) };
+    let cf_index = |o: &Operand, st: &CoreState, t: usize| -> R<usize> {
+        match o {
+            Operand::CF(i) => Ok(*i as usize),
+            other => Ok(raw(st, other, t)?.0 as usize),
+        }
+    };
+    let put_val = |st: &mut CoreState, d: &Operand, t: usize, y: f32| -> R<()> {
+        match d {
+            Operand::Reg16(..) => put(st, d, t, to_f16(y as f64) as u64),
+            _ => put(st, d, t, y.to_bits() as u64),
+        }
+    };
+    if name == "TODO.ldcf" {
+        let channels = dest.len() / 3;
+        for t in 0..SIMD_WIDTH {
+            if !st.exec[t] {
+                continue;
+            }
+            let i = cf_index(&ops[1], st, t)?;
+            for k in 0..channels {
+                let c = fs.cf.get(i + k).ok_or_else(|| format!("ldcf: coefficient register {} not set up", i + k))?;
+                for (j, v) in c.iter().enumerate() {
+                    put_val(st, &dest[3 * k + j], t, *v)?;
+                }
+            }
+        }
+        return Ok(());
+    }
+    let proj = name == "iterproj";
+    let interp = fget(f, "interpolation").unwrap_or(0);
+    for t in 0..SIMD_WIDTH {
+        if !st.exec[t] {
+            continue;
+        }
+        let (px, py) = fs.pixel(group, t);
+        let (dx, dy) = if interp & 1 != 0 {
+            let s = match ops.last() {
+                Some(o @ (Operand::Reg16(..) | Operand::Imm(..))) => raw(st, o, t)?.0 as usize,
+                _ => 0,
+            };
+            let p = fs.sample(s);
+            (p[0], p[1])
+        } else {
+            (0.5, 0.5)
+        };
+        let (x, y) = (px as f32 + dx, py as f32 + dy);
+        let i = cf_index(&ops[1], st, t)?;
+        let w = if proj { Some(fs.plane(cf_index(&ops[2], st, t)?, x, y)?) } else { None };
+        for (k, d) in dest.iter().enumerate() {
+            let n = fs.plane(i + k, x, y)?;
+            put_val(st, d, t, w.map_or(n, |w| n / w))?;
+        }
+    }
+    Ok(())
+}

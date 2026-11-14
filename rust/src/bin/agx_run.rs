@@ -97,6 +97,11 @@ fn main() {
                 let (va, n) = kv();
                 mem.map(num(va), vec![0u8; num(n) as usize]);
             }
+            "--frag" => {
+                let t = std::fs::read_to_string(&v).unwrap_or_else(|e| die(&format!("{}: {}", v, e)));
+                let setup = agx_sim::frag::FragSetup::parse(&t).unwrap_or_else(|e| die(&format!("{}: {}", v, e)));
+                agx_sim::frag::install(setup).unwrap_or_else(|e| die(&e));
+            }
             "--dump" => {
                 let (va, rest) = kv();
                 let (n, f) = rest.split_once(':').unwrap_or_else(|| die("--dump expects VA=BYTES:FILE"));
