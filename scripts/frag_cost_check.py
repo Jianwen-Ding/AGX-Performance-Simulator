@@ -11,7 +11,7 @@ def sim(n, flat):
     return json.loads(r.stdout)['time_us']
 hw = {}
 for l in open(d / 'hw_sweep_vary.txt'):
-    w = l.split(); hw[(int(w[1]), int(w[0].split('=')[1]))] = float(w[3]) * 1000
+    w = l.split(); hw[(int(w[2]), int(w[0].split('=')[1]))] = float(w[4]) * 1000
 ok = True
 for flat, tol in ((0, 0.25), (1, 0.40)):
     s = sim(24, flat) - sim(1, flat); h = hw[(24, flat)] - hw[(1, flat)]
