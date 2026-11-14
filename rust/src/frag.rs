@@ -7,11 +7,13 @@
 //!   cf I A B C                   coefficient register I: value(x, y) = A*x + B*y + C at pixel position (x, y)
 //!   group G X0 Y0                SIMD group G covers the block whose top-left pixel is (X0, Y0) (overrides the default)
 //!   samplepos S DX DY            offset inside the pixel of sample S (default 0.5 0.5)
+//!   samples N                    samples per pixel (default 1)
 //!   lane L X Y                   explicit pixel of lane L of every group (overrides the quad layout; integer pixel coords)
 //!
 //! Assumptions not yet verified on hardware (tasks/render-02-fragment-isa.md): the lane -> pixel layout (default: quads
 //! of 2x2, four quads across), the f32 evaluation order (fma(A, x, fma(B, y, C))), centroid = center for covered pixels.
-use std::sync::OnceLock;
+use std::collections::{BTreeMap, HashMap};
+use std::sync::{Mutex, OnceLock};
 
 #[derive(Debug, Default, Clone)]
 pub struct FragSetup {
@@ -21,6 +23,8 @@ pub struct FragSetup {
     pub groups: Vec<(u32, u32, u32)>,
     pub sample_pos: Vec<[f32; 2]>,
     pub lanes: Vec<(u32, u32, u32)>,
+    /// samples per pixel of the tile (default 1; sample_mask / st_tile address samples 0..samples)
+    pub samples: u32,
 }
 
 static SETUP: OnceLock<FragSetup> = OnceLock::new();
@@ -71,6 +75,7 @@ impl FragSetup {
                     }
                     s.sample_pos[i] = [fl(2)?, fl(3)?];
                 }
+                "samples" => s.samples = u(1)?,
                 "lane" => s.lanes.push((u(1)?, u(2)?, u(3)?)),
                 other => return Err(format!("line {}: unknown item {}", n + 1, other)),
             }
@@ -136,4 +141,81 @@ mod decode_tests {
         assert!(matches!(ops[1], crate::isa::operand::Operand::CF(1)));
         assert!(matches!(ops[2], crate::isa::operand::Operand::CF(0)));
     }
+}
+
+/// Tile (pixel-local) state of the simulated fragment pass: tile memory per (pixel, sample), the live / tested sample masks that
+/// `sample_mask` and `zs_emit` maintain, the depth / stencil last emitted per sample, and the vertex outputs `st_var` stored.
+/// Semantics from Mesa's documentation of `sample_mask` (asahi/compiler/agx_nir_lower_sample_mask.c): TARGET samples that are in
+/// LIVE run the depth/stencil test (modelled as always passing) and stay live; TARGET samples not in LIVE are killed; a killed
+/// sample ignores later `sample_mask` and `st_tile` writes. Tile memory is byte addressed (`pixel_offset` = the render target's
+/// offset in the per-sample layout, Mesa agx_tilebuffer_offset_B). Not yet compared with hardware.
+#[derive(Default, Debug)]
+pub struct TileState {
+    pub mem: BTreeMap<(u32, u32, u32), Vec<u8>>,
+    pub live: HashMap<(u32, u32), u32>,
+    pub tested: HashMap<(u32, u32), u32>,
+    pub zs: BTreeMap<(u32, u32, u32), (Option<u32>, Option<u16>)>,
+    pub uvs: BTreeMap<(u32, u32, u32), (u32, bool)>,
+}
+static TILE: Mutex<Option<TileState>> = Mutex::new(None);
+
+pub fn with_tile<R>(f: impl FnOnce(&mut TileState) -> R) -> R {
+    let mut g = TILE.lock().unwrap();
+    f(g.get_or_insert_with(TileState::default))
+}
+pub fn samples() -> u32 {
+    get().map_or(1, |s| s.samples.max(1))
+}
+pub fn all_samples() -> u32 {
+    (1u32 << samples().min(8)) - 1
+}
+
+/// size in bytes of one component of a tile format, None when the format is not modelled
+pub fn format_bytes(fmt: u64) -> Option<usize> {
+    Some(match fmt { 0 | 4 | 5 => 1, 1 | 3 | 6 | 7 => 2, 2 => 4, _ => return None })
+}
+/// bytes of a component given as `x` (an fp value for the float / norm formats, raw bits for i8 / i16 / i32)
+pub fn pack(fmt: u64, x: f64, raw: u32, f16_bits: impl Fn(f64) -> u32) -> u32 {
+    let norm = |lo: f64, hi: f64, scale: f64| (x.clamp(lo, hi) * scale).round_ties_even() as i64 as u32;
+    match fmt {
+        0 | 1 | 2 => raw,
+        3 => f16_bits(x),
+        4 => norm(0.0, 1.0, 255.0),
+        5 => norm(-1.0, 1.0, 127.0),
+        6 => norm(0.0, 1.0, 65535.0),
+        _ => norm(-1.0, 1.0, 32767.0),
+    }
+}
+/// the f32 (or raw integer) value of a component read from tile memory
+pub fn unpack(fmt: u64, bits: u32, f16_value: impl Fn(u32) -> f64) -> f32 {
+    match fmt {
+        0 | 1 | 2 => f32::from_bits(bits),
+        3 => f16_value(bits) as f32,
+        4 => (bits & 0xff) as f32 / 255.0,
+        5 => ((bits as u8 as i8) as f32 / 127.0).max(-1.0),
+        6 => (bits & 0xffff) as f32 / 65535.0,
+        _ => ((bits as u16 as i16) as f32 / 32767.0).max(-1.0),
+    }
+}
+
+/// `--tile-dump` text: tile memory, live masks, depth / stencil and vertex outputs
+pub fn dump() -> String {
+    with_tile(|t| {
+        let mut o = String::new();
+        for ((x, y, s), m) in &t.mem {
+            o += &format!("tile {} {} {} {}\n", x, y, s, m.iter().map(|b| format!("{:02x}", b)).collect::<String>());
+        }
+        let mut live: Vec<_> = t.live.iter().collect();
+        live.sort();
+        for ((x, y), m) in live {
+            o += &format!("live {} {} {:#x} tested {:#x}\n", x, y, m, t.tested.get(&(*x, *y)).copied().unwrap_or(0));
+        }
+        for ((x, y, s), (z, st)) in &t.zs {
+            o += &format!("zs {} {} {} z {} s {}\n", x, y, s, z.map_or("-".into(), |v| format!("{:#010x}", v)), st.map_or("-".into(), |v| v.to_string()));
+        }
+        for ((g, l, slot), (v, fin)) in &t.uvs {
+            o += &format!("uvs {} {} {} {:#010x}{}\n", g, l, slot, v, if *fin { " final" } else { "" });
+        }
+        o
+    })
 }

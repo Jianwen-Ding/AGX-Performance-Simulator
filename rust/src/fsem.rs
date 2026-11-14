@@ -1003,3 +1003,147 @@ pub fn frag_iter(name: &str, f: &Fields, ops: &[Operand], st: &mut CoreState, gr
     }
     Ok(())
 }
+
+/// `st_tile` / `ld_tile`: per-lane pixel-local memory (`crate::frag::TileState`). Operands: [load, R tuple, F, u0, mask, O, S sample
+/// mask (register or immediate), C]. Components are compacted by the mask (the k-th set bit is register k of the tuple). A store
+/// writes the samples in S that are still live; a load reads the lowest sample in S. 32-bit registers carry f32 (norm / f16
+/// formats) or raw integers; 16-bit registers carry f16 or raw 16-bit integers.
+pub fn frag_tile(f: &Fields, ops: &[Operand], st: &mut CoreState, group: u32) -> R<()> {
+    let fs = crate::frag::get().ok_or("st_tile / ld_tile: no fragment setup (agx_run --frag FILE)")?;
+    let load = fget(f, "load").unwrap_or(0) != 0;
+    let fmt = fget(f, "F").unwrap_or(0);
+    let item = crate::frag::format_bytes(fmt).ok_or_else(|| format!("tile format {} not modelled", fmt))?;
+    let mask = fget(f, "mask").unwrap_or(0) as usize;
+    let off = fget(f, "O").unwrap_or(0) as usize;
+    let Operand::Tuple(regs, _) = &ops[1] else { return Err("tile access: register tuple expected".into()) };
+    let all = crate::frag::all_samples();
+    for t in 0..SIMD_WIDTH {
+        if !st.exec[t] {
+            continue;
+        }
+        let (x, y) = fs.pixel(group, t);
+        let smask = (match &ops[6] { o @ (Operand::Reg16(..) | Operand::Imm(..)) => raw(st, o, t)?.0 as u32, _ => 0xff } & 0xff) & all;
+        let comps: Vec<usize> = (0..4).filter(|c| mask >> c & 1 == 1).collect();
+        if load {
+            let s = if smask == 0 { continue } else { smask.trailing_zeros() };
+            let bytes = crate::frag::with_tile(|ts| ts.mem.get(&(x, y, s)).cloned().unwrap_or_default());
+            for (k, c) in comps.iter().enumerate() {
+                let b = off + c * item;
+                let bits = (0..item).fold(0u32, |v, i| v | (bytes.get(b + i).copied().unwrap_or(0) as u32) << (8 * i));
+                let val = crate::frag::unpack(fmt, bits, |h| f64::from_bits(f16_to_f64(h as u64, false)));
+                match &regs[k] {
+                    d @ Operand::Reg16(..) => put(st, d, t, if fmt == 3 || fmt >= 4 { to_f16(val as f64) as u64 } else { (bits & 0xffff) as u64 })?,
+                    d => put(st, d, t, if fmt >= 3 { val.to_bits() as u64 } else { bits as u64 })?,
+                }
+            }
+        } else {
+            let live = crate::frag::with_tile(|ts| *ts.live.get(&(x, y)).unwrap_or(&all));
+            let mut vals = vec![];
+            for k in 0..comps.len() {
+                let (b, sz) = raw(st, &regs[k], t)?;
+                let xv = match (sz, fmt) {
+                    (16, _) => f64::from_bits(f16_to_f64(b, false)),
+                    _ => f32::from_bits(b as u32) as f64,
+                };
+                vals.push(crate::frag::pack(fmt, xv, b as u32, |v| to_f16(v) as u32));
+            }
+            crate::frag::with_tile(|ts| {
+                for s in 0..8u32 {
+                    if smask >> s & 1 == 0 || live >> s & 1 == 0 {
+                        continue;
+                    }
+                    let m = ts.mem.entry((x, y, s)).or_default();
+                    for (k, c) in comps.iter().enumerate() {
+                        let b = off + c * item;
+                        if m.len() < b + item {
+                            m.resize(b + item, 0);
+                        }
+                        for i in 0..item {
+                            m[b + i] = (vals[k] >> (8 * i)) as u8;
+                        }
+                    }
+                }
+            });
+        }
+    }
+    Ok(())
+}
+
+/// `sample_mask TARGET, LIVE` (Mesa asahi/compiler/agx_nir_lower_sample_mask.c): TARGET samples in LIVE run the depth / stencil test
+/// (modelled as passing) and stay live, TARGET samples not in LIVE are killed. An all-ones TARGET means every sample of the target.
+pub fn frag_sample_mask(ops: &[Operand], st: &mut CoreState, group: u32) -> R<()> {
+    let fs = crate::frag::get().ok_or("sample_mask: no fragment setup (agx_run --frag FILE)")?;
+    let all = crate::frag::all_samples();
+    for t in 0..SIMD_WIDTH {
+        if !st.exec[t] {
+            continue;
+        }
+        let target = raw(st, &ops[0], t)?.0 as u32 & 0xffff;
+        let target = if target & 0xff == 0xff { all } else { target & all };
+        let live_in = raw(st, &ops[1], t)?.0 as u32 & 0xffff;
+        let (x, y) = fs.pixel(group, t);
+        crate::frag::with_tile(|ts| {
+            let live = ts.live.entry((x, y)).or_insert(all);
+            let tested = ts.tested.entry((x, y)).or_insert(0);
+            let was = *live;
+            for s in 0..8u32 {
+                if target >> s & 1 == 0 || was >> s & 1 == 0 {
+                    continue; // not targeted, or already killed (later sample_mask has no effect on a killed sample)
+                }
+                if live_in >> s & 1 == 1 {
+                    *tested |= 1 << s;
+                } else {
+                    *live &= !(1 << s);
+                }
+            }
+        });
+    }
+    Ok(())
+}
+
+/// `zs_emit`: operands [S sample mask, depth / stencil registers, ...]; records the emitted depth (f32) and / or stencil (u16) of the
+/// live samples in S and counts them as tested (the test result is not modelled).
+pub fn frag_zs_emit(f: &Fields, ops: &[Operand], st: &mut CoreState, group: u32) -> R<()> {
+    let fs = crate::frag::get().ok_or("zs_emit: no fragment setup (agx_run --frag FILE)")?;
+    let all = crate::frag::all_samples();
+    let (wz, ws) = (fget(f, "z").unwrap_or(0) != 0, fget(f, "s").unwrap_or(0) != 0);
+    for t in 0..SIMD_WIDTH {
+        if !st.exec[t] {
+            continue;
+        }
+        let target = raw(st, &ops[0], t)?.0 as u32 & 0xffff;
+        let target = if target & 0xff == 0xff { all } else { target & all };
+        let mut z = None;
+        let mut s = None;
+        let vals: Vec<&Operand> = match &ops[1] { Operand::Tuple(v, _) => v.iter().collect(), o => vec![o] };
+        let mut i = 0;
+        if wz { z = Some(raw(st, vals[i], t)?.0 as u32); i += 1; }
+        if ws { s = Some(raw(st, vals[i], t)?.0 as u16); }
+        let (x, y) = fs.pixel(group, t);
+        crate::frag::with_tile(|ts| {
+            let live = *ts.live.entry((x, y)).or_insert(all);
+            *ts.tested.entry((x, y)).or_insert(0) |= target & live;
+            for sm in 0..8u32 {
+                if target >> sm & 1 == 1 && live >> sm & 1 == 1 {
+                    let e = ts.zs.entry((x, y, sm)).or_default();
+                    if z.is_some() { e.0 = z; }
+                    if s.is_some() { e.1 = s; }
+                }
+            }
+        });
+    }
+    Ok(())
+}
+
+/// `st_var` / `st_var_final`: vertex-stage output store into the unified vertex store, recorded per (group, lane, slot)
+pub fn frag_st_var(name: &str, ops: &[Operand], st: &mut CoreState, group: u32) -> R<()> {
+    for t in 0..SIMD_WIDTH {
+        if !st.exec[t] {
+            continue;
+        }
+        let (v, _) = raw(st, &ops[1], t)?;
+        let slot = match &ops[2] { o @ (Operand::Reg16(..) | Operand::Imm(..)) => raw(st, o, t)?.0 as u32, _ => 0 };
+        crate::frag::with_tile(|ts| { ts.uvs.insert((group, t as u32, slot), (v as u32, name == "st_var_final")); });
+    }
+    Ok(())
+}

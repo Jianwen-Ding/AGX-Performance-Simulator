@@ -209,6 +209,10 @@ enum OpKind {
     TexSample { args: Box<TexOp> },
     ImageWrite { args: Box<TexOp> },
     FragIter,
+    FragTile,
+    FragSampleMask,
+    FragZsEmit,
+    FragStVar,
     Generic,
 }
 
@@ -357,6 +361,11 @@ fn op_kind(name: &'static str, f: &Fields, ops: &[Operand]) -> OpKind {
         "texture_sample" => TexSample { args: Box::new(tex_op(ops, fget(f, "St") == Some(1))) },
         "image_write" => ImageWrite { args: Box::new(tex_op(ops, false)) },
         "iter" | "iterproj" | "TODO.ldcf" => FragIter,
+        "TODO.ld/st_tile" => FragTile,
+        "sample_mask" => FragSampleMask,
+        "zs_emit" => FragZsEmit,
+        "st_var" | "st_var_final" => FragStVar,
+        "wait_pix" | "signal_pix" => Nop,
         n if n.starts_with("quad_shuffle") => QuadShuffle,
         n if (n.starts_with("simd_") || n.starts_with("quad_")) && !n.starts_with("simd_shuffle") && !n.starts_with("simd_matrix") => CrossLane,
         _ => Generic,
@@ -735,7 +744,7 @@ fn decode_at(code: &[u8], pc: usize, nregs: usize) -> Result<Info, String> {
     let ops = if desc.name == "stop" || desc.name == "trap" { vec![] } else { desc.fields_to_operands(&fields)? };
     let op = Compiled::new(desc, &fields, &ops, nregs);
     // the fragment ops need their register tuples and coefficient operands, which `vals` filters out
-    let vals = if matches!(desc.name, "iter" | "iterproj" | "TODO.ldcf") { ops.clone() } else { vals(&ops) };
+    let vals = if matches!(desc.name, "iter" | "iterproj" | "TODO.ldcf" | "TODO.ld/st_tile" | "sample_mask" | "zs_emit" | "st_var" | "st_var_final") { ops.clone() } else { vals(&ops) };
     let kind = op_kind(desc.name, &fields, &ops);
     let access = crate::memtrace::Access::decode(desc.name, &fields, true);
     Ok(Info { desc: Some(desc), size, fields, op: Some(op), vals, kind, access })
@@ -1008,6 +1017,10 @@ fn step_group_impl<C: InstructionCells>(g: &mut Group, code: &[u8], cache: &C, m
             OpKind::Transcendental => fsem::transcendental(desc.name, f, v, &mut g.st)?,
             OpKind::Convert => fsem::convert(f, v, &mut g.st)?,
             OpKind::FragIter => fsem::frag_iter(desc.name, f, v, &mut g.st, g.ctx.group)?,
+            OpKind::FragTile => fsem::frag_tile(f, v, &mut g.st, g.ctx.group)?,
+            OpKind::FragSampleMask => fsem::frag_sample_mask(v, &mut g.st, g.ctx.group)?,
+            OpKind::FragZsEmit => fsem::frag_zs_emit(f, v, &mut g.st, g.ctx.group)?,
+            OpKind::FragStVar => fsem::frag_st_var(desc.name, v, &mut g.st, g.ctx.group)?,
             OpKind::QuadShuffle => fsem::quad_shuffle(desc.name, v, &mut g.st)?,
             OpKind::CrossLane => fsem::cross_lane(desc.name, v, &mut g.st)?,
             OpKind::Generic => {

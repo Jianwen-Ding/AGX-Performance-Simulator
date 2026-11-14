@@ -47,6 +47,7 @@ fn main() {
     let code = std::fs::read(&a[0]).unwrap_or_else(|e| die(&format!("{}: {}", a[0], e)));
     let (mut grid, mut wg, mut shared, mut regs, mut max_steps) = ([1u32, 1, 1], [1u32, 1, 1], 0u32, 128usize, 100_000_000u64);
     let (mut preamble, mut uniforms, mut dumps) = (None, vec![], vec![]);
+    let mut tile_dump: Option<String> = None;
     let mut core_map: Option<Vec<u32>> = None;
     let mut lines: Option<agx_sim::lines::LineTable> = None;
     let mut lines_offset = 0u64;
@@ -102,6 +103,7 @@ fn main() {
                 let setup = agx_sim::frag::FragSetup::parse(&t).unwrap_or_else(|e| die(&format!("{}: {}", v, e)));
                 agx_sim::frag::install(setup).unwrap_or_else(|e| die(&e));
             }
+            "--tile-dump" => tile_dump = Some(v.clone()),
             "--dump" => {
                 let (va, rest) = kv();
                 let (n, f) = rest.split_once(':').unwrap_or_else(|| die("--dump expects VA=BYTES:FILE"));
@@ -158,6 +160,9 @@ fn main() {
     for (va, n, f) in &dumps {
         let b = mem.read_bytes(*va, *n).unwrap_or_else(|e| die(&e));
         std::fs::write(f, b).unwrap_or_else(|e| die(&format!("{}: {}", f, e)));
+    }
+    if let Some(f) = &tile_dump {
+        std::fs::write(f, agx_sim::frag::dump()).unwrap_or_else(|e| die(&format!("{}: {}", f, e)));
     }
     phase("dumps", &mut clock);
     let u: Vec<String> = after.unwrap_or_default().iter().filter(|(_, v)| *v != 0).map(|(k, v)| format!("\"u{}\":{}", k, v)).collect();
