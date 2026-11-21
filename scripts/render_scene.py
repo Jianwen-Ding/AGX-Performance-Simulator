@@ -156,6 +156,89 @@ def perf(seed=2):
     return S
 
 
+def perf2(seed=3):
+    """Second training sweep for the vertex / binning model: draw count, primitive size, instancing x primitive size, primitive count."""
+    R = random.Random(seed)
+    S = {}
+    tri = lambda W, H, x, y, sz, c: tri_px(W, H, [(x, y), (x + sz, y + 0.3 * sz), (x + 0.2 * sz, y + sz)], z=[R.random() for _ in range(3)], cols=[c] * 3)
+    for nd in (1, 8, 32, 128, 512):
+        body = []
+        for i in range(nd):
+            body += tri(256, 256, R.uniform(0, 240), R.uniform(0, 240), 6, (R.random(), 0.5, 0.5, 1))
+        S[f'p2_draws{nd}'] = scene(256, 256, body + [f'draw {3 * i} 3' for i in range(nd)], shader='const', depth='less')
+    for sz in (2, 8, 32, 128):
+        body = []
+        for i in range(256):
+            body += tri(512, 512, R.uniform(0, 512 - sz), R.uniform(0, 512 - sz), sz, (R.random(), R.random(), 0.5, 1))
+        S[f'p2_size{sz}'] = scene(512, 512, body + ['draw 0 768'], shader='const', depth='less')
+    for sz in (4, 32, 128):
+        for k in (64, 1024):
+            S[f'p2_inst{k}_s{sz}'] = scene(512, 512, tri(512, 512, 10, 10, sz, (1, 0, 0, 1)) + [f'draw 0 3 {k}'], shader='const')
+    for n in (1000, 10000, 40000):
+        body = []
+        for i in range(n):
+            body += tri(512, 512, R.uniform(0, 508), R.uniform(0, 508), 4, (R.random(), 0.2, 0.7, 1))
+        S[f'p2_prims{n}'] = scene(512, 512, body + [f'draw 0 {3 * n}'], shader='const', depth='less')
+    return S
+
+
+def held(seed=7):
+    """Held-out set (not used to fit the timing model): new random scenes and performance points between / beyond the fitted ones."""
+    S = {f'h_{k}': v for k, v in gen(seed).items() if k.startswith(('random', 'big'))}
+    R = random.Random(seed)
+    quad = lambda W, H, z=0.5, cc=(0.4, 0.6, 0.8, 0.5): tri_px(W, H, [(0, 0), (W, 0), (0, H)], z=z, cols=[cc] * 3) + tri_px(W, H, [(W, 0), (W, H), (0, H)], z=z, cols=[cc] * 3)
+    for n, a in ((768, 64), (384, 256), (1536, 16), (600, 100)):
+        S[f'h_alu{a}_{n}'] = scene(n, n, quad(n, n) + ['draw 0 6'], shader=f'alu{a}')
+    for L in (3, 6):
+        body = []
+        for l in range(L):
+            body += quad(384, 384, z=0.9 - 0.1 * l)
+        S[f'h_over{L}_blend'] = scene(384, 384, body + [f'draw 0 {6 * L}'], shader='alu16', blend='add')
+        S[f'h_over{L}_opaque'] = scene(384, 384, body + [f'draw 0 {6 * L}'], shader='alu16', depth='lequal')
+    S['h_discard_big'] = scene(512, 512, quad(512, 512, cc=(0.7, 0.2, 0.3, 1)) + ['draw 0 6'], shader='discard')
+    S['h_fragz_big'] = scene(512, 512, quad(512, 512, cc=(0.7, 0.2, 0.3, 1)) + ['draw 0 6'], shader='fragz', depth='less')
+    for n in (2000, 20000):
+        body = []
+        for i in range(n // 3):
+            x, y = R.uniform(0, 320), R.uniform(0, 240)
+            body += tri_px(320, 240, [(x, y), (x + R.uniform(-6, 6), y + R.uniform(-6, 6)), (x + R.uniform(-6, 6), y + R.uniform(-6, 6))],
+                           z=[R.random() for _ in range(3)], cols=[(R.random(), R.random(), R.random(), 1)] * 3)
+        S[f'h_small{n}'] = scene(320, 240, body + [f'draw 0 {3 * (n // 3)}'], depth='less', shader='alu4')
+    S['h_inst512'] = scene(300, 200, tri_px(300, 200, [(5, 5), (30, 8), (8, 40)], cols=[(1, 0, 0, 1)] * 3) + ['draw 0 3 512'], shader='alu8')
+    S['h_draws64'] = scene(256, 256, sum([tri_px(256, 256, [(4 * i, 0), (4 * i + 60, 100), (4 * i, 200)], cols=[(0.5, 0.5, 0.5, 1)] * 3) for i in range(64)], [])
+                           + [f'draw {3 * i} 3' for i in range(64)], shader='alu8', depth='less')
+    return S
+
+
+def held_random(seed=11):
+    """Held-out set 2: everything drawn at random (size, ALU count, layers, blend / depth, primitive count / size, instances)."""
+    R = random.Random(seed)
+    S = {f'r_{k}': v for k, v in gen(seed).items() if k.startswith('random')}
+    for i in range(14):
+        W = R.choice([96, 200, 320, 448, 640, 800, 1000]); H = R.choice([W, W * 3 // 4, W // 2])
+        kind = R.choice(['alu', 'over', 'prims', 'inst'])
+        body = []
+        if kind == 'alu':
+            body = tri_px(W, H, [(0, 0), (W, 0), (0, H)], cols=[(0.3, 0.6, 0.9, 1)] * 3) + tri_px(W, H, [(W, 0), (W, H), (0, H)], cols=[(0.3, 0.6, 0.9, 1)] * 3)
+            S[f'r{i}_alu_{W}x{H}'] = scene(W, H, body + ['draw 0 6'], shader=f'alu{R.choice([4, 24, 72, 200])}')
+        elif kind == 'over':
+            L = R.randint(2, 7); blend = R.choice(['add', 'alpha', 'off'])
+            for l in range(L):
+                body += tri_px(W, H, [(0, 0), (W, 0), (0, H)], z=0.8 - 0.1 * l, cols=[(0.2, 0.1 * l, 0.5, 0.4)] * 3) + tri_px(W, H, [(W, 0), (W, H), (0, H)], z=0.8 - 0.1 * l, cols=[(0.2, 0.1 * l, 0.5, 0.4)] * 3)
+            S[f'r{i}_over{L}_{blend}_{W}x{H}'] = scene(W, H, body + [f'draw 0 {6 * L}'], shader=f'alu{R.choice([2, 12, 40])}', blend=blend, depth=R.choice(['off', 'less']))
+        elif kind == 'prims':
+            n = R.choice([200, 1500, 6000]); sz = R.choice([3, 12, 40])
+            for _ in range(n):
+                x, y = R.uniform(0, W - sz), R.uniform(0, H - sz)
+                body += tri_px(W, H, [(x, y), (x + sz, y + R.uniform(0, sz)), (x + R.uniform(0, sz), y + sz)], z=[R.random() for _ in range(3)], cols=[(R.random(), R.random(), R.random(), 1)] * 3)
+            S[f'r{i}_prims{n}_s{sz}_{W}x{H}'] = scene(W, H, body + [f'draw 0 {3 * n}'], shader=f'alu{R.choice([0, 8])}', depth=R.choice(['off', 'less']))
+        else:
+            k = R.choice([16, 128, 700]); sz = R.choice([5, 30, 90])
+            body = tri_px(W, H, [(2, 2), (2 + sz, 3), (3, 2 + sz)], cols=[(1, 0.5, 0, 1)] * 3)
+            S[f'r{i}_inst{k}_s{sz}_{W}x{H}'] = scene(W, H, body + [f'draw 0 3 {k}'], shader='alu6')
+    return S
+
+
 def quad_at(W, x0, y0, s, cc=(0.4, 0.6, 0.8, 1)):
     return tri_px(W, W, [(x0, y0), (x0 + s, y0), (x0, y0 + s)], cols=[cc] * 3) + tri_px(W, W, [(x0 + s, y0), (x0 + s, y0 + s), (x0, y0 + s)], cols=[cc] * 3)
 
@@ -163,7 +246,7 @@ def quad_at(W, x0, y0, s, cc=(0.4, 0.6, 0.8, 1)):
 def main():
     out = Path(sys.argv[1]); out.mkdir(parents=True, exist_ok=True)
     seed = int(sys.argv[sys.argv.index('--seed') + 1]) if '--seed' in sys.argv else 1
-    S = perf() if '--perf' in sys.argv else gen(seed)
+    S = perf() if '--perf' in sys.argv else perf2() if '--perf2' in sys.argv else held() if '--held' in sys.argv else held_random(seed) if '--held2' in sys.argv else gen(seed)
     suite = []
     for k, v in S.items():
         (out / f'{k}.txt').write_text(v)

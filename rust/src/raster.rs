@@ -668,35 +668,65 @@ fn take_core_ns() -> f64 {
 /// (its tile state saved and restored, so blending shaders stay correct) and `cost::simulate_trace` runs G copies of it at the
 /// register-limited occupancy; the dispatch takes ceil(blocks / 38 cores) groups' worth of that throughput at 1398 MHz.
 fn core_time_ns(mem: &Memory, d: &Dispatch, blocks: &[(u32, u32)], regs: u32) -> Option<f64> {
+    if std::env::var("AGX_RENDER_NO_CORE").is_ok() { return Some(0.0); }
     static PARAMS: std::sync::OnceLock<Option<crate::cost::Params>> = std::sync::OnceLock::new();
     let params = PARAMS.get_or_init(|| crate::cost::Params::new().ok()).as_ref()?;
     let (bx, by) = *blocks.first()?;
     let keys: Vec<(u32, u32)> = (by..by + 4).flat_map(|y| (bx..bx + 8).map(move |x| (x, y))).collect();
+    // direct lookups of the block's 32 pixels x 8 sample slots (a scan of the whole tile memory per primitive cost ~8 ms at 512x512)
+    let skeys: Vec<(u32, u32, u32)> = keys.iter().flat_map(|&(x, y)| (0..8).map(move |s| (x, y, s))).collect();
     let saved = frag::with_tile(|ts| {
-        let mem_k: Vec<_> = ts.mem.iter().filter(|(k, _)| keys.contains(&(k.0, k.1))).map(|(k, v)| (*k, v.clone())).collect();
-        let zs_k: Vec<_> = ts.zs.iter().filter(|(k, _)| keys.contains(&(k.0, k.1))).map(|(k, v)| (*k, *v)).collect();
+        let mem_k: Vec<_> = skeys.iter().map(|k| (*k, ts.mem.get(k).cloned())).collect();
+        let zs_k: Vec<_> = skeys.iter().map(|k| (*k, ts.zs.get(k).copied())).collect();
         let live: Vec<_> = keys.iter().map(|k| (*k, ts.live.get(k).copied(), ts.tested.get(k).copied())).collect();
         (mem_k, zs_k, live)
     });
     let one = Dispatch { grid: [32, 1, 1], ..d.clone() };
     let tr = func::trace_workgroups(&one, mem, &[[0, 0, 0]]);
     frag::with_tile(|ts| {
-        ts.mem.retain(|k, _| !keys.contains(&(k.0, k.1)));
-        ts.zs.retain(|k, _| !keys.contains(&(k.0, k.1)));
-        for (k, v) in saved.0 { ts.mem.insert(k, v); }
-        for (k, v) in saved.1 { ts.zs.insert(k, v); }
+        for (k, v) in saved.0 { match v { Some(v) => { ts.mem.insert(k, v); } None => { ts.mem.remove(&k); } } }
+        for (k, v) in saved.1 { match v { Some(v) => { ts.zs.insert(k, v); } None => { ts.zs.remove(&k); } } }
         for (k, l, t) in saved.2 {
             match l { Some(l) => { ts.live.insert(k, l); } None => { ts.live.remove(&k); } }
             match t { Some(t) => { ts.tested.insert(k, t); } None => { ts.tested.remove(&k); } }
         }
     });
     let tr = tr.ok()?.into_iter().next()?.into_iter().next()?;
-    let end = tr.pcs.iter().copied().max()? + 16;
-    let instrs = crate::cost::decode(&d.code[..end.min(d.code.len())], params).ok()?;
+    let end = (tr.pcs.iter().copied().max()? + 16).min(d.code.len());
     // throughput of a full core (primitives' groups share all cores at once, so their work adds up GPU-wide, not per dispatch)
     let cap = 96u32.min(2 * (3328 / (2 * regs.max(8)))).clamp(1, 48) as usize;
-    let (cycles, _) = crate::cost::simulate_trace(&instrs, &tr, params, cap, false).ok()?;
-    Some(cycles / cap as f64 * blocks.len() as f64 / 38.0 / 1.398)
+    // cycles per group depend only on the program, its dynamic path and the occupancy: cached (thousands of primitives
+    // share one fragment shader; uncached this was ~9 ms per primitive)
+    use std::hash::{Hash, Hasher};
+    let mut hc = std::collections::hash_map::DefaultHasher::new();
+    d.code[..end].hash(&mut hc);
+    let code_key = hc.finish();
+    let mut hp = std::collections::hash_map::DefaultHasher::new();
+    tr.pcs.hash(&mut hp);
+    tr.masked.hash(&mut hp);
+    let key = (code_key, hp.finish(), cap);
+    thread_local! {
+        static INSTRS: std::cell::RefCell<HashMap<u64, std::rc::Rc<Vec<crate::cost::Instr>>>> = std::cell::RefCell::new(HashMap::new());
+        static CYC: std::cell::RefCell<HashMap<(u64, u64, usize), f64>> = std::cell::RefCell::new(HashMap::new());
+    }
+    let per_group = match CYC.with(|c| c.borrow().get(&key).copied()) {
+        Some(v) => v,
+        None => {
+            let instrs = match INSTRS.with(|c| c.borrow().get(&code_key).cloned()) {
+                Some(i) => i,
+                None => {
+                    let i = std::rc::Rc::new(crate::cost::decode(&d.code[..end], params).ok()?);
+                    INSTRS.with(|c| c.borrow_mut().insert(code_key, i.clone()));
+                    i
+                }
+            };
+            let (cycles, _) = crate::cost::simulate_trace(&instrs, &tr, params, cap, false).ok()?;
+            let v = cycles / cap as f64;
+            CYC.with(|c| c.borrow_mut().insert(key, v));
+            v
+        }
+    };
+    Some(per_group * blocks.len() as f64 / 38.0 / 1.398)
 }
 
 pub fn run_pass(input: &PassInput, opt: &Options) -> Result<PassResult, String> {
@@ -1195,9 +1225,28 @@ pub fn run_pass(input: &PassInput, opt: &Options) -> Result<PassResult, String> 
             flush.entry(*o).or_default().push((k as u32 % w, k as u32 / w));
         }
     }
+    // Timing: the hardware merges deferred fragments of different primitives with the same fragment program into shared SIMD
+    // groups (a block shaded for 3 surviving primitives is one group, not 3): scale this flush's core time by distinct (program,
+    // block) / per-primitive blocks. Functionally each primitive still runs with its own coefficients.
+    let mut per_prim = 0u64;
+    let mut distinct: HashSet<(u64, u32, u32)> = HashSet::new();
+    for (o, px) in &flush {
+        let code = fs_pipes[prims[*o as usize].draw].as_ref().map_or(0, |p| p.0.code_va);
+        let mut b: HashSet<(u32, u32)> = HashSet::new();
+        for &(x, y) in px {
+            b.insert((x & !7, y & !3));
+            distinct.insert((code, x & !7, y & !3));
+        }
+        per_prim += b.len() as u64;
+    }
+    let before = (stats.hsr_fragment_groups, take_core_ns());
     for (o, px) in flush {
         shade(&mut mem, &mut stats, &prims[o as usize], &px, &fs_pipes, &mut zbuf, &zi, samples, opt.max_steps)?;
     }
+    let merge = if per_prim > 0 { distinct.len() as f64 / per_prim as f64 } else { 1.0 };
+    let flushed = take_core_ns();
+    CORE_NS.with(|c| *c.borrow_mut() += before.1 + flushed * merge);
+    stats.merged_fragment_groups = distinct.len() as u64 + (before.0);
     // ---- end of tile over the processed tiles (bg ran over every tile before the geometry; unprocessed tiles are never stored)
     let processed: Vec<(u32, u32)> = (0..tiles_y)
         .flat_map(|ty| (0..tiles_x).map(move |tx| (tx, ty)))
@@ -1402,31 +1451,35 @@ pub struct Timing {
     pub parts: BTreeMap<String, f64>,
 }
 
-/// Timing model of a render pass at the top GPU clock (1398 MHz), fitted 2026-11-21 on 101 direct-ioctl replays (results/2026-11-21-
-/// render-ioctl: perf1 + suite1, scripts/render_fit.py nl; timed with the clock keeper and back-to-back bursts) by mean relative error:
+/// Timing model of a render pass at the top GPU clock (1398 MHz). Fitted 2026-11-21 on 118 direct-ioctl replays (results/2026-11-21-
+/// render-ioctl: suite1 + perf1 + perf2; scripts/render_fit.py nl, mean relative error; timed after a clock-keeper warm-up in back-to-back
+/// bursts) and checked on held-out scenes (held1 22 cases, held2: see the results README):
 ///
-/// vertex   = 6673 ns + 1.02 ns / screen tile (tiler setup) + 0.245 x vertex-shader core time + 117 ns / draw + 0.092 ns / vertex
-///            + 0.12 ns / (primitive, tile) bin                                    leave-one-out median 2.3%, p90 15%
-/// fragment = 3333 ns + max(10.42 ns / processed tile, 1.587 x core time of the shaded fragment, background and end-of-tile groups)
-///            + 0.00166 ns / translucent sample + 792 ns if any primitive is rasterized   leave-one-out median 2.0%, p90 10%
-///
-/// The core time is the calibrated core model (`cost::simulate_trace` of one traced SIMD group at the register-limited occupancy)
-/// spread over 38 cores; hidden-surface removal decides which groups count (`Stats::hsr_*`). Tile overhead and shading overlap
-/// (max): a 1024x1024 pass shading one 256x256 corner costs what its 1024 tiles cost (15.5 us), the full-screen version what its
-/// shading costs (95.9 us). Known misses: instanced / many-small-triangle vertex stages 20-27% low; Z/S load-store traffic not costed.
+/// vertex   = 6774 ns + 0.957 ns / screen tile (tiler setup) + 41.7 ns / draw + 2.18 ns x v / (1 + v / 1846) for v vertices
+///            (the stage spreads over more clusters as it grows) + 0.092 ns / (primitive, tile) bin
+/// fragment = 3226 ns + max(10.6 ns / processed tile, 1.212 x C + 2.784 x C x 38 / processed tiles) + 0.0014 ns / translucent sample
+///            + 642 ns if any primitive is rasterized + 0.110 ns / bin
+///            C = calibrated core-model time of the shaded fragment, background and end-of-tile groups spread over 38 cores
+///            (`cost::simulate_trace` of one traced group at the register-limited occupancy, cached per program path); the second
+///            shading term is a tail: ~2.8 tiles' worth of one tile's shading per core is not overlapped (hardware / core model 2.2x
+///            at 144 tiles, 1.35x at 2304). Tile overhead and shading overlap (max). Hidden-surface removal decides which groups
+///            count; deferred fragments of different primitives with one program share groups.
+/// Known misses: thousands of small randomly overlapping depth-tested triangles (fragment ~50% low: a per-primitive ISP cost
+/// not modelled), Z/S load-store traffic (one stencil case 30% low), 1-2 us of the fixed costs on empty / fully culled passes.
 pub fn timing(r: &PassResult) -> Timing {
     let s = &r.stats;
     let mut t = Timing::default();
     let mut put = |k: &str, v: f64| { t.parts.insert(k.to_string(), v); v };
-    let vtx = put("vtx_fixed", 6672.7) + put("vtx_tiles", 1.0214 * s.tiles as f64) + put("vtx_shader", 0.24452 * s.vs_core_ns)
-        + put("vtx_draws", 117.36 * s.draws as f64) + put("vtx_vertices", 0.09194 * s.vertices as f64)
-        + put("vtx_bins", 0.11987 * s.prim_tiles as f64);
-    let tiles = 10.4221 * s.tiles_processed as f64;
-    let shade = 1.58686 * (s.frag_core_ns + s.bg_core_ns + s.eot_core_ns);
+    let v = s.vertices as f64;
+    let vtx = put("vtx_fixed", 6773.7) + put("vtx_tiles", 0.95669 * s.tiles as f64) + put("vtx_draws", 41.676 * s.draws as f64)
+        + put("vtx_vertices", 2.18134 * v / (1.0 + v / 1846.23)) + put("vtx_bins", 0.09185 * s.prim_tiles as f64);
+    let tiles = 10.61574 * s.tiles_processed as f64;
+    let core = s.frag_core_ns + s.bg_core_ns + s.eot_core_ns;
+    let shade = 1.21221 * core + 2.78401 * core * 38.0 / (s.tiles_processed.max(1) as f64);
     put("frag_tiles", tiles);
     put("frag_shading", shade);
-    let frag = put("frag_fixed", 3333.4) + tiles.max(shade) + put("frag_translucent", 0.00166 * s.translucent_samples as f64)
-        + put("frag_geometry", if s.rasterized > 0 { 791.9 } else { 0.0 });
+    let frag = put("frag_fixed", 3225.65) + tiles.max(shade) + put("frag_translucent", 0.00139 * s.translucent_samples as f64)
+        + put("frag_geometry", if s.rasterized > 0 { 642.27 } else { 0.0 }) + put("frag_bins", 0.10965 * s.prim_tiles as f64);
     t.vtx_ns = vtx;
     t.frag_ns = frag;
     t

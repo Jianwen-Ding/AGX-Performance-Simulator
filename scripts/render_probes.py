@@ -82,10 +82,23 @@ class Pass:
         return self.code_va(self.t, self.vs[i]['usc'])
 
     def linear_pbe_patch(self, bpp=4):
+        """End-of-tile PBE -> uncompressed linear; the partial-render background program's texture (it reloads the target
+        after a partial render, HW: scenes whose vertex stage overflows) gets the same layout, or it reads garbage."""
         base = self.t.read(self.pbe_va, 24)
         new = self.g.pack('PBE', {'Layout': 'Linear', 'Compressed': False, 'Extended': False,
                                   'Stride': self.stride(bpp) - 16}, base)
-        return {self.pbe_va: new}
+        out = {self.pbe_va: new}
+        try:
+            pbg = rd.decode_usc(self.t, self.t.usc_base + (self.cmd['partial_bg.usc'] & ~63))
+            for w in pbg:
+                if w['_struct'] == 'USC Texture':
+                    tb = self.t.read(w['Buffer'], 24)
+                    if self.g.unpack('Texture', tb)['Address'] == self.fb_va:
+                        out[w['Buffer']] = self.g.pack('Texture', {'Layout': 'Linear', 'Compressed': False, 'Compression': 0,
+                                                                   'Extended': False, 'Stride': self.stride(bpp) - 16}, tb)
+        except KeyError:
+            pass
+        return out
 
     def stride(self, bpp=4):
         # linear PBE rows are whole 16-byte units ((field >> 4) + 1) * 16 (hardware, 33-px target)
