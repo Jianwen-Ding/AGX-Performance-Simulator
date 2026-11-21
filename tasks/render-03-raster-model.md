@@ -19,11 +19,14 @@ Findings, accuracy and method: [results/2026-11-21-render-ioctl](../results/2026
    f32. Edge-function forms with RNE / RTZ match 50-64% of words (`/scratch/render/v2/tools/cf_search.py`). This is the source
    of the last 1-LSB pixels.
 2. **`iterproj` reciprocal**: within ±2 ulp of exact; none of division RNE / RTZ or reciprocal × multiply matches exactly.
-3. **Fragment cost of many small overlapping depth-tested triangles** (~50% low): a per-primitive ISP cost. Probe: vary
-   overlap depth at a fixed triangle count, with depth on and off.
-4. **Vertex cost of large instanced triangles** (~35% low): binning cost per (primitive, tile). Probe: vary instance size at a
-   fixed count.
-5. **Partial renders**: when they trigger and what they cost (seen at ~1500 triangles). Count them through the vertex timestamp
+3. DONE (v2): dense-pass fragment cost = tile-list block fetch chain (`raster::isp_ns`). Still open: a 6000-triangle overlapping
+   pass is 38% high (block / visible terms over-count large overlapping triangles).
+4. DONE (v2): the instanced misses were tiny-instance cost (vertices per instance), not binning; modelled in `timing`.
+4b. **Use the tile -> core map in timing**: `raster::tile_core_map` / `shade_loads` (exported as `core_load_max`,
+   `tile_load_max`) explain few-tile and 36-vs-64-tile shading times: shading is about t_tile x (1.3 x tiles on the busiest core
+   + 0.48). A first unbounded Nelder-Mead refit collapsed; next try a bounded fit or a linear solve of the shading coefficients.
+   The map itself is exact on 25/30 measured sizes; the in-cluster visiting order is not decoded.
+5. **Partial renders**: bimodal per process (v2: detector via partial_bg -> bg; about 5x when they happen). Still open: when they trigger and what they cost (seen at ~1500 triangles). Count them through the vertex timestamp
    or a probe of the partial-background program, then model the extra bg / eot passes.
 6. **Compressed stencil loads** (codes 0x60, 0x8c, 0xac, ...), compressed z16, and other depth codes than 0 / 3 are not decoded:
    they load as the clear value, with a warning in the log.

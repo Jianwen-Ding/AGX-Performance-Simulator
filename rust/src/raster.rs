@@ -499,6 +499,12 @@ pub struct Stats {
     pub hsr_prim_tiles: u64,
     /// vertex-shader output words written (vertices x VDM output count; 4 of them are the clip position)
     pub vertex_output_words: u64,
+    /// per draw: (vertex / index count, instances, VDM output words per vertex)
+    pub draw_shapes: Vec<(u32, u32, u32)>,
+    /// per tile: core-model ns (one full core) of its fragment, background and end-of-tile groups
+    pub tile_core_ns: HashMap<(u32, u32), f64>,
+    pub tiles_x: u32,
+    pub tiles_y: u32,
     pub tile_visible: HashMap<(u32, u32), u64>,
     pub rasterized: u64,
     /// depth / stencil bytes the ZLS unit loads and stores
@@ -741,7 +747,59 @@ fn core_time_ns(mem: &Memory, d: &Dispatch, blocks: &[(u32, u32)], regs: u32) ->
             v
         }
     };
+    TILE_CORE.with(|t| {
+        let mut t = t.borrow_mut();
+        for &(bx, by) in blocks {
+            *t.entry((bx / 32, by / 32)).or_default() += per_group / 1.398;
+        }
+    });
     Some(per_group * blocks.len() as f64 / 38.0 / 1.398)
+}
+
+thread_local! {
+    /// core-model time (ns of one full core) of the fragment / background / end-of-tile groups of each tile
+    static TILE_CORE: std::cell::RefCell<HashMap<(u32, u32), f64>> = std::cell::RefCell::new(HashMap::new());
+}
+
+/// Tile -> core of the fragment stage (HW, sr20 readback of 30 screen sizes, `results/2026-11-21-render-ioctl`): tiles go in
+/// blocks of 2x4 tiles; the 4 rows of a block take consecutive cores of one cluster (the two tiles of a row share a core).
+/// Passes of up to 40 tiles use cluster 0 only. Larger ones: block columns alternate between an even and an odd cluster, and
+/// the screen is halved along its longer block dimension (rows: top half -> clusters 2/3) into the two cluster pairs.
+/// Exact max tiles per core for 25 of the 30 measured sizes, the others 1-2 high. Returns core index 0..37.
+pub fn tile_core_map(tx: u32, ty: u32) -> HashMap<(u32, u32), usize> {
+    const NC: [usize; 4] = [10, 9, 9, 10];
+    const BASE: [usize; 4] = [0, 10, 19, 28];
+    let (bxn, byn) = (tx.div_ceil(2), ty.div_ceil(4));
+    let mut next = [0usize; 4];
+    let mut out = HashMap::new();
+    for by in 0..byn {
+        for bx in 0..bxn {
+            let c = if tx * ty <= 40 {
+                0
+            } else {
+                let rows_split = byn >= bxn;
+                if rows_split {
+                    (bx % 2) as usize + if 2 * by >= byn { 0 } else { 2 }
+                } else {
+                    (if bxn > 1 { bx % 2 } else { 0 }) as usize + if 2 * bx >= bxn { 2 } else { 0 }
+                }
+            };
+            for r in 0..4 {
+                let y = by * 4 + r;
+                if y >= ty {
+                    break;
+                }
+                let core = BASE[c] + next[c] % NC[c];
+                next[c] += 1;
+                for x in [2 * bx, 2 * bx + 1] {
+                    if x < tx {
+                        out.insert((x, y), core);
+                    }
+                }
+            }
+        }
+    }
+    out
 }
 
 pub fn run_pass(input: &PassInput, opt: &Options) -> Result<PassResult, String> {
@@ -762,6 +820,9 @@ pub fn run_pass(input: &PassInput, opt: &Options) -> Result<PassResult, String> 
     let tiles_x = w.div_ceil(tw);
     let tiles_y = h.div_ceil(th);
     stats.tiles = (tiles_x * tiles_y) as u64;
+    stats.tiles_x = tiles_x;
+    stats.tiles_y = tiles_y;
+    TILE_CORE.with(|t| t.borrow_mut().clear());
     frag::reset_tile();
     frag::replace(None);
 
@@ -879,6 +940,7 @@ pub fn run_pass(input: &PassInput, opt: &Options) -> Result<PassResult, String> 
         let vcode = code_at(&mem, d.vs.code_va)?;
         let nv = d.count as u64 * d.instances as u64;
         stats.vertex_output_words += nv * d.vs_outputs as u64;
+        stats.draw_shapes.push((d.count, d.instances, d.vs_outputs));
         let ids: Vec<(u32, u32, u32)> = (0..d.instances)
             .flat_map(|inst| (0..d.count).map(move |i| (inst, i)))
             .map(|(inst, i)| -> Result<(u32, u32, u32), String> {
@@ -1272,10 +1334,17 @@ pub fn run_pass(input: &PassInput, opt: &Options) -> Result<PassResult, String> 
         per_prim += b.len() as u64;
     }
     let before = (stats.hsr_fragment_groups, take_core_ns());
+    let tile_before = TILE_CORE.with(|t| t.borrow().clone());
     for (o, px) in flush {
         shade(&mut mem, &mut stats, &prims[o as usize], &px, &fs_pipes, &mut zbuf, &zi, samples, opt.max_steps)?;
     }
     let merge = if per_prim > 0 { distinct.len() as f64 / per_prim as f64 } else { 1.0 };
+    TILE_CORE.with(|t| {
+        for (k, v) in t.borrow_mut().iter_mut() {
+            let b = tile_before.get(k).copied().unwrap_or(0.0);
+            *v = b + (*v - b) * merge;
+        }
+    });
     let flushed = take_core_ns();
     CORE_NS.with(|c| *c.borrow_mut() += before.1 + flushed * merge);
     stats.merged_fragment_groups = distinct.len() as u64 + (before.0);
@@ -1296,6 +1365,7 @@ pub fn run_pass(input: &PassInput, opt: &Options) -> Result<PassResult, String> 
         stats.frag_core_ns = take_core_ns();
         stats.eot_instructions = frag_dispatch(&mut mem, &eop, &eou, s, &all_blocks, opt.max_steps).map_err(|e| format!("end-of-tile program: {}", e))?;
         stats.eot_core_ns = take_core_ns();
+        stats.tile_core_ns = TILE_CORE.with(|t| std::mem::take(&mut *t.borrow_mut()));
         stats.eot_groups = all_blocks.len() as u64;
     }
     frag::replace(None);
@@ -1503,20 +1573,88 @@ pub struct Timing {
 ///            count; deferred fragments of different primitives with one program share groups.
 /// Known misses: thousands of small randomly overlapping depth-tested triangles (fragment ~50% low: a per-primitive ISP cost
 /// not modelled), Z/S load-store traffic (one stencil case 30% low), 1-2 us of the fixed costs on empty / fully culled passes.
+/// ISP (fragment front end) time of the pass's busiest core. Per tile, a serial chain: one dependent fetch per tile-list block
+/// (64 consecutive primitives in submission order that touch the tile count once), per depth-tested sample, and per visible
+/// (primitive, tile) after HSR. Tiles go to 38 cores (longest first), each core keeping 4 tiles in flight.
+/// HW: the same 8192-triangle grid in shuffled order costs 12.5 us vs 7.2 us ordered; at 35 tiles 1500 random triangles cost
+/// 9 us whatever their size; 64 ordered full-tile layers 9.5 us.
+pub fn isp_ns(s: &Stats) -> f64 {
+    const BLOCK: u32 = 64;
+    const K: f64 = 4.0;
+    let (l_blk, l_samp, l_vis) = (ISP_COEF[0], ISP_COEF[1], ISP_COEF[2]);
+    let mut chains: Vec<f64> = s.tile_prims.iter().map(|(t, prims)| {
+        let mut blk = 0u64;
+        let mut last = u32::MAX;
+        for &p in prims {
+            if p / BLOCK != last {
+                blk += 1;
+                last = p / BLOCK;
+            }
+        }
+        l_blk * blk as f64 + l_samp * s.tile_samples.get(t).copied().unwrap_or(0) as f64
+            + l_vis * s.tile_visible.get(t).copied().unwrap_or(0) as f64
+    }).collect();
+    chains.sort_by(|a, b| b.partial_cmp(a).unwrap());
+    let mut cores = [(0.0f64, 0.0f64); 38];
+    for ch in chains {
+        let i = (0..38).min_by(|&a, &b| {
+            let fa = (cores[a].0 / K).max(cores[a].1);
+            let fb = (cores[b].0 / K).max(cores[b].1);
+            fa.partial_cmp(&fb).unwrap()
+        }).unwrap();
+        cores[i].0 += ch;
+        cores[i].1 = cores[i].1.max(ch);
+    }
+    cores.iter().map(|c| (c.0 / K).max(c.1)).fold(0.0, f64::max)
+}
+
+/// (busiest core's summed tile core-model ns under `tile_core_map`, the largest single tile's)
+pub fn shade_loads(s: &Stats) -> (f64, f64) {
+    let map = tile_core_map(s.tiles_x, s.tiles_y);
+    let mut cores = [0.0f64; 38];
+    let mut tile_max = 0.0f64;
+    for (t, &v) in &s.tile_core_ns {
+        if let Some(&c) = map.get(t) {
+            cores[c] += v;
+        }
+        tile_max = tile_max.max(v);
+    }
+    (cores.iter().copied().fold(0.0, f64::max), tile_max)
+}
+
+/// ns per tile-list block fetch, per depth-tested sample, per visible (primitive, tile)
+pub const ISP_COEF: [f64; 3] = [113.316, 0.070461, 21.2706];
+
 pub fn timing(r: &PassResult) -> Timing {
     let s = &r.stats;
     let mut t = Timing::default();
     let mut put = |k: &str, v: f64| { t.parts.insert(k.to_string(), v); v };
     let v = s.vertices as f64;
-    let vtx = put("vtx_fixed", 6773.7) + put("vtx_tiles", 0.95669 * s.tiles as f64) + put("vtx_draws", 41.676 * s.draws as f64)
-        + put("vtx_vertices", 2.18134 * v / (1.0 + v / 1846.23)) + put("vtx_bins", 0.09185 * s.prim_tiles as f64);
-    let tiles = 10.61574 * s.tiles_processed as f64;
+    // vertex stage (fit 2026-11-21 v2 on 187 HW passes, held-out median 2.5% / p90 6.4%):
+    // - vertices saturate (the work spreads over more clusters as it grows); varyings (output words beyond the 5 of
+    //   position + point size) cost extra with the same saturation;
+    // - tile-list blocks: one per (32-primitive block, tile) written by the tiler;
+    // - instancing: tiny instances are slow (HW: 512 instances of 3 vertices 13.7 us, of 9+ vertices 9.5 us, the same
+    //   geometry as one non-instanced draw 9.4 us; the penalty grows with the output words and saturates in the instance count)
+    let sat = 1.0 + v / 954.843;
+    let vary = (s.vertex_output_words as f64 - 5.0 * v).max(0.0);
+    let inst: f64 = s.draw_shapes.iter().filter(|d| d.1 > 1 && d.0 > 0)
+        .map(|&(cnt, n, w)| (w as f64 / 9.0).powf(1.3749) * n as f64 / (1.0 + n as f64 / 443.611) * (3.0 / cnt as f64).powf(1.8152))
+        .sum();
+    let vtx = put("vtx_fixed", 6624.66) + put("vtx_tiles", 0.8904 * s.tiles as f64) + put("vtx_draws", 40.5527 * s.draws as f64)
+        + put("vtx_vertices", 2.1738 * v / sat) + put("vtx_varyings", 0.3111 * vary / sat)
+        + put("vtx_bins", 0.1225 * s.prim_tiles as f64) + put("vtx_blocks", 0.1656 * s.prim_blocks[4] as f64)
+        + put("vtx_instancing", 15.7758 * inst);
+    // fragment stage (fit 2026-11-21 v2, 196 HW passes; held-out median 4.7% / p90 14.7%): fixed + the slowest of the tile
+    // pipeline, shading (core model + tail) and the ISP chain, + translucent samples, geometry presence, binned pairs
+    let isp = put("frag_isp", 0.862 * isp_ns(s));
+    let tiles = 10.84135 * s.tiles_processed as f64;
     let core = s.frag_core_ns + s.bg_core_ns + s.eot_core_ns;
-    let shade = 1.21221 * core + 2.78401 * core * 38.0 / (s.tiles_processed.max(1) as f64);
+    let shade = 1.25989 * core + 2.4452 * core * 38.0 / (s.tiles_processed.max(1) as f64);
     put("frag_tiles", tiles);
     put("frag_shading", shade);
-    let frag = put("frag_fixed", 3225.65) + tiles.max(shade) + put("frag_translucent", 0.00139 * s.translucent_samples as f64)
-        + put("frag_geometry", if s.rasterized > 0 { 642.27 } else { 0.0 }) + put("frag_bins", 0.10965 * s.prim_tiles as f64);
+    let frag = put("frag_fixed", 3251.55) + tiles.max(shade).max(isp) + put("frag_translucent", 0.00131 * s.translucent_samples as f64)
+        + put("frag_geometry", if s.rasterized > 0 { 666.17 } else { 0.0 }) + put("frag_bins", 0.04462 * s.prim_tiles as f64);
     t.vtx_ns = vtx;
     t.frag_ns = frag;
     t

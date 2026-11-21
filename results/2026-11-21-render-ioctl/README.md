@@ -99,3 +99,57 @@ python3 -I scripts/render_check.py suite DIR/suite.json --out CASES.jsonl   # ha
 python3 -I scripts/render_summary.py CASES.jsonl ; python3 -I scripts/render_fit.py check CASES.jsonl
 python3 -I scripts/render_fit.py nl TRAIN.jsonl... held=HELD.jsonl                 # refit the timing model
 ```
+
+## v2: timing-model accuracy work (same day, files in `v2/`)
+
+New hardware suites (all replayed through direct ioctls and simulated; pixels byte-exact in every scene except the known depth
+near-ties):
+
+| Suite | Scenes | Question |
+|---|---|---|
+| `order` | 11 | the same triangle grid in raster, column-major and shuffled order, with and without depth |
+| `sweep` | 12 | shuffled grids at 6 densities and 3 screen sizes; shuffling inside windows of 4-512 primitives |
+| `sweep2` | 15 | few-tile (35-80 tiles) passes: overlap layers and random triangles of 3 sizes |
+| `vsweep` | 30 | instanced vs the same geometry as plain draws, with and without varyings, 16-4096 instances, 3-96 vertices per instance |
+| `ftile` | 14 | one alu24 shader from 1 to 144 tiles, opaque and 1-3 blended layers |
+| `held3` | 20 | **fresh random held-out set**, generated after the model changes (`render_scene.py --held2 --seed 5`) |
+
+Findings:
+- **Partial renders are bimodal per process.** A dense pass's bursts are either all slow (p2_prims10000: about 75 us, vertex
+  time too) or all fast (15.5 us). Detector: field-patch `partial_bg.usc` to `bg.usc`, so a flush clears instead of reloading.
+  Runs with vertex time above 2.5x the prediction are dropped as partial-render bursts.
+- **Running the clock keeper concurrently with the measured pass does not work:** fragment time went from 70 to 530 us.
+- **Fragment cost of dense passes follows tile-list block fetches.** The same 8192-triangle grid costs 7.2 us in raster order and
+  12.5 us shuffled. Shuffling inside windows of 4/16/64/512 primitives costs 7.5/7.3/8.0/9.3 us. At 35 tiles, 1500 random
+  triangles cost about 9 us at any size. Model `raster::isp_ns`, a serial chain per tile:
+  - 113 ns per 64-primitive block that touches the tile;
+  - 0.07 ns per depth-tested sample;
+  - 21 ns per primitive-tile still visible after HSR.
+
+  Tiles are spread longest-first over 38 cores with 4 in flight per core, and the result sits inside the max() with the tile and
+  shading terms.
+- **Tiny instances are slow in the vertex stage.** 512 instances of 3 vertices take 13.7 us, of 6 vertices 10.8 us, of 9 or more
+  about 9.5 us; the same geometry as one plain draw takes 9.4 us. The penalty grows with output words and saturates in the instance
+  count. Varyings cost extra per vertex.
+- **Tile → core map** (sr20 readback over 30 sizes, `v2/tile_core_maps.json`; playground
+  `novel-results/2026-11-21-fragment-tile-core-map`):
+  - Tiles go in 2x4-tile blocks; the rows of a block take consecutive cores of one cluster, and each row's two tiles share a core.
+  - Passes of 40 tiles or fewer use only cluster 0.
+  - Fragment time follows the busiest core: 36 tiles (4 per core) take 14.4 us, while 64 tiles (2 per core) take 9.75 us.
+
+  `raster::tile_core_map` and `shade_loads` reproduce this; they are exported as `core_load_max` / `tile_load_max`, but not yet
+  used by `timing`.
+
+Timing model v2 (`raster::timing`):
+- Vertex: varyings, 32-primitive blocks and an instancing term.
+- Fragment: the ISP chain, a refit, and a smaller binned-pair term.
+
+| Set | Vertex median / p90 | Fragment median / p90 |
+|---|---|---|
+| held1 + held2 (42), shipped v1 model | 1.9% / 12.5% | 5.4% / 20.4% |
+| held1 + held2 (42), v2 (these were looked at during v2 design) | 2.5% / 6.4% | 4.6% / 11.9% |
+| **held3 (19, fresh, v2)** | **1.9% / 4.1%** | **5.5% / 20%** |
+
+Remaining fragment misses on held3:
+- Blended or long-ALU shading on 6-28 tiles, 20-50% low. This is the tile → core load effect above; its fit is the next step.
+- A 6000-triangle overlapping pass, 38% high (the ISP chain is over-estimated for large overlapping triangles).

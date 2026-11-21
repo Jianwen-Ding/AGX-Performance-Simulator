@@ -107,6 +107,8 @@ def frag_model(c, s):
     # tail: the shading of a core's last tiles does not overlap (ratio to the core model 2.2 at 144 tiles, 1.35 at 2304):
     # c[6] tiles' worth of one tile's shading on its core = c[6] * core * 38 / tiles
     shade = c[2] * core + c[6] * core * 38 / max(1, s['tiles_processed'])
+    # open: replace the tail with the busiest core's load from raster::tile_core_map (s['core_load_max'], s['tile_load_max']);
+    # a first unbounded Nelder-Mead fit of that form collapsed to zero shading and needs a better start / bounded fit
     return (c[0] + max(c[1] * s['tiles_processed'], shade, isp(c, s)) + c[3] * s.get('translucent_samples', 0)
             + c[4] * s.get('zls_bytes', 0) + c[5] * min(s.get('rasterized', 0), 1) + c[7] * s.get('prim_tiles', 0))
 
@@ -117,10 +119,8 @@ def per_core(s, x):
 
 
 def isp(c, s):
-    # per-core ISP work: rasterized 8x4 blocks before HSR + tile-list entries (32-primitive blocks) whose cost grows with the
-    # pass's primitive count (HW sweeps: shuffled grids 1.7-2.8x; per entry cost ~ c[9] + c[10] * primitives)
-    blk = s.get('prim_blocks', [0] * 8)[4]
-    return per_core(s, c[8] * s.get('depth_tested', 0) + blk * (c[9] + c[10] * s.get('rasterized', 0)))
+    # ISP chain of the busiest core (raster::isp_ns: tile-list block fetches, depth-tested samples, visible primitive-tiles)
+    return c[8] * s.get('isp_ns', 0)
 
 
 def nm(f, x0, iters=4000):
@@ -155,7 +155,7 @@ def nl_main(paths):
     paths = [p for p in paths if not p.startswith('held=')]
     rows = load(paths)
     hrows = load([h[5:] for h in held]) if held else []
-    for key, model, x0 in (('hw_vtx_ns', vtx_model, [6700, 1.0, 0.25, 0.01, 45, 2.5, 0.1, 3000]), ('hw_frag_ns', frag_model, [3200, 11.3, 1.3, 0.001, 0.0, 750, 2.1, 0.1, 0.2, 5.0, 0.0015])):
+    for key, model, x0 in (('hw_vtx_ns', vtx_model, [6700, 1.0, 0.25, 0.01, 45, 2.5, 0.1, 3000]), ('hw_frag_ns', frag_model, [3200, 11.3, 1.3, 0.001, 0.0, 750, 2.1, 0.05, 1.0])):
         c = fit_nl(rows, model, key, x0)
         e = sorted(abs(model(c, r['sim']) / r[key] - 1) for r in rows)
         loo = []
