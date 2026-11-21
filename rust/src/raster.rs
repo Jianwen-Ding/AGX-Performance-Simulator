@@ -447,6 +447,7 @@ pub fn walk_vdm(mem: &Memory, usc_base: u64, base: u64) -> Result<(Vec<Draw>, Ve
 }
 
 // ------------------------------------------------------------------------------------------------- statistics
+pub const BLOCK_SIZES: [u64; 8] = [2, 4, 8, 16, 32, 64, 128, 256];
 #[derive(Debug, Clone, Default)]
 pub struct Stats {
     pub draws: u64,
@@ -485,6 +486,20 @@ pub struct Stats {
     /// (primitive, tile) pairs of the binned primitives' bounding boxes (the tiler's output); rasterized = primitives that
     /// reached the rasterizer (not culled / clipped away / zero area)
     pub prim_tiles: u64,
+    /// tile-list entries if primitives were packed into aligned blocks of BLOCK_SIZES[i] consecutive primitives: a (block, tile)
+    /// pair counts once (the tiler's primitive blocks; HW: shuffled triangle order costs up to 2.8x the fragment time)
+    pub prim_blocks: [u64; 8],
+    /// recency runs: a tile's primitive starts a new entry unless the tile's previous primitive was within RUN_GAPS[i] primitives
+    pub prim_runs: [u64; 8],
+    pub tile_last_prim: HashMap<(u32, u32), u64>,
+    /// per tile: the binned primitives (rasterized index, in order) and the depth-tested samples (for the ISP timing study)
+    pub tile_prims: HashMap<(u32, u32), Vec<u32>>,
+    pub tile_samples: HashMap<(u32, u32), u64>,
+    /// (primitive, tile) pairs with at least one shaded pixel (after HSR), total and per tile
+    pub hsr_prim_tiles: u64,
+    /// vertex-shader output words written (vertices x VDM output count; 4 of them are the clip position)
+    pub vertex_output_words: u64,
+    pub tile_visible: HashMap<(u32, u32), u64>,
     pub rasterized: u64,
     /// depth / stencil bytes the ZLS unit loads and stores
     pub zls_bytes: u64,
@@ -863,6 +878,7 @@ pub fn run_pass(input: &PassInput, opt: &Options) -> Result<PassResult, String> 
         let vs_uni = bind(&mut mem, &d.vs, &mut stats)?;
         let vcode = code_at(&mem, d.vs.code_va)?;
         let nv = d.count as u64 * d.instances as u64;
+        stats.vertex_output_words += nv * d.vs_outputs as u64;
         let ids: Vec<(u32, u32, u32)> = (0..d.instances)
             .flat_map(|inst| (0..d.count).map(move |i| (inst, i)))
             .map(|(inst, i)| -> Result<(u32, u32, u32), String> {
@@ -1070,6 +1086,21 @@ pub fn run_pass(input: &PassInput, opt: &Options) -> Result<PassResult, String> 
                 let (t0x, t1x) = (bx0.max(0) as u32 / tw, (bx1 - 1).max(0) as u32 / tw);
                 let (t0y, t1y) = (by0.max(0) as u32 / th, (by1 - 1).max(0) as u32 / th);
                 stats.prim_tiles += ((t1x - t0x + 1) * (t1y - t0y + 1)) as u64;
+                let pi = stats.rasterized;
+                for ty in t0y..=t1y {
+                    for tx in t0x..=t1x {
+                        let last = stats.tile_last_prim.insert((tx, ty), pi);
+                        stats.tile_prims.entry((tx, ty)).or_default().push(pi as u32);
+                        for (i, b) in BLOCK_SIZES.iter().enumerate() {
+                            if last.is_none_or(|l| l / b != pi / b) {
+                                stats.prim_blocks[i] += 1;
+                            }
+                            if last.is_none_or(|l| pi - l > *b) {
+                                stats.prim_runs[i] += 1;
+                            }
+                        }
+                    }
+                }
             }
             // HW: planes are fitted to the vertices snapped to 1/256 pixel (ldcf readback: 0-1 ulp vs 600-2900 ulp unsnapped)
             let sp = SUBPIXEL as f64;
@@ -1104,6 +1135,7 @@ pub fn run_pass(input: &PassInput, opt: &Options) -> Result<PassResult, String> 
                         }
                         let k = zi(px as u32, py as u32, si as u32);
                         stats.depth_tested += 1;
+                        *stats.tile_samples.entry((tx, ty)).or_default() += 1;
                         let sval = sbuf[k];
                         if stencil_en && !stencil_pass(s_cmp, sref & srm, sval & srm) {
                             sbuf[k] = (sval & !swm) | (stencil_op(s_sfail, sval, sref) & swm);
@@ -1323,6 +1355,11 @@ fn shade(mem: &mut Memory, stats: &mut Stats, p: &Prim, px: &[(u32, u32)], pipes
     }
     stats.hsr_fragment_groups += blocks.len() as u64;
     stats.hsr_fragment_lanes += px.len() as u64;
+    let vt: HashSet<(u32, u32)> = px.iter().map(|&(x, y)| (x / 32, y / 32)).collect();
+    stats.hsr_prim_tiles += vt.len() as u64;
+    for t in vt {
+        *stats.tile_visible.entry(t).or_default() += 1;
+    }
     if stats.per_draw.len() > p.draw {
         stats.per_draw[p.draw].merged_fragment_groups += blocks.len() as u64;
     }

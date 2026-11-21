@@ -167,11 +167,12 @@ def cf_probe(pa, out, regs):
     return res
 
 
-def run_warm(pa, out, patches=None, fields=None, bursts=2, reps=15):
+def run_warm(pa, out, patches=None, fields=None, bursts=None, reps=15):
     """Top-clock timing of a pass: the clock keeper warms the GPU (~80 ms), then `reps` copies go back to back (train mode);
     vtx / frag = median of reps 3.. of each burst, the lower burst kept. (Zero timestamps on later reps of a burst, seen once,
     came from GPU recoveries caused by a killed keeper, not from a timestamp limit; the keeper now stops gracefully.)"""
-    import clock_keeper
+    import clock_keeper, os
+    bursts = bursts or int(os.environ.get('RENDER_BURSTS', '2'))
     best, last = None, None
     for b in range(bursts):
         with clock_keeper.keep(warm_s=0.08):
