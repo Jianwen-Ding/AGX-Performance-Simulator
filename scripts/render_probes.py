@@ -1,0 +1,128 @@
+#!/usr/bin/env python3
+"""Direct-ioctl render probes built on a traced Mesa pass (tests/render_trace.c + scripts/render_replay.py).
+
+Each probe takes a captured submit, rewrites a few known fields or replaces the fragment / vertex code with our own
+assembled AGX code (rust/target/release/agx_asm), replays the pass through drm_render_replay (no Mesa), and reads
+the framebuffer back with the end-of-tile PBE switched to an uncompressed linear layout.
+
+    python3 -I scripts/render_probes.py TRACE/submit-N lanes        # lane -> pixel map of fragment SIMD groups
+    python3 -I scripts/render_probes.py TRACE/submit-N <probe> ...  # see PROBES below
+
+Results: JSON on stdout and files in --out (default /scratch/render/v2/probes/<probe>).
+"""
+import json, struct, subprocess, sys
+from pathlib import Path
+
+HERE = Path(__file__).resolve().parent
+sys.path.insert(0, str(HERE))
+import render_decode as rd
+import render_replay as rr
+
+ASM = HERE.parent / 'rust/target/release/agx_asm'
+
+
+def asm(lines):
+    """Assemble `TEXT` or (`TEXT`, want) or ('@F=V', '!HEX') requests with agx_asm; returns bytes."""
+    reqs = []
+    for l in lines:
+        if isinstance(l, tuple):
+            reqs.append('\t'.join(l))
+        else:
+            reqs.append(l)
+    out = subprocess.run([str(ASM)], input='\n'.join(reqs) + '\n', capture_output=True, text=True, check=True).stdout.splitlines()
+    code = b''
+    for r, o in zip(reqs, out):
+        if o.startswith('ERROR'):
+            raise ValueError(f'{r}: {o}')
+        code += bytes.fromhex(o.split('\t')[0])
+    return code
+
+
+class Pass:
+    """Addresses of the interesting objects of one traced render pass."""
+
+    def __init__(self, trace_dir):
+        self.dir = Path(trace_dir)
+        self.t = rd.Trace(trace_dir)
+        self.cmd = rd.decode_render(self.t.render_raw(0))
+        self.stream = rd.walk_vdm(self.t, self.cmd['vdm_ctrl_stream_base'])
+        self.g = rd.gx()
+        self.fs = []      # (ppp block, fragment shader dict)
+        self.vs = []      # vdm_state blocks
+        self.draws = []
+        self.viewports = []
+        for b in self.stream:
+            if b['block'] == 'ppp' and isinstance(b['record'], dict):
+                r = b['record']
+                if 'Fragment shader' in r:
+                    self.fs.append((b, r['Fragment shader']))
+                if 'Viewport' in r:
+                    self.viewports.append(b)
+            elif b['block'] == 'vdm_state' and 'usc' in b:
+                self.vs.append(b)
+            elif b['block'] == 'index_list':
+                self.draws.append(b)
+        eot = rd.decode_usc(self.t, self.t.usc_base + (self.cmd['eot.usc'] & ~63))
+        texw = [w for w in eot if w['_struct'] == 'USC Texture'][0]
+        self.pbe_va = texw['Buffer']
+        self.pbe = self.g.unpack('PBE', self.t.read(self.pbe_va, 24))
+        self.fb_va = self.pbe['Buffer']
+        self.width, self.height = self.cmd['width_px'], self.cmd['height_px']
+
+    @staticmethod
+    def code_va(t, usc):
+        return t.usc_base + [w for w in usc if w['_struct'] == 'USC Shader'][0]['Code']
+
+    def fs_code_va(self, i=0):
+        return self.code_va(self.t, self.fs[i][1]['usc'])
+
+    def vs_code_va(self, i=0):
+        return self.code_va(self.t, self.vs[i]['usc'])
+
+    def linear_pbe_patch(self, bpp=4):
+        base = self.t.read(self.pbe_va, 24)
+        new = self.g.pack('PBE', {'Layout': 'Linear', 'Compressed': False, 'Extended': False,
+                                  'Stride': self.width * bpp - 16}, base)
+        return {self.pbe_va: new}
+
+    def run(self, out, patches=None, fields=None, reps=1, extra_dumps=(), bpp=4):
+        p = dict(self.linear_pbe_patch(bpp))
+        p.update(patches or {})
+        n = self.width * self.height * bpp
+        r = rr.replay(self.dir, out, p, fields, [(self.fb_va, n)] + list(extra_dumps), reps)
+        r['image'] = r['dumps'].get(self.fb_va)
+        return r
+
+
+def lanes_probe(pa, out):
+    """Fragment code: (lane, simdgroup index, sr0, sr1) as i8 into the tile. Tells which pixels a SIMD group covers."""
+    code = asm([('get_sr r0, sr52 (thread_index_in_simdgroup)', 'get_sr r0, sr52 (thread_index_in_simdgroup)'),
+                ('get_sr r1, sr53 (simdgroup_index_in_threadgroup)', 'get_sr r1, sr53 (simdgroup_index_in_threadgroup)'),
+                ('get_sr r2, sr0 (threadgroup_position_in_grid.x)', 'get_sr r2, sr0 (threadgroup_position_in_grid.x)'),
+                ('get_sr r3, sr1 (threadgroup_position_in_grid.y)', 'get_sr r3, sr1 (threadgroup_position_in_grid.y)'),
+                'wait_pix 12, 0', ('@R=0,F=0', '!09110004f0fc0003'), 'stop'])
+    r = pa.run(out, {pa.fs_code_va(): code})
+    img = r['image']
+    W, H = pa.width, pa.height
+    px = [[tuple(img[4 * (y * W + x):4 * (y * W + x) + 4]) for x in range(W)] for y in range(H)]
+    return r, px
+
+
+def main():
+    import argparse
+    ap = argparse.ArgumentParser()
+    ap.add_argument('trace'); ap.add_argument('probe'); ap.add_argument('--out')
+    a = ap.parse_args()
+    pa = Pass(a.trace)
+    out = Path(a.out or f'/scratch/render/v2/probes/{a.probe}')
+    if a.probe == 'lanes':
+        r, px = lanes_probe(pa, out)
+        print(json.dumps({'ok': r['ok'], 'reps': r['reps']}))
+        for y in range(min(pa.height, 16)):
+            print(' '.join(f'{px[y][x][0]:2d}' for x in range(min(pa.width, 32))))
+        print('sr53/sr0/sr1 samples:', sorted({p[1:3] for row in px for p in row})[:20])
+        (out / 'lanes.json').write_text(json.dumps(px))
+
+
+if __name__ == '__main__':
+    main()
