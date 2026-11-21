@@ -38,7 +38,7 @@ fn main() {
     let s = &r.stats;
     let mut j = serde_json::json!({
         "draws": s.draws, "vertices": s.vertices, "vertex_groups": s.vertex_groups, "vertex_instructions": s.vertex_instructions,
-        "primitives": s.primitives, "culled": s.culled, "clipped_unsupported": s.clipped_unsupported,
+        "primitives": s.primitives, "culled": s.culled, "clipped_unsupported": s.clipped_unsupported, "clipped": s.clipped,
         "tiles": s.tiles, "tiles_processed": s.tiles_processed, "bg_groups": s.bg_groups, "eot_groups": s.eot_groups,
         "fragment_groups": s.fragment_groups, "fragment_lanes": s.fragment_lanes, "fragment_samples": s.fragment_samples,
         "fragment_instructions": s.fragment_instructions, "bg_instructions": s.bg_instructions, "eot_instructions": s.eot_instructions,

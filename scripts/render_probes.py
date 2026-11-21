@@ -23,6 +23,8 @@ ASM = HERE.parent / 'rust/target/release/agx_asm'
 
 def asm(lines):
     """Assemble `TEXT` or (`TEXT`, want) or ('@F=V', '!HEX') requests with agx_asm; returns bytes."""
+    if any(isinstance(l, str) and l.startswith('raw:') for l in lines):   # raw encodings pass through unchanged
+        return b''.join(bytes.fromhex(l[4:]) if isinstance(l, str) and l.startswith('raw:') else asm([l]) for l in lines)
     reqs = []
     for l in lines:
         if isinstance(l, tuple):
@@ -82,16 +84,27 @@ class Pass:
     def linear_pbe_patch(self, bpp=4):
         base = self.t.read(self.pbe_va, 24)
         new = self.g.pack('PBE', {'Layout': 'Linear', 'Compressed': False, 'Extended': False,
-                                  'Stride': self.width * bpp - 16}, base)
+                                  'Stride': self.stride(bpp) - 16}, base)
         return {self.pbe_va: new}
+
+    def stride(self, bpp=4):
+        # linear PBE rows are whole 16-byte units ((field >> 4) + 1) * 16 (hardware, 33-px target)
+        return (self.width * bpp + 15) & ~15
 
     def run(self, out, patches=None, fields=None, reps=1, extra_dumps=(), bpp=4):
         p = dict(self.linear_pbe_patch(bpp))
         p.update(patches or {})
-        n = self.width * self.height * bpp
+        st = self.stride(bpp)
+        n = st * self.height
         r = rr.replay(self.dir, out, p, fields, [(self.fb_va, n)] + list(extra_dumps), reps)
-        r['image'] = r['dumps'].get(self.fb_va)
+        r['image'] = self.unpad(r['dumps'].get(self.fb_va), bpp)
         return r
+
+    def unpad(self, img, bpp=4):
+        if img is None:
+            return None
+        st = self.stride(bpp)
+        return b''.join(img[y * st:y * st + self.width * bpp] for y in range(self.height))
 
 
 def lanes_probe(pa, out):
@@ -126,3 +139,16 @@ def main():
 
 if __name__ == '__main__':
     main()
+
+
+def cf_probe(pa, out, regs):
+    """Hardware coefficient registers: per pixel, ldcf cfN -> (A, B, C) f32 bits (3 replays per register)."""
+    res = {}
+    for n in regs:
+        for k in range(3):
+            code = asm([('@b16_8=%d' % n, '!a181004000000000'), 'wait_pix 12, 0',
+                        ('@R=%d,F=2,mask=1' % (2 * k), '!09110004f0fc0003'), 'stop'])
+            r = pa.run(f'{out}/cf{n}_{k}', {pa.fs_code_va(): code})
+            img = r['image']
+            res[(n, k)] = [struct.unpack_from('<I', img, 4 * p)[0] for p in range(pa.width * pa.height)]
+    return res

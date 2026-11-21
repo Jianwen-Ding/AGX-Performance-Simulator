@@ -122,6 +122,8 @@ pub struct RenderCmd {
     pub dbias_base: u64,
     pub zls_ctrl: u64,
     pub depth_base: u64,
+    pub depth_comp_base: u64,
+    pub stencil_comp_base: u64,
     pub stencil_base: u64,
     pub msaa_ctl: u64,
     pub sampler_heap: u64,
@@ -154,6 +156,8 @@ impl RenderCmd {
             scissor_base: u64a(48),
             dbias_base: u64a(56),
             depth_base: u64a(72),
+            depth_comp_base: u64a(80),
+            stencil_comp_base: u64a(104),
             stencil_base: u64a(96),
             zls_ctrl: u64a(120),
             msaa_ctl: u64a(128),
@@ -451,6 +455,7 @@ pub struct Stats {
     pub primitives: u64,
     pub culled: u64,
     pub clipped_unsupported: u64,
+    pub clipped: u64,
     pub tiles: u64,
     pub tiles_processed: u64,
     pub bg_groups: u64,
@@ -507,6 +512,27 @@ fn sample_positions(ctl: u64, samples: u32) -> Vec<(i64, i64)> {
         .collect()
 }
 
+/// Byte offset of pixel (x, y) in a GPU-tiled ("twiddled") depth / stencil surface: Mesa ail tiles of 128x128 (1 B),
+/// 128x64 (2 B), 64x64 (4 B) elements in row-major order, Morton order inside (x in the even bits). HW: a 64x64 f32 depth
+/// buffer decoded bit by bit through direct-ioctl Z loads (render probe zls_layout).
+pub fn zls_layout(width: u32, bpe: u64) -> impl Fn(u32, u32) -> u64 {
+    let (tw, th) = match bpe { 1 => (128u32, 128u32), 2 => (128, 64), _ => (64, 64) };
+    let tiles_x = width.div_ceil(tw) as u64;
+    move |x: u32, y: u32| {
+        let (tx, ty, ix, iy) = ((x / tw) as u64, (y / th) as u64, x % tw, y % th);
+        let mut m = 0u64;
+        for b in 0..8 {
+            m |= (((ix >> b) & 1) as u64) << (2 * b) | (((iy >> b) & 1) as u64) << (2 * b + 1);
+        }
+        // non-square tiles (128x64): the extra x bit sits above the interleaved bits
+        if tw > th {
+            let k = th.trailing_zeros();
+            m = (m & ((1u64 << (2 * k)) - 1)) | (((ix >> k) as u64) << (2 * k));
+        }
+        ((ty * tiles_x + tx) * (tw * th) as u64 + m) * bpe
+    }
+}
+
 fn edge(a: (i64, i64), b: (i64, i64), p: (i64, i64)) -> i64 {
     (b.0 - a.0) * (p.1 - a.1) - (b.1 - a.1) * (p.0 - a.0)
 }
@@ -519,18 +545,25 @@ fn owns(a: (i64, i64), b: (i64, i64)) -> bool {
     (dy == 0 && dx > 0) || dy < 0
 }
 
-fn plane(p: [(f64, f64); 3], v: [f64; 3]) -> [f32; 3] {
+/// Plane through three screen points: (A, B, C) in f64 with value(x, y) = A x + B y + C (C at the screen origin).
+fn plane(p: [(f64, f64); 3], v: [f64; 3]) -> [f64; 3] {
     let (x0, y0) = p[0];
     let (x1, y1) = (p[1].0 - x0, p[1].1 - y0);
     let (x2, y2) = (p[2].0 - x0, p[2].1 - y0);
     let det = x1 * y2 - x2 * y1;
     if det == 0.0 {
-        return [0.0, 0.0, v[0] as f32];
+        return [0.0, 0.0, v[0]];
     }
     let (d1, d2) = (v[1] - v[0], v[2] - v[0]);
     let a = (d1 * y2 - d2 * y1) / det;
     let b = (x1 * d2 - x2 * d1) / det;
-    [a as f32, b as f32, (v[0] - a * x0 - b * y0) as f32]
+    [a, b, v[0] - a * x0 - b * y0]
+}
+
+/// The coefficient register the hardware loads for a tile whose origin is (ox, oy): A and B rounded to f32, C = the plane's value
+/// at the tile origin rounded to f32 (HW: ldcf readback of 12 tile / register pairs, 9 bit-exact, 3 within 1 ulp).
+fn tile_cf(pl: [f64; 3], ox: u32, oy: u32) -> [f32; 3] {
+    [pl[0] as f32, pl[1] as f32, (pl[2] + pl[0] * ox as f64 + pl[1] * oy as f64) as f32]
 }
 
 fn zs_pass(func: u64, new: f32, stored: f32) -> bool {
@@ -629,6 +662,56 @@ pub fn run_pass(input: &PassInput, opt: &Options) -> Result<PassResult, String> 
     let mut zbuf = vec![clear_z; npx];
     let mut sbuf = vec![(cmd.bg_vals & 0xff) as u8; npx];
     let zi = |x: u32, y: u32, s: u32| ((y * w + x) * samples + s) as usize;
+    let z16 = (cmd.zls_ctrl >> 25 & 3) == 2;
+    let zl = zls_layout(w, if z16 { 2 } else { 4 });
+    let sl = zls_layout(w, 1);
+    if cmd.zls_ctrl >> 15 & 1 != 0 && cmd.depth_base != 0 && samples == 1 {
+        // Z load. Compressed with all-zero metadata: HW passes every z <= 0.95 (Less), modelled as 1.0 (render probe zls_*).
+        let compressed = cmd.zls_ctrl >> 2 & 1 != 0;
+        if compressed && !z16 {
+            // Lossless depth compression (f32): the surface is split into 16x16-pixel blocks (256 Morton-ordered words);
+            // one metadata byte per 8x4 sub-block (32 consecutive Morton words), 8 per block. HW-observed codes:
+            //   3 = constant sub-block, value in data word (block * 256 + sub-block) (a stored clear to 1.0);
+            //   0 = never written: loads as 1.0 (Less passes every z <= 0.95; render probe zls_*).
+            // Other codes are not decoded: the sub-block loads the clear value and the pass log says so.
+            let mut unknown = 0;
+            for y in 0..h {
+                for x in 0..w {
+                    let word = zl(x, y) / 4;
+                    let (blk, sub) = (word / 256, (word % 256) / 32);
+                    let code = mem.read(cmd.depth_comp_base + blk * 8 + sub, 1).unwrap_or(0);
+                    zbuf[zi(x, y, 0)] = match code {
+                        0 => 1.0,
+                        3 => f32::from_bits(mem.read(cmd.depth_base + 4 * (blk * 256 + sub), 4)? as u32),
+                        _ => { unknown += 1; clear_z }
+                    };
+                }
+            }
+            if unknown > 0 {
+                log.push(format!("warning: {} depth pixels in compressed sub-blocks with undecoded codes (loaded as clear)", unknown));
+            }
+        } else if compressed {
+            log.push("warning: compressed z16 depth load not decoded (loaded as clear)".into());
+        } else {
+            for y in 0..h {
+                for x in 0..w {
+                    let a = cmd.depth_base + zl(x, y);
+                    zbuf[zi(x, y, 0)] = if z16 { mem.read(a, 2)? as f32 / 65535.0 } else { f32::from_bits(mem.read(a, 4)? as u32) };
+                }
+            }
+        }
+        log.push(format!("z load (compressed {})", compressed));
+    }
+    if cmd.zls_ctrl >> 14 & 1 != 0 && cmd.zls_ctrl >> 4 & 1 != 0 {
+        log.push("warning: compressed stencil load not decoded (loaded as the clear value)".into());
+    }
+    if cmd.zls_ctrl >> 14 & 1 != 0 && cmd.stencil_base != 0 && samples == 1 && cmd.zls_ctrl >> 4 & 1 == 0 {
+        for y in 0..h {
+            for x in 0..w {
+                sbuf[zi(x, y, 0)] = mem.read(cmd.stencil_base + sl(x, y), 1)? as u8;
+            }
+        }
+    }
 
     let base_setup = FragSetup {
         width: w,
@@ -640,11 +723,41 @@ pub fn run_pass(input: &PassInput, opt: &Options) -> Result<PassResult, String> 
     };
 
     // per primitive fragment lists, in API order (draw, primitive)
-    struct Work { draw: usize, setup: FragSetup, frags: Vec<Fragment> }
-    let mut work: Vec<Work> = vec![];
+    let mut nprims_logged = 0usize;
     let mut tile_used: HashSet<(u32, u32)> = HashSet::new();
     let mut fs_pipes: Vec<Option<(Pipeline, Vec<(usize, u32)>)>> = vec![];
 
+    let tile_blocks = |tiles: &[(u32, u32)]| -> Vec<(u32, u32)> {
+        let mut v = vec![];
+        for &(tx, ty) in tiles {
+            for by in (ty * th..((ty + 1) * th).min(h)).step_by(4) {
+                for bx in (tx * tw..((tx + 1) * tw).min(w)).step_by(8) {
+                    v.push((bx, by));
+                }
+            }
+        }
+        v
+    };
+    let full_cov = |blocks: &[(u32, u32)]| -> HashMap<(u32, u32), u32> {
+        let mut m = HashMap::new();
+        for &(bx, by) in blocks {
+            for y in by..by + 4 {
+                for x in bx..bx + 8 {
+                    m.insert((x, y), if x < w && y < h { (1u32 << samples) - 1 } else { 0 });
+                }
+            }
+        }
+        m
+    };
+    let every_tile: Vec<(u32, u32)> = (0..tiles_y).flat_map(|ty| (0..tiles_x).map(move |tx| (tx, ty))).collect();
+    if !opt.no_shading {
+        let bgp = parse_usc(&mem, usc, usc + (cmd.bg.0 as u64 & !63))?;
+        let bgu = bind(&mut mem, &bgp, &mut stats)?;
+        let blocks = tile_blocks(&every_tile);
+        let mut s = base_setup.clone();
+        s.coverage_map = full_cov(&blocks);
+        stats.bg_instructions = frag_dispatch(&mut mem, &bgp, &bgu, s, &blocks, opt.max_steps).map_err(|e| format!("background program: {}", e))?;
+    }
     for (di, d) in draws.iter().enumerate() {
         let mut ds = DrawStats::default();
         // ---- vertex stage
@@ -658,6 +771,10 @@ pub fn run_pass(input: &PassInput, opt: &Options) -> Result<PassResult, String> 
                     Some((ib, sz)) => mem.read(ib + i as u64 * sz as u64, sz as usize)? as u32,
                     None => i,
                 };
+                // a primitive-restart entry is not a vertex: shade a harmless id (its outputs are never used)
+                if d.indexed.is_some() && d.restart == Some(idx) {
+                    return Ok((idx, d.start, inst));
+                }
                 let vid = if d.indexed.is_some() { idx.wrapping_add(d.start) } else { d.start + i };
                 Ok((idx, vid, inst))
             })
@@ -747,16 +864,60 @@ pub fn run_pass(input: &PassInput, opt: &Options) -> Result<PassResult, String> 
             }
         };
         let fprops = fpipe.frag_props.unwrap_or(0);
+        // late z: the fragment shader emits depth (zs_emit with z); the test then happens there (fsem::frag_zs_emit)
+        let late_z = writes_depth(&code_at(&mem, fpipe.code_va)?);
         let _early_z = fprops >> 8 & 1 != 0;
 
         // ---- primitive assembly
         let tris: Vec<[usize; 3]> = assemble(d, &ids)?;
+        let _ = &tris;
         let prov = |t: &[usize; 3], k: u64| -> usize { t[match k { 0 => 0, 6 => 1, _ => 2 }] };
         let fs_bind = if opt.no_shading { None } else { Some(bind(&mut mem, &fpipe, &mut stats)?) };
         fs_pipes.push(fs_bind.map(|u| (fpipe.clone(), u)));
+        // Near-plane clipping in clip space (window z >= 0 with depth clip, else w >= eps): new vertices get every output
+        // word interpolated as f32; the clipped polygon is fanned into triangles (screen-linear planes are unchanged).
+        // x / y need no clipping (guard band; off-screen vertices are rasterized exactly, suite case clip_offscreen).
+        let n_api = tris.len();
+        let tris: Vec<[usize; 3]> = {
+            let (tz, sz) = (vp[4] as f64, vp[5] as f64);
+            let dist = |o: &Vec<u32>| -> f64 {
+                let (z, wv) = (f32::from_bits(o[2]) as f64, f32::from_bits(o[3]) as f64);
+                if depth_clip { tz * wv + sz * z } else { wv - 1e-6 }
+            };
+            let mut out_t = vec![];
+            for t in &tris {
+                let d: Vec<f64> = t.iter().map(|&i| dist(&outs[i])).collect();
+                if d.iter().all(|&x| x >= 0.0) && t.iter().all(|&i| f32::from_bits(outs[i][3]) > 0.0) {
+                    out_t.push(*t);
+                    continue;
+                }
+                stats.clipped += 1;
+                let mut poly: Vec<usize> = vec![];
+                for k in 0..3 {
+                    let (a, b) = (t[k], t[(k + 1) % 3]);
+                    let (da, db) = (d[k], d[(k + 1) % 3]);
+                    if da >= 0.0 {
+                        poly.push(a);
+                    }
+                    if (da >= 0.0) != (db >= 0.0) {
+                        let f = da / (da - db);
+                        let nv: Vec<u32> = (0..nout).map(|w| {
+                            let (x, y) = (f32::from_bits(outs[a][w]) as f64, f32::from_bits(outs[b][w]) as f64);
+                            ((x + (y - x) * f) as f32).to_bits()
+                        }).collect();
+                        outs.push(nv);
+                        poly.push(outs.len() - 1);
+                    }
+                }
+                for k in 1..poly.len().saturating_sub(1) {
+                    out_t.push([poly[0], poly[k], poly[k + 1]]);
+                }
+            }
+            out_t
+        };
+        ds.primitives += n_api as u64;
+        stats.primitives += n_api as u64;
         for t in &tris {
-            ds.primitives += 1;
-            stats.primitives += 1;
             if raster_discard {
                 continue;
             }
@@ -788,8 +949,9 @@ pub fn run_pass(input: &PassInput, opt: &Options) -> Result<PassResult, String> 
                 continue;
             }
             // y-down screen: positive area here is clockwise on screen = counter-clockwise in GL's y-up window space.
+            // HW (cull_* suite cases): with `Front face CCW` set, a positive-area triangle here is the back face
             let ccw = area > 0;
-            let back = ccw != front_ccw;
+            let back = ccw == front_ccw;
             if (back && cull_back) || (!back && cull_front) {
                 stats.culled += 1;
                 continue;
@@ -801,8 +963,11 @@ pub fn run_pass(input: &PassInput, opt: &Options) -> Result<PassResult, String> 
             let by0 = (p.iter().map(|v| v.1).min().unwrap().div_euclid(SUBPIXEL)).max(rect.1 as i64);
             let bx1 = (p.iter().map(|v| v.0).max().unwrap().div_euclid(SUBPIXEL) + 1).min(rect.2 as i64);
             let by1 = (p.iter().map(|v| v.1).max().unwrap().div_euclid(SUBPIXEL) + 1).min(rect.3 as i64);
-            let pts = [(sv[0].x, sv[0].y), (sv[1].x, sv[1].y), (sv[2].x, sv[2].y)];
+            // HW: planes are fitted to the vertices snapped to 1/256 pixel (ldcf readback: 0-1 ulp vs 600-2900 ulp unsnapped)
+            let sp = SUBPIXEL as f64;
+            let pts = [(sv[0].fx as f64 / sp, sv[0].fy as f64 / sp), (sv[1].fx as f64 / sp, sv[1].fy as f64 / sp), (sv[2].fx as f64 / sp, sv[2].fy as f64 / sp)];
             let zpl = plane(pts, [sv[0].z, sv[1].z, sv[2].z]);
+            let mut ztiles: HashMap<(u32, u32), [f32; 3]> = HashMap::new();
             let (face, face2, sten) = faces(back);
             let zfunc = bits(&face, 24, 3);
             let zfunc2 = face2.map_or(7, |f| bits(&f, 24, 3));
@@ -821,9 +986,11 @@ pub fn run_pass(input: &PassInput, opt: &Options) -> Result<PassResult, String> 
                         if !inside {
                             continue;
                         }
-                        let fx = px as f32 + sx as f32 / SUBPIXEL as f32;
-                        let fy = py as f32 + sy as f32 / SUBPIXEL as f32;
-                        let z = zpl[0].mul_add(fx, zpl[1].mul_add(fy, zpl[2]));
+                        let (tx, ty) = (px as u32 / tw, py as u32 / th);
+                        let zc = *ztiles.entry((tx, ty)).or_insert_with(|| tile_cf(zpl, tx * tw, ty * th));
+                        let fx = (px as u32 - tx * tw) as f32 + sx as f32 / SUBPIXEL as f32;
+                        let fy = (py as u32 - ty * th) as f32 + sy as f32 / SUBPIXEL as f32;
+                        let z = zc[0].mul_add(fx, zc[1].mul_add(fy, zc[2]));
                         if depth_clip && !(0.0..=1.0).contains(&z) {
                             continue;
                         }
@@ -834,7 +1001,7 @@ pub fn run_pass(input: &PassInput, opt: &Options) -> Result<PassResult, String> 
                             sbuf[k] = (sval & !swm) | (stencil_op(s_sfail, sval, sref) & swm);
                             continue;
                         }
-                        let zp = zs_pass(zfunc, z, zbuf[k]) && zs_pass(zfunc2, z, zbuf[k]);
+                        let zp = late_z || (zs_pass(zfunc, z, zbuf[k]) && zs_pass(zfunc2, z, zbuf[k]));
                         if stencil_en {
                             let op = if zp { s_dpass } else { s_dfail };
                             sbuf[k] = (sval & !swm) | (stencil_op(op, sval, sref) & swm);
@@ -842,7 +1009,7 @@ pub fn run_pass(input: &PassInput, opt: &Options) -> Result<PassResult, String> 
                         if !zp {
                             continue;
                         }
-                        if zwrite {
+                        if zwrite && !late_z {
                             zbuf[k] = z;
                         }
                         stats.depth_passed += 1;
@@ -862,6 +1029,7 @@ pub fn run_pass(input: &PassInput, opt: &Options) -> Result<PassResult, String> 
             let mut setup = base_setup.clone();
             let ncf = cfb.iter().map(|b| b.4 + b.0).max().unwrap_or(0);
             setup.cf = vec![[0.0; 3]; ncf];
+            let mut planes: Vec<[f64; 3]> = vec![[0.0; 3]; ncf];
             for &(comps, model, source, slot, reg) in &cfb {
                 for c in 0..comps {
                     let vals: [f64; 3] = std::array::from_fn(|k| {
@@ -877,90 +1045,87 @@ pub fn run_pass(input: &PassInput, opt: &Options) -> Result<PassResult, String> 
                             }
                         }
                     });
-                    let cf = match model {
+                    let pl = match model {
                         7 => plane(pts, std::array::from_fn(|k| vals[k] * sv[k].inv_w)),
                         3 => plane(pts, vals),
                         k => {
                             let pv = prov(t, k);
                             let ki = t.iter().position(|&v| v == pv).unwrap();
-                            [0.0, 0.0, vals[ki] as f32]
+                            [0.0, 0.0, vals[ki]]
                         }
                     };
                     if reg + c < setup.cf.len() {
-                        setup.cf[reg + c] = cf;
+                        setup.cf[reg + c] = tile_cf(pl, 0, 0);
+                        planes[reg + c] = pl;
                     }
                 }
             }
-            setup.depth_func = "always".into();
-            work.push(Work { draw: di, setup, frags });
+            nprims_logged += 1;
+            if nprims_logged <= 64 {
+                log.push(format!("cf draw {} prim {}: {}", di, nprims_logged - 1, setup.cf.iter()
+                    .map(|c| format!("{:08x},{:08x},{:08x}", c[0].to_bits(), c[1].to_bits(), c[2].to_bits())).collect::<Vec<_>>().join(" ")));
+                log.push(format!("verts draw {} prim {}: {}", di, nprims_logged - 1, sv.iter()
+                    .map(|v| format!("{:.9},{:.9},{:.9},{:.9}", v.x, v.y, v.z, v.inv_w)).collect::<Vec<_>>().join(" ")));
+            }
+            for f in &frags {
+                let t = (f.x / tw, f.y / th);
+                setup.cf_tiles.entry(t).or_insert_with(|| planes.iter().map(|&pl| tile_cf(pl, t.0 * tw, t.1 * th)).collect());
+            }
+            // ---- shade this primitive now (API order; late-z primitives update the depth buffer the next ones test against)
+            let mut blocks: BTreeMap<(u32, u32), ()> = BTreeMap::new();
+            let mut cov: HashMap<(u32, u32), u32> = HashMap::new();
+            for f in &frags {
+                blocks.insert((f.x & !7, f.y & !3), ());
+                cov.insert((f.x, f.y), f.mask);
+                stats.fragment_samples += f.mask.count_ones() as u64;
+            }
+            let blocks: Vec<(u32, u32)> = blocks.into_keys().collect();
+            for &(bx, by) in &blocks {
+                for y in by..by + 4 {
+                    for x in bx..bx + 8 {
+                        cov.entry((x, y)).or_insert(0);
+                    }
+                }
+            }
+            stats.fragment_groups += blocks.len() as u64;
+            stats.fragment_lanes += frags.len() as u64;
+            ds.fragment_groups += blocks.len() as u64;
+            if let Some((fp, fu)) = fs_pipes[di].clone() {
+                setup.coverage_map = cov;
+                setup.depth_func = if late_z { ["never", "less", "equal", "lequal", "greater", "notequal", "gequal", "always"][zfunc as usize].into() } else { "always".into() };
+                if late_z {
+                    frag::with_tile(|ts| {
+                        ts.zs.clear();
+                        for f in &frags {
+                            for sm in 0..samples {
+                                ts.zs.insert((f.x, f.y, sm), (Some(zbuf[zi(f.x, f.y, sm)].to_bits()), None));
+                            }
+                        }
+                    });
+                }
+                let n = frag_dispatch(&mut mem, &fp, &fu, setup, &blocks, opt.max_steps).map_err(|e| format!("fragment shader (draw {}): {}", di, e))?;
+                if late_z && zwrite {
+                    frag::with_tile(|ts| {
+                        for (&(x, y, sm), &(z, _)) in &ts.zs {
+                            if let Some(z) = z { zbuf[zi(x, y, sm)] = f32::from_bits(z); }
+                        }
+                    });
+                }
+                stats.fragment_instructions += n;
+                ds.fragment_instructions += n;
+            }
         }
         stats.per_draw.push(ds);
     }
 
-    // ---- fragment stage: background, primitives in API order, end of tile
+    // ---- end of tile over the processed tiles (bg ran over every tile before the geometry; unprocessed tiles are never stored)
     let processed: Vec<(u32, u32)> = (0..tiles_y)
         .flat_map(|ty| (0..tiles_x).map(move |tx| (tx, ty)))
         .filter(|t| cmd.process_empty_tiles() || tile_used.contains(t))
         .collect();
     stats.tiles_processed = processed.len() as u64;
-    let tile_blocks = |tiles: &[(u32, u32)]| -> Vec<(u32, u32)> {
-        let mut v = vec![];
-        for &(tx, ty) in tiles {
-            for by in (ty * th..((ty + 1) * th).min(h)).step_by(4) {
-                for bx in (tx * tw..((tx + 1) * tw).min(w)).step_by(8) {
-                    v.push((bx, by));
-                }
-            }
-        }
-        v
-    };
+    stats.bg_groups = tile_blocks(&processed).len() as u64;
     let all_blocks = tile_blocks(&processed);
-    let full_cov = |blocks: &[(u32, u32)]| -> HashMap<(u32, u32), u32> {
-        let mut m = HashMap::new();
-        for &(bx, by) in blocks {
-            for y in by..by + 4 {
-                for x in bx..bx + 8 {
-                    m.insert((x, y), if x < w && y < h { (1u32 << samples) - 1 } else { 0 });
-                }
-            }
-        }
-        m
-    };
-    if !opt.no_shading {
-        let bgp = parse_usc(&mem, usc, usc + (cmd.bg.0 as u64 & !63))?;
-        let bgu = bind(&mut mem, &bgp, &mut stats)?;
-        let mut s = base_setup.clone();
-        s.coverage_map = full_cov(&all_blocks);
-        stats.bg_instructions = frag_dispatch(&mut mem, &bgp, &bgu, s, &all_blocks, opt.max_steps).map_err(|e| format!("background program: {}", e))?;
-        stats.bg_groups = all_blocks.len() as u64;
-    }
-    for wk in work {
-        let mut blocks: BTreeMap<(u32, u32), ()> = BTreeMap::new();
-        let mut cov: HashMap<(u32, u32), u32> = HashMap::new();
-        for f in &wk.frags {
-            blocks.insert((f.x & !7, f.y & !3), ());
-            cov.insert((f.x, f.y), f.mask);
-            stats.fragment_samples += f.mask.count_ones() as u64;
-        }
-        let blocks: Vec<(u32, u32)> = blocks.into_keys().collect();
-        for &(bx, by) in &blocks {
-            for y in by..by + 4 {
-                for x in bx..bx + 8 {
-                    cov.entry((x, y)).or_insert(0);
-                }
-            }
-        }
-        stats.fragment_groups += blocks.len() as u64;
-        stats.fragment_lanes += wk.frags.len() as u64;
-        stats.per_draw[wk.draw].fragment_groups += blocks.len() as u64;
-        if let Some((fp, fu)) = fs_pipes[wk.draw].clone() {
-            let mut s = wk.setup;
-            s.coverage_map = cov;
-            let n = frag_dispatch(&mut mem, &fp, &fu, s, &blocks, opt.max_steps).map_err(|e| format!("fragment shader (draw {}): {}", wk.draw, e))?;
-            stats.fragment_instructions += n;
-            stats.per_draw[wk.draw].fragment_instructions += n;
-        }
-    }
     // merged groups: distinct (tile, block) per draw, which is what triangle merging can reach at best
     if !opt.no_shading {
         let eop = parse_usc(&mem, usc, usc + (cmd.eot.0 as u64 & !63))?;
@@ -971,8 +1136,43 @@ pub fn run_pass(input: &PassInput, opt: &Options) -> Result<PassResult, String> 
         stats.eot_groups = all_blocks.len() as u64;
     }
     frag::replace(None);
+    // Z / S store (uncompressed GPU-tiled only; a compressed store's metadata format is not modelled, so it is skipped)
+    if cmd.zls_ctrl >> 19 & 1 != 0 && cmd.zls_ctrl >> 6 & 1 == 0 && cmd.depth_base != 0 && samples == 1 {
+        for y in 0..h {
+            for x in 0..w {
+                let a = cmd.depth_base + zl(x, y);
+                let z = zbuf[zi(x, y, 0)];
+                if z16 { mem.write(a, 2, (z.clamp(0.0, 1.0) * 65535.0).round() as u64)?; } else { mem.write(a, 4, z.to_bits() as u64)?; }
+            }
+        }
+    }
+    if cmd.zls_ctrl >> 18 & 1 != 0 && cmd.zls_ctrl >> 8 & 1 == 0 && cmd.stencil_base != 0 && samples == 1 {
+        for y in 0..h {
+            for x in 0..w {
+                mem.write(cmd.stencil_base + sl(x, y), 1, sbuf[zi(x, y, 0)] as u64)?;
+            }
+        }
+    }
     log.push(format!("tiles {}x{} processed {}", tiles_x, tiles_y, stats.tiles_processed));
     Ok(PassResult { stats, log, mem, cmd })
+}
+
+/// whether a fragment program emits depth: a `zs_emit` with the z bit before the first `stop`
+fn writes_depth(code: &[u8]) -> bool {
+    let mut p = 0;
+    while p + 2 <= code.len() {
+        let mut buf = code[p..(p + 16).min(code.len())].to_vec();
+        buf.resize(16, 0);
+        let Some((d, n, size)) = crate::isa::decode_one(&buf) else { return false };
+        if size == 0 { return false; }
+        if d.name == "zs_emit" && (n >> 8) & 0xff != 0 && (code[p + 3] >> 0) != 0 {
+            let text = crate::isa::disassemble_normalized(d, n).unwrap_or_default();
+            if text.contains("zs_emit") { return true; }
+        }
+        if d.name == "stop" { return false; }
+        p += size;
+    }
+    false
 }
 
 /// Triangles of a draw as indices into its shaded vertex list (lanes in (instance, vertex) order).
@@ -1017,7 +1217,8 @@ mod tests {
     #[test]
     fn plane_fit() {
         let p = plane([(0.0, 0.0), (10.0, 0.0), (0.0, 10.0)], [1.0, 2.0, 3.0]);
-        assert_eq!(p, [0.1, 0.2, 1.0]);
+        assert_eq!(tile_cf(p, 0, 0), [0.1, 0.2, 1.0]);
+        assert_eq!(tile_cf(p, 32, 0)[2], 4.2);
     }
     #[test]
     fn top_left_shared_edge() {

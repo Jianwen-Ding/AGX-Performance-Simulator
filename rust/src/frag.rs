@@ -49,6 +49,9 @@ pub struct FragSetup {
     /// hashed forms of `groups` / `coverage` for large dispatches (the render model fills these instead of the vectors)
     pub group_map: HashMap<u32, (u32, u32)>,
     pub coverage_map: HashMap<(u32, u32), u32>,
+    /// tile-relative coefficient registers (the render model): per (tile x, tile y) the (A, B, C) of every register with C the
+    /// plane's value at the tile origin; `plane` then evaluates at tile-local coordinates (HW: ldcf readback, render probe cf)
+    pub cf_tiles: HashMap<(u32, u32), Vec<[f32; 3]>>,
 }
 
 static SETUP: RwLock<Option<Arc<FragSetup>>> = RwLock::new(None);
@@ -68,6 +71,12 @@ pub fn replace(s: Option<FragSetup>) {
 }
 pub fn get() -> Option<Arc<FragSetup>> {
     SETUP.read().unwrap().clone()
+}
+/// f64 -> f32 rounded toward zero. HW: the varying iterator returns the exact A x + B y + C rounded toward zero (1498 / 1498
+/// pixels of an iter readback with the hardware's own coefficients, render probe iter_s1; nearest-even matched 52%).
+pub fn rtz_f32(v: f64) -> f32 {
+    let r = v as f32;
+    if (r as f64).abs() > v.abs() { f32::from_bits(r.to_bits() - 1) } else { r }
 }
 /// Clear the tile memory, live / tested masks, depth / stencil and vertex outputs (a new render pass).
 pub fn reset_tile() {
@@ -155,8 +164,24 @@ impl FragSetup {
 
     /// value of coefficient register `i` at a position: fma(A, x, fma(B, y, C))
     pub fn plane(&self, i: usize, x: f32, y: f32) -> Result<f32, String> {
+        if !self.cf_tiles.is_empty() {
+            let (tw, th) = self.tile.unwrap_or((32, 32));
+            let (tx, ty) = (x.max(0.0) as u32 / tw, y.max(0.0) as u32 / th);
+            let c = self.cf_tiles.get(&(tx, ty)).and_then(|v| v.get(i))
+                .ok_or_else(|| format!("coefficient register {} of tile ({}, {}) not set up", i, tx, ty))?;
+            let (lx, ly) = (x - (tx * tw) as f32, y - (ty * th) as f32);
+            return Ok(rtz_f32(c[0] as f64 * lx as f64 + c[1] as f64 * ly as f64 + c[2] as f64));
+        }
         let c = self.cf.get(i).ok_or_else(|| format!("coefficient register {} not set up (--frag)", i))?;
         Ok(c[0].mul_add(x, c[1].mul_add(y, c[2])))
+    }
+    /// the (A, B, C) triple ldcf loads for coefficient register `i` at pixel (px, py)
+    pub fn coeff(&self, i: usize, px: u32, py: u32) -> Option<[f32; 3]> {
+        if !self.cf_tiles.is_empty() {
+            let (tw, th) = self.tile.unwrap_or((32, 32));
+            return self.cf_tiles.get(&(px / tw, py / th)).and_then(|v| v.get(i)).copied();
+        }
+        self.cf.get(i).copied()
     }
     pub fn sample(&self, s: usize) -> [f32; 2] {
         self.sample_pos.get(s).copied().unwrap_or([0.5; 2])
