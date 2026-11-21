@@ -91,12 +91,12 @@ class Pass:
         # linear PBE rows are whole 16-byte units ((field >> 4) + 1) * 16 (hardware, 33-px target)
         return (self.width * bpp + 15) & ~15
 
-    def run(self, out, patches=None, fields=None, reps=1, extra_dumps=(), bpp=4):
+    def run(self, out, patches=None, fields=None, reps=1, extra_dumps=(), bpp=4, train=False):
         p = dict(self.linear_pbe_patch(bpp))
         p.update(patches or {})
         st = self.stride(bpp)
         n = st * self.height
-        r = rr.replay(self.dir, out, p, fields, [(self.fb_va, n)] + list(extra_dumps), reps)
+        r = rr.replay(self.dir, out, p, fields, [(self.fb_va, n)] + list(extra_dumps), reps, train=train)
         r['image'] = self.unpad(r['dumps'].get(self.fb_va), bpp)
         return r
 
@@ -152,3 +152,28 @@ def cf_probe(pa, out, regs):
             img = r['image']
             res[(n, k)] = [struct.unpack_from('<I', img, 4 * p)[0] for p in range(pa.width * pa.height)]
     return res
+
+
+def run_warm(pa, out, patches=None, fields=None, bursts=2, reps=15):
+    """Top-clock timing of a pass: the clock keeper warms the GPU (~80 ms), then `reps` copies go back to back (train mode);
+    vtx / frag = median of reps 3.. of each burst, the lower burst kept. (Zero timestamps on later reps of a burst, seen once,
+    came from GPU recoveries caused by a killed keeper, not from a timestamp limit; the keeper now stops gracefully.)"""
+    import clock_keeper
+    best, last = None, None
+    for b in range(bursts):
+        with clock_keeper.keep(warm_s=0.08):
+            pass
+        r = pa.run(out, patches, fields, reps=reps, train=True)
+        if not r['ok']:
+            return r
+        good = [x for x in r['reps'][3:] if x['vtx_ns'] > 0 and x['frag_ns'] > 0]
+        if not good:
+            continue
+        v = sorted(x['vtx_ns'] for x in good)[len(good) // 2]
+        f = sorted(x['frag_ns'] for x in good)[len(good) // 2]
+        if best is None or v + f < best[0] + best[1]:
+            best = (v, f)
+        last = r
+    last = last or r
+    last['warm_vtx_ns'], last['warm_frag_ns'] = best if best else (None, None)
+    return last

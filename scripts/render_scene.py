@@ -120,10 +120,50 @@ def gen(seed=1):
     return S
 
 
+def perf(seed=2):
+    """Timing sweeps (perf_*): target size, triangle count, overdraw (opaque / blend / depth), fragment ALU, vertex count with
+    culled geometry, instancing, tile coverage."""
+    R = random.Random(seed)
+    S = {}
+    quad = lambda W, H, z=0.5, cc=(0.4, 0.6, 0.8, 0.5): tri_px(W, H, [(0, 0), (W, 0), (0, H)], z=z, cols=[cc] * 3) + tri_px(W, H, [(W, 0), (W, H), (0, H)], z=z, cols=[cc] * 3)
+    for n in (32, 64, 128, 256, 512, 1024, 2048):
+        S[f'perf_size{n}'] = scene(n, n, quad(n, n) + ['draw 0 6'], shader='const')
+    for n in (1, 4, 16, 64, 256, 1024, 4096):
+        g = max(1, int((n / 2) ** 0.5)); W = 512; st = W / g; body = []
+        for y in range(g):
+            for x in range(g):
+                body += quad_at(W, x * st, y * st, st)
+        S[f'perf_tris{2 * g * g}'] = scene(W, W, body + [f'draw 0 {6 * g * g}'], shader='const')
+    for L in (1, 2, 4, 8):
+        body = []
+        for l in range(L):
+            body += quad(512, 512, z=0.9 - 0.1 * l)
+        S[f'perf_over{L}_opaque'] = scene(512, 512, body + [f'draw 0 {6 * L}'], shader='alu32')
+        S[f'perf_over{L}_depth'] = scene(512, 512, body + [f'draw 0 {6 * L}'], shader='alu32', depth='less')
+        S[f'perf_over{L}_blend'] = scene(512, 512, body + [f'draw 0 {6 * L}'], shader='alu32', blend='alpha')
+    for a in (0, 8, 32, 128, 512):
+        S[f'perf_alu{a}_512'] = scene(512, 512, quad(512, 512) + ['draw 0 6'], shader=f'alu{a}')
+    for a in (32, 128):
+        S[f'perf_alu{a}_1024'] = scene(1024, 1024, quad(1024, 1024) + ['draw 0 6'], shader=f'alu{a}')
+    for n in (3, 300, 3000, 30000):
+        body = [f'v 0.1 0.1 0.5 1 1 1 1 1'] * n   # degenerate (zero-area) triangles: vertex work only
+        S[f'perf_vtx{n}'] = scene(256, 256, body + [f'draw 0 {n}'], shader='const')
+    for k in (1, 16, 256, 2048):
+        S[f'perf_inst{k}'] = scene(256, 256, tri_px(256, 256, [(1, 1), (3, 1), (1, 3)], cols=[(1, 0, 0, 1)] * 3) + [f'draw 0 3 {k}'], shader='const')
+    for frac in (1, 4, 16):
+        W = 1024; t = W // frac
+        S[f'perf_cover1_{frac}'] = scene(W, W, quad_at(W, 0, 0, t) + ['draw 0 6'], shader='alu32')
+    return S
+
+
+def quad_at(W, x0, y0, s, cc=(0.4, 0.6, 0.8, 1)):
+    return tri_px(W, W, [(x0, y0), (x0 + s, y0), (x0, y0 + s)], cols=[cc] * 3) + tri_px(W, W, [(x0 + s, y0), (x0 + s, y0 + s), (x0, y0 + s)], cols=[cc] * 3)
+
+
 def main():
     out = Path(sys.argv[1]); out.mkdir(parents=True, exist_ok=True)
     seed = int(sys.argv[sys.argv.index('--seed') + 1]) if '--seed' in sys.argv else 1
-    S = gen(seed)
+    S = perf() if '--perf' in sys.argv else gen(seed)
     suite = []
     for k, v in S.items():
         (out / f'{k}.txt').write_text(v)

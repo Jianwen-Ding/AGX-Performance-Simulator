@@ -42,7 +42,7 @@ fn main() {
         "tiles": s.tiles, "tiles_processed": s.tiles_processed, "bg_groups": s.bg_groups, "eot_groups": s.eot_groups,
         "fragment_groups": s.fragment_groups, "fragment_lanes": s.fragment_lanes, "fragment_samples": s.fragment_samples,
         "fragment_instructions": s.fragment_instructions, "bg_instructions": s.bg_instructions, "eot_instructions": s.eot_instructions,
-        "depth_tested": s.depth_tested, "depth_passed": s.depth_passed,
+        "hsr_fragment_groups": s.hsr_fragment_groups, "translucent_samples": s.translucent_samples, "frag_core_ns": s.frag_core_ns, "vs_core_ns": s.vs_core_ns, "prim_tiles": s.prim_tiles, "rasterized": s.rasterized, "zls_bytes": s.zls_bytes, "bg_core_ns": s.bg_core_ns, "eot_core_ns": s.eot_core_ns, "hsr_fragment_lanes": s.hsr_fragment_lanes, "hsr_fragment_instructions": s.hsr_fragment_instructions, "depth_tested": s.depth_tested, "depth_passed": s.depth_passed,
         "predicted_vtx_ns": t.vtx_ns, "predicted_frag_ns": t.frag_ns, "timing": t.parts,
     });
     if log {

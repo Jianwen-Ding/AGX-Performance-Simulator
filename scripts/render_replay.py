@@ -30,7 +30,7 @@ def build():
         subprocess.run(['gcc', '-std=gnu11', '-O2', '-Wall', '-o', str(BIN), str(src)], check=True)
 
 
-def replay(trace_dir, out_dir, patches=None, fields=None, dumps=(), reps=1, wait_ms=2000, cmdbuf=None, after=False):
+def replay(trace_dir, out_dir, patches=None, fields=None, dumps=(), reps=1, wait_ms=2000, cmdbuf=None, after=False, train=False):
     build()
     gpu_safety.require_budget()
     trace_dir, out_dir = Path(trace_dir), Path(out_dir)
@@ -63,7 +63,7 @@ def replay(trace_dir, out_dir, patches=None, fields=None, dumps=(), reps=1, wait
                     d[k] = v
                 cb[off + 8:off + 8 + rd.struct.calcsize(rd.RENDER_FMT)] = rd.pack_render(d)
             off += 8 + size
-    lines = [f"usc_base {man['usc_exec_base'][2:]}", f'wait_ms {wait_ms}', f'reps {reps}']
+    lines = [f"usc_base {man['usc_exec_base'][2:]}", f'wait_ms {wait_ms}', f'reps {reps}'] + (['train 1'] if train else [])
     ids = {}
     for b in man['binds']:
         h = b['handle']

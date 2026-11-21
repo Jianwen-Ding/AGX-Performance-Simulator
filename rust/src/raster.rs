@@ -278,6 +278,7 @@ fn bind(mem: &mut Memory, p: &Pipeline, stats: &mut Stats) -> Result<Vec<(usize,
 #[derive(Debug, Clone, Default)]
 pub struct PppState {
     pub frag_control: Option<[u8; 4]>,
+    pub frag_control2: Option<[u8; 4]>,
     pub front: Option<[u8; 4]>,
     pub front2: Option<[u8; 4]>,
     pub front_stencil: Option<[u8; 4]>,
@@ -306,7 +307,7 @@ pub fn apply_ppp(st: &mut PppState, rec: &[u8]) -> Result<(), String> {
     let b = |i: usize| bits(h, i, 1) != 0;
     let mut o = 4;
     if b(0) { st.frag_control = Some(take::<4>(rec, &mut o)?); }
-    if b(1) { take::<4>(rec, &mut o)?; } // fragment control 2: same struct, second copy (model: ignored)
+    if b(1) { st.frag_control2 = Some(take::<4>(rec, &mut o)?); } // its pass type selects HSR (HW, render probe pass_type)
     if b(2) { st.front = Some(take::<4>(rec, &mut o)?); }
     if b(3) { st.front2 = Some(take::<4>(rec, &mut o)?); }
     if b(4) { st.front_stencil = Some(take::<4>(rec, &mut o)?); }
@@ -471,6 +472,24 @@ pub struct Stats {
     pub preshaders: u64,
     /// SIMD groups per (tile, draw) with triangle merging: distinct 8x4 blocks a draw covers in a tile
     pub merged_fragment_groups: u64,
+    /// hidden-surface removal: what the hardware shades (opaque fragments only when finally visible or flushed by a
+    /// translucent / punch-through / late-z fragment on the same pixel)
+    pub hsr_fragment_groups: u64,
+    /// samples of non-opaque (translucent / punch-through / late-z) primitives: they are shaded in order, never removed
+    pub translucent_samples: u64,
+    pub hsr_fragment_lanes: u64,
+    pub hsr_fragment_instructions: f64,
+    /// core-model time (ns, busiest core) of the shaded fragment work, the background and the end-of-tile programs
+    pub frag_core_ns: f64,
+    pub vs_core_ns: f64,
+    /// (primitive, tile) pairs of the binned primitives' bounding boxes (the tiler's output); rasterized = primitives that
+    /// reached the rasterizer (not culled / clipped away / zero area)
+    pub prim_tiles: u64,
+    pub rasterized: u64,
+    /// depth / stencil bytes the ZLS unit loads and stores
+    pub zls_bytes: u64,
+    pub bg_core_ns: f64,
+    pub eot_core_ns: f64,
     /// per-draw vertex / fragment group counts and instruction counts (for the timing model)
     pub per_draw: Vec<DrawStats>,
 }
@@ -631,8 +650,53 @@ fn frag_dispatch(mem: &mut Memory, p: &Pipeline, uniforms: &[(usize, u32)], setu
         placement: 0,
         launch: Default::default(),
     };
+    let core_ns = core_time_ns(mem, &d, blocks, p.regs);
     let r = func::run(&d, mem)?;
+    CORE_NS.with(|c| *c.borrow_mut() += core_ns.unwrap_or(0.0));
     Ok(r.instructions)
+}
+
+thread_local! {
+    /// core-model time (ns on the busiest core) of the fragment dispatches since the last `take_core_ns`
+    static CORE_NS: std::cell::RefCell<f64> = const { std::cell::RefCell::new(0.0) };
+}
+fn take_core_ns() -> f64 {
+    CORE_NS.with(|c| std::mem::take(&mut *c.borrow_mut()))
+}
+
+/// Calibrated core-model time of a fragment-like dispatch spread over the GPU's 38 cores: one representative SIMD group (block 0) is traced
+/// (its tile state saved and restored, so blending shaders stay correct) and `cost::simulate_trace` runs G copies of it at the
+/// register-limited occupancy; the dispatch takes ceil(blocks / 38 cores) groups' worth of that throughput at 1398 MHz.
+fn core_time_ns(mem: &Memory, d: &Dispatch, blocks: &[(u32, u32)], regs: u32) -> Option<f64> {
+    static PARAMS: std::sync::OnceLock<Option<crate::cost::Params>> = std::sync::OnceLock::new();
+    let params = PARAMS.get_or_init(|| crate::cost::Params::new().ok()).as_ref()?;
+    let (bx, by) = *blocks.first()?;
+    let keys: Vec<(u32, u32)> = (by..by + 4).flat_map(|y| (bx..bx + 8).map(move |x| (x, y))).collect();
+    let saved = frag::with_tile(|ts| {
+        let mem_k: Vec<_> = ts.mem.iter().filter(|(k, _)| keys.contains(&(k.0, k.1))).map(|(k, v)| (*k, v.clone())).collect();
+        let zs_k: Vec<_> = ts.zs.iter().filter(|(k, _)| keys.contains(&(k.0, k.1))).map(|(k, v)| (*k, *v)).collect();
+        let live: Vec<_> = keys.iter().map(|k| (*k, ts.live.get(k).copied(), ts.tested.get(k).copied())).collect();
+        (mem_k, zs_k, live)
+    });
+    let one = Dispatch { grid: [32, 1, 1], ..d.clone() };
+    let tr = func::trace_workgroups(&one, mem, &[[0, 0, 0]]);
+    frag::with_tile(|ts| {
+        ts.mem.retain(|k, _| !keys.contains(&(k.0, k.1)));
+        ts.zs.retain(|k, _| !keys.contains(&(k.0, k.1)));
+        for (k, v) in saved.0 { ts.mem.insert(k, v); }
+        for (k, v) in saved.1 { ts.zs.insert(k, v); }
+        for (k, l, t) in saved.2 {
+            match l { Some(l) => { ts.live.insert(k, l); } None => { ts.live.remove(&k); } }
+            match t { Some(t) => { ts.tested.insert(k, t); } None => { ts.tested.remove(&k); } }
+        }
+    });
+    let tr = tr.ok()?.into_iter().next()?.into_iter().next()?;
+    let end = tr.pcs.iter().copied().max()? + 16;
+    let instrs = crate::cost::decode(&d.code[..end.min(d.code.len())], params).ok()?;
+    // throughput of a full core (primitives' groups share all cores at once, so their work adds up GPU-wide, not per dispatch)
+    let cap = 96u32.min(2 * (3328 / (2 * regs.max(8)))).clamp(1, 48) as usize;
+    let (cycles, _) = crate::cost::simulate_trace(&instrs, &tr, params, cap, false).ok()?;
+    Some(cycles / cap as f64 * blocks.len() as f64 / 38.0 / 1.398)
 }
 
 pub fn run_pass(input: &PassInput, opt: &Options) -> Result<PassResult, String> {
@@ -749,6 +813,9 @@ pub fn run_pass(input: &PassInput, opt: &Options) -> Result<PassResult, String> 
         }
         m
     };
+    // HSR bookkeeping: per pixel the opaque primitive that owns it and has not been shaded yet
+    let mut owner: Vec<Option<u32>> = vec![None; (w * h) as usize];
+    let mut prims: Vec<Prim> = vec![];
     let every_tile: Vec<(u32, u32)> = (0..tiles_y).flat_map(|ty| (0..tiles_x).map(move |tx| (tx, ty))).collect();
     if !opt.no_shading {
         let bgp = parse_usc(&mem, usc, usc + (cmd.bg.0 as u64 & !63))?;
@@ -756,7 +823,9 @@ pub fn run_pass(input: &PassInput, opt: &Options) -> Result<PassResult, String> 
         let blocks = tile_blocks(&every_tile);
         let mut s = base_setup.clone();
         s.coverage_map = full_cov(&blocks);
+        take_core_ns();
         stats.bg_instructions = frag_dispatch(&mut mem, &bgp, &bgu, s, &blocks, opt.max_steps).map_err(|e| format!("background program: {}", e))?;
+        stats.bg_core_ns = take_core_ns();
     }
     for (di, d) in draws.iter().enumerate() {
         let mut ds = DrawStats::default();
@@ -799,6 +868,9 @@ pub fn run_pass(input: &PassInput, opt: &Options) -> Result<PassResult, String> 
                     code: vcode.clone(), grid: [n as u32, 1, 1], wg: [n as u32, 1, 1], shared_bytes: 0, uniforms: vs_uni.clone(),
                     num_registers: d.vs.regs.max(8) as usize, max_steps: opt.max_steps, placement: 0, launch: Default::default(),
                 };
+                let groups: Vec<(u32, u32)> = (0..n.div_ceil(32) as u32).map(|g| (g, 0)).collect();
+                stats.vs_core_ns += core_time_ns(&mem, &disp, &groups, d.vs.regs).unwrap_or(0.0);
+                frag::take_uvs();
                 let r = func::run(&disp, &mut mem);
                 func::set_lane_init(None);
                 let r = r.map_err(|e| format!("vertex shader (draw {}): {}", di, e))?;
@@ -831,7 +903,7 @@ pub fn run_pass(input: &PassInput, opt: &Options) -> Result<PassResult, String> 
             }
         }
         let fctl = ppp.frag_control.unwrap_or([0; 4]);
-        let pass_type = bits(&fctl, 29, 3) as u32;
+        let pass_type = bits(&ppp.frag_control2.unwrap_or(fctl), 29, 3) as u32;
         ds.pass_type = pass_type;
         let scissor_en = bits(&fctl, 16, 1) != 0;
         let stencil_en = bits(&fctl, 18, 1) != 0;
@@ -963,6 +1035,12 @@ pub fn run_pass(input: &PassInput, opt: &Options) -> Result<PassResult, String> 
             let by0 = (p.iter().map(|v| v.1).min().unwrap().div_euclid(SUBPIXEL)).max(rect.1 as i64);
             let bx1 = (p.iter().map(|v| v.0).max().unwrap().div_euclid(SUBPIXEL) + 1).min(rect.2 as i64);
             let by1 = (p.iter().map(|v| v.1).max().unwrap().div_euclid(SUBPIXEL) + 1).min(rect.3 as i64);
+            stats.rasterized += 1;
+            if bx1 > bx0 && by1 > by0 {
+                let (t0x, t1x) = (bx0.max(0) as u32 / tw, (bx1 - 1).max(0) as u32 / tw);
+                let (t0y, t1y) = (by0.max(0) as u32 / th, (by1 - 1).max(0) as u32 / th);
+                stats.prim_tiles += ((t1x - t0x + 1) * (t1y - t0y + 1)) as u64;
+            }
             // HW: planes are fitted to the vertices snapped to 1/256 pixel (ldcf readback: 0-1 ulp vs 600-2900 ulp unsnapped)
             let sp = SUBPIXEL as f64;
             let pts = [(sv[0].fx as f64 / sp, sv[0].fy as f64 / sp), (sv[1].fx as f64 / sp, sv[1].fy as f64 / sp), (sv[2].fx as f64 / sp, sv[2].fy as f64 / sp)];
@@ -1071,53 +1149,55 @@ pub fn run_pass(input: &PassInput, opt: &Options) -> Result<PassResult, String> 
                 let t = (f.x / tw, f.y / th);
                 setup.cf_tiles.entry(t).or_insert_with(|| planes.iter().map(|&pl| tile_cf(pl, t.0 * tw, t.1 * th)).collect());
             }
-            // ---- shade this primitive now (API order; late-z primitives update the depth buffer the next ones test against)
-            let mut blocks: BTreeMap<(u32, u32), ()> = BTreeMap::new();
-            let mut cov: HashMap<(u32, u32), u32> = HashMap::new();
+            // ---- hidden-surface removal and shading (HW, render probe pass_type: Fragment control 2's pass type selects it).
+            // Opaque: deferred, a pixel is shaded only by its last covering opaque fragment, when a non-opaque one lands on it
+            // or at the end of the pass. Translucent / punch-through (blend, discard, late z): shaded at once, in API order,
+            // after flushing the deferred opaque fragments under them.
+            let mut nblocks: BTreeMap<(u32, u32), ()> = BTreeMap::new();
             for f in &frags {
-                blocks.insert((f.x & !7, f.y & !3), ());
-                cov.insert((f.x, f.y), f.mask);
+                nblocks.insert((f.x & !7, f.y & !3), ());
                 stats.fragment_samples += f.mask.count_ones() as u64;
             }
-            let blocks: Vec<(u32, u32)> = blocks.into_keys().collect();
-            for &(bx, by) in &blocks {
-                for y in by..by + 4 {
-                    for x in bx..bx + 8 {
-                        cov.entry((x, y)).or_insert(0);
+            stats.fragment_groups += nblocks.len() as u64;
+            stats.fragment_lanes += frags.len() as u64;
+            ds.fragment_groups += nblocks.len() as u64;
+            let pid = prims.len() as u32;
+            let opaque = pass_type == 0 && !late_z;
+            setup.depth_func = if late_z { ["never", "less", "equal", "lequal", "greater", "notequal", "gequal", "always"][zfunc as usize].into() } else { "always".into() };
+            let masks: HashMap<(u32, u32), u32> = frags.iter().map(|f| ((f.x, f.y), f.mask)).collect();
+            prims.push(Prim { draw: di, setup, masks, late_z, zwrite });
+            if opaque {
+                for f in &frags {
+                    owner[(f.y * w + f.x) as usize] = Some(pid);
+                }
+            } else {
+                stats.translucent_samples += frags.iter().map(|f| f.mask.count_ones() as u64).sum::<u64>();
+                let mut flush: BTreeMap<u32, Vec<(u32, u32)>> = BTreeMap::new();
+                for f in &frags {
+                    if let Some(o) = owner[(f.y * w + f.x) as usize].take() {
+                        flush.entry(o).or_default().push((f.x, f.y));
                     }
                 }
-            }
-            stats.fragment_groups += blocks.len() as u64;
-            stats.fragment_lanes += frags.len() as u64;
-            ds.fragment_groups += blocks.len() as u64;
-            if let Some((fp, fu)) = fs_pipes[di].clone() {
-                setup.coverage_map = cov;
-                setup.depth_func = if late_z { ["never", "less", "equal", "lequal", "greater", "notequal", "gequal", "always"][zfunc as usize].into() } else { "always".into() };
-                if late_z {
-                    frag::with_tile(|ts| {
-                        ts.zs.clear();
-                        for f in &frags {
-                            for sm in 0..samples {
-                                ts.zs.insert((f.x, f.y, sm), (Some(zbuf[zi(f.x, f.y, sm)].to_bits()), None));
-                            }
-                        }
-                    });
+                for (o, px) in flush {
+                    shade(&mut mem, &mut stats, &prims[o as usize], &px, &fs_pipes, &mut zbuf, &zi, samples, opt.max_steps)?;
                 }
-                let n = frag_dispatch(&mut mem, &fp, &fu, setup, &blocks, opt.max_steps).map_err(|e| format!("fragment shader (draw {}): {}", di, e))?;
-                if late_z && zwrite {
-                    frag::with_tile(|ts| {
-                        for (&(x, y, sm), &(z, _)) in &ts.zs {
-                            if let Some(z) = z { zbuf[zi(x, y, sm)] = f32::from_bits(z); }
-                        }
-                    });
-                }
-                stats.fragment_instructions += n;
-                ds.fragment_instructions += n;
+                let px: Vec<(u32, u32)> = frags.iter().map(|f| (f.x, f.y)).collect();
+                shade(&mut mem, &mut stats, &prims[pid as usize], &px, &fs_pipes, &mut zbuf, &zi, samples, opt.max_steps)?;
             }
         }
         stats.per_draw.push(ds);
     }
 
+    // end of the pass: the deferred opaque fragments still owning a pixel
+    let mut flush: BTreeMap<u32, Vec<(u32, u32)>> = BTreeMap::new();
+    for (k, o) in owner.iter().enumerate() {
+        if let Some(o) = o {
+            flush.entry(*o).or_default().push((k as u32 % w, k as u32 / w));
+        }
+    }
+    for (o, px) in flush {
+        shade(&mut mem, &mut stats, &prims[o as usize], &px, &fs_pipes, &mut zbuf, &zi, samples, opt.max_steps)?;
+    }
     // ---- end of tile over the processed tiles (bg ran over every tile before the geometry; unprocessed tiles are never stored)
     let processed: Vec<(u32, u32)> = (0..tiles_y)
         .flat_map(|ty| (0..tiles_x).map(move |tx| (tx, ty)))
@@ -1132,7 +1212,9 @@ pub fn run_pass(input: &PassInput, opt: &Options) -> Result<PassResult, String> 
         let eou = bind(&mut mem, &eop, &mut stats)?;
         let mut s = base_setup.clone();
         s.coverage_map = full_cov(&all_blocks);
+        stats.frag_core_ns = take_core_ns();
         stats.eot_instructions = frag_dispatch(&mut mem, &eop, &eou, s, &all_blocks, opt.max_steps).map_err(|e| format!("end-of-tile program: {}", e))?;
+        stats.eot_core_ns = take_core_ns();
         stats.eot_groups = all_blocks.len() as u64;
     }
     frag::replace(None);
@@ -1153,8 +1235,75 @@ pub fn run_pass(input: &PassInput, opt: &Options) -> Result<PassResult, String> 
             }
         }
     }
+    let zb = if z16 { 2u64 } else { 4 };
+    let px = (w * h * samples) as u64;
+    for (bit, bytes) in [(15, zb), (19, zb), (14, 1), (18, 1)] {
+        if cmd.zls_ctrl >> bit & 1 != 0 {
+            stats.zls_bytes += px * bytes;
+        }
+    }
     log.push(format!("tiles {}x{} processed {}", tiles_x, tiles_y, stats.tiles_processed));
     Ok(PassResult { stats, log, mem, cmd })
+}
+
+struct Prim {
+    draw: usize,
+    setup: FragSetup,
+    masks: HashMap<(u32, u32), u32>,
+    late_z: bool,
+    zwrite: bool,
+}
+
+/// Run a primitive's fragment shader over a subset of its pixels (the ones the hardware shades after hidden-surface removal).
+#[allow(clippy::too_many_arguments)]
+fn shade(mem: &mut Memory, stats: &mut Stats, p: &Prim, px: &[(u32, u32)], pipes: &[Option<(Pipeline, Vec<(usize, u32)>)>],
+         zbuf: &mut [f32], zi: &dyn Fn(u32, u32, u32) -> usize, samples: u32, max_steps: u64) -> Result<(), String> {
+    let mut blocks: BTreeMap<(u32, u32), ()> = BTreeMap::new();
+    let mut cov: HashMap<(u32, u32), u32> = HashMap::new();
+    for &(x, y) in px {
+        blocks.insert((x & !7, y & !3), ());
+        cov.insert((x, y), p.masks[&(x, y)]);
+    }
+    let blocks: Vec<(u32, u32)> = blocks.into_keys().collect();
+    for &(bx, by) in &blocks {
+        for y in by..by + 4 {
+            for x in bx..bx + 8 {
+                cov.entry((x, y)).or_insert(0);
+            }
+        }
+    }
+    stats.hsr_fragment_groups += blocks.len() as u64;
+    stats.hsr_fragment_lanes += px.len() as u64;
+    if stats.per_draw.len() > p.draw {
+        stats.per_draw[p.draw].merged_fragment_groups += blocks.len() as u64;
+    }
+    let Some((fp, fu)) = pipes[p.draw].clone() else { return Ok(()) };
+    let mut setup = p.setup.clone();
+    setup.coverage_map = cov;
+    if p.late_z {
+        frag::with_tile(|ts| {
+            ts.zs.clear();
+            for &(x, y) in px {
+                for sm in 0..samples {
+                    ts.zs.insert((x, y, sm), (Some(zbuf[zi(x, y, sm)].to_bits()), None));
+                }
+            }
+        });
+    }
+    let n = frag_dispatch(mem, &fp, &fu, setup, &blocks, max_steps).map_err(|e| format!("fragment shader (draw {}): {}", p.draw, e))?;
+    if p.late_z && p.zwrite {
+        frag::with_tile(|ts| {
+            for (&(x, y, sm), &(z, _)) in &ts.zs {
+                if let Some(z) = z { zbuf[zi(x, y, sm)] = f32::from_bits(z); }
+            }
+        });
+    }
+    stats.fragment_instructions += n;
+    stats.hsr_fragment_instructions += n as f64;
+    if stats.per_draw.len() > p.draw {
+        stats.per_draw[p.draw].fragment_instructions += n;
+    }
+    Ok(())
 }
 
 /// whether a fragment program emits depth: a `zs_emit` with the z bit before the first `stop`
@@ -1253,13 +1402,31 @@ pub struct Timing {
     pub parts: BTreeMap<String, f64>,
 }
 
-/// Timing model of a render pass (placeholder constants until calibrated: results/2026-11-21-render-ioctl).
+/// Timing model of a render pass at the top GPU clock (1398 MHz), fitted 2026-11-21 on 101 direct-ioctl replays (results/2026-11-21-
+/// render-ioctl: perf1 + suite1, scripts/render_fit.py nl; timed with the clock keeper and back-to-back bursts) by mean relative error:
+///
+/// vertex   = 6673 ns + 1.02 ns / screen tile (tiler setup) + 0.245 x vertex-shader core time + 117 ns / draw + 0.092 ns / vertex
+///            + 0.12 ns / (primitive, tile) bin                                    leave-one-out median 2.3%, p90 15%
+/// fragment = 3333 ns + max(10.42 ns / processed tile, 1.587 x core time of the shaded fragment, background and end-of-tile groups)
+///            + 0.00166 ns / translucent sample + 792 ns if any primitive is rasterized   leave-one-out median 2.0%, p90 10%
+///
+/// The core time is the calibrated core model (`cost::simulate_trace` of one traced SIMD group at the register-limited occupancy)
+/// spread over 38 cores; hidden-surface removal decides which groups count (`Stats::hsr_*`). Tile overhead and shading overlap
+/// (max): a 1024x1024 pass shading one 256x256 corner costs what its 1024 tiles cost (15.5 us), the full-screen version what its
+/// shading costs (95.9 us). Known misses: instanced / many-small-triangle vertex stages 20-27% low; Z/S load-store traffic not costed.
 pub fn timing(r: &PassResult) -> Timing {
     let s = &r.stats;
     let mut t = Timing::default();
     let mut put = |k: &str, v: f64| { t.parts.insert(k.to_string(), v); v };
-    let vtx = put("vtx_fixed", 5000.0) + put("vtx_per_vertex", 0.0 * s.vertices as f64);
-    let frag = put("frag_fixed", 4000.0) + put("frag_per_tile", 0.0 * s.tiles_processed as f64);
+    let vtx = put("vtx_fixed", 6672.7) + put("vtx_tiles", 1.0214 * s.tiles as f64) + put("vtx_shader", 0.24452 * s.vs_core_ns)
+        + put("vtx_draws", 117.36 * s.draws as f64) + put("vtx_vertices", 0.09194 * s.vertices as f64)
+        + put("vtx_bins", 0.11987 * s.prim_tiles as f64);
+    let tiles = 10.4221 * s.tiles_processed as f64;
+    let shade = 1.58686 * (s.frag_core_ns + s.bg_core_ns + s.eot_core_ns);
+    put("frag_tiles", tiles);
+    put("frag_shading", shade);
+    let frag = put("frag_fixed", 3333.4) + tiles.max(shade) + put("frag_translucent", 0.00166 * s.translucent_samples as f64)
+        + put("frag_geometry", if s.rasterized > 0 { 791.9 } else { 0.0 });
     t.vtx_ns = vtx;
     t.frag_ns = frag;
     t

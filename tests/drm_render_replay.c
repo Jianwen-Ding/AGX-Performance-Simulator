@@ -9,6 +9,8 @@
  *   dump VA SIZE FILE                after the last repetition, write SIZE bytes at VA to FILE
  *   reps N                           submit the command buffer N times (each waits; firmware timestamps per rep)
  *   wait_ms N                        syncobj wait limit per submit (default 2000)
+ *   train 1                          submit all reps back to back without waiting in between (one wait at the end), each
+ *                                    with its own timestamp slots: the GPU stays busy and its clock up, like a frame sequence
  * Render commands get ts_vtx / ts_frag patched to a timestamp BO (offsets 0/8 and 16/24).
  * Output: one JSON line per rep {"rep","wait","vtx_ns","frag_ns","host_ns"} and {"completed":true}.
  * A wait failure prints {"failure":"syncobj-wait"} and exits 2 (the Python driver records it in the hang budget).
@@ -86,7 +88,7 @@ int main(int argc, char **argv)
 
     FILE *pl = fopen(argv[2], "r"); require(pl != NULL, "plan-open");
     char line[1024], a[512]; uint64_t usc_base = 0; uint8_t *cmdbuf = NULL; size_t cmdbuf_size = 0;
-    unsigned reps = 1; uint64_t wait_ms = 2000;
+    unsigned reps = 1, train = 0; uint64_t wait_ms = 2000;
     while (fgets(line, sizeof line, pl)) {
         int id; uint64_t x, y, z, w;
         if (sscanf(line, "usc_base %" SCNx64, &x) == 1) usc_base = x;
@@ -116,6 +118,7 @@ int main(int argc, char **argv)
             require(ndumps < MAXDUMP, "dumps"); dumps[ndumps].va = x; dumps[ndumps].size = y;
             strcpy(dumps[ndumps++].path, a);
         } else if (sscanf(line, "reps %" SCNu64, &x) == 1) { require(x >= 1 && x <= 1000, "reps"); reps = (unsigned)x; }
+        else if (sscanf(line, "train %" SCNu64, &x) == 1) train = x != 0;
         else if (sscanf(line, "wait_ms %" SCNu64, &x) == 1) { require(x >= 10 && x <= 10000, "wait_ms"); wait_ms = x; }
         else if (line[0] != '#' && line[0] != '\n') { printf("{\"failure\":\"plan-line\",\"line\":\"%.60s\"}\n", line); return 1; }
     }
@@ -150,6 +153,44 @@ int main(int argc, char **argv)
     struct drm_syncobj_create sc = {0};
     io(DRM_IOCTL_SYNCOBJ_CREATE, &sc, "syncobj-create");
     int status = 0;
+    if (train) {
+        require(reps <= 500, "train reps");
+        memset(tsmap, 0, 16384);
+        uint8_t *copies = malloc((size_t)reps * cmdbuf_size); require(copies != NULL, "malloc");
+        uint64_t h0 = now_ns();
+        for (unsigned rep = 0; rep < reps; rep++) {
+            uint8_t *cb = copies + (size_t)rep * cmdbuf_size;
+            memcpy(cb, cmdbuf, cmdbuf_size);
+            for (size_t off = 0; off + sizeof(struct drm_asahi_cmd_header) <= cmdbuf_size;) {
+                struct drm_asahi_cmd_header *h = (void *)(cb + off);
+                if (h->cmd_type == DRM_ASAHI_CMD_RENDER) {
+                    struct drm_asahi_cmd_render *r = (void *)(h + 1);
+                    uint32_t o = 32 * rep;
+                    r->ts_vtx = (struct drm_asahi_timestamps){{bo_ts.object_handle, o}, {bo_ts.object_handle, o + 8}};
+                    r->ts_frag = (struct drm_asahi_timestamps){{bo_ts.object_handle, o + 16}, {bo_ts.object_handle, o + 24}};
+                }
+                off += sizeof *h + h->size;
+            }
+            int last = rep + 1 == reps;
+            struct drm_asahi_sync out_sync = {.sync_type = DRM_ASAHI_SYNC_SYNCOBJ, .handle = sc.handle};
+            struct drm_asahi_submit sub = {.syncs = last ? (uint64_t)(uintptr_t)&out_sync : 0, .cmdbuf = (uint64_t)(uintptr_t)cb,
+                                           .queue_id = qc.queue_id, .out_sync_count = last ? 1 : 0, .cmdbuf_size = (uint32_t)cmdbuf_size};
+            io(DRM_IOCTL_ASAHI_SUBMIT, &sub, "submit");
+        }
+        struct drm_syncobj_wait sw = {.handles = (uint64_t)(uintptr_t)&sc.handle, .count_handles = 1,
+                                      .timeout_nsec = (int64_t)(now_ns() + wait_ms * 1000000ull + reps * 20000000ull)};
+        int r = ioctl(fd, DRM_IOCTL_SYNCOBJ_WAIT, &sw);
+        uint64_t h1 = now_ns();
+        for (unsigned rep = 0; rep < reps; rep++) {
+            uint64_t ts[4]; memcpy(ts, tsmap + 32 * rep, 32);
+            printf("{\"rep\":%u,\"wait\":%d,\"host_ns\":%" PRIu64 ",\"ts\":[%" PRIu64 ",%" PRIu64 ",%" PRIu64 ",%" PRIu64 "],"
+                   "\"vtx_ns\":%" PRId64 ",\"frag_ns\":%" PRId64 "}\n", rep, r, h1 - h0, ts[0], ts[1], ts[2], ts[3],
+                   (int64_t)(ts[1] - ts[0]), (int64_t)(ts[3] - ts[2]));
+        }
+        if (r) { printf("{\"failure\":\"syncobj-wait\"}\n"); status = 2; }
+        free(copies);
+        reps = 0;
+    }
     for (unsigned rep = 0; rep < reps; rep++) {
         memset(tsmap, 0, 32);
         struct drm_asahi_sync out_sync = {.sync_type = DRM_ASAHI_SYNC_SYNCOBJ, .handle = sc.handle};
@@ -173,7 +214,7 @@ int main(int argc, char **argv)
         uint8_t *src = va_ptr(dumps[i].va, dumps[i].size); require(src != NULL, "dump-va");
         FILE *o = fopen(dumps[i].path, "wb"); require(o && fwrite(src, 1, dumps[i].size, o) == dumps[i].size && fclose(o) == 0, "dump-write");
     }
-    if (!status) printf("{\"completed\":true,\"reps\":%u}\n", reps);
+    if (!status) printf("{\"completed\":true,\"train\":%u}\n", train);
 
     struct drm_asahi_queue_destroy qd = {.queue_id = qc.queue_id};
     io(DRM_IOCTL_ASAHI_QUEUE_DESTROY, &qd, "queue-destroy");

@@ -136,15 +136,21 @@ int main(int argc, char **argv) {
     char vs[1024], fs[1024];
     snprintf(vs, sizeof vs, "#version 300 es\nin vec4 p;\nin vec4 col;\nuniform float dx;\n%sout vec4 c;\n"
              "void main(){ c = col; gl_Position = p + vec4(dx * float(gl_InstanceID), 0.0, 0.0, 0.0); }\n", q);
-    const char *body = !strcmp(shader, "discard") ? "if (c.r < 0.5) discard; o = c;"
+    char alub[512];
+    if (!strncmp(shader, "alu", 3)) {   /* aluN: N dependent multiply-adds per fragment on the colour (loop count is a uniform: not unrolled) */
+        snprintf(alub, sizeof alub, "vec4 a = c; for (int i = 0; i < n; i++) { a = a * a * 0.5 + 0.25; } o = a;");
+    }
+    const char *body = !strncmp(shader, "alu", 3) ? alub : !strcmp(shader, "discard") ? "if (c.r < 0.5) discard; o = c;"
                      : !strcmp(shader, "fragz") ? "o = c; gl_FragDepth = c.g;"
                      : !strcmp(shader, "const") ? "o = vec4(0.25, 0.5, 0.75, 1.0);" : "o = c;";
-    snprintf(fs, sizeof fs, "#version 300 es\nprecision highp float;\n%sin vec4 c;\nout vec4 o;\nvoid main(){ %s }\n", q, body);
+    snprintf(fs, sizeof fs, "#version 300 es\nprecision highp float;\nuniform int n;\n%sin vec4 c;\nout vec4 o;\nvoid main(){ %s }\n", q, body);
     GLuint prog = p_glCreateProgram();
     p_glAttachShader(prog, compile(GL_VERTEX_SHADER, vs)); p_glAttachShader(prog, compile(GL_FRAGMENT_SHADER, fs));
     p_glLinkProgram(prog); p_glUseProgram(prog);
     { typedef GLint (*GUL)(GLuint, const char *); typedef void (*U1F)(GLint, float);
-      GUL gul = (GUL)gpa("glGetUniformLocation"); U1F u1 = (U1F)gpa("glUniform1f"); u1(gul(prog, "dx"), 0.05f); }
+      GUL gul = (GUL)gpa("glGetUniformLocation"); U1F u1 = (U1F)gpa("glUniform1f"); u1(gul(prog, "dx"), 0.05f);
+      typedef void (*U1I)(GLint, int); U1I ui = (U1I)gpa("glUniform1i");
+      if (!strncmp(shader, "alu", 3)) ui(gul(prog, "n"), atoi(shader + 3)); }
 
     GLuint vao, vbo, ibo; p_glGenVertexArrays(1, &vao); p_glBindVertexArray(vao);
     p_glGenBuffers(1, &vbo); p_glBindBuffer(GL_ARRAY_BUFFER, vbo);

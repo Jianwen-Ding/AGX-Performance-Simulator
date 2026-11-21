@@ -18,6 +18,7 @@ sys.path.insert(0, str(HERE))
 import render_decode as rd
 import render_probes as rp
 import render_compare as rc
+import gpu_safety
 
 REPO = HERE.parent
 WORK = Path(os.environ.get('RENDER_WORK', '/scratch/render/v2'))
@@ -77,14 +78,14 @@ def flip_rows(img, W, H):
 def check(trace, name, patches=None, fields=None, gl=None, reps=5, tol=1):
     pa = rp.Pass(trace)
     out = WORK / 'runs' / name
-    r = pa.run(out, patches, fields, reps=reps)
+    # timing at the top clock (clock keeper warm-up, short back-to-back bursts); the image of the last burst
+    r = rp.run_warm(pa, out, patches, fields)
     rec = {'name': name, 'trace': str(trace), 'hw_ok': r['ok'], 'W': pa.width, 'H': pa.height}
     if not r['ok']:
         rec['hw_error'] = r.get('error') or r.get('log')
         return rec
-    reps_ = r['reps'][1:] or r['reps']
-    rec['hw_vtx_ns'] = sorted(x['vtx_ns'] for x in reps_)[len(reps_) // 2]
-    rec['hw_frag_ns'] = sorted(x['frag_ns'] for x in reps_)[len(reps_) // 2]
+    rec['hw_vtx_ns'], rec['hw_frag_ns'] = r['warm_vtx_ns'], r['warm_frag_ns']
+    rec['hw_reps_cold'] = [(x['vtx_ns'], x['frag_ns']) for x in r['reps'][:3]]
     if gl is not None and not patches and not fields:
         c = rc.compare(gl, r["image"], pa.width, pa.height, 4, 0)  # Mesa FBOs are y-up in memory: no flip
         rec['replay_vs_gl_exact'] = c['exact']
@@ -97,9 +98,8 @@ def check(trace, name, patches=None, fields=None, gl=None, reps=5, tol=1):
     c = rc.compare(r['image'], simimg, pa.width, pa.height, 4, tol)
     rec.update({'pixels': c['pixels'], 'exact': c['exact'], 'within_tol': c['within_tol'], 'max_diff': c['max_diff'],
                 'first_bad': c['first_bad'][:4]})
-    for k in ('predicted_vtx_ns', 'predicted_frag_ns', 'vertices', 'primitives', 'culled', 'tiles_processed',
-              'fragment_groups', 'fragment_lanes', 'fragment_samples', 'fragment_instructions', 'vertex_instructions',
-              'bg_groups', 'depth_passed', 'clipped_unsupported'):
+    rec['sim'] = {k: v for k, v in sim.items() if k != 'log'}
+    for k in ('predicted_vtx_ns', 'predicted_frag_ns'):
         rec[k] = sim.get(k)
     return rec
 
@@ -107,7 +107,7 @@ def check(trace, name, patches=None, fields=None, gl=None, reps=5, tol=1):
 def main():
     import argparse
     ap = argparse.ArgumentParser()
-    ap.add_argument('mode', choices=['scene', 'trace', 'suite'])
+    ap.add_argument('mode', choices=['scene', 'trace', 'suite', 'resim'])
     ap.add_argument('path'); ap.add_argument('--name'); ap.add_argument('--out')
     a = ap.parse_args()
     if a.mode == 'scene':
@@ -116,16 +116,40 @@ def main():
         print(json.dumps(check(tr, name, gl=gl)))
     elif a.mode == 'trace':
         print(json.dumps(check(a.path, a.name or Path(a.path).parent.name)))
+    elif a.mode == 'resim':
+        # offline regression: re-simulate every stored replay of a cases file, compare with the stored hardware output
+        for l in open(a.path):
+            r = json.loads(l)
+            if 'hw_vtx_ns' not in r:
+                print(json.dumps(r)); continue
+            out = WORK / 'runs' / r['name']
+            pa = rp.Pass(r['trace'])
+            sim, dt = simulate(out / 'plan.txt')
+            if 'error' in sim:
+                r.update({'sim_error': sim['error']}); [r.pop(k, None) for k in ('pixels', 'exact')]
+            else:
+                hw = pa.unpad((out / f'out-{pa.fb_va:x}.bin').read_bytes())
+                c = rc.compare(hw, pa.unpad((out / f'out-{pa.fb_va:x}.bin.sim').read_bytes()), pa.width, pa.height, 4, 1)
+                r.update({'pixels': c['pixels'], 'exact': c['exact'], 'within_tol': c['within_tol'], 'max_diff': c['max_diff'],
+                          'first_bad': c['first_bad'][:4], 'sim_s': round(dt, 3), 'predicted_vtx_ns': sim.get('predicted_vtx_ns'),
+                          'predicted_frag_ns': sim.get('predicted_frag_ns'), 'sim': {k: v for k, v in sim.items() if k != 'log'}})
+            print(json.dumps(r), flush=True)
     else:
         suite = json.loads(Path(a.path).read_text())
         outp = Path(a.out) if a.out else None
         for case in suite:
             try:
-                if 'scene' in case:
-                    tr, gl = capture(case['scene'], case['name'])
-                else:
-                    tr, gl = case['trace'], None
-                rec = check(tr, case['name'], gl=gl)
+                with gpu_safety.Tripwire(f"render case {case['name']}"):
+                    if 'scene' in case:
+                        tr, gl = capture(case['scene'], case['name'])
+                    else:
+                        tr, gl = case['trace'], None
+                    rec = check(tr, case['name'], gl=gl)
+            except RuntimeError as e:
+                if 'GPU recovered' in str(e):
+                    print(json.dumps({'name': case['name'], 'error': str(e)}), flush=True)
+                    sys.exit(3)   # a recovery stops the whole suite: no further submissions on a struggling GPU
+                rec = {'name': case['name'], 'error': str(e)}
             except Exception as e:
                 rec = {'name': case['name'], 'error': str(e)}
             print(json.dumps(rec), flush=True)
