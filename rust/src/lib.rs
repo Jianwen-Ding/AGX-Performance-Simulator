@@ -15,6 +15,7 @@ pub mod mapped_dispatch;
 mod memtrace;
 pub mod par;
 pub mod pyrandom;
+pub mod raster;
 pub mod texture;
 pub mod transtab;
 

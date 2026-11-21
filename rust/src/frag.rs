@@ -17,7 +17,7 @@
 //! Assumptions not yet verified on hardware (tasks/render-02-fragment-isa.md): the lane -> pixel layout (default: quads
 //! of 2x2, four quads across), the f32 evaluation order (fma(A, x, fma(B, y, C))), centroid = center for covered pixels.
 use std::collections::{BTreeMap, HashMap};
-use std::sync::{Mutex, OnceLock};
+use std::sync::{Arc, Mutex, RwLock};
 
 /// Empirical factor on the simulated core cycles of a dispatch that runs a fragment program (`agx_dispatch --frag`). Measured on hardware
 /// (results/2026-11-14-frag-cost): a 1-varying smooth fragment shader with a dependent ALU loop of 16..512 iterations over 2048x2048
@@ -43,15 +43,43 @@ pub struct FragSetup {
     pub depth_clear: Option<f32>,
     /// tile (imageblock) size in pixels; `image_write_block` with explicit coordinates stores this block (default 32 x 32)
     pub tile: Option<(u32, u32)>,
+    /// group ids are global (linear workgroup index x groups per workgroup + group), not per workgroup: the render model
+    /// launches one SIMD group per workgroup so a dispatch can cover a whole draw; sr80 / sr81 then read the lane's pixel
+    pub global_groups: bool,
+    /// hashed forms of `groups` / `coverage` for large dispatches (the render model fills these instead of the vectors)
+    pub group_map: HashMap<u32, (u32, u32)>,
+    pub coverage_map: HashMap<(u32, u32), u32>,
 }
 
-static SETUP: OnceLock<FragSetup> = OnceLock::new();
+static SETUP: RwLock<Option<Arc<FragSetup>>> = RwLock::new(None);
 
+/// Install the process's fragment setup (agx_run --frag); fails if one is installed already.
 pub fn install(s: FragSetup) -> Result<(), String> {
-    SETUP.set(s).map_err(|_| "fragment setup installed twice".to_string())
+    let mut g = SETUP.write().unwrap();
+    if g.is_some() {
+        return Err("fragment setup installed twice".to_string());
+    }
+    *g = Some(Arc::new(s));
+    Ok(())
 }
-pub fn get() -> Option<&'static FragSetup> {
-    SETUP.get()
+/// Replace (or clear) the setup: the render model (`crate::raster`) installs one per fragment dispatch it runs.
+pub fn replace(s: Option<FragSetup>) {
+    *SETUP.write().unwrap() = s.map(Arc::new);
+}
+pub fn get() -> Option<Arc<FragSetup>> {
+    SETUP.read().unwrap().clone()
+}
+/// Clear the tile memory, live / tested masks, depth / stencil and vertex outputs (a new render pass).
+pub fn reset_tile() {
+    *TILE.lock().unwrap() = None;
+}
+/// Forget the per-pixel live / tested sample masks (each fragment dispatch starts from its own coverage).
+pub fn reset_masks() {
+    with_tile(|ts| { ts.live.clear(); ts.tested.clear(); });
+}
+/// Take the vertex outputs st_var recorded ((group, lane, slot) -> (bits, final)) and clear them.
+pub fn take_uvs() -> BTreeMap<(u32, u32, u32), (u32, bool)> {
+    with_tile(|ts| std::mem::take(&mut ts.uvs))
 }
 
 impl FragSetup {
@@ -114,8 +142,8 @@ impl FragSetup {
         if let Some(&(_, x, y)) = self.lanes.iter().find(|l| l.0 as usize == lane) {
             return (x, y);
         }
-        let (x0, y0) = match self.groups.iter().find(|g| g.0 == group) {
-            Some(&(_, x, y)) => (x, y),
+        let (x0, y0) = match self.group_map.get(&group).copied().or_else(|| self.groups.iter().find(|g| g.0 == group).map(|g| (g.1, g.2))) {
+            Some((x, y)) => (x, y),
             None => {
                 let per_row = self.width.div_ceil(8).max(1);
                 (8 * (group % per_row), 4 * (group / per_row))
@@ -222,11 +250,13 @@ pub fn samples() -> u32 {
 }
 /// samples of pixel (x, y) covered at the start of the fragment program
 pub fn coverage(x: u32, y: u32) -> u32 {
-    get().and_then(|s| s.coverage.iter().find(|c| c.0 == x && c.1 == y).map(|c| c.2)).unwrap_or_else(all_samples) & all_samples()
+    get().and_then(|s| s.coverage_map.get(&(x, y)).copied().or_else(|| s.coverage.iter().find(|c| c.0 == x && c.1 == y).map(|c| c.2)))
+        .unwrap_or_else(all_samples) & all_samples()
 }
 /// whether a depth value passes against the stored one
 pub fn depth_passes(new: f32, stored: f32) -> bool {
-    match get().map(|s| s.depth_func.as_str()).filter(|f| !f.is_empty()).unwrap_or("less") {
+    let f = get().map(|s| s.depth_func.clone()).unwrap_or_default();
+    match if f.is_empty() { "less" } else { f.as_str() } {
         "never" => false,
         "equal" => new == stored,
         "lequal" => new <= stored,

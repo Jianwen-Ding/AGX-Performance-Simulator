@@ -97,9 +97,7 @@ def replay(trace_dir, out_dir, patches=None, fields=None, dumps=(), reps=1, wait
         f = out_dir / f'out-{va:x}.bin'
         if f.exists():
             res['dumps'][va] = f.read_bytes()
-    # Inputs are regenerable; keep only plan + outputs.
-    for f in out_dir.glob('in-*.bin'):
-        f.unlink()
+    # The inputs stay next to the plan: rust/target/release/agx_render PLAN simulates exactly what the GPU got.
     return res
 
 
