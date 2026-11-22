@@ -56,6 +56,9 @@ help:
 rust:
 	cd rust && cargo build --release
 
+verify-render-model: rust   # offline: render model vs stored direct-ioctl replays (pixels, timing)
+	python3 -I scripts/render_fixtures.py verify
+
 test:
 	cd rust && cargo test --release
 

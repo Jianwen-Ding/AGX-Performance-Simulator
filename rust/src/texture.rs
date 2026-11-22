@@ -436,7 +436,8 @@ pub fn decode_pbe(b: &[u8]) -> Result<PbeDesc, String> {
         width: bits(b, 24, 14) as u32 + 1,
         height: bits(b, 38, 14) as u32 + 1,
         addr: bits(b, 64, 36) << 4,
-        stride: bits(b, 104, 21) + 16,
+        // row pitch in 16-byte units: Mesa writes pitch - 16; hardware: 33-px RGBA8 with field 116 stores 128-byte rows (render probe)
+        stride: (bits(b, 104, 21) & !15) + 16,
         channels: bits(b, 6, 7) as u32,
         type_: bits(b, 13, 3) as u32,
         swizzle: [bits(b, 16, 2) as u32, bits(b, 18, 2) as u32, bits(b, 20, 2) as u32, bits(b, 22, 2) as u32],

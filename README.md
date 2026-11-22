@@ -21,6 +21,8 @@ rust/target/release/agx_dispatch code.bin --grid X[,Y,Z] --wg x[,y,z] [--regs HA
 make verify-cost-model      # offline: instruction/core model against every stored measurement (~20 s)
 make verify-memory-model    # offline: memory hierarchy against the stored memory sets (~2 min)
 make verify-dispatch        # offline: whole-dispatch model against 25 stored dispatches
+make verify-render-model    # offline: render-pass model against 20 stored direct-ioctl replays
+rust/target/release/agx_render PLAN.txt [--log]                                         # one render pass (scripts/render_check.py)
 ```
 
 `agx_cost` reports occupancy too (`occupancy` on its JSON line, `--core-throughput` for threads per microsecond of a
@@ -47,6 +49,7 @@ or timing validation for extreme launch dimensions.
 | Core | 4 schedulers (1 issue/cycle, group g on scheduler g % 4); two halves, each with 2 register reads/cycle and one transcendental/imad/bit-field/convert/64-bit unit | 1–32 groups, 738 measurements: 3.0–3.5% |
 | Memory | 64-byte segments; L1 8 KiB (loads 2, stores 1 segment/cycle), L2 256 KiB/core, SLC, DRAM 410 GB/s; load-after-ALU quiet time holds back whole batches; a load after ALU work waits for pending loads to pass the L1 (not to complete) | 6 stored sets: 1.8–7.2% |
 | Shared memory, sync | threadgroup memory: 32 banks x 4 bytes, 1 access/cycle/core, ~31 (load) / 24 (store) cycles per access per group; barriers 13 (0x68) / 7 (0x78) units after the last arrival, arrival after a 24-unit drain; device atomics 1.7 units per 32-byte sector (min 6.9), shared words 2 ops/cycle GPU-wide | 4 sets: 1.4-5.2% |
+| Render pass (`agx_render`) | the whole `drm_asahi_cmd_render`: VDM / PPP state, vertex stage, clipping, 1/256-snapped top-left rasterizer, tile-relative RTZ varying planes, depth / stencil, deferred HSR (Fragment control 2 pass type), late z, Z/S load / store, bg / fragment / EOT programs; timing on the core model with tile and tail terms ([results](results/2026-11-21-render-ioctl/README.md)) | 160 hardware replays: 99.99% of pixels byte-exact; held-out timing median 2.2% (vertex) / 4.8% (fragment), p90 24% / 31% |
 | Dispatch | occupancy (registers, 64 KiB threadgroup memory, 96 groups), cluster placement ceil(ceil(n/4)/9), launch max(100 ns/workgroup, 13.6 ns/group) + 5.6 us, waves; data that fits the SLC GPU-wide starts there; whole-dispatch DRAM 360 GB/s; divergent if/else runs both sides, exec-mask instructions hold their scheduler 3 cycles; an instruction issued with no active lane (an if body not jumped over) costs one issue cycle (ALU) or its measured masked cost (device load + wait ~11 ns, threadgroup load + wait ~12 ns, device store ~10 ns) | 36 dispatches incl. 4 divergent and 7 tree reductions: 4.7% (p90 9%) |
 
 Findings: [core scaling](novel-results/2026-10-11-core-scaling/README.md),

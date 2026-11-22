@@ -47,6 +47,32 @@ def require_budget(needed=1):
     return LIMIT - n
 
 
+KLOG = Path(os.environ.get('AGX_KERNEL_LOG', '/save/kernel.log'))
+
+
+def recoveries():
+    """GPU recoveries logged by the asahi driver this boot (kernel log lines 'Attempting recovery'); None if unreadable."""
+    try:
+        with KLOG.open('rb') as f:
+            return sum(1 for l in f if b'Attempting recovery' in l)
+    except OSError:
+        return None
+
+
+class Tripwire:
+    """with Tripwire('what'): ... raises (and records) if the GPU had to recover during the block."""
+    def __init__(self, what):
+        self.what = what
+    def __enter__(self):
+        self.n0 = recoveries(); return self
+    def __exit__(self, *exc):
+        n1 = recoveries()
+        if self.n0 is not None and n1 is not None and n1 > self.n0:
+            record(f'{self.what}: {n1 - self.n0} GPU recoveries')
+            raise RuntimeError(f'GPU recovered {n1 - self.n0} times during {self.what}: stopping')
+        return False
+
+
 if __name__ == '__main__':
     ev = used()
     print(json.dumps({'boot_id': boot_id(), 'used': len(ev), 'limit': LIMIT, 'last': ev[-3:]}, indent=1))

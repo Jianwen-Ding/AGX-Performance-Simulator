@@ -1,0 +1,234 @@
+[
+ {
+  "name": "random0",
+  "scene": "results/2026-11-21-render-ioctl/scenes/random0.txt"
+ },
+ {
+  "name": "random1",
+  "scene": "results/2026-11-21-render-ioctl/scenes/random1.txt"
+ },
+ {
+  "name": "random2",
+  "scene": "results/2026-11-21-render-ioctl/scenes/random2.txt"
+ },
+ {
+  "name": "random3",
+  "scene": "results/2026-11-21-render-ioctl/scenes/random3.txt"
+ },
+ {
+  "name": "random4",
+  "scene": "results/2026-11-21-render-ioctl/scenes/random4.txt"
+ },
+ {
+  "name": "random5",
+  "scene": "results/2026-11-21-render-ioctl/scenes/random5.txt"
+ },
+ {
+  "name": "topleft0",
+  "scene": "results/2026-11-21-render-ioctl/scenes/topleft0.txt"
+ },
+ {
+  "name": "topleft1",
+  "scene": "results/2026-11-21-render-ioctl/scenes/topleft1.txt"
+ },
+ {
+  "name": "topleft2",
+  "scene": "results/2026-11-21-render-ioctl/scenes/topleft2.txt"
+ },
+ {
+  "name": "topleft3",
+  "scene": "results/2026-11-21-render-ioctl/scenes/topleft3.txt"
+ },
+ {
+  "name": "topleft_fan",
+  "scene": "results/2026-11-21-render-ioctl/scenes/topleft_fan.txt"
+ },
+ {
+  "name": "subpixel6",
+  "scene": "results/2026-11-21-render-ioctl/scenes/subpixel6.txt"
+ },
+ {
+  "name": "subpixel8",
+  "scene": "results/2026-11-21-render-ioctl/scenes/subpixel8.txt"
+ },
+ {
+  "name": "subpixel9",
+  "scene": "results/2026-11-21-render-ioctl/scenes/subpixel9.txt"
+ },
+ {
+  "name": "subpixel10",
+  "scene": "results/2026-11-21-render-ioctl/scenes/subpixel10.txt"
+ },
+ {
+  "name": "subpixel12",
+  "scene": "results/2026-11-21-render-ioctl/scenes/subpixel12.txt"
+ },
+ {
+  "name": "cull_none_ccw",
+  "scene": "results/2026-11-21-render-ioctl/scenes/cull_none_ccw.txt"
+ },
+ {
+  "name": "cull_none_cw",
+  "scene": "results/2026-11-21-render-ioctl/scenes/cull_none_cw.txt"
+ },
+ {
+  "name": "cull_back_ccw",
+  "scene": "results/2026-11-21-render-ioctl/scenes/cull_back_ccw.txt"
+ },
+ {
+  "name": "cull_back_cw",
+  "scene": "results/2026-11-21-render-ioctl/scenes/cull_back_cw.txt"
+ },
+ {
+  "name": "cull_front_ccw",
+  "scene": "results/2026-11-21-render-ioctl/scenes/cull_front_ccw.txt"
+ },
+ {
+  "name": "cull_front_cw",
+  "scene": "results/2026-11-21-render-ioctl/scenes/cull_front_cw.txt"
+ },
+ {
+  "name": "cull_both_ccw",
+  "scene": "results/2026-11-21-render-ioctl/scenes/cull_both_ccw.txt"
+ },
+ {
+  "name": "cull_both_cw",
+  "scene": "results/2026-11-21-render-ioctl/scenes/cull_both_cw.txt"
+ },
+ {
+  "name": "depth_less",
+  "scene": "results/2026-11-21-render-ioctl/scenes/depth_less.txt"
+ },
+ {
+  "name": "depth_lequal",
+  "scene": "results/2026-11-21-render-ioctl/scenes/depth_lequal.txt"
+ },
+ {
+  "name": "depth_greater",
+  "scene": "results/2026-11-21-render-ioctl/scenes/depth_greater.txt"
+ },
+ {
+  "name": "depth_gequal",
+  "scene": "results/2026-11-21-render-ioctl/scenes/depth_gequal.txt"
+ },
+ {
+  "name": "depth_equal",
+  "scene": "results/2026-11-21-render-ioctl/scenes/depth_equal.txt"
+ },
+ {
+  "name": "depth_notequal",
+  "scene": "results/2026-11-21-render-ioctl/scenes/depth_notequal.txt"
+ },
+ {
+  "name": "depth_always",
+  "scene": "results/2026-11-21-render-ioctl/scenes/depth_always.txt"
+ },
+ {
+  "name": "depth_never",
+  "scene": "results/2026-11-21-render-ioctl/scenes/depth_never.txt"
+ },
+ {
+  "name": "depth_nowrite",
+  "scene": "results/2026-11-21-render-ioctl/scenes/depth_nowrite.txt"
+ },
+ {
+  "name": "depth_clear05",
+  "scene": "results/2026-11-21-render-ioctl/scenes/depth_clear05.txt"
+ },
+ {
+  "name": "stencil_replace_eq",
+  "scene": "results/2026-11-21-render-ioctl/scenes/stencil_replace_eq.txt"
+ },
+ {
+  "name": "stencil_incr",
+  "scene": "results/2026-11-21-render-ioctl/scenes/stencil_incr.txt"
+ },
+ {
+  "name": "stencil_invert_mask",
+  "scene": "results/2026-11-21-render-ioctl/scenes/stencil_invert_mask.txt"
+ },
+ {
+  "name": "stencil_fail_zero",
+  "scene": "results/2026-11-21-render-ioctl/scenes/stencil_fail_zero.txt"
+ },
+ {
+  "name": "scissor0",
+  "scene": "results/2026-11-21-render-ioctl/scenes/scissor0.txt"
+ },
+ {
+  "name": "scissor1",
+  "scene": "results/2026-11-21-render-ioctl/scenes/scissor1.txt"
+ },
+ {
+  "name": "scissor2",
+  "scene": "results/2026-11-21-render-ioctl/scenes/scissor2.txt"
+ },
+ {
+  "name": "scissor3",
+  "scene": "results/2026-11-21-render-ioctl/scenes/scissor3.txt"
+ },
+ {
+  "name": "prim_strip",
+  "scene": "results/2026-11-21-render-ioctl/scenes/prim_strip.txt"
+ },
+ {
+  "name": "prim_fan",
+  "scene": "results/2026-11-21-render-ioctl/scenes/prim_fan.txt"
+ },
+ {
+  "name": "prim_indexed",
+  "scene": "results/2026-11-21-render-ioctl/scenes/prim_indexed.txt"
+ },
+ {
+  "name": "prim_restart",
+  "scene": "results/2026-11-21-render-ioctl/scenes/prim_restart.txt"
+ },
+ {
+  "name": "prim_instanced",
+  "scene": "results/2026-11-21-render-ioctl/scenes/prim_instanced.txt"
+ },
+ {
+  "name": "prim_basevertex",
+  "scene": "results/2026-11-21-render-ioctl/scenes/prim_basevertex.txt"
+ },
+ {
+  "name": "flat",
+  "scene": "results/2026-11-21-render-ioctl/scenes/flat.txt"
+ },
+ {
+  "name": "discard",
+  "scene": "results/2026-11-21-render-ioctl/scenes/discard.txt"
+ },
+ {
+  "name": "fragz",
+  "scene": "results/2026-11-21-render-ioctl/scenes/fragz.txt"
+ },
+ {
+  "name": "blend_alpha",
+  "scene": "results/2026-11-21-render-ioctl/scenes/blend_alpha.txt"
+ },
+ {
+  "name": "const",
+  "scene": "results/2026-11-21-render-ioctl/scenes/const.txt"
+ },
+ {
+  "name": "persp",
+  "scene": "results/2026-11-21-render-ioctl/scenes/persp.txt"
+ },
+ {
+  "name": "clip_offscreen",
+  "scene": "results/2026-11-21-render-ioctl/scenes/clip_offscreen.txt"
+ },
+ {
+  "name": "clip_near",
+  "scene": "results/2026-11-21-render-ioctl/scenes/clip_near.txt"
+ },
+ {
+  "name": "big_depth",
+  "scene": "results/2026-11-21-render-ioctl/scenes/big_depth.txt"
+ },
+ {
+  "name": "big_blend",
+  "scene": "results/2026-11-21-render-ioctl/scenes/big_blend.txt"
+ }
+]
