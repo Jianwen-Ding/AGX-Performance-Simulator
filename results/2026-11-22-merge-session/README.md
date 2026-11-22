@@ -9,6 +9,7 @@ without Cycles; `capcheck --hw-from`, runtime profile). The tables are in `eval/
 | `AGX_RESIDENT_SHARE=1` (new: SLC-resident lines do not get the DRAM share) | 8.0% | 119 | gPyramid4 sweep 31 -> 19%, outGPyramid1 +25 -> +51% | rejected |
 | `AGX_DRAM_SHARE=0` | 11.5% | 113 | gPyramid4 sweep 31 -> 12% | rejected |
 | `AGX_FETCH_OVERLAP=0.6` (default 0.3) | 7.9% | 115 | llama tg 9.4 -> 7.4% | rejected |
+| `AGX_FETCH_COLD_NS=60` (default 70; fits the beyond-i-cache probe, results/2026-11-22-fetch-overlap) | 7.6% | 118 | likelihood +6 -> +1%, myocyte (2.8 MB straight-line code) 0 -> -12% | not adopted |
 | `AGX_FETCH_OVERLAP=1.0` | not run | | llama tg 10.7% | - |
 | `AGX_L2_LRU=4 AGX_L2_CORE=600000 AGX_L2_EVICT_SLC=1` (round 8) | not finished | | | still open |
 
