@@ -461,6 +461,7 @@ enum K {
     Mask { ctl: Ctl, cmp: Cmp, n: i128 },
     Ballot { cmp: Option<Cmp>, d: Dst },
     SimdShuffle { a: Src, b: Src, d: Dst },
+    QuadShuffle { kind: u8, a: Src, b: Src, d: Dst },
     Shuffle { op: Sh, a: Src, b: Src, d: Dst },
     DeviceLoad { at: bool, a: usize, ot: bool, o: u64, ou: bool, fmt: u64, s: u64, r: usize, rt: u64, mask: u64 },
 }
@@ -591,6 +592,7 @@ impl Compiled {
             Ex::ICmpBallot => K::Ballot { cmp: Some(cmp(false)), d: dst("D") },
             Ex::FCmpBallot => K::Ballot { cmp: None, d: dst("D") },
             Ex::SimdShuffle => K::SimdShuffle { a: src("A"), b: src("B"), d: dst("D") },
+            Ex::QuadShuffle { kind } => K::QuadShuffle { kind, a: src("A"), b: src("B"), d: dst("D") },
             Ex::SimdShuffleDown | Ex::SimdShuffleUp | Ex::SimdShuffleRotateUp | Ex::SimdShuffleXor => K::Shuffle {
                 op: match d.ex {
                     Ex::SimdShuffleDown => Sh::Down,
@@ -931,6 +933,33 @@ impl Compiled {
                     if st.exec[t] {
                         d.set(st, t, result)?;
                     }
+                }
+                Ok(())
+            }
+            K::QuadShuffle { kind, a, b, d } => {
+                // as exec::exec's Ex::QuadShuffle (fsem::quad_shuffle)
+                let mut av = [0i128; SIMD_WIDTH];
+                let mut bv = [0i128; SIMD_WIDTH];
+                for t in 0..SIMD_WIDTH {
+                    if st.exec[t] || st.live[t] {
+                        av[t] = a.get(st, t)?;
+                        bv[t] = b.get(st, t)? & 0xffff;
+                    }
+                }
+                for t in 0..SIMD_WIDTH {
+                    if !st.exec[t] {
+                        continue;
+                    }
+                    let (q, i) = (t & !3, (t & 3) as i128);
+                    let j = match kind {
+                        0 => bv[t],
+                        1 => i + bv[t],
+                        2 => i - bv[t],
+                        3 => (i - bv[t]).rem_euclid(4),
+                        _ => i ^ bv[t],
+                    };
+                    let r = if (0..4).contains(&j) { av[q + j as usize] } else { av[t] };
+                    d.set(st, t, r)?;
                 }
                 Ok(())
             }

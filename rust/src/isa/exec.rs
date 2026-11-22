@@ -582,6 +582,34 @@ pub fn exec(d: &Desc, f: &Fields, ops: &[Operand], st: &mut CoreState) -> R<()> 
             }
             Ok(())
         }
+        Ex::QuadShuffle { kind } => {
+            // as fsem::quad_shuffle: index B (low 16 bits) per lane; an index
+            // that leaves the quad keeps the lane's own value (rotate_up wraps)
+            let mut av = [0i128; SIMD_WIDTH];
+            let mut bv = [0i128; SIMD_WIDTH];
+            for t in 0..SIMD_WIDTH {
+                if st.exec[t] || st.live[t] {
+                    av[t] = c.eval("A", st, t)?;
+                    bv[t] = c.eval("B", st, t)? & 0xffff;
+                }
+            }
+            for t in 0..SIMD_WIDTH {
+                if !st.exec[t] {
+                    continue;
+                }
+                let (q, i) = (t & !3, (t & 3) as i128);
+                let j = match kind {
+                    0 => bv[t],
+                    1 => i + bv[t],
+                    2 => i - bv[t],
+                    3 => (i - bv[t]).rem_euclid(4),
+                    _ => i ^ bv[t],
+                };
+                let r = if (0..4).contains(&j) { av[q + j as usize] } else { av[t] };
+                c.set("D", st, t, r)?;
+            }
+            Ok(())
+        }
         Ex::SimdShuffle => {
             let mut quad_values = [0i128; 8];
             let mut quad_live = [false; 8];
