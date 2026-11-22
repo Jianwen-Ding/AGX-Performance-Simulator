@@ -8,7 +8,7 @@ workgroups do not overlap. If the level that holds REGKB is private per core, ti
 GPU-wide, per-workgroup time grows with N once N x REGKB exceeds it (capacity) or the traffic saturates it
 (bandwidth). MMQ (352 KB of stack per workgroup) and other stack-heavy kernels undershoot only at full grids.
 
-usage: probe_l2_share.py [hw|sim|both]; env N="1 8 16 32" REGKB="64 256 1024" T=4000 WG=256 B2B=500
+usage: probe_l2_share.py [hw|sim|both]; env N="1 8 16 32" REGKB="64 256 1024" T=4000 WG=256 B2B=500 STEP=4 (words per lane per trip: 8 skips every other 4 KB chunk)
 """
 import json, os, re, subprocess, sys, tempfile
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -49,7 +49,7 @@ def main():
             for n in [int(x) for x in os.environ.get('N', '1 8 16 32').split()]:
                 a = [f, '--grid', f'{n * wg},1,1', '--wg', f'{wg},1,1', '--regs', '64', '--uniform', f'5={t}',
                      '--uniform', f'8={A & 0xffffffff}', '--uniform', f'9={A >> 32}', '--uniform', f'16={regw - 1}',
-                     '--uniform', f'17={wg}', '--uniform', f'18={regw}', '--uniform', f'19={4 * wg}',
+                     '--uniform', f'17={wg}', '--uniform', f'18={regw}', '--uniform', f'19={int(os.environ.get("STEP", "4")) * wg}',
                      '--alloc', f'{A:#x}={(n * regw + 4 * wg) * 4}']
                 out = [f'REGKB {kb:5d} N {n:3d} T {t}']
                 if mode in ('hw', 'both'):

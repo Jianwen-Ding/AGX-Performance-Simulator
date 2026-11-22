@@ -2046,6 +2046,8 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
         pf: HashMap<u64, i64>,
         missed: std::collections::HashSet<u64>,
         missed_ring: std::collections::VecDeque<u64>,
+        pf_regions: HashMap<u64, i64>,
+        pf_ring: std::collections::VecDeque<u64>,
         first_frac: f64,
         first: HashMap<(usize, usize), (f64, f64)>,
     }
@@ -2094,6 +2096,7 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
     let mut drain_end = 0i64;
     let mut next_bound = vec![0usize; groups];
     let pf_dist: u64 = std::env::var("AGX_PREFETCH").ok().and_then(|v| v.parse().ok()).unwrap_or(0);
+    let pf_region: u32 = std::env::var("AGX_PF_REGION").ok().and_then(|v| v.parse().ok()).unwrap_or(0);
     let wb_dirty = std::env::var("AGX_WB_DIRTY").map_or(false, |v| v == "1");
     // AGX_STACK_EVICT_DRAM=1: a stack line the GPU-wide L2 has lost is fetched at the DRAM rate (the SLC does not
     // keep the cores' 6 MB-strided stacks: round-4 stack probes)
@@ -2137,6 +2140,8 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
             pf: Default::default(),
             missed: Default::default(),
             missed_ring: Default::default(),
+            pf_regions: Default::default(),
+            pf_ring: Default::default(),
             first: Default::default(),
         }
     });
@@ -2957,7 +2962,7 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
                         // after its highest, each ready at this miss's issue + its full latency; a later miss on lines
                         // all prefetched waits only until they are ready (at least the L2 latency). Bandwidth as before.
                         // (probe_l2_share: 2 MB per core at 32 cores sustains ~590 GB/s with 208 ns per dependent trip)
-                        if pf_dist > 0 && !store && level >= 2 && !segs.is_empty() {
+                        if (pf_dist > 0 || pf_region > 0) && !store && level >= 2 && !segs.is_empty() {
                             let orig = lat_extra;
                             let (s0, s1) = (*segs.iter().min().unwrap(), *segs.iter().max().unwrap());
                             let mut ready = i64::MIN;
@@ -2971,6 +2976,20 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
                             if hit || (s0 > 0 && m.missed.contains(&(s0 - 1))) {
                                 if m.pf.len() > (1 << 16) { m.pf.clear(); }
                                 for d in 1..=pf_dist { m.pf.entry(s1 + d).or_insert(t + orig); }
+                            }
+                            if pf_region > 0 {
+                                // AGX_PF_REGION=B: the first miss in a 2^B-line region fetches the region: a later
+                                // miss there waits until that fetch lands (at least the L2 latency)
+                                let rg = s0 >> pf_region;
+                                match m.pf_regions.get(&rg) {
+                                    Some(&r0) if !hit => lat_extra = lat_extra.min((r0 - t).max(m.extra[1])),
+                                    Some(_) => {}
+                                    None => {
+                                        m.pf_regions.insert(rg, t + orig);
+                                        m.pf_ring.push_back(rg);
+                                        if m.pf_ring.len() > 1024 { if let Some(o) = m.pf_ring.pop_front() { m.pf_regions.remove(&o); } }
+                                    }
+                                }
                             }
                             if m.missed.insert(s1) {
                                 m.missed_ring.push_back(s1);
