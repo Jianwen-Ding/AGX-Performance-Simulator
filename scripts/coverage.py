@@ -216,6 +216,7 @@ def bench_body(c):
     import bench_ops, run_bench as B
     spec = c.build()
     bench_ops.OPS[bench_name(c)] = (spec['template'], spec['class'])
+    B.OPS[bench_name(c)] = (spec['template'], spec['class'])   # run_bench keeps its own copy of the table
     return spec
 
 

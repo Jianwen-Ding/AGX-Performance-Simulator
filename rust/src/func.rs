@@ -180,6 +180,8 @@ impl InstructionCells for crate::decode_cache::DecodeCache<Info, 1> {
 
 enum OpKind {
     Stop,
+    /// The undecoded "ends" opcodes: the whole SIMD group ends whatever the exec mask (coverage undecoded/end_*_masked).
+    EndGroup,
     Jmp { any: bool },
     Call,
     Ret,
@@ -345,7 +347,8 @@ fn tex_op(ops: &[Operand], sampler_reg: bool) -> TexOp {
 fn op_kind(name: &'static str, f: &Fields, ops: &[Operand]) -> OpKind {
     use OpKind::*;
     match name {
-        "stop" | "end_group" => Stop,
+        "stop" => Stop,
+        "end_group" => EndGroup,
         // Measured on G14C (ptx-re-blockers B21, playground results/2026-10-20-b21-trap): an executed trap does
         // nothing; the stores after it land and the command ends normally.
         "nop6" | "fixed18" | "trap" => Nop,
@@ -883,6 +886,12 @@ fn step_group_impl<C: InstructionCells>(g: &mut Group, code: &[u8], cache: &C, m
                 if !g.st.live.iter().any(|&live| live) {
                     return Ok(Stop::Done);
                 }
+            }
+            OpKind::EndGroup => {
+                // Hardware (coverage undecoded/end_*_base_masked, 3 of 4 lanes active): the masked-off lanes end too.
+                g.st.live.iter_mut().for_each(|l| *l = false);
+                g.st.exec.iter_mut().for_each(|e| *e = false);
+                return Ok(Stop::Done);
             }
             OpKind::Jmp { any: want_any } => {
                 let any = g.st.exec.iter().any(|&e| e);
