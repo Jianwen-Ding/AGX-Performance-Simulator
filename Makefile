@@ -173,6 +173,7 @@ verify-transcendentals: rust
 
 verify-sr: rust
 	$(PYTHON) -B scripts/sr_check.py
+	$(PYTHON) -B scripts/active_sr_check.py
 
 verify-traces: rust
 	rust/target/release/suite_check --traces

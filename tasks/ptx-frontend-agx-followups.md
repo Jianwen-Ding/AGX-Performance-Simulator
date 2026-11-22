@@ -123,6 +123,10 @@ are linked where they already cover part of it.
     `total_active_threads_in_simdgroup` (sr59) disagree with `ballot`: with one active thread sr59 read 11, with 32
     it read 1 (PTX-formalization atomics.ptx / launch-maxntid-total.ptx under the atomic optimizer). The backend
     now derives both from the ballot; the emulation (or the register numbering) needs checking against hardware.
+    **Checked 2026-11-22:** agx_run matches the M2 Max byte for byte on eight divergence masks, including one active lane
+    (sr58 0, sr59 1) and 32 or 40 active threads ([results/2026-11-22-active-sr](../results/2026-11-22-active-sr/README.md),
+    `scripts/active_sr_check.py`). The emulation is right, so the old reading came from the backend code of that time or from the
+    `agx_run` before 97cffd81. To close this item, re-run the two PTX tests with the backend's SR form.
 17. **Empty-mask memory accesses (B31 against `agx_cost`).** With an if body of at most 4 instructions that holds
     device / threadgroup loads or stores run under an empty execution mask instead of jumped over, `agx_cost` reports
     every affected agx-bench kernel faster (conv3x3 tput -17%, bitonic_smem -7%, saxpy -20%; llvm-project
