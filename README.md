@@ -61,6 +61,14 @@ Findings: [core scaling](novel-results/2026-10-11-core-scaling/README.md),
 Stack-using kernels (runtime profile): each SIMD-group slot's first stack use in a command costs ~1.15 us, one slot at a time per core, plus a 5.0 us set-up; Rodinia warm captures 29.5% -> 6.5% median with the threadgroup-load change ([results](results/2026-11-07-stack-slots/README.md)). Time short kernels with >= 1000 back-to-back commands.
 Real-program held-out set (161 warm launches of Rodinia, Halide apps and Cycles through the CUDA translation layer, `results/2026-11-07-round4`): median error 9% -> 7% (p90 21%, 113 within 10%) since a wave's first touches go at the DRAM rate only for the dispatch's new lines (re-read lines wait L2 latency) and the taken-forward-jump hold follows the executed code, not the program size. llama.cpp token generation (10 launches, Qwen2.5-0.5B Q5_K_M, timed at 1000 back-to-back commands on an idle GPU): median 10%.
 
+Since 2026-11-22 ([results](results/2026-11-22-merge-session/README.md)) a core may hold up to 600 KB of the GPU-wide L2
+(recency window 4 x 256 KB; `AGX_L2_LRU=1 AGX_L2_CORE=0 AGX_L2_EVICT_SLC=0` restores the earlier model). On 159 held-out
+launches without Cycles the mean absolute error is 7.5% (118 within 10%), llama pp512 is 10.2% and flash attention
+7.8%. Functional coverage is 2711 / 2711 recorded cases exact and the hardware suite 721 / 721. Open timing gaps with
+hardware data: workgroups resident together on a core overlap in the model but not on the GPU (cfd flux, Halide
+gPyramid4, hotspot3D: [grid sweeps](results/2026-11-22-grid-sweeps/README.md)); the short llama kernels' fixed cost per
+code line (Q8_0 mat-vec -19%, [fetch probe](results/2026-11-22-fetch-overlap/README.md)).
+
 Known gaps: on 85 real launches of Geekbench 7's CUDA kernels (captured with their memory through the CUDA translation layer) the median error is 16%, with large image kernels up to +80% and short ones down to -58%, texture sampling -90% ([details](novel-results/2026-10-23-geekbench-captures/README.md)); ALU instructions between threadgroup loads (50-70% on the hardware) are modelled since 2026-11-07: a threadgroup load holds its group ~28 cycles and issues only after the quiet time after ALU work (46 loops at 1-32 groups: median error 31% -> 1.8% held out, [results](results/2026-11-07-tg-issue-hold/README.md)); simple-ALU chains with 1-3 dependency chains at 9-24 groups per core (hardware up to 4.95 instructions
 per cycle at 10-12 groups and 20-60% slower at 15-20; not lockstep, not writeback; cause unknown); threadgroup-memory
 textures and divergence are not measured; barriers after ALU work at 8-32 groups are 13-31% low;
