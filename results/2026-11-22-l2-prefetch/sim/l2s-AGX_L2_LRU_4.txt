@@ -1,0 +1,1 @@
+AGX_L2_LRU=4: REGKB   256 N  32 T 2000  sim     745.6

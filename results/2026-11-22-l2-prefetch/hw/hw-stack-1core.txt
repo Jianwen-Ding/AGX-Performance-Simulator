@@ -1,0 +1,12 @@
+A w=256
+grid        256,1,1 hw     701.1 sim       nan ratio nan waves None wgs/core None runs [701.5, 700.958, 701.125]
+grid        512,1,1 hw     990.4 sim       nan ratio nan waves None wgs/core None runs [1116.083, 990.375, 702.917]
+grid       1024,1,1 hw     721.8 sim       nan ratio nan waves None wgs/core None runs [721.666, 721.833, 721.875]
+G w=512
+grid        512,1,1 hw     620.9 sim       nan ratio nan waves None wgs/core None runs [509.334, 708.542, 620.916]
+grid       1024,1,1 hw     591.8 sim       nan ratio nan waves None wgs/core None runs [591.791, 512.833, 708.959]
+grid       2048,1,1 hw     728.4 sim       nan ratio nan waves None wgs/core None runs [729.042, 728.417, 526.75]
+D w=1024
+grid       1024,1,1 hw     483.8 sim       nan ratio nan waves None wgs/core None runs [483.75, 466.375, 738.5]
+grid       2048,1,1 hw     472.9 sim       nan ratio nan waves None wgs/core None runs [472.125, 472.875, 473.041]
+grid       4096,1,1 hw     484.6 sim       nan ratio nan waves None wgs/core None runs [484.583, 483.125, 484.584]

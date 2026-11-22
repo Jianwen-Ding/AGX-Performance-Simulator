@@ -1,0 +1,12 @@
+REGKB   256 N   1 T 2000  sim     334.5
+REGKB   256 N   8 T 2000  sim     334.7
+REGKB   256 N  32 T 2000  sim     745.6
+REGKB   512 N   1 T 2000  sim     347.3
+REGKB   512 N   8 T 2000  sim     347.5
+REGKB   512 N  32 T 2000  sim     812.7
+REGKB  1024 N   1 T 2000  sim     802.4
+REGKB  1024 N   8 T 2000  sim     802.4
+REGKB  1024 N  32 T 2000  sim     823.2
+REGKB  2048 N   1 T 2000  sim     794.3
+REGKB  2048 N   8 T 2000  sim     794.3
+REGKB  2048 N  32 T 2000  sim     897.4
