@@ -41,7 +41,12 @@ measurements), so a task confirms or refutes known claims instead of rediscoveri
 3. **Whole programs only.**
    - Submit `run_drm_compute.build_main(body)`, never a bare body. A bare body has no final `stop`; one stopped the GPU
      executing work on 2026-10-16. `record_suite.run()` now refuses a program that does not end with `stop`.
-4. **Bounded code only.**
+4. **Never launch a code file that `agx_run` has not just run to completion.** On 2026-11-22 an ad-hoc shell probe
+   wrote an empty `k.bin` (its `xxd` step failed: xxd is not installed) and passed it to `agx_run_hw`. The GPU
+   executed whatever followed, and the queue stayed wedged: every later job, known-good ones included, timed out
+   (`syncobj-wait: Timer expired`) until a reboot. Write kernels from Python (`bytes.fromhex`), check the file size, and
+   gate every launch on `agx_run` as the probe scripts do.
+5. **Bounded code only.**
    - Loops must use `agx_loop` bodies that pass their emulator gate.
    - Simulate any new kernel in `rust/target/release/agx_run` (set `AGX_SR_DEFAULT` if it reads unmodelled special
      registers) and check that it terminates and writes what you expect before it runs on the GPU.
