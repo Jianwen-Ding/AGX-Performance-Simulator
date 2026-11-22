@@ -2135,7 +2135,8 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
     // AGX_STACK_EVICT_DRAM=1: a stack line the GPU-wide L2 has lost is fetched at the DRAM rate (the SLC does not
     // keep the cores' 6 MB-strided stacks: round-4 stack probes)
     let stack_evict_dram = std::env::var("AGX_STACK_EVICT_DRAM").map_or(false, |v| v == "1");
-    let evict_slc = std::env::var("AGX_L2_EVICT_SLC").map_or(false, |v| v == "1");
+    // default on since 2026-11-22 with the L2 window above (AGX_L2_EVICT_SLC=0: an evicted line is always an SLC hit)
+    let evict_slc = std::env::var("AGX_L2_EVICT_SLC").map_or(true, |v| v != "0");
     let inflight_on = std::env::var("AGX_INFLIGHT").map_or(true, |v| v != "0");
     let charge_writeback = std::env::var("AGX_CHARGE_WRITEBACK").map_or(false, |v| v == "1")
         && mem.is_some_and(|(_, m)| !m.resident_slc);
@@ -3803,7 +3804,9 @@ fn l2_core_knobs() -> (f64, f64) {
     static T: std::sync::OnceLock<(f64, f64)> = std::sync::OnceLock::new();
     *T.get_or_init(|| {
         let g = |k: &str, d: f64| std::env::var(k).ok().and_then(|v| v.parse().ok()).unwrap_or(d);
-        (g("AGX_L2_LRU", 1.0), g("AGX_L2_CORE", 0.0))
+        // defaults since 2026-11-22 (results/2026-11-22-merge-session): window 4 x 256 KB, one core holds at most
+        // 600 KB of the GPU-wide L2 (single-core stack probes: one core uses > 256 KB); AGX_L2_LRU=1 AGX_L2_CORE=0 = before
+        (g("AGX_L2_LRU", 4.0), g("AGX_L2_CORE", 600000.0))
     })
 }
 
