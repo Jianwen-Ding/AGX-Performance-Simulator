@@ -2040,6 +2040,12 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
         /// `first_touch_dram`: segments this dispatch has touched, and per access (group, index) how many of its
         /// lines were first touches (an access is re-evaluated while it waits for its buckets)
         seen: std::collections::HashSet<u64>,
+        /// AGX_WB_DIRTY: lines this core has written since they were last fetched from DRAM
+        dirty: std::collections::HashSet<u64>,
+        /// AGX_PREFETCH: prefetched lines with their ready tick; this core's recent L2 misses
+        pf: HashMap<u64, i64>,
+        missed: std::collections::HashSet<u64>,
+        missed_ring: std::collections::VecDeque<u64>,
         first_frac: f64,
         first: HashMap<(usize, usize), (f64, f64)>,
     }
@@ -2087,6 +2093,12 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
     let drain_issue_all = std::env::var("AGX_STORE_DRAIN_ISSUE").is_ok_and(|v| v == "2");
     let mut drain_end = 0i64;
     let mut next_bound = vec![0usize; groups];
+    let pf_dist: u64 = std::env::var("AGX_PREFETCH").ok().and_then(|v| v.parse().ok()).unwrap_or(0);
+    let wb_dirty = std::env::var("AGX_WB_DIRTY").map_or(false, |v| v == "1");
+    // AGX_STACK_EVICT_DRAM=1: a stack line the GPU-wide L2 has lost is fetched at the DRAM rate (the SLC does not
+    // keep the cores' 6 MB-strided stacks: round-4 stack probes)
+    let stack_evict_dram = std::env::var("AGX_STACK_EVICT_DRAM").map_or(false, |v| v == "1");
+    let evict_slc = std::env::var("AGX_L2_EVICT_SLC").map_or(false, |v| v == "1");
     let inflight_on = std::env::var("AGX_INFLIGHT").map_or(true, |v| v != "0");
     let charge_writeback = std::env::var("AGX_CHARGE_WRITEBACK").map_or(false, |v| v == "1")
         && mem.is_some_and(|(_, m)| !m.resident_slc);
@@ -2121,6 +2133,10 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
             epoch: 0,
             lv_cache: vec![None; groups],
             seen: Default::default(),
+            dirty: Default::default(),
+            pf: Default::default(),
+            missed: Default::default(),
+            missed_ring: Default::default(),
             first: Default::default(),
         }
     });
@@ -2862,13 +2878,20 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
                                     // a stack store does not read the line first (probe_stack_cost.py: 56-62 ns per store at
                                     // 256 bytes and 4 KB of frame alike, where loads go from 68 to 172)
                                     let lv = if r.stack_store { 0 } else if m.l1.contains(sg) { 0 } else if m.l2.contains(sg) {
-                                        if m.l2g.as_ref().is_some_and(|w| w.evicted(sg, chain_sh(m.sharers, gi, m.cur[gi]))) { 2 } else { 1 }
+                                        if m.l2g.as_ref().is_some_and(|w| w.evicted(sg, chain_sh(m.sharers, gi, m.cur[gi]))) {
+                                            // (AGX_L2_EVICT_SLC=0: an evicted line is always an SLC hit, as before)
+                                            if (stack_evict_dram && WorkingSet::is_stack(sg)) || (evict_slc && !m.slc.contains(sg)) { 3 } else { 2 }
+                                        } else { 1 }
                                     } else if m.slc.contains(sg) { 2 } else { 3 };
                                     if lv >= 1 {
                                         need[1 + lv] += 1.0;
                                     }
                                     // (lines found only in DRAM: the footprint is beyond the SLC; bookkeeping)
                                     if lv == 3 { need[6] += 1.0; }
+                                    // AGX_WB_DIRTY=1: a written line found only in DRAM was written back when it left
+                                    // the SLC: its write-back takes DRAM bandwidth too (stack probe G vs H, 512 KB per
+                                    // core with / without the store: 1545 / 1085 us at 32 busy cores)
+                                    if lv == 3 && wb_dirty && m.dirty.remove(&sg) { need[4] += 1.0; }
                                     level = level.max(lv);
                                 }
                                 m.lv_cache[gi] = Some((m.cur[gi], m.epoch, [need[2], need[3], need[4]], level));
@@ -2928,6 +2951,31 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
                         // (AGX_SEQ_PREFETCH=K: any of the K lines before it)
                         if seq_prefetch > 0 && !store && level >= 2 && segs.iter().min().is_some_and(|&s0| (1..=seq_prefetch.min(s0)).any(|d| m.l2.contains(s0 - d) || m.l1.contains(s0 - d))) {
                             lat_extra = lat_extra.min(m.extra[1]);
+                        }
+                        // AGX_PREFETCH=D (experiment): a stream prefetcher. A load missing the L2 whose line before
+                        // its lowest was also a miss of this core (or that was itself prefetched) fetches the D lines
+                        // after its highest, each ready at this miss's issue + its full latency; a later miss on lines
+                        // all prefetched waits only until they are ready (at least the L2 latency). Bandwidth as before.
+                        // (probe_l2_share: 2 MB per core at 32 cores sustains ~590 GB/s with 208 ns per dependent trip)
+                        if pf_dist > 0 && !store && level >= 2 && !segs.is_empty() {
+                            let orig = lat_extra;
+                            let (s0, s1) = (*segs.iter().min().unwrap(), *segs.iter().max().unwrap());
+                            let mut ready = i64::MIN;
+                            let mut all = true;
+                            for sg in segs.iter() {
+                                if m.l1.contains(*sg) { continue; }
+                                match m.pf.get(sg) { Some(&r) => ready = ready.max(r), None => { all = false; break; } }
+                            }
+                            let hit = all && ready > i64::MIN;
+                            if hit { lat_extra = lat_extra.min((ready - t).max(m.extra[1])); }
+                            if hit || (s0 > 0 && m.missed.contains(&(s0 - 1))) {
+                                if m.pf.len() > (1 << 16) { m.pf.clear(); }
+                                for d in 1..=pf_dist { m.pf.entry(s1 + d).or_insert(t + orig); }
+                            }
+                            if m.missed.insert(s1) {
+                                m.missed_ring.push_back(s1);
+                                if m.missed_ring.len() > 4096 { if let Some(o) = m.missed_ring.pop_front() { m.missed.remove(&o); } }
+                            }
                         }
                         if store && charge_writeback {
                             need[4] = need[4].max(n.max(1.0)); // every written line goes back to DRAM
@@ -3132,6 +3180,7 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
                         *e = (*e).max(done);
                     }
                 }
+                if wb_dirty && r.kind == Kind::Store { m.dirty.extend(segs.iter().copied()); }
                 for &sg in segs {
                     m.l1.touch(sg);
                     m.l2.touch(sg);
@@ -3678,11 +3727,23 @@ fn m_l1_load_min(mem: Option<(&[&[(u32, Vec<u64>)]], &MemModel)>) -> f64 {
 fn l2_share(m: &MemModel) -> usize {
     static T: std::sync::OnceLock<Option<f64>> = std::sync::OnceLock::new();
     let total = T.get_or_init(|| std::env::var("AGX_L2_TOTAL").ok().and_then(|v| v.parse().ok()));
+    let mult = l2_core_knobs().0;
     match total {
         // a core never holds more than l2_bytes (one core's chase spills at 256-512 KB: 2026-10-16-memory-parameters)
         Some(t) => (t / eff_sharers(m)).min(m.l2_bytes as f64 * m.active_cores / eff_sharers(m)) as usize,
-        None => (m.l2_bytes as f64 * m.active_cores / eff_sharers(m)) as usize,
+        None => (mult * m.l2_bytes as f64 * m.active_cores / eff_sharers(m)) as usize,
     }
+}
+
+/// (AGX_L2_LRU, AGX_L2_CORE): the per-core L2 recency window as a multiple of l2_bytes, and the capacity one core
+/// can hold of the GPU-wide L2 (bytes, 0: no cap). With AGX_L2_GPU the window only says which lines were touched
+/// recently; whether a recent line is still held follows the capacity rule in `WorkingSet::evicted`.
+fn l2_core_knobs() -> (f64, f64) {
+    static T: std::sync::OnceLock<(f64, f64)> = std::sync::OnceLock::new();
+    *T.get_or_init(|| {
+        let g = |k: &str, d: f64| std::env::var(k).ok().and_then(|v| v.parse().ok()).unwrap_or(d);
+        (g("AGX_L2_LRU", 1.0), g("AGX_L2_CORE", 0.0))
+    })
 }
 
 /// (AGX_L2_GPU, AGX_L2_GPU_STACK (default: AGX_L2_GPU)): the capacity for device lines and for stack lines. The
@@ -3740,7 +3801,9 @@ impl WorkingSet {
     fn evicted(&self, sg: u64, sharers: f64) -> bool {
         let (td, ts) = l2_gpu_bytes();
         let held = sharers * 64.0 * (self.lines[0] + self.lines[1]) as f64;
-        let t = if Self::is_stack(sg) { ts } else { td };
+        let mut t = if Self::is_stack(sg) { ts } else { td };
+        let core = l2_core_knobs().1;
+        if core > 0.0 { t = t.min(core * sharers); }
         if held <= t { return false; }
         let p = 1.0 - t / held;
         let mut x = sg.wrapping_add(0x9E37_79B9_7F4A_7C15);
