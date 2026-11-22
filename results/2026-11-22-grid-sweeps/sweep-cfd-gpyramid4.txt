@@ -1,0 +1,31 @@
+# 370226-cap7-_Z17cuda_compute_fluxiPiPfS0_S0_ grid [97152, 1, 1] wg [192, 1, 1] dim 0
+  f 0.030 grid [2880, 1, 1] wgs/core    1 waves   1 hw 15.5 sim 12.4 err -20%
+  f 0.100 grid [9792, 1, 1] wgs/core    2 waves   1 hw 17.9 sim 12.8 err -29%
+  f 0.200 grid [19392, 1, 1] wgs/core    3 waves   1 hw 24.1 sim 13.3 err -45%
+  f 0.350 grid [33984, 1, 1] wgs/core    5 waves   2 hw 27.1 sim 18.5 err -32%
+  f 0.500 grid [48576, 1, 1] wgs/core    7 waves   3 hw 33.5 sim 23.6 err -29%
+  f 0.750 grid [72960, 1, 1] wgs/core   10 waves   4 hw 42.4 sim 29.3 err -31%
+  f 1.000 grid [97152, 1, 1] wgs/core   14 waves   5 hw 50.8 sim 36.4 err -28%
+# 263996-cap3-_Z11srad_cuda_1PfS_S_S_S_S_iif grid [2048, 2048, 1] wg [16, 16, 1] dim 0
+  sim error agx_dispatch: read of unmapped address 0x11003fe03c at pc 512
+
+  sim error agx_dispatch: read of unmapped address 0x11003fe03c at pc 512
+
+  sim error agx_dispatch: read of unmapped address 0x11003fe03c at pc 512
+
+  sim error agx_dispatch: read of unmapped address 0x11003fe03c at pc 512
+
+  sim error agx_dispatch: read of unmapped address 0x11003fe03c at pc 512
+
+  sim error agx_dispatch: read of unmapped address 0x11003fe03c at pc 512
+
+  sim error agx_dispatch: read of unmapped address 0x11003fe03c at pc 512
+
+# 371485-cap36-_kernel_gPyramid4_s0_v1_v1_block_id_y grid [126, 190, 1] wg [2, 2, 1] dim 1
+  f 0.030 grid [126, 6, 1] wgs/core    6 waves   1 hw 8.9 sim 7.0 err -22%
+  f 0.100 grid [126, 20, 1] wgs/core   18 waves   1 hw 11.9 sim 7.4 err -38%
+  f 0.200 grid [126, 38, 1] wgs/core   33 waves   1 hw 15.0 sim 8.3 err -45%
+  f 0.350 grid [126, 66, 1] wgs/core   55 waves   2 hw 20.4 sim 13.3 err -35%
+  f 0.500 grid [126, 96, 1] wgs/core   80 waves   2 hw 20.5 sim 14.3 err -30%
+  f 0.750 grid [126, 142, 1] wgs/core  118 waves   3 hw 26.1 sim 20.4 err -22%
+  f 1.000 grid [126, 190, 1] wgs/core  158 waves   3 hw 32.0 sim 22.6 err -30%
