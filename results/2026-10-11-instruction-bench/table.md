@@ -63,3 +63,10 @@ Cycle values are in reference units (dependent 8-byte `iadd x, x, 1` step = 2); 
 | `quad_iadd rx, rx` | SIMD-group / quad | 11.5 | 8.65 | 15 | 0.46 |
 | `icmp_ballot rx, ult, rx, c0` | SIMD-group / quad | 4.8 | 2.00 | 46 | 1.44 |
 | `fcmp_ballot rx, lt, rx, c0` | SIMD-group / quad | 4.9 | 1.99 | 46 | 1.45 |
+| `simd_matrix_fmadd32 rx_rx1, rx_rx1, c0_c1, c0_c1` | 64-bit integer | 16.2 | 15.50 | 8 | 0.26 |
+| `simd_matrix_fmadd16 rxl_rxh, rxl_rxh, c0l_c0h, c2l_c2h` | SIMD-group / quad | 16.3 | 15.35 | 8 | 0.26 |
+| `simd_shuffle_up rx, rx, 1` | SIMD-group / quad | 4.8 | 1.99 | 64 | 2.01 |
+| `fmadd32_lane rx, rx, c1, c0, 0b00001, 0b00000000000, 0b0` | SIMD-group / quad | 3.9 | 2.48 | 31 | 0.97 |
+| `fmadd32_lane rx, rx, c1, c0, 0b01111, 0b00000000000, 0b0` | SIMD-group / quad | 3.9 | 2.48 | 31 | 0.97 |
+| `fmadd16_lane rxl, rxl, c1l, c0l, 0b00001, 0b00000000000, 0b0` | SIMD-group / quad | 3.9 | 2.24 | 39 | 1.23 |
+
