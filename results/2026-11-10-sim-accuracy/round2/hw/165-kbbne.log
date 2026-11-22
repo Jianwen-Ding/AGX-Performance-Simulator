@@ -1,0 +1,6 @@
+== kbb-ne512
+grid      512,128,1 hw      10.1 sim       6.9 ratio 0.69 waves 2 wgs/core 15 runs [10.208, 10.0]
+grid      512,512,1 hw      24.1 sim      14.5 ratio 0.60 waves 4 wgs/core 54 runs [24.667, 23.625]
+== kbb-ne1024
+grid      512,128,1 hw      15.8 sim       8.2 ratio 0.52 waves 2 wgs/core 15 runs [15.5, 16.125]
+grid      512,512,1 hw      36.4 sim      17.6 ratio 0.48 waves 4 wgs/core 54 runs [38.666, 34.083]

@@ -1,0 +1,16 @@
+{"pattern": "vvvvvvvv", "groups": 1, "addr": "lane", "wg": 32, "hw_us": [79.125, 231.417], "hw_cyc": 51.98, "sim_us": [80.08215164520745, 235.36684406294705], "sim_cyc": 53.0, "err": 0.02}
+{"pattern": "vvvvvvvv", "groups": 4, "addr": "lane", "wg": 128, "hw_us": [89.292, 231.458], "hw_cyc": 48.52, "sim_us": [81.18007725321888, 238.51569957081546], "sim_cyc": 53.7, "err": 0.107}
+{"pattern": "vvvvvvvv", "groups": 16, "addr": "lane", "wg": 512, "hw_us": [194.291, 577.625], "hw_cyc": 130.84, "sim_us": [199.8284320457797, 594.2014649499284], "sim_cyc": 134.6, "err": 0.029}
+{"pattern": "vvvvvvvv", "groups": 32, "addr": "lane", "wg": 1024, "hw_us": [379.25, 1131.833], "hw_cyc": 256.86, "sim_us": [397.17986266094425, 1185.6659856938484], "sim_cyc": 269.12, "err": 0.048}
+{"pattern": "uuuuuuuu", "groups": 1, "addr": "lane", "wg": 32, "hw_us": [89.125, 231.5], "hw_cyc": 48.59, "sim_us": [80.08215164520745, 235.36684406294705], "sim_cyc": 53.0, "err": 0.091}
+{"pattern": "uuuuuuuu", "groups": 4, "addr": "lane", "wg": 128, "hw_us": [79.084, 231.5], "hw_cyc": 52.02, "sim_us": [81.18007725321888, 238.51569957081546], "sim_cyc": 53.7, "err": 0.032}
+{"pattern": "uuuuuuuu", "groups": 16, "addr": "lane", "wg": 512, "hw_us": [194.542, 576.958], "hw_cyc": 130.52, "sim_us": [199.8284320457797, 594.2014649499284], "sim_cyc": 134.6, "err": 0.031}
+{"pattern": "uuuuuuuu", "groups": 32, "addr": "lane", "wg": 1024, "hw_us": [379.25, 1131.875], "hw_cyc": 256.88, "sim_us": [397.17986266094425, 1185.6659856938484], "sim_cyc": 269.12, "err": 0.048}
+{"pattern": "viviviviv", "groups": 1, "addr": "lane", "wg": 32, "hw_us": [70.333, 205.084], "hw_cyc": 45.99, "sim_us": [77.73823175965666, 228.33508440629473], "sim_cyc": 51.4, "err": 0.118}
+{"pattern": "viviviviv", "groups": 4, "addr": "lane", "wg": 128, "hw_us": [83.5, 244.666], "hw_cyc": 55.01, "sim_us": [78.00511301859801, 228.60196566523607], "sim_cyc": 51.4, "err": -0.066}
+{"pattern": "viviviviv", "groups": 16, "addr": "lane", "wg": 512, "hw_us": [140.917, 416.834], "hw_cyc": 94.17, "sim_us": [128.65718741058654, 380.7712789699571], "sim_cyc": 86.05, "err": -0.086}
+{"pattern": "viviviviv", "groups": 32, "addr": "lane", "wg": 1024, "hw_us": [262.292, 780.334], "hw_cyc": 176.81, "sim_us": [253.64481258941345, 755.4038254649499], "sim_cyc": 171.25, "err": -0.031}
+{"pattern": "iiiiiiii", "groups": 1, "addr": "lane", "wg": 32, "hw_us": [68.875, 200.708], "hw_cyc": 45.0, "sim_us": [69.5345121602289, 203.72392560801143], "sim_cyc": 45.8, "err": 0.018}
+{"pattern": "iiiiiiii", "groups": 4, "addr": "lane", "wg": 128, "hw_us": [70.292, 205.042], "hw_cyc": 45.99, "sim_us": [69.55911874105865, 203.7604062947067], "sim_cyc": 45.8, "err": -0.004}
+{"pattern": "iiiiiiii", "groups": 16, "addr": "lane", "wg": 512, "hw_us": [131.167, 387.417], "hw_cyc": 87.46, "sim_us": [73.80625751072961, 216.24130758226036], "sim_cyc": 48.61, "err": -0.444}
+{"pattern": "iiiiiiii", "groups": 32, "addr": "lane", "wg": 1024, "hw_us": [253.958, 755.25], "hw_cyc": 171.1, "sim_us": [142.28122174535048, 421.21248068669524], "sim_cyc": 95.2, "err": -0.444}

@@ -1,0 +1,22 @@
+== cut 70
+grid       1216,8,1 hw      17.1 sim      16.7 ratio 0.98 waves 1 wgs/core 1 runs [17.208, 17.041]
+grid         64,8,1 hw      16.8 sim      16.7 ratio 0.99 waves 1 wgs/core 1 runs [16.792, 16.875]
+== cut 72
+grid       1216,8,1 hw      17.3 sim      16.8 ratio 0.97 waves 1 wgs/core 1 runs [17.416, 17.209]
+grid         64,8,1 hw      16.7 sim      16.8 ratio 1.00 waves 1 wgs/core 1 runs [16.792, 16.625]
+== cut 91
+grid       1216,8,1 hw      17.7 sim      16.9 ratio 0.96 waves 1 wgs/core 1 runs [17.75, 17.667]
+grid         64,8,1 hw      17.4 sim      16.9 ratio 0.97 waves 1 wgs/core 1 runs [17.375, 17.458]
+== cut 100
+grid       1216,8,1 hw      18.7 sim      17.0 ratio 0.91 waves 1 wgs/core 1 runs [18.708, 18.667]
+grid         64,8,1 hw      17.5 sim      17.0 ratio 0.98 waves 1 wgs/core 1 runs [17.458, 17.5]
+== cut 124
+HW FAIL {"error":"GPU job failed: Bad address (os error 14)"}
+ 
+grid       1216,8,1 hw       nan sim       nan ratio nan waves None wgs/core None runs []
+HW FAIL {"error":"GPU job failed: Bad address (os error 14)"}
+ 
+grid         64,8,1 hw       nan sim       nan ratio nan waves None wgs/core None runs []
+== cut 127
+grid       1216,8,1 hw     667.0 sim      17.2 ratio 0.03 waves 1 wgs/core 1 runs [667.5, 666.417]
+grid         64,8,1 hw     316.5 sim     362.4 ratio 1.14 waves 1 wgs/core 1 runs [316.542, 316.458]

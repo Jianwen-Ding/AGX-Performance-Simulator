@@ -1,0 +1,2 @@
+_Z11hotspotOpt1PfS_S_fiiifffffff hw     238.1 us (n     0, captured     632.1)  sim     180.2 us  err   -24%   wgs/core 27 waves 7
+launches 1  median |err| 24%  within 10%: 0  within 25%: 1

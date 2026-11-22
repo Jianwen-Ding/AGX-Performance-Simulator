@@ -25,6 +25,22 @@ const SFU_GROUP_BLOCK: f64 = 2.0;
 const SFU_WB_GAP: f64 = 2.0;
 const NEG_INF: i64 = -1_000_000_000;
 
+/// Fragment-stage instruction classes (2026-11-14). `iter` / `iterproj` / `ldcf` run in the ALU pipe (they were generic device loads with an
+/// unmeasured memory latency): a 4-channel `iterproj` costed as an fmadd32. On the 1..24 varying sweep (2048x2048, 256-iteration ALU
+/// loop, results/2026-11-14-frag-cost) the increment is +52 us smooth / +131 us flat measured; simulated (with `frag::FRAGMENT_ISSUE_FACTOR`) +74 / +112 us.
+/// Every ALU class gives the same slope, so the flat/smooth difference is not instruction issue. `ld_tile` / `st_tile` are not device-memory accesses:
+/// blending 8 layers of a trivial shader costs 5 ps per pixel and layer on hardware, so they issue like an fadd32. `sample_mask` (the discard
+/// sequence: two fcmpsel, or, wait_pix, sample_mask) and `zs_emit` (depth write) also measure as nearly free: a never-taken discard adds <1% and a
+/// gl_FragDepth write ~4% to a 256-iteration shader; they issue like an fadd32 (before: no cost class, `agx_cost` refused the program).
+/// Core occupancy of one `st_var` / `st_var_final` (vertex-stage output store into the unified vertex store): one shared output path per core,
+/// 48 core cycles per st_var per SIMD group whichever group issues it. Fitted on hardware (results/2026-11-14-frag-cost/hw_sweep_vertex.txt): 903k
+/// vertices (301k triangles), 1 / 4 / 12 / 24 vec4 varyings = 8 / 11 / 19 / 31 st_var per vertex measure 0.226 / 0.324 / 0.796 / 0.785 ms (the last two
+/// saturate: another limit takes over above ~19) and simulate 0.217 / 0.296 / 0.507 / 0.823 ms (-4 / -9 / -36 / +5%). The marginal slope between
+/// 8 and 19 st_var alone is 52 us per st_var (96 cycles); 48 is the compromise over the sweep. A GPU-wide vertex-output throughput, not latency.
+const ST_VAR_CORE_CYCLES: f64 = 48.0;
+const FRAG_ITER_CLASS: &str = "fmadd32";
+const FRAG_TILE_CLASS: &str = "fadd32";
+const FRAG_LDCF_CLASS: &str = "fmadd32";
 const ALU: &[(&str, &str)] = &[
     ("iadd", "iadd"), ("imadd", "imadd"), ("bitop", "and"), ("bfi", "bfi"), ("bfeil", "bfeil"), ("extr", "extr"),
     ("shlhi", "shlhi"), ("shrhi", "shrhi"), ("asr", "asr"), ("asrh", "asrh"), ("bitrev", "bitrev"),
@@ -33,6 +49,8 @@ const ALU: &[(&str, &str)] = &[
     // undecoded 6-byte no-ops issue exactly like a 6-byte mov_imm; 0x18 costs ~4.3 ns (~6 cycles) per use with no
     // bench row (playground sync-and-end-opcodes), so it is costed as mov_imm and flagged unmeasured
     ("nop6", "mov_imm"), ("fixed18", "mov_imm"), ("fadd32", "fadd32"), ("fmul32", "fmul32"), ("fmadd32", "fmadd32"),
+    // fragment varying interpolation: ALU-pipe instructions (calibrated on hardware sweeps, see FRAG_ALU)
+    ("iter", FRAG_ITER_CLASS), ("iterproj", FRAG_ITER_CLASS), ("TODO.ldcf", FRAG_LDCF_CLASS), ("TODO.ld/st_tile", FRAG_TILE_CLASS), ("sample_mask", FRAG_TILE_CLASS), ("zs_emit", FRAG_TILE_CLASS),
     ("fadd16", "fadd16"), ("fmul16", "fmul16"), ("fmadd16", "fmadd16"), ("convert", "convert_f2i"), ("floor", "floor"),
     ("ceil", "floor"), ("trunc", "floor"), ("rint", "rint"), ("rcp", "rcp"), ("rsqrt", "rsqrt"),
     ("rsqrt_special", "rsqrt_special"), ("log2", "log2"), ("exp2", "exp2"), ("sin_pt_1", "sin_pt_1"),
@@ -51,12 +69,12 @@ const ALU: &[(&str, &str)] = &[
 // quad_shuffle_{down,up,xor,rotate_up} _r14_r6_1 recordings, latency 4.85 / 3.90 cycles and SIMD issue 1.99 / 1.04
 // per step, the same as the simd_shuffle_down and quad_shuffle rows they are costed as)
 const UNMEASURED_ALU: &[&str] = &[
+    "iter", "iterproj", "TODO.ldcf", "TODO.ld/st_tile", "sample_mask", "zs_emit",
     "fixed18",
     "iunop", "ceil", "trunc", "funop", "dfdx", "dfdy", "simd_shuf_op", "TODO.sr_thing",
 ];
 const LOADS: &[&str] = &[
     "device_load", "device_load.TODO", "threadgroup_load", "stack_load", "async_load", "texture_sample", "texture_load",
-    "iter", "iterproj", "TODO.ldcf", "TODO.ld/st_tile",
 ];
 const STORES: &[&str] = &[
     "device_store", "device_store.TODO", "threadgroup_store", "stack_store", "uniform_store", "image_write",
@@ -137,6 +155,14 @@ const CORE_SFU_WB_GAP: f64 = 1.0;
 pub const SCHEDULERS: usize = 4;
 const STEAL: bool = true;
 const HALF_READ_PORTS: f64 = 2.0;
+fn half_read_ports() -> f64 {
+    static V: std::sync::OnceLock<f64> = std::sync::OnceLock::new();
+    *V.get_or_init(|| std::env::var("AGX_HALF_READ_PORTS").ok().and_then(|v| v.parse().ok()).unwrap_or(HALF_READ_PORTS))
+}
+fn issue_per_core() -> f64 {
+    static V: std::sync::OnceLock<f64> = std::sync::OnceLock::new();
+    *V.get_or_init(|| std::env::var("AGX_ISSUE_PER_CORE").ok().and_then(|v| v.parse().ok()).unwrap_or(ISSUE_PER_CORE as f64))
+}
 /// register writebacks (result-cache evictions) per real cycle per core: 2.0 per reference cycle
 const WRITEBACK_PER_CYCLE: f64 = 2.0 / REAL_CYCLES_PER_UNIT;
 const WRITEBACK_CAP: f64 = 4.0;
@@ -845,8 +871,19 @@ impl GroupCtx {
             // constant in compute under all 10 recorded geometries (coverage/expected/geometry) and under divergence:
             // 12 / 13 imageblock width / height (no imageblock), 60 = 15 (Mesa: coverage_mask), 63 = 1 (Mesa:
             // is_active_thread)
+            124 if crate::frag::get().is_some() => {
+                let (x, y) = crate::frag::get().unwrap().pixel(self.group, t);
+                crate::frag::coverage(x, y)
+            }
             12 | 13 | 54 | 55 | 61 | 62 | 124 | 144 | 146 | 147 => 0,
-            60 => 15,
+            60 => match crate::frag::get() {
+                // a fragment setup: the covered samples of the lane's pixel
+                Some(fs) => {
+                    let (x, y) = fs.pixel(self.group, t);
+                    crate::frag::coverage(x, y)
+                }
+                None => 15,
+            },
             63 => 1,
             // physical position in the quad: unlike SR56 it ignores the execution mask (playground sr-divergence)
             16 => i % 4,
@@ -1390,6 +1427,8 @@ struct SimInstr {
     wide_cost: Option<i64>,
     tgop: bool,
     tg_name: bool,
+    /// vertex output store (st_var / st_var_final)
+    st_var: bool,
     /// device atomic (load kind when it returns, store kind otherwise)
     atomic: bool,
     /// 0 = not a barrier, 1 = whole workgroup (0x68), 2 = aligned 4 SIMD groups (0x78)
@@ -1451,6 +1490,10 @@ pub struct MemModel {
     /// the core ran the same code just before); false: empty
     pub icache_warm: bool,
     pub fetch_jump_ns: f64,
+    /// with the i-cache (`icache_lines`) and AGX_FETCH_STREAM=1: a line's first fetch in a cold wave (not
+    /// `icache_warm`) costs this when run into, `fetch_cold_jump_ns` when jumped to (0: as a refetch)
+    pub fetch_cold_ns: f64,
+    pub fetch_cold_jump_ns: f64,
     /// cores sharing the SLC and DRAM (all cores run the same kernel on disjoint data)
     pub active_cores: f64,
     pub l1_bytes: usize,
@@ -1511,6 +1554,16 @@ pub struct MemModel {
     pub tg_group_atomic_ret: f64,
     /// device atomic with return: latency beyond a device load (executed past L1)
     pub atomic_ret_extra: f64,
+    /// AGX_CHAIN_SHARERS (chained waves of a placed core): per group, the memory-step indices where its chained
+    /// workgroups 1, 2, ... start, and the L2 sharers of each chained workgroup (0: this model's own); the GPU-wide
+    /// L2 pressure (`WorkingSet`) a group's access sees is its current workgroup's
+    pub chain_sharers: Option<std::sync::Arc<(Vec<Vec<usize>>, Vec<f64>)>>,
+    /// AGX_STORE_DRAIN (experiment): device-store lines per cycle this core's stores leave at (its share of the GPU's
+    /// store bandwidth; 0: not modelled) and the lines that may wait to leave (a store finding no room waits)
+    pub store_drain: f64,
+    pub store_drain_cap: f64,
+    /// per group, the trace steps where its chained workgroups 1, 2, ... start (AGX_STORE_DRAIN_SLOT)
+    pub chain_pc_starts: Option<std::sync::Arc<Vec<Vec<usize>>>>,
 }
 
 impl Default for MemModel {
@@ -1523,10 +1576,12 @@ impl Default for MemModel {
             icache_victims: 1,
             icache_warm: false,
             fetch_jump_ns: 0.0,
+            fetch_cold_ns: 0.0,
+            fetch_cold_jump_ns: 0.0,
             clock_mhz: 1398.0,
             active_cores: 38.0,
             l1_bytes: 8 << 10,
-            l2_bytes: 256 << 10,
+            l2_bytes: std::env::var("AGX_L2_BYTES").ok().and_then(|v| v.parse().ok()).unwrap_or(256 << 10),
             // shared-cache capacity for streaming reuse. The model's LRU steps at about 1.15 x slc_bytes (19 MiB: 22 MiB), the measured
             // half-way point of the smooth 14-30 MiB transition is about 21 MiB (playground novel-results/2026-10-18-slc)
             slc_bytes: 19 << 20,
@@ -1558,6 +1613,10 @@ impl Default for MemModel {
             tg_group_atomic: 4.8,
             tg_group_atomic_ret: 5.75,
             atomic_ret_extra: 85.0,
+            chain_sharers: None,
+            store_drain: 0.0,
+            store_drain_cap: 0.0,
+            chain_pc_starts: None,
         }
     }
 }
@@ -1820,7 +1879,7 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
         let (bucket, cost, unit, need_port) = match &r.unit {
             Some(u) => {
                 let (b, c, _) = bucket_of(u);
-                (b, c, Some(0usize), (r.reads32 as f64).min(HALF_READ_PORTS + 2.0) * t_ as f64)
+                (b, c, Some(0usize), (r.reads32 as f64).min(half_read_ports() + 2.0) * t_ as f64)
             }
             None => (0, 0.0, None, 0.0),
         };
@@ -1883,6 +1942,7 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
                 _ => 0,
             },
             tg_name: is_tg,
+            st_var: r.name.starts_with("st_var"),
             fence: r.fence,
             dev_ctx: if r.name.starts_with("device_load") { 2 } else if r.name.starts_with("device_store") { 1 } else { 0 },
             mem_issue0,
@@ -1931,15 +1991,29 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
         }
     }
     let is_masked = |gi: usize, step: usize, r: &SimInstr| r.masked_cls != 0 && mflag[gi].get(step).copied().unwrap_or(false);
+    // AGX_CHAIN_SHARERS: the L2 sharers of the chained workgroup a group's memory step `cur` belongs to
+    let chain_info = mem.and_then(|(_, m)| m.chain_sharers.clone());
+    let chain_sh = |base: f64, gi: usize, cur: usize| -> f64 {
+        match &chain_info {
+            Some(c) => {
+                let k = c.0.get(gi).map_or(0, |v| v.partition_point(|&x| x <= cur));
+                c.1.get(k).copied().filter(|&v| v > 0.0).unwrap_or(base)
+            }
+            None => base,
+        }
+    };
     // ---- memory hierarchy state (one core)
     struct MemState {
         l1: Lru,
         l2: Lru,
+        /// AGX_L2_GPU: this core's L2 working set (`WorkingSet`) and the cores sharing the capacity
+        l2g: Option<WorkingSet>,
+        sharers: f64,
         slc: Lru,
         /// tokens (segments) for l1 load, l1 store, l2, slc, dram, and their rates per tick / caps
-        tok: [f64; 5],
-        rate: [f64; 5],
-        cap: [f64; 5],
+        tok: [f64; 6],
+        rate: [f64; 6],
+        cap: [f64; 6],
         extra: [i64; 4],
         /// latency beyond L1 of a load whose slowest line is a first touch in the dispatch found in the SLC
         /// (`first_touch_dram`)
@@ -1995,21 +2069,37 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
     let mut profile_prev: i64 = 0;
     let first_touch_dram = mem.is_some_and(|(_, m)| m.resident_slc && m.first_touch_dram);
     let mem_levels = std::env::var("AGX_MEM_LEVELS").is_ok_and(|v| v == "1");
+    // AGX_STORE_DRAIN_BLOCK=1 (with AGX_STORE_DRAIN): a load waits while the core's store queue is over-full
+    let drain_block = std::env::var("AGX_STORE_DRAIN_BLOCK").is_ok_and(|v| v == "1");
+    let drain_pipe = std::env::var("AGX_STORE_DRAIN_PIPE").is_ok_and(|v| v == "1");
+    let seq_prefetch: u64 = std::env::var("AGX_SEQ_PREFETCH").ok().and_then(|v| v.parse().ok()).unwrap_or(0);
+    // AGX_STORE_DRAIN_SLOT=1 (with AGX_STORE_DRAIN): the core's stores leave one after the other at the drain rate; a
+    // group ends (and a chained workgroup in its slot starts) only when its stores have left
+    let drain_slot = std::env::var("AGX_STORE_DRAIN_SLOT").is_ok_and(|v| v == "1") && mem.is_some_and(|(_, m)| m.store_drain > 0.0);
+    let chain_pcs = mem.and_then(|(_, m)| m.chain_pc_starts.clone());
+    let mut store_done = vec![0i64; groups];
+    // AGX_STORE_DRAIN_ISSUE=1 (with AGX_STORE_DRAIN): a store's lines stall the whole core's issue at the drain rate
+    let drain_issue = std::env::var("AGX_STORE_DRAIN_ISSUE").is_ok_and(|v| v == "1" || v == "2");
+    let drain_issue_all = std::env::var("AGX_STORE_DRAIN_ISSUE").is_ok_and(|v| v == "2");
+    let mut drain_end = 0i64;
+    let mut next_bound = vec![0usize; groups];
     let inflight_on = std::env::var("AGX_INFLIGHT").map_or(true, |v| v != "0");
     let charge_writeback = std::env::var("AGX_CHARGE_WRITEBACK").map_or(false, |v| v == "1")
         && mem.is_some_and(|(_, m)| !m.resident_slc);
     let mut ms: Option<MemState> = mem.map(|(_, m)| {
         let per_tick = |segs_per_cycle: f64| segs_per_cycle / TICKS as f64;
         let dram = m.dram_gbps * 1e9 / m.active_cores / (m.clock_mhz * 1e6) / 64.0 / m.dram_share.clamp(0.05, 1.0);
-        let rate = [per_tick(m.l1_load_rate), per_tick(m.l1_store_rate), per_tick(m.l2_rate), per_tick(m.slc_rate), per_tick(dram)];
-        let cap = [64.0, 64.0, 64.0, 64.0, 64.0];
+        let rate = [per_tick(m.l1_load_rate), per_tick(m.l1_store_rate), per_tick(m.l2_rate), per_tick(m.slc_rate), per_tick(dram), per_tick(m.store_drain)];
+        let cap = [64.0, 64.0, 64.0, 64.0, 64.0, m.store_drain_cap.max(1.0)];
         let ns = |x: f64| tk((x * m.clock_mhz / 1000.0 - 50.0).max(0.0));
         MemState {
             l1: Lru::new(m.l1_bytes),
             // L2 (38 x l2_bytes in all) and SLC are shared GPU-wide: a core's share is total / (cores that use
             // distinct data); with `sharing` = fraction of this core's lines that other cores also use, cores
             // reading the same lines all see the whole cache
-            l2: Lru::new((m.l2_bytes as f64 * m.active_cores / eff_sharers(m)) as usize),
+            l2: Lru::new(l2_share(m)),
+            l2g: WorkingSet::new(m),
+            sharers: eff_sharers(m),
             slc: Lru::new((m.slc_bytes as f64 / eff_sharers(m)) as usize),
             tok: cap,
             rate,
@@ -2077,6 +2167,7 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
                             }
                             m.l1.touch(sg);
                             m.l2.touch(sg);
+                            if let Some(p) = m.l2g.as_mut() { p.touch(sg); }
                             m.slc.touch(sg);
                         }
                     }
@@ -2103,18 +2194,24 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
     let mut tok: Vec<Option<f64>> = vec![None; buckets.len()];
     let mut refilling: Vec<usize> = vec![];
     let mut in_refill: Vec<bool> = vec![false; buckets.len()];
-    let mut port = [HALF_READ_PORTS * t_ as f64; 2];
+    let hrp = half_read_ports();
+    let mut port = [hrp * t_ as f64; 2];
     let mut sched_free = [0i64; SCHEDULERS];
     let mut tick_issued = vec![false; groups];
     // an idle scheduler may issue a ready group of a ring neighbour (idle-slot probe: slots 1, 3 and 4 relieve
     // scheduler 0, slot 2 does not)
     let npass = if STEAL && groups > 4 { 2 } else { 1 };
-    let mut issue_tok: i64 = ISSUE_PER_CORE * t_;
+    // AGX_ISSUE_PER_CORE / AGX_HALF_READ_PORTS (experiment): the core's instructions issued per cycle (4) and each
+    // half's 32-bit register reads per cycle (2). Issue tokens are kept in tenths (ISS) of a tick
+    const ISS: i64 = 10;
+    let ipc10: i64 = (issue_per_core() * ISS as f64).round() as i64;
+    let mut issue_tok: i64 = ipc10 * t_;
     let wb_rate = WRITEBACK_PER_CYCLE / t_ as f64; // per tick
     let mut wb_tok = WRITEBACK_CAP;
     let mut wbc: Vec<Vec<u32>> = vec![Vec::with_capacity(nc + 1); groups];
     let mut wb_debt = vec![0.0f64; groups];
     let mut lcg: u64 = 0x2545F4914F6CDD1D;
+    let mut st_var_free: i64 = 0; // the core's vertex-output path (ST_VAR_CORE_CYCLES per st_var)
     let mut last_alu = vec![NEG_INF; g];
     let mut alu_done = vec![NEG_INF; g];
     // SIMD-group reductions / shuffles in flight on the core (their completion times) and the latency each adds to
@@ -2147,6 +2244,8 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
     // device loads of a group complete in order (a quiet-time delay holds back the whole batch);
     // only with the memory model, so the fitted L1 rules are unchanged without it
     let inorder_loads = true;
+    // AGX_PASS_L1=0: a device load after ALU work waits for done - extra of the pending loads (before 2026-11-10)
+    let pass_l1 = std::env::var("AGX_PASS_L1").map_or(true, |v| v != "0");
     let mut last_load_done = vec![NEG_INF; g];
     let mut last_space: Vec<u8> = vec![0; g]; // 0 None, 1 'tg', 2 'device_load', 3 'device_store'
     struct Pending {
@@ -2156,6 +2255,9 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
         ins: usize,
         /// latency beyond an L1 hit (memory hierarchy): a load issued after ALU work waits for done - extra
         extra: i64,
+        /// when the load has passed the L1 (its issue, the L1 queue and an L1 hit's latency): a device load issued
+        /// after ALU work waits for this (`pass_l1`)
+        passed: i64,
     }
     let mut pending: Vec<Vec<Pending>> = (0..g).map(|_| vec![]).collect();
     /// pending loads already moved by an ALU push: their done is last_push + lat, merged per (slot, instruction)
@@ -2210,6 +2312,33 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
         }
     }
     let mut fetched: HashMap<usize, i64> = HashMap::new();
+    // AGX_FETCH_STREAM (default on; 0: off): code beyond the i-cache streams. A fall-through miss whose line before
+    // was fetched recently (by any group: groups at the same code share the stream) starts when that line arrived,
+    // or when the group's last `wait` released if later (the stream stops while the group waits for memory), and
+    // costs AGX_STREAM_LINE_NS (31) in place of the isolated refetch (`fetch_line_ns`, 64). Playground
+    // novel-results/2026-11-10-code-refetch-stream: 30.6 ns per line warm for 64-384 KB bodies, 1 and 8 groups
+    // alike, waits additive (48 KB body: hw 411 / 415 us for 1 / 8 groups, model 424 / 442; was 855 / 1016;
+    // a load + wait every 16 iadds hw 703, model 665); tinygrad r_64_16_32 hw 602 us, model 731 (was 1266)
+    let fetch_stream = std::env::var("AGX_FETCH_STREAM").map_or(true, |v| v != "0");
+    // a line's first fetch in the command does not stream (llama.cpp MMQ Q5_1, one workgroup cut at 12200 / 24320
+    // instructions: 189 / 294 us, hw 188 / 301; streaming the cold lines 138 / 241). AGX_FETCH_STREAM_COLD=1 streams them
+    let no_cold_stream = std::env::var("AGX_FETCH_STREAM_COLD").map_or(true, |v| v != "1");
+    // AGX_STREAM_LINE_NS (default 31): a streamed refetch's cost per line (0: as an isolated one, `fetch_line_ns`)
+    // AGX_STREAM_WINDOW (default 4): the line before must have arrived at most this many line costs before the miss
+    let stream_window: i64 = std::env::var("AGX_STREAM_WINDOW").ok().and_then(|v| v.parse().ok()).unwrap_or(4);
+    let fetch_stream_line = tk(std::env::var("AGX_STREAM_LINE_NS").ok().and_then(|v| v.parse::<f64>().ok()).unwrap_or(31.0) * CYCLES_PER_NS);
+    // AGX_STREAM_OWNER=1 (experiment): a miss streams only after its own group's fetch of the line before (each
+    // group's stream is its own; out-of-step groups do not chain off each other's fetches)
+    // (=2: another group's stream gives the stream's cost but no early start; =3: the early start but the full cost)
+    let stream_owner_mode: u32 = std::env::var("AGX_STREAM_OWNER").ok().and_then(|v| v.parse().ok()).unwrap_or(0);
+    let stream_owner = stream_owner_mode > 0;
+    let mut fetched_by: HashMap<usize, usize> = HashMap::new();
+    // AGX_STREAMS=k (experiment): the core follows at most k fetch streams; a miss streams only when the line before
+    // is the head of one of them (the head moves on), else it starts a stream in place of the least recent
+    let max_streams: usize = std::env::var("AGX_STREAMS").ok().and_then(|v| v.parse().ok()).unwrap_or(0);
+    let mut stream_heads: Vec<(usize, i64)> = Vec::new();
+    let fetch_port: f64 = std::env::var("AGX_FETCH_PORT").ok().and_then(|v| v.parse().ok()).unwrap_or(0.0);
+    let fetch_private = std::env::var("AGX_FETCH_PRIVATE").is_ok_and(|v| v == "1");
     let mut fetch_free = 0i64;
     // instruction cache with refetch (MemModel::icache_lines): its lines, and the jump-target miss cost
     let (mut icache, fetch_jump) = match mem {
@@ -2227,6 +2356,10 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
             (Some(c), tk(m.fetch_jump_ns * CYCLES_PER_NS))
         }
         _ => (None, 0),
+    };
+    let (fetch_cold, fetch_cold_jump) = match mem {
+        Some((_, m)) if icache.is_some() && !m.icache_warm => (tk(m.fetch_cold_ns * CYCLES_PER_NS), tk(m.fetch_cold_jump_ns * CYCLES_PER_NS)),
+        _ => (0, 0),
     };
     // with it, the core's taken-jump structure: 32 entries (by target), a taken jump to a cached line that has none
     // costs ~127 cycles more (playground novel-results/2026-10-20-icache: 34-96 blocks joined by taken jumps per loop
@@ -2439,7 +2572,17 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
             let ri = seqs[gi][nxt[gi]];
             let r = &sim[ri];
             let msk = is_masked(gi, nxt[gi], r);
-            if issue_tok < t_ {
+            if drain_slot {
+                // a chained workgroup starts in the slot once the previous one's stores have left
+                if let Some(b) = chain_pcs.as_ref().and_then(|c| c.get(gi)) {
+                    while next_bound[gi] < b.len() && b[next_bound[gi]] < nxt[gi] { next_bound[gi] += 1; }
+                    if next_bound[gi] < b.len() && b[next_bound[gi]] == nxt[gi] && store_done[gi] > t {
+                        wake!(store_done[gi]);
+                        continue;
+                    }
+                }
+            }
+            if issue_tok < ISS * t_ {
                 wake!(t + 1);
                 retest.push(Retest::Issue);
                 continue;
@@ -2654,7 +2797,7 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
                 }
             }
             // device memory: segments of this dynamic instruction, level of each, bandwidth tokens
-            let mut mem_charge: Option<([f64; 5], i64, Vec<u64>)> = None;
+            let mut mem_charge: Option<([f64; 7], i64, Vec<u64>)> = None;
             if let (Some(m), false) = (ms.as_mut(), msk) {
                 let dev = !r.atomic && ((r.kind == Kind::Load && !r.tgop && !r.tg_name) || (r.kind == Kind::Store && !r.tg_name));
                 if dev && !memv.is_empty() {
@@ -2666,11 +2809,14 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
                     if m.cur[gi] < mv.len() && mv[m.cur[gi]].0 as usize == nxt[gi] {
                         let segs = &mv[m.cur[gi]].1;
                         let store = r.kind == Kind::Store;
-                        let mut need = [0.0; 5];
+                        let mut need = [0.0; 7];
                         let n = segs.len() as f64;
                         if store {
                             // (a stack store's lanes share a word's slot, whatever lines that crosses)
                             need[1] = if r.stack_store { 1.0 } else { n.max(1.0) }.max(m_l1_store_min(mem));
+                            // AGX_STORE_DRAIN: the core's lines leave at its share of the GPU's store bandwidth
+                            // (lines in 32-byte sectors when the lanes scatter: more than 8 lines for one instruction)
+                            if !r.stack_store && m.rate[5] > 0.0 { need[5] = if n > 8.0 { 0.5 * n } else { n.max(1.0) }; }
                         } else {
                             // the same lines as the core's previous load (every group on one line): 1.22 cycles per
                             // load instead of 1.0 (coalesce-shared vs coalesce-private)
@@ -2685,6 +2831,7 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
                                 need[2] = nd[0];
                                 need[3] = nd[1];
                                 need[4] = nd[2];
+                                need[6] = nd[2];
                                 lv
                             }
                             _ => {
@@ -2692,10 +2839,14 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
                                 for &sg in segs {
                                     // a stack store does not read the line first (probe_stack_cost.py: 56-62 ns per store at
                                     // 256 bytes and 4 KB of frame alike, where loads go from 68 to 172)
-                                    let lv = if r.stack_store { 0 } else if m.l1.contains(sg) { 0 } else if m.l2.contains(sg) { 1 } else if m.slc.contains(sg) { 2 } else { 3 };
+                                    let lv = if r.stack_store { 0 } else if m.l1.contains(sg) { 0 } else if m.l2.contains(sg) {
+                                        if m.l2g.as_ref().is_some_and(|w| w.evicted(sg, chain_sh(m.sharers, gi, m.cur[gi]))) { 2 } else { 1 }
+                                    } else if m.slc.contains(sg) { 2 } else { 3 };
                                     if lv >= 1 {
                                         need[1 + lv] += 1.0;
                                     }
+                                    // (lines found only in DRAM: the footprint is beyond the SLC; bookkeeping)
+                                    if lv == 3 { need[6] += 1.0; }
                                     level = level.max(lv);
                                 }
                                 m.lv_cache[gi] = Some((m.cur[gi], m.epoch, [need[2], need[3], need[4]], level));
@@ -2748,11 +2899,22 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
                             need[2] -= from_l2;
                             need[4] += from_slc + from_l2;
                         }
+                        // AGX_SEQ_PREFETCH=1 (experiment): a load whose lowest line follows one the core touched recently
+                        // (still in its L2 share) is a sequential stream the memory system prefetches: L2 latency, the
+                        // bandwidth as before (probe_l2_share: 2 MB per core streamed over 64 MB, 418 us vs 314 at 16 KB;
+                        // the model 794-897; llama.cpp soft_max's row loads ~150 ns on hw)
+                        // (AGX_SEQ_PREFETCH=K: any of the K lines before it)
+                        if seq_prefetch > 0 && !store && level >= 2 && segs.iter().min().is_some_and(|&s0| (1..=seq_prefetch.min(s0)).any(|d| m.l2.contains(s0 - d) || m.l1.contains(s0 - d))) {
+                            lat_extra = lat_extra.min(m.extra[1]);
+                        }
                         if store && charge_writeback {
                             need[4] = need[4].max(n.max(1.0)); // every written line goes back to DRAM
                         }
                         let mut until = 0i64;
-                        for i in 2..5 {
+                        if !store && m.rate[5] > 0.0 && drain_block && m.tok[5] < 0.0 {
+                            until = ((-m.tok[5]) / m.rate[5]).ceil() as i64;
+                        }
+                        for i in 2..(if drain_slot || drain_issue { 5 } else { 6 }) {
                             let want = need[i].min(m.cap[i]);
                             if need[i] > 0.0 && m.tok[i] < want {
                                 until = until.max(((want - m.tok[i]) / m.rate[i]).ceil() as i64);
@@ -2795,7 +2957,7 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
                     wbc[gi].push(reg);
                 }
             }
-            issue_tok -= t_;
+            issue_tok -= ISS * t_;
             let mut pipe_extra = 0i64;
             if let (Some(m), Some((_, mm)), false) = (ms.as_mut(), mem, msk) {
                 if (r.tg_name && r.barrier == 0) || r.atomic {
@@ -2873,6 +3035,22 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
                 for i in 2..5 {
                     m.tok[i] -= need[i].min(m.cap[i]);
                 }
+                // (the drain queue takes the whole store: a store of more lines than it holds waits for an empty queue)
+                if drain_issue && need[5] > 0.0 {
+                    // AGX_STORE_DRAIN_ISSUE: the core issues nothing while the store's lines leave; lines that already
+                    // took DRAM bandwidth (`need[4]`, a footprint beyond the SLC: unary_gated 10 MB, hw +7 us for 27 us
+                    // at 365 GB/s) are not charged again (AGX_STORE_DRAIN_ISSUE=2: they are)
+                    let dram_part = if drain_issue_all { 0.0 } else { (need[6] / need[1].max(1.0)).clamp(0.0, 1.0) };
+                    issue_tok -= (ipc10 as f64 * need[5] * (1.0 - dram_part) / m.rate[5]) as i64;
+                }
+                if drain_slot {
+                    if need[5] > 0.0 {
+                        drain_end = drain_end.max(t) + (need[5] / m.rate[5]).round() as i64;
+                        store_done[gi] = drain_end;
+                    }
+                } else if !drain_issue {
+                    m.tok[5] -= need[5];
+                }
                 // L1 pipeline: this instruction's segments pass after those already queued
                 let k = if need[1] > 0.0 { 1 } else { 0 };
                 let occ = (need[k] / m.rate[k]).round() as i64;
@@ -2880,6 +3058,11 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
                 let start = t.max(m.l1_free[k]);
                 m.l1_free[k] = start + occ;
                 pipe_extra = (m.l1_free[k] - t - occ_min).max(0);
+                // AGX_STORE_DRAIN_PIPE=1 (with AGX_STORE_DRAIN): a store's lines hold the core's load pipeline at the
+                // drain rate (loads queue behind the stores)
+                if k == 1 && drain_pipe && need[5] > 0.0 {
+                    m.l1_free[0] = t.max(m.l1_free[0]) + (need[5] / m.rate[5]).round() as i64;
+                }
                 if r.kind == Kind::Load && inflight_on && *lx > 0 {
                     let done = t + lx + pipe_extra;
                     for &sg in segs {
@@ -2890,6 +3073,7 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
                 for &sg in segs {
                     m.l1.touch(sg);
                     m.l2.touch(sg);
+                    if let Some(p) = m.l2g.as_mut() { p.touch(sg); }
                     m.slc.touch(sg);
                 }
                 m.epoch += 1;
@@ -3035,7 +3219,7 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
                         if alu_since_mem[gi] && !(pending[gi].is_empty() && settled[gi].is_empty()) {
                             // waits until the pending loads have passed the L1, not until they complete
                             // (ALU-interleaved loads over L2/DRAM windows: ~50 cycles apart, not a full latency)
-                            let m = pending[gi].iter().map(|p| p.done - p.extra)
+                            let m = pending[gi].iter().map(|p| if pass_l1 { p.passed } else { p.done - p.extra })
                                 .chain(settled[gi].iter().map(|a| last_push[gi] + a.lat_less_extra)).max().unwrap();
                             delay = delay.max(m - t);
                         }
@@ -3055,7 +3239,12 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
                     }
                     slots[gi][r.slot] = Some(slots[gi][r.slot].map_or(t + lat, |m| m.max(t + lat)));
                     let dfr = if tgop { tg_defer } else { defer_fast + if delay != 0 { defer_extra } else { 0 } };
-                    pending[gi].push(Pending { slot: r.slot, done: t + lat, lat: delay + dfr, ins: ri, extra: if tgop { 0 } else { mem_extra } });
+                    // (a load completing in order after an earlier one, or waiting for a line another group has in
+                    // flight, has passed the L1 long before it completes: done - extra counted the earlier load's
+                    // latency again and serialised a group's loads after ALU work: Rodinia streamcluster's
+                    // compute_cost, one workgroup of 16 groups, 2.4x the measured time; results/2026-11-10-sim-accuracy)
+                    let passed = if tgop { t + lat } else { t + delay + load_fast + pipe_extra };
+                    pending[gi].push(Pending { slot: r.slot, done: t + lat, lat: delay + dfr, ins: ri, extra: if tgop { 0 } else { mem_extra }, passed });
                     ii = iiv;
                 }
                 Kind::Store => {
@@ -3065,6 +3254,13 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
                         delay = delay.max(last_idle_wait[gi] + store_after_wait - t);
                     }
                     let mut iiv = delay + r.mem_issue0;
+                    // vertex output store: a throughput-limited path (see ST_VAR_HOLD_CYCLES), not a device store
+                    if r.st_var {
+                        // one shared path per core: each st_var occupies it for ST_VAR_CORE_CYCLES whichever group issues it
+                        let start = (t + delay).max(st_var_free);
+                        st_var_free = start + tk(ST_VAR_CORE_CYCLES);
+                        iiv = start - t + tk(ST_VAR_CORE_CYCLES);
+                    }
                     let st_done = (t + iiv + r.mem_done.1).max(t + r.mem_issue0 + r.mem_done.0) + pipe_extra;
                     let cls: u8 = if r.tg_name { 1 } else { 3 };
                     if (cls == 1 && last_space[gi] == 3) || (cls == 3 && last_space[gi] == 1) {
@@ -3174,7 +3370,7 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
                     t_
                 };
             } else {
-                issue_tok += t_; // released groups pass the barrier together, without an issue slot
+                issue_tok += ISS * t_; // released groups pass the barrier together, without an issue slot
             }
             let e = &mut stats[ri];
             e.0 += 1;
@@ -3197,6 +3393,8 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
             if fetch_line > 0 && nxt[gi] + 1 < npcs[gi] {
                 let (pc0, pc1) = (seqs_pcs[gi][nxt[gi]], seqs_pcs[gi][nxt[gi] + 1]);
                 let line = pc1 >> FETCH_LINE_SHIFT;
+                // AGX_FETCH_PRIVATE=1 (experiment): each SIMD group's lines are its own (no group finds another's)
+                let line = if fetch_private { line | (gi << 40) } else { line };
                 if let Some(ic) = icache.as_mut() {
                     if line != pc0 >> FETCH_LINE_SHIFT {
                         // a line still in the cache is ready (or arrives when another group's fetch of it ends)
@@ -3211,8 +3409,52 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
                             x
                         } else {
                             // (a jump taken to the next instruction is a jump: hw 324 ns per block when it starts the next line)
-                            let x = free[gi] + if fall_through { fetch_line } else { fetch_jump };
+                            let first = fetch_stream && !fetched.contains_key(&line);
+                            let mut cost = match (fall_through, first) {
+                                (true, true) if fetch_cold > 0 => fetch_cold,
+                                (false, true) if fetch_cold_jump > 0 => fetch_cold_jump,
+                                (true, _) => fetch_line,
+                                (false, _) => fetch_jump,
+                            };
+                            // AGX_FETCH_PORT=f (experiment): the core fetches one line at a time, each miss holding the
+                            // port for f x its cost (groups at different lines queue)
+                            let mut start = if fetch_port > 0.0 { free[gi].max(fetch_free) } else { free[gi] };
+                            if fetch_stream && fall_through && line > 0 && !(first && no_cold_stream) {
+                                // the line before was fetched (a miss, by any group) recently: this one was
+                                // requested when that one arrived
+                                // ... but not while the group waits for memory: the stream restarts when its last
+                                // `wait` released (fetch probe with a load + wait every 16 iadds: hw 703 us = the
+                                // 411 of the straight code + the waits, no overlap)
+                                let head = max_streams == 0 || stream_heads.iter().any(|&(l, _)| l == line - 1);
+                                if let Some(&a) = fetched.get(&(line - 1)) {
+                                    let own = !stream_owner || fetched_by.get(&(line - 1)) == Some(&gi);
+                                    if head && a + stream_window * cost >= start && (own || stream_owner_mode >= 2) {
+                                        if own || stream_owner_mode == 3 { start = start.min(a.max(last_wait[gi])); }
+                                        // a streamed line costs the stream's rate (30.6 ns per line in the probe); an
+                                        // isolated miss (the line before was a hit) the full refetch
+                                        if !first && fetch_stream_line > 0 && (own || stream_owner_mode == 2) { cost = fetch_stream_line; }
+                                    }
+                                }
+                            }
+                            if fetch_port > 0.0 {
+                                fetch_free = start + (cost as f64 * fetch_port) as i64;
+                            }
+                            let x = start + cost;
+                            if max_streams > 0 {
+                                // every miss moves a stream on (the line before is its head) or starts one
+                                match stream_heads.iter().position(|&(l, _)| line > 0 && l == line - 1) {
+                                    Some(i) => stream_heads[i] = (line, start),
+                                    None => {
+                                        if stream_heads.len() >= max_streams {
+                                            let i = (0..stream_heads.len()).min_by_key(|&i| stream_heads[i].1).unwrap();
+                                            stream_heads.remove(i);
+                                        }
+                                        stream_heads.push((line, start));
+                                    }
+                                }
+                            }
                             fetched.insert(line, x);
+                            if stream_owner { fetched_by.insert(line, gi); }
                             x
                         };
                         ic.touch(line as u64);
@@ -3241,6 +3483,10 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
             issued_now.push(gi);
             elig[gi / 64] &= !(1 << (gi % 64));
             if nxt[gi] >= npcs[gi] {
+                if drain_slot && store_done[gi] > free[gi] {
+                    free[gi] = store_done[gi];
+                    last_t = last_t.max(free[gi]);
+                }
                 done += 1;
             } else {
                 busy.push(std::cmp::Reverse((free[gi], gi)));
@@ -3280,14 +3526,14 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
         loop {
             let dt = (nt - t) as f64;
             if let Some(m) = ms.as_mut() {
-                for i in 0..5 {
+                for i in 0..6 {
                     m.tok[i] = (m.tok[i] + m.rate[i] * dt).min(m.cap[i]);
                 }
             }
             for pt in port.iter_mut() {
-                *pt = pymin(*pt + HALF_READ_PORTS * dt, (HALF_READ_PORTS + 2.0) * t_ as f64);
+                *pt = pymin(*pt + hrp * dt, (hrp + 2.0) * t_ as f64);
             }
-            issue_tok = (issue_tok + ISSUE_PER_CORE * (nt - t)).min(ISSUE_PER_CORE * t_);
+            issue_tok = (issue_tok + ipc10 * (nt - t)).min((ipc10 * t_).max(ISS * t_));
             wb_tok = (wb_tok + wb_rate * dt).min(WRITEBACK_CAP);
             let mut i = 0;
             while i < refilling.len() {
@@ -3315,7 +3561,7 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
                 break;
             }
             let pass = retest.iter().any(|x| match *x {
-                Retest::Issue => issue_tok >= t_,
+                Retest::Issue => issue_tok >= ISS * t_,
                 Retest::Bucket(b, cost) => tok[b].unwrap() >= cost,
                 Retest::Port(h, need) => port[h] >= need,
             });
@@ -3368,6 +3614,91 @@ fn m_l1_store_min(mem: Option<(&[&[(u32, Vec<u64>)]], &MemModel)>) -> f64 {
 
 fn m_l1_load_min(mem: Option<(&[&[(u32, Vec<u64>)]], &MemModel)>) -> f64 {
     mem.map(|m| m.1.l1_load_min).unwrap_or(1.0)
+}
+
+/// A core's L2 capacity: 38 x l2_bytes in all, shared by the cores that use distinct data. AGX_L2_TOTAL=BYTES
+/// (experiment): a fixed GPU-wide total instead, so a core's share shrinks as more cores are busy (stack probe
+/// r8/stackprobe, q/300: 1072 B lane-uniform stack, 256 KB per core, 737 us at 8-16 busy cores, 1045 at 24, 1184 at
+/// 32; MMQ Q5_K 1645 -> 2109 us from 16 to 32)
+fn l2_share(m: &MemModel) -> usize {
+    static T: std::sync::OnceLock<Option<f64>> = std::sync::OnceLock::new();
+    let total = T.get_or_init(|| std::env::var("AGX_L2_TOTAL").ok().and_then(|v| v.parse().ok()));
+    match total {
+        // a core never holds more than l2_bytes (one core's chase spills at 256-512 KB: 2026-10-16-memory-parameters)
+        Some(t) => (t / eff_sharers(m)).min(m.l2_bytes as f64 * m.active_cores / eff_sharers(m)) as usize,
+        None => (m.l2_bytes as f64 * m.active_cores / eff_sharers(m)) as usize,
+    }
+}
+
+/// (AGX_L2_GPU, AGX_L2_GPU_STACK (default: AGX_L2_GPU)): the capacity for device lines and for stack lines. The
+/// stacks of the cores lie 6 MB apart (Mesa's scratch layout: 128 slots x 48 KB per core at 1072 B per thread), and
+/// regions at that stride alias: the device twin with 6 MB between workgroups slows at 24 busy cores (802 -> 999
+/// us), packed 384 KB apart it does not (807), both slow at 32 (1238 / 1262)
+fn l2_gpu_bytes() -> (f64, f64) {
+    static T: std::sync::OnceLock<(f64, f64)> = std::sync::OnceLock::new();
+    *T.get_or_init(|| {
+        // (default 6.5 MB since 2026-11-11: with AGX_PLACED_BUSY and AGX_PLACED_CHAIN=0 MMQ Q5_K -22 -> -12%, Q6_K
+        // -5 -> +2%, Q5_1 -7 -> +1%; held-out mean 7.6 -> 7.5%. AGX_L2_GPU=0: off)
+        let d = std::env::var("AGX_L2_GPU").ok().and_then(|v| v.parse().ok()).unwrap_or(6815744.0);
+        (d, std::env::var("AGX_L2_GPU_STACK").ok().and_then(|v| v.parse().ok()).unwrap_or(d))
+    })
+}
+
+/// AGX_L2_GPU=BYTES (experiment; AGX_L2_GPU_STACK for stack lines): the busy cores' L2 working sets share a
+/// GPU-wide capacity T. A core's working set W is the distinct lines of its last `4 x l2 lines` L2 touches; an L2
+/// hit misses (the SLC serves it) with probability 1 - T / (cores using distinct data x W), the same lines each time
+/// (a cache keeps about T of a cyclic working set larger than it). Measured (r8/stackprobe, q/300-320): 1072 B of
+/// lane-uniform stack per thread, 3 loads + 1 store a trip, 256 KB per core: 737 us at 8-16 busy cores (any
+/// clusters), 1045 at 24, 1184 at 32; 128 KB per core: flat to 24, +17% at 32; 512 KB (16 groups): 540 at 8, 825
+/// at 16; loads only: flat to 24 (256 KB) / 32 (128 KB). The 24-core step at 256 KB is address aliasing of the
+/// cores' stacks 6 MB apart (2 MB more between cores: 749 us; the device twin packed 384 KB apart: flat), the
+/// rest is capacity (MMQ Q5_K: no change with padding, 1644 -> 2105 us from 16 to 32 cores).
+struct WorkingSet {
+    ring: std::collections::VecDeque<u64>,
+    count: HashMap<u64, u32, SegBuild>,
+    window: usize,
+    /// (device, stack) distinct lines in the window
+    lines: [usize; 2],
+}
+
+impl WorkingSet {
+    fn new(m: &MemModel) -> Option<WorkingSet> {
+        if l2_gpu_bytes().0 <= 0.0 { return None; }
+        let window = 4 * (l2_share(m) / 64).max(64);
+        Some(WorkingSet { ring: Default::default(), count: HashMap::default(), window, lines: [0, 0] })
+    }
+    fn is_stack(sg: u64) -> bool { sg >= 0x7000_0000_0000 >> 6 }
+    fn touch(&mut self, sg: u64) {
+        let c = self.count.entry(sg).or_insert(0);
+        if *c == 0 { self.lines[Self::is_stack(sg) as usize] += 1; }
+        *c += 1;
+        self.ring.push_back(sg);
+        if self.ring.len() > self.window {
+            let old = self.ring.pop_front().unwrap();
+            if let Some(c) = self.count.get_mut(&old) {
+                *c -= 1;
+                if *c == 0 { self.count.remove(&old); self.lines[Self::is_stack(old) as usize] -= 1; }
+            }
+        }
+    }
+    /// an L2 hit of `sg` that the GPU-wide capacity has lost
+    fn evicted(&self, sg: u64, sharers: f64) -> bool {
+        let (td, ts) = l2_gpu_bytes();
+        let held = sharers * 64.0 * (self.lines[0] + self.lines[1]) as f64;
+        let t = if Self::is_stack(sg) { ts } else { td };
+        if held <= t { return false; }
+        let p = 1.0 - t / held;
+        let mut x = sg.wrapping_add(0x9E37_79B9_7F4A_7C15);
+        x = (x ^ (x >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
+        x = (x ^ (x >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
+        x ^= x >> 31;
+        ((x >> 11) as f64 / (1u64 << 53) as f64) < p
+    }
+}
+
+/// `eff_sharers` for `active` busy cores
+pub fn eff_sharers_for(active: f64, sharing: f64) -> f64 {
+    (active / (1.0 + (active - 1.0) * sharing)).max(1.0)
 }
 
 /// cores competing for distinct L2/SLC capacity: active cores when data is private, 1 when all share it

@@ -1,0 +1,4 @@
+== r7/k5-ustore
+grid      512,512,1 hw      17.7 sim      14.5 ratio 0.82 waves 4 wgs/core 54 runs [17.666, 17.709]
+== r7/k1-early
+grid      512,512,1 hw      23.9 sim      14.5 ratio 0.61 waves 4 wgs/core 54 runs [23.5, 24.25]

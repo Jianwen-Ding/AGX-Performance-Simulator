@@ -1,0 +1,36 @@
+== /scratch/agx-r5/r9/rmstrunc/311445-cap1186-_ZL12rms_norm_f32ILi256EL-cut30
+grid       9728,1,1 hw       2.7 sim       nan ratio nan waves None wgs/core None runs [2.708, 2.708]
+grid      38912,1,1 hw       3.0 sim       nan ratio nan waves None wgs/core None runs [2.959, 2.958]
+grid     131072,1,1 hw       3.8 sim       nan ratio nan waves None wgs/core None runs [3.833, 3.833]
+== /scratch/agx-r5/r9/rmstrunc/311445-cap1186-_ZL12rms_norm_f32ILi256EL-cut78
+grid       9728,1,1 hw       4.3 sim       nan ratio nan waves None wgs/core None runs [4.333, 4.292]
+grid      38912,1,1 hw       4.6 sim       nan ratio nan waves None wgs/core None runs [4.583, 4.542]
+grid     131072,1,1 hw       7.6 sim       nan ratio nan waves None wgs/core None runs [7.583, 7.583]
+== /scratch/agx-r5/r9/rmstrunc/311445-cap1186-_ZL12rms_norm_f32ILi256EL-cut82
+grid       9728,1,1 hw       4.5 sim       nan ratio nan waves None wgs/core None runs [4.541, 4.541]
+grid      38912,1,1 hw       5.6 sim       nan ratio nan waves None wgs/core None runs [5.583, 5.708]
+grid     131072,1,1 hw       8.9 sim       nan ratio nan waves None wgs/core None runs [8.958, 8.917]
+== /scratch/agx-r5/r9/rmstrunc/311445-cap1186-_ZL12rms_norm_f32ILi256EL-cut101
+grid       9728,1,1 hw       4.2 sim       nan ratio nan waves None wgs/core None runs [4.166, 4.208]
+grid      38912,1,1 hw       5.5 sim       nan ratio nan waves None wgs/core None runs [5.458, 5.458]
+grid     131072,1,1 hw       8.9 sim       nan ratio nan waves None wgs/core None runs [8.916, 8.916]
+== /scratch/agx-r5/r9/rmstrunc/311445-cap1186-_ZL12rms_norm_f32ILi256EL-cut112
+grid       9728,1,1 hw       4.3 sim       nan ratio nan waves None wgs/core None runs [4.334, 4.334]
+grid      38912,1,1 hw       6.0 sim       nan ratio nan waves None wgs/core None runs [6.042, 6.0]
+grid     131072,1,1 hw       9.9 sim       nan ratio nan waves None wgs/core None runs [9.917, 9.875]
+== /scratch/agx-r5/r9/rmstrunc/311445-cap1186-_ZL12rms_norm_f32ILi256EL-cut140
+grid       9728,1,1 hw       4.6 sim       nan ratio nan waves None wgs/core None runs [4.542, 4.583]
+grid      38912,1,1 hw       6.4 sim       nan ratio nan waves None wgs/core None runs [6.292, 6.541]
+grid     131072,1,1 hw      11.0 sim       nan ratio nan waves None wgs/core None runs [11.042, 10.959]
+== /scratch/agx-r5/r9/rmstrunc/311445-cap1186-_ZL12rms_norm_f32ILi256EL-cut153
+grid       9728,1,1 hw       4.9 sim       nan ratio nan waves None wgs/core None runs [4.792, 4.917]
+grid      38912,1,1 hw       6.9 sim       nan ratio nan waves None wgs/core None runs [6.916, 6.875]
+grid     131072,1,1 hw      12.1 sim       nan ratio nan waves None wgs/core None runs [12.166, 12.084]
+== /scratch/agx-r5/r9/rmstrunc/311445-cap1186-_ZL12rms_norm_f32ILi256EL-cut156
+grid       9728,1,1 hw       5.0 sim       nan ratio nan waves None wgs/core None runs [4.958, 4.958]
+grid      38912,1,1 hw       7.1 sim       nan ratio nan waves None wgs/core None runs [7.083, 7.042]
+grid     131072,1,1 hw      12.2 sim       nan ratio nan waves None wgs/core None runs [12.25, 12.208]
+== /scratch/sim-captures/r5/llama-pp-fa0/311445-cap1186-_ZL12rms_norm_f32ILi256ELi1ELb1ELb1ELb0ELb0EEvPKfPfiiilllfS1_lll5uint3S3_S3_S3_S1_lllS3_S3_S3_S3_f
+grid       9728,1,1 hw       5.9 sim       nan ratio nan waves None wgs/core None runs [5.917, 5.959]
+grid      38912,1,1 hw       9.2 sim       nan ratio nan waves None wgs/core None runs [9.167, 9.166]
+grid     131072,1,1 hw      18.1 sim       nan ratio nan waves None wgs/core None runs [18.167, 18.125]

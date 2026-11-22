@@ -1,0 +1,3 @@
+_Z11srad_cuda_1PfS_S_S_S_S_iif hw       2076.5 us (n     0, captured    4233.2)  sim    1886.0 us  err       -9%   wgs/core 432 waves 108
+_Z11srad_cuda_2PfS_S_S_S_S_iiff hw       1008.6 us (n     0, captured    1349.2)  sim     968.0 us  err       -4%   wgs/core 432 waves 108
+launches 2  median |err| 7%  within 10%: 2  within 25%: 2

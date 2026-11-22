@@ -1,0 +1,4 @@
+varyings=1 tris=300000: 0.2255 tris 301088
+varyings=4 tris=300000: 0.3244 tris 301088
+varyings=12 tris=300000: 0.796 tris 301088
+varyings=24 tris=300000: 0.7846 tris 301088

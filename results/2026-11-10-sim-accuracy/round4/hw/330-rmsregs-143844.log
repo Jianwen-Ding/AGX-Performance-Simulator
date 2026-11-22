@@ -1,0 +1,12 @@
+== regs 88
+grid     131072,1,1 hw      18.1 sim      13.2 ratio 0.73 waves 4 wgs/core 14 runs [18.125, 18.166, 18.125]
+== regs 48
+HW FAIL {"error":"GPU job failed: Bad address (os error 14)"}
+ 
+grid     131072,1,1 hw       nan sim      11.9 ratio nan waves 2 wgs/core 14 runs []
+== regs 64
+HW FAIL {"error":"GPU job failed: Bad address (os error 14)"}
+ 
+grid     131072,1,1 hw       nan sim      12.5 ratio nan waves 3 wgs/core 14 runs []
+== regs 128
+grid     131072,1,1 hw      19.1 sim      14.1 ratio 0.73 waves 5 wgs/core 14 runs [19.125, 19.0, 19.125]

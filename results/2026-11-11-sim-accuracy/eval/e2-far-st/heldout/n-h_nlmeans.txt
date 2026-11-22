@@ -1,0 +1,7 @@
+_kernel_non_local_means_sum_s0_y_y_block_id_y hw      54.2 us (n     0, captured      71.0)  sim      69.9 us  err   +29%   wgs/core 203 waves 34
+_kernel_blur_d_s0_dx_block_id_z__2 hw    1956.9 us (n     0, captured    5248.7)  sim    2303.8 us  err   +18%   wgs/core 238 waves 119
+_kernel_non_local_means_sum_s1_y_y_block_id_y__2 hw     881.8 us (n     0, captured    1887.0)  sim    1511.0 us  err   +71%   wgs/core 203 waves 51
+_kernel_non_local_means_s0_y_y_block_id_y hw     308.3 us (n     0, captured     303.0)  sim     316.3 us  err    +3%   wgs/core 203 waves 41
+_kernel_blur_d_s0_dx_block_id_z hw    1980.5 us (n     0, captured    5251.5)  sim    2310.6 us  err   +17%   wgs/core 238 waves 119
+_kernel_non_local_means_sum_s1_y_y_block_id_y hw     864.2 us (n     0, captured    1887.0)  sim    1507.6 us  err   +74%   wgs/core 203 waves 51
+launches 6  median |err| 23%  within 10%: 1  within 25%: 3

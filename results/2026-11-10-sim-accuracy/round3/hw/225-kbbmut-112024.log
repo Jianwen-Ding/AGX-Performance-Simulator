@@ -1,0 +1,6 @@
+== r7/k1-early
+grid      512,512,1 hw      24.4 sim      14.5 ratio 0.59 waves 4 wgs/core 54 runs [24.916, 23.958]
+== r7/k4-row0
+grid      512,512,1 hw      14.8 sim      14.5 ratio 0.98 waves 4 wgs/core 54 runs [14.833, 14.833]
+== r7/k1-early-full
+grid      512,512,1 hw      31.4 sim      17.5 ratio 0.56 waves 4 wgs/core 54 runs [31.5, 31.375]

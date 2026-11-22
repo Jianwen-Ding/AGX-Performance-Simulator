@@ -1,0 +1,6 @@
+PRE=80 NOSTORE 0 BCAST 1 N 2048 ITER 1  hw      12.0  sim       9.1
+PRE=80 NOSTORE 1 BCAST 1 N 2048 ITER 1  hw       8.6  sim       8.1
+POST=80 NOSTORE 0 BCAST 1 N 2048 ITER 1  hw      12.1  sim       8.8
+POST=80 NOSTORE 1 BCAST 1 N 2048 ITER 1  hw       8.8  sim       7.9
+PRE=200 NOSTORE 0 BCAST 1 N 2048 ITER 1  hw      15.2  sim      14.2
+PRE=200 NOSTORE 1 BCAST 1 N 2048 ITER 1  hw      12.2  sim      13.4

@@ -1,0 +1,20 @@
+== nofence
+grid       9728,1,1 hw       5.8 sim       nan ratio nan waves None wgs/core None runs [5.791, 5.833]
+grid      38912,1,1 hw       9.1 sim       nan ratio nan waves None wgs/core None runs [9.042, 9.083]
+grid     131072,1,1 hw      18.0 sim       nan ratio nan waves None wgs/core None runs [18.041, 18.0]
+== nostore
+grid       9728,1,1 hw       5.0 sim       nan ratio nan waves None wgs/core None runs [4.958, 5.041]
+grid      38912,1,1 hw       7.3 sim       nan ratio nan waves None wgs/core None runs [7.25, 7.292]
+grid     131072,1,1 hw      13.0 sim       nan ratio nan waves None wgs/core None runs [13.0, 12.959]
+== nofence698
+grid       9728,1,1 hw       5.9 sim       nan ratio nan waves None wgs/core None runs [5.917, 5.791]
+grid      38912,1,1 hw       9.0 sim       nan ratio nan waves None wgs/core None runs [8.958, 9.125]
+grid     131072,1,1 hw      18.0 sim       nan ratio nan waves None wgs/core None runs [18.0, 18.0]
+== nofenceboth
+grid       9728,1,1 hw       5.8 sim       nan ratio nan waves None wgs/core None runs [5.75, 5.792]
+grid      38912,1,1 hw       9.0 sim       nan ratio nan waves None wgs/core None runs [9.0, 9.0]
+grid     131072,1,1 hw      17.8 sim       nan ratio nan waves None wgs/core None runs [17.875, 17.792]
+== nostore-nofence
+grid       9728,1,1 hw       4.9 sim       nan ratio nan waves None wgs/core None runs [4.958, 4.875]
+grid      38912,1,1 hw       7.2 sim       nan ratio nan waves None wgs/core None runs [7.209, 7.208]
+grid     131072,1,1 hw      13.0 sim       nan ratio nan waves None wgs/core None runs [12.959, 13.0]

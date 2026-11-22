@@ -1,0 +1,15 @@
+/scratch/agx-r5/clock/t350-n1000-g-1-w38-0.txt _ns":29750,"host_us":705,"repeat":1,"first_fw_ns":29750,"min_fw_ns":29750,"median_fw_ns":29750,"b2b_median_fw_ns":20042} 
+/scratch/agx-r5/clock/t350-n1000-g-1-w38-0.txt _ns":61791,"host_us":917,"repeat":1,"first_fw_ns":61791,"min_fw_ns":61791,"median_fw_ns":61791,"b2b_median_fw_ns":20083} 
+7765068
+/scratch/agx-r5/clock/t350-n1000-g-1-w38-0.txt _ns":62042,"host_us":685,"repeat":1,"first_fw_ns":62042,"min_fw_ns":62042,"median_fw_ns":62042,"b2b_median_fw_ns":20041} 
+/scratch/agx-r5/clock/t350-n1000-g-1-w38-0.txt _ns":61792,"host_us":691,"repeat":1,"first_fw_ns":61792,"min_fw_ns":61792,"median_fw_ns":61792,"b2b_median_fw_ns":20083} 
+61050746
+/scratch/agx-r5/clock/t350-n1000-g-1-w38-0.txt _ns":62250,"host_us":889,"repeat":1,"first_fw_ns":62250,"min_fw_ns":62250,"median_fw_ns":62250,"b2b_median_fw_ns":20041} 
+/scratch/agx-r5/clock/t350-n1000-g-1-w38-0.txt _ns":61708,"host_us":635,"repeat":1,"first_fw_ns":61708,"min_fw_ns":61708,"median_fw_ns":61708,"b2b_median_fw_ns":20083} 
+13956466
+clock/cpu-busy-0.txt median 20041 p10 19916
+clock/cpu-busy-1.txt median 20083 p10 19958
+clock/cpu-idle1-0.txt median 20042 p10 19917
+clock/cpu-idle1-1.txt median 20083 p10 19958
+clock/cpu-idle2-0.txt median 20041 p10 19917
+clock/cpu-idle2-1.txt median 20083 p10 19958

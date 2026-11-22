@@ -1,0 +1,12 @@
+STRIDE 512
+BCAST 1 N 512 ITER 2  hw       5.8  sim       5.2
+BCAST 1 N 2048 ITER 2  hw      11.4  sim       8.9
+STRIDE 4096
+BCAST 1 N 512 ITER 2  hw       5.7  sim       5.3
+BCAST 1 N 2048 ITER 2  hw      11.4  sim       9.5
+STRIDE 65536
+BCAST 1 N 512 ITER 2  hw       6.5  sim       6.2
+BCAST 1 N 2048 ITER 2  hw      11.9  sim      14.2
+ITER 1
+BCAST 1 N 512 ITER 1  hw       4.9  sim       4.5
+BCAST 1 N 2048 ITER 1  hw      10.5  sim       8.8

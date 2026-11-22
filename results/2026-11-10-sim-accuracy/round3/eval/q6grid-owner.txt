@@ -1,0 +1,8 @@
+owner 1
+grid       1088,8,1 hw       nan sim    2967.7 ratio nan waves 1 wgs/core 1 runs []
+grid        544,8,1 hw       nan sim    3488.2 ratio nan waves 1 wgs/core 1 runs []
+grid        256,8,1 hw       nan sim    3357.8 ratio nan waves 1 wgs/core 1 runs []
+owner 2
+grid       1088,8,1 hw       nan sim    2524.8 ratio nan waves 1 wgs/core 1 runs []
+grid        544,8,1 hw       nan sim    3056.5 ratio nan waves 1 wgs/core 1 runs []
+grid        256,8,1 hw       nan sim    2931.1 ratio nan waves 1 wgs/core 1 runs []

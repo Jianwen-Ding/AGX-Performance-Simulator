@@ -1,0 +1,6 @@
+REGSTORE 0
+BCAST 1 N 512 ITER 2  hw       6.5  sim       6.2
+BCAST 1 N 2048 ITER 2  hw      14.4  sim      14.2
+REGSTORE 1
+BCAST 1 N 512 ITER 2  hw       6.5  sim       6.2
+BCAST 1 N 2048 ITER 2  hw      14.6  sim      14.2

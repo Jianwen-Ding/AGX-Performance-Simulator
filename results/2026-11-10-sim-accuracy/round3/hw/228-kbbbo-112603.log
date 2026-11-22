@@ -1,0 +1,8 @@
+== r7/small
+grid      512,512,1 hw      24.5 sim      14.5 ratio 0.59 waves 4 wgs/core 54 runs [24.042, 24.875]
+== r7/smallall
+grid      512,512,1 hw      24.5 sim      14.5 ratio 0.59 waves 4 wgs/core 54 runs [22.875, 26.083]
+OUTMB 0
+BCAST 1 N 2048 ITER 1  hw      10.9
+OUTMB 320
+BCAST 1 N 2048 ITER 1  hw      10.9

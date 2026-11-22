@@ -1,0 +1,5 @@
+_Z4Fan1PfS_ii                  hw      26.1 us (n     0, captured      72.2)  sim      26.0 us  err    -1%   wgs/core 1 waves 1
+_Z4Fan2PfS_S_iii               hw       8.8 us (n     0, captured      16.4)  sim       9.2 us  err    +4%   wgs/core 1 waves 1
+_Z4Fan1PfS_ii                  hw      26.1 us (n     0, captured      72.2)  sim      26.0 us  err    -1%   wgs/core 1 waves 1
+_Z4Fan2PfS_S_iii               hw       8.8 us (n     0, captured      16.4)  sim       9.0 us  err    +2%   wgs/core 1 waves 1
+launches 4  median |err| 1%  within 10%: 4  within 25%: 4

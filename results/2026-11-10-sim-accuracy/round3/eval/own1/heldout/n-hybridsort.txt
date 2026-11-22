@@ -1,0 +1,8 @@
+_Z19histogram1024KernelPjPfffi hw     344.0 us (n     0, captured     425.4)  sim     311.4 us  err    -9%   wgs/core 2 waves 1
+_Z11bucketcountPfPiPji         hw   14534.2 us (n     0, captured   14508.9)  sim   14709.7 us  err    +1%   wgs/core 27 waves 2
+_Z18bucketprefixoffsetPjS_i    hw     345.2 us (n     0, captured     424.3)  sim     334.6 us  err    -3%   wgs/core 1 waves 1
+_Z10bucketsortPfPiS_iPjS1_     hw     394.4 us (n     0, captured     393.0)  sim     302.9 us  err   -23%   wgs/core 27 waves 2
+_Z14mergeSortFirstP6float4i    hw     315.2 us (n     0, captured     313.3)  sim     313.5 us  err    -1%   wgs/core 108 waves 54
+_Z9mergepackPfS_               hw      92.2 us (n     0, captured     108.5)  sim     100.5 us  err    +9%   wgs/core 459 waves 39
+_Z13mergeSortPassP6float4ii    hw    1506.0 us (n     0, captured    4270.2)  sim    1284.2 us  err   -15%   wgs/core 35 waves 18
+launches 7  median |err| 9%  within 10%: 5  within 25%: 7

@@ -47,6 +47,8 @@ fn main() {
     let code = std::fs::read(&a[0]).unwrap_or_else(|e| die(&format!("{}: {}", a[0], e)));
     let (mut grid, mut wg, mut shared, mut regs, mut max_steps) = ([1u32, 1, 1], [1u32, 1, 1], 0u32, 128usize, 100_000_000u64);
     let (mut preamble, mut uniforms, mut dumps) = (None, vec![], vec![]);
+    let mut tile_dump: Option<String> = None;
+    let mut state_slots: Vec<(bool, u32, Vec<u8>)> = vec![];
     let mut core_map: Option<Vec<u32>> = None;
     let mut lines: Option<agx_sim::lines::LineTable> = None;
     let mut lines_offset = 0u64;
@@ -97,6 +99,18 @@ fn main() {
                 let (va, n) = kv();
                 mem.map(num(va), vec![0u8; num(n) as usize]);
             }
+            "--frag" => {
+                let t = std::fs::read_to_string(&v).unwrap_or_else(|e| die(&format!("{}: {}", v, e)));
+                let setup = agx_sim::frag::FragSetup::parse(&t).unwrap_or_else(|e| die(&format!("{}: {}", v, e)));
+                agx_sim::frag::install(setup).unwrap_or_else(|e| die(&e));
+            }
+            "--tex-state" | "--samp-state" => {
+                // SLOT=HEX: a texture / PBE descriptor (24 bytes) or sampler descriptor (8 bytes) the driver would have loaded into a state slot
+                let (slot, hex) = v.split_once('=').unwrap_or_else(|| die("--tex-state expects SLOT=HEX"));
+                let bytes: Vec<u8> = (0..hex.len()).step_by(2).map(|i| u8::from_str_radix(&hex[i..i + 2], 16).unwrap_or_else(|_| die("bad hex"))).collect();
+                state_slots.push((a[i] == "--tex-state", num(slot) as u32, bytes));
+            }
+            "--tile-dump" => tile_dump = Some(v.clone()),
             "--dump" => {
                 let (va, rest) = kv();
                 let (n, f) = rest.split_once(':').unwrap_or_else(|| die("--dump expects VA=BYTES:FILE"));
@@ -105,6 +119,9 @@ fn main() {
             o => die(&format!("unknown option {}", o)),
         }
         i += 2;
+    }
+    for (tex, slot, bytes) in state_slots {
+        if tex { mem.tex_state.insert(slot, bytes); } else { mem.samp_state.insert(slot, bytes); }
     }
     // AGX_RUN_TIMES=1: where a replay's time goes, on stderr
     let times = std::env::var_os("AGX_RUN_TIMES").is_some();
@@ -153,6 +170,9 @@ fn main() {
     for (va, n, f) in &dumps {
         let b = mem.read_bytes(*va, *n).unwrap_or_else(|e| die(&e));
         std::fs::write(f, b).unwrap_or_else(|e| die(&format!("{}: {}", f, e)));
+    }
+    if let Some(f) = &tile_dump {
+        std::fs::write(f, agx_sim::frag::dump()).unwrap_or_else(|e| die(&format!("{}: {}", f, e)));
     }
     phase("dumps", &mut clock);
     let u: Vec<String> = after.unwrap_or_default().iter().filter(|(_, v)| *v != 0).map(|(k, v)| format!("\"u{}\":{}", k, v)).collect();

@@ -1,0 +1,4 @@
+grid       1216,8,1 hw    5529.3 sim    4155.6 ratio 0.75 waves 2 wgs/core 2 runs [5529.083, 5529.5]
+grid       1088,8,1 hw    3260.2 sim    2276.3 ratio 0.70 waves 1 wgs/core 1 runs [3260.458, 3259.917]
+grid        544,8,1 hw    2692.9 sim    2811.6 ratio 1.04 waves 1 wgs/core 1 runs [2690.709, 2695.0]
+grid        256,8,1 hw    2411.8 sim    2686.8 ratio 1.11 waves 1 wgs/core 1 runs [2411.875, 2411.625]

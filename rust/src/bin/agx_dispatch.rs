@@ -117,11 +117,15 @@ fn run_job(a: &[String], p: &Params) -> Result<serde_json::Value, String> {
         let option = a[i].as_str();
         if option == "--no-mem" { l.mem = false; i += 1; continue; }
         if option == "--all-workgroups" { all_workgroups = true; i += 1; continue; }
-        if !["--grid", "--wg", "--regs", "--tg-bytes", "--clock", "--cores", "--busiest-core-wgs", "--m2-core-map", "--sampler-heap", "--launch-us", "--max-waves", "--uniform", "--preamble", "--map", "--alloc", "--agx-strict", "--launch-profile", "--group-launch-ns", "--stack", "--store-gbps"].contains(&option) {
+        if !["--grid", "--wg", "--regs", "--tg-bytes", "--clock", "--cores", "--busiest-core-wgs", "--m2-core-map", "--sampler-heap", "--launch-us", "--max-waves", "--uniform", "--preamble", "--map", "--alloc", "--agx-strict", "--launch-profile", "--group-launch-ns", "--stack", "--store-gbps", "--frag"].contains(&option) {
             return Err(format!("unknown argument {}", option));
         }
         let v = a.get(i + 1).ok_or_else(|| format!("{} requires a value", option))?;
         match option {
+            "--frag" => {
+                let t = std::fs::read_to_string(v).map_err(|e| format!("{}: {}", v, e))?;
+                agx_sim::frag::install(agx_sim::frag::FragSetup::parse(&t).map_err(|e| format!("{}: {}", v, e))?).ok(); // first setup wins (batch)
+            }
             "--grid" => l.grid = dims(v).map_err(|e| format!("--grid: {}", e))?,
             "--wg" => l.wg = dims(v).map_err(|e| format!("--wg: {}", e))?,
             "--regs" => l.regs = number(v, option)?,
@@ -137,6 +141,7 @@ fn run_job(a: &[String], p: &Params) -> Result<serde_json::Value, String> {
                 "drm" => {
                     let d = Launch::default();
                     (l.launch_ns, l.wg_launch_ns, l.group_launch_ns, l.fetch_line_ns, l.stack_launch_ns, l.store_gbps, l.store_launch_ns) = (d.launch_ns, d.wg_launch_ns, d.group_launch_ns, d.fetch_line_ns, d.stack_launch_ns, d.store_gbps, d.store_launch_ns);
+                    l.fetch_jump_line_ns = d.fetch_jump_line_ns;
                     l.later_waves_warm = d.later_waves_warm;
                     l.partial_warm = d.partial_warm;
                     l.chain_waves = d.chain_waves;
@@ -144,7 +149,8 @@ fn run_job(a: &[String], p: &Params) -> Result<serde_json::Value, String> {
                     l.icache_victims = d.icache_victims;
                 }
                 "runtime" => {
-                    (l.launch_ns, l.wg_launch_ns, l.group_launch_ns, l.fetch_line_ns, l.stack_launch_ns, l.store_gbps, l.store_launch_ns, l.later_waves_warm, l.partial_warm, l.chain_waves) = (2300.0, 100.0, 3.2, 104.0, 5000.0, 365.0, 700.0, true, true, true);
+                    (l.launch_ns, l.wg_launch_ns, l.group_launch_ns, l.fetch_line_ns, l.stack_launch_ns, l.store_gbps, l.store_launch_ns, l.later_waves_warm, l.partial_warm, l.chain_waves) = (2300.0, 100.0, 3.2, 70.0, 5000.0, 365.0, 700.0, true, true, true);
+                    l.fetch_jump_line_ns = 300.0;
                     l.stack_slot_ns = 1150.0;
                     // code beyond the instruction cache is fetched through it in the simulation (Launch::icache_lines)
                     // 12 KiB, 192 lines (playground novel-results/2026-10-20-icache), replacement not strict LRU: past

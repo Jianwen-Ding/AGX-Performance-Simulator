@@ -1,0 +1,6 @@
+BCAST 0 N 40 ITER 2  hw       4.4  sim       4.3
+BCAST 0 N 512 ITER 2  hw       8.0  sim       8.4
+BCAST 0 N 2048 ITER 2  hw      19.7  sim      20.9
+BCAST 1 N 40 ITER 2  hw       4.1  sim       4.1
+BCAST 1 N 512 ITER 2  hw       6.5  sim       6.2
+BCAST 1 N 2048 ITER 2  hw      14.5  sim      14.2

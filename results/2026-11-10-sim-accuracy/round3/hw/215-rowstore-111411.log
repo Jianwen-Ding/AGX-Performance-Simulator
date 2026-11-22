@@ -1,0 +1,16 @@
+ROWW 512 NOSTORE 0
+BCAST 1 N 2048 ITER 1  hw      10.6  sim       8.8
+ROWW 512 NOSTORE 1
+BCAST 1 N 2048 ITER 1  hw       7.8  sim       7.7
+ROWW 896 NOSTORE 0
+BCAST 1 N 2048 ITER 1  hw      10.8  sim       8.8
+ROWW 896 NOSTORE 1
+BCAST 1 N 2048 ITER 1  hw       7.8  sim       7.7
+ROWW 1024 NOSTORE 0
+BCAST 1 N 2048 ITER 1  hw      10.7  sim       8.8
+ROWW 1024 NOSTORE 1
+BCAST 1 N 2048 ITER 1  hw       7.9  sim       7.7
+ROWW 640 NOSTORE 0
+BCAST 1 N 2048 ITER 1  hw      10.8  sim       8.8
+ROWW 640 NOSTORE 1
+BCAST 1 N 2048 ITER 1  hw       7.7  sim       7.7

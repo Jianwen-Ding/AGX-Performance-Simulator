@@ -1,0 +1,12 @@
+flat=0 vary 1 ms_best 0.1289
+flat=0 vary 2 ms_best 0.1165
+flat=0 vary 4 ms_best 0.104
+flat=0 vary 8 ms_best 0.1124
+flat=0 vary 16 ms_best 0.1294
+flat=0 vary 24 ms_best 0.1372
+flat=1 vary 1 ms_best 0.0667
+flat=1 vary 2 ms_best 0.0731
+flat=1 vary 4 ms_best 0.1005
+flat=1 vary 8 ms_best 0.1491
+flat=1 vary 16 ms_best 0.1916
+flat=1 vary 24 ms_best 0.2626

@@ -1,0 +1,7 @@
+_kernel_blurx_s0_c_block_id_z  hw   17929.8 us (n     0, captured   17898.3)  sim   14834.9 us  err   -17%   wgs/core 69 waves 5
+_kernel_bilateral_grid_s0_y_y_o_block_id_y hw    8841.5 us (n     0, captured   14930.9)  sim   10321.4 us  err   +17%   wgs/core 203 waves 102
+_kernel_blurz_s0_y_y_block_id_y hw     154.2 us (n     0, captured     439.8)  sim     155.2 us  err    +1%   wgs/core 27 waves 4
+_kernel_blurx_s0_z_z_block_id_z hw      39.9 us (n     0, captured      46.1)  sim      41.9 us  err    +5%   wgs/core 47 waves 6
+_kernel_blury_s0_z_z_block_id_z hw      40.2 us (n     0, captured      53.6)  sim      38.0 us  err    -5%   wgs/core 47 waves 6
+_kernel_bilateral_grid_s0_y_y_block_id_y hw     137.2 us (n     0, captured     393.5)  sim     139.7 us  err    +2%   wgs/core 405 waves 81
+launches 6  median |err| 5%  within 10%: 4  within 25%: 6

@@ -1,0 +1,20 @@
+== E
+grid       2048,1,1 hw     737.2 sim     709.1 ratio 0.96 waves 1 wgs/core 1 runs [737.291, 737.125]
+grid       4096,1,1 hw     742.8 sim     709.1 ratio 0.95 waves 1 wgs/core 1 runs [742.917, 742.667]
+grid       6144,1,1 hw     749.4 sim     709.1 ratio 0.95 waves 1 wgs/core 1 runs [749.375, 749.375]
+grid       8192,1,1 hw     866.5 sim     708.6 ratio 0.82 waves 1 wgs/core 1 runs [866.291, 866.708]
+== F
+grid       2048,1,1 hw     648.4 sim     690.8 ratio 1.07 waves 1 wgs/core 1 runs [648.417, 648.417]
+grid       4096,1,1 hw     653.5 sim     690.8 ratio 1.06 waves 1 wgs/core 1 runs [653.583, 653.459]
+grid       6144,1,1 hw     659.1 sim     690.8 ratio 1.05 waves 1 wgs/core 1 runs [659.25, 659.041]
+grid       8192,1,1 hw     665.3 sim     692.3 ratio 1.04 waves 1 wgs/core 1 runs [665.25, 665.292]
+== G
+grid       4096,1,1 hw     540.5 sim     985.8 ratio 1.82 waves 1 wgs/core 1 runs [540.458, 540.459]
+grid       8192,1,1 hw     824.7 sim     985.8 ratio 1.20 waves 1 wgs/core 1 runs [824.625, 824.75]
+grid      12288,1,1 hw    1071.2 sim     985.6 ratio 0.92 waves 1 wgs/core 1 runs [1071.333, 1071.0]
+grid      16384,1,1 hw    1545.4 sim     994.5 ratio 0.64 waves 1 wgs/core 1 runs [1553.25, 1537.458]
+== H
+grid       4096,1,1 hw     475.4 sim     974.5 ratio 2.05 waves 1 wgs/core 1 runs [475.458, 475.417]
+grid       8192,1,1 hw     655.1 sim     974.6 ratio 1.49 waves 1 wgs/core 1 runs [655.166, 655.0]
+grid      12288,1,1 hw     819.7 sim     974.8 ratio 1.19 waves 1 wgs/core 1 runs [818.75, 820.583]
+grid      16384,1,1 hw    1085.1 sim     982.4 ratio 0.91 waves 1 wgs/core 1 runs [1086.291, 1083.875]

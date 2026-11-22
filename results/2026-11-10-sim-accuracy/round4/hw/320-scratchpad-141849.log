@@ -1,0 +1,35 @@
+== stack A pad 0
+grid       4096,1,1 hw     742.9 sim       nan ratio nan waves None wgs/core None runs [742.916, 742.958]
+grid       6144,1,1 hw    1045.0 sim       nan ratio nan waves None wgs/core None runs [1044.625, 1045.375]
+grid       8192,1,1 hw    1182.5 sim       nan ratio nan waves None wgs/core None runs [1182.542, 1182.416]
+== stack A pad 16384
+grid       4096,1,1 hw     743.3 sim       nan ratio nan waves None wgs/core None runs [743.375, 743.291]
+grid       6144,1,1 hw     800.5 sim       nan ratio nan waves None wgs/core None runs [800.375, 800.625]
+grid       8192,1,1 hw    1162.3 sim       nan ratio nan waves None wgs/core None runs [1162.666, 1161.958]
+== stack A pad 65536
+grid       4096,1,1 hw     743.5 sim       nan ratio nan waves None wgs/core None runs [743.416, 743.5]
+grid       6144,1,1 hw     911.9 sim       nan ratio nan waves None wgs/core None runs [912.459, 911.375]
+grid       8192,1,1 hw    1245.2 sim       nan ratio nan waves None wgs/core None runs [1245.167, 1245.25]
+== stack A pad 1048576
+grid       4096,1,1 hw     742.9 sim       nan ratio nan waves None wgs/core None runs [742.875, 742.959]
+grid       6144,1,1 hw    1047.6 sim       nan ratio nan waves None wgs/core None runs [1047.708, 1047.417]
+grid       8192,1,1 hw    1262.9 sim       nan ratio nan waves None wgs/core None runs [1262.916, 1262.917]
+== stack A pad 2097152
+grid       4096,1,1 hw     742.9 sim       nan ratio nan waves None wgs/core None runs [742.958, 742.916]
+grid       6144,1,1 hw     748.8 sim       nan ratio nan waves None wgs/core None runs [748.917, 748.666]
+grid       8192,1,1 hw    1123.8 sim       nan ratio nan waves None wgs/core None runs [1123.75, 1123.75]
+== Q5_K pad 0
+grid        512,8,1 hw    1643.6 sim       nan ratio nan waves None wgs/core None runs [1643.5, 1643.75]
+grid       1024,8,1 hw    2105.4 sim       nan ratio nan waves None wgs/core None runs [2105.709, 2105.083]
+grid       1088,8,1 hw    2142.5 sim       nan ratio nan waves None wgs/core None runs [2144.209, 2140.708]
+grid       1216,8,1 hw    3704.5 sim       nan ratio nan waves None wgs/core None runs [3704.5, 3704.416]
+== Q5_K pad 16384
+grid        512,8,1 hw    1628.8 sim       nan ratio nan waves None wgs/core None runs [1629.0, 1628.542]
+grid       1024,8,1 hw    2083.0 sim       nan ratio nan waves None wgs/core None runs [2081.75, 2084.334]
+grid       1088,8,1 hw    2143.6 sim       nan ratio nan waves None wgs/core None runs [2144.792, 2142.333]
+grid       1216,8,1 hw    3677.1 sim       nan ratio nan waves None wgs/core None runs [3677.375, 3676.75]
+== Q5_K pad 1048576
+grid        512,8,1 hw    1659.2 sim       nan ratio nan waves None wgs/core None runs [1659.042, 1659.375]
+grid       1024,8,1 hw    2155.1 sim       nan ratio nan waves None wgs/core None runs [2154.625, 2155.541]
+grid       1088,8,1 hw    2179.4 sim       nan ratio nan waves None wgs/core None runs [2177.333, 2181.416]
+grid       1216,8,1 hw    3729.4 sim       nan ratio nan waves None wgs/core None runs [3728.708, 3730.125]

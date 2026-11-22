@@ -1,0 +1,8 @@
+== r6/kbb-ne512
+grid      512,512,1 hw      24.6 sim      14.5 ratio 0.59 waves 4 wgs/core 54 runs [24.792, 24.375]
+== r7/kbb-z0
+grid      512,512,1 hw      27.9 sim      14.5 ratio 0.52 waves 4 wgs/core 54 runs [24.917, 30.959]
+== r7/kbb-z1
+grid      512,512,1 hw      24.0 sim      14.5 ratio 0.60 waves 4 wgs/core 54 runs [24.75, 23.291]
+== r7/kbb-z01
+grid      512,512,1 hw      23.4 sim      14.5 ratio 0.62 waves 4 wgs/core 54 runs [23.375, 23.333]

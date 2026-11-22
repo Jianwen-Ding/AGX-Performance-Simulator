@@ -380,6 +380,11 @@ fn main() {
                     usage()
                 }
             }
+            "--frag" => {
+                let v = value();
+                let t = std::fs::read_to_string(&v).unwrap_or_else(|e| { eprintln!("{}: {}", v, e); std::process::exit(2) });
+                agx_sim::frag::install(agx_sim::frag::FragSetup::parse(&t).unwrap_or_else(|e| { eprintln!("{}: {}", v, e); std::process::exit(2) })).ok();
+            }
             "--allow-unknown" => allow_unknown = true,
             "--annotate" => annotate = true,
             "--uniform" => {

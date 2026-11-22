@@ -1,0 +1,2 @@
+_Z14dynproc_kerneliPiS_S_iiii  hw         214.8 us (n     0, captured     589.8)  sim     202.7 us  err       -6%   wgs/core 13 waves 3
+launches 1  median |err| 5%  within 10%: 1  within 25%: 1
