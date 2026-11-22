@@ -36,7 +36,7 @@ def build(mask, spacing, perwg):
     code += P.mov(12, 0x3f800000 if fadd else 1) + P.mov(7, 0) + P.e('iadd r8, u6, 0')
     code += P.e('if_fcmp r0l, eq, 0.0, 0.0, 1', 'push_exec r0l, 1')
     # FADD=1: float32 add (op 1 `sub` with u5 = 3, bit 45: playground 2026-10-17-atomic-variants; Cycles' film
-    # accumulation, ZLUDA's atom.add.f32)
+    # accumulation, the PTX front end's atom.add.f32)
     raw = DA.mesa_atomic(1, 0, 8, 2 * 21, 2 * 12, 0) & ~(3 << 45) | 3 << 45 if fadd else DA.mesa_atomic(0, 0, 8, 2 * 21, 2 * 12, 0)
     body = raw.to_bytes(8, 'little')
     body += P.e('iadd r7, 1, r7.sx') + P.e('while_icmp r0l, ult, r7, r8, 1')

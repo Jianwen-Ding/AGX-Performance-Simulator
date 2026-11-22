@@ -1,7 +1,7 @@
 # Simulator accuracy round 2026-11-10
 
 Hardware: M2 Max (G14C, 38 cores), Asahi, AC power. Kernels are clang-built CUDA (llama.cpp, Rodinia, Halide, tinygrad)
-captured through ZLUDA (`ZLUDA_AGX_CAPTURE`) and replayed with `agx_run_hw --back-to-back 5000` (a copy of ZLUDA's
+captured through the PTX front end (`AGX_RUNTIME_CAPTURE`) and replayed with `agx_run_hw --back-to-back 5000` (a copy of the PTX front end's
 agx_runtime whose back-to-back limit is raised; the median of the last 1000 commands, three repeats, idle GPU checked
 before and after every run with `gpuusers.sh`). Model: `agx_dispatch --launch-profile runtime`.
 

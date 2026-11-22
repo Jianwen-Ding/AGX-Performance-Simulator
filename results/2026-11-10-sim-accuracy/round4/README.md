@@ -3,7 +3,7 @@
 Hardware finding: apple-documentation-playground novel-results/2026-11-10-l2-gpu-capacity (the L2 is one GPU-wide
 capacity of ~6-7 MB; per-core working sets of 256 KB slow beyond ~24 busy cores; the cores' stacks, 6 MB apart,
 also alias at 24). Raw logs and job scripts in `hw/` (queue numbers 300-335). Probes: `probes/*.ptx` (hand-written
-PTX, compiled by zoc, captured with agx_bench_kernel + ZLUDA_AGX_CAPTURE, replayed by `gsweep.py` at smaller grids).
+PTX, compiled by zoc, captured with agx_bench_kernel + AGX_RUNTIME_CAPTURE, replayed by `gsweep.py` at smaller grids).
 `fitprobe.sh TD TS`: the probes' simulated times for an AGX_L2_GPU setting.
 
 ## Model changes (all experiments, default off)

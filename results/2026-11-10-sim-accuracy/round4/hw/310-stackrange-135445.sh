@@ -6,7 +6,7 @@ P=/scratch/agx-r5/r8/stackprobe; cd $P
 cap() { # name ptx kernel block args...
   n=$1 f=$2 k=$3 b=$4; shift 4
   rm -rf $P/cap-$n; mkdir -p $P/cap-$n
-  ZLUDA_AGX_CAPTURE=$P/cap-$n /scratch/zluda-build/release/agx_bench_kernel $P/$f $k --grid 38 --block $b --iters 2 --warmup 0 "$@" > /dev/null
+  AGX_RUNTIME_CAPTURE=$P/cap-$n /scratch/ptx-frontend-build/release/agx_bench_kernel $P/$f $k --grid 38 --block $b --iters 2 --warmup 0 "$@" > /dev/null
   ln -sfn $(ls -d $P/cap-$n/*$k) $P/c-$n
 }
 sw() { cd $P/c-$1; shift; python3 /scratch/agx-r5/gsweep.py . "$@" --hw; }

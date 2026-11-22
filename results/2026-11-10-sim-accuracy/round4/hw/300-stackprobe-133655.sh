@@ -5,7 +5,7 @@ P=/scratch/agx-r5/r8/stackprobe; cd $P
 /scratch/agx-r5/waitidle.sh 5
 cap() { # name block mask st iters
   rm -rf $P/cap-$1; mkdir -p $P/cap-$1
-  ZLUDA_AGX_CAPTURE=$P/cap-$1 /scratch/zluda-build/release/agx_bench_kernel $P/stackmix.ptx stackmix --grid 38 --block $2 --iters 2 --warmup 0 buf:$((38*$2*4)) u32:$5 u32:$3 u32:$4
+  AGX_RUNTIME_CAPTURE=$P/cap-$1 /scratch/ptx-frontend-build/release/agx_bench_kernel $P/stackmix.ptx stackmix --grid 38 --block $2 --iters 2 --warmup 0 buf:$((38*$2*4)) u32:$5 u32:$3 u32:$4
   ln -sfn $(ls -d $P/cap-$1/*stackmix) $P/c-$1
 }
 cap A 256 255 1 3000
