@@ -669,6 +669,9 @@ fn simulate_core_list(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Trace
                 let txt: String = t.pcs.iter().map(|pc| format!("{pc} {}\n", by_pc.get(pc).map_or("?", |i| i.name.as_str()))).collect();
                 let _ = std::fs::write(path, txt);
             }
+            // memory accesses of group 0: 64-byte segments per access (loads and stores; atomic / TG entries are words)
+            let (na, ns, nmax) = t.mem.iter().fold((0usize, 0usize, 0usize), |(a, s, m), (_, v)| (a + 1, s + v.len(), m.max(v.len())));
+            eprintln!("trace stats: {na} memory accesses, {ns} segments ({:.2} per access, max {nmax})", ns as f64 / na.max(1) as f64);
             let lines: std::collections::HashSet<usize> = t.pcs.iter().map(|&pc| pc / 64).collect();
             eprintln!("trace stats: {jumps} taken jumps, {jump_lines} of them to another line");
             for (gi, tg) in traces.iter().enumerate().take(gpw as usize) {
@@ -1029,6 +1032,14 @@ fn simulate_core_list(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Trace
         // Cycles): median 9 -> 7%, within 10% 91 -> 111; Halide bilateral_grid +53 -> +27%, local_laplacian's
         // pyramid levels +20-30% -> +-10%. AGX_FIRST_TOUCH_FRAC=0: every first touch is new (round 3); 1: the fraction
         // without the L2 latency; 2: 1 with every first touch at the first-touch latency
+        // AGX_RESIDENT_SHARE=1 (experiment): the DRAM share (lines several workgroups read fetched once) holds for lines
+        // that come from DRAM, not for lines the SLC already holds: each core that reads such a line moves it itself.
+        // Halide gPyramid4 grid sweep (results/2026-11-22-grid-sweeps): AGX_DRAM_SHARE=0 mean |err| 31 -> 12%, while
+        // the colsum probe (DRAM-bound, overlapping columns) needs the share. Effective share = resident fraction +
+        // (1 - resident fraction) x share.
+        let dram_share = if resident && std::env::var("AGX_RESIDENT_SHARE").is_ok_and(|v| v == "1") {
+            frac + (1.0 - frac) * dram_share
+        } else { dram_share };
         let raw = distinct.len() as f64 * 64.0 * scale;
         let first_touch_frac = if std::env::var("AGX_FIRST_TOUCH_FRAC").map_or(true, |v| v != "0") && raw > 0.0 {
             (footprint / (raw * dram_share.clamp(0.05, 1.0))).clamp(0.0, 1.0)
