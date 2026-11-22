@@ -1012,6 +1012,7 @@ fn simulate_core_list(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Trace
             }).sum()
         };
         if std::env::var("AGX_DEBUG_FOOTPRINT").is_ok_and(|v| v == "1") {
+            eprintln!("wave {w}: distinct {} lines, scale {scale:.2} (m {m} count {count} cores {}), region lines {region_lines:?}", distinct.len(), cores.min(n));
             eprintln!("wave {w}: footprint {:.1} MiB (uncapped {:.1}, slc {:.1} MiB) sharing {sharing:.2} dram_share {dram_share:.2}", footprint / 1048576.0, distinct.len() as f64 * 64.0 * scale / shared_by / 1048576.0, mm.slc_bytes as f64 / 1048576.0);
         }
         // The SLC holds a footprint up to ~14 MiB whole and none of one beyond ~30 MiB, smoothly in between (half-way
