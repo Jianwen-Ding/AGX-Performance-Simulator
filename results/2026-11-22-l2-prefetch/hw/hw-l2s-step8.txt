@@ -1,0 +1,4 @@
+REGKB    16 N   1 T 2000  hw     194.9  sim     193.5
+REGKB    16 N  32 T 2000  hw     199.4  sim     193.7
+REGKB  2048 N   1 T 2000  hw     368.9  sim     606.3
+REGKB  2048 N  32 T 2000  hw     387.7  sim     802.6

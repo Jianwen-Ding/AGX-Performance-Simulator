@@ -555,6 +555,9 @@ fn simulate_core_list(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Trace
     let far_cache = std::sync::Mutex::new(None::<Vec<f64>>);
     // the same block's stored lines: distinct over the sum of each workgroup's (`store_share`)
     let store_share_cache = std::sync::Mutex::new(1.0f64);
+    // AGX_ATOMIC_SHARERS: per atomic word, the cores taken to hit it at once (from the dram-share block's traces)
+    let atomic_sharers_cache = std::sync::Mutex::new(None::<std::sync::Arc<std::collections::HashMap<u64, f64>>>);
+    let atomic_pcs: std::collections::HashSet<usize> = ins.iter().filter(|i| i.name == "atomic").map(|i| i.pc).collect();
     let partial_warm = std::env::var("AGX_PARTIAL_WARM").map_or(l.partial_warm, |v| v == "1");
     let refetched = std::sync::atomic::AtomicBool::new(false);
     let sim_wave = |w: u64| -> Result<(u64, f64, Vec<String>, Vec<f64>, Vec<Vec<f64>>, u64), String> {
@@ -868,6 +871,34 @@ fn simulate_core_list(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Trace
                         }
                     };
                     let traced: Vec<Vec<Trace>> = crate::par::map(&ks, |&k| trace_wg(k)).into_iter().collect::<Result<Vec<_>, _>>()?;
+                    if block > 1 && !atomic_pcs.is_empty() && std::env::var("AGX_ATOMIC_SHARERS").is_ok_and(|v| v == "1") {
+                        // AGX_ATOMIC_SHARERS=1 (experiment): a device atomic word that c of the block's workgroups
+                        // touch is hit at once by ~c x (resident workgroups GPU-wide) / block of them, on as many cores
+                        // (consecutive workgroups run on different cores), at most all of them: its hot-spot rate is
+                        // shared by those, not by every core. Cycles' sort-partition counters, init_from_camera's
+                        // per-pixel adds (one workgroup each); probe_atomic_lines.py PERWG=1
+                        let mut count: std::collections::HashMap<u64, u32> = Default::default();
+                        for ts in &traced {
+                            let mut words = std::collections::HashSet::new();
+                            for t in ts {
+                                for (step, ws) in &t.mem {
+                                    if atomic_pcs.contains(&t.pcs[*step as usize]) { words.extend(ws.iter().copied()); }
+                                }
+                            }
+                            for w in words { *count.entry(w).or_default() += 1; }
+                        }
+                        let resident = n.min(cores * r as u64) as f64;
+                        let k = ks.len().max(1) as f64;
+                        let top = cores.min(n) as f64;
+                        // stored as the fraction of all the cores; a word outside the block (u64::MAX: the fallback) as
+                        // the block's words that not every core hits (a per-pixel or per-partition counter elsewhere in
+                        // the grid), weighted by their workgroups
+                        let mut map: std::collections::HashMap<u64, f64> = count.iter().map(|(&w, &c)| (w, (c as f64 * resident / k).clamp(1.0, top) / top)).collect();
+                        let (mut num, mut den) = (0.0, 0.0);
+                        for (w, &c) in &count { let f = map[w]; if f < 1.0 { num += f * c as f64; den += c as f64; } }
+                        map.insert(u64::MAX, if den > 0.0 { num / den } else { 1.0 });
+                        *atomic_sharers_cache.lock().unwrap() = Some(std::sync::Arc::new(map));
+                    }
                     if block > 1 && std::env::var("AGX_STORE_SHARE").map_or(true, |v| v != "0") {
                         // Lines several workgroups of the block store to (llama.cpp's k_set_rows: 2-byte stores, 32
                         // groups and many cores writing one 64-byte line) reach memory once: the dispatch's written
@@ -1019,6 +1050,13 @@ fn simulate_core_list(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Trace
         } else {
             mm.active_cores
         };
+        // AGX_ATOMIC_SHARE=1 (experiment): a hot atomic word's GPU-wide rate is shared by the workgroups resident
+        // GPU-wide, not by the cores: a core running 2 of 38 one-round workgroups gets 2/38 of it, not 1/38 for each
+        // (probe_atomic_lines.py one word, 38 workgroups: hw 2094 us, per-core share 3672)
+        let atomic_contenders = if std::env::var("AGX_ATOMIC_SHARE").is_ok_and(|v| v == "1") {
+            let now = if count < r as u64 && w > 0 { n.saturating_sub(w * r as u64 * cores.min(n)) } else { n.min(cores * r as u64) };
+            (now as f64 / count.max(1) as f64).max(1.0)
+        } else { 0.0 };
         // AGX_STORE_DRAIN=CAP (experiment): stores leave each core at store_gbps / active cores, CAP lines waiting at most
         // (hw, pp512 kernels with their stores replaced: rms_norm 13.0 -> 18.0 us = + all 1.9 MB at 365 GB/s, cpy_scalar
         // 74.0 -> 78.8 (all), soft_max 403 -> 425 (half of 14.7 MB), unary_gated 84.9 -> 92.3 and rope 28.3 -> 33.5
@@ -1027,7 +1065,8 @@ fn simulate_core_list(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Trace
         // (lines several workgroups store to leave once: `store_share`)
         let ss = (*store_share_cache.lock().unwrap()).clamp(0.02, 1.0);
         let store_drain = if drain_cap > 0.0 && l.store_gbps > 0.0 { l.store_gbps * 1e9 / active_cores / (l.clock_mhz * 1e6) / 64.0 / ss } else { 0.0 };
-        let mm = MemModel { resident_slc: resident, slc_resident_frac: frac, sharing, dram_share, first_touch_frac, active_cores, store_drain, store_drain_cap: drain_cap, ..mm.clone() };
+        let atomic_sharers = atomic_sharers_cache.lock().unwrap().clone();
+        let mm = MemModel { resident_slc: resident, slc_resident_frac: frac, sharing, dram_share, first_touch_frac, active_cores, atomic_contenders, atomic_sharers, store_drain, store_drain_cap: drain_cap, ..mm.clone() };
         // `later_waves_warm`: the waves after the first find their data in the caches when it fits the system-level
         // cache (what the first waves and their neighbours loaded); AGX_LATER_WAVES_WARM=1 / 0 forces it
         let warm_later = std::env::var("AGX_LATER_WAVES_WARM").map_or(l.later_waves_warm, |v| v == "1");
