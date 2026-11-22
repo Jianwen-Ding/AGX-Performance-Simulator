@@ -1,0 +1,12 @@
+{"F": 0, "G": 1, "code_kb": 1.8, "hw_us": 23.0, "model_us": 23.03, "ov0_us": 22.44, "ov1_us": 24.4, "core_us": 20.14, "fetch_us": 1.96, "needed_overlap": 0.29}
+{"F": 0, "G": 4, "code_kb": 1.8, "hw_us": 22.71, "model_us": 23.08, "ov0_us": 22.49, "ov1_us": 24.45, "core_us": 20.19, "fetch_us": 1.96, "needed_overlap": 0.11}
+{"F": 0, "G": 8, "code_kb": 1.8, "hw_us": 22.96, "model_us": 23.05, "ov0_us": 22.47, "ov1_us": 24.43, "core_us": 20.16, "fetch_us": 1.96, "needed_overlap": 0.25}
+{"F": 4, "G": 1, "code_kb": 3.8, "hw_us": 23.17, "model_us": 24.04, "ov0_us": 22.78, "ov1_us": 26.98, "core_us": 20.48, "fetch_us": 4.2, "needed_overlap": 0.09}
+{"F": 4, "G": 4, "code_kb": 3.8, "hw_us": 22.96, "model_us": 24.2, "ov0_us": 22.94, "ov1_us": 27.14, "core_us": 20.64, "fetch_us": 4.2, "needed_overlap": 0.01}
+{"F": 4, "G": 8, "code_kb": 3.8, "hw_us": 23.33, "model_us": 24.43, "ov0_us": 23.17, "ov1_us": 27.37, "core_us": 20.87, "fetch_us": 4.2, "needed_overlap": 0.04}
+{"F": 48, "G": 1, "code_kb": 25.8, "hw_us": 49.5, "model_us": 55.08, "ov0_us": 55.08, "ov1_us": 55.08, "core_us": 52.78, "fetch_us": 0.0, "needed_overlap": -5.58}
+{"F": 48, "G": 4, "code_kb": 25.8, "hw_us": 50.33, "model_us": 56.3, "ov0_us": 56.3, "ov1_us": 56.3, "core_us": 54.0, "fetch_us": 0.0, "needed_overlap": -5.97}
+{"F": 48, "G": 8, "code_kb": 25.8, "hw_us": 51.79, "model_us": 59.91, "ov0_us": 59.91, "ov1_us": 59.91, "core_us": 57.61, "fetch_us": 0.0, "needed_overlap": -8.12}
+{"F": 120, "G": 1, "code_kb": 61.8, "hw_us": 94.12, "model_us": 102.3, "ov0_us": 102.3, "ov1_us": 102.3, "core_us": 100.0, "fetch_us": 0.0, "needed_overlap": -8.17}
+{"F": 120, "G": 4, "code_kb": 61.8, "hw_us": 95.67, "model_us": 105.31, "ov0_us": 105.31, "ov1_us": 105.31, "core_us": 103.02, "fetch_us": 0.0, "needed_overlap": -9.65}
+{"F": 120, "G": 8, "code_kb": 61.8, "hw_us": 98.29, "model_us": 114.45, "ov0_us": 114.45, "ov1_us": 114.45, "core_us": 112.15, "fetch_us": 0.0, "needed_overlap": -16.16}
