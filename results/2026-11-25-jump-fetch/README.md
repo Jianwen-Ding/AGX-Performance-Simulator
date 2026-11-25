@@ -64,7 +64,7 @@ tinygrad rerun.
 
 The variant "block reuse needs a fetched line below the target" fixed the backward case but worsened the chains (probe mean
 5.3%, fwd16 -43%). The adopted exception (no block reuse after a backward jump of 1-7 lines) fixes back / bskip1 /
-bskip2 (-33 / -31 / -20% → 0 / +3 / +3%) and leaves every other shape and the tg, tinygrad and fa sets unchanged.
+bskip2 (-33 / -31 / -20% → 0 / +3 / +3%) and leaves every other shape unchanged. The tg, tinygrad, fa and held-out (160) sets are identical, launch for launch.
 
 The chain and stride misfits all involve 1 KiB or 4 KiB strides (fwd16 / fwd64 interleaved chains, skip64 / skip128 /
 bskip64, two64_*: 4 KiB strides cost ~350-375 against ~405-428 for other long jumps). This looks like address
