@@ -88,6 +88,11 @@ touches (300 ns). At 150 ns cut 104 comes to 144.6. But `AGX_FIRST_TOUCH_NS=200`
 (pp 10.1 → 12.6%: hgemm -11 → -22, sgemm -18 → -27; tg 8.2 → 9.7%), so the latency of a workgroup's first load
 when the core runs one workgroup at a time is still open.
 
+The probe does not reproduce this gap, with or without an if around the loads (`IFWRAP=1`, soft_max's shape). With one
+512-thread workgroup per core and a distinct first load plus a broadcast second load at 7168 workgroups, hw gives 80.0
+and 80.1 us and the model 75.0. The register-address form makes no difference either. So the cost comes from
+something else in soft_max's code between those cuts.
+
 The cuts at 104 and 238 used to fail with "operand has no flags": `cost::decode` decoded the overwritten
 instruction's remaining bytes. Bytes that do not decode are now skipped like padding (executing them is still an error
 in the trace).
