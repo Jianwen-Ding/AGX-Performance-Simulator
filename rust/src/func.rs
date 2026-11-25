@@ -858,6 +858,7 @@ fn step_group_impl<C: InstructionCells>(g: &mut Group, code: &[u8], cache: &C, m
                     tr.device_segments.push((at, segments));
                 }
                 tr.mem.push((at, w));
+                tr.mem_bytes.push(info.access.as_ref().map_or(0, |a| a.bytes(&g.st)));
             }
         }
         let Some(desc) = info.desc else {

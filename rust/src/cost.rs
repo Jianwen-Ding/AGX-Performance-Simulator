@@ -850,6 +850,9 @@ pub struct Trace {
     /// complete byte range of each 32/64-bit atomic. No threadgroup addresses.
     /// Cost-emulated traces may leave this empty.
     pub device_segments: Vec<(u32, Vec<u64>)>,
+    /// Bytes the active lanes access, one per `mem` entry (device loads and stores; 0 for other accesses). Empty when
+    /// the tracer does not record it.
+    pub mem_bytes: Vec<u32>,
     /// Steps (indices into `pcs`, ascending) issued while the group's execution mask was empty: no lane active, as
     /// for an if body the code does not jump over. The scheduler charges the measured masked costs to them
     /// (`simulate_groups`); empty for most traces.
@@ -1415,6 +1418,7 @@ impl<'a> PreparedTrace<'a> {
             }
             if let Some(w) = info.access.as_ref().and_then(|a| a.capture(&st)) {
                 out.mem.push(((out.pcs.len() - 1) as u32, w));
+                out.mem_bytes.push(info.access.as_ref().map_or(0, |a| a.bytes(&st)));
             }
             if let (Some(c), Some(sr)) = (ctx, &info.sr) {
                 if sr.execute(c, &mut st)? {
@@ -1656,6 +1660,8 @@ pub struct MemModel {
     pub store_drain_cap: f64,
     /// per group, the trace steps where its chained workgroups 1, 2, ... start (AGX_STORE_DRAIN_SLOT)
     pub chain_pc_starts: Option<std::sync::Arc<Vec<Vec<usize>>>>,
+    /// per group, the bytes of each `mem` entry (`Trace::mem_bytes`): the store drain charges what the lanes write
+    pub mem_bytes: Option<std::sync::Arc<Vec<Vec<u32>>>>,
 }
 
 impl Default for MemModel {
@@ -1711,6 +1717,7 @@ impl Default for MemModel {
             store_drain: 0.0,
             store_drain_cap: 0.0,
             chain_pc_starts: None,
+            mem_bytes: None,
         }
     }
 }
@@ -2133,6 +2140,8 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
         seen: std::collections::HashSet<u64>,
         /// AGX_WB_DIRTY: lines this core has written since they were last fetched from DRAM
         dirty: std::collections::HashSet<u64>,
+        /// AGX_STORE_DRAIN: segments this core has stored (a rewrite leaves memory with the first store)
+        drained: std::collections::HashSet<u64>,
         /// AGX_PREFETCH: prefetched lines with their ready tick; this core's recent L2 misses
         pf: HashMap<u64, i64>,
         missed: std::collections::HashSet<u64>,
@@ -2180,6 +2189,7 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
     // group ends (and a chained workgroup in its slot starts) only when its stores have left
     let drain_slot = std::env::var("AGX_STORE_DRAIN_SLOT").is_ok_and(|v| v == "1") && mem.is_some_and(|(_, m)| m.store_drain > 0.0);
     let chain_pcs = mem.and_then(|(_, m)| m.chain_pc_starts.clone());
+    let mem_bytes = mem.and_then(|(_, m)| m.mem_bytes.clone());
     let mut store_done = vec![0i64; groups];
     // AGX_STORE_DRAIN_ISSUE=1 (with AGX_STORE_DRAIN): a store's lines stall the whole core's issue at the drain rate
     let drain_issue = std::env::var("AGX_STORE_DRAIN_ISSUE").is_ok_and(|v| v == "1" || v == "2");
@@ -2229,6 +2239,7 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
             lv_cache: vec![None; groups],
             seen: Default::default(),
             dirty: Default::default(),
+            drained: Default::default(),
             pf: Default::default(),
             missed: Default::default(),
             missed_ring: Default::default(),
@@ -2987,7 +2998,20 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
                             need[1] = if r.stack_store { 1.0 } else { n.max(1.0) }.max(m_l1_store_min(mem));
                             // AGX_STORE_DRAIN: the core's lines leave at its share of the GPU's store bandwidth
                             // (lines in 32-byte sectors when the lanes scatter: more than 8 lines for one instruction)
-                            if !r.stack_store && m.rate[5] > 0.0 { need[5] = if n > 8.0 { 0.5 * n } else { n.max(1.0) }; }
+                            if !r.stack_store && m.rate[5] > 0.0 {
+                                need[5] = if n > 8.0 { 0.5 * n } else { n.max(1.0) };
+                                // the bytes the lanes write, when the trace has them: partial segments that other
+                                // groups fill leave memory once (Halide stencil_chain: 64 B per store over 2-3 segments)
+                                if let Some(&b) = mem_bytes.as_ref().and_then(|v| v.get(gi)).and_then(|v| v.get(m.cur[gi])) {
+                                    if b > 0 { need[5] = need[5].min(b as f64 / 64.0); }
+                                }
+                                // segments this core stored before are dirty in its caches: rewriting them (an
+                                // in-place accumulation, Halide non_local_means_sum_s1) adds nothing to drain
+                                if n > 0.0 {
+                                    let fresh = segs.iter().filter(|&&sg| m.drained.insert(sg)).count() as f64;
+                                    need[5] *= fresh / n;
+                                }
+                            }
                         } else {
                             // the same lines as the core's previous load (every group on one line): 1.22 cycles per
                             // load instead of 1.0 (coalesce-shared vs coalesce-private)

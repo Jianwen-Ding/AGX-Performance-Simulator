@@ -184,6 +184,17 @@ impl Access {
         }
     }
 
+    /// Bytes the active lanes of a device load or store access (0 for atomics and threadgroup accesses).
+    pub(crate) fn bytes(&self, st: &CoreState) -> u32 {
+        match &self.0 {
+            AccessKind::Segments { item, mask, .. } => {
+                let lanes = (0..SIMD_WIDTH).filter(|&t| st.exec[t]).count() as u32;
+                lanes * (mask & 15).count_ones() * *item as u32
+            }
+            _ => 0,
+        }
+    }
+
     pub(crate) fn capture(&self, st: &CoreState) -> Option<Vec<u64>> {
         match &self.0 {
             AccessKind::Segments { address, item, shift, mask } => {

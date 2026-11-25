@@ -6,7 +6,7 @@ Each thread (workgroups of 128) runs ITER trips of: load a[gid + trip * N*128] a
 out[gid + trip * N*128] (k_bin_bcast's shape). BCAST=1: b's index is the lane's word in one of the 8 blocks of 128 words picked by workgroup id mod 8 (every workgroup reads one of the same 1024 words); 0: b is
 indexed like a.
 
-usage: probe_hot_lines.py [hw|sim|both]; env N="40 512 2048" BCAST="0 1" ITER=2 SERIAL=0 GRID2D=0 STRIDE=N*128 REGSTORE=0 NOSTORE=0 ROWW=0 (with GRID2D) OUTMB=0 (OUT's buffer object size) PRE=0 POST=0 IFWRAP=0 B2B=5000
+usage: probe_hot_lines.py [hw|sim|both]; env N="40 512 2048" BCAST="0 1" ITER=2 SERIAL=0 GRID2D=0 STRIDE=N*128 REGSTORE=0 NOSTORE=0 STORE16=0 ROWW=0 (with GRID2D) OUTMB=0 (OUT's buffer object size) PRE=0 POST=0 IFWRAP=0 B2B=5000
 """
 import json, os, re, subprocess, sys, tempfile
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -55,6 +55,9 @@ def build(iters, bcast):
             code += P.e('iadd r6, u4, 0') + P.e('iadd r7, u5, 0') + P.e('iadd r30, r10, 0') + P.mov(31, 0)
             code += P.e('iadd r24_r25, r6_r7, r30_r31, lsl 2')
             code += P.e('device_store 0, i32, x, r12, r24_r25, 0, signed, lsl 0, 0', 'device_store 0, i32, x, r12, r24_r25, 0, signed, 0')
+        elif os.environ.get('STORE16') == '1':
+            # a 16-bit store (64 B per SIMD group; the Halide stencil_chain stages' form, which ran on this GPU)
+            code += P.e('device_store 0, i16, x, r12l, u4_u5, r10, signed, lsl 0, 0', 'device_store 0, i16, x, r12l, u4_u5, r10, signed, 0')
         else:
             code += P.e('device_store 0, i32, x, r12, u4_u5, r10, unsigned, lsl 0, 0', 'device_store 0, i32, x, r12, u4_u5, r10, unsigned, 0')
         if wrap:

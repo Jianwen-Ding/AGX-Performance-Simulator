@@ -640,6 +640,12 @@ fn simulate_core_list(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Trace
                     ps.push(t.pcs.len());
                     let off = t.pcs.len() as u32;
                     t.pcs.extend(t2.pcs);
+                    // (byte counts stay aligned with `mem` only while both traces carry them)
+                    if t.mem_bytes.len() == t.mem.len() && t2.mem_bytes.len() == t2.mem.len() {
+                        t.mem_bytes.extend(t2.mem_bytes);
+                    } else {
+                        t.mem_bytes.clear();
+                    }
                     t.mem.extend(t2.mem.into_iter().map(|(s, v)| (s + off, v)));
                     t.device_segments.extend(t2.device_segments.into_iter().map(|(s, v)| (s + off, v)));
                     t.masked.extend(t2.masked.into_iter().map(|s| s + off));
@@ -1091,7 +1097,9 @@ fn simulate_core_list(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Trace
         let drain_cap: f64 = std::env::var("AGX_STORE_DRAIN").ok().and_then(|v| v.parse().ok()).unwrap_or(0.0);
         // (lines several workgroups store to leave once: `store_share`)
         let ss = (*store_share_cache.lock().unwrap()).clamp(0.02, 1.0);
-        let store_drain = if drain_cap > 0.0 && l.store_gbps > 0.0 { l.store_gbps * 1e9 / active_cores / (l.clock_mhz * 1e6) / 64.0 / ss } else { 0.0 };
+        // AGX_STORE_DRAIN_GBPS: the drain's GPU-wide rate (default store_gbps)
+        let drain_gbps = std::env::var("AGX_STORE_DRAIN_GBPS").ok().and_then(|v| v.parse().ok()).unwrap_or(l.store_gbps);
+        let store_drain = if drain_cap > 0.0 && l.store_gbps > 0.0 { drain_gbps * 1e9 / active_cores / (l.clock_mhz * 1e6) / 64.0 / ss } else { 0.0 };
         let atomic_sharers = atomic_sharers_cache.lock().unwrap().clone();
         let mm = MemModel { resident_slc: resident, slc_resident_frac: frac, sharing, dram_share, first_touch_frac, active_cores, atomic_contenders, atomic_sharers, store_drain, store_drain_cap: drain_cap, ..mm.clone() };
         // `later_waves_warm`: the waves after the first find their data in the caches when it fits the system-level
@@ -1125,6 +1133,11 @@ fn simulate_core_list(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Trace
         drop((seqs, mems, masked));
         let (chained, starts, pc_starts) = next_wave(&mut traces, &mut warn)?;
         let mm = if chained > 1 { MemModel { chain_pc_starts: Some(std::sync::Arc::new(pc_starts)), ..mm } } else { mm };
+        let mm = if traces.iter().all(|t| t.mem_bytes.len() == t.mem.len()) {
+            MemModel { mem_bytes: Some(std::sync::Arc::new(traces.iter().map(|t| t.mem_bytes.clone()).collect())), ..mm }
+        } else {
+            mm
+        };
         // AGX_CHAIN_SHARERS=1 (experiment, with AGX_PLACED_BUSY): each chained workgroup's accesses see the L2 pressure
         // of the cores busy at its own list position (a 2-wave placed core: wave 1 runs while only the cores with a
         // second workgroup are busy), not wave 0's
