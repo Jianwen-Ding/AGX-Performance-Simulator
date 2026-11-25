@@ -74,6 +74,10 @@ pub struct Launch {
     pub icache_victims: usize,
     pub refetch_line_ns: f64,
     pub fetch_jump_ns: f64,
+    /// with `icache_lines`: a cold line run into, streamed through the cache (0: `fetch_line_ns`). Runtime 64: one
+    /// group's straight-line code beyond the cache is 70.4 ns per line on the hardware, and the simulation adds ~6 ns of
+    /// its own per line to the fetch cost (64 -> 70.3; 70 gave 76.3, +8%); results/2026-11-25-jump-fetch
+    pub fetch_cold_stream_ns: f64,
     /// GPU-wide store bandwidth (GB/s), a floor on the time of a dispatch's writes (0: none, the drm profile): stores
     /// that fit the system-level cache went at no cost in the model, measured at ~280-340 GB/s whatever their size
     /// (1520 x 256 threads writing 1.5 / 6 / 24 MB: 9.9 / 22.0 / 72.1 us, after the workgroups' launch; runtime profile
@@ -133,6 +137,7 @@ impl Default for Launch {
             icache_victims: 1,
             refetch_line_ns: 64.0,
             fetch_jump_ns: 200.0,
+            fetch_cold_stream_ns: 0.0,
             store_gbps: 0.0,
             store_launch_ns: 0.0,
             later_waves_warm: false,
@@ -1112,7 +1117,7 @@ fn simulate_core_list(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Trace
             refetched.store(true, std::sync::atomic::Ordering::Relaxed);
             // (a later wave's core has just run the same code: AGX_ICACHE_WARM=0 starts every wave with an empty cache)
             let icache_warm = w > 0 && std::env::var("AGX_ICACHE_WARM").map_or(true, |v| v != "0");
-            MemModel { icache_lines, icache_victims: l.icache_victims, icache_warm, fetch_line_ns: std::env::var("AGX_REFETCH_LINE_NS").ok().and_then(|v| v.parse().ok()).unwrap_or(l.refetch_line_ns), fetch_jump_ns: std::env::var("AGX_FETCH_JUMP_NS").ok().and_then(|v| v.parse().ok()).unwrap_or(l.fetch_jump_ns), fetch_cold_ns: std::env::var("AGX_FETCH_COLD_NS").ok().and_then(|v| v.parse().ok()).unwrap_or(l.fetch_line_ns), fetch_cold_jump_ns: std::env::var("AGX_FETCH_COLD_JUMP_NS").ok().and_then(|v| v.parse().ok()).unwrap_or(l.fetch_jump_line_ns), icache_bytes: 0, ..mm }
+            MemModel { icache_lines, icache_victims: l.icache_victims, icache_warm, fetch_line_ns: std::env::var("AGX_REFETCH_LINE_NS").ok().and_then(|v| v.parse().ok()).unwrap_or(l.refetch_line_ns), fetch_jump_ns: std::env::var("AGX_FETCH_JUMP_NS").ok().and_then(|v| v.parse().ok()).unwrap_or(l.fetch_jump_ns), fetch_cold_ns: std::env::var("AGX_FETCH_COLD_NS").ok().and_then(|v| v.parse().ok()).unwrap_or(if l.fetch_cold_stream_ns > 0.0 { l.fetch_cold_stream_ns } else { l.fetch_line_ns }), fetch_cold_jump_ns: std::env::var("AGX_FETCH_COLD_JUMP_NS").ok().and_then(|v| v.parse().ok()).unwrap_or(l.fetch_jump_line_ns), icache_bytes: 0, ..mm }
         } else {
             mm
         };

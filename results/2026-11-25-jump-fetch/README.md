@@ -64,3 +64,26 @@ tinygrad rerun.
 
 The variant "block reuse needs a fetched line below the target" fixes the backward case but worsens the chains: probe mean
 5.3%, fwd16 -43%. It was not adopted.
+
+## Follow-up: streamed cold line 64 ns (runtime profile, `Launch::fetch_cold_stream_ns`)
+
+One group's straight-line code beyond the i-cache measures 70.4 ns per line on hardware, unchanged from the
+2026-11-07 runs. The simulation charged it 76.3, because it adds ~6 ns of its own per line on top of the 70 ns fetch
+cost. With 64 it gives 70.3.
+
+This applies to the i-cache refetch path only. The first-wave fetch charge for code that fits the cache keeps its
+calibrated 70.
+
+| Set | Jump rule only | + cold stream 64 |
+|---|---|---|
+| tinygrad (5) | 14.6% | **13.0%** (E_8_8_8_16_4 +13 → +7%) |
+| llama fa (4) | 7.5% | **6.8%** |
+| llama tg (10) | 8.2% | 8.2% |
+| llama pp512 (20) | 10.2%, w10 15 | 10.3%, w10 15 (Q8_0 MMQ -6 → -8%) |
+| held-out (160) | 7.5%, w10 118 (159) | 7.5%, w10 119 (heartwall ran this time); myocyte 0 → -7%, likelihood +8 → +5% |
+
+The 2026-11-22 fetch-overlap probe (code beyond the cache, 1-8 groups) moves from +9..16% to +2..11%. The remaining
+growth with group count is ALU contention: the model's groups stay in lockstep after their simultaneous loads.
+`AGX_PICK_GREEDY=1` (experimental, off) targets it. With it the probe's 8-group cases come to +4% / +2% and dispatch
+improves (4.8 → 4.0%), but core scaling worsens (grid 3.0 → 3.5%, chains 3.3 → 4.1%). It is still being scored on the
+reference sets.

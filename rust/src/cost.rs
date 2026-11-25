@@ -2330,6 +2330,13 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
     let mut in_refill: Vec<bool> = vec![false; buckets.len()];
     let hrp = half_read_ports();
     let mut port = [hrp * t_ as f64; 2];
+    // AGX_PICK_FIXED=1 (experiment): groups issue in a fixed priority (lowest index first) in place of a rotating start
+    let pick_fixed = std::env::var("AGX_PICK_FIXED").is_ok_and(|v| v == "1");
+    // AGX_PICK_GREEDY=1 (experiment): each scheduler first offers the tick to the group that issued on it last
+    // (greedy: a group keeps issuing until it stalls), then the rotating order
+    let pick_greedy = std::env::var("AGX_PICK_GREEDY").is_ok_and(|v| v == "1");
+    let mut last_on = [usize::MAX; SCHEDULERS];
+    let mut saved_elig: Vec<u64> = Vec::new();
     let mut sched_free = [0i64; SCHEDULERS];
     let mut tick_issued = vec![false; groups];
     // an idle scheduler may issue a ready group of a ring neighbour (idle-slot probe: slots 1, 3 and 4 relieve
@@ -2591,7 +2598,7 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
             unblocked[gi] = true;
             elig[gi / 64] |= 1 << (gi % 64);
         }
-        let k0 = if g == 1 { 0 } else { (((t / t_) as u64).wrapping_mul(2654435761) >> 7) as usize % g };
+        let k0 = if g == 1 || pick_fixed { 0 } else { (((t / t_) as u64).wrapping_mul(2654435761) >> 7) as usize % g };
         wk_min = i64::MAX;
         wk_gt = i64::MAX;
         // Pass 0 tries only the group's own scheduler, and a scheduler busy at the tick start stays busy all tick
@@ -2619,7 +2626,24 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
             tick_issued[gi] = false;
         }
         issued_now.clear();
-        for pass in 0..npass {
+        let pre_n = usize::from(pick_greedy && g > 1 && last_on.iter().any(|&x| x != usize::MAX));
+        for pp in 0..npass + pre_n {
+        let pre = pp < pre_n;
+        let pass = pp - pre_n.min(pp);
+        if pre {
+            // the greedy pre-pass: only each scheduler's last issuer is eligible
+            saved_elig.clear();
+            saved_elig.extend_from_slice(&elig);
+            let mut sticky = vec![0u64; elig.len()];
+            for &x in &last_on {
+                if x != usize::MAX && x < g {
+                    sticky[x / 64] |= 1 << (x % 64);
+                }
+            }
+            for (e, m) in elig.iter_mut().zip(&sticky) {
+                *e &= m;
+            }
+        }
         // pass 1 issues only through a scheduler that is free this tick: with none free, every group would skip
         if pass == 1 && sched_free.iter().all(|&f| f > t) {
             break;
@@ -3710,6 +3734,7 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
             tick_issued[gi] = true;
             issued_now.push(gi);
             elig[gi / 64] &= !(1 << (gi % 64));
+            last_on[sch] = gi;
             if nxt[gi] >= npcs[gi] {
                 if drain_slot && store_done[gi] > free[gi] {
                     free[gi] = store_done[gi];
@@ -3718,6 +3743,13 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
                 done += 1;
             } else {
                 busy.push(std::cmp::Reverse((free[gi], gi)));
+            }
+        }
+        if pre {
+            // the other groups are eligible again (those the pre-pass issued are not)
+            std::mem::swap(&mut elig, &mut saved_elig);
+            for &gi in &issued_now {
+                elig[gi / 64] &= !(1 << (gi % 64));
             }
         }
         }
