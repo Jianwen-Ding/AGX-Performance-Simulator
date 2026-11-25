@@ -2407,6 +2407,13 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
     let mut pipe_free = NEG_INF;
     let mut last_shfl = NEG_INF;
     let mut last_wait = vec![NEG_INF; g];
+    // AGX_REFETCH_LOOKAHEAD=1 (experiment): a taken jump to a line the i-cache lost (warm refetch) is requested when
+    // the group's current straight run began (`run_start`), with latency AGX_REFETCH_JUMP_NS (default 140): hw
+    // probe_fetch_groups SKIP=R,D: ~138 ns per target with 1-line runs, ~15 ns beyond a streamed line with 4-line runs
+    let refetch_lookahead = std::env::var("AGX_REFETCH_LOOKAHEAD").is_ok_and(|v| v == "1");
+    let refetch_jump = tk(std::env::var("AGX_REFETCH_JUMP_NS").ok().and_then(|v| v.parse::<f64>().ok()).unwrap_or(140.0) * CYCLES_PER_NS);
+    let mut run_start = vec![NEG_INF; g];
+    let cold_run = tk(std::env::var("AGX_COLD_RUN_NS").ok().and_then(|v| v.parse::<f64>().ok()).unwrap_or(30.0) * CYCLES_PER_NS);
     // per group: the last device store (1) / load (2) issued before the next fence; 0 after a fence or at the start
     let mut last_mem = vec![0u8; g];
     let mut last_idle_wait = vec![NEG_INF; g];
@@ -3584,7 +3591,11 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
                         last_idle_wait[gi] = t;
                     }
                     ii = done_ - t;
-                    last_wait[gi] = t;
+                    // AGX_IDLE_WAIT_STREAM=1 (experiment): a wait with nothing outstanding does not stop the code stream
+                    // (hw probe_fetch_groups SKIP=16,16 with `wait 0` padding: 24.1 us per trip, as the straight body)
+                    if slots[gi][r.slot].is_some() || !std::env::var("AGX_IDLE_WAIT_STREAM").is_ok_and(|v| v == "1") {
+                        last_wait[gi] = t;
+                    }
                     slots[gi][r.slot] = None;
                     let s = r.slot;
                     pending[gi].retain(|p| p.slot != s);
@@ -3719,6 +3730,12 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
                             // AGX_FETCH_PORT=f (experiment): the core fetches one line at a time, each miss holding the
                             // port for f x its cost (groups at different lines queue)
                             let mut start = if fetch_port > 0.0 { free[gi].max(fetch_free) } else { free[gi] };
+                            if refetch_lookahead && !fall_through && run_start[gi] > NEG_INF {
+                                // (measured from the run's start, a first touch's distance cost includes the ~30 ns its
+                                // one-line probe blocks ran: AGX_COLD_RUN_NS)
+                                if !first { cost = refetch_jump; } else { cost += cold_run; }
+                                start = start.min(run_start[gi].max(last_wait[gi]));
+                            }
                             if fetch_stream && fall_through && line > 0 && !(first && no_cold_stream) {
                                 // the line before was fetched (a miss, by any group) recently: this one was
                                 // requested when that one arrived
@@ -3761,6 +3778,7 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
                         if let (Some(j), false) = (jumps.as_mut(), fall_through) {
                             j.touch(pc1 as u64);
                         }
+                        if !fall_through { run_start[gi] = ready; }
                         free[gi] = free[gi].max(ready);
                     }
                 } else {
