@@ -56,3 +56,15 @@ executed body. Times in us:
   mov_imm instead: 291 / 338 / 432). Still open.
 - Staggered 8 groups (G8 K64) are under-predicted with and without jumps (-10..-14%). They have to fetch every line
   apart, and hw pays more for that than the model's stream does. This is the bucketcount-like case.
+
+### Staggered groups, straight code (K=64, hw two repeats within 1 us)
+
+| G | 2 | 4 | 6 | 8 | 12 | 16 |
+|---|---|---|---|---|---|---|
+| hw | 290.5 | 434.9 | 585.8 | 734.2 | 1047.2 | 1434.0 |
+| model | 302.8 | 414.7 | 530.1 | 635.1 | 862.3 | 1103.1 |
+
+Each extra staggered group costs 83 us on hw and 57 us in the model, i.e. 13.5 vs 9.3 ns per line it fetches. A
+per-core fetch port charged after the stream logic (10-16 ns per line, tried and reverted) and the i-cache victim
+count (1-8) barely move the model (G16 1084-1123). Not modelled yet: the followers seem to find fewer of the leader's
+lines in the cache than the model's i-cache gives them.
