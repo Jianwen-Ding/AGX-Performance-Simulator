@@ -2340,7 +2340,8 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
     // dispatch 36 median 4.8 -> 4.0; pp512 10.3 -> 10.8, tg 8.2 -> 8.3; core scaling grid 3.1 -> 3.5, chains 3.3 -> 4.1
     // (latency-bound one-chain transcendental loops lose most). NOT the default: it breaks the stored memory sets
     // (verify-memory-model stream-dram median 5.9 -> 17.7%, stream 8.8 -> 13.3%: both over their limits)
-    let pick_greedy = std::env::var("AGX_PICK_GREEDY").is_ok_and(|v| v == "1");
+    let greedy_mode: u32 = std::env::var("AGX_PICK_GREEDY").ok().and_then(|v| v.parse().ok()).unwrap_or(0);
+    let pick_greedy = greedy_mode > 0;
     let mut last_on = [usize::MAX; SCHEDULERS];
     let mut saved_elig: Vec<u64> = Vec::new();
     let mut sched_free = [0i64; SCHEDULERS];
@@ -2642,7 +2643,9 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
             saved_elig.extend_from_slice(&elig);
             let mut sticky = vec![0u64; elig.len()];
             for &x in &last_on {
-                if x != usize::MAX && x < g {
+                // AGX_PICK_GREEDY=2: only while the group's next instruction is ALU work (a greedy group does not
+                // issue its loads ahead of the others)
+                if x != usize::MAX && x < g && nxt[x] < npcs[x] && (greedy_mode < 2 || sim[seqs[x][nxt[x]]].kind == Kind::Alu) {
                     sticky[x / 64] |= 1 << (x % 64);
                 }
             }
