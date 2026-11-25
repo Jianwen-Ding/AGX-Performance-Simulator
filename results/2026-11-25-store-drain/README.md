@@ -71,3 +71,23 @@ r5, unsigned`, verified byte for byte against its capture) makes no difference: 
 contradicts the 2026-11-11 cut sweep ("the rest matches"), so the next step is a cut-for-cut model comparison. At 128- and
 512-thread workgroups with many per core, distinct loads come out +6..+9% and broadcast loads up to -29% (WG 512,
 40.3 vs 28.8 us).
+
+### soft_max cut for cut (2026-11-11 hardware truncations, model now)
+
+These are the truncated copies from the 2026-11-11 cut sweep, with a `stop` written over an instruction, at the full grid
+(189 waves of one workgroup per core). Times in us:
+
+| Cut (stop at) | 40 | 90 | 104 | 123 | 169 | 205 | 224 | 238 | no store |
+|---|---|---|---|---|---|---|---|---|---|
+| hw | 54.1 | 101.2 | 125.2 | 165.3 | 276.8 | 326.9 | 376.8 | 395.9 | 403.1 |
+| model | 53.2 | 110.7 | 168.9 | 229.3 | 325.5 | 388.0 | 433.9 | 453.6 | 461.2 |
+
+Almost all of the gap is between cuts 90 and 123: the first row load (x, 2 KB per workgroup) and the mask row load.
+Hardware adds 64 us there, the model 118. Elsewhere the increments match. The model charges these loads as first
+touches (300 ns). At 150 ns cut 104 comes to 144.6. But `AGX_FIRST_TOUCH_NS=200` makes the reference sets worse
+(pp 10.1 → 12.6%: hgemm -11 → -22, sgemm -18 → -27; tg 8.2 → 9.7%), so the latency of a workgroup's first load
+when the core runs one workgroup at a time is still open.
+
+The cuts at 104 and 238 used to fail with "operand has no flags": `cost::decode` decoded the overwritten
+instruction's remaining bytes. Bytes that do not decode are now skipped like padding (executing them is still an error
+in the trace).

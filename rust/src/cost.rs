@@ -581,9 +581,13 @@ pub fn decode(code: &[u8], p: &Params) -> Result<Vec<Instr>, String> {
             crate::func::mesa_check(code, pc, size, d.name)?;
         }
         let n = if size >= 16 { n0 } else { n0 & ((1u128 << (8 * size)) - 1) };
-        let ops = d.decode_operands(n)?;
+        // Bytes that do not decode (the tail of an instruction a `stop` was written over: truncated copies of a kernel)
+        // are skipped like padding; executing them is still an error, in the trace.
+        let (Ok(ops), Ok(mut text)) = (d.decode_operands(n), isa::disassemble_normalized(d, n)) else {
+            pc += 2;
+            continue;
+        };
         let mut name = d.name.to_string();
-        let mut text = isa::disassemble_normalized(d, n)?;
         let f = d.decode_fields(n);
         let regops: Vec<(&Operand, Vec<u32>)> = ops.iter().map(|o| (o, regs_of(o))).filter(|(_, r)| !r.is_empty()).collect();
         let union = |it: &[(&Operand, Vec<u32>)]| set_of(it.iter().flat_map(|(_, r)| r.iter().copied()));
