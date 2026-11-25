@@ -107,3 +107,25 @@ Across launches 59 improve and 41 get worse. Greedy is not the default because i
 sets, which are direct hardware evidence. The real-program gains say that group desynchronisation after shared waits
 matters. A rule that de-synchronises groups without making streaming loads greedy is the open problem.
 `AGX_PICK_FIXED=1` (static priority) was rejected earlier: grid median 3.9%, p90 39%.
+
+## Experiment: greedy only for ALU work (`AGX_PICK_GREEDY=2`, not adopted)
+
+The scheduler keeps offering the tick to its last group only while that group's next instruction is ALU work, so
+streaming loads stay fair. Scored the same way ([eval-greedy2](eval-greedy2/)):
+
+| Set | Default | Greedy=2 |
+|---|---|---|
+| fetch-overlap probe G=8, F=48 / 120 (hw 51.8 / 98.3 us) | 54.6 / 105.9 | **54.1 / 100.0** |
+| `verify-memory-model` | pass | pass (stream sets unchanged) |
+| held-out (160) | 7.5%, median 5.5, w10 119 | **7.1%, median 4.5, w10 120** |
+| tinygrad (5) | 13.0% | **11.0%** |
+| llama fa (4) | 6.8% | **6.5%** |
+| llama tg (10) | 8.2% | 8.3% |
+| llama pp512 (20) | 10.3%, w10 15 | 10.8-11.1%, w10 14 |
+| `verify-dispatch` (36) | 4.8% | 5.1% |
+| core scaling grid / chains / idle / dests (median) | 3.1 / 3.3 / 7.1 / 5.8% | 3.5 / 3.8 / 8.6 / 6.0% |
+
+Mode 2 fixes what broke mode 1, but all four core-scaling microbenchmark sets and dispatch get worse. Those are the
+calibration hardware measurements, so it stays opt-in. The held-out gain (0.4 points) is the size of the remaining
+group-desynchronisation effect. A rule that wins on both would have to come from a measurement of how several groups
+share one scheduler after a common wait. That measurement does not exist yet (single-group probes only).
