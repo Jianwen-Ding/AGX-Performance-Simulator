@@ -138,6 +138,61 @@ const FETCH_BOUND_CODE_BYTES: usize = 16 << 10;
 /// Instruction fetch lines: 64 bytes taken (the rate is what is measured, not the size).
 const FETCH_LINE_SHIFT: usize = 6;
 
+/// The cost of a code line's first fetch in a command when a taken jump enters it (hardware, one SIMD group,
+/// `scripts/probe_jump_distance.py`, results/2026-11-25-jump-fetch: 80 code shapes, ns per one-line block incl. ~30 ns of
+/// execution). It depends on the jump, not on the code size (16 KiB - 8 MiB alike):
+/// - a jump of d lines to a line nothing fetched yet: d = 1 / 2 / 3 / 4 / 5 / 6 / 7: 294 / 296 / 312 / 334 / 346 / 344 /
+///   369 ns, 8 or more (either direction, constant or random gaps): ~380 (skip8-512, bskip8, rgap, rsub4-256: 397-430 hw);
+/// - a forward jump of at most 5 lines keeps the sequential stream: the lines it passes over are fetched too, and a
+///   later jump to one of them costs ~140 (lines 4i then 4i+1..3: pass 2 130 ns; 2i then 2i+1: 187);
+/// - a jump into a 512-byte block of which at least 2 lines were fetched costs ~150 (random order over every line:
+///   238 hw, over every 2nd line 267, every 4th 405; lines 8i then 8i+o: no gain).
+///
+/// Fitted: mean |error| 5.8% (median 2.9%) over the 80 shapes, against 18% (median 20%) for one flat 300 ns.
+/// Not fitted: interleaved chains of stride 16-64 lines (fwd16 / fwd64 hw 348 / 343, rule ~238: -31%) and strides of
+/// 4 / 8 KiB (skip64 / skip128 367 / 364, rule 410). `AGX_JUMP_FETCH=0` restores the flat cost.
+#[derive(Default)]
+pub struct JumpFetch {
+    fetched: std::collections::HashSet<usize>,
+    streamed: std::collections::HashSet<usize>,
+    blocks: HashMap<usize, u32>,
+}
+
+impl JumpFetch {
+    pub fn enabled() -> bool {
+        std::env::var("AGX_JUMP_FETCH").map_or(true, |v| v != "0")
+    }
+    fn mark(&mut self, line: usize) {
+        if self.fetched.insert(line) {
+            *self.blocks.entry(line >> 3).or_default() += 1;
+        }
+    }
+    /// a line fetched by running into it (or otherwise not by a jump)
+    pub fn run_into(&mut self, line: usize) {
+        self.mark(line);
+    }
+    /// ns for the first fetch of `to`, entered by a taken jump from line `from`; records the fetch
+    pub fn jump(&mut self, from: usize, to: usize) -> f64 {
+        const NEAR: [f64; 8] = [294.0, 294.0, 296.0, 312.0, 334.0, 346.0, 344.0, 369.0];
+        let d = to as i64 - from as i64;
+        let ns = if self.streamed.contains(&to) {
+            140.0
+        } else if d > 0 && d <= 5 {
+            for l in from + 1..to {
+                self.streamed.insert(l);
+                self.mark(l);
+            }
+            NEAR[d as usize]
+        } else if self.blocks.get(&(to >> 3)).copied().unwrap_or(0) >= 2 {
+            150.0
+        } else {
+            NEAR.get(d.unsigned_abs() as usize).copied().unwrap_or(380.0)
+        };
+        self.mark(to);
+        ns
+    }
+}
+
 const BARRIERS: &[&str] = &["threadgroup_barrier", "memory_barrier", "wait_pix", "signal_pix", "TODO.unkE800"];
 const UNIT_GROUPS: &[&[&str]] = &[
     &["iadd", "isub", "iadd_lsl2", "iadd_imm", "iadd_cache"], &["imadd", "imul", "imadd_cache"],
@@ -2440,6 +2495,8 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
         Some((_, m)) if icache.is_some() && !m.icache_warm => (tk(m.fetch_cold_ns * CYCLES_PER_NS), tk(m.fetch_cold_jump_ns * CYCLES_PER_NS)),
         _ => (0, 0),
     };
+    // a cold line entered by a taken jump: by the jump (`JumpFetch`) in place of the flat `fetch_cold_jump`
+    let mut jump_fetch = (fetch_cold_jump > 0 && JumpFetch::enabled()).then(JumpFetch::default);
     // with it, the core's taken-jump structure: 32 entries (by target), a taken jump to a cached line that has none
     // costs ~127 cycles more (playground novel-results/2026-10-20-icache: 34-96 blocks joined by taken jumps per loop
     // trip, +127 cycles per jump beyond 32). AGX_JUMP_ENTRIES=0 turns it off
@@ -3576,9 +3633,14 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
                         } else {
                             // (a jump taken to the next instruction is a jump: hw 324 ns per block when it starts the next line)
                             let first = fetch_stream && !fetched.contains_key(&line);
+                            let line_of = |pc: usize| if fetch_private { (pc >> FETCH_LINE_SHIFT) | (gi << 40) } else { pc >> FETCH_LINE_SHIFT };
+                            if let (Some(jf), true) = (jump_fetch.as_mut(), fall_through) { jf.run_into(line); }
                             let mut cost = match (fall_through, first) {
                                 (true, true) if fetch_cold > 0 => fetch_cold,
-                                (false, true) if fetch_cold_jump > 0 => fetch_cold_jump,
+                                (false, true) if fetch_cold_jump > 0 => match jump_fetch.as_mut() {
+                                    Some(jf) => tk(jf.jump(line_of(pc0), line) * CYCLES_PER_NS),
+                                    None => fetch_cold_jump,
+                                },
                                 (true, _) => fetch_line,
                                 (false, _) => fetch_jump,
                             };
@@ -3983,5 +4045,33 @@ mod clock_tests {
         assert_eq!(clock_read_ns(1 << 20, 1), 37345.0);
         // one SIMD group never pays contention
         assert!(clock_read_ns(32, 1) < 900.0);
+    }
+}
+
+#[cfg(test)]
+mod jump_fetch_tests {
+    use super::JumpFetch;
+
+    #[test]
+    fn jump_fetch_by_distance_stream_and_block() {
+        // first touches by distance (results/2026-11-25-jump-fetch)
+        let mut j = JumpFetch::default();
+        j.run_into(0);
+        assert_eq!(j.jump(0, 1), 294.0);
+        assert_eq!(j.jump(1, 9), 380.0);
+        assert_eq!(j.jump(9, 1000), 380.0);
+        assert_eq!(j.jump(1000, 993), 369.0); // backward 7
+        // a short forward jump streams the lines it passes over
+        let mut j = JumpFetch::default();
+        j.run_into(100);
+        assert_eq!(j.jump(100, 104), 334.0);
+        assert_eq!(j.jump(104, 102), 140.0);
+        // a block (8 lines) with two fetched lines
+        let mut j = JumpFetch::default();
+        j.run_into(800);
+        assert_eq!(j.jump(800, 4000), 380.0);
+        assert_eq!(j.jump(4000, 803), 380.0); // block 100 has one line
+        assert_eq!(j.jump(803, 6000), 380.0);
+        assert_eq!(j.jump(6000, 805), 150.0); // now two
     }
 }

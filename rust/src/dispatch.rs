@@ -548,6 +548,7 @@ fn simulate_core_list(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Trace
     let wg_coords = |k| wg_coords(dims, k);
     let first_wave_lines = std::sync::Mutex::new(std::collections::HashSet::<usize>::new());
     let jump_lines = std::sync::Mutex::new(0u64);
+    let jump_lines_ns = std::sync::Mutex::new(0f64);
     // the first wave's device segments, which later waves find in the caches (`partial_warm`)
     let first_wave_segs = std::sync::Mutex::new(None::<std::sync::Arc<std::collections::HashSet<u64>>>);
     let dram_share_cache = std::sync::Mutex::new(None::<f64>);
@@ -695,13 +696,22 @@ fn simulate_core_list(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Trace
                 let mut seen = std::collections::HashSet::new();
                 let mut prev_end = usize::MAX;
                 let mut jl = 0u64;
+                // and what they cost by the jump (`cost::JumpFetch`, results/2026-11-25-jump-fetch)
+                let mut jf = cost::JumpFetch::default();
+                let mut jns = 0.0;
                 for &pc in &t.pcs {
-                    if seen.insert(pc / 64) && prev_end != usize::MAX && pc != prev_end && pc / 64 != (prev_end.saturating_sub(1)) / 64 {
-                        jl += 1;
+                    if seen.insert(pc / 64) {
+                        if prev_end != usize::MAX && pc != prev_end && pc / 64 != (prev_end.saturating_sub(1)) / 64 {
+                            jl += 1;
+                            jns += jf.jump((prev_end - 1) / 64, pc / 64);
+                        } else {
+                            jf.run_into(pc / 64);
+                        }
                     }
                     prev_end = pc + sizes.get(&pc).copied().unwrap_or(0);
                 }
                 *jump_lines.lock().unwrap() = jl;
+                *jump_lines_ns.lock().unwrap() = jns;
             }
         }
         let seqs: Vec<&[usize]> = traces.iter().map(|t| t.pcs.as_slice()).collect();
@@ -1244,11 +1254,19 @@ fn simulate_core_list(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Trace
     // fetch-bound, a long kernel's loops hide it (llama.cpp's Q8_0 matrix-vector kernel: 138 lines, 22.8 us of work,
     // 26.2 us measured with the 2.3 us launch)
     // AGX_FETCH_LINE_NS2 / AGX_FETCH_JUMP_LINE_NS (experiment): cold lines run into / jumped to
-    let jl = (jump_lines.into_inner().unwrap()).min(rep.code_lines) as f64;
+    let jump_lines_n = jump_lines.into_inner().unwrap();
+    let jl = jump_lines_n.min(rep.code_lines) as f64;
     let (fl, fj) = (std::env::var("AGX_FETCH_LINE_NS2").ok().and_then(|v| v.parse::<f64>().ok()).unwrap_or(l.fetch_line_ns),
                     std::env::var("AGX_FETCH_JUMP_LINE_NS").ok().and_then(|v| v.parse::<f64>().ok())
                         .unwrap_or(if l.fetch_jump_line_ns > 0.0 { l.fetch_jump_line_ns } else { l.fetch_line_ns }));
-    let fetch_ns = if refetched.load(std::sync::atomic::Ordering::Relaxed) || l.fetch_line_ns == 0.0 { 0.0 } else { (rep.code_lines as f64 - jl) * fl + jl * fj };
+    // the jumped-to lines by the jump (`cost::JumpFetch`) when the profile charges them apart (fetch_jump_line_ns > 0)
+    // and AGX_FETCH_JUMP_LINE_NS does not set a flat cost; AGX_JUMP_FETCH=0: the flat `fetch_jump_line_ns`
+    let jl_ns = if l.fetch_jump_line_ns > 0.0 && std::env::var("AGX_FETCH_JUMP_LINE_NS").is_err() && cost::JumpFetch::enabled() && (jl as u64) == jump_lines_n {
+        jump_lines_ns.into_inner().unwrap()
+    } else {
+        jl * fj
+    };
+    let fetch_ns = if refetched.load(std::sync::atomic::Ordering::Relaxed) || l.fetch_line_ns == 0.0 { 0.0 } else { (rep.code_lines as f64 - jl) * fl + jl_ns };
     let stack_ns = if l.stack_bytes > 0 { l.stack_launch_ns } else { 0.0 };
     let written = written.into_inner().unwrap() * store_share_cache.into_inner().unwrap() + written_again.into_inner().unwrap();
     let writes_ns = if !store_pcs.is_empty() { l.store_launch_ns } else { 0.0 };

@@ -12,5 +12,12 @@
   "note": "genuine: infinite loop (r3 >= r20 never becomes false); display froze until the GPU recovered on its own (no reboot)",
   "risk": "safe",
   "utc": "2026-10-12T23:09:54Z"
+ },
+ "probe_jump_distance/win32_8_1": {
+  "error": "{\"error\":\"GPU job failed: Bad address (os error 14)\"} (fence status -EFAULT: the kernel failed the job, a GPU fault; dmesg not readable in this session)",
+  "note": "the 60+ other kinds of the same probe family (same instruction forms, same padding, code 16 KiB - 8 MiB) ran 2x each without a fault before and after it, and the GPU recovered (the next jobs ran). Same symptom class as the two unexplained 2026-11-06 faults of probe_jump_fetch.py (unmapped reads near code+16 KiB). Not retried. Suspect: instruction prefetch past the mapped code object or a jump-target prefetch; not established.",
+  "program": "scripts/probe_jump_distance.py kind win32_8_1, N=256 (deterministic): 1024 code lines (64 KiB) + 16 KiB of stop; 256 one-line blocks (7 iadd + jmp_exec_any + wait 0 filler) at lines 8i and 8i+1, visited in windows of 32; agx_run executed exactly 2048 instructions first",
+  "risk": "unknown: do not rerun jump-fetch probes without first making the code object end on a larger unmapped-safe pad (e.g. 64 KiB of stop) and checking the fault address in dmesg",
+  "utc": "2026-11-25T03:1xZ (during the hardware sweep, idle GPU, AC power, fresh boot)"
  }
 }

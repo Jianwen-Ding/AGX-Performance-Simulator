@@ -41,6 +41,7 @@ help:
 	@echo 'make verify-sr          Offline: special registers vs the M2 under divergence (results/2026-10-16-special-registers)'
 	@echo 'make verify-traces      Offline: functional-simulator paths vs the cost model emulation on the test suite'
 	@echo 'make verify-dispatch    Offline: whole-dispatch model against 25 stored dispatches'
+	@echo 'make verify-jump-fetch  Offline: cold jump-fetch rule against 75 stored code shapes (~5 min)'
 	@echo 'make test               Offline: Rust unit and equivalence tests'
 	@echo 'make verify-llvm-pruning Offline: early LLVM pruning preserves live code, execution and predicted cost'
 	@echo 'make verify-llvm-shuffle-analysis Offline: matrix lowering with lane-dependent inputs on G13/G14'
@@ -89,6 +90,9 @@ record-transcendentals:
 
 verify-dispatch: rust
 	rust/target/release/dispatch_check -v
+
+verify-jump-fetch: rust
+	python3 scripts/jump_fetch_check.py
 
 verify-llvm-call-ret: rust
 	$(PYTHON) scripts/verify_llvm_call_ret.py
