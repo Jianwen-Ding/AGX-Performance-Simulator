@@ -41,7 +41,7 @@ The `verify-jump-fetch` row is 79 probe shapes ([check-output.txt](check-output.
 
 | Set | Before | After |
 |---|---|---|
-| `make verify-jump-fetch` (79 probe shapes) | mean 18.2%, median 19.6%, max 53% | **4.9%, median 2.5%**, max 32% (6.0% before the backward-jump exception) |
+| `make verify-jump-fetch` (79 probe shapes) | mean 18.2%, median 19.6%, max 53% | **3.0%, median 2.0%**, max 32% (6.0% before the backward-jump exception, 4.9% before the 4 / 8 KiB rule) |
 | llama tg (10 launches) | mean 9.4%, median 9% | **8.2%, median 8%** (Q8_0 mat-vec -19 → -16%, Q5_0 -7 → -3%, rope -13 → -11%) |
 | llama fa (4) | 7.8% | **7.5%** |
 | llama pp512 (20) | 10.2%, w10 15 | 10.2%, w10 15 |
@@ -59,8 +59,7 @@ tinygrad rerun.
 
 | Probe shape | Hardware | Rule | Error |
 |---|---|---|---|
-| interleaved chains of stride 16-64 lines | 343-348 | 238 | -31% |
-| 4 KiB / 8 KiB strides | 364-367 | 410 | +12% |
+| interleaved chains of stride 16 lines (64: fixed, see below) | 348 | 238 | -32% |
 
 The variant "block reuse needs a fetched line below the target" fixed the backward case but worsened the chains (probe mean
 5.3%, fwd16 -43%). The adopted exception (no block reuse after a backward jump of 1-7 lines) fixes back / bskip1 /
@@ -68,8 +67,11 @@ bskip2 (-33 / -31 / -20% → 0 / +3 / +3%) and leaves every other shape unchange
 
 The chain and stride misfits all involve 1 KiB or 4 KiB strides (fwd16 / fwd64 interleaved chains, skip64 / skip128 /
 bskip64, two64_*: 4 KiB strides cost ~350-375 against ~405-428 for other long jumps). This looks like address
-aliasing in the memory below the fetch unit rather than a fetch rule. Real kernels rarely jump this way, so it is not
-modelled.
+aliasing in the memory below the fetch unit rather than a fetch rule. Now modelled from the
+measurements: a jump of exactly 64 or 128 lines costs 325 ns and gets no 512 B block reuse (`AGX_JUMP_ALIGNED=0`
+turns this off). skip64 +12 → -3%, skip128 +14 → -1%, bskip64 +13 → -2%, fwd64 -31 → +3%, two64_* +9..17 → -6..+1%.
+Random orders are unchanged, and the tg, tinygrad and fa sets are identical launch for launch. fwd16 (-32%) remains:
+a single 16-line jump costs 428 ns, but chained 16-line jumps cost 348.
 
 ## Follow-up: streamed cold line 64 ns (runtime profile, `Launch::fetch_cold_stream_ns`)
 

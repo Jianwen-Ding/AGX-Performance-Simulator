@@ -173,6 +173,9 @@ impl JumpFetch {
     }
     /// ns for the first fetch of `to`, entered by a taken jump from line `from`; records the fetch
     pub fn jump(&mut self, from: usize, to: usize) -> f64 {
+        // 64- and 128-line (4 / 8 KiB) jumps: 325 ns and no 512 B block reuse (hw 343-376 ns per block in every shape
+        // that jumps by them, against 400-430 for other long jumps; AGX_JUMP_ALIGNED=0 off)
+        fn aligned_rule() -> bool { std::env::var("AGX_JUMP_ALIGNED").map_or(true, |v| v != "0") }
         const NEAR: [f64; 8] = [294.0, 294.0, 296.0, 312.0, 334.0, 346.0, 344.0, 369.0];
         let d = to as i64 - from as i64;
         let ns = if self.streamed.contains(&to) {
@@ -183,12 +186,16 @@ impl JumpFetch {
                 self.mark(l);
             }
             NEAR[d as usize]
-        } else if !(-7..0).contains(&d) && self.blocks.get(&(to >> 3)).copied().unwrap_or(0) >= 2 {
+        } else if !(-7..0).contains(&d) && !(matches!(d.unsigned_abs(), 64 | 128) && aligned_rule()) && self.blocks.get(&(to >> 3)).copied().unwrap_or(0) >= 2 {
             // (a short backward jump is as cold as a forward one of its length, though the lines above it in its block
             // were fetched: hw back / bskip1 / bskip2 322-323 ns)
             150.0
         } else {
-            NEAR.get(d.unsigned_abs() as usize).copied().unwrap_or(380.0)
+            match d.unsigned_abs() {
+                // (4 KiB / 8 KiB strides: hw skip64 / skip128 / bskip64 / two64_* 343-376 ns, against 400-430 for other long jumps)
+                64 | 128 if aligned_rule() => 325.0,
+                a => NEAR.get(a as usize).copied().unwrap_or(380.0),
+            }
         };
         self.mark(to);
         ns
