@@ -1,8 +1,8 @@
-back         N 1024-8192: hw  323.1 sim  215.8 ns/block  -33.2%
+back         N 1024-8192: hw  323.1 sim  323.8 ns/block   +0.2%
 bgap64_512   N 64-256: hw  403.2 sim  416.2 ns/block   +3.2%
 bgap8_64     N 64-256: hw  409.5 sim  416.2 ns/block   +1.6%
-bskip1       N 64-256: hw  322.3 sim  223.0 ns/block  -30.8%
-bskip2       N 64-256: hw  323.4 sim  260.0 ns/block  -19.6%
+bskip1       N 64-256: hw  322.3 sim  330.2 ns/block   +2.5%
+bskip2       N 64-256: hw  323.4 sim  332.2 ns/block   +2.7%
 bskip4       N 64-256: hw  357.9 sim  370.2 ns/block   +3.5%
 bskip64      N 64-256: hw  367.0 sim  416.2 ns/block  +13.4%
 bskip8       N 64-256: hw  425.1 sim  416.2 ns/block   -2.1%
@@ -15,14 +15,14 @@ fwd4         N 256-1024: hw  215.4 sim  218.2 ns/block   +1.3%
 fwd4         N 1024-8192: hw  216.0 sim  218.2 ns/block   +1.0%
 fwd64        N 1024-8192: hw  343.0 sim  237.2 ns/block  -30.8%
 fwd8         N 1024-8192: hw  262.5 sim  237.2 ns/block   -9.6%
-rand1        N 256-1024: hw  236.8 sim  237.3 ns/block   +0.2%
+rand1        N 256-1024: hw  236.8 sim  237.0 ns/block   +0.1%
 rand1        N 1024-8192: hw  234.9 sim  237.2 ns/block   +1.0%
 rand2        N 1024-8192: hw  235.4 sim  237.2 ns/block   +0.7%
 rgap1_4      N 64-256: hw  329.2 sim  345.2 ns/block   +4.9%
 rgap2_8      N 64-256: hw  366.1 sim  372.7 ns/block   +1.8%
 rgap64_512   N 64-256: hw  403.4 sim  416.2 ns/block   +3.2%
 rgap8_64     N 64-256: hw  396.7 sim  416.2 ns/block   +4.9%
-rsub1        N 256-1024: hw  238.6 sim  237.3 ns/block   -0.6%
+rsub1        N 256-1024: hw  238.6 sim  237.0 ns/block   -0.7%
 rsub16       N 256-1024: hw  410.3 sim  409.7 ns/block   -0.1%
 rsub2        N 256-1024: hw  267.2 sim  295.1 ns/block  +10.4%
 rsub256      N 256-1024: hw  411.2 sim  409.7 ns/block   -0.4%
@@ -45,7 +45,7 @@ skip64       N 256-1024: hw  367.0 sim  409.7 ns/block  +11.6%
 skip7        N 64-256: hw  398.7 sim  405.3 ns/block   +1.7%
 skip8        N 256-1024: hw  429.7 sim  409.7 ns/block   -4.7%
 skip96       N 64-256: hw  407.8 sim  416.2 ns/block   +2.1%
-straight     N 1024-8192: hw   70.4 sim   76.3 ns/block   +8.4%
+straight     N 1024-8192: hw   70.4 sim   70.3 ns/block   -0.2%
 two16_1      N 256-1024: hw  417.7 sim  409.7 ns/block   -1.9%
 two16_2      N 256-1024: hw  426.2 sim  409.7 ns/block   -3.9%
 two16_4      N 256-1024: hw  423.3 sim  409.7 ns/block   -3.2%
@@ -77,4 +77,4 @@ win4_8_2     N 256-1024: hw  424.5 sim  405.2 ns/block   -4.5%
 win4_8_4     N 256-1024: hw  412.4 sim  404.0 ns/block   -2.1%
 win64_8_1    N 256-1024: hw  417.4 sim  409.6 ns/block   -1.9%
 win8_8_1     N 256-1024: hw  417.3 sim  409.0 ns/block   -2.0%
-79 shapes: mean |err| 6.0%, median 3.2%, max 33.2%
+79 shapes: mean |err| 4.9%, median 2.5%, max 31.9%

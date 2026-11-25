@@ -183,7 +183,9 @@ impl JumpFetch {
                 self.mark(l);
             }
             NEAR[d as usize]
-        } else if self.blocks.get(&(to >> 3)).copied().unwrap_or(0) >= 2 {
+        } else if !(-7..0).contains(&d) && self.blocks.get(&(to >> 3)).copied().unwrap_or(0) >= 2 {
+            // (a short backward jump is as cold as a forward one of its length, though the lines above it in its block
+            // were fetched: hw back / bskip1 / bskip2 322-323 ns)
             150.0
         } else {
             NEAR.get(d.unsigned_abs() as usize).copied().unwrap_or(380.0)
