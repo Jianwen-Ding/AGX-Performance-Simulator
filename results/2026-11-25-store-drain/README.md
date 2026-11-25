@@ -51,3 +51,21 @@ The old model's rope 0% and soft_max +9% came from under-charged stores offsetti
 For soft_max, the 2026-11-11 cut sweep had already found the cause: its two dependent row loads cost 0.62 us per
 workgroup in the model and 0.34 on hardware. An extra rule that hides store time behind other groups' DRAM loads
 (`AGX_STORE_HIDE_DRAM`, tried and reverted) changed nothing.
+
+### soft_max's slow part is not its serial loads (hardware probe, [rowload-hw.txt](rowload-hw.txt))
+
+`probe_hot_lines.py` with SERIAL=1 NOSTORE=1 (load, wait, load, wait, add) has the shape of soft_max's two dependent
+row loads. `WG=512 REGS=188` gives one 512-thread workgroup per core at a time, as in soft_max. Times in us, two
+repeats:
+
+| Workgroups | Distinct second load: hw | model | Broadcast second load: hw | model |
+|---|---|---|---|---|
+| 448 | 11.1 | 9.9 | 8.2-8.3 | 6.8 |
+| 1792 (7 MB, SLC) | 33.2 | 32.7 | 22.5 | 20.8 |
+| 7168 (29 MB, end of the SLC transition) | 127.5 / 137.6 | 155.4 | 79.8-79.9 | 74.3 |
+
+At soft_max's occupancy with SLC-resident data the model matches. So the +14% of soft_max without its stores comes
+from somewhere else. Two candidates remain: its loads take their address from a 64-bit register pair (r6_r7 +
+index), the form that made k_bin_bcast's stores 3x slower, or its threadgroup reductions with barriers. At 128- and
+512-thread workgroups with many per core, distinct loads come out +6..+9% and broadcast loads up to -29% (WG 512,
+40.3 vs 28.8 us).

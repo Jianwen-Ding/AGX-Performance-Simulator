@@ -6,7 +6,7 @@ Each thread (workgroups of 128) runs ITER trips of: load a[gid + trip * N*128] a
 out[gid + trip * N*128] (k_bin_bcast's shape). BCAST=1: b's index is the lane's word in one of the 8 blocks of 128 words picked by workgroup id mod 8 (every workgroup reads one of the same 1024 words); 0: b is
 indexed like a.
 
-usage: probe_hot_lines.py [hw|sim|both]; env N="40 512 2048" BCAST="0 1" ITER=2 SERIAL=0 GRID2D=0 STRIDE=N*128 REGSTORE=0 NOSTORE=0 STORE16=0 ROWW=0 (with GRID2D) OUTMB=0 (OUT's buffer object size) PRE=0 POST=0 IFWRAP=0 B2B=5000
+usage: probe_hot_lines.py [hw|sim|both]; env N="40 512 2048" BCAST="0 1" ITER=2 SERIAL=0 GRID2D=0 STRIDE=N*128 REGSTORE=0 NOSTORE=0 STORE16=0 WG=128 ROWW=0 (with GRID2D) OUTMB=0 (OUT's buffer object size) PRE=0 POST=0 IFWRAP=0 B2B=5000
 """
 import json, os, re, subprocess, sys, tempfile
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -68,14 +68,16 @@ def build(iters, bcast):
 
 
 def args(f, n, iters):
-    tot = n * 128
+    # WG=w: workgroups of w threads (default 128; soft_max_f32 uses 512)
+    wg = int(os.environ.get('WG', '128'))
+    tot = n * wg
     sz = tot * iters * 4 + 65536
     if os.environ.get('ROWW'):
         sz = max(sz, (tot // int(os.environ['GRID2D'])) * int(os.environ['ROWW']) * 4 + 65536)
     # GRID2D=X: the same threads as a 2-D grid X wide (k_bin_bcast: 512 x 512); the indices then repeat over y
     x = int(os.environ.get('GRID2D', '0'))
     grid = f'{x},{tot // x},1' if x else f'{tot},1,1'
-    return [f, '--grid', grid, '--wg', '128,1,1', '--regs', os.environ.get('REGS', '64'),
+    return [f, '--grid', grid, '--wg', f'{wg},1,1', '--regs', os.environ.get('REGS', '64'),
             '--uniform', f'8={A & 0xffffffff}', '--uniform', f'9={A >> 32}', '--uniform', f'6={B & 0xffffffff}',
             '--uniform', f'7={B >> 32}', '--uniform', f'4={OUT & 0xffffffff}', '--uniform', f'5={OUT >> 32}',
             # STRIDE=k: a thread's next trip is k words on (default the whole grid: another page)
