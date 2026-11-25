@@ -2332,8 +2332,14 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
     let mut port = [hrp * t_ as f64; 2];
     // AGX_PICK_FIXED=1 (experiment): groups issue in a fixed priority (lowest index first) in place of a rotating start
     let pick_fixed = std::env::var("AGX_PICK_FIXED").is_ok_and(|v| v == "1");
-    // AGX_PICK_GREEDY=1 (experiment): each scheduler first offers the tick to the group that issued on it last
-    // (greedy: a group keeps issuing until it stalls), then the rotating order
+    // AGX_PICK_GREEDY=1 (experiment, off): each scheduler first offers the tick to the group that issued on it
+    // last (a group keeps issuing until it stalls), then the rotating order. Groups that leave a shared memory wait
+    // together then de-synchronise, so one group's ALU work hides behind another's next load (fetch-overlap probe,
+    // results/2026-11-22-fetch-overlap, 8 groups: hw 51.8 / 98.3 us, rotating 57.5 / 108.3, greedy 54.1 / 100.0).
+    // Reference sets (results/2026-11-25-jump-fetch): held-out 160 7.5 -> 7.1%, tinygrad 13.0 -> 10.8, fa 6.8 -> 6.2,
+    // dispatch 36 median 4.8 -> 4.0; pp512 10.3 -> 10.8, tg 8.2 -> 8.3; core scaling grid 3.1 -> 3.5, chains 3.3 -> 4.1
+    // (latency-bound one-chain transcendental loops lose most). NOT the default: it breaks the stored memory sets
+    // (verify-memory-model stream-dram median 5.9 -> 17.7%, stream 8.8 -> 13.3%: both over their limits)
     let pick_greedy = std::env::var("AGX_PICK_GREEDY").is_ok_and(|v| v == "1");
     let mut last_on = [usize::MAX; SCHEDULERS];
     let mut saved_elig: Vec<u64> = Vec::new();

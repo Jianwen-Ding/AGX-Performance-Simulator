@@ -85,5 +85,25 @@ calibrated 70.
 The 2026-11-22 fetch-overlap probe (code beyond the cache, 1-8 groups) moves from +9..16% to +2..11%. The remaining
 growth with group count is ALU contention: the model's groups stay in lockstep after their simultaneous loads.
 `AGX_PICK_GREEDY=1` (experimental, off) targets it. With it the probe's 8-group cases come to +4% / +2% and dispatch
-improves (4.8 → 4.0%), but core scaling worsens (grid 3.0 → 3.5%, chains 3.3 → 4.1%). It is still being scored on the
-reference sets.
+improves (4.8 → 4.0%), but core scaling worsens (grid 3.0 → 3.5%, chains 3.3 → 4.1%).
+
+## Experiment: greedy scheduler pick (`AGX_PICK_GREEDY=1`, not adopted)
+
+Each scheduler first offers the tick to the group that issued on it last. Scored on the reference sets
+([eval-greedy](eval-greedy/)) against the defaults above:
+
+| Set | Default | Greedy |
+|---|---|---|
+| held-out (160) | 7.5%, median 5.5 | **7.1%, median 4** |
+| tinygrad (5) | 13.0% | **10.8%** |
+| llama fa (4) | 6.8% | **6.2%** |
+| llama tg (10) | 8.2% | 8.3% |
+| llama pp512 (20) | 10.3% | 10.8% (rms_norm -27 → -31%, quantize_mmq -12 → -15%) |
+| `verify-dispatch` (36) | 4.8% | **4.0%** |
+| core scaling grid / chains | 3.1 / 3.3% | 3.5 / 4.1% (within the 5% limit) |
+| `verify-memory-model` stream-dram / stream | 5.9 / 8.8% | **17.7 / 13.3%: FAIL** |
+
+Across launches 59 improve and 41 get worse. Greedy is not the default because it breaks the measured DRAM streaming
+sets, which are direct hardware evidence. The real-program gains say that group desynchronisation after shared waits
+matters. A rule that de-synchronises groups without making streaming loads greedy is the open problem.
+`AGX_PICK_FIXED=1` (static priority) was rejected earlier: grid median 3.9%, p90 39%.
