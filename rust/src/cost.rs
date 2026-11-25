@@ -189,7 +189,8 @@ impl JumpFetch {
         } else if !(-7..0).contains(&d) && !(matches!(d.unsigned_abs(), 64 | 128) && aligned_rule()) && self.blocks.get(&(to >> 3)).copied().unwrap_or(0) >= 2 {
             // (a short backward jump is as cold as a forward one of its length, though the lines above it in its block
             // were fetched: hw back / bskip1 / bskip2 322-323 ns)
-            150.0
+            // (block reuse after a 16-line jump costs most of a cold one: hw fwd16 348 ns per block)
+            if d.unsigned_abs() == 16 && aligned_rule() { 300.0 } else { 150.0 }
         } else {
             match d.unsigned_abs() {
                 // (4 KiB / 8 KiB strides: hw skip64 / skip128 / bskip64 / two64_* 343-376 ns, against 400-430 for other long jumps)
