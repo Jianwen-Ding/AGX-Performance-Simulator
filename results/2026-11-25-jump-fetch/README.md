@@ -115,7 +115,7 @@ streaming loads stay fair. Scored the same way ([eval-greedy2](eval-greedy2/)):
 
 | Set | Default | Greedy=2 |
 |---|---|---|
-| fetch-overlap probe G=8, F=48 / 120 (hw 51.8 / 98.3 us) | 54.6 / 105.9 | **54.1 / 100.0** |
+| fetch-overlap probe G=8, F=48 / 120 (hw 51.8 / 98.3 us) | 57.5 / 108.3 (+11 / +10%) | **54.1 / 100.0 (+5 / +2%)** |
 | `verify-memory-model` | pass | pass (stream sets unchanged) |
 | held-out (160) | 7.5%, median 5.5, w10 119 | **7.1%, median 4.5, w10 120** |
 | tinygrad (5) | 13.0% | **11.0%** |
