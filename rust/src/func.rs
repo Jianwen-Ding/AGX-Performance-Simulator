@@ -180,6 +180,8 @@ impl InstructionCells for crate::decode_cache::DecodeCache<Info, 1> {
 
 enum OpKind {
     Stop,
+    /// The undecoded "ends" opcodes: the whole SIMD group ends whatever the exec mask (coverage undecoded/end_*_masked).
+    EndGroup,
     Jmp { any: bool },
     Call,
     Ret,
@@ -345,7 +347,8 @@ fn tex_op(ops: &[Operand], sampler_reg: bool) -> TexOp {
 fn op_kind(name: &'static str, f: &Fields, ops: &[Operand]) -> OpKind {
     use OpKind::*;
     match name {
-        "stop" | "end_group" => Stop,
+        "stop" => Stop,
+        "end_group" => EndGroup,
         // Measured on G14C (ptx-re-blockers B21, playground results/2026-10-20-b21-trap): an executed trap does
         // nothing; the stores after it land and the command ends normally.
         "nop6" | "fixed18" | "trap" => Nop,
@@ -414,6 +417,18 @@ struct Group {
     pending: Vec<(u64, Vec<(bool, usize, usize, usize, i128)>)>,
     /// AGX_TRACE_LANE: the traced lane's registers at the previous instruction
     lane_regs: Vec<u32>,
+    /// the group id fragment operations see: the group in its workgroup, or with a fragment setup in global-groups mode
+    /// (the render model) linear workgroup index x groups per workgroup + group
+    fid: u32,
+}
+
+/// Per-lane register seeds for the next dispatches (the render model's vertex launches: vertex id in r5, instance id in
+/// r6, ...): called with (linear workgroup index x groups per workgroup + group, lane), returns (32-bit register, value)
+/// pairs written before the program starts. None: no seeds (compute).
+pub type LaneInit = std::sync::Arc<dyn Fn(u32, usize) -> Vec<(usize, u32)> + Send + Sync>;
+static LANE_INIT: std::sync::RwLock<Option<LaneInit>> = std::sync::RwLock::new(None);
+pub fn set_lane_init(f: Option<LaneInit>) {
+    *LANE_INIT.write().unwrap() = f;
 }
 
 fn ext(v: i128, bits: u32, signed: bool) -> i128 {
@@ -661,6 +676,8 @@ fn run_workgroup(d: &Dispatch, geometry: &Geometry, cache: &CodeCache, mem: &mut
     let linear = geometry.linear([wx, wy, wz]);
     let writer_base = linear << 16;
     let mut tg = vec![0u8; d.shared_bytes.max(16) as usize];
+    let lane_init = LANE_INIT.read().unwrap().clone();
+    let global_frag = crate::frag::get().is_some_and(|f| f.global_groups);
     let mut groups: Vec<Group> = (0..gpw)
         .map(|g| {
             let (core, slot) = placement(d, geometry, linear, g);
@@ -682,7 +699,18 @@ fn run_workgroup(d: &Dispatch, geometry: &Geometry, cache: &CodeCache, mem: &mut
                 st.uniforms[2 * u] = (v & 0xffff) as u16;
                 st.uniforms[2 * u + 1] = (v >> 16) as u16;
             }
-            Group { st, ctx, pc: 0, done: false, steps: 0, trace: if record { Some(Trace::default()) } else { None }, stack: vec![], pending: vec![], lane_regs: vec![] }
+            let gid = (linear as u32).wrapping_mul(gpw).wrapping_add(g);
+            if let Some(init) = lane_init.as_ref() {
+                for t in 0..32 {
+                    if st.live[t] {
+                        for (r, v) in init(gid, t) {
+                            let _ = st.set_reg32(r, t, v as i128);
+                        }
+                    }
+                }
+            }
+            let fid = if global_frag { gid } else { g };
+            Group { st, ctx, pc: 0, done: false, steps: 0, trace: if record { Some(Trace::default()) } else { None }, stack: vec![], pending: vec![], lane_regs: vec![], fid }
         })
         .collect();
     stats.groups += groups.len() as u64;
@@ -858,6 +886,12 @@ fn step_group_impl<C: InstructionCells>(g: &mut Group, code: &[u8], cache: &C, m
                 if !g.st.live.iter().any(|&live| live) {
                     return Ok(Stop::Done);
                 }
+            }
+            OpKind::EndGroup => {
+                // Hardware (coverage undecoded/end_*_base_masked, 3 of 4 lanes active): the masked-off lanes end too.
+                g.st.live.iter_mut().for_each(|l| *l = false);
+                g.st.exec.iter_mut().for_each(|e| *e = false);
+                return Ok(Stop::Done);
             }
             OpKind::Jmp { any: want_any } => {
                 let any = g.st.exec.iter().any(|&e| e);
@@ -1039,11 +1073,11 @@ fn step_group_impl<C: InstructionCells>(g: &mut Group, code: &[u8], cache: &C, m
             OpKind::Intl => fsem::intl(v, &mut g.st)?,
             OpKind::Transcendental => fsem::transcendental(desc.name, f, v, &mut g.st)?,
             OpKind::Convert => fsem::convert(f, v, &mut g.st)?,
-            OpKind::FragIter => fsem::frag_iter(desc.name, f, v, &mut g.st, g.ctx.group)?,
-            OpKind::FragTile => fsem::frag_tile(f, v, &mut g.st, g.ctx.group)?,
-            OpKind::FragSampleMask => fsem::frag_sample_mask(v, &mut g.st, g.ctx.group)?,
-            OpKind::FragZsEmit => fsem::frag_zs_emit(f, v, &mut g.st, g.ctx.group)?,
-            OpKind::FragStVar => fsem::frag_st_var(desc.name, v, &mut g.st, g.ctx.group)?,
+            OpKind::FragIter => fsem::frag_iter(desc.name, f, v, &mut g.st, g.fid)?,
+            OpKind::FragTile => fsem::frag_tile(f, v, &mut g.st, g.fid)?,
+            OpKind::FragSampleMask => fsem::frag_sample_mask(v, &mut g.st, g.fid)?,
+            OpKind::FragZsEmit => fsem::frag_zs_emit(f, v, &mut g.st, g.fid)?,
+            OpKind::FragStVar => fsem::frag_st_var(desc.name, v, &mut g.st, g.fid)?,
             OpKind::QuadShuffle => fsem::quad_shuffle(desc.name, v, &mut g.st)?,
             OpKind::CrossLane => fsem::cross_lane(desc.name, v, &mut g.st)?,
             OpKind::Generic => {
@@ -1196,7 +1230,7 @@ pub fn run_preamble(code: &[u8], uniforms: &[(usize, u32)], mem: &mut Memory, nu
         st.uniforms[2 * u] = (v & 0xffff) as u16;
         st.uniforms[2 * u + 1] = (v >> 16) as u16;
     }
-    let mut g = Group { st, ctx, pc: 0, done: false, steps: 0, trace: None, stack: vec![], pending: vec![], lane_regs: vec![] };
+    let mut g = Group { st, ctx, pc: 0, done: false, steps: 0, trace: None, stack: vec![], pending: vec![], lane_regs: vec![], fid: 0 };
     let cache = code_cache(code.len());
     let mut tg = vec![0u8; 16];
     let mut stats = RunStats::default();
@@ -1255,7 +1289,15 @@ fn special_register(g: &mut Group, args: &SpecialRegister, stats: &mut RunStats)
     let (dr, half) = args.destination.ok_or("get_sr: unexpected destination")?;
     let Some(first) = g.st.exec.iter().position(|&active| active) else { return Ok(()); };
     let mut fallback = None;
-    let mut resolve = |t| g.ctx.sr(sr, t).or_else(|| {
+    // Render model (fragment setup in global-groups mode): sr80 / sr81 = the lane's pixel, sr0 / sr1 = its tile
+    // (hardware probe: scripts/render_probes.py lanes), sr60 / sr124 = its covered samples.
+    let frag_pixel = if matches!(sr, 0 | 1 | 60 | 80 | 81 | 124) { crate::frag::get().filter(|f| f.global_groups) } else { None };
+    let fid = g.fid;
+    let mut resolve = |t| frag_pixel.as_ref().map(|f| {
+        let p = f.pixel(fid, t);
+        let (tw, th) = f.tile.unwrap_or((32, 32));
+        match sr { 80 => p.0, 81 => p.1, 0 => p.0 / tw, 1 => p.1 / th, _ => crate::frag::coverage(p.0, p.1) }
+    }).or_else(|| g.ctx.sr(sr, t)).or_else(|| {
         // Keep environment fallback lazy and local to this execution. SR113 is
         // still unmodelled, not frozen into an instruction or dispatch cache.
         *fallback.get_or_insert_with(|| std::env::var("AGX_SR_DEFAULT").ok().and_then(|v| v.parse::<u32>().ok()))
@@ -2068,7 +2110,9 @@ fn image_write_block(g: &mut Group, mem: &mut Memory, f: &Fields, args: &TexOp) 
             }
             write_bytes(mem, img.addr + y as u64 * img.stride + x as u64 * bpp as u64, &raw)
         };
-        if args.coords.len() >= 2 {
+        // q0 = 1: explicit coordinates (Mesa's compute blit); q0 = 0 (the render end-of-tile program): the coordinate operand is
+        // ignored and the lane stores its own pixel (hardware: render EOT replay, scripts/render_probes.py, 2026-11-21)
+        if args.coords.len() >= 2 && fget(f, "q0").unwrap_or(1) != 0 {
             let (cx, cy) = (coord_lane(g, &args.coords[0], t)?, coord_lane(g, &args.coords[1], t)?);
             for j in 0..th {
                 for i in 0..tw {
@@ -2076,7 +2120,7 @@ fn image_write_block(g: &mut Group, mem: &mut Memory, f: &Fields, args: &TexOp) 
                 }
             }
         } else {
-            let (px, py) = fs.pixel(g.ctx.group, t);
+            let (px, py) = fs.pixel(g.fid, t);
             store(mem, (px, py), px as i64, py as i64)?;
         }
     }
@@ -2325,7 +2369,7 @@ mod tests {
         }
         Group { st, ctx: GroupCtx { wg_size: [8, 4, 2], wg_id: [3, 2, 1], group: 1, core: 19, slot: 7, uniforms: vec![],
             launch: crate::cost::SrLaunch { tg_bytes: 513, regs: 65, context: Some(47), pipeline: Some(0x1080), preamble: false } },
-            pc: 0, done: false, steps: 0, trace: None, stack: vec![], pending: vec![], lane_regs: vec![] }
+            pc: 0, done: false, steps: 0, trace: None, stack: vec![], pending: vec![], lane_regs: vec![], fid: 1 }
     }
 
     #[test]

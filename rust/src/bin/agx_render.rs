@@ -1,0 +1,62 @@
+//! `agx_render`: simulate one render pass (drm_asahi_cmd_render) from a direct-ioctl replay plan.
+//!
+//! agx_render PLAN.txt [--sim-suffix .sim] [--no-shading] [--max-steps N] [--log]
+//!
+//! PLAN.txt is what scripts/render_replay.py hands tests/drm_render_replay.c (memory image, command buffer, dump list).
+//! Every `dump VA SIZE FILE` line of the plan is written to FILE + suffix (default `.sim`) from the simulated memory, so the
+//! hardware and simulated outputs sit side by side. Prints one JSON line: statistics of every stage, plus the predicted
+//! vertex / fragment time (`agx_sim::raster::timing`).
+use agx_sim::raster::{self, Options, PassInput};
+
+fn main() {
+    let a: Vec<String> = std::env::args().skip(1).collect();
+    if a.is_empty() {
+        eprintln!("usage: agx_render PLAN.txt [--sim-suffix S] [--no-shading] [--max-steps N] [--log] [--tile-lists OUT.json]");
+        std::process::exit(2);
+    }
+    let die = |m: String| -> ! { println!("{{\"error\":{}}}", serde_json::to_string(&m).unwrap()); std::process::exit(1) };
+    let mut opt = Options::default();
+    let (mut suffix, mut log) = (".sim".to_string(), false);
+    let mut tile_lists: Option<String> = None;
+    let mut i = 1;
+    while i < a.len() {
+        match a[i].as_str() {
+            "--sim-suffix" => { suffix = a[i + 1].clone(); i += 1; }
+            "--no-shading" => opt.no_shading = true,
+            "--max-steps" => { opt.max_steps = a[i + 1].parse().unwrap_or_else(|_| die("bad --max-steps".into())); i += 1; }
+            "--log" => log = true,
+            "--tile-lists" => { tile_lists = Some(a[i + 1].clone()); i += 1; }
+            o => die(format!("unknown option {}", o)),
+        }
+        i += 1;
+    }
+    let input = PassInput::from_plan(&a[0]).unwrap_or_else(|e| die(e));
+    let r = raster::run_pass(&input, &opt).unwrap_or_else(|e| die(e));
+    for (va, size, path) in &input.dumps {
+        let b = r.mem.read_bytes(*va, *size as usize).unwrap_or_else(|e| die(e));
+        std::fs::write(format!("{}{}", path, suffix), b).unwrap_or_else(|e| die(e.to_string()));
+    }
+    let t = raster::timing(&r);
+    let s = &r.stats;
+    if let Some(p) = tile_lists {
+        let tl: Vec<_> = s.tile_prims.iter().map(|(k, v)| serde_json::json!([k.0, k.1, s.tile_samples.get(k).copied().unwrap_or(0), v, s.tile_visible.get(k).copied().unwrap_or(0)])).collect();
+        std::fs::write(&p, serde_json::to_string(&tl).unwrap()).unwrap_or_else(|e| die(e.to_string()));
+    }
+    let mut j = serde_json::json!({
+        "draws": s.draws, "vertices": s.vertices, "vertex_groups": s.vertex_groups, "vertex_instructions": s.vertex_instructions,
+        "primitives": s.primitives, "culled": s.culled, "clipped_unsupported": s.clipped_unsupported, "clipped": s.clipped,
+        "tiles": s.tiles, "tiles_processed": s.tiles_processed, "bg_groups": s.bg_groups, "eot_groups": s.eot_groups,
+        "fragment_groups": s.fragment_groups, "fragment_lanes": s.fragment_lanes, "fragment_samples": s.fragment_samples,
+        "fragment_instructions": s.fragment_instructions, "bg_instructions": s.bg_instructions, "eot_instructions": s.eot_instructions,
+        "hsr_fragment_groups": s.hsr_fragment_groups, "translucent_samples": s.translucent_samples, "frag_core_ns": s.frag_core_ns, "vs_core_ns": s.vs_core_ns, "prim_tiles": s.prim_tiles, "prim_blocks": s.prim_blocks, "prim_runs": s.prim_runs, "hsr_prim_tiles": s.hsr_prim_tiles, "vertex_output_words": s.vertex_output_words, "draw_shapes": s.draw_shapes, "rasterized": s.rasterized, "zls_bytes": s.zls_bytes, "bg_core_ns": s.bg_core_ns, "eot_core_ns": s.eot_core_ns, "hsr_fragment_lanes": s.hsr_fragment_lanes, "hsr_fragment_instructions": s.hsr_fragment_instructions, "depth_tested": s.depth_tested, "depth_passed": s.depth_passed,
+        "predicted_vtx_ns": t.vtx_ns, "predicted_frag_ns": t.frag_ns, "timing": t.parts,
+    });
+    let (cl, tl) = raster::shade_loads(s);
+    j["isp_ns"] = serde_json::json!(raster::isp_ns(s));
+    j["core_load_max"] = serde_json::json!(cl);
+    j["tile_load_max"] = serde_json::json!(tl);
+    if log {
+        j["log"] = serde_json::json!(r.log);
+    }
+    println!("{}", j);
+}

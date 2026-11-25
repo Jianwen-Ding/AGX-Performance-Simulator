@@ -41,18 +41,23 @@ measurements), so a task confirms or refutes known claims instead of rediscoveri
 3. **Whole programs only.**
    - Submit `run_drm_compute.build_main(body)`, never a bare body. A bare body has no final `stop`; one stopped the GPU
      executing work on 2026-10-16. `record_suite.run()` now refuses a program that does not end with `stop`.
-4. **Bounded code only.**
+4. **Never launch a code file that `agx_run` has not just run to completion.** On 2026-11-22 an ad-hoc shell probe
+   wrote an empty `k.bin` (its `xxd` step failed: xxd is not installed) and passed it to `agx_run_hw`. The GPU
+   executed whatever followed, and the queue stayed wedged: every later job, known-good ones included, timed out
+   (`syncobj-wait: Timer expired`) until a reboot. Write kernels from Python (`bytes.fromhex`), check the file size, and
+   gate every launch on `agx_run` as the probe scripts do.
+5. **Bounded code only.**
    - Loops must use `agx_loop` bodies that pass their emulator gate.
    - Simulate any new kernel in `rust/target/release/agx_run` (set `AGX_SR_DEFAULT` if it reads unmodelled special
      registers) and check that it terminates and writes what you expect before it runs on the GPU.
-5. **Small first.** Run one small dispatch and check its oracle before any sweep.
-6. **Stop on any fault or timeout.** Note it in `coverage/faults.json` or the task's report, and do not retry blindly.
-7. **Record evidence and push.**
+6. **Small first.** Run one small dispatch and check its oracle before any sweep.
+7. **Stop on any fault or timeout.** Note it in `coverage/faults.json` or the task's report, and do not retry blindly.
+8. **Record evidence and push.**
    - Raw bulk data goes under `/scratch/agxsim-data/` (regenerable).
    - Compact evidence plus an offline check goes into git: the simulator's `results/<date>-<topic>/` and the
      playground's `novel-results/` + `results/` + a `make verify-*` target.
 
-8. **Release GPU memory.** Every direct-DRM program must munmap + `GEM_CLOSE` its buffer objects before exit.
+9. **Release GPU memory.** Every direct-DRM program must munmap + `GEM_CLOSE` its buffer objects before exit.
    Leaving them to process exit leaks their shmem in the kernel: ~55 GB on 2026-10-16, which made the host run out
    of memory. `tests/drm_compute.c` now does this by default. Check `grep shmem /sys/fs/cgroup/memory.stat` before
    and after one run.

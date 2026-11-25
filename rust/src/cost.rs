@@ -65,11 +65,13 @@ const ALU: &[(&str, &str)] = &[
     ("fmadd32_lane", "fmadd32_lane1"), ("fmadd16_lane", "fmadd16_lane1"),
     ("simd_matrix_fmadd32", "simd_matrix_fmadd32"), ("simd_matrix_fmadd16", "simd_matrix_fmadd16"),
 ];
+// (the rotate and the quad shuffle variants are measured: coverage/timing's simd_shuffle_rotate_up and
+// quad_shuffle_{down,up,xor,rotate_up} _r14_r6_1 recordings, latency 4.85 / 3.90 cycles and SIMD issue 1.99 / 1.04
+// per step, the same as the simd_shuffle_down and quad_shuffle rows they are costed as)
 const UNMEASURED_ALU: &[&str] = &[
     "iter", "iterproj", "TODO.ldcf", "TODO.ld/st_tile", "sample_mask", "zs_emit",
     "fixed18",
-    "iunop", "ceil", "trunc", "funop", "dfdx", "dfdy", "simd_shuffle_rotate_up", "simd_shuf_op",
-    "quad_shuffle_down", "quad_shuffle_up", "quad_shuffle_xor", "quad_shuffle_rotate_up", "TODO.sr_thing",
+    "iunop", "ceil", "trunc", "funop", "dfdx", "dfdy", "simd_shuf_op", "TODO.sr_thing",
 ];
 const LOADS: &[&str] = &[
     "device_load", "device_load.TODO", "threadgroup_load", "stack_load", "async_load", "texture_sample", "texture_load",
@@ -118,12 +120,16 @@ fn fence_ticks(code: u8, ctx: usize) -> (i64, bool) {
 /// AGX_MEM_LEVELS=1: device / stack accesses by deepest cache level (L1, L2, SLC, DRAM) since the start, by
 /// (stack, store, level); `mem_levels_report` prints them
 pub static MEM_LEVELS: [std::sync::atomic::AtomicU64; 16] = [const { std::sync::atomic::AtomicU64::new(0) }; 16];
+/// with AGX_MEM_LEVELS=1: device atomics simulated (instructions, active lanes, the largest same-word lane count summed,
+/// contention cycles summed)
+pub static ATOMIC_STATS: [std::sync::atomic::AtomicU64; 4] = [const { std::sync::atomic::AtomicU64::new(0) }; 4];
 pub fn mem_levels_report() -> Option<String> {
     if !std::env::var("AGX_MEM_LEVELS").is_ok_and(|v| v == "1") {
         return None;
     }
     let v: Vec<u64> = MEM_LEVELS.iter().map(|x| x.load(std::sync::atomic::Ordering::Relaxed)).collect();
-    Some(format!("device loads {:?} stores {:?}; stack loads {:?} stores {:?} (L1, L2, SLC, DRAM)", &v[0..4], &v[4..8], &v[8..12], &v[12..16]))
+    let a: Vec<u64> = ATOMIC_STATS.iter().map(|x| x.load(std::sync::atomic::Ordering::Relaxed)).collect();
+    Some(format!("device loads {:?} stores {:?}; stack loads {:?} stores {:?} (L1, L2, SLC, DRAM); atomics {} lanes {} same-word lanes {} contention cycles {}", &v[0..4], &v[4..8], &v[8..12], &v[12..16], a[0], a[1], a[2], a[3]))
 }
 
 /// Kernels with more code than this are taken to fetch instructions from beyond the instruction cache (see the taken
@@ -939,6 +945,33 @@ pub fn tg_words(f: &isa::Fields, st: &exec::CoreState) -> Option<Vec<u64>> {
 }
 
 /// Word addresses of a device `atomic` (32-bit) for every active lane.
+/// AGX_ATOMIC_COLLIDE=3: the serial lane-operations an atomic instruction's sorted words `ws` cost at a hot spot:
+/// 128-byte banks work in parallel; in a bank the 32-byte sectors one after the other, each as long as its busiest
+/// word (its distinct words combine). probe_atomic_lines.py (38 cores on one array, ns per instruction / 0.86):
+/// one word 32, 4 words x 8 lanes in a sector 8, the same 4 words a sector apart 16, 4 lines 8 lanes each 16,
+/// 32 distinct words in 2 lines 4
+pub fn atomic_units(ws: &[u64]) -> usize {
+    let mut best = 0usize;
+    let mut i = 0;
+    while i < ws.len() {
+        let bank = ws[i] >> 5;
+        let mut units = 0usize;
+        while i < ws.len() && ws[i] >> 5 == bank {
+            let sector = ws[i] >> 3;
+            let mut top = 0usize;
+            while i < ws.len() && ws[i] >> 3 == sector {
+                let w = ws[i];
+                let mut n = 0;
+                while i < ws.len() && ws[i] == w { n += 1; i += 1; }
+                top = top.max(n);
+            }
+            units += top;
+        }
+        best = best.max(units);
+    }
+    best
+}
+
 pub fn atomic_words(f: &isa::Fields, st: &exec::CoreState) -> Option<Vec<u64>> {
     let g = |k: &str| fget(f, k);
     let mut w = Vec::with_capacity(exec::SIMD_WIDTH);
@@ -1540,6 +1573,10 @@ pub struct MemModel {
     pub atomic_min: f64,
     pub atomic_per_seg: f64,
     pub atomic_same_word_rate: f64,
+    /// AGX_ATOMIC_SHARE: the GPU-wide sharers of a hot word's rate per this core (0: `active_cores`)
+    pub atomic_contenders: f64,
+    /// AGX_ATOMIC_SHARERS: per atomic word, the cores hitting it at once (a word not listed: all)
+    pub atomic_sharers: Option<std::sync::Arc<std::collections::HashMap<u64, f64>>>,
     /// threadgroup memory, one SIMD group back to back: reference cycles per load / store plus one per extra
     /// bank-conflict way (core: max(1, conflict degree) per instruction)
     pub tg_group_load: f64,
@@ -1604,6 +1641,8 @@ impl Default for MemModel {
             first_touch_dram: false,
             atomic_min: 6.9,
             atomic_per_seg: 1.7,
+            atomic_contenders: 0.0,
+            atomic_sharers: None,
             atomic_same_word_rate: 0.89,   // playground novel-results/2026-10-16-atomic-contention: 0.86 ns per lane-op on one word at 1,398 MHz
             tg_group_load: std::env::var("AGX_TG_GROUP_LOAD").ok().and_then(|v| v.parse().ok()).unwrap_or(31.0),
             tg_core_load: std::env::var("AGX_TG_CORE_LOAD").ok().and_then(|v| v.parse().ok()).unwrap_or(1.0),
@@ -2035,6 +2074,14 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
         /// `first_touch_dram`: segments this dispatch has touched, and per access (group, index) how many of its
         /// lines were first touches (an access is re-evaluated while it waits for its buckets)
         seen: std::collections::HashSet<u64>,
+        /// AGX_WB_DIRTY: lines this core has written since they were last fetched from DRAM
+        dirty: std::collections::HashSet<u64>,
+        /// AGX_PREFETCH: prefetched lines with their ready tick; this core's recent L2 misses
+        pf: HashMap<u64, i64>,
+        missed: std::collections::HashSet<u64>,
+        missed_ring: std::collections::VecDeque<u64>,
+        pf_regions: HashMap<u64, i64>,
+        pf_ring: std::collections::VecDeque<u64>,
         first_frac: f64,
         first: HashMap<(usize, usize), (f64, f64)>,
     }
@@ -2067,6 +2114,7 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
     let mut profile_prev: i64 = 0;
     let first_touch_dram = mem.is_some_and(|(_, m)| m.resident_slc && m.first_touch_dram);
     let mem_levels = std::env::var("AGX_MEM_LEVELS").is_ok_and(|v| v == "1");
+    let atomic_collide: u32 = std::env::var("AGX_ATOMIC_COLLIDE").ok().and_then(|v| v.parse().ok()).unwrap_or(0);
     // AGX_STORE_DRAIN_BLOCK=1 (with AGX_STORE_DRAIN): a load waits while the core's store queue is over-full
     let drain_block = std::env::var("AGX_STORE_DRAIN_BLOCK").is_ok_and(|v| v == "1");
     let drain_pipe = std::env::var("AGX_STORE_DRAIN_PIPE").is_ok_and(|v| v == "1");
@@ -2081,6 +2129,14 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
     let drain_issue_all = std::env::var("AGX_STORE_DRAIN_ISSUE").is_ok_and(|v| v == "2");
     let mut drain_end = 0i64;
     let mut next_bound = vec![0usize; groups];
+    let pf_dist: u64 = std::env::var("AGX_PREFETCH").ok().and_then(|v| v.parse().ok()).unwrap_or(0);
+    let pf_region: u32 = std::env::var("AGX_PF_REGION").ok().and_then(|v| v.parse().ok()).unwrap_or(0);
+    let wb_dirty = std::env::var("AGX_WB_DIRTY").map_or(false, |v| v == "1");
+    // AGX_STACK_EVICT_DRAM=1: a stack line the GPU-wide L2 has lost is fetched at the DRAM rate (the SLC does not
+    // keep the cores' 6 MB-strided stacks: round-4 stack probes)
+    let stack_evict_dram = std::env::var("AGX_STACK_EVICT_DRAM").map_or(false, |v| v == "1");
+    // default on since 2026-11-22 with the L2 window above (AGX_L2_EVICT_SLC=0: an evicted line is always an SLC hit)
+    let evict_slc = std::env::var("AGX_L2_EVICT_SLC").map_or(true, |v| v != "0");
     let inflight_on = std::env::var("AGX_INFLIGHT").map_or(true, |v| v != "0");
     let charge_writeback = std::env::var("AGX_CHARGE_WRITEBACK").map_or(false, |v| v == "1")
         && mem.is_some_and(|(_, m)| !m.resident_slc);
@@ -2115,6 +2171,12 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
             epoch: 0,
             lv_cache: vec![None; groups],
             seen: Default::default(),
+            dirty: Default::default(),
+            pf: Default::default(),
+            missed: Default::default(),
+            missed_ring: Default::default(),
+            pf_regions: Default::default(),
+            pf_ring: Default::default(),
             first: Default::default(),
         }
     });
@@ -2124,6 +2186,25 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
     let memfp: Vec<Vec<u64>> = memv.iter().map(|v| v.iter().map(|(_, sg)| {
         sg.iter().fold(sg.len() as u64, |h, &x| (h ^ x).wrapping_mul(0x100_0000_01b3).rotate_left(29))
     }).collect()).collect();
+    // AGX_ATOMIC_PRIVATE=1 (experiment): an atomic word that only one of the simulated workgroups touches (with two
+    // or more simulated) is taken as private to it, not a GPU-wide hot spot: its lanes serialise on this core alone
+    // (probe_atomic_lines.py PERWG=1, one word per workgroup: hw 259 us, as a hot spot 3672; Cycles init_from_camera's
+    // per-pixel render-buffer adds)
+    let atomic_private: Option<std::collections::HashSet<u64>> = if mem.is_some() && std::env::var("AGX_ATOMIC_PRIVATE").is_ok_and(|v| v == "1") {
+        let mut by: HashMap<u64, (u32, bool)> = HashMap::new();
+        let mut wgs: std::collections::HashSet<u32> = Default::default();
+        for (gi, v) in memv.iter().enumerate() {
+            for (step, words) in v.iter() {
+                if !sim[seqs[gi][*step as usize]].atomic { continue; }
+                wgs.insert(wg[gi]);
+                for &w in words {
+                    let e = by.entry(w).or_insert((wg[gi], false));
+                    if e.0 != wg[gi] { e.1 = true; }
+                }
+            }
+        }
+        (wgs.len() >= 2).then(|| by.into_iter().filter(|(_, (_, multi))| !multi).map(|(w, _)| w).collect())
+    } else { None };
     if let (Some(m), Some((_, mm))) = (ms.as_mut(), mem) {
         if mm.resident_slc && (!mm.warm || mm.warm_only.is_some()) {
             let mut distinct: std::collections::HashSet<u64> = Default::default();
@@ -2838,13 +2919,20 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
                                     // a stack store does not read the line first (probe_stack_cost.py: 56-62 ns per store at
                                     // 256 bytes and 4 KB of frame alike, where loads go from 68 to 172)
                                     let lv = if r.stack_store { 0 } else if m.l1.contains(sg) { 0 } else if m.l2.contains(sg) {
-                                        if m.l2g.as_ref().is_some_and(|w| w.evicted(sg, chain_sh(m.sharers, gi, m.cur[gi]))) { 2 } else { 1 }
+                                        if m.l2g.as_ref().is_some_and(|w| w.evicted(sg, chain_sh(m.sharers, gi, m.cur[gi]))) {
+                                            // (AGX_L2_EVICT_SLC=0: an evicted line is always an SLC hit, as before)
+                                            if (stack_evict_dram && WorkingSet::is_stack(sg)) || (evict_slc && !m.slc.contains(sg)) { 3 } else { 2 }
+                                        } else { 1 }
                                     } else if m.slc.contains(sg) { 2 } else { 3 };
                                     if lv >= 1 {
                                         need[1 + lv] += 1.0;
                                     }
                                     // (lines found only in DRAM: the footprint is beyond the SLC; bookkeeping)
                                     if lv == 3 { need[6] += 1.0; }
+                                    // AGX_WB_DIRTY=1: a written line found only in DRAM was written back when it left
+                                    // the SLC: its write-back takes DRAM bandwidth too (stack probe G vs H, 512 KB per
+                                    // core with / without the store: 1545 / 1085 us at 32 busy cores)
+                                    if lv == 3 && wb_dirty && m.dirty.remove(&sg) { need[4] += 1.0; }
                                     level = level.max(lv);
                                 }
                                 m.lv_cache[gi] = Some((m.cur[gi], m.epoch, [need[2], need[3], need[4]], level));
@@ -2904,6 +2992,45 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
                         // (AGX_SEQ_PREFETCH=K: any of the K lines before it)
                         if seq_prefetch > 0 && !store && level >= 2 && segs.iter().min().is_some_and(|&s0| (1..=seq_prefetch.min(s0)).any(|d| m.l2.contains(s0 - d) || m.l1.contains(s0 - d))) {
                             lat_extra = lat_extra.min(m.extra[1]);
+                        }
+                        // AGX_PREFETCH=D (experiment): a stream prefetcher. A load missing the L2 whose line before
+                        // its lowest was also a miss of this core (or that was itself prefetched) fetches the D lines
+                        // after its highest, each ready at this miss's issue + its full latency; a later miss on lines
+                        // all prefetched waits only until they are ready (at least the L2 latency). Bandwidth as before.
+                        // (probe_l2_share: 2 MB per core at 32 cores sustains ~590 GB/s with 208 ns per dependent trip)
+                        if (pf_dist > 0 || pf_region > 0) && !store && level >= 2 && !segs.is_empty() {
+                            let orig = lat_extra;
+                            let (s0, s1) = (*segs.iter().min().unwrap(), *segs.iter().max().unwrap());
+                            let mut ready = i64::MIN;
+                            let mut all = true;
+                            for sg in segs.iter() {
+                                if m.l1.contains(*sg) { continue; }
+                                match m.pf.get(sg) { Some(&r) => ready = ready.max(r), None => { all = false; break; } }
+                            }
+                            let hit = all && ready > i64::MIN;
+                            if hit { lat_extra = lat_extra.min((ready - t).max(m.extra[1])); }
+                            if hit || (s0 > 0 && m.missed.contains(&(s0 - 1))) {
+                                if m.pf.len() > (1 << 16) { m.pf.clear(); }
+                                for d in 1..=pf_dist { m.pf.entry(s1 + d).or_insert(t + orig); }
+                            }
+                            if pf_region > 0 {
+                                // AGX_PF_REGION=B: the first miss in a 2^B-line region fetches the region: a later
+                                // miss there waits until that fetch lands (at least the L2 latency)
+                                let rg = s0 >> pf_region;
+                                match m.pf_regions.get(&rg) {
+                                    Some(&r0) if !hit => lat_extra = lat_extra.min((r0 - t).max(m.extra[1])),
+                                    Some(_) => {}
+                                    None => {
+                                        m.pf_regions.insert(rg, t + orig);
+                                        m.pf_ring.push_back(rg);
+                                        if m.pf_ring.len() > 1024 { if let Some(o) = m.pf_ring.pop_front() { m.pf_regions.remove(&o); } }
+                                    }
+                                }
+                            }
+                            if m.missed.insert(s1) {
+                                m.missed_ring.push_back(s1);
+                                if m.missed_ring.len() > 4096 { if let Some(o) = m.missed_ring.pop_front() { m.missed.remove(&o); } }
+                            }
                         }
                         if store && charge_writeback {
                             need[4] = need[4].max(n.max(1.0)); // every written line goes back to DRAM
@@ -2979,7 +3106,47 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
                             // 32-byte sectors; lanes on one word (a shared counter) serialise GPU-wide
                             let mut secs: Vec<u64> = ws.iter().map(|w| w >> 3).collect();
                             secs.dedup();
-                            let contention = if same > 1 { same as f64 * mm.active_cores / mm.atomic_same_word_rate } else { 0.0 };
+                            // AGX_ATOMIC_COLLIDE (experiment): an instruction whose lanes collide on a word serialises more than
+                            // that word's lanes (playground 2026-10-16-atomic-contention: 32 hashed counters in 2 lines ran
+                            // almost as slow as one counter). 1: all its active lanes; 2: the lanes in its busiest 64-byte line
+                            let same = if same > 1 {
+                                match atomic_collide {
+                                    1 => ws.len(),
+                                    2 => {
+                                        let mut best = 0usize;
+                                        let mut run = 0usize;
+                                        for i in 0..ws.len() {
+                                            run = if i > 0 && ws[i] >> 4 == ws[i - 1] >> 4 { run + 1 } else { 1 };
+                                            best = best.max(run);
+                                        }
+                                        best
+                                    }
+                                    3 => atomic_units(&ws),
+                                    _ => same,
+                                }
+                            } else if atomic_collide == 3 { atomic_units(&ws) } else { same };
+                            let private = atomic_private.as_ref().is_some_and(|p| ws.iter().all(|w| p.contains(w)));
+                            let mut sharers = if private { 1.0 } else if mm.atomic_contenders > 0.0 { mm.atomic_contenders } else { mm.active_cores };
+                            if let Some(map) = mm.atomic_sharers.as_ref() {
+                                // the busiest word's fraction of the cores hitting it at once
+                                let fb = map.get(&u64::MAX).copied().unwrap_or(1.0);
+                                let c = ws.iter().map(|w| map.get(w).copied().unwrap_or(fb)).fold(0.0f64, f64::max);
+                                if c > 0.0 { sharers = (sharers * c).max(1.0); }
+                            }
+                            let contention = if same > 1 { same as f64 * sharers / mm.atomic_same_word_rate } else { 0.0 };
+                            if mem_levels && std::env::var("AGX_DEBUG_ATOMIC").is_ok_and(|v| v == "1") {
+                                static SHOWN: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+                                if SHOWN.fetch_add(1, std::sync::atomic::Ordering::Relaxed) < 40 {
+                                    eprintln!("atomic pc {} lanes {} units/same {} sharers {:.2} words {:?}", r.pc, ws.len(), same, sharers, &ws[..ws.len().min(6)]);
+                                }
+                            }
+                            if mem_levels {
+                                use std::sync::atomic::Ordering::Relaxed;
+                                ATOMIC_STATS[0].fetch_add(1, Relaxed);
+                                ATOMIC_STATS[1].fetch_add(ws.len() as u64, Relaxed);
+                                ATOMIC_STATS[2].fetch_add(same as u64, Relaxed);
+                                ATOMIC_STATS[3].fetch_add(contention as u64, Relaxed);
+                            }
                             let c = (mm.atomic_min).max(mm.atomic_per_seg * secs.len() as f64).max(contention);
                             (tk(c * k), tk(mm.atomic_min * k), &mut m.at_free)
                         } else {
@@ -3068,6 +3235,7 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
                         *e = (*e).max(done);
                     }
                 }
+                if wb_dirty && r.kind == Kind::Store { m.dirty.extend(segs.iter().copied()); }
                 for &sg in segs {
                     m.l1.touch(sg);
                     m.l2.touch(sg);
@@ -3621,11 +3789,25 @@ fn m_l1_load_min(mem: Option<(&[&[(u32, Vec<u64>)]], &MemModel)>) -> f64 {
 fn l2_share(m: &MemModel) -> usize {
     static T: std::sync::OnceLock<Option<f64>> = std::sync::OnceLock::new();
     let total = T.get_or_init(|| std::env::var("AGX_L2_TOTAL").ok().and_then(|v| v.parse().ok()));
+    let mult = l2_core_knobs().0;
     match total {
         // a core never holds more than l2_bytes (one core's chase spills at 256-512 KB: 2026-10-16-memory-parameters)
         Some(t) => (t / eff_sharers(m)).min(m.l2_bytes as f64 * m.active_cores / eff_sharers(m)) as usize,
-        None => (m.l2_bytes as f64 * m.active_cores / eff_sharers(m)) as usize,
+        None => (mult * m.l2_bytes as f64 * m.active_cores / eff_sharers(m)) as usize,
     }
+}
+
+/// (AGX_L2_LRU, AGX_L2_CORE): the per-core L2 recency window as a multiple of l2_bytes, and the capacity one core
+/// can hold of the GPU-wide L2 (bytes, 0: no cap). With AGX_L2_GPU the window only says which lines were touched
+/// recently; whether a recent line is still held follows the capacity rule in `WorkingSet::evicted`.
+fn l2_core_knobs() -> (f64, f64) {
+    static T: std::sync::OnceLock<(f64, f64)> = std::sync::OnceLock::new();
+    *T.get_or_init(|| {
+        let g = |k: &str, d: f64| std::env::var(k).ok().and_then(|v| v.parse().ok()).unwrap_or(d);
+        // defaults since 2026-11-22 (results/2026-11-22-merge-session): window 4 x 256 KB, one core holds at most
+        // 600 KB of the GPU-wide L2 (single-core stack probes: one core uses > 256 KB); AGX_L2_LRU=1 AGX_L2_CORE=0 = before
+        (g("AGX_L2_LRU", 4.0), g("AGX_L2_CORE", 600000.0))
+    })
 }
 
 /// (AGX_L2_GPU, AGX_L2_GPU_STACK (default: AGX_L2_GPU)): the capacity for device lines and for stack lines. The
@@ -3683,7 +3865,9 @@ impl WorkingSet {
     fn evicted(&self, sg: u64, sharers: f64) -> bool {
         let (td, ts) = l2_gpu_bytes();
         let held = sharers * 64.0 * (self.lines[0] + self.lines[1]) as f64;
-        let t = if Self::is_stack(sg) { ts } else { td };
+        let mut t = if Self::is_stack(sg) { ts } else { td };
+        let core = l2_core_knobs().1;
+        if core > 0.0 { t = t.min(core * sharers); }
         if held <= t { return false; }
         let p = 1.0 - t / held;
         let mut x = sg.wrapping_add(0x9E37_79B9_7F4A_7C15);

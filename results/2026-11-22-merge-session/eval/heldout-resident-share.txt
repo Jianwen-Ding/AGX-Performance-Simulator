@@ -1,0 +1,187 @@
+findRangeK                     hw     148.6 us (n     0, captured     418.0)  sim     140.4 us  err    -5%   wgs/core 158 waves 40
+findK                          hw     106.4 us (n     0, captured     313.1)  sim     112.3 us  err    +6%   wgs/core 264 waves 33
+launches 2  median |err| 6%  within 10%: 2  within 25%: 2
+_Z22bpnn_layerforward_CUDAPfS_S_S_ii hw      39.9 us (n     0, captured      95.3)  sim      32.9 us  err   -18%   wgs/core 108 waves 9
+_Z24bpnn_adjust_weights_cudaPfiS_iS_S_ hw     357.4 us (n     0, captured    1047.5)  sim     322.7 us  err   -10%   wgs/core 108 waves 27
+launches 2  median |err| 14%  within 10%: 1  within 25%: 2
+_Z24cuda_compute_step_factoriPfS_S_ hw      10.7 us (n     0, captured      19.7)  sim      10.9 us  err    +2%   wgs/core 14 waves 1
+_Z25cuda_initialize_variablesiPf hw       9.3 us (n     0, captured      11.7)  sim      10.5 us  err   +13%   wgs/core 15 waves 1
+_Z17cuda_compute_fluxiPiPfS0_S0_ hw      51.2 us (n     0, captured     124.7)  sim      36.6 us  err   -29%   wgs/core 14 waves 5
+_Z14cuda_time_stepiiPfS_S_S_   hw      19.3 us (n     0, captured      39.4)  sim      20.9 us  err    +8%   wgs/core 15 waves 1
+launches 4  median |err| 11%  within 10%: 2  within 25%: 3
+_ZN8dwt_cuda12fdwt53KernelILi64ELi8EEEvPKiPiiii hw      17.3 us (n     0, captured      41.2)  sim      15.8 us  err    -9%   wgs/core 1 waves 1
+launches 1  median |err| 9%  within 10%: 1  within 25%: 1
+_kernel_blurx_s0_c_block_id_z  hw   17929.8 us (n     0, captured   17898.3)  sim   14970.4 us  err   -17%   wgs/core 69 waves 5
+_kernel_bilateral_grid_s0_y_y_o_block_id_y hw    8841.5 us (n     0, captured   14930.9)  sim    9648.2 us  err    +9%   wgs/core 203 waves 102
+_kernel_blurz_s0_y_y_block_id_y hw     154.2 us (n     0, captured     439.8)  sim     164.4 us  err    +7%   wgs/core 27 waves 4
+_kernel_blurx_s0_z_z_block_id_z hw      39.9 us (n     0, captured      46.1)  sim      42.5 us  err    +6%   wgs/core 47 waves 6
+_kernel_blury_s0_z_z_block_id_z hw      40.2 us (n     0, captured      53.6)  sim      39.6 us  err    -1%   wgs/core 47 waves 6
+_kernel_bilateral_grid_s0_y_y_block_id_y hw     137.2 us (n     0, captured     393.5)  sim     126.8 us  err    -8%   wgs/core 405 waves 81
+launches 6  median |err| 7%  within 10%: 5  within 25%: 6
+_kernel_curve_s0_v0_v0_block_id_x hw       3.3 us (n     0, captured       5.3)  sim       3.7 us  err   +11%   wgs/core 1 waves 1
+_kernel_f26_s0___outermost___outermost_v10_block_id_x hw       5.1 us (n     0, captured      10.1)  sim       4.9 us  err    -3%   wgs/core 1 waves 1
+_kernel_sharpen_strength_x32_s0___outermost___outermost_v13_block_id_x hw       2.6 us (n     0, captured       5.7)  sim       3.1 us  err   +19%   wgs/core 1 waves 1
+_kernel_processed_s0_v1_v1_block_id_y hw     581.0 us (n     0, captured    1778.8)  sim     646.8 us  err   +11%   wgs/core 194 waves 65
+launches 4  median |err| 11%  within 10%: 1  within 25%: 4
+_kernel_output_s0_y_block_id_y hw    1823.5 us (n     0, captured    2893.9)  sim    1853.3 us  err    +2%   wgs/core 1617 waves 116
+_kernel_output_s0_y_y_block_id_y hw     411.5 us (n     0, captured    1155.2)  sim     482.6 us  err   +17%   wgs/core 405 waves 81
+launches 2  median |err| 9%  within 10%: 1  within 25%: 2
+_kernel_relu_s0_y_y_o_block_id_z hw    4625.4 us (n     0, captured    4693.6)  sim    4187.8 us  err    -9%   wgs/core 34 waves 34
+_kernel_relu_s0_c_v10_v11_block_id_z hw    4054.4 us (n     0, captured    6124.2)  sim    4228.8 us  err    +4%   wgs/core 169 waves 15
+launches 2  median |err| 7%  within 10%: 2  within 25%: 2
+_kernel_output_s0_y_y_b_block_id_z hw      83.8 us (n     0, captured     225.9)  sim      62.6 us  err   -25%   wgs/core 166 waves 7
+_kernel_output_s0_b_block_id_z hw   16071.3 us (n     0, captured   16007.4)  sim   12836.3 us  err   -20%   wgs/core 166 waves 5
+launches 2  median |err| 23%  within 10%: 0  within 25%: 1
+_kernel_f2_s0_v1_v1_o_block_id_y hw     144.8 us (n     0, captured     152.2)  sim     136.9 us  err    -5%   wgs/core 162 waves 81
+_kernel_f31_s0_v1_block_id_y   hw      90.0 us (n     0, captured     123.2)  sim     105.9 us  err   +18%   wgs/core 323 waves 27
+_kernel_f33_s0_v1_block_id_y   hw      26.0 us (n     0, captured      34.4)  sim      27.2 us  err    +5%   wgs/core 162 waves 5
+_kernel_f36_s0_v1_v1_o_block_id_y hw      10.0 us (n     0, captured      17.1)  sim       7.6 us  err   -24%   wgs/core 6 waves 3
+_kernel_f35_s0_v1_v1_o_block_id_y hw       7.3 us (n     0, captured      16.8)  sim       5.7 us  err   -21%   wgs/core 3 waves 2
+_kernel_f38_s0_v1_v1_o_block_id_y hw       5.3 us (n     0, captured      11.7)  sim       5.3 us  err    -1%   wgs/core 2 waves 1
+_kernel_f37_s0_v1_v1_o_block_id_y hw       4.7 us (n     0, captured       6.9)  sim       4.2 us  err   -10%   wgs/core 1 waves 1
+_kernel_f3_s0__0_block_id_z    hw    1630.2 us (n     0, captured    5108.2)  sim    1716.9 us  err    +5%   wgs/core 2584 waves 235
+_kernel_f5_s0__0_block_id_z    hw     189.5 us (n     0, captured     426.6)  sim     204.9 us  err    +8%   wgs/core 646 waves 59
+_kernel_f7_s0__0_block_id_z    hw      51.5 us (n     0, captured     127.7)  sim      57.4 us  err   +11%   wgs/core 322 waves 9
+_kernel_f10_s0__0__0_o_block_id_z hw      16.1 us (n     0, captured      33.0)  sim      14.3 us  err   -11%   wgs/core 11 waves 4
+_kernel_f9_s0__0__0_o_block_id_z__4 hw       9.5 us (n     0, captured      27.4)  sim       7.8 us  err   -18%   wgs/core 6 waves 2
+_kernel_f12_s0__0__0_o_block_id_z hw       7.1 us (n     0, captured      24.1)  sim       7.4 us  err    +5%   wgs/core 3 waves 1
+_kernel_f11_s0__0__0_o_block_id_z hw       5.5 us (n     0, captured      16.4)  sim       5.5 us  err    +0%   wgs/core 2 waves 1
+_kernel_f40_s0_v1_v1_o_block_id_y hw       4.6 us (n     0, captured       9.8)  sim       4.7 us  err    +3%   wgs/core 1 waves 1
+_kernel_f39_s0_v1_v1_o_block_id_y hw       4.0 us (n     0, captured      10.5)  sim       4.2 us  err    +5%   wgs/core 1 waves 1
+_kernel_f42_s0_v1_v1_o_block_id_y hw       4.0 us (n     0, captured      10.6)  sim       4.2 us  err    +6%   wgs/core 1 waves 1
+_kernel_f41_s0_v1_v1_vo_block_id_y hw       4.1 us (n     0, captured       7.6)  sim       4.3 us  err    +5%   wgs/core 1 waves 1
+_kernel_f44_s0_v1_v1_o_block_id_y hw       4.2 us (n     0, captured       7.6)  sim       4.3 us  err    +1%   wgs/core 1 waves 1
+_kernel_f43_s0_v1_v1_o_block_id_y hw       4.0 us (n     0, captured      10.5)  sim       4.2 us  err    +4%   wgs/core 1 waves 1
+_kernel_f14_s0__0__0_o_block_id_z hw       4.9 us (n     0, captured      13.4)  sim       4.7 us  err    -4%   wgs/core 1 waves 1
+_kernel_f13_s0__0__0_o_block_id_z hw       4.2 us (n     0, captured       9.0)  sim       4.4 us  err    +4%   wgs/core 1 waves 1
+_kernel_f16_s0__0__0_o_block_id_z hw       4.7 us (n     0, captured       9.1)  sim       4.6 us  err    -2%   wgs/core 1 waves 1
+_kernel_f15_s0__0__0_o_block_id_z hw       4.3 us (n     0, captured      10.5)  sim       4.7 us  err    +9%   wgs/core 1 waves 1
+_kernel_outLPyramid7_s0_v1_v1_o_block_id_y hw       4.4 us (n     0, captured      12.1)  sim       4.4 us  err    +1%   wgs/core 1 waves 1
+_kernel_f45_s0_v1_v1_o_block_id_y hw       4.2 us (n     0, captured       7.4)  sim       4.4 us  err    +4%   wgs/core 1 waves 1
+_kernel_lPyramid6_s0_v3_v3_o_block_id_z hw       4.5 us (n     0, captured      11.5)  sim       4.9 us  err    +8%   wgs/core 1 waves 1
+_kernel_outGPyramid6_s0_v1_v1_vo_block_id_y hw       4.8 us (n     0, captured       9.5)  sim       4.7 us  err    -1%   wgs/core 1 waves 1
+_kernel_f47_s0_v1_v1_o_block_id_y hw       4.0 us (n     0, captured       9.8)  sim       4.2 us  err    +4%   wgs/core 1 waves 1
+_kernel_outGPyramid5_s0_v1_v1_o_block_id_y hw       5.6 us (n     0, captured      14.1)  sim       5.4 us  err    -3%   wgs/core 1 waves 1
+_kernel_outGPyramid4_s0_v1_v1_o_block_id_y hw       6.6 us (n     0, captured      19.3)  sim       5.9 us  err   -10%   wgs/core 1 waves 1
+_kernel_f51_s0_v1_v1_o_block_id_y hw       4.8 us (n     0, captured      10.9)  sim       4.8 us  err    -1%   wgs/core 2 waves 1
+_kernel_outGPyramid3_s0_v1_v1_o_block_id_y hw      11.1 us (n     0, captured      25.2)  sim      10.8 us  err    -3%   wgs/core 3 waves 3
+_kernel_f53_s0_v1_v1_o_block_id_y hw       7.5 us (n     0, captured      17.1)  sim       6.3 us  err   -16%   wgs/core 4 waves 2
+_kernel_f55_s0_v1_block_id_y   hw      84.8 us (n     0, captured     243.1)  sim      86.0 us  err    +1%   wgs/core 220 waves 16
+_kernel_outGPyramid1_s0_v1_v1_o_block_id_y hw      69.3 us (n     0, captured     163.5)  sim      54.7 us  err   -21%   wgs/core 27 waves 27
+_kernel_output_s0_v1_v1_o_block_id_y hw  147742.5 us (n     0, captured  153742.5)  sim  166682.6 us  err   +13%   wgs/core 203 waves 203
+_kernel_output_s0_v1_v1_block_id_y hw     121.2 us (n     0, captured     172.4)  sim     139.1 us  err   +15%   wgs/core 809 waves 34
+_kernel_inGPyramid1_s0_v1_v1_block_id_y hw     189.5 us (n     0, captured     513.7)  sim     183.4 us  err    -3%   wgs/core 324 waves 41
+_kernel_inGPyramid2_s0_v1_v1_block_id_y hw      22.8 us (n     0, captured      36.7)  sim      25.1 us  err   +10%   wgs/core 81 waves 5
+_kernel_inGPyramid3_s0_v1_v1_block_id_y hw       8.2 us (n     0, captured      23.7)  sim       8.8 us  err    +7%   wgs/core 21 waves 2
+_kernel_inGPyramid4_s0_v1_v1_block_id_y hw      18.9 us (n     0, captured      22.0)  sim      18.8 us  err    -1%   wgs/core 158 waves 3
+_kernel_inGPyramid5_s0_v1_v1_block_id_y hw       6.0 us (n     0, captured       9.0)  sim       7.1 us  err   +18%   wgs/core 41 waves 1
+_kernel_inGPyramid6_s0_v1_v1_block_id_y hw       4.0 us (n     0, captured       9.4)  sim       4.0 us  err    +0%   wgs/core 10 waves 1
+_kernel_inGPyramid7_s0_v1_v1_block_id_y hw       3.6 us (n     0, captured       8.5)  sim       3.6 us  err    +1%   wgs/core 3 waves 1
+_kernel_gPyramid1_s0_v1_v1_block_id_y hw     793.2 us (n     0, captured    2400.6)  sim     840.5 us  err    +6%   wgs/core 324 waves 65
+_kernel_gPyramid2_s0_v1_v1_block_id_y hw     169.6 us (n     0, captured     240.4)  sim     184.6 us  err    +9%   wgs/core 81 waves 6
+_kernel_gPyramid3_s0_v1_v1_block_id_y hw      44.4 us (n     0, captured      73.6)  sim      48.5 us  err    +9%   wgs/core 21 waves 2
+_kernel_gPyramid4_s0_v1_v1_block_id_y hw      31.9 us (n     0, captured      81.2)  sim      24.5 us  err   -23%   wgs/core 158 waves 3
+_kernel_gPyramid5_s0_v1_v1_block_id_y hw       9.5 us (n     0, captured      23.0)  sim       8.6 us  err   -10%   wgs/core 41 waves 1
+_kernel_gPyramid6_s0_v1_v1_block_id_y hw       7.0 us (n     0, captured      14.6)  sim       6.9 us  err    -2%   wgs/core 8 waves 1
+_kernel_gPyramid7_s0_v1_v1_block_id_y hw       6.8 us (n     0, captured      16.5)  sim       6.5 us  err    -4%   wgs/core 2 waves 1
+_kernel_outGPyramid7_s0_v1_v1_block_id_y hw       3.7 us (n     0, captured       6.6)  sim       3.6 us  err    -2%   wgs/core 3 waves 1
+_kernel_outGPyramid6_s0_v1_v1_block_id_y hw       4.5 us (n     0, captured      11.0)  sim       4.5 us  err    +1%   wgs/core 8 waves 1
+_kernel_outGPyramid5_s0_v1_v1_block_id_y hw       5.2 us (n     0, captured      13.1)  sim       5.9 us  err   +13%   wgs/core 29 waves 1
+_kernel_outGPyramid4_s0_v1_v1_block_id_y hw      13.7 us (n     0, captured      25.8)  sim      13.5 us  err    -1%   wgs/core 105 waves 2
+_kernel_outGPyramid3_s0_v1_v1_block_id_y hw       8.6 us (n     0, captured      17.1)  sim       8.8 us  err    +3%   wgs/core 15 waves 2
+_kernel_outGPyramid2_s0_v1_v1_block_id_y hw      19.5 us (n     0, captured      37.5)  sim      24.3 us  err   +24%   wgs/core 54 waves 4
+_kernel_outGPyramid1_s0_v1_v1_block_id_y hw      61.3 us (n     0, captured     130.5)  sim      92.4 us  err   +51%   wgs/core 208 waves 13
+_kernel_outGPyramid0_s0_v1_v1_block_id_y hw     187.3 us (n     0, captured     553.7)  sim     184.4 us  err    -2%   wgs/core 809 waves 63
+launches 60  median |err| 5%  within 10%: 43  within 25%: 59
+_kernel_non_local_means_sum_s0_y_y_block_id_y hw      54.2 us (n     0, captured      71.0)  sim      66.6 us  err   +23%   wgs/core 203 waves 34
+_kernel_blur_d_s0_dx_block_id_z__2 hw    1956.9 us (n     0, captured    5248.7)  sim    2170.0 us  err   +11%   wgs/core 238 waves 119
+_kernel_non_local_means_sum_s1_y_y_block_id_y__2 hw     881.8 us (n     0, captured    1887.0)  sim     714.5 us  err   -19%   wgs/core 203 waves 51
+_kernel_non_local_means_s0_y_y_block_id_y hw     308.3 us (n     0, captured     303.0)  sim     316.3 us  err    +3%   wgs/core 203 waves 41
+_kernel_blur_d_s0_dx_block_id_z hw    1980.5 us (n     0, captured    5251.5)  sim    2187.1 us  err   +10%   wgs/core 238 waves 119
+_kernel_non_local_means_sum_s1_y_y_block_id_y hw     864.2 us (n     0, captured    1887.0)  sim     711.4 us  err   -18%   wgs/core 203 waves 51
+launches 6  median |err| 14%  within 10%: 1  within 25%: 6
+_kernel_stage_1_s0_y_y_block_id_y hw      78.7 us (n     0, captured     207.7)  sim      78.4 us  err    -0%   wgs/core 166 waves 28
+_kernel_stage_2_s0_y_y_block_id_y hw      80.8 us (n     0, captured     214.3)  sim      78.2 us  err    -3%   wgs/core 166 waves 28
+_kernel_stage_3_s0_y_y_block_id_y hw      81.5 us (n     0, captured     216.1)  sim      79.7 us  err    -2%   wgs/core 165 waves 28
+_kernel_stage_4_s0_y_y_block_id_y hw      81.5 us (n     0, captured     217.7)  sim      78.7 us  err    -3%   wgs/core 165 waves 28
+_kernel_stage_5_s0_y_y_block_id_y hw      81.4 us (n     0, captured     217.4)  sim      78.9 us  err    -3%   wgs/core 165 waves 28
+_kernel_stage_6_s0_y_y_block_id_y hw      81.1 us (n     0, captured     214.9)  sim      79.2 us  err    -2%   wgs/core 164 waves 28
+_kernel_stage_7_s0_y_y_block_id_y hw      81.2 us (n     0, captured     220.0)  sim      81.2 us  err    -0%   wgs/core 164 waves 28
+_kernel_stage_8_s0_y_y_block_id_y hw      81.0 us (n     0, captured     215.5)  sim      76.5 us  err    -6%   wgs/core 164 waves 28
+_kernel_stage_9_s0_y_y_block_id_y hw      80.8 us (n     0, captured     214.5)  sim      78.5 us  err    -3%   wgs/core 163 waves 28
+_kernel_stage_10_s0_y_y_block_id_y hw      80.8 us (n     0, captured     213.5)  sim      79.7 us  err    -1%   wgs/core 163 waves 28
+_kernel_stage_11_s0_y_y_block_id_y hw      78.6 us (n     0, captured     206.4)  sim      75.6 us  err    -4%   wgs/core 158 waves 27
+_kernel_stage_12_s0_y_y_block_id_y hw      78.2 us (n     0, captured     206.3)  sim      76.3 us  err    -2%   wgs/core 157 waves 27
+_kernel_stage_13_s0_y_y_block_id_y hw      78.4 us (n     0, captured     205.4)  sim      74.2 us  err    -5%   wgs/core 157 waves 27
+_kernel_stage_14_s0_y_y_block_id_y hw      78.2 us (n     0, captured     206.3)  sim      73.8 us  err    -6%   wgs/core 157 waves 27
+_kernel_stage_15_s0_y_y_block_id_y hw      78.0 us (n     0, captured     205.0)  sim      76.3 us  err    -2%   wgs/core 156 waves 26
+_kernel_stage_16_s0_y_y_block_id_y hw      78.0 us (n     0, captured     205.0)  sim      75.8 us  err    -3%   wgs/core 156 waves 26
+_kernel_stage_17_s0_y_y_block_id_y hw      77.9 us (n     0, captured     205.0)  sim      76.3 us  err    -2%   wgs/core 156 waves 26
+_kernel_stage_18_s0_y_y_block_id_y hw      76.6 us (n     0, captured     202.3)  sim      73.6 us  err    -4%   wgs/core 155 waves 26
+_kernel_stage_19_s0_y_y_block_id_y hw      76.7 us (n     0, captured     201.5)  sim      74.4 us  err    -3%   wgs/core 155 waves 26
+_kernel_stage_20_s0_y_y_block_id_y hw      76.5 us (n     0, captured     202.5)  sim      72.7 us  err    -5%   wgs/core 155 waves 26
+_kernel_stage_21_s0_y_y_block_id_y hw      76.4 us (n     0, captured     200.0)  sim      73.8 us  err    -3%   wgs/core 155 waves 26
+_kernel_stage_22_s0_y_y_block_id_y hw      76.2 us (n     0, captured     201.2)  sim      72.7 us  err    -5%   wgs/core 155 waves 26
+_kernel_stage_23_s0_y_y_block_id_y hw      76.4 us (n     0, captured     200.5)  sim      73.1 us  err    -4%   wgs/core 155 waves 26
+_kernel_stage_24_s0_y_y_block_id_y hw      76.0 us (n     0, captured     200.2)  sim      73.3 us  err    -4%   wgs/core 154 waves 26
+_kernel_stage_25_s0_y_y_block_id_y hw      76.2 us (n     0, captured     199.3)  sim      72.9 us  err    -4%   wgs/core 154 waves 26
+_kernel_stage_26_s0_y_y_block_id_y hw      73.5 us (n     0, captured     191.9)  sim      70.4 us  err    -4%   wgs/core 148 waves 25
+_kernel_stage_27_s0_y_y_block_id_y hw      73.7 us (n     0, captured     110.3)  sim      71.3 us  err    -3%   wgs/core 148 waves 25
+_kernel_stage_28_s0_y_y_block_id_y hw      73.7 us (n     0, captured      94.3)  sim      70.1 us  err    -5%   wgs/core 148 waves 25
+_kernel_stage_29_s0_y_y_block_id_y hw      73.7 us (n     0, captured     109.4)  sim      68.1 us  err    -8%   wgs/core 148 waves 25
+_kernel_stage_30_s0_y_y_block_id_y hw      73.4 us (n     0, captured     109.5)  sim      67.8 us  err    -8%   wgs/core 147 waves 25
+_kernel_stage_31_s0_y_y_block_id_y hw      73.3 us (n     0, captured     141.7)  sim      68.7 us  err    -6%   wgs/core 147 waves 25
+_kernel_output_s0_y_y_block_id_y hw      73.1 us (n     0, captured     141.6)  sim      69.2 us  err    -5%   wgs/core 147 waves 25
+launches 32  median |err| 4%  within 10%: 32  within 25%: 32
+_Z14calculate_tempiPfS_S_iiiiffffff hw     401.7 us (n     0, captured     585.2)  sim     360.1 us  err   -10%   wgs/core 49 waves 17
+launches 1  median |err| 10%  within 10%: 0  within 25%: 1
+_Z19histogram1024KernelPjPfffi hw     344.0 us (n     0, captured     425.4)  sim     311.4 us  err    -9%   wgs/core 2 waves 1
+_Z11bucketcountPfPiPji         hw   14534.2 us (n     0, captured   14508.9)  sim   11551.8 us  err   -21%   wgs/core 27 waves 2
+_Z18bucketprefixoffsetPjS_i    hw     345.2 us (n     0, captured     424.3)  sim     334.6 us  err    -3%   wgs/core 1 waves 1
+_Z10bucketsortPfPiS_iPjS1_     hw     394.4 us (n     0, captured     393.0)  sim     302.9 us  err   -23%   wgs/core 27 waves 2
+_Z14mergeSortFirstP6float4i    hw     315.2 us (n     0, captured     313.3)  sim     313.5 us  err    -1%   wgs/core 108 waves 54
+_Z9mergepackPfS_               hw      92.2 us (n     0, captured     108.5)  sim     101.6 us  err   +10%   wgs/core 459 waves 39
+_Z13mergeSortPassP6float4ii    hw    1506.0 us (n     0, captured    4270.2)  sim    1285.3 us  err   -15%   wgs/core 35 waves 18
+launches 7  median |err| 10%  within 10%: 3  within 25%: 7
+_Z11kmeansPointPfiiiPiS_S_S0_  hw   19083.8 us (n     0, captured   24691.2)  sim   16433.7 us  err   -14%   wgs/core 86 waves 43
+launches 1  median |err| 14%  within 10%: 0  within 25%: 1
+_Z6kerneliPfS_S_S_             hw    3047.0 us (n     0, captured    3441.7)  sim    3046.3 us  err    -0%   wgs/core 1 waves 1
+launches 1  median |err| 0%  within 10%: 1  within 25%: 1
+_Z6euclidP7latLongPfiff        hw       4.6 us (n     0, captured      18.0)  sim       4.4 us  err    -4%   wgs/core 5 waves 1
+launches 1  median |err| 4%  within 10%: 1  within 25%: 1
+_Z4sradfiilPiS_S_S_PfS0_S0_S0_fS0_S0_ hw      83.4 us (n     0, captured     222.1)  sim      66.6 us  err   -20%   wgs/core 12 waves 6
+_Z5srad2fiilPiS_S_S_PfS0_S0_S0_S0_S0_ hw      40.7 us (n     0, captured     109.2)  sim      33.4 us  err   -18%   wgs/core 12 waves 6
+_Z6reduceliiPfS_               hw      28.6 us (n     0, captured      76.7)  sim      27.4 us  err    -4%   wgs/core 1 waves 1
+_Z7preparelPfS_S_              hw      10.1 us (n     0, captured      11.8)  sim      10.4 us  err    +3%   wgs/core 12 waves 2
+launches 4  median |err| 11%  within 10%: 2  within 25%: 4
+_Z6KernelP4NodePiPbS2_S2_S1_i  hw     119.6 us (n     0, captured     331.2)  sim     138.2 us  err   +16%   wgs/core 52 waves 9
+_Z7Kernel2PbS_S_S_i            hw     147.9 us (n     0, captured     426.8)  sim     135.7 us  err    -8%   wgs/core 52 waves 9
+launches 2  median |err| 12%  within 10%: 1  within 25%: 2
+_Z4Fan1PfS_ii                  hw      26.1 us (n     0, captured      72.2)  sim      26.0 us  err    -1%   wgs/core 1 waves 1
+_Z4Fan2PfS_S_iii               hw       8.8 us (n     0, captured      16.4)  sim       9.2 us  err    +4%   wgs/core 1 waves 1
+_Z4Fan1PfS_ii                  hw      26.1 us (n     0, captured      72.2)  sim      26.0 us  err    -1%   wgs/core 1 waves 1
+_Z4Fan2PfS_S_iii               hw       8.8 us (n     0, captured      16.4)  sim       9.0 us  err    +2%   wgs/core 1 waves 1
+launches 4  median |err| 1%  within 10%: 4  within 25%: 4
+_Z6kernelv                     SIM FAILED list index out of range 
+_Z11hotspotOpt1PfS_S_fiiifffffff hw     238.1 us (n     0, captured     632.1)  sim     176.8 us  err   -26%   wgs/core 27 waves 7
+launches 1  median |err| 26%  within 10%: 0  within 25%: 0
+_Z12lud_diagonalPfii           hw      44.5 us (n     0, captured     128.5)  sim      40.9 us  err    -8%   wgs/core 1 waves 1
+_Z13lud_perimeterPfii          hw      34.9 us (n     0, captured      96.2)  sim      30.6 us  err   -12%   wgs/core 1 waves 1
+_Z12lud_internalPfii           hw       5.5 us (n     0, captured      10.8)  sim       5.1 us  err    -8%   wgs/core 6 waves 1
+launches 3  median |err| 8%  within 10%: 2  within 25%: 3
+_Z20needle_cuda_shared_2PiS_iiii hw      36.5 us (n     0, captured      60.5)  sim      37.7 us  err    +3%   wgs/core 4 waves 1
+_Z20needle_cuda_shared_1PiS_iiii hw      34.5 us (n     0, captured      95.9)  sim      34.3 us  err    -1%   wgs/core 1 waves 1
+launches 2  median |err| 2%  within 10%: 2  within 25%: 2
+_Z6kernelPdS_S_S_S_S_i         hw      88.2 us (n     0, captured      94.6)  sim      74.8 us  err   -15%   wgs/core 1 waves 1
+_Z17likelihood_kernelPdS_S_S_S_PiS0_S_PhS_S_iiiiiiS0_S_ hw     601.0 us (n     0, captured    1541.9)  sim     636.4 us  err    +6%   wgs/core 1 waves 1
+_Z10sum_kernelPdi              hw       6.8 us (n     0, captured      12.6)  sim       6.1 us  err   -10%   wgs/core 1 waves 1
+_Z24normalize_weights_kernelPdiS_S_S_Pi hw     274.5 us (n     0, captured     845.8)  sim     256.6 us  err    -7%   wgs/core 1 waves 1
+_Z17find_index_kernelPdS_S_S_S_S_S_i hw     110.0 us (n     0, captured     341.8)  sim      97.6 us  err   -11%   wgs/core 1 waves 1
+launches 5  median |err| 10%  within 10%: 3  within 25%: 5
+_Z14dynproc_kerneliPiS_S_iiii  hw     214.8 us (n     0, captured     589.8)  sim     198.1 us  err    -8%   wgs/core 13 waves 3
+launches 1  median |err| 8%  within 10%: 1  within 25%: 1
+_Z11srad_cuda_1PfS_S_S_S_S_iif hw    2076.5 us (n     0, captured    4233.2)  sim    1962.7 us  err    -5%   wgs/core 432 waves 108
+_Z11srad_cuda_2PfS_S_S_S_S_iiff hw    1008.6 us (n     0, captured    1349.2)  sim    1005.9 us  err    -0%   wgs/core 432 waves 108
+launches 2  median |err| 3%  within 10%: 2  within 25%: 2
+_Z19kernel_compute_costiilP5PointiiPfS1_PiPb hw     205.0 us (n     0, captured     294.1)  sim     211.9 us  err    +3%   wgs/core 4 waves 2
+launches 1  median |err| 3%  within 10%: 1  within 25%: 1

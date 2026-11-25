@@ -967,8 +967,9 @@ pub fn frag_iter(name: &str, f: &Fields, ops: &[Operand], st: &mut CoreState, gr
                 continue;
             }
             let i = cf_index(&ops[1], st, t)?;
+            let (px, py) = fs.pixel(group, t);
             for k in 0..channels {
-                let c = fs.cf.get(i + k).ok_or_else(|| format!("ldcf: coefficient register {} not set up", i + k))?;
+                let c = &fs.coeff(i + k, px, py).ok_or_else(|| format!("ldcf: coefficient register {} not set up", i + k))?;
                 for (j, v) in c.iter().enumerate() {
                     put_val(st, &dest[3 * k + j], t, *v)?;
                 }

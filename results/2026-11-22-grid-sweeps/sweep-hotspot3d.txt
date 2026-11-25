@@ -1,0 +1,15 @@
+y=8 hw 29.5 sim 30.1 waves 1 wgs/core 1
+y=76 hw 88.7 sim 84.4 waves 2 wgs/core 5
+y=152 hw 107.3 sim 85.1 waves 2 wgs/core 8
+y=304 hw 169.0 sim 120.3 waves 4 wgs/core 16
+y=512 hw 237.8 sim 180.2 waves 7 wgs/core 27
+y=16 hw 31.5 sim 30.6 waves 1 wgs/core 1 cap 4
+y=24 hw 45.2 sim 41.5 waves 1 wgs/core 2 cap 4
+y=32 hw 47.5 sim 42.0 waves 1 wgs/core 2 cap 4
+y=40 hw 60.7 sim 55.9 waves 1 wgs/core 3 cap 4
+y=48 hw 63.4 sim 56.3 waves 1 wgs/core 3 cap 4
+y=56 hw 78.0 sim 71.0 waves 1 wgs/core 4 cap 4
+y=64 hw 78.8 sim 71.7 waves 1 wgs/core 4 cap 4
+y=96 hw 95.3 sim 80.3 waves 2 wgs/core 6 cap 4
+y=112 hw 99.8 sim 80.6 waves 2 wgs/core 6 cap 4
+y=128 hw 105.5 sim 84.7 waves 2 wgs/core 7 cap 4

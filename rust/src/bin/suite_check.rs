@@ -163,6 +163,9 @@ fn check(c: &Value) -> Result<Verdict, String> {
             tg_bytes: u(&launch["shared_bytes"]) as u32,
             regs: u(&launch["regs"]) as u32,
             pipeline: c["device"].as_str().filter(|s| s.contains("direct DRM")).map(|_| 0x1000),
+            // SR21 (VM slot) changes per launch, so the recordings that read it have a nondeterministic output and only
+            // their deterministic parts are compared: any slot value runs them.
+            context: if c.get("deterministic_out").and_then(Value::as_bool) == Some(false) { Some(0) } else { None },
             ..Default::default()
         },
     };
@@ -278,6 +281,11 @@ fn check(c: &Value) -> Result<Verdict, String> {
 }
 
 fn main() {
+    // SR113 is a firmware power-management bit (0 idle, 8 busy; playground 2026-10-16-special-registers). It is
+    // time-varying, so recordings that read it are nondeterministic. Read it as 0 unless the caller chooses.
+    if std::env::var_os("AGX_SR_DEFAULT").is_none() {
+        unsafe { std::env::set_var("AGX_SR_DEFAULT", "0") };
+    }
     let args: Vec<String> = std::env::args().skip(1).collect();
     let verbose = args.iter().any(|a| a == "-v");
     TRACES.store(args.iter().any(|a| a == "--traces"), std::sync::atomic::Ordering::Relaxed);

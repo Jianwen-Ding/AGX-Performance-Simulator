@@ -1,0 +1,7 @@
+agx_sgemm_tile64               hw      18.8 us (n     0, captured       0.0)  sim      13.0 us  err   -31%   wgs/core 2 waves 1
+agx_hgemm_tile64_cf16_tb       hw      72.5 us (n     0, captured       0.0)  sim      50.4 us  err   -31%   wgs/core 1 waves 1
+agx_hgemm_tile64_cf16_u_tb     hw      75.8 us (n     0, captured       0.0)  sim      57.8 us  err   -24%   wgs/core 1 waves 1
+agx_sgemm_tile64_u             SIM FAILED list index out of range 
+_ZL12soft_max_f32ILb1ELi512ELi512EfEvPKfPKT2_S1_Pf15soft_max_params hw     425.2 us (n     0, captured       0.0)  sim     440.9 us  err    +4%   wgs/core 189 waves 189
+_ZL24mul_mat_q_stream_k_fixupIL9ggml_type8ELi128ELb0EL9ggml_prec30EEvPKiPK25ggml_cuda_mm_id_tile_specPfS7_5uint3iiiS8_iS8_iS8_ hw      38.5 us (n     0, captured       0.0)  sim      19.8 us  err   -49%   wgs/core 2 waves 1
+launches 5  median |err| 31%  within 10%: 1  within 25%: 2

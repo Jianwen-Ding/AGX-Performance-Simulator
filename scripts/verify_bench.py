@@ -9,7 +9,9 @@ def check(ok, msg):
     global fails
     fails += not ok; print(('ok   ' if ok else 'FAIL ')+msg)
 ops = r['ops']
-check(r.get('complete') and len(ops) == 60, f"60 instruction variants measured, run complete ({r['dispatches']} dispatches)")
+# the 60 variants of the original run plus the six added 2026-10-21 (B15 simd_matrix_fmadd, B18 lane-offset fmadd, shuffle_up)
+EXTRA = {'simd_matrix_fmadd32', 'simd_matrix_fmadd16', 'simd_shuffle_up1', 'fmadd32_lane1', 'fmadd32_lane15', 'fmadd16_lane1'}
+check(r.get('complete') and len(set(ops) - EXTRA) == 60 and EXTRA <= set(ops), f"60 + {len(EXTRA)} instruction variants measured, run complete ({r['dispatches']} dispatches)")
 check(all('cycles_per_step' in v[m] for v in ops.values() for m in ('latency', 'simd_issue', 'gpu')), 'every variant accepted in all three modes')
 check(all(v[m]['max_abs_drift'] < 0.02 for v in ops.values() for m in ('latency', 'simd_issue')), 'single-group modes: reference phases before/after agree within 2% (no clock change)')
 agree = [abs(v['gpu']['previous_dispatch_lanes']-v['gpu']['lanes_per_cycle_per_core'])/v['gpu']['lanes_per_cycle_per_core'] for v in ops.values()]

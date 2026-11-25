@@ -71,6 +71,13 @@ are linked where they already cover part of it.
     byte), also across 64-byte lines and pages? With the AGX backend's `-agx-element-aligned-vectors` (off) the model
     gives q8_matvec -54% cycles, attn_decode -14% tput (12 -> 3 loads), f16 tile GEMMs up to -17% tput
     (llvm-project agx-bench EXPERIMENTS.md R23): the largest gain left that rests on one hardware fact.
+    *Partly answered by the coverage recordings (2026-11-14 reading):* `coverage/expected/mem_load` has i16 `xy` /
+    `xyzw` and i8 `xy` / `xyzw` device loads with indices `(gid*37 & 255) + 3`, element-scaled, so 768 of 1024 i16
+    `xyzw` lanes are at 2-byte (not 8-byte) alignment and 96 straddle a 64-byte line (i8 `xyzw`: 768 at byte
+    alignment, 48 across lines); all six cases are deterministic and `suite_check` matches them exactly. Still
+    unrecorded: a vector load straddling a 16 KiB page (the table starts page-aligned and spans 516 bytes), and
+    element-aligned vector *stores* (the store cases' indices keep the vector aligned). Those two remain the
+    hardware facts the backend option waits on.
 16. **Trip counts computed by a division.** `agx_cost` skips `rcp` and `convert` (emulator_skipped), so a loop whose
     bounds come from an integer division (the backend's 32-bit division uses the f32 reciprocal) has an unknown trip
     count, and the loop is costed as not running (warning "if_icmp condition depends on ... a skipped result"). agx_libs'
@@ -89,6 +96,14 @@ are linked where they already cover part of it.
     (a 64-bit add, the uniform base copied to registers) because no recording has it with an index. Needed: the
     `atomic_fadd` cases (uniform and register base, index register, returning and not) in the coverage catalog's atomic
     area, recorded.
+20. **icmpsel / fcmpsel with one 16-bit and one 32-bit compared operand.** A compare-select reading three or more
+    32-bit registers issues in two cycles, with two in one (`agx_cost` PORT_BOUND); 16-bit operands do not count. The
+    AGX backend now reads half-exact fmadd32 constants and small-integer floats from 16-bit registers (llvm-project
+    EXPERIMENTS.md L15-E370, L15-E371) because fmadd32 with 16-bit sources is recorded (`fmadd32_r14_r6l_r7h_r8`). The
+    same would apply to `fcmpsel lt, x, C, a, b` against a constant C that half holds exactly (174 such compares in
+    the agx-bench corpus, softmax / exp range tests), but every cmpsel recording compares two operands of one size
+    (`fcmpsel_*_r14_r6_r7_r8_r9`, `_r14l_r6l_r7l_r8l_r9l`). Needed: `fcmpsel lt, r14, r6, r7l, r8, r9` and the icmpsel
+    form with a 16-bit operand and `.sx`, recorded (does the 16-bit operand widen as fadd32's and iadd's do?).
 
 ## Functional model / encodings
 
@@ -108,6 +123,10 @@ are linked where they already cover part of it.
     `total_active_threads_in_simdgroup` (sr59) disagree with `ballot`: with one active thread sr59 read 11, with 32
     it read 1 (PTX-formalization atomics.ptx / launch-maxntid-total.ptx under the atomic optimizer). The backend
     now derives both from the ballot; the emulation (or the register numbering) needs checking against hardware.
+    **Checked 2026-11-22:** agx_run matches the M2 Max byte for byte on eight divergence masks, including one active lane
+    (sr58 0, sr59 1) and 32 or 40 active threads ([results/2026-11-22-active-sr](../results/2026-11-22-active-sr/README.md),
+    `scripts/active_sr_check.py`). The emulation is right, so the old reading came from the backend code of that time or from the
+    `agx_run` before 97cffd81. To close this item, re-run the two PTX tests with the backend's SR form.
 17. **Empty-mask memory accesses (B31 against `agx_cost`).** With an if body of at most 4 instructions that holds
     device / threadgroup loads or stores run under an empty execution mask instead of jumped over, `agx_cost` reports
     every affected agx-bench kernel faster (conv3x3 tput -17%, bitonic_smem -7%, saxpy -20%; llvm-project

@@ -56,6 +56,9 @@ help:
 rust:
 	cd rust && cargo build --release
 
+verify-render-model: rust   # offline: render model vs stored direct-ioctl replays (pixels, timing)
+	python3 -I scripts/render_fixtures.py verify
+
 test:
 	cd rust && cargo test --release
 
@@ -170,6 +173,7 @@ verify-transcendentals: rust
 
 verify-sr: rust
 	$(PYTHON) -B scripts/sr_check.py
+	$(PYTHON) -B scripts/active_sr_check.py
 
 verify-traces: rust
 	rust/target/release/suite_check --traces
