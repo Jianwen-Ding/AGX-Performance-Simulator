@@ -68,3 +68,15 @@ Each extra staggered group costs 83 us on hw and 57 us in the model, i.e. 13.5 v
 per-core fetch port charged after the stream logic (10-16 ns per line, tried and reverted) and the i-cache victim
 count (1-8) barely move the model (G16 1084-1123). Not modelled yet: the followers seem to find fewer of the leader's
 lines in the cache than the model's i-cache gives them.
+
+### Stagger distance at 8 groups (straight code, hw two repeats within 1.4 us)
+
+| K | 0 | 16 | 32 | 64 | 128 | 256 |
+|---|---|---|---|---|---|---|
+| hw | 226.0 | 384.8 | 516.9 | 734.4 | 1173.7 | 2066.5 |
+| model | 239.6 | 310.2 | 431.1 | 635.1 | 1061.8 | 1924.3 |
+
+Both grow by ~7 us per unit of K (the stagger spin). Once the groups are apart at all, hw is 75-142 us above the model:
+hw behaves as if the last group streams the whole body by itself after its spin (226 + spin + ~50). It is not the
+model's i-cache capacity (48-192 lines: no change), not a per-core fetch port, and not the i-cache keeping streamed
+lines for later groups (an experiment that drops them, with in-flight sharing kept: no change). Tried and reverted.
