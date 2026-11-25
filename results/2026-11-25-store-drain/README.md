@@ -37,5 +37,17 @@ rejected because the Halide stencil stages went to +48%. That came from the char
 | core scaling grid / chains / idle / dests | 3.1 / 3.3 / 7.1 / 5.8% | 3.0 / 3.3 / 7.1 / 5.8% (idle p90 0.41 → 0.28) |
 | `verify-memory-model`, `verify-dispatch`, `verify-cost-model`, `verify-jump-fetch` | pass | pass (dispatch 4.8%, cost model identical) |
 
-Still open: soft_max (in place, 1 workgroup per core) hides about half its store time on hardware and rope about
-three-quarters (DRAM streaming). The drain charges both in full, apart from the DRAM-line share.
+### The two launches that got worse: their stores are right, the rest is too slow
+
+The stores were replaced by `iadd r9, r9, 0` in the code (same size), as in the 2026-11-11 hardware variants, and the
+model was run on the result:
+
+| Kernel | No-store, hw | No-store, model | Store part, hw | Store part, model (drain) | Store part, model (before) |
+|---|---|---|---|---|---|
+| rope_neox f32 | 28.3 us | 32.3 us (+14%) | +5.2 | +3.9 | +1.3 |
+| soft_max_f32 | 403.1 us | 461.2 us (+14%) | +22 | +30 | +2.5 |
+
+The old model's rope 0% and soft_max +9% came from under-charged stores offsetting compute that is 14% too slow.
+For soft_max, the 2026-11-11 cut sweep had already found the cause: its two dependent row loads cost 0.62 us per
+workgroup in the model and 0.34 on hardware. An extra rule that hides store time behind other groups' DRAM loads
+(`AGX_STORE_HIDE_DRAM`, tried and reverted) changed nothing.
