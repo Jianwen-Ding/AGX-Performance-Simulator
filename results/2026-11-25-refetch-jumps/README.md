@@ -36,3 +36,23 @@ A taken jump's target is requested when the group's current straight run began, 
 It is not adopted: the held-out set and fa get slightly worse. Bounding the overlap by the lines streamed in the run
 (no overlap for 1-line runs) does not help bucketcount (-39%) and breaks the R=1 fit (1308 us). bucketcount's gap
 is in how groups share each other's fetches (see AGX_STREAM_OWNER, 2026-11-10), not in this rule.
+
+## Several groups per core ([hw.txt](hw.txt), two repeats within 0.9 us)
+
+G groups per core, started together (K=0) or staggered by 64 x 32 lanes of spin (K=64), T=8 trips of a 48 KB
+executed body. Times in us:
+
+| Body | G1 K0 | G4 K0 | G8 K0 | G1 K64 | G4 K64 | G8 K64 |
+|---|---|---|---|---|---|---|
+| straight, hw | 224.3 | 218.0 | 225.7 | 278.9 | 434.8 | 734.5 |
+| straight, model | 226.1 | 230.2 | 239.6 | 278.6 | 414.7 | 635.1 |
+| SKIP=4,4, hw | 304.0 | 315.3 | 307.6 | 358.8 | 509.1 | 835.6 |
+| SKIP=4,4, model defaults | 569.7 | 576.6 | 596.6 | 622.2 | 740.0 | 989.2 |
+| SKIP=4,4, model experiment | 299.2 | 350.5 | 434.2 | 349.5 | 497.4 | 754.3 |
+
+- Groups that start together share the fetch, jumps included: 304 / 315 / 308 us for 1 / 4 / 8 groups.
+- The experiment's time grows with the group count when the groups start together (+41% at 8). The cause is not
+  the taken-jump table (`AGX_JUMP_ENTRIES=0`), not the stream window, and not the `wait 0` padding (`PAD=mov` fills with
+  mov_imm instead: 291 / 338 / 432). Still open.
+- Staggered 8 groups (G8 K64) are under-predicted with and without jumps (-10..-14%). They have to fetch every line
+  apart, and hw pays more for that than the model's stream does. This is the bucketcount-like case.

@@ -46,6 +46,12 @@ def program(body_kb):
             i = 0
             while len(seg) + jl + len(one[0]) <= rl * 64:
                 seg += one[i % 8]; i += 1
+            if os.environ.get('PAD') == 'mov':
+                # PAD=mov: fill with 6-byte mov_imm instead of 2-byte waits (no wait in the body)
+                mv = P.e('mov_imm r9, 0, 0b0')
+                while (rl * 64 - jl - len(seg)) % len(mv) and len(seg) >= len(one[0]):
+                    seg = seg[:-len(one[0])]
+                seg += mv * ((rl * 64 - jl - len(seg)) // len(mv))
             seg += P.e('wait 0') * ((rl * 64 - jl - len(seg)) // 2)
             assert len(seg) + jl == rl * 64, (len(seg), jl)
             seg += P.e(f'jmp_exec_any pc+{jl + dl * 64}', f'jmp_exec_any pc+{jl + dl * 64}') + P.e('stop') * (dl * 32)
