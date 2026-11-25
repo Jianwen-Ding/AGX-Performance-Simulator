@@ -65,7 +65,9 @@ repeats:
 | 7168 (29 MB, end of the SLC transition) | 127.5 / 137.6 | 155.4 | 79.8-79.9 | 74.3 |
 
 At soft_max's occupancy with SLC-resident data the model matches. So the +14% of soft_max without its stores comes
-from somewhere else. Two candidates remain: its loads take their address from a 64-bit register pair (r6_r7 +
-index), the form that made k_bin_bcast's stores 3x slower, or its threadgroup reductions with barriers. At 128- and
+from somewhere else. The register-address load form (LOADREG=1, soft_max's `device_load 0, i32, x, r19, r10_r11,
+r5, unsigned`, verified byte for byte against its capture) makes no difference: hw 11.2 / 33.6 us against 11.1 /
+33.2, model 10.1 / 33.4. What remains is its threadgroup reductions with barriers, at 16 groups per core. That
+contradicts the 2026-11-11 cut sweep ("the rest matches"), so the next step is a cut-for-cut model comparison. At 128- and
 512-thread workgroups with many per core, distinct loads come out +6..+9% and broadcast loads up to -29% (WG 512,
 40.3 vs 28.8 us).

@@ -6,7 +6,7 @@ Each thread (workgroups of 128) runs ITER trips of: load a[gid + trip * N*128] a
 out[gid + trip * N*128] (k_bin_bcast's shape). BCAST=1: b's index is the lane's word in one of the 8 blocks of 128 words picked by workgroup id mod 8 (every workgroup reads one of the same 1024 words); 0: b is
 indexed like a.
 
-usage: probe_hot_lines.py [hw|sim|both]; env N="40 512 2048" BCAST="0 1" ITER=2 SERIAL=0 GRID2D=0 STRIDE=N*128 REGSTORE=0 NOSTORE=0 STORE16=0 WG=128 ROWW=0 (with GRID2D) OUTMB=0 (OUT's buffer object size) PRE=0 POST=0 IFWRAP=0 B2B=5000
+usage: probe_hot_lines.py [hw|sim|both]; env N="40 512 2048" BCAST="0 1" ITER=2 SERIAL=0 GRID2D=0 STRIDE=N*128 REGSTORE=0 NOSTORE=0 STORE16=0 LOADREG=0 WG=128 ROWW=0 (with GRID2D) OUTMB=0 (OUT's buffer object size) PRE=0 POST=0 IFWRAP=0 B2B=5000
 """
 import json, os, re, subprocess, sys, tempfile
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -37,15 +37,20 @@ def build(iters, bcast):
     for i in range(int(os.environ.get('PRE', '0'))):
         code += P.e(f'iadd r{FREE[i % 8]}, r{FREE[i % 8]}, 1')
     wrap = os.environ.get('IFWRAP') == '1'  # each trip inside an always-true if (k_bin_bcast's loop is)
+    # LOADREG=1: the loads take their base from a 64-bit register pair (soft_max_f32's compiled form,
+    # `device_load 0, i32, x, r19, r10_r11, r5, unsigned`) instead of a uniform pair
+    loadreg = os.environ.get('LOADREG') == '1'
+    if loadreg:
+        code += P.e('iadd r6, u8, 0') + P.e('iadd r7, u9, 0') + P.e('iadd r26, u6, 0') + P.e('iadd r27, u7, 0')
     for i in range(iters):
         if wrap:
             code += P.e('if_fcmp r0l, eq, 0.0, 0.0, 1', 'push_exec r0l, 1')
         if i:
             code += P.e('iadd r10, r10, u14') + (b'' if bcast else P.e('iadd r21, r21, u14'))
-        code += P.e('device_load 0, i32, x, r12, u8_u9, r10, unsigned')
+        code += P.e('device_load 0, i32, x, r12, r6_r7, r10, unsigned' if loadreg else 'device_load 0, i32, x, r12, u8_u9, r10, unsigned')
         if os.environ.get('SERIAL') == '1':  # wait for each load before the next (k_bin_bcast's compiled order)
             code += P.e('wait 0')
-        code += P.e('device_load 0, i32, x, r13, u6_u7, r21, unsigned')
+        code += P.e('device_load 0, i32, x, r13, r26_r27, r21, unsigned' if loadreg else 'device_load 0, i32, x, r13, u6_u7, r21, unsigned')
         code += P.e('wait 0')
         code += P.e('fadd32 r12, r12, r13')
         if os.environ.get('NOSTORE') == '1':  # no store (its cost = the difference)
