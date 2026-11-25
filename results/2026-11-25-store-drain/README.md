@@ -15,7 +15,7 @@ NOSTORE=1. PRE / POST add n independent iadds before the loads / after the store
   of stores (~450-520 GB/s).
 - The cost is per byte: half the bytes cost half the time, whatever the width.
 
-## Model: `AGX_STORE_DRAIN=8 AGX_STORE_DRAIN_ISSUE=1 AGX_STORE_DRAIN_GBPS=450` (experiment, off by default)
+## Model: store drain by bytes (default since 2026-11-25; `AGX_STORE_DRAIN=0` turns it off)
 
 The 2026-11-11 drain experiment (stores stall the core's issue at the drain rate) fitted llama's kernels, but it was
 rejected because the Halide stencil stages went to +48%. That came from the charge, not from overlap:
@@ -27,14 +27,15 @@ rejected because the Halide stencil stages went to +48%. That came from the char
   before (`MemState::drained`). An in-place accumulation (non_local_means_sum_s1) then costs nothing extra.
 - The probe's store costs with the model are 11.7 / 10.0 / 9.4 / 10.7 / 11.0 us (i32) and 6.5 / 5.1 us (i16).
 
-| Set | Default | Drain (bytes, fresh, 450 GB/s) |
+| Set | Before | Byte-based drain (now the default) |
 |---|---|---|
-| llama pp512 (16 of 20: the MMQ launches did not run) | 9.2% | **7.9%** (rms_norm -27 → -7, sgemm -23 → -18, cpy -10 → -5, convert -8 → -5, k_bin_bcast -48 → -37; soft_max +9 → +16, rope f32 0 → +8) |
+| held-out (160) | 7.5%, median 5.5, w10 119 | **6.8%, median 5, w10 125** (srad -20 → -8, backprop -18 → -9, laplacian f2 -14 → +3, f36 -24 → -11; mergeSortFirst 0 → +6) |
+| llama pp512 (20) | 10.3%, median 8, w10 15 | **8.7%, median 7, w10 16** (rms_norm -27 → -7, sgemm -23 → -18, cpy -10 → -5, k_bin_bcast -48 → -37; soft_max +9 → +16, rope f32 0 → +8; MMQ unchanged) |
 | llama fa (4) | 6.8% | **5.5%** |
 | llama tg (10) | 8.2% | 8.2% |
 | tinygrad (5) | 13.0% | 13.2% |
-| Halide stencil_chain (32), nlmeans, linear blur | stencil -6..+1 | stencil -2..+6; nlmeans and blur within 1-3 points |
-| held-out (160) | 7.5% | not run: the evaluation was stopped by host memory pressure |
+| core scaling grid / chains / idle / dests | 3.1 / 3.3 / 7.1 / 5.8% | 3.0 / 3.3 / 7.1 / 5.8% (idle p90 0.41 → 0.28) |
+| `verify-memory-model`, `verify-dispatch`, `verify-cost-model`, `verify-jump-fetch` | pass | pass (dispatch 4.8%, cost model identical) |
 
-It stays off until the held-out set and the MMQ launches are scored. Rerun with `evalsets.sh OUT BIN
-AGX_STORE_DRAIN=8 AGX_STORE_DRAIN_ISSUE=1 AGX_STORE_DRAIN_GBPS=450`, one set at a time.
+Still open: soft_max (in place, 1 workgroup per core) hides about half its store time on hardware and rope about
+three-quarters (DRAM streaming). The drain charges both in full, apart from the DRAM-line share.

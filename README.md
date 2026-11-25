@@ -58,6 +58,8 @@ Findings: [core scaling](novel-results/2026-10-11-core-scaling/README.md),
 [cost model](novel-results/2026-10-11-cost-model/README.md),
 [Geekbench 7 kernels and threadgroup loads](novel-results/2026-10-23-geekbench-captures/README.md).
 
+Device stores (since 2026-11-25) stall their core's issue for their new bytes at 450 GB/s GPU-wide: on hardware store time is additive and per byte, and compute does not hide it. Partial segments other groups fill and rewrites of segments the core already stored are not charged again. Held-out 7.5 -> 6.8%, llama pp512 10.3 -> 8.7% ([results](results/2026-11-25-store-drain/README.md); `AGX_STORE_DRAIN=0` turns it off).
+
 Instruction fetch of a line first entered by a taken jump (runtime profile, `cost::JumpFetch`) is charged by the jump: 294-369 ns for 1-7 lines, 380 beyond; lines a jump of 5 or fewer lines passes over are streamed (140); a target in a 512 B block with 2 or more lines already fetched costs 150 (not after a backward jump of 1-7 lines). On 79 hardware code shapes the mean error is 4.9% (flat 300 ns: 18.2%), llama tg 9.4 -> 8.2% ([results](results/2026-11-25-jump-fetch/README.md), `make verify-jump-fetch`).
 
 Stack-using kernels (runtime profile): each SIMD-group slot's first stack use in a command costs ~1.15 us, one slot at a time per core, plus a 5.0 us set-up; Rodinia warm captures 29.5% -> 6.5% median with the threadgroup-load change ([results](results/2026-11-07-stack-slots/README.md)). Time short kernels with >= 1000 back-to-back commands.

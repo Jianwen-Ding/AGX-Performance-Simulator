@@ -1094,11 +1094,14 @@ fn simulate_core_list(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Trace
         // (hw, pp512 kernels with their stores replaced: rms_norm 13.0 -> 18.0 us = + all 1.9 MB at 365 GB/s, cpy_scalar
         // 74.0 -> 78.8 (all), soft_max 403 -> 425 (half of 14.7 MB), unary_gated 84.9 -> 92.3 and rope 28.3 -> 33.5
         // (a quarter: their stores overlap the loads' DRAM time))
-        let drain_cap: f64 = std::env::var("AGX_STORE_DRAIN").ok().and_then(|v| v.parse().ok()).unwrap_or(0.0);
+        // (default 8 since 2026-11-25, with AGX_STORE_DRAIN_ISSUE and 450 GB/s: held-out 7.5 -> 6.8%, pp 10.3 -> 8.7%;
+        // AGX_STORE_DRAIN=0 restores the earlier store floor only)
+        let drain_cap: f64 = std::env::var("AGX_STORE_DRAIN").ok().and_then(|v| v.parse().ok()).unwrap_or(8.0);
         // (lines several workgroups store to leave once: `store_share`)
         let ss = (*store_share_cache.lock().unwrap()).clamp(0.02, 1.0);
-        // AGX_STORE_DRAIN_GBPS: the drain's GPU-wide rate (default store_gbps)
-        let drain_gbps = std::env::var("AGX_STORE_DRAIN_GBPS").ok().and_then(|v| v.parse().ok()).unwrap_or(l.store_gbps);
+        // AGX_STORE_DRAIN_GBPS: the drain's GPU-wide rate (default 450: probe_hot_lines STORE16 / PRE / POST sweep, hw
+        // 4.2 MB in 8-10 us)
+        let drain_gbps = std::env::var("AGX_STORE_DRAIN_GBPS").ok().and_then(|v| v.parse().ok()).unwrap_or(450.0);
         let store_drain = if drain_cap > 0.0 && l.store_gbps > 0.0 { drain_gbps * 1e9 / active_cores / (l.clock_mhz * 1e6) / 64.0 / ss } else { 0.0 };
         let atomic_sharers = atomic_sharers_cache.lock().unwrap().clone();
         let mm = MemModel { resident_slc: resident, slc_resident_frac: frac, sharing, dram_share, first_touch_frac, active_cores, atomic_contenders, atomic_sharers, store_drain, store_drain_cap: drain_cap, ..mm.clone() };

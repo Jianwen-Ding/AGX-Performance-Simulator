@@ -15,3 +15,8 @@ _ZL21unary_gated_op_kernelIXadL_ZL7op_silufEEfEvPKT0_S2_PS0_llll hw      92.5 us
 _ZL17quantize_mmq_q8_1IL18mmq_q8_1_ds_layout1ELb0EEvPKfPKiPvllllliii hw      13.6 us (n     0, captured       0.0)  sim      12.2 us  err   -10%   wgs/core 27 waves 2
 _ZL9mul_mat_qIL9ggml_type8ELi128ELb0EL9ggml_prec30ELb0EEvPKcS3_PKiS5_PK25ggml_cuda_mm_id_tile_specPfS9_PKf11ggml_glu_opfSB_SB_5uint3iiiiiSD_SD_iiiSD_SD_iiiSD_ hw     380.7 us (n     0, captured       0.0)  sim     352.0 us  err    -8%   wgs/core 1 waves 1
 _ZL24mul_mat_q_stream_k_fixupIL9ggml_type8ELi128ELb0EL9ggml_prec30EEvPKiPK25ggml_cuda_mm_id_tile_specPfS7_5uint3iiiS8_iS8_iS8_ hw      38.5 us (n     0, captured       0.0)  sim      36.8 us  err    -4%   wgs/core 2 waves 1
+_ZL9mul_mat_qIL9ggml_type14ELi128ELb0EL9ggml_prec30ELb0EEvPKcS3_PKiS5_PK25ggml_cuda_mm_id_tile_specPfS9_PKf11ggml_glu_opfSB_SB_5uint3iiiiiSD_SD_iiiSD_SD_iiiSD_ hw    5526.2 us (n     0, captured       0.0)  sim    5663.7 us  err    +2%   wgs/core 2 waves 2
+_ZL9mul_mat_qIL9ggml_type7ELi128ELb0EL9ggml_prec30ELb0EEvPKcS3_PKiS5_PK25ggml_cuda_mm_id_tile_specPfS9_PKf11ggml_glu_opfSB_SB_5uint3iiiiiSD_SD_iiiSD_SD_iiiSD_ hw     946.5 us (n     0, captured       0.0)  sim     935.4 us  err    -1%   wgs/core 2 waves 2
+_ZL11k_bin_bcastIXadL_ZL6op_addffEEfffJPKfEEvPKT0_PKT1_PT2_jjj5uint3SA_SA_SA_SA_jjjjjjjjjjjDpT3_ hw      33.9 us (n     0, captured       0.0)  sim      21.3 us  err   -37%   wgs/core 54 waves 4
+_ZL9mul_mat_qIL9ggml_type13ELi128ELb0EL9ggml_prec30ELb0EEvPKcS3_PKiS5_PK25ggml_cuda_mm_id_tile_specPfS9_PKf11ggml_glu_opfSB_SB_5uint3iiiiiSD_SD_iiiSD_SD_iiiSD_ hw    3702.6 us (n     0, captured       0.0)  sim    3447.3 us  err    -7%   wgs/core 2 waves 2
+launches 20  median |err| 7%  within 10%: 15  within 25%: 19

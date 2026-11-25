@@ -2191,8 +2191,9 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
     let chain_pcs = mem.and_then(|(_, m)| m.chain_pc_starts.clone());
     let mem_bytes = mem.and_then(|(_, m)| m.mem_bytes.clone());
     let mut store_done = vec![0i64; groups];
-    // AGX_STORE_DRAIN_ISSUE=1 (with AGX_STORE_DRAIN): a store's lines stall the whole core's issue at the drain rate
-    let drain_issue = std::env::var("AGX_STORE_DRAIN_ISSUE").is_ok_and(|v| v == "1" || v == "2");
+    // AGX_STORE_DRAIN_ISSUE (default 1 with the drain; 0 off): a store's new bytes stall the whole core's issue at the
+    // drain rate. Hardware: store time is additive and per byte, compute does not hide it (results/2026-11-25-store-drain)
+    let drain_issue = std::env::var("AGX_STORE_DRAIN_ISSUE").map_or(true, |v| v == "1" || v == "2");
     let drain_issue_all = std::env::var("AGX_STORE_DRAIN_ISSUE").is_ok_and(|v| v == "2");
     let mut drain_end = 0i64;
     let mut next_bound = vec![0usize; groups];
