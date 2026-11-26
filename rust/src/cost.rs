@@ -138,6 +138,71 @@ const FETCH_BOUND_CODE_BYTES: usize = 16 << 10;
 /// Instruction fetch lines: 64 bytes taken (the rate is what is measured, not the size).
 const FETCH_LINE_SHIFT: usize = 6;
 
+/// The cost of a code line's first fetch in a command when a taken jump enters it (hardware, one SIMD group,
+/// `scripts/probe_jump_distance.py`, results/2026-11-25-jump-fetch: 80 code shapes, ns per one-line block incl. ~30 ns of
+/// execution). It depends on the jump, not on the code size (16 KiB - 8 MiB alike):
+/// - a jump of d lines to a line nothing fetched yet: d = 1 / 2 / 3 / 4 / 5 / 6 / 7: 294 / 296 / 312 / 334 / 346 / 344 /
+///   369 ns, 8 or more (either direction, constant or random gaps): ~380 (skip8-512, bskip8, rgap, rsub4-256: 397-430 hw);
+/// - a forward jump of at most 5 lines keeps the sequential stream: the lines it passes over are fetched too, and a
+///   later jump to one of them costs ~140 (lines 4i then 4i+1..3: pass 2 130 ns; 2i then 2i+1: 187);
+/// - a jump into a 512-byte block of which at least 2 lines were fetched costs ~150 (random order over every line:
+///   238 hw, over every 2nd line 267, every 4th 405; lines 8i then 8i+o: no gain).
+///
+/// Fitted: mean |error| 5.8% (median 2.9%) over the 80 shapes, against 18% (median 20%) for one flat 300 ns.
+/// Not fitted: interleaved chains of stride 16-64 lines (fwd16 / fwd64 hw 348 / 343, rule ~238: -31%) and strides of
+/// 4 / 8 KiB (skip64 / skip128 367 / 364, rule 410). `AGX_JUMP_FETCH=0` restores the flat cost.
+#[derive(Default)]
+pub struct JumpFetch {
+    fetched: std::collections::HashSet<usize>,
+    streamed: std::collections::HashSet<usize>,
+    blocks: HashMap<usize, u32>,
+}
+
+impl JumpFetch {
+    pub fn enabled() -> bool {
+        std::env::var("AGX_JUMP_FETCH").map_or(true, |v| v != "0")
+    }
+    fn mark(&mut self, line: usize) {
+        if self.fetched.insert(line) {
+            *self.blocks.entry(line >> 3).or_default() += 1;
+        }
+    }
+    /// a line fetched by running into it (or otherwise not by a jump)
+    pub fn run_into(&mut self, line: usize) {
+        self.mark(line);
+    }
+    /// ns for the first fetch of `to`, entered by a taken jump from line `from`; records the fetch
+    pub fn jump(&mut self, from: usize, to: usize) -> f64 {
+        // 64- and 128-line (4 / 8 KiB) jumps: 325 ns and no 512 B block reuse (hw 343-376 ns per block in every shape
+        // that jumps by them, against 400-430 for other long jumps; AGX_JUMP_ALIGNED=0 off)
+        fn aligned_rule() -> bool { std::env::var("AGX_JUMP_ALIGNED").map_or(true, |v| v != "0") }
+        const NEAR: [f64; 8] = [294.0, 294.0, 296.0, 312.0, 334.0, 346.0, 344.0, 369.0];
+        let d = to as i64 - from as i64;
+        let ns = if self.streamed.contains(&to) {
+            140.0
+        } else if d > 0 && d <= 5 {
+            for l in from + 1..to {
+                self.streamed.insert(l);
+                self.mark(l);
+            }
+            NEAR[d as usize]
+        } else if !(-7..0).contains(&d) && !(matches!(d.unsigned_abs(), 64 | 128) && aligned_rule()) && self.blocks.get(&(to >> 3)).copied().unwrap_or(0) >= 2 {
+            // (a short backward jump is as cold as a forward one of its length, though the lines above it in its block
+            // were fetched: hw back / bskip1 / bskip2 322-323 ns)
+            // (block reuse after a 16-line jump costs most of a cold one: hw fwd16 348 ns per block)
+            if d.unsigned_abs() == 16 && aligned_rule() { 300.0 } else { 150.0 }
+        } else {
+            match d.unsigned_abs() {
+                // (4 KiB / 8 KiB strides: hw skip64 / skip128 / bskip64 / two64_* 343-376 ns, against 400-430 for other long jumps)
+                64 | 128 if aligned_rule() => 325.0,
+                a => NEAR.get(a as usize).copied().unwrap_or(380.0),
+            }
+        };
+        self.mark(to);
+        ns
+    }
+}
+
 const BARRIERS: &[&str] = &["threadgroup_barrier", "memory_barrier", "wait_pix", "signal_pix", "TODO.unkE800"];
 const UNIT_GROUPS: &[&[&str]] = &[
     &["iadd", "isub", "iadd_lsl2", "iadd_imm", "iadd_cache"], &["imadd", "imul", "imadd_cache"],
@@ -524,9 +589,13 @@ pub fn decode(code: &[u8], p: &Params) -> Result<Vec<Instr>, String> {
             crate::func::mesa_check(code, pc, size, d.name)?;
         }
         let n = if size >= 16 { n0 } else { n0 & ((1u128 << (8 * size)) - 1) };
-        let ops = d.decode_operands(n)?;
+        // Bytes that do not decode (the tail of an instruction a `stop` was written over: truncated copies of a kernel)
+        // are skipped like padding; executing them is still an error, in the trace.
+        let (Ok(ops), Ok(mut text)) = (d.decode_operands(n), isa::disassemble_normalized(d, n)) else {
+            pc += 2;
+            continue;
+        };
         let mut name = d.name.to_string();
-        let mut text = isa::disassemble_normalized(d, n)?;
         let f = d.decode_fields(n);
         let regops: Vec<(&Operand, Vec<u32>)> = ops.iter().map(|o| (o, regs_of(o))).filter(|(_, r)| !r.is_empty()).collect();
         let union = |it: &[(&Operand, Vec<u32>)]| set_of(it.iter().flat_map(|(_, r)| r.iter().copied()));
@@ -793,6 +862,9 @@ pub struct Trace {
     /// complete byte range of each 32/64-bit atomic. No threadgroup addresses.
     /// Cost-emulated traces may leave this empty.
     pub device_segments: Vec<(u32, Vec<u64>)>,
+    /// Bytes the active lanes access, one per `mem` entry (device loads and stores; 0 for other accesses). Empty when
+    /// the tracer does not record it.
+    pub mem_bytes: Vec<u32>,
     /// Steps (indices into `pcs`, ascending) issued while the group's execution mask was empty: no lane active, as
     /// for an if body the code does not jump over. The scheduler charges the measured masked costs to them
     /// (`simulate_groups`); empty for most traces.
@@ -1358,6 +1430,7 @@ impl<'a> PreparedTrace<'a> {
             }
             if let Some(w) = info.access.as_ref().and_then(|a| a.capture(&st)) {
                 out.mem.push(((out.pcs.len() - 1) as u32, w));
+                out.mem_bytes.push(info.access.as_ref().map_or(0, |a| a.bytes(&st)));
             }
             if let (Some(c), Some(sr)) = (ctx, &info.sr) {
                 if sr.execute(c, &mut st)? {
@@ -1599,6 +1672,8 @@ pub struct MemModel {
     pub store_drain_cap: f64,
     /// per group, the trace steps where its chained workgroups 1, 2, ... start (AGX_STORE_DRAIN_SLOT)
     pub chain_pc_starts: Option<std::sync::Arc<Vec<Vec<usize>>>>,
+    /// per group, the bytes of each `mem` entry (`Trace::mem_bytes`): the store drain charges what the lanes write
+    pub mem_bytes: Option<std::sync::Arc<Vec<Vec<u32>>>>,
 }
 
 impl Default for MemModel {
@@ -1654,6 +1729,7 @@ impl Default for MemModel {
             store_drain: 0.0,
             store_drain_cap: 0.0,
             chain_pc_starts: None,
+            mem_bytes: None,
         }
     }
 }
@@ -2076,6 +2152,8 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
         seen: std::collections::HashSet<u64>,
         /// AGX_WB_DIRTY: lines this core has written since they were last fetched from DRAM
         dirty: std::collections::HashSet<u64>,
+        /// AGX_STORE_DRAIN: segments this core has stored (a rewrite leaves memory with the first store)
+        drained: std::collections::HashSet<u64>,
         /// AGX_PREFETCH: prefetched lines with their ready tick; this core's recent L2 misses
         pf: HashMap<u64, i64>,
         missed: std::collections::HashSet<u64>,
@@ -2123,9 +2201,11 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
     // group ends (and a chained workgroup in its slot starts) only when its stores have left
     let drain_slot = std::env::var("AGX_STORE_DRAIN_SLOT").is_ok_and(|v| v == "1") && mem.is_some_and(|(_, m)| m.store_drain > 0.0);
     let chain_pcs = mem.and_then(|(_, m)| m.chain_pc_starts.clone());
+    let mem_bytes = mem.and_then(|(_, m)| m.mem_bytes.clone());
     let mut store_done = vec![0i64; groups];
-    // AGX_STORE_DRAIN_ISSUE=1 (with AGX_STORE_DRAIN): a store's lines stall the whole core's issue at the drain rate
-    let drain_issue = std::env::var("AGX_STORE_DRAIN_ISSUE").is_ok_and(|v| v == "1" || v == "2");
+    // AGX_STORE_DRAIN_ISSUE (default 1 with the drain; 0 off): a store's new bytes stall the whole core's issue at the
+    // drain rate. Hardware: store time is additive and per byte, compute does not hide it (results/2026-11-25-store-drain)
+    let drain_issue = std::env::var("AGX_STORE_DRAIN_ISSUE").map_or(true, |v| v == "1" || v == "2");
     let drain_issue_all = std::env::var("AGX_STORE_DRAIN_ISSUE").is_ok_and(|v| v == "2");
     let mut drain_end = 0i64;
     let mut next_bound = vec![0usize; groups];
@@ -2172,6 +2252,7 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
             lv_cache: vec![None; groups],
             seen: Default::default(),
             dirty: Default::default(),
+            drained: Default::default(),
             pf: Default::default(),
             missed: Default::default(),
             missed_ring: Default::default(),
@@ -2275,6 +2356,20 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
     let mut in_refill: Vec<bool> = vec![false; buckets.len()];
     let hrp = half_read_ports();
     let mut port = [hrp * t_ as f64; 2];
+    // AGX_PICK_FIXED=1 (experiment): groups issue in a fixed priority (lowest index first) in place of a rotating start
+    let pick_fixed = std::env::var("AGX_PICK_FIXED").is_ok_and(|v| v == "1");
+    // AGX_PICK_GREEDY=1 (experiment, off): each scheduler first offers the tick to the group that issued on it
+    // last (a group keeps issuing until it stalls), then the rotating order. Groups that leave a shared memory wait
+    // together then de-synchronise, so one group's ALU work hides behind another's next load (fetch-overlap probe,
+    // results/2026-11-22-fetch-overlap, 8 groups: hw 51.8 / 98.3 us, rotating 57.5 / 108.3, greedy 54.1 / 100.0).
+    // Reference sets (results/2026-11-25-jump-fetch): held-out 160 7.5 -> 7.1%, tinygrad 13.0 -> 10.8, fa 6.8 -> 6.2,
+    // dispatch 36 median 4.8 -> 4.0; pp512 10.3 -> 10.8, tg 8.2 -> 8.3; core scaling grid 3.1 -> 3.5, chains 3.3 -> 4.1
+    // (latency-bound one-chain transcendental loops lose most). NOT the default: it breaks the stored memory sets
+    // (verify-memory-model stream-dram median 5.9 -> 17.7%, stream 8.8 -> 13.3%: both over their limits)
+    let greedy_mode: u32 = std::env::var("AGX_PICK_GREEDY").ok().and_then(|v| v.parse().ok()).unwrap_or(0);
+    let pick_greedy = greedy_mode > 0;
+    let mut last_on = [usize::MAX; SCHEDULERS];
+    let mut saved_elig: Vec<u64> = Vec::new();
     let mut sched_free = [0i64; SCHEDULERS];
     let mut tick_issued = vec![false; groups];
     // an idle scheduler may issue a ready group of a ring neighbour (idle-slot probe: slots 1, 3 and 4 relieve
@@ -2312,6 +2407,13 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
     let mut pipe_free = NEG_INF;
     let mut last_shfl = NEG_INF;
     let mut last_wait = vec![NEG_INF; g];
+    // AGX_REFETCH_LOOKAHEAD=1 (experiment): a taken jump to a line the i-cache lost (warm refetch) is requested when
+    // the group's current straight run began (`run_start`), with latency AGX_REFETCH_JUMP_NS (default 140): hw
+    // probe_fetch_groups SKIP=R,D: ~138 ns per target with 1-line runs, ~15 ns beyond a streamed line with 4-line runs
+    let refetch_lookahead = std::env::var("AGX_REFETCH_LOOKAHEAD").is_ok_and(|v| v == "1");
+    let refetch_jump = tk(std::env::var("AGX_REFETCH_JUMP_NS").ok().and_then(|v| v.parse::<f64>().ok()).unwrap_or(140.0) * CYCLES_PER_NS);
+    let mut run_start = vec![NEG_INF; g];
+    let cold_run = tk(std::env::var("AGX_COLD_RUN_NS").ok().and_then(|v| v.parse::<f64>().ok()).unwrap_or(30.0) * CYCLES_PER_NS);
     // per group: the last device store (1) / load (2) issued before the next fence; 0 after a fence or at the start
     let mut last_mem = vec![0u8; g];
     let mut last_idle_wait = vec![NEG_INF; g];
@@ -2440,6 +2542,8 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
         Some((_, m)) if icache.is_some() && !m.icache_warm => (tk(m.fetch_cold_ns * CYCLES_PER_NS), tk(m.fetch_cold_jump_ns * CYCLES_PER_NS)),
         _ => (0, 0),
     };
+    // a cold line entered by a taken jump: by the jump (`JumpFetch`) in place of the flat `fetch_cold_jump`
+    let mut jump_fetch = (fetch_cold_jump > 0 && JumpFetch::enabled()).then(JumpFetch::default);
     // with it, the core's taken-jump structure: 32 entries (by target), a taken jump to a cached line that has none
     // costs ~127 cycles more (playground novel-results/2026-10-20-icache: 34-96 blocks joined by taken jumps per loop
     // trip, +127 cycles per jump beyond 32). AGX_JUMP_ENTRIES=0 turns it off
@@ -2534,7 +2638,7 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
             unblocked[gi] = true;
             elig[gi / 64] |= 1 << (gi % 64);
         }
-        let k0 = if g == 1 { 0 } else { (((t / t_) as u64).wrapping_mul(2654435761) >> 7) as usize % g };
+        let k0 = if g == 1 || pick_fixed { 0 } else { (((t / t_) as u64).wrapping_mul(2654435761) >> 7) as usize % g };
         wk_min = i64::MAX;
         wk_gt = i64::MAX;
         // Pass 0 tries only the group's own scheduler, and a scheduler busy at the tick start stays busy all tick
@@ -2562,7 +2666,26 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
             tick_issued[gi] = false;
         }
         issued_now.clear();
-        for pass in 0..npass {
+        let pre_n = usize::from(pick_greedy && g > 1 && last_on.iter().any(|&x| x != usize::MAX));
+        for pp in 0..npass + pre_n {
+        let pre = pp < pre_n;
+        let pass = pp - pre_n.min(pp);
+        if pre {
+            // the greedy pre-pass: only each scheduler's last issuer is eligible
+            saved_elig.clear();
+            saved_elig.extend_from_slice(&elig);
+            let mut sticky = vec![0u64; elig.len()];
+            for &x in &last_on {
+                // AGX_PICK_GREEDY=2: only while the group's next instruction is ALU work (a greedy group does not
+                // issue its loads ahead of the others)
+                if x != usize::MAX && x < g && nxt[x] < npcs[x] && (greedy_mode < 2 || sim[seqs[x][nxt[x]]].kind == Kind::Alu) {
+                    sticky[x / 64] |= 1 << (x % 64);
+                }
+            }
+            for (e, m) in elig.iter_mut().zip(&sticky) {
+                *e &= m;
+            }
+        }
         // pass 1 issues only through a scheduler that is free this tick: with none free, every group would skip
         if pass == 1 && sched_free.iter().all(|&f| f > t) {
             break;
@@ -2895,7 +3018,20 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
                             need[1] = if r.stack_store { 1.0 } else { n.max(1.0) }.max(m_l1_store_min(mem));
                             // AGX_STORE_DRAIN: the core's lines leave at its share of the GPU's store bandwidth
                             // (lines in 32-byte sectors when the lanes scatter: more than 8 lines for one instruction)
-                            if !r.stack_store && m.rate[5] > 0.0 { need[5] = if n > 8.0 { 0.5 * n } else { n.max(1.0) }; }
+                            if !r.stack_store && m.rate[5] > 0.0 {
+                                need[5] = if n > 8.0 { 0.5 * n } else { n.max(1.0) };
+                                // the bytes the lanes write, when the trace has them: partial segments that other
+                                // groups fill leave memory once (Halide stencil_chain: 64 B per store over 2-3 segments)
+                                if let Some(&b) = mem_bytes.as_ref().and_then(|v| v.get(gi)).and_then(|v| v.get(m.cur[gi])) {
+                                    if b > 0 { need[5] = need[5].min(b as f64 / 64.0); }
+                                }
+                                // segments this core stored before are dirty in its caches: rewriting them (an
+                                // in-place accumulation, Halide non_local_means_sum_s1) adds nothing to drain
+                                if n > 0.0 {
+                                    let fresh = segs.iter().filter(|&&sg| m.drained.insert(sg)).count() as f64;
+                                    need[5] *= fresh / n;
+                                }
+                            }
                         } else {
                             // the same lines as the core's previous load (every group on one line): 1.22 cycles per
                             // load instead of 1.0 (coalesce-shared vs coalesce-private)
@@ -3455,7 +3591,11 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
                         last_idle_wait[gi] = t;
                     }
                     ii = done_ - t;
-                    last_wait[gi] = t;
+                    // AGX_IDLE_WAIT_STREAM=1 (experiment): a wait with nothing outstanding does not stop the code stream
+                    // (hw probe_fetch_groups SKIP=16,16 with `wait 0` padding: 24.1 us per trip, as the straight body)
+                    if slots[gi][r.slot].is_some() || !std::env::var("AGX_IDLE_WAIT_STREAM").is_ok_and(|v| v == "1") {
+                        last_wait[gi] = t;
+                    }
                     slots[gi][r.slot] = None;
                     let s = r.slot;
                     pending[gi].retain(|p| p.slot != s);
@@ -3576,15 +3716,26 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
                         } else {
                             // (a jump taken to the next instruction is a jump: hw 324 ns per block when it starts the next line)
                             let first = fetch_stream && !fetched.contains_key(&line);
+                            let line_of = |pc: usize| if fetch_private { (pc >> FETCH_LINE_SHIFT) | (gi << 40) } else { pc >> FETCH_LINE_SHIFT };
+                            if let (Some(jf), true) = (jump_fetch.as_mut(), fall_through) { jf.run_into(line); }
                             let mut cost = match (fall_through, first) {
                                 (true, true) if fetch_cold > 0 => fetch_cold,
-                                (false, true) if fetch_cold_jump > 0 => fetch_cold_jump,
+                                (false, true) if fetch_cold_jump > 0 => match jump_fetch.as_mut() {
+                                    Some(jf) => tk(jf.jump(line_of(pc0), line) * CYCLES_PER_NS),
+                                    None => fetch_cold_jump,
+                                },
                                 (true, _) => fetch_line,
                                 (false, _) => fetch_jump,
                             };
                             // AGX_FETCH_PORT=f (experiment): the core fetches one line at a time, each miss holding the
                             // port for f x its cost (groups at different lines queue)
                             let mut start = if fetch_port > 0.0 { free[gi].max(fetch_free) } else { free[gi] };
+                            if refetch_lookahead && !fall_through && run_start[gi] > NEG_INF {
+                                // (measured from the run's start, a first touch's distance cost includes the ~30 ns its
+                                // one-line probe blocks ran: AGX_COLD_RUN_NS)
+                                if !first { cost = refetch_jump; } else { cost += cold_run; }
+                                start = start.min(run_start[gi].max(last_wait[gi]));
+                            }
                             if fetch_stream && fall_through && line > 0 && !(first && no_cold_stream) {
                                 // the line before was fetched (a miss, by any group) recently: this one was
                                 // requested when that one arrived
@@ -3627,6 +3778,7 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
                         if let (Some(j), false) = (jumps.as_mut(), fall_through) {
                             j.touch(pc1 as u64);
                         }
+                        if !fall_through { run_start[gi] = ready; }
                         free[gi] = free[gi].max(ready);
                     }
                 } else {
@@ -3648,6 +3800,7 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
             tick_issued[gi] = true;
             issued_now.push(gi);
             elig[gi / 64] &= !(1 << (gi % 64));
+            last_on[sch] = gi;
             if nxt[gi] >= npcs[gi] {
                 if drain_slot && store_done[gi] > free[gi] {
                     free[gi] = store_done[gi];
@@ -3656,6 +3809,13 @@ pub fn simulate_groups_finish(instrs: &[Instr], seqs_pcs: &[&[usize]], masked: O
                 done += 1;
             } else {
                 busy.push(std::cmp::Reverse((free[gi], gi)));
+            }
+        }
+        if pre {
+            // the other groups are eligible again (those the pre-pass issued are not)
+            std::mem::swap(&mut elig, &mut saved_elig);
+            for &gi in &issued_now {
+                elig[gi / 64] &= !(1 << (gi % 64));
             }
         }
         }
@@ -3983,5 +4143,33 @@ mod clock_tests {
         assert_eq!(clock_read_ns(1 << 20, 1), 37345.0);
         // one SIMD group never pays contention
         assert!(clock_read_ns(32, 1) < 900.0);
+    }
+}
+
+#[cfg(test)]
+mod jump_fetch_tests {
+    use super::JumpFetch;
+
+    #[test]
+    fn jump_fetch_by_distance_stream_and_block() {
+        // first touches by distance (results/2026-11-25-jump-fetch)
+        let mut j = JumpFetch::default();
+        j.run_into(0);
+        assert_eq!(j.jump(0, 1), 294.0);
+        assert_eq!(j.jump(1, 9), 380.0);
+        assert_eq!(j.jump(9, 1000), 380.0);
+        assert_eq!(j.jump(1000, 993), 369.0); // backward 7
+        // a short forward jump streams the lines it passes over
+        let mut j = JumpFetch::default();
+        j.run_into(100);
+        assert_eq!(j.jump(100, 104), 334.0);
+        assert_eq!(j.jump(104, 102), 140.0);
+        // a block (8 lines) with two fetched lines
+        let mut j = JumpFetch::default();
+        j.run_into(800);
+        assert_eq!(j.jump(800, 4000), 380.0);
+        assert_eq!(j.jump(4000, 803), 380.0); // block 100 has one line
+        assert_eq!(j.jump(803, 6000), 380.0);
+        assert_eq!(j.jump(6000, 805), 150.0); // now two
     }
 }

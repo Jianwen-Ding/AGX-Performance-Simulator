@@ -59,6 +59,10 @@ for d in sorted(os.listdir(a.captures)):
     kernel = m.group(1)
     if a.only and kernel != a.only: continue
     if a.skip and re.search(a.skip, kernel): continue
+    # A capture whose own arguments are unusable (invalid.txt says why) has no valid hardware reference: report it
+    # instead of scoring it
+    if os.path.exists(os.path.join(p, 'invalid.txt')):
+        print(f'{kernel:30s} INVALID CAPTURE {open(os.path.join(p, "invalid.txt")).read().strip()}', flush=True); continue
     command = int(open(os.path.join(p, 'command.txt')).read())
     regs = open(os.path.join(p, 'regs.txt')).read().strip()
     rec = lines.get((kernel, command))

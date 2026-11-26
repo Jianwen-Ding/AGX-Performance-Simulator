@@ -9,7 +9,7 @@ more than the i-cache's worth of code: each group must fetch every line itself. 
 core (one workgroup of 32 G threads per core, 38 workgroups) separates a per-core serial fetch (time ~ G x) from fetches
 that proceed in parallel (time ~ 1 x plus the stagger).
 
-usage: probe_fetch_groups.py [hw|sim|both] ; env G="1 2 4 8" K="0 64" T=8 BODY_KB=48 B2B=1000 LOADS=0 BARRIER=0 WGSTAGGER=0
+usage: probe_fetch_groups.py [hw|sim|both] ; env G="1 2 4 8" K="0 64" T=8 BODY_KB=48 B2B=1000 LOADS=0 BARRIER=0 WGSTAGGER=0 SKIP=R,D (jump over D filler lines after every R executed lines)
 Prints one line per (G, K): hw / sim us.
 """
 import json, os, re, subprocess, sys, tempfile
@@ -35,6 +35,32 @@ def program(body_kb):
     code += P.mov(7, 0) + P.e('iadd r8, u5, 0')
     code += P.e('if_fcmp r0l, eq, 0.0, 0.0, 1', 'push_exec r0l, 1')
     one = [P.e(f'iadd r{21 + i % 8}, r{21 + i % 8}, 1') for i in range(8)]
+    skip = os.environ.get('SKIP')  # SKIP=R,D: after every R executed lines a jmp_exec_any over D lines of stop filler
+    if skip:
+        rl, dl = (int(x) for x in skip.split(','))
+        code += P.e('wait 0') * ((-len(code) % 64) // 2)  # the body (and every jump target) starts on a 64 B line
+        jl = len(P.e('jmp_exec_any pc+64'))
+        body = b''
+        while True:
+            seg = b''
+            i = 0
+            while len(seg) + jl + len(one[0]) <= rl * 64:
+                seg += one[i % 8]; i += 1
+            if os.environ.get('PAD') == 'mov':
+                # PAD=mov: fill with 6-byte mov_imm instead of 2-byte waits (no wait in the body)
+                mv = P.e('mov_imm r9, 0, 0b0')
+                while (rl * 64 - jl - len(seg)) % len(mv) and len(seg) >= len(one[0]):
+                    seg = seg[:-len(one[0])]
+                seg += mv * ((rl * 64 - jl - len(seg)) // len(mv))
+            seg += P.e('wait 0') * ((rl * 64 - jl - len(seg)) // 2)
+            assert len(seg) + jl == rl * 64, (len(seg), jl)
+            seg += P.e(f'jmp_exec_any pc+{jl + dl * 64}', f'jmp_exec_any pc+{jl + dl * 64}') + P.e('stop') * (dl * 32)
+            body += seg
+            if len(body) // (rl + dl) * rl >= body_kb * 1024:
+                break
+        body += P.e('iadd r7, 1, r7.sx') + P.e('while_icmp r0l, ult, r7, r8, 1')
+        code += body + P.e(f'jmp_exec_any pc-{len(body)}', f'jmp_exec_any pc-{len(body)}') + P.e('pop_exec r0l, 1')
+        return code + P.e('stop') + bytes(64)
     body = b''
     i = 0
     loads = int(os.environ.get('LOADS', '0'))      # a device load (uniform address) + wait 0 every LOADS instructions

@@ -1,0 +1,42 @@
+cd rust && cargo build --release
+warning: unused variable: `f`
+    --> src/func.rs:2039:49
+     |
+2039 | fn image_write(g: &mut Group, mem: &mut Memory, f: &Fields, args: &TexOp) -> Result<(), String> {
+     |                                                 ^ help: if this is intentional, prefix it with an underscore: `_f`
+     |
+     = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: variable does not need to be mutable
+    --> src/func.rs:2102:13
+     |
+2102 |         let mut store = |mem: &mut Memory, key: (u32, u32), x: i64, y: i64| -> Result<(), String> {
+     |             ----^^^^^
+     |             |
+     |             help: remove this `mut`
+     |
+     = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: field `0` is never read
+   --> src/isa/exec.rs:126:7
+    |
+126 |     F(f64),
+    |     - ^^^
+    |     |
+    |     field in this variant
+    |
+    = note: `Val` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+help: consider changing the field to be of unit type to suppress this warning while preserving the field numbering, or remove the field
+    |
+126 -     F(f64),
+126 +     F(()),
+    |
+
+warning: `agx-sim` (lib) generated 3 warnings (run `cargo fix --lib -p agx-sim` to apply 2 suggestions)
+    Finished `release` profile [optimized] target(s) in 0.02s
+rust/target/release/scale_check results/2026-10-11-core-scaling/grid.json results/2026-10-11-core-scaling/chains.json results/2026-10-11-core-scaling/idle.json results/2026-10-11-core-scaling/dests.json
+results/2026-10-11-core-scaling/grid.json: 598 rows, median |err| 0.035, p90 0.293, max 3.160
+results/2026-10-11-core-scaling/chains.json: 140 rows, median |err| 0.038, p90 0.243, max 0.679
+results/2026-10-11-core-scaling/idle.json: 21 rows, median |err| 0.086, p90 0.407, max 0.585
+results/2026-10-11-core-scaling/dests.json: 75 rows, median |err| 0.060, p90 0.183, max 0.493

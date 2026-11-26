@@ -74,6 +74,10 @@ pub struct Launch {
     pub icache_victims: usize,
     pub refetch_line_ns: f64,
     pub fetch_jump_ns: f64,
+    /// with `icache_lines`: a cold line run into, streamed through the cache (0: `fetch_line_ns`). Runtime 64: one
+    /// group's straight-line code beyond the cache is 70.4 ns per line on the hardware, and the simulation adds ~6 ns of
+    /// its own per line to the fetch cost (64 -> 70.3; 70 gave 76.3, +8%); results/2026-11-25-jump-fetch
+    pub fetch_cold_stream_ns: f64,
     /// GPU-wide store bandwidth (GB/s), a floor on the time of a dispatch's writes (0: none, the drm profile): stores
     /// that fit the system-level cache went at no cost in the model, measured at ~280-340 GB/s whatever their size
     /// (1520 x 256 threads writing 1.5 / 6 / 24 MB: 9.9 / 22.0 / 72.1 us, after the workgroups' launch; runtime profile
@@ -133,6 +137,7 @@ impl Default for Launch {
             icache_victims: 1,
             refetch_line_ns: 64.0,
             fetch_jump_ns: 200.0,
+            fetch_cold_stream_ns: 0.0,
             store_gbps: 0.0,
             store_launch_ns: 0.0,
             later_waves_warm: false,
@@ -548,6 +553,7 @@ fn simulate_core_list(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Trace
     let wg_coords = |k| wg_coords(dims, k);
     let first_wave_lines = std::sync::Mutex::new(std::collections::HashSet::<usize>::new());
     let jump_lines = std::sync::Mutex::new(0u64);
+    let jump_lines_ns = std::sync::Mutex::new(0f64);
     // the first wave's device segments, which later waves find in the caches (`partial_warm`)
     let first_wave_segs = std::sync::Mutex::new(None::<std::sync::Arc<std::collections::HashSet<u64>>>);
     let dram_share_cache = std::sync::Mutex::new(None::<f64>);
@@ -634,6 +640,12 @@ fn simulate_core_list(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Trace
                     ps.push(t.pcs.len());
                     let off = t.pcs.len() as u32;
                     t.pcs.extend(t2.pcs);
+                    // (byte counts stay aligned with `mem` only while both traces carry them)
+                    if t.mem_bytes.len() == t.mem.len() && t2.mem_bytes.len() == t2.mem.len() {
+                        t.mem_bytes.extend(t2.mem_bytes);
+                    } else {
+                        t.mem_bytes.clear();
+                    }
                     t.mem.extend(t2.mem.into_iter().map(|(s, v)| (s + off, v)));
                     t.device_segments.extend(t2.device_segments.into_iter().map(|(s, v)| (s + off, v)));
                     t.masked.extend(t2.masked.into_iter().map(|s| s + off));
@@ -695,13 +707,22 @@ fn simulate_core_list(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Trace
                 let mut seen = std::collections::HashSet::new();
                 let mut prev_end = usize::MAX;
                 let mut jl = 0u64;
+                // and what they cost by the jump (`cost::JumpFetch`, results/2026-11-25-jump-fetch)
+                let mut jf = cost::JumpFetch::default();
+                let mut jns = 0.0;
                 for &pc in &t.pcs {
-                    if seen.insert(pc / 64) && prev_end != usize::MAX && pc != prev_end && pc / 64 != (prev_end.saturating_sub(1)) / 64 {
-                        jl += 1;
+                    if seen.insert(pc / 64) {
+                        if prev_end != usize::MAX && pc != prev_end && pc / 64 != (prev_end.saturating_sub(1)) / 64 {
+                            jl += 1;
+                            jns += jf.jump((prev_end - 1) / 64, pc / 64);
+                        } else {
+                            jf.run_into(pc / 64);
+                        }
                     }
                     prev_end = pc + sizes.get(&pc).copied().unwrap_or(0);
                 }
                 *jump_lines.lock().unwrap() = jl;
+                *jump_lines_ns.lock().unwrap() = jns;
             }
         }
         let seqs: Vec<&[usize]> = traces.iter().map(|t| t.pcs.as_slice()).collect();
@@ -1073,10 +1094,15 @@ fn simulate_core_list(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Trace
         // (hw, pp512 kernels with their stores replaced: rms_norm 13.0 -> 18.0 us = + all 1.9 MB at 365 GB/s, cpy_scalar
         // 74.0 -> 78.8 (all), soft_max 403 -> 425 (half of 14.7 MB), unary_gated 84.9 -> 92.3 and rope 28.3 -> 33.5
         // (a quarter: their stores overlap the loads' DRAM time))
-        let drain_cap: f64 = std::env::var("AGX_STORE_DRAIN").ok().and_then(|v| v.parse().ok()).unwrap_or(0.0);
+        // (default 8 since 2026-11-25, with AGX_STORE_DRAIN_ISSUE and 450 GB/s: held-out 7.5 -> 6.8%, pp 10.3 -> 8.7%;
+        // AGX_STORE_DRAIN=0 restores the earlier store floor only)
+        let drain_cap: f64 = std::env::var("AGX_STORE_DRAIN").ok().and_then(|v| v.parse().ok()).unwrap_or(8.0);
         // (lines several workgroups store to leave once: `store_share`)
         let ss = (*store_share_cache.lock().unwrap()).clamp(0.02, 1.0);
-        let store_drain = if drain_cap > 0.0 && l.store_gbps > 0.0 { l.store_gbps * 1e9 / active_cores / (l.clock_mhz * 1e6) / 64.0 / ss } else { 0.0 };
+        // AGX_STORE_DRAIN_GBPS: the drain's GPU-wide rate (default 450: probe_hot_lines STORE16 / PRE / POST sweep, hw
+        // 4.2 MB in 8-10 us)
+        let drain_gbps = std::env::var("AGX_STORE_DRAIN_GBPS").ok().and_then(|v| v.parse().ok()).unwrap_or(450.0);
+        let store_drain = if drain_cap > 0.0 && l.store_gbps > 0.0 { drain_gbps * 1e9 / active_cores / (l.clock_mhz * 1e6) / 64.0 / ss } else { 0.0 };
         let atomic_sharers = atomic_sharers_cache.lock().unwrap().clone();
         let mm = MemModel { resident_slc: resident, slc_resident_frac: frac, sharing, dram_share, first_touch_frac, active_cores, atomic_contenders, atomic_sharers, store_drain, store_drain_cap: drain_cap, ..mm.clone() };
         // `later_waves_warm`: the waves after the first find their data in the caches when it fits the system-level
@@ -1102,7 +1128,7 @@ fn simulate_core_list(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Trace
             refetched.store(true, std::sync::atomic::Ordering::Relaxed);
             // (a later wave's core has just run the same code: AGX_ICACHE_WARM=0 starts every wave with an empty cache)
             let icache_warm = w > 0 && std::env::var("AGX_ICACHE_WARM").map_or(true, |v| v != "0");
-            MemModel { icache_lines, icache_victims: l.icache_victims, icache_warm, fetch_line_ns: std::env::var("AGX_REFETCH_LINE_NS").ok().and_then(|v| v.parse().ok()).unwrap_or(l.refetch_line_ns), fetch_jump_ns: std::env::var("AGX_FETCH_JUMP_NS").ok().and_then(|v| v.parse().ok()).unwrap_or(l.fetch_jump_ns), fetch_cold_ns: std::env::var("AGX_FETCH_COLD_NS").ok().and_then(|v| v.parse().ok()).unwrap_or(l.fetch_line_ns), fetch_cold_jump_ns: std::env::var("AGX_FETCH_COLD_JUMP_NS").ok().and_then(|v| v.parse().ok()).unwrap_or(l.fetch_jump_line_ns), icache_bytes: 0, ..mm }
+            MemModel { icache_lines, icache_victims: l.icache_victims, icache_warm, fetch_line_ns: std::env::var("AGX_REFETCH_LINE_NS").ok().and_then(|v| v.parse().ok()).unwrap_or(l.refetch_line_ns), fetch_jump_ns: std::env::var("AGX_FETCH_JUMP_NS").ok().and_then(|v| v.parse().ok()).unwrap_or(l.fetch_jump_ns), fetch_cold_ns: std::env::var("AGX_FETCH_COLD_NS").ok().and_then(|v| v.parse().ok()).unwrap_or(if l.fetch_cold_stream_ns > 0.0 { l.fetch_cold_stream_ns } else { l.fetch_line_ns }), fetch_cold_jump_ns: std::env::var("AGX_FETCH_COLD_JUMP_NS").ok().and_then(|v| v.parse().ok()).unwrap_or(l.fetch_jump_line_ns), icache_bytes: 0, ..mm }
         } else {
             mm
         };
@@ -1110,6 +1136,11 @@ fn simulate_core_list(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Trace
         drop((seqs, mems, masked));
         let (chained, starts, pc_starts) = next_wave(&mut traces, &mut warn)?;
         let mm = if chained > 1 { MemModel { chain_pc_starts: Some(std::sync::Arc::new(pc_starts)), ..mm } } else { mm };
+        let mm = if traces.iter().all(|t| t.mem_bytes.len() == t.mem.len()) {
+            MemModel { mem_bytes: Some(std::sync::Arc::new(traces.iter().map(|t| t.mem_bytes.clone()).collect())), ..mm }
+        } else {
+            mm
+        };
         // AGX_CHAIN_SHARERS=1 (experiment, with AGX_PLACED_BUSY): each chained workgroup's accesses see the L2 pressure
         // of the cores busy at its own list position (a 2-wave placed core: wave 1 runs while only the cores with a
         // second workgroup are busy), not wave 0's
@@ -1244,11 +1275,19 @@ fn simulate_core_list(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Trace
     // fetch-bound, a long kernel's loops hide it (llama.cpp's Q8_0 matrix-vector kernel: 138 lines, 22.8 us of work,
     // 26.2 us measured with the 2.3 us launch)
     // AGX_FETCH_LINE_NS2 / AGX_FETCH_JUMP_LINE_NS (experiment): cold lines run into / jumped to
-    let jl = (jump_lines.into_inner().unwrap()).min(rep.code_lines) as f64;
+    let jump_lines_n = jump_lines.into_inner().unwrap();
+    let jl = jump_lines_n.min(rep.code_lines) as f64;
     let (fl, fj) = (std::env::var("AGX_FETCH_LINE_NS2").ok().and_then(|v| v.parse::<f64>().ok()).unwrap_or(l.fetch_line_ns),
                     std::env::var("AGX_FETCH_JUMP_LINE_NS").ok().and_then(|v| v.parse::<f64>().ok())
                         .unwrap_or(if l.fetch_jump_line_ns > 0.0 { l.fetch_jump_line_ns } else { l.fetch_line_ns }));
-    let fetch_ns = if refetched.load(std::sync::atomic::Ordering::Relaxed) || l.fetch_line_ns == 0.0 { 0.0 } else { (rep.code_lines as f64 - jl) * fl + jl * fj };
+    // the jumped-to lines by the jump (`cost::JumpFetch`) when the profile charges them apart (fetch_jump_line_ns > 0)
+    // and AGX_FETCH_JUMP_LINE_NS does not set a flat cost; AGX_JUMP_FETCH=0: the flat `fetch_jump_line_ns`
+    let jl_ns = if l.fetch_jump_line_ns > 0.0 && std::env::var("AGX_FETCH_JUMP_LINE_NS").is_err() && cost::JumpFetch::enabled() && (jl as u64) == jump_lines_n {
+        jump_lines_ns.into_inner().unwrap()
+    } else {
+        jl * fj
+    };
+    let fetch_ns = if refetched.load(std::sync::atomic::Ordering::Relaxed) || l.fetch_line_ns == 0.0 { 0.0 } else { (rep.code_lines as f64 - jl) * fl + jl_ns };
     let stack_ns = if l.stack_bytes > 0 { l.stack_launch_ns } else { 0.0 };
     let written = written.into_inner().unwrap() * store_share_cache.into_inner().unwrap() + written_again.into_inner().unwrap();
     let writes_ns = if !store_pcs.is_empty() { l.store_launch_ns } else { 0.0 };
