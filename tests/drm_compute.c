@@ -110,17 +110,7 @@ static void put64(uint8_t *p, uint64_t v) { memcpy(p, &v, 8); }
 static volatile uint32_t *clock_words;
 static atomic_int clock_run, clock_flush, clock_lines = 1;
 static uint64_t clock_iters, clock_t0, clock_t1;
-/* The ARM generic timer (AGX_CPU_CLOCK); elsewhere (another host running the simulator's ioctl shim,
-   rust/drm_shim) a 24 MHz count from CLOCK_MONOTONIC, the same frequency. */
-#if defined(__aarch64__)
 static inline uint64_t cntvct(void) { uint64_t v; __asm__ volatile("isb; mrs %0, cntvct_el0" : "=r"(v)); return v; }
-static inline uint64_t cntfrq(void) { uint64_t v; __asm__ volatile("mrs %0, cntfrq_el0" : "=r"(v)); return v; }
-static inline void clean_line(volatile uint32_t *w) { __asm__ volatile("dc cvac, %0" :: "r"(w) : "memory"); }
-#else
-static inline uint64_t cntvct(void) { return now_ns() * 3 / 125; }
-static inline uint64_t cntfrq(void) { return 24000000; }
-static inline void clean_line(volatile uint32_t *w) { (void)w; __atomic_thread_fence(__ATOMIC_SEQ_CST); }
-#endif
 static void *clock_thread(void *arg)
 {
     (void)arg;
@@ -131,7 +121,7 @@ static void *clock_thread(void *arg)
         for (int l = 0; l < clock_lines; l++) {
             volatile uint32_t *w = clock_words + 32 * l;
             w[0] = n; w[1] = (uint32_t)cntvct();
-            if (clock_flush) clean_line(w);
+            if (clock_flush) __asm__ volatile("dc cvac, %0" :: "r"(w) : "memory");
         }
     }
     clock_t1 = cntvct(); clock_iters = n;
@@ -471,7 +461,7 @@ int main(int argc, char **argv)
     }
     if (cw && *cw) {
         atomic_store(&clock_run, 0); pthread_join(clock_tid, NULL);
-        uint64_t frq = cntfrq();
+        uint64_t frq; __asm__ volatile("mrs %0, cntfrq_el0" : "=r"(frq));
         printf("{\"cpu_clock\":{\"iters\":%" PRIu64 ",\"cntvct\":[%" PRIu64 ",%" PRIu64 "],\"cntfrq\":%" PRIu64 ",\"flush\":%d}}\n",
                clock_iters, clock_t0, clock_t1, frq, (int)clock_flush);
     }
