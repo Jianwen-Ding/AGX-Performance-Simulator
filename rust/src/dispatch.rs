@@ -355,7 +355,7 @@ pub fn simulate_with(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer
                 total += match tracer {
                     Some(t) => t(wg)?.first().map_or(0, |tr| tr.pcs.len()),
                     None => {
-                        let ctx = GroupCtx { wg_size: l.wg, wg_id: wg, group: 0, core: 0, slot: 0, uniforms: l.uniforms.clone(), launch: cost::SrLaunch { tg_bytes: l.tg_bytes, regs: l.regs, ..Default::default() } };
+                        let ctx = GroupCtx { wg_size: l.wg, eff_size: l.wg, wg_id: wg, group: 0, core: 0, slot: 0, uniforms: l.uniforms.clone(), launch: cost::SrLaunch { tg_bytes: l.tg_bytes, regs: l.regs, ..Default::default() } };
                         prepared.as_ref().unwrap().trace_group(&ctx, l.max_steps)?.pcs.len()
                     }
                 };
@@ -398,7 +398,7 @@ fn simulate_placed(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Tracer>,
             None => {
                 let mut best = 0usize;
                 for g in 0..gpw {
-                    let ctx = GroupCtx { wg_size: l.wg, wg_id: wg, group: g, core: 0, slot: g, uniforms: l.uniforms.clone(), launch: cost::SrLaunch { tg_bytes: l.tg_bytes, regs: l.regs, ..Default::default() } };
+                    let ctx = GroupCtx { wg_size: l.wg, eff_size: l.wg, wg_id: wg, group: g, core: 0, slot: g, uniforms: l.uniforms.clone(), launch: cost::SrLaunch { tg_bytes: l.tg_bytes, regs: l.regs, ..Default::default() } };
                     best = best.max(prepared.as_ref().unwrap().trace_group(&ctx, l.max_steps)?.pcs.len());
                 }
                 best
@@ -502,7 +502,7 @@ fn simulate_core_list(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Trace
                 let pt = prepared.as_ref().unwrap();
                 let gs: Vec<u32> = (0..gpw).collect();
                 crate::par::map(&gs, |&g| {
-                    let ctx = GroupCtx { wg_size: l.wg, wg_id: wg0, group: g, core: 0, slot: g, uniforms: l.uniforms.clone(), launch: cost::SrLaunch { tg_bytes: l.tg_bytes, regs: l.regs, ..Default::default() } };
+                    let ctx = GroupCtx { wg_size: l.wg, eff_size: l.wg, wg_id: wg0, group: g, core: 0, slot: g, uniforms: l.uniforms.clone(), launch: cost::SrLaunch { tg_bytes: l.tg_bytes, regs: l.regs, ..Default::default() } };
                     pt.trace_group(&ctx, l.max_steps).map(|t| t.pcs.len())
                 }).into_iter().collect::<Result<Vec<_>, _>>()?
             }
@@ -593,7 +593,7 @@ fn simulate_core_list(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Trace
                 out
             }
             None => crate::par::map(&jobs, |&(i, g, slot)| {
-                let ctx = GroupCtx { wg_size: l.wg, wg_id: wg_at(i), group: g, core: 0, slot, uniforms: l.uniforms.clone(), launch: cost::SrLaunch { tg_bytes: l.tg_bytes, regs: l.regs, ..Default::default() } };
+                let ctx = GroupCtx { wg_size: l.wg, eff_size: l.wg, wg_id: wg_at(i), group: g, core: 0, slot, uniforms: l.uniforms.clone(), launch: cost::SrLaunch { tg_bytes: l.tg_bytes, regs: l.regs, ..Default::default() } };
                 prepared.as_ref().unwrap().trace_group(&ctx, l.max_steps)
             }),
         };
@@ -815,7 +815,7 @@ fn simulate_core_list(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Trace
                     for &k in &others {
                         let gs: Vec<u32> = (0..gpw).collect();
                         let tr = crate::par::map(&gs, |&g| {
-                            let ctx = GroupCtx { wg_size: l.wg, wg_id: wg_coords(k), group: g, core: 1, slot: g, uniforms: l.uniforms.clone(), launch: cost::SrLaunch { tg_bytes: l.tg_bytes, regs: l.regs, ..Default::default() } };
+                            let ctx = GroupCtx { wg_size: l.wg, eff_size: l.wg, wg_id: wg_coords(k), group: g, core: 1, slot: g, uniforms: l.uniforms.clone(), launch: cost::SrLaunch { tg_bytes: l.tg_bytes, regs: l.regs, ..Default::default() } };
                             prepared.as_ref().unwrap().trace_group(&ctx, l.max_steps)
                         }).into_iter().collect::<Result<Vec<_>, _>>()?;
                         ovs.push(cost::segment_overlap(&traces, &tr, &device_pcs));
@@ -861,7 +861,7 @@ fn simulate_core_list(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Trace
                             None => {
                                 let gs: Vec<u32> = (0..gpw).collect();
                                 crate::par::map(&gs, |&g| {
-                                    let ctx = GroupCtx { wg_size: l.wg, wg_id: wg_coords(k), group: g, core: 1, slot: g, uniforms: l.uniforms.clone(), launch: cost::SrLaunch { tg_bytes: l.tg_bytes, regs: l.regs, ..Default::default() } };
+                                    let ctx = GroupCtx { wg_size: l.wg, eff_size: l.wg, wg_id: wg_coords(k), group: g, core: 1, slot: g, uniforms: l.uniforms.clone(), launch: cost::SrLaunch { tg_bytes: l.tg_bytes, regs: l.regs, ..Default::default() } };
                                     prepared.as_ref().unwrap().trace_group(&ctx, l.max_steps)
                                 }).into_iter().collect()
                             }
@@ -931,7 +931,7 @@ fn simulate_core_list(code: &[u8], l: &Launch, p: &Params, tracer: Option<&Trace
                         None => {
                             let gs: Vec<u32> = (0..gpw).collect();
                             crate::par::map(&gs, |&g| {
-                                let ctx = GroupCtx { wg_size: l.wg, wg_id: wg_coords(k), group: g, core: 1, slot: g, uniforms: l.uniforms.clone(), launch: cost::SrLaunch { tg_bytes: l.tg_bytes, regs: l.regs, ..Default::default() } };
+                                let ctx = GroupCtx { wg_size: l.wg, eff_size: l.wg, wg_id: wg_coords(k), group: g, core: 1, slot: g, uniforms: l.uniforms.clone(), launch: cost::SrLaunch { tg_bytes: l.tg_bytes, regs: l.regs, ..Default::default() } };
                                 prepared.as_ref().unwrap().trace_group(&ctx, l.max_steps)
                             }).into_iter().collect()
                         }

@@ -657,7 +657,10 @@ fn placement(d: &Dispatch, geometry: &Geometry, w: u64, g: u32) -> (u32, u32) {
 fn run_workgroup(d: &Dispatch, geometry: &Geometry, cache: &CodeCache, mem: &mut Memory, [wx, wy, wz]: [u32; 3], core_override: Option<u32>, record: bool,
                  stats: &mut RunStats) -> Result<Vec<Trace>, String> {
     let code = &d.code;
-    let gpw = geometry.groups;
+    let wid = [wx, wy, wz];
+    // the last workgroup of a ragged grid runs as a smaller workgroup (GroupCtx::eff_size)
+    let eff: [u32; 3] = std::array::from_fn(|a| d.wg[a].min(d.grid[a].saturating_sub(wid[a] * d.wg[a])).max(1));
+    let gpw = (eff[0] * eff[1] * eff[2]).div_ceil(32);
     let linear = geometry.linear([wx, wy, wz]);
     let writer_base = linear << 16;
     let mut tg = vec![0u8; d.shared_bytes.max(16) as usize];
@@ -665,15 +668,12 @@ fn run_workgroup(d: &Dispatch, geometry: &Geometry, cache: &CodeCache, mem: &mut
         .map(|g| {
             let (core, slot) = placement(d, geometry, linear, g);
             let core = core_override.unwrap_or(core);
-            let ctx = GroupCtx { wg_size: d.wg, wg_id: [wx, wy, wz], group: g, core, slot, uniforms: d.uniforms.clone(), launch: d.launch };
+            let ctx = GroupCtx { wg_size: d.wg, eff_size: eff, wg_id: [wx, wy, wz], group: g, core, slot, uniforms: d.uniforms.clone(), launch: d.launch };
             let mut st = CoreState::new(d.num_registers, None);
             let lanes = ctx.lanes();
             for t in 0..32 {
-                // lanes beyond the grid (partial workgroups at the edge) do not exist
-                let i = 32 * g + t as u32;
-                let local = [i % d.wg[0], (i / d.wg[0]) % d.wg[1], i / (d.wg[0] * d.wg[1])];
-                let exists = t < lanes && [wx, wy, wz].iter().enumerate().all(|(axis, &w)|
-                    w as u64 * d.wg[axis] as u64 + (local[axis] as u64) < d.grid[axis] as u64);
+                // the workgroup's threads fill its lanes in order; lanes past them do not exist
+                let exists = t < lanes;
                 st.live[t] = exists;
                 st.exec[t] = exists;
                 let _ = st.set_reg16(0, t, if exists { 0 } else { 1 });
@@ -1184,7 +1184,7 @@ fn uniform_store(g: &mut Group, f: &Fields) -> Result<(), String> {
 /// Run a driver preamble (Mesa's once-per-dispatch program that loads the root table into uniforms) as a single
 /// lane with the given 32-bit uniforms; returns every 32-bit uniform afterwards, for the main shader's Dispatch.
 pub fn run_preamble(code: &[u8], uniforms: &[(usize, u32)], mem: &mut Memory, num_registers: usize) -> Result<Vec<(usize, u32)>, String> {
-    let ctx = GroupCtx { wg_size: [1, 1, 1], wg_id: [0, 0, 0], group: 0, core: 0, slot: 96, uniforms: uniforms.to_vec(),
+    let ctx = GroupCtx { wg_size: [1, 1, 1], eff_size: [1, 1, 1], wg_id: [0, 0, 0], group: 0, core: 0, slot: 96, uniforms: uniforms.to_vec(),
                           launch: crate::cost::SrLaunch { preamble: true, ..Default::default() } };
     let mut st = CoreState::new(num_registers, None);
     for t in 0..32 {
@@ -2323,7 +2323,7 @@ mod tests {
             st.exec[t] = mask & (1 << t) != 0;
             st.set_reg32(4, t, 0xaabbccdd).unwrap();
         }
-        Group { st, ctx: GroupCtx { wg_size: [8, 4, 2], wg_id: [3, 2, 1], group: 1, core: 19, slot: 7, uniforms: vec![],
+        Group { st, ctx: GroupCtx { wg_size: [8, 4, 2], eff_size: [8, 4, 2], wg_id: [3, 2, 1], group: 1, core: 19, slot: 7, uniforms: vec![],
             launch: crate::cost::SrLaunch { tg_bytes: 513, regs: 65, context: Some(47), pipeline: Some(0x1080), preamble: false } },
             pc: 0, done: false, steps: 0, trace: None, stack: vec![], pending: vec![], lane_regs: vec![] }
     }

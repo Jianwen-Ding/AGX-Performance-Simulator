@@ -815,7 +815,12 @@ pub struct SrLaunch {
 
 #[derive(Clone, Debug)]
 pub struct GroupCtx {
+    /// the dispatch's workgroup size
     pub wg_size: [u32; 3],
+    /// this workgroup's size: the dispatch's, clipped to the grid for the last workgroup of a grid that is not a
+    /// whole number of workgroups. The hardware runs such a workgroup as a smaller one: its threads are packed into
+    /// lanes with local positions of that size, and SR4-6 read it (metal-cpp/asahi probe, 2026-11-26).
+    pub eff_size: [u32; 3],
     pub wg_id: [u32; 3],
     pub group: u32,
     pub core: u32,
@@ -827,14 +832,14 @@ pub struct GroupCtx {
 
 impl GroupCtx {
     pub fn threads(&self) -> u32 {
-        self.wg_size[0] * self.wg_size[1] * self.wg_size[2]
+        self.eff_size[0] * self.eff_size[1] * self.eff_size[2]
     }
     /// active lanes of this group (a partial last group has fewer)
     pub fn lanes(&self) -> usize {
         (self.threads().saturating_sub(32 * self.group)).min(32) as usize
     }
     fn coordinate(&self, axis: usize, i: u32) -> u32 {
-        let [x, y, _] = self.wg_size;
+        let [x, y, _] = self.eff_size;
         match axis { 0 => i % x, 1 => (i / x) % y, 2 => i / (x * y), _ => unreachable!() }
     }
     /// Special register `sr` for lane `t`, or None when not modelled.
@@ -843,7 +848,7 @@ impl GroupCtx {
         let i = 32 * self.group + t as u32;
         Some(match sr {
             0..=2 => self.wg_id[sr as usize],
-            4..=6 => self.wg_size[sr as usize - 4],
+            4..=6 => self.eff_size[sr as usize - 4],
             8..=10 => self.wg_size[sr as usize - 8],
             7 => (l + 31) / 32,
             15 => 16,
