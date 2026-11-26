@@ -24,6 +24,7 @@ The stack / scratch item is excluded: hand-built direct-DRM scratch programs sta
 | [safe-10](safe-10-memory-ordering.md) | SB / LB / threadgroup litmus tests, atomics as release, fence cost, ordering across dispatches | PTX `fence` / `membar` / `ld.acquire` / `st.release` mapping |
 | [safe-11](safe-11-occupancy-and-clock.md) | Small-workgroup occupancy cap, imageblock SRs, cost and skew of the in-shader clock | Occupancy API, `cudaDeviceProp`, `clock()` / `%globaltimer` |
 | [safe-12](safe-12-drm-interface-map.md) | Reference for the direct-DRM interface: UAPI, command words, limits, sync objects | Building blocks of the CUDA runtime (allocation, launch, streams, events). **Steps 1-4 done 2026-10-16:** playground `docs/drm-interface.md`; cross-queue syncobj waits cost ~0.1 ms |
+| [safe-13](safe-13-air-to-agx-assumptions.md) | What the `.air` -> AGX pathway (`llvm-air2agx`) assumes: device-scope atomics coherent without barriers, threadgroup-only barriers it drops, G14's native float add for CAS loops, the backend's 64-bit atomics, the cost of unused buffer locations | Metal kernels compiled for AGX; the same atomics and barriers are PTX's `atom` / `bar.sync` at GPU scope. **Open (logged 2026-11-26):** every result so far is the model's |
 
 Before starting a task, read the playground's `docs/external-knowledge.md` (a survey of published sources against our
 measurements), so a task confirms or refutes known claims instead of rediscovering them.
