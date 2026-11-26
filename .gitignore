@@ -13,3 +13,5 @@ spirv/expected/**/predict-*/
 spirv/expected/**/sim-*/
 /tasks/ptx-hw-smoke/inputs/
 /tasks/ptx-hw-smoke/out/
+/rust/drm_shim/target/
+/tests/build/

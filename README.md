@@ -94,12 +94,61 @@ known gaps: [novel-results/2026-10-11-cost-model](novel-results/2026-10-11-cost-
 | `scripts/scale_probes.py`, `scripts/mem_probes.py`, `scripts/wg_placement.py`, `scripts/dispatch_probes.py` | 1–32 groups per core, memory hierarchy, workgroup placement, whole-dispatch validation |
 | other `scripts/*.py` | Direct-DRM / Vulkan dispatch, assembly and patching helpers the hardware scripts import |
 | `tests/*.c` | C harnesses the hardware runners compile (`drm_compute.c`, Vulkan, cache-layout) |
+| `rust/drm_shim/`, `scripts/drm_shim_suite.py` | Optional LD_PRELOAD ioctl shim: the Asahi DRM uAPI served by the simulator, so a direct-DRM client runs unmodified on any Linux machine ([below](#ioctl-shim-optional)) |
 | `testsuite/`, `coverage/` | Hardware-recorded functional test suite (721 cases); coverage catalog of every known behaviour, to be recorded ([coverage/README.md](coverage/README.md)) |
 | `spirv/`, `tests/vk_run.c` | Realistic SPIR-V compute workloads with numpy references, a generic Vulkan runner, and the path from the driver's compiled code to the simulator |
 | `spirv/compiled/`, `scripts/build_mesa_shim.sh` | The workloads compiled by Mesa's Asahi driver (25.2.8, 26.0.3) without the GPU (no-op drm-shim reporting a G14C); root-table layouts per Mesa version ([finding](results/2026-10-12-spirv-offline/README.md)) |
 | `tasks/` | Self-contained tasks for an agent on Asahi Linux: [coverage recording](tasks/agx-coverage.md), [SPIR-V workloads](tasks/spirv-workloads.md), [safe AGX probes](tasks/safe-probes.md) (safe-01 .. safe-06: numeric semantics, cost-model gaps, memory system, submission, textures via Vulkan, the 214 unknown special-register cases) |
 | `results/` | Calibration data and every validation measurement |
 | `novel-results/` | The cost-model finding and the hardware findings its rules come from |
+
+## ioctl shim (optional)
+
+`rust/drm_shim` builds `libagx_drm_shim.so`, an LD_PRELOAD library that serves the Asahi DRM uAPI
+(`include/uapi/drm/asahi_drm.h`, vendored in `rust/drm_shim/include`) with the simulator: a client that talks to the
+render node directly (`tests/drm_compute.c`, a runtime built on the uAPI) runs unmodified on any Linux machine, its
+compute commands on the functional model and its firmware timestamps from the dispatch model. It is off unless
+`AGX_SHIM_DRM` is set; then every other call still passes straight through to the kernel.
+
+```sh
+make drm-shim
+AGX_SHIM_DRM=1 LD_PRELOAD=rust/drm_shim/target/release/libagx_drm_shim.so \
+    tests/build/drm_compute /dev/dri/renderD128 code.bin 4096 out.bin 1 64 table.bin
+```
+
+| Variable | Effect |
+| --- | --- |
+| `AGX_SHIM_DRM` | `1`: serve `/dev/dri/renderD128`; any other path: serve that path (it need not exist) |
+| `AGX_SHIM_TIMING=0` | functional only (no dispatch model; 1 us per launch) |
+| `AGX_SHIM_LOG=1` | every object, bind and launch on stderr |
+| `AGX_SHIM_MAX_STEPS` | the functional model's step limit per SIMD group (a kernel past it faults) |
+| `AGX_SHIM_PARAMS` | `field=value,...` overrides of GET_PARAMS (`gpu_generation`, `num_clusters_total`, `vm_start`, ...) |
+
+* **Served:** DRM_IOCTL_VERSION (`asahi`), GET_CAP, SET_CLIENT_CAP, GEM_CLOSE, the SYNCOBJ ioctls (binary and
+  timeline: create, destroy, wait, timeline wait, reset, signal, timeline signal, query, transfer); ASAHI
+  GET_PARAMS (the modelled M2 Max: G14C B1, 38 cores, 1398 MHz, 64 commands per submit, 24 MHz timestamps; the
+  cluster split, chip id and VM range are nominal), GET_TIME, VM_CREATE / DESTROY / BIND (map, unmap, single
+  page), GEM_CREATE / MMAP_OFFSET / BIND_OBJECT (timestamps), QUEUE_CREATE / DESTROY, SUBMIT with in / out syncs.
+* **A compute command** is decoded from the VM's memory as the hardware reads it (Mesa's genxml): the CDM stream
+  (launch words 0 / 1, the G14X word, direct and both indirect modes, barriers, links with and without return,
+  terminate) and each launch's USC words (Uniform / Uniform High preloads, Shared, Shader, Registers, Preshader:
+  run first, its stored uniforms become the launch's). Each launch runs on the functional model over the VM's
+  binds; the binds mapped writable are written back. A fault (unmapped access, step limit, undecodable stream) is
+  reported as the firmware does: the command completes with both timestamps 0 (and a line on stderr).
+* **Ordering and time:** a submit runs inside the SUBMIT ioctl once its in-syncs are signaled, else when a later
+  signal satisfies them (in order per queue). Timestamps are the host monotonic clock in 24 MHz ticks, a queue's
+  commands placed back to back, each as long as the dispatch model predicts. The model is calibrated on
+  back-to-back medians at full clock; a single cold submit on the hardware is slower (the clock ramps up over
+  ~15 ms: the suite's recorded one-shot times are 1.6x the predictions on geometric mean).
+* **Not served:** render commands (EOPNOTSUPP), PRIME and syncobj fd export / import (EOPNOTSUPP), libdrm's device
+  enumeration through sysfs (open the node by path; Mesa's drm-shim, `scripts/build_mesa_shim.sh`, fakes the
+  enumeration but executes nothing), a dup of the shim's fd, textures / samplers (ignored), the helper program
+  (ignored: the functional model gives every thread its stack). Two binds of one object are separate memory within
+  a command.
+* **Checks:** `make shim-suite` replays all 721 hardware-recorded cases (`testsuite/`) with `tests/drm_compute.c`,
+  the client that recorded them, through the shim: every case matches the hardware word for word.
+  `cargo test` in `rust/drm_shim` checks the structure layouts against the C headers, and pending in-syncs,
+  timelines, the fault path and the pass-through (`tests/sync.c`).
 
 ## Requirements
 

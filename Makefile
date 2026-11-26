@@ -9,6 +9,7 @@ export CC PROBE_INCLUDE
 .PHONY: help verify-conversions verify-float-edges verify-transcendentals verify-sr check rust test verify-cost-model verify-simd-matrix verify-memory-model bench verify-bench cost-calibrate cost-validate suite-check record-suite record-transcendentals coverage-validate coverage-record coverage-check coverage-properties coverage-status spirv-build spirv-run spirv-lavapipe spirv-sim spirv-compile spirv-predict verify-traces spirv-verify asahi-verify
 .PHONY: verify-llvm-call-ret verify-llvm-leaf-call
 .PHONY: verify-llvm-pruning
+.PHONY: drm-shim shim-suite
 .PHONY: verify-llvm-shuffle-analysis
 .PHONY: verify-llvm-structurize-analysis
 .PHONY: verify-llvm-region-cache
@@ -20,6 +21,8 @@ help:
 	@echo 'make verify-memory-model  Offline: memory-hierarchy model against the stored memory measurements (~2 min)'
 	@echo 'make verify-scaling     Offline: 1-32 groups per core incl. idle-slot rows (scale_check)'
 	@echo 'make suite-check        Offline: functional simulator against the hardware-recorded test suite (testsuite/)'
+	@echo 'make drm-shim           Build and test the optional LD_PRELOAD ioctl shim (rust/drm_shim: the Asahi DRM uAPI on the simulator)'
+	@echo 'make shim-suite         Offline: the test suite replayed by tests/drm_compute.c (unmodified client) through the ioctl shim'
 	@echo 'make record-suite       Hardware: re-record the test suite (~15 min)'
 	@echo 'make record-transcendentals Hardware: exact fp32 rcp/rsqrt tables and log2/exp2/sin samples (testsuite/transcendental)'
 	@echo 'make coverage-validate  Offline: build, assemble and gate every coverage case (scripts/coverage_catalog.py)'
@@ -80,6 +83,12 @@ verify-scaling: rust
 
 suite-check: rust
 	rust/target/release/suite_check testsuite
+
+drm-shim:
+	cd rust/drm_shim && cargo build --release && cargo test --release
+
+shim-suite: drm-shim   # offline: the test suite replayed by tests/drm_compute.c through the ioctl shim (rust/drm_shim)
+	$(PYTHON) -B scripts/drm_shim_suite.py
 
 record-suite:
 	$(PYTHON) -B scripts/record_suite.py
