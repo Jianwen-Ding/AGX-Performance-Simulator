@@ -10,6 +10,9 @@
 //! main shader's uniforms. --dump writes a region back after the run. Prints one JSON line (instructions, groups,
 //! uniforms after the preamble). --alloc-regs / --vm-slot / --pipeline give what get_sr SR19 (register allocation, 16-bit
 //! registers), SR21 (VM slot) and SR32 (USC offset of the pipeline words) read; without them those reads are errors.
+//! --dump-changed VA=BYTES:FILE writes only what the run changed in a region: records of (u64 offset, u64 length,
+//! bytes), little-endian, for each run of changed 4 KiB chunks (a runtime applying a dispatch's effects to large
+//! buffers it barely touches).
 //! --sampler-heap is the command's sampler heap (drm_asahi_cmd_compute sampler_heap / sampler_count): COUNT 8-byte
 //! sampler descriptors at VA, which a texture_sample's register sampler index selects.
 //! --m2-core-map FILE supplies a JSON array of packed M2 Max SR20 IDs, one per linear workgroup.
@@ -24,6 +27,29 @@
 //! over the memory as the dispatch finds it (after the preamble).
 
 use agx_sim::func::{self, Dispatch, Memory};
+
+/// (u64 offset, u64 length, bytes) records of the runs of 4 KiB chunks that differ between old and new.
+fn changed_records(old: &[u8], new: &[u8]) -> Vec<u8> {
+    const CHUNK: usize = 4096;
+    let mut out = vec![];
+    let mut start: Option<usize> = None;
+    let n = new.len();
+    let mut flush = |s: usize, e: usize, out: &mut Vec<u8>| {
+        out.extend_from_slice(&(s as u64).to_le_bytes());
+        out.extend_from_slice(&((e - s) as u64).to_le_bytes());
+        out.extend_from_slice(&new[s..e]);
+    };
+    for c in (0..n).step_by(CHUNK) {
+        let e = (c + CHUNK).min(n);
+        if old[c..e] != new[c..e] {
+            start.get_or_insert(c);
+        } else if let Some(s) = start.take() {
+            flush(s, c, &mut out);
+        }
+    }
+    if let Some(s) = start { flush(s, n, &mut out); }
+    out
+}
 
 fn num(s: &str) -> u64 {
     let s = s.trim();
@@ -47,6 +73,7 @@ fn main() {
     let code = std::fs::read(&a[0]).unwrap_or_else(|e| die(&format!("{}: {}", a[0], e)));
     let (mut grid, mut wg, mut shared, mut regs, mut max_steps) = ([1u32, 1, 1], [1u32, 1, 1], 0u32, 128usize, 100_000_000u64);
     let (mut preamble, mut uniforms, mut dumps) = (None, vec![], vec![]);
+    let mut changed_dumps: Vec<(u64, usize, String)> = vec![];
     let mut tile_dump: Option<String> = None;
     let mut state_slots: Vec<(bool, u32, Vec<u8>)> = vec![];
     let mut core_map: Option<Vec<u32>> = None;
@@ -111,10 +138,11 @@ fn main() {
                 state_slots.push((a[i] == "--tex-state", num(slot) as u32, bytes));
             }
             "--tile-dump" => tile_dump = Some(v.clone()),
-            "--dump" => {
+            "--dump" | "--dump-changed" => {
                 let (va, rest) = kv();
                 let (n, f) = rest.split_once(':').unwrap_or_else(|| die("--dump expects VA=BYTES:FILE"));
-                dumps.push((num(va), num(n) as usize, f.to_string()));
+                let d = (num(va), num(n) as usize, f.to_string());
+                if a[i] == "--dump" { dumps.push(d) } else { changed_dumps.push(d) }
             }
             o => die(&format!("unknown option {}", o)),
         }
@@ -153,6 +181,8 @@ fn main() {
         std::fs::write(f, out).unwrap_or_else(|e| die(&format!("{}: {}", f, e)));
     }
     phase("preamble and trace", &mut clock);
+    let before: Vec<Vec<u8>> = changed_dumps.iter()
+        .map(|(va, n, _)| mem.read_bytes(*va, *n).unwrap_or_else(|e| die(&e))).collect();
     let st = match &core_map {
         Some(cores) => func::run_with_m2_core_map(&d, &mut mem, cores),
         None => func::run(&d, &mut mem),
@@ -170,6 +200,10 @@ fn main() {
     for (va, n, f) in &dumps {
         let b = mem.read_bytes(*va, *n).unwrap_or_else(|e| die(&e));
         std::fs::write(f, b).unwrap_or_else(|e| die(&format!("{}: {}", f, e)));
+    }
+    for ((va, n, f), old) in changed_dumps.iter().zip(&before) {
+        let new = mem.read_bytes(*va, *n).unwrap_or_else(|e| die(&e));
+        std::fs::write(f, changed_records(old, &new)).unwrap_or_else(|e| die(&format!("{}: {}", f, e)));
     }
     if let Some(f) = &tile_dump {
         std::fs::write(f, agx_sim::frag::dump()).unwrap_or_else(|e| die(&format!("{}: {}", f, e)));
